@@ -3689,7 +3689,11 @@ Return your response as a JSON object with these fields:
         throw new Error("No response from AI");
       }
 
-      const itemData = JSON.parse(content);
+      // Clean the content to extract JSON from markdown
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/```\s*([\s\S]*?)\s*```/);
+      const jsonString = jsonMatch ? jsonMatch[1] : content;
+      
+      const itemData = JSON.parse(jsonString);
       res.json(itemData);
     } catch (error: any) {
       console.error("Item generation error:", error);
@@ -3738,7 +3742,11 @@ Return your response as a JSON object with these fields:
         throw new Error("No response from AI");
       }
 
-      const locationData = JSON.parse(content);
+      // Clean the content to extract JSON from markdown
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/```\s*([\s\S]*?)\s*```/);
+      const jsonString = jsonMatch ? jsonMatch[1] : content;
+      
+      const locationData = JSON.parse(jsonString);
       res.json(locationData);
     } catch (error: any) {
       console.error("Location generation error:", error);
@@ -3786,7 +3794,11 @@ Return your response as a JSON object with these fields:
         throw new Error("No response from AI");
       }
 
-      const encounterData = JSON.parse(content);
+      // Clean the content to extract JSON from markdown
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/```\s*([\s\S]*?)\s*```/);
+      const jsonString = jsonMatch ? jsonMatch[1] : content;
+      
+      const encounterData = JSON.parse(jsonString);
       res.json(encounterData);
     } catch (error: any) {
       console.error("Encounter generation error:", error);
@@ -3830,7 +3842,11 @@ Return your response as a JSON object with these fields:
         throw new Error("No response from AI");
       }
 
-      const aiResponse = JSON.parse(content);
+      // Clean the content to extract JSON from markdown
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/```\s*([\s\S]*?)\s*```/);
+      const jsonString = jsonMatch ? jsonMatch[1] : content;
+      
+      const aiResponse = JSON.parse(jsonString);
       const generatedMap = {
         id: Date.now(),
         ...mapData,
