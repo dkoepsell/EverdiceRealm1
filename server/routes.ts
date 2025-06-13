@@ -1596,14 +1596,20 @@ Return your response as a JSON object with these fields:
         
         if (recentRolls && recentRolls.length > 0) {
           diceRollContext = "\n\nRECENT DICE ROLL RESULTS TO INCORPORATE:\n";
-          recentRolls.forEach(roll => {
-            const character = participants?.find(p => p.characterId === roll.characterId)?.character;
-            const characterName = character?.name || "Unknown Character";
-            const rollResult = roll.result || roll.total || 0;
+          
+          // Get character names for the dice rolls
+          for (const roll of recentRolls) {
+            let characterName = "Unknown Character";
+            if (roll.characterId) {
+              const character = await storage.getCharacter(roll.characterId);
+              characterName = character?.name || "Unknown Character";
+            }
+            
+            const rollResult = roll.result || 0;
             const purpose = roll.purpose || "Unknown action";
             
-            diceRollContext += `- ${characterName} rolled ${roll.diceType} for "${purpose}": Result ${rollResult} (${roll.modifier > 0 ? '+' : ''}${roll.modifier || 0} modifier)\n`;
-          });
+            diceRollContext += `- ${characterName} rolled ${roll.diceType} for "${purpose}": Result ${rollResult} (${roll.modifier && roll.modifier > 0 ? '+' : ''}${roll.modifier || 0} modifier)\n`;
+          }
           diceRollContext += "\nIMPORTANT: Use these dice roll results to determine the outcome of the player's actions and advance the story accordingly. Success or failure should be reflected in the narrative.\n";
         }
       } catch (error) {

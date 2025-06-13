@@ -1333,6 +1333,32 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(diceRolls.createdAt))
       .limit(limit);
   }
+
+  async getRecentDiceRolls(campaignId: number, sinceTime: string, limit: number = 5): Promise<DiceRoll[]> {
+    // Get campaign participants to filter dice rolls
+    const participants = await db
+      .select()
+      .from(campaignParticipants)
+      .where(eq(campaignParticipants.campaignId, campaignId));
+    
+    if (participants.length === 0) {
+      return [];
+    }
+    
+    const participantUserIds = participants.map(p => p.userId);
+    
+    return db
+      .select()
+      .from(diceRolls)
+      .where(
+        and(
+          sql`${diceRolls.userId} = ANY(${participantUserIds})`,
+          sql`${diceRolls.createdAt} >= ${sinceTime}`
+        )
+      )
+      .orderBy(desc(diceRolls.createdAt))
+      .limit(limit);
+  }
   
   // Adventure Completion operations
   async createAdventureCompletion(completion: InsertAdventureCompletion): Promise<AdventureCompletion> {
