@@ -78,10 +78,15 @@ import NotesTabSimple from "@/components/dm-toolkit/NotesTabSimple";
 import SessionControlPanel from "@/components/dm-toolkit/SessionControlPanel";
 import LivePlayerTracker from "@/components/dm-toolkit/LivePlayerTracker";
 import DMQuickTools from "@/components/dm-toolkit/DMQuickTools";
+import ItemCreatorTab from "@/components/dm-toolkit/ItemCreatorTab";
+import LocationManagerTab from "@/components/dm-toolkit/LocationManagerTab";
+import EncounterBuilderTab from "@/components/dm-toolkit/EncounterBuilderTab";
+import MapGeneratorTab from "@/components/dm-toolkit/MapGeneratorTab";
+import LiveCampaignManagerTab from "@/components/dm-toolkit/LiveCampaignManagerTab";
 
 export default function DMToolkit() {
   const { user, isLoading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState("companions");
+  const [activeTab, setActiveTab] = useState("live-manager");
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
   
