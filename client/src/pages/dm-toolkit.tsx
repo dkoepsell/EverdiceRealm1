@@ -146,26 +146,31 @@ export default function DMToolkit() {
         <p className="text-sm md:text-base text-muted-foreground">Create and manage your campaigns with these powerful tools</p>
       </div>
       
-      <Tabs defaultValue="companions" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-3 md:grid-cols-8 lg:grid-cols-10 w-full overflow-x-auto">
-          <TabsTrigger value="companions" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
-            Companions
+      <Tabs defaultValue="live-manager" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid grid-cols-4 md:grid-cols-8 w-full overflow-x-auto">
+          <TabsTrigger value="live-manager" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
+            <PlayIcon className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
+            Live Manager
           </TabsTrigger>
-          <TabsTrigger value="locations" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
-            Locations
-          </TabsTrigger>
-          <TabsTrigger value="quests" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
-            Quests
-          </TabsTrigger>
-          <TabsTrigger value="items" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
+          <TabsTrigger value="item-creator" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
+            <Sparkles className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
             Items
           </TabsTrigger>
-          <TabsTrigger value="monsters" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
-            Monsters
+          <TabsTrigger value="location-manager" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
+            <MapPin className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
+            Locations
           </TabsTrigger>
-          <TabsTrigger value="livesession" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
-            <PlayIcon className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
-            Live Session
+          <TabsTrigger value="encounter-builder" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
+            <Swords className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
+            Encounters
+          </TabsTrigger>
+          <TabsTrigger value="map-generator" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
+            <Globe className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
+            Maps
+          </TabsTrigger>
+          <TabsTrigger value="companions" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
+            <Users className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
+            NPCs
           </TabsTrigger>
           <TabsTrigger value="invitations" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
             <Mail className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
@@ -175,32 +180,30 @@ export default function DMToolkit() {
             <StickyNote className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
             Notes
           </TabsTrigger>
-          <TabsTrigger value="generators" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
-            Generators
-          </TabsTrigger>
-          <TabsTrigger value="deploy" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
-            Deploy
-          </TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="live-manager" className="space-y-4">
+          <LiveCampaignManagerTab selectedCampaignId={selectedCampaignId} />
+        </TabsContent>
+        
+        <TabsContent value="item-creator" className="space-y-4">
+          <ItemCreatorTab />
+        </TabsContent>
+        
+        <TabsContent value="location-manager" className="space-y-4">
+          <LocationManagerTab />
+        </TabsContent>
+        
+        <TabsContent value="encounter-builder" className="space-y-4">
+          <EncounterBuilderTab />
+        </TabsContent>
+        
+        <TabsContent value="map-generator" className="space-y-4">
+          <MapGeneratorTab />
+        </TabsContent>
         
         <TabsContent value="companions" className="space-y-4">
           <CompanionsTab />
-        </TabsContent>
-        
-        <TabsContent value="locations" className="space-y-4">
-          <LocationsTab />
-        </TabsContent>
-        
-        <TabsContent value="quests" className="space-y-4">
-          <QuestsTab />
-        </TabsContent>
-        
-        <TabsContent value="items" className="space-y-4">
-          <MagicItemsTab />
-        </TabsContent>
-        
-        <TabsContent value="monsters" className="space-y-4">
-          <MonstersTab />
         </TabsContent>
 
         <TabsContent value="invitations" className="space-y-4">

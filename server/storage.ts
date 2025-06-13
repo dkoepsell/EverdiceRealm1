@@ -195,6 +195,13 @@ export interface IStorage {
   updateCharacterItem(characterItemId: number, updates: Partial<CharacterItem>): Promise<CharacterItem>;
   removeItemFromCharacter(characterItemId: number): Promise<boolean>;
   getCharacterAttunedItemsCount(characterId: number): Promise<number>;
+
+  // DM Toolkit methods for AI-assisted features
+  getUserItems(userId: number): Promise<any[]>;
+  getUserLocations(userId: number): Promise<any[]>;
+  getUserEncounters(userId: number): Promise<any[]>;
+  getUserMaps(userId: number): Promise<any[]>;
+  getRecentDiceRolls(campaignId: number, since: string, limit: number): Promise<SelectDiceRoll[]>;
 }
 
 export class MemStorage implements IStorage {

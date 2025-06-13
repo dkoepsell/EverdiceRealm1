@@ -3641,5 +3641,300 @@ Return your response as a JSON object with these fields:
     }
   });
 
+  // DM Toolkit AI-assisted routes
+  
+  // AI Item Generation
+  app.post('/api/items/generate', async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { prompt } = req.body;
+      if (!prompt) {
+        return res.status(400).json({ message: "Prompt is required" });
+      }
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are a D&D item creator. Generate a detailed magic item based on the prompt. Return a JSON object with these exact fields:
+            {
+              "name": "Item name",
+              "description": "Detailed description with mechanics",
+              "itemType": "weapon",
+              "rarity": "common",
+              "slot": "none",
+              "value": 100,
+              "weight": 1,
+              "requiresAttunement": false,
+              "isStackable": false,
+              "isConsumable": false,
+              "properties": {}
+            }`
+          },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.8
+      });
+
+      const content = completion.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error("No response from AI");
+      }
+
+      const itemData = JSON.parse(content);
+      res.json(itemData);
+    } catch (error: any) {
+      console.error("Item generation error:", error);
+      res.status(500).json({ message: "Failed to generate item", error: error.message });
+    }
+  });
+
+  // AI Location Generation
+  app.post('/api/locations/generate', async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { prompt } = req.body;
+      if (!prompt) {
+        return res.status(400).json({ message: "Prompt is required" });
+      }
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are a D&D location designer. Generate a detailed location based on the prompt. Return a JSON object with these exact fields:
+            {
+              "name": "Location name",
+              "description": "Vivid description of the location",
+              "locationType": "town",
+              "size": "medium",
+              "climate": "Climate description",
+              "population": "Population description",
+              "notableFeatures": "Key landmarks and features",
+              "dangers": "Potential threats and hazards",
+              "resources": "Available resources and materials",
+              "connections": "How it connects to other places"
+            }`
+          },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.8
+      });
+
+      const content = completion.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error("No response from AI");
+      }
+
+      const locationData = JSON.parse(content);
+      res.json(locationData);
+    } catch (error: any) {
+      console.error("Location generation error:", error);
+      res.status(500).json({ message: "Failed to generate location", error: error.message });
+    }
+  });
+
+  // AI Encounter Generation
+  app.post('/api/encounters/generate', async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { prompt } = req.body;
+      if (!prompt) {
+        return res.status(400).json({ message: "Prompt is required" });
+      }
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are a D&D encounter designer. Generate a balanced encounter based on the prompt. Return a JSON object with these exact fields:
+            {
+              "name": "Encounter name",
+              "description": "Detailed encounter description",
+              "encounterType": "combat",
+              "difficulty": "medium",
+              "environment": "Environment where encounter takes place",
+              "monsters": [{"name": "Monster name", "cr": "1", "count": 2}],
+              "tactics": "How enemies behave in combat",
+              "triggers": "What starts this encounter",
+              "rewards": "XP, treasure, or story rewards"
+            }`
+          },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.8
+      });
+
+      const content = completion.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error("No response from AI");
+      }
+
+      const encounterData = JSON.parse(content);
+      res.json(encounterData);
+    } catch (error: any) {
+      console.error("Encounter generation error:", error);
+      res.status(500).json({ message: "Failed to generate encounter", error: error.message });
+    }
+  });
+
+  // AI Map Generation
+  app.post('/api/maps/generate', async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const mapData = req.body;
+      if (!mapData.name) {
+        return res.status(400).json({ message: "Map name is required" });
+      }
+
+      // Generate map description using AI
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are a D&D map designer. Generate a detailed map description and layout instructions based on the request. Return a JSON object with:
+            {
+              "description": "Detailed map description",
+              "layout": "Layout instructions for map creation",
+              "keyLocations": ["Location 1", "Location 2"],
+              "mapFeatures": ["Feature 1", "Feature 2"]
+            }`
+          },
+          { role: "user", content: `Create a ${mapData.mapType} map called "${mapData.name}". ${mapData.description || ''} Size: ${mapData.width}x${mapData.height}. Theme: ${mapData.theme || 'fantasy'}. Features: ${mapData.features || 'standard'}` }
+        ],
+        temperature: 0.7
+      });
+
+      const content = completion.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error("No response from AI");
+      }
+
+      const aiResponse = JSON.parse(content);
+      const generatedMap = {
+        id: Date.now(),
+        ...mapData,
+        ...aiResponse,
+        mapUrl: `/generated-maps/${mapData.name.toLowerCase().replace(/\s+/g, '-')}.png`,
+        createdAt: new Date().toISOString()
+      };
+
+      res.json(generatedMap);
+    } catch (error: any) {
+      console.error("Map generation error:", error);
+      res.status(500).json({ message: "Failed to generate map", error: error.message });
+    }
+  });
+
+  // Quick AI Generation for Live Sessions
+  app.post('/api/dm-toolkit/quick-generate', async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { prompt, campaignId, context } = req.body;
+      if (!prompt) {
+        return res.status(400).json({ message: "Prompt is required" });
+      }
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are a helpful D&D assistant for live sessions. Generate quick, practical content based on the DM's request. Keep responses concise but detailed enough to use immediately in play. Context: ${context || 'general'}`
+          },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 500
+      });
+
+      const content = completion.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error("No response from AI");
+      }
+
+      res.json({ content, prompt, context });
+    } catch (error: any) {
+      console.error("Quick generation error:", error);
+      res.status(500).json({ message: "Failed to generate content", error: error.message });
+    }
+  });
+
+  // User Items/Locations/Encounters endpoints
+  app.get('/api/items/user', async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const items = await storage.getUserItems(req.user.id);
+      res.json(items);
+    } catch (error: any) {
+      console.error("Get user items error:", error);
+      res.status(500).json({ message: "Failed to fetch items" });
+    }
+  });
+
+  app.get('/api/locations/user', async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const locations = await storage.getUserLocations(req.user.id);
+      res.json(locations);
+    } catch (error: any) {
+      console.error("Get user locations error:", error);
+      res.status(500).json({ message: "Failed to fetch locations" });
+    }
+  });
+
+  app.get('/api/encounters/user', async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const encounters = await storage.getUserEncounters(req.user.id);
+      res.json(encounters);
+    } catch (error: any) {
+      console.error("Get user encounters error:", error);
+      res.status(500).json({ message: "Failed to fetch encounters" });
+    }
+  });
+
+  app.get('/api/maps/user', async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const maps = await storage.getUserMaps(req.user.id);
+      res.json(maps);
+    } catch (error: any) {
+      console.error("Get user maps error:", error);
+      res.status(500).json({ message: "Failed to fetch maps" });
+    }
+  });
+
   return httpServer;
 }
