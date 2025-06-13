@@ -201,7 +201,7 @@ export interface IStorage {
   getUserLocations(userId: number): Promise<any[]>;
   getUserEncounters(userId: number): Promise<any[]>;
   getUserMaps(userId: number): Promise<any[]>;
-  getRecentDiceRolls(campaignId: number, since: string, limit: number): Promise<SelectDiceRoll[]>;
+  getRecentDiceRolls(campaignId: number, since: string, limit: number): Promise<DiceRoll[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -1743,6 +1743,56 @@ export class DatabaseStorage implements IStorage {
       purpose: "Damage",
       createdAt: new Date().toISOString()
     });
+  }
+
+  // DM Toolkit methods for AI-assisted features
+  async getUserItems(userId: number): Promise<any[]> {
+    return await db.select()
+      .from(items)
+      .where(eq(items.createdBy, userId))
+      .orderBy(desc(items.createdAt));
+  }
+
+  async getUserLocations(userId: number): Promise<any[]> {
+    // For now, return empty array as locations table doesn't exist yet
+    return [];
+  }
+
+  async getUserEncounters(userId: number): Promise<any[]> {
+    // For now, return empty array as encounters table doesn't exist yet
+    return [];
+  }
+
+  async getUserMaps(userId: number): Promise<any[]> {
+    // For now, return empty array as maps table doesn't exist yet
+    return [];
+  }
+
+  async getRecentDiceRolls(campaignId: number, since: string, limit: number): Promise<DiceRoll[]> {
+    // Get campaign participants first
+    const participants = await db.select()
+      .from(campaignParticipants)
+      .where(eq(campaignParticipants.campaignId, campaignId));
+    
+    if (participants.length === 0) {
+      return [];
+    }
+
+    const userIds = participants.map(p => p.userId);
+    
+    // Get recent dice rolls from campaign participants
+    const rolls = await db.select()
+      .from(diceRolls)
+      .where(
+        and(
+          sql`${diceRolls.userId} = ANY(${userIds})`,
+          gt(diceRolls.createdAt, since)
+        )
+      )
+      .orderBy(desc(diceRolls.createdAt))
+      .limit(limit);
+    
+    return rolls;
   }
 }
 
