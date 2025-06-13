@@ -83,6 +83,7 @@ import LocationManagerTab from "@/components/dm-toolkit/LocationManagerTab";
 import EncounterBuilderTab from "@/components/dm-toolkit/EncounterBuilderTab";
 import MapGeneratorTab from "@/components/dm-toolkit/MapGeneratorTab";
 import LiveCampaignManagerTab from "@/components/dm-toolkit/LiveCampaignManagerTab";
+import StoryArcManagerTab from "@/components/dm-toolkit/StoryArcManagerTab";
 
 export default function DMToolkit() {
   const { user, isLoading: authLoading } = useAuth();
@@ -147,10 +148,14 @@ export default function DMToolkit() {
       </div>
       
       <Tabs defaultValue="live-manager" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-4 md:grid-cols-8 w-full overflow-x-auto">
+        <TabsList className="grid grid-cols-5 md:grid-cols-9 w-full overflow-x-auto">
           <TabsTrigger value="live-manager" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
             <PlayIcon className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
             Live Manager
+          </TabsTrigger>
+          <TabsTrigger value="story-arcs" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
+            <BookOpen className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
+            Story Arcs
           </TabsTrigger>
           <TabsTrigger value="item-creator" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
             <Sparkles className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
@@ -184,6 +189,21 @@ export default function DMToolkit() {
         
         <TabsContent value="live-manager" className="space-y-4">
           <LiveCampaignManagerTab selectedCampaignId={selectedCampaignId} />
+        </TabsContent>
+        
+        <TabsContent value="story-arcs" className="space-y-4">
+          {selectedCampaignId ? (
+            <StoryArcManagerTab campaignId={selectedCampaignId} />
+          ) : (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <h4 className="text-lg font-medium mb-2">Select a Campaign</h4>
+                <p className="text-muted-foreground">
+                  Choose a campaign from the Live Manager to create and manage story arcs
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
         
         <TabsContent value="item-creator" className="space-y-4">

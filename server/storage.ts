@@ -797,7 +797,7 @@ export class DatabaseStorage implements IStorage {
   
   async deleteNpc(id: number): Promise<boolean> {
     const result = await db.delete(npcs).where(eq(npcs.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
   
   // Campaign NPC operations
@@ -1016,7 +1016,207 @@ export class DatabaseStorage implements IStorage {
   
   async deleteDmNote(id: number): Promise<boolean> {
     const result = await db.delete(dmNotes).where(eq(dmNotes.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Campaign Story Arc operations
+  async getCampaignStoryArcs(campaignId: number): Promise<CampaignStoryArc[]> {
+    return await db.select().from(campaignStoryArcs)
+      .where(eq(campaignStoryArcs.campaignId, campaignId))
+      .orderBy(desc(campaignStoryArcs.createdAt));
+  }
+
+  async getCampaignStoryArc(id: number): Promise<CampaignStoryArc | undefined> {
+    const [storyArc] = await db.select().from(campaignStoryArcs)
+      .where(eq(campaignStoryArcs.id, id));
+    return storyArc;
+  }
+
+  async createCampaignStoryArc(storyArc: InsertCampaignStoryArc): Promise<CampaignStoryArc> {
+    const [createdStoryArc] = await db.insert(campaignStoryArcs)
+      .values(storyArc)
+      .returning();
+    return createdStoryArc;
+  }
+
+  async updateCampaignStoryArc(id: number, updates: Partial<CampaignStoryArc>): Promise<CampaignStoryArc | undefined> {
+    const [updatedStoryArc] = await db
+      .update(campaignStoryArcs)
+      .set({ ...updates, updatedAt: new Date().toISOString() })
+      .where(eq(campaignStoryArcs.id, id))
+      .returning();
+    return updatedStoryArc;
+  }
+
+  async deleteCampaignStoryArc(id: number): Promise<boolean> {
+    const result = await db.delete(campaignStoryArcs).where(eq(campaignStoryArcs.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Plot Point operations
+  async getPlotPoints(storyArcId: number): Promise<PlotPoint[]> {
+    return await db.select().from(plotPoints)
+      .where(eq(plotPoints.storyArcId, storyArcId))
+      .orderBy(asc(plotPoints.act), asc(plotPoints.sequence));
+  }
+
+  async getPlotPoint(id: number): Promise<PlotPoint | undefined> {
+    const [plotPoint] = await db.select().from(plotPoints)
+      .where(eq(plotPoints.id, id));
+    return plotPoint;
+  }
+
+  async createPlotPoint(plotPoint: InsertPlotPoint): Promise<PlotPoint> {
+    const [createdPlotPoint] = await db.insert(plotPoints)
+      .values(plotPoint)
+      .returning();
+    return createdPlotPoint;
+  }
+
+  async updatePlotPoint(id: number, updates: Partial<PlotPoint>): Promise<PlotPoint | undefined> {
+    const [updatedPlotPoint] = await db
+      .update(plotPoints)
+      .set({ ...updates, updatedAt: new Date().toISOString() })
+      .where(eq(plotPoints.id, id))
+      .returning();
+    return updatedPlotPoint;
+  }
+
+  async deletePlotPoint(id: number): Promise<boolean> {
+    const result = await db.delete(plotPoints).where(eq(plotPoints.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Player Decision operations
+  async getPlayerDecisions(campaignId: number): Promise<PlayerDecision[]> {
+    return await db.select().from(playerDecisions)
+      .where(eq(playerDecisions.campaignId, campaignId))
+      .orderBy(desc(playerDecisions.createdAt));
+  }
+
+  async getPlayerDecision(id: number): Promise<PlayerDecision | undefined> {
+    const [decision] = await db.select().from(playerDecisions)
+      .where(eq(playerDecisions.id, id));
+    return decision;
+  }
+
+  async createPlayerDecision(decision: InsertPlayerDecision): Promise<PlayerDecision> {
+    const [createdDecision] = await db.insert(playerDecisions)
+      .values(decision)
+      .returning();
+    return createdDecision;
+  }
+
+  async updatePlayerDecision(id: number, updates: Partial<PlayerDecision>): Promise<PlayerDecision | undefined> {
+    const [updatedDecision] = await db
+      .update(playerDecisions)
+      .set({ ...updates, updatedAt: new Date().toISOString() })
+      .where(eq(playerDecisions.id, id))
+      .returning();
+    return updatedDecision;
+  }
+
+  // Dynamic Story Event operations
+  async getDynamicStoryEvents(campaignId: number): Promise<DynamicStoryEvent[]> {
+    return await db.select().from(dynamicStoryEvents)
+      .where(eq(dynamicStoryEvents.campaignId, campaignId))
+      .orderBy(desc(dynamicStoryEvents.createdAt));
+  }
+
+  async getDynamicStoryEvent(id: number): Promise<DynamicStoryEvent | undefined> {
+    const [event] = await db.select().from(dynamicStoryEvents)
+      .where(eq(dynamicStoryEvents.id, id));
+    return event;
+  }
+
+  async createDynamicStoryEvent(event: InsertDynamicStoryEvent): Promise<DynamicStoryEvent> {
+    const [createdEvent] = await db.insert(dynamicStoryEvents)
+      .values(event)
+      .returning();
+    return createdEvent;
+  }
+
+  async updateDynamicStoryEvent(id: number, updates: Partial<DynamicStoryEvent>): Promise<DynamicStoryEvent | undefined> {
+    const [updatedEvent] = await db
+      .update(dynamicStoryEvents)
+      .set({ ...updates, updatedAt: new Date().toISOString() })
+      .where(eq(dynamicStoryEvents.id, id))
+      .returning();
+    return updatedEvent;
+  }
+
+  async deleteDynamicStoryEvent(id: number): Promise<boolean> {
+    const result = await db.delete(dynamicStoryEvents).where(eq(dynamicStoryEvents.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Enhanced Campaign Invitation operations
+  async getCampaignInvitationByToken(token: string): Promise<CampaignInvitation | undefined> {
+    const [invitation] = await db.select().from(campaignInvitations)
+      .where(eq(campaignInvitations.token, token));
+    return invitation;
+  }
+
+  async acceptCampaignInvitation(token: string, userId: number): Promise<CampaignInvitation | undefined> {
+    const invitation = await this.getCampaignInvitationByToken(token);
+    if (!invitation || invitation.status !== 'pending') {
+      return undefined;
+    }
+
+    // Check if invitation is expired
+    if (invitation.expiresAt && new Date(invitation.expiresAt) < new Date()) {
+      return undefined;
+    }
+
+    // Update invitation status
+    const [updatedInvitation] = await db
+      .update(campaignInvitations)
+      .set({ 
+        status: 'accepted',
+        acceptedAt: new Date().toISOString(),
+        inviteeUserId: userId
+      })
+      .where(eq(campaignInvitations.token, token))
+      .returning();
+
+    // Add user to campaign participants if not already a participant
+    const existingParticipant = await db.select().from(campaignParticipants)
+      .where(and(
+        eq(campaignParticipants.campaignId, invitation.campaignId),
+        eq(campaignParticipants.userId, userId)
+      ));
+
+    if (existingParticipant.length === 0) {
+      // Get user's first character for the campaign
+      const userCharacters = await this.getUserCharacters(userId);
+      const characterId = userCharacters.length > 0 ? userCharacters[0].id : null;
+
+      if (characterId) {
+        await db.insert(campaignParticipants)
+          .values({
+            campaignId: invitation.campaignId,
+            userId,
+            characterId,
+            role: invitation.role,
+            joinedAt: new Date().toISOString()
+          });
+      }
+    }
+
+    return updatedInvitation;
+  }
+
+  async declineCampaignInvitation(token: string): Promise<CampaignInvitation | undefined> {
+    const [updatedInvitation] = await db
+      .update(campaignInvitations)
+      .set({ 
+        status: 'declined',
+        declinedAt: new Date().toISOString()
+      })
+      .where(eq(campaignInvitations.token, token))
+      .returning();
+    
+    return updatedInvitation;
   }
   // User operations
   async getUser(id: number): Promise<User | undefined> {
