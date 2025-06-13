@@ -1587,13 +1587,36 @@ Return your response as a JSON object with these fields:
             }).filter(Boolean).join(", ");
         }
       }
+
+      // Get recent dice rolls for context (last 5 rolls within the last 10 minutes)
+      let diceRollContext = "";
+      try {
+        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+        const recentRolls = await storage.getRecentDiceRolls(campaign.id, tenMinutesAgo, 5);
+        
+        if (recentRolls && recentRolls.length > 0) {
+          diceRollContext = "\n\nRECENT DICE ROLL RESULTS TO INCORPORATE:\n";
+          recentRolls.forEach(roll => {
+            const character = participants?.find(p => p.characterId === roll.characterId)?.character;
+            const characterName = character?.name || "Unknown Character";
+            const rollResult = roll.result || roll.total || 0;
+            const purpose = roll.purpose || "Unknown action";
+            
+            diceRollContext += `- ${characterName} rolled ${roll.diceType} for "${purpose}": Result ${rollResult} (${roll.modifier > 0 ? '+' : ''}${roll.modifier || 0} modifier)\n`;
+          });
+          diceRollContext += "\nIMPORTANT: Use these dice roll results to determine the outcome of the player's actions and advance the story accordingly. Success or failure should be reflected in the narrative.\n";
+        }
+      } catch (error) {
+        console.error("Error fetching recent dice rolls:", error);
+        // Continue without dice roll context if there's an error
+      }
       
       const promptWithContext = `
 You are an expert Dungeon Master for a D&D game with a ${narrativeStyle || "descriptive"} storytelling style.
 ${campaignContext}
 ${locationContext}
 Difficulty level: ${difficulty || "Normal - Balanced Challenge"}
-Story direction preference: ${storyDirection || "balanced mix of combat, roleplay, and exploration"}
+Story direction preference: ${storyDirection || "balanced mix of combat, roleplay, and exploration"}${diceRollContext}
 
 Based on the player's action: "${cleanedPrompt}", generate the next part of the adventure. Include:
 1. A descriptive narrative of what happens next (3-4 paragraphs)

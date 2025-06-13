@@ -101,6 +101,7 @@ export interface IStorage {
   // Dice Roll operations
   createDiceRoll(diceRoll: InsertDiceRoll): Promise<DiceRoll>;
   getDiceRollHistory(userId: number, limit?: number): Promise<DiceRoll[]>;
+  getRecentDiceRolls(campaignId: number, sinceTime: string, limit?: number): Promise<DiceRoll[]>;
   
   // Adventure Completion operations
   createAdventureCompletion(completion: InsertAdventureCompletion): Promise<AdventureCompletion>;
