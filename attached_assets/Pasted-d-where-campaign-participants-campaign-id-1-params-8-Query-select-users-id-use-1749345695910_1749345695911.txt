@@ -1,0 +1,39 @@
+d" where "campaign_participants"."campaign_id" = $1 -- params: [8]
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [5]
+Query: select "id", "user_id", "name", "race", "class", "level", "background", "alignment", "strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma", "hit_points", "max_hit_points", "armor_class", "experience", "gold", "skills", "equipment", "appearance", "portrait_url", "background_story", "created_at", "updated_at" from "characters" where "characters"."id" = $1 -- params: []
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [7]
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: []
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [1]
+1:21:06 AM [express] GET /api/campaigns/8/participants 304 in 279ms :: [{"id":2,"username":"Unknown"…
+1:21:06 AM [express] GET /api/campaigns/8/sessions 304 in 288ms :: [{"id":124,"campaignId":8,"sessio…
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [8]
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [6]
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [2]
+1:21:06 AM [express] GET /api/campaigns 304 in 426ms :: [{"id":3,"userId":2,"title":"Veils of the Ve…
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Dice roll request body: {
+  diceType: 'd20',
+  count: 1,
+  modifier: 3,
+  purpose: 'Persuasion Check for "Attempt to communicate with the Treant"',
+  characterId: null
+}
+1:21:15 AM [express] POST /api/dice/roll 500 in 110ms :: {"message":"Failed to process dice roll"}
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: select "id", "user_id", "title", "description", "difficulty", "narrative_style", "current_session", "current_turn_user_id", "is_turn_based", "turn_time_limit", "turn_started_at", "xp_reward", "is_archived", "is_completed", "completed_at", "is_published", "published_at", "deployment_code", "is_private", "max_players", "created_at", "updated_at" from "campaigns" where "campaigns"."id" = $1 -- params: [8]
+Query: select "id", "campaign_id", "session_number", "title", "narrative", "location", "choices", "session_xp_reward", "is_completed", "completed_at", "created_at", "updated_at" from "campaign_sessions" where "campaign_sessions"."campaign_id" = $1 order by "campaign_sessions"."session_number" asc -- params: [8]
+Query: select "id", "user_id", "character_id", "dice_type", "result", "modifier", "count", "purpose", "created_at" from "dice_rolls" where "dice_rolls"."user_id" = $1 order by "dice_rolls"."created_at" desc limit $2 -- params: [2, 5]
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [8]
+Query: select "id", "user_id", "name", "race", "class", "level", "background", "alignment", "strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma", "hit_points", "max_hit_points", "armor_class", "experience", "gold", "skills", "equipment", "appearance", "portrait_url", "background_story", "created_at", "updated_at" from "characters" where "characters"."id" = $1 -- params: []
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: []
+/home/runner/workspace/server/lib/buildPrompt.ts:66
+  for (const session of sessionHistory.slice(-5)) {
+                                       ^
+
+
+TypeError: Cannot read properties of undefined (reading 'slice')
+    at buildConsequencesTracker (/home/runner/workspace/server/lib/buildPrompt.ts:66:40)
+    at buildEnhancedPrompt (/home/runner/workspace/server/lib/buildPrompt.ts:103:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+Node.js v20.18.1

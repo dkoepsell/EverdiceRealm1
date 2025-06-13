@@ -1,0 +1,119 @@
+Here is the Node.js version of the D&D session generation function that:
+
+Uses OpenAI’s Chat Completion API
+
+Incorporates the most recent skill check
+
+Produces consistent narrative + branching choices
+
+Can be dropped into any express, socket, or CLI-based game backend
+
+📦 Prerequisites
+Install the OpenAI SDK:
+
+bash
+Copy
+Edit
+npm install openai
+🧠 generateDndSession.js
+js
+Copy
+Edit
+const { OpenAI } = require("openai");
+
+async function generateDndSession(apiKey, sessionData) {
+  const openai = new OpenAI({ apiKey });
+
+  // Skill check formatting (optional)
+  let skillCheckSummary = "";
+  if (sessionData.last_skill_check) {
+    const { skill, result, target, intent } = sessionData.last_skill_check;
+    skillCheckSummary = `
+PLAYER CHOICE CONTINUITY:
+In the previous session, the player made a **${skill}** check targeting **${target}** with the intent: "${intent}".
+The result was a **${result}**. Begin this session by reflecting the consequence of that check.`;
+  }
+
+  // Full prompt
+  const prompt = `
+You are a masterful narrator of a high-fantasy D&D campaign. The story takes place in the Enchanted Grove, a sentient forest on the brink of collapse. Your job is to generate vivid, branching sessions with continuity across sessions.
+
+SESSION CONTEXT:
+- Session Number: ${sessionData.session_number}
+- Location: ${sessionData.location}
+- Party: ${sessionData.party_summary}
+- NPCs: ${sessionData.npc_summary}
+- Prior Events: ${sessionData.previous_session_summary}
+- Last Major Decision: ${sessionData.player_decision}
+${skillCheckSummary}
+
+TASK:
+1. Begin with a vivid narrative scene reflecting current location and skill check results.
+2. Include character dialogue, lore hooks, or conflict.
+3. End with 2–3 narrative choices — each with tone: combat, cunning, diplomacy, or mystery.
+
+RESPONSE FORMAT (markdown):
+Scene:
+<1–3 paragraph scene>
+
+Choices:
+- 🗡️ [Combat Title]: [consequence]
+- 🧠 [Clever/Magic Title]: [consequence]
+- 🕊️ [Diplomacy/Spirit Title]: [consequence]
+`.trim();
+
+  // API call
+  const response = await openai.chat.completions.create({
+    model: "gpt-4",
+    temperature: 0.85,
+    max_tokens: 900,
+    messages: [
+      {
+        role: "system",
+        content: "You are a high-fantasy RPG narrator. Always reflect player choices and skill check outcomes in your storytelling.",
+      },
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+  });
+
+  return response.choices[0].message.content;
+}
+
+module.exports = generateDndSession;
+🧪 Example Usage
+js
+Copy
+Edit
+const generateDndSession = require("./generateDndSession");
+
+const sessionData = {
+  session_number: 77,
+  location: "Luminescent Flower Clearing",
+  party_summary: "Thorne Ironfist (fighter), Elowen (druid), Sylra (rogue)",
+  npc_summary: "Elowen guides the party; Seralith the corrupted dryad has grown more distant.",
+  previous_session_summary: "The party faced a trio of shadow wolves. Thorne used Animal Handling to pacify them.",
+  player_decision: "They chose to calm the wolves instead of fighting.",
+  last_skill_check: {
+    skill: "Animal Handling",
+    result: "Success",
+    target: "Shadow Wolf Pack",
+    intent: "To calm or communicate with them"
+  }
+};
+
+generateDndSession(process.env.OPENAI_API_KEY, sessionData)
+  .then((result) => console.log(result))
+  .catch((err) => console.error("Error generating session:", err));
+✅ Enhancements You Can Add Later
+🎯 Token logging & failover
+
+🧾 Markdown → JSON parsing (for structured rendering in UI)
+
+🗃️ Session history database (to feed prior events to prompt dynamically)
+
+🧩 Player inventory / relationships tracking (to reflect deeper state)
+
+Would you like a version of this that also parses choices into structured JSON for a clickable frontend interface?

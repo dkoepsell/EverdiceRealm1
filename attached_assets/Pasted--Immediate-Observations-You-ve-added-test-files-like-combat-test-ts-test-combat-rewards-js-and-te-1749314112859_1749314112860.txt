@@ -1,0 +1,54 @@
+✅ Immediate Observations
+You’ve added test files like combat.test.ts, test-combat-rewards.js, and test-rewards.js — a good sign!
+
+The advanceStoryMutation.mutate(...) file name looks broken or accidentally named — this could be a serious execution problem.
+
+🔍 Next Steps
+I'll now:
+
+Inspect package.json for dependency consistency
+
+Review the drizzle.config.ts and migration files
+
+Check for broken files or invalid code
+
+Identify unhandled edge cases in combat logic or story integration
+
+Proceeding to analyze package.json and schema/migration structure. 
+
+✅ package.json Review
+Your setup looks solid overall. Highlights:
+
+✅ Uses drizzle-orm and drizzle-kit for schema/migration
+
+✅ Express server and development scripts are in place
+
+✅ Correct use of modern tools like tsx, vite, and esbuild
+
+✅ React UI powered by Radix, Tailwind, React Query
+
+⚠️ Notable Issues Found
+⚠️ 1. Invalid File: advanceStoryMutation.mutate(...)
+This is not a valid file name and will likely cause build or runtime errors.
+
+You should delete or rename this file properly. It appears to be a mistaken paste of a code line rather than a real file.
+
+⚠️ 2. Missing Type Checking or ESLint
+No mention of eslint, prettier, or tsconfig.strict settings — could lead to type-safety issues.
+
+Consider adding stricter checks to catch runtime errors earlier.
+
+⚠️ 3. No Logging or Error Middleware in Express
+There’s no logging (like morgan) or centralized error handling middleware in server/index.ts (not yet inspected but inferred).
+
+This can lead to swallowed or hard-to-trace bugs.
+
+✅ Recommended Fixes & Enhancements
+Issue	Fix
+❌ advanceStoryMutation.mutate(...) file	Rename/delete; likely a leftover copy/paste
+🔍 No linting	Add ESLint and Prettier to enforce consistent code
+🧱 No Express error middleware	Add centralized error handling for better debugging
+🧪 Sparse tests	Expand combat.test.ts and write integration tests for story and entity APIs
+🗄️ No Redis or in-memory store	For live combat/state management, consider using Redis or in-memory store for active sessions
+💾 Migrations incomplete	Ensure drizzle.config.ts matches folder structure — verify db:push works
+🧠 AI Prompt is hardcoded	Externalize and version prompt templates to tweak behavior over time

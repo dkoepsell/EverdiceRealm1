@@ -1,0 +1,108 @@
+🧠 1. Structure Your Prompt with Narrative Intentions
+Instead of just prompting for "the next session," structure your prompt to tell the model what you want:
+
+text
+Copy
+Edit
+You are a Dungeons & Dragons storyteller generating an adventure session.
+
+Session Summary:
+- Current location: Enchanted Grove, Heartwood Clearing
+- Party members: Thorne Ironfist (fighter), Elowen (druid), others
+- Current tension: Mysterious mist corrupting the grove
+- Last event: Shadow Wolf encountered, gateway to the grove's heart revealed
+
+Instructions:
+1. Begin with a vivid description of the environment.
+2. Include a dramatic development or encounter that pushes the story forward.
+3. Offer 2–3 meaningful player choices or tests (combat, wisdom, stealth, etc.).
+4. Ensure continuity with past events and character motivations.
+5. Include character-specific interactions if relevant (e.g., Elowen’s lore, Thorne’s distrust of magic).
+
+Now generate Session 74 of the narrative.
+Use system messages (if using GPT-4-turbo) to lock in tone, style, and world logic.
+
+⚙️ 2. Add Session Memory or History
+Inject a compact summary of prior sessions into the prompt:
+
+text
+Copy
+Edit
+Session Memory:
+- The forest is becoming corrupted by unnatural mist.
+- Elowen believes the balance of the grove is in danger.
+- Players encountered a Shadow Wolf and discovered an ancient archway.
+- A Guardian now tests their worth.
+You can save and pass these in a structured format (e.g., JSON, markdown) or as part of a hidden context field if you're using the API programmatically.
+
+🪢 3. Design for Choices and Branching Outcomes
+Rather than leaving choices ambiguous, define their shape ahead of time:
+
+text
+Copy
+Edit
+Choice Structure:
+- [Combat]: Confront the Guardian directly.
+- [Diplomacy]: Attempt to commune with the Guardian via Elowen’s magic.
+- [Cunning]: Seek a hidden path around the encounter using stealth or knowledge of the runes.
+You can also instruct the model to return:
+
+json
+Copy
+Edit
+{
+  "scene_description": "...",
+  "choices": [
+    { "label": "Confront the Guardian", "consequence": "Combat encounter begins" },
+    { "label": "Speak through Elowen", "consequence": "Gain insight into the grove's pain" },
+    { "label": "Search for another way", "consequence": "Risk stealth check to bypass" }
+  ]
+}
+This format makes it easy to track player choices and ensure consequences are handled logically in the next call.
+
+🧩 4. Prompt Engineering Templates for Better Coherence
+Here's a reusable prompt template you can adapt per session:
+
+text
+Copy
+Edit
+SYSTEM:
+You are a fantasy adventure narrator for a D&D campaign. Maintain rich sensory detail, character consistency, and meaningful branching. Keep pacing tight and tie each session to prior ones. Assume a persistent world with memory.
+
+USER:
+Generate the next session in a D&D campaign. The players are deep in the Enchanted Grove, where a spreading magical corruption has awakened ancient guardians. Elowen the druid is guiding them. In the last session, the party stood before a mystical archway guarded by a spectral stone face demanding proof of worth.
+
+Your goal:
+1. Build tension with a sensory-rich opening.
+2. Introduce an event that requires the party to act (e.g., trial, encounter, clue).
+3. Present at least three clear narrative choices with logical consequences.
+4. Include dialogue from Elowen or Thorne if appropriate.
+5. End on a cliffhanger or outcome tied to the chosen path.
+🧰 5. Tools and Tricks for Narrative Momentum
+Avoid repeating scenery intros – carry forward unresolved action.
+
+Use verbs of change – show how the world shifts in reaction to players.
+
+Foreshadow – let encounters point toward something bigger.
+
+Tag subplots – e.g., "Elowen seems changed by what she sensed here..."
+
+🔁 Optional: GPT-driven Scene Planner
+If you want structured generation:
+
+json
+Copy
+Edit
+{
+  "session_number": 74,
+  "location": "Ancient Grove Archway",
+  "encounter_type": "Moral Trial + Environmental Puzzle",
+  "narrative_function": "Test character motivations and loyalty to the grove",
+  "outcomes": {
+    "combat": "Guardian defends the sacred grove",
+    "diplomacy": "Vision of the grove's ancient pact is granted",
+    "stealth": "Find a side path leading to a corrupted glade"
+  }
+}
+Pass this JSON into your prompt and ask GPT to "Write a narrative session based on this scene plan."
+

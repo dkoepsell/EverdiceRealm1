@@ -1,0 +1,18 @@
+{
+  "id": 203,
+  "number": 76,
+  "title": "Encounter at Moonlit Clearing",
+  "location": "Moonlit Clearing in the Enchanted Grove",
+  "description": "As Thorne Ironfist continues his quest through the Enchanted Grove, the shadows of ancient trees loom overhead, their branches creaking subtly in the gentle breeze. Shafts of silver moonlight pierce through the thick canopy, casting an ethereal glow upon the path. The air is thick with the scent of wildflowers, though it is tinged with an underlying musk, hinting at the presence of a lurking danger. The rustling of leaves underfoot and the distant call of nocturnal creatures creates a symphony of nature that is both calming and unsettling.\n\nGuided by the enigmatic druid Elowen, Thorne's senses are keenly alert, as stories of malevolent spirits and once-majestic creatures corrupted by darkness echo in his mind. Suddenly, the quietude is shattered by guttural growls emanating from the dense underbrush. Emerging hesitantly into a small clearing, free from the overwhelming tangle of the forest, Thorne comes face-to-face with a trio of shadow-infused wolves, their eyes glowing with an unnatural, eerie light.\n\nTheir fur bristles with shadowy tendrils, giving them an almost spectral appearance as they slowly circle Thorne, assessing this intruder in their domain. Elowen raises her hand to cast a protective ward, whispering words in an ancient tongue. The tension in the air is palpable, the potential for violence hanging like a thread ready to snap.\n\nWith options running through his mind, Thorne considers his next move carefully. The wolves growl menacingly, yet their eyes betray a glimmer of recognition, conflicted between aggression and something deeper, a longing for release from the dark force binding them.",
+  "date": "2025-06-07T13:29:07.078Z",
+  "playerActions": [
+    null
+  ],
+  "themes": "corruption, grove, mystery",
+  "unresolvedHooks": [
+    "Attempt to communicate with the wolves",
+    "Draw your weapon and prepare to fight",
+    "Scout for an alternate route",
+    "Request Elowen's aid with magic"
+  ]
+}

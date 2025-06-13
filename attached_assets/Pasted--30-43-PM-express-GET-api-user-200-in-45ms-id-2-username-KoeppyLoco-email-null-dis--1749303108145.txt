@@ -1,0 +1,149 @@
+:30:43 PM [express] GET /api/user 200 in 45ms :: {"id":2,"username":"KoeppyLoco ","email":null,"dis…
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: select "id", "name", "race", "occupation", "personality", "appearance", "motivation", "is_companion", "is_stock_companion", "companion_type", "ai_personality", "combat_abilities", "support_abilities", "decision_making_rules", "level", "hit_points", "max_hit_points", "armor_class", "strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma", "skills", "equipment", "portrait_url", "is_public", "created_by", "created_at", "updated_at" from "npcs" where ("npcs"."created_by" = $1 and "npcs"."is_companion" = $2) order by "npcs"."created_at" desc -- params: [2, true]
+Query: select "id", "name", "race", "occupation", "personality", "appearance", "motivation", "is_companion", "is_stock_companion", "companion_type", "ai_personality", "combat_abilities", "support_abilities", "decision_making_rules", "level", "hit_points", "max_hit_points", "armor_class", "strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma", "skills", "equipment", "portrait_url", "is_public", "created_by", "created_at", "updated_at" from "npcs" where "npcs"."is_stock_companion" = $1 -- params: [true]
+Query: select "id", "user_id", "title", "description", "difficulty", "narrative_style", "current_session", "current_turn_user_id", "is_turn_based", "turn_time_limit", "turn_started_at", "xp_reward", "is_archived", "is_completed", "completed_at", "is_published", "published_at", "deployment_code", "is_private", "max_players", "created_at", "updated_at" from "campaigns" order by "campaigns"."created_at" desc
+1:30:43 PM [express] GET /api/npcs/companions 304 in 91ms :: [{"id":1,"name":"Short Essays","race":"…
+Query: select "id", "name", "race", "occupation", "personality", "appearance", "motivation", "is_companion", "is_stock_companion", "companion_type", "ai_personality", "combat_abilities", "support_abilities", "decision_making_rules", "level", "hit_points", "max_hit_points", "armor_class", "strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma", "skills", "equipment", "portrait_url", "is_public", "created_by", "created_at", "updated_at" from "npcs" order by "npcs"."created_at" desc
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [8]
+WebSocket client connected
+Returning 5 stock companions
+1:30:43 PM [express] GET /api/npcs/stock-companions 304 in 134ms :: [{"id":6,"name":"Thorne Ironfist…
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [7]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [6]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [5]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [4]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [3]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [2]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [1]
+1:30:43 PM [express] GET /api/campaigns 304 in 441ms :: [{"id":8,"userId":2,"title":"Whispers of the…
+WebSocket client connected
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: select "id", "element_type", "title", "description", "details", "is_public", "created_by", "created_at", "updated_at" from "adventure_elements" where ("adventure_elements"."element_type" = $1 and "adventure_elements"."created_by" = $2) order by "adventure_elements"."created_at" -- params: ["location", 2]
+Error fetching locations: error: relation "adventure_elements" does not exist
+    at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async NeonPreparedQuery.execute (/home/runner/workspace/node_modules/src/neon-serverless/session.ts:102:18)
+    at async DatabaseStorage.getUserLocations (/home/runner/workspace/server/storage.ts:756:30)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2727:25) {
+  length: 118,
+  severity: 'ERROR',
+  code: '42P01',
+  detail: undefined,
+  hint: undefined,
+  position: '124',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '1449',
+  routine: 'parserOpenTable'
+}
+1:30:44 PM [express] GET /api/dm-toolkit/locations 500 in 121ms :: {"message":"Failed to fetch locat…
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: select "id", "user_id", "title", "description", "difficulty", "narrative_style", "current_session", "current_turn_user_id", "is_turn_based", "turn_time_limit", "turn_started_at", "xp_reward", "is_archived", "is_completed", "completed_at", "is_published", "published_at", "deployment_code", "is_private", "max_players", "created_at", "updated_at" from "campaigns" order by "campaigns"."created_at" desc
+Query: select "id", "campaign_id", "session_number", "title", "narrative", "location", "choices", "session_xp_reward", "is_completed", "completed_at", "created_at", "updated_at" from "campaign_sessions" where "campaign_sessions"."campaign_id" = $1 order by "campaign_sessions"."session_number" asc -- params: [8]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [8]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [7]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [6]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [5]
+1:30:47 PM [express] GET /api/campaigns/8/sessions 304 in 259ms :: [{"id":124,"campaignId":8,"sessio…
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [4]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [3]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [2]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [1]
+1:30:47 PM [express] GET /api/campaigns 304 in 437ms :: [{"id":8,"userId":2,"title":"Whispers of the…
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: select "id", "user_id", "title", "description", "difficulty", "narrative_style", "current_session", "current_turn_user_id", "is_turn_based", "turn_time_limit", "turn_started_at", "xp_reward", "is_archived", "is_completed", "completed_at", "is_published", "published_at", "deployment_code", "is_private", "max_players", "created_at", "updated_at" from "campaigns" order by "campaigns"."created_at" desc
+Query: select "id", "campaign_id", "session_number", "title", "narrative", "location", "choices", "session_xp_reward", "is_completed", "completed_at", "created_at", "updated_at" from "campaign_sessions" where "campaign_sessions"."campaign_id" = $1 order by "campaign_sessions"."session_number" asc -- params: [8]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [8]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [7]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [6]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [5]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [4]
+1:31:02 PM [express] GET /api/campaigns/8/sessions 304 in 411ms :: [{"id":124,"campaignId":8,"sessio…
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [3]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [2]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [1]
+1:31:03 PM [express] GET /api/campaigns 304 in 534ms :: [{"id":8,"userId":2,"title":"Whispers of the…
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: select "id", "element_type", "title", "description", "details", "is_public", "created_by", "created_at", "updated_at" from "adventure_elements" where ("adventure_elements"."element_type" = $1 and "adventure_elements"."created_by" = $2) -- params: ["magic_item", 2]
+Error fetching magic items: error: relation "adventure_elements" does not exist
+    at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async NeonPreparedQuery.execute (/home/runner/workspace/node_modules/src/neon-serverless/session.ts:102:18)
+    at async DatabaseStorage.getUserMagicItems (/home/runner/workspace/server/storage.ts:745:12)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2781:21) {
+  length: 118,
+  severity: 'ERROR',
+  code: '42P01',
+  detail: undefined,
+  hint: undefined,
+  position: '124',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '1449',
+  routine: 'parserOpenTable'
+}
+1:31:04 PM [express] GET /api/dm-toolkit/items 500 in 83ms :: {"message":"Failed to fetch magic item…
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: insert into "adventure_elements" ("id", "element_type", "title", "description", "details", "is_public", "created_by", "created_at", "updated_at") values (default, $1, $2, $3, $4, $5, $6, $7, default) returning "id", "element_type", "title", "description", "details", "is_public", "created_by", "created_at", "updated_at" -- params: ["magic_item", "Ring of Protection", "Bracers inscribed with defensive runes", "\"{\\\"type\\\":\\\"wondrous\\\",\\\"rarity\\\":\\\"uncommon\\\",\\\"properties\\\":[\\\"Requires attunement\\\",\\\"Protective enchantment\\\",\\\"Beneficial magic effect\\\"],\\\"attunement\\\":false,\\\"value\\\":5068,\\\"weight\\\":5,\\\"mechanics\\\":\\\"Provides beneficial magical effects as described.\\\",\\\"lore\\\":\\\"An item of mysterious origin with a storied past.\\\"}\"", false, 2, "2025-06-07T13:31:08.860Z"]
+Error creating magic item: error: relation "adventure_elements" does not exist
+    at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async NeonPreparedQuery.execute (/home/runner/workspace/node_modules/src/neon-serverless/session.ts:102:18)
+    at async DatabaseStorage.createMagicItem (/home/runner/workspace/server/storage.ts:902:20)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2799:20) {
+  length: 117,
+  severity: 'ERROR',
+  code: '42P01',
+  detail: undefined,
+  hint: undefined,
+  position: '13',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '1449',
+  routine: 'parserOpenTable'
+}
+1:31:08 PM [express] POST /api/dm-toolkit/items 500 in 92ms :: {"message":"Failed to create magic it…
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+User info request - authenticated: true session: true
+1:31:13 PM [express] GET /api/user 304 in 188ms :: {"id":2,"username":"KoeppyLoco ","email":null,"di…
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: select "id", "user_id", "title", "description", "difficulty", "narrative_style", "current_session", "current_turn_user_id", "is_turn_based", "turn_time_limit", "turn_started_at", "xp_reward", "is_archived", "is_completed", "completed_at", "is_published", "published_at", "deployment_code", "is_private", "max_players", "created_at", "updated_at" from "campaigns" order by "campaigns"."created_at" desc
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [8]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [7]
+Query: select "id", "campaign_id", "session_number", "title", "narrative", "location", "choices", "session_xp_reward", "is_completed", "completed_at", "created_at", "updated_at" from "campaign_sessions" where "campaign_sessions"."campaign_id" = $1 order by "campaign_sessions"."session_number" asc -- params: [8]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [6]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [5]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [4]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [3]
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [2]
+1:31:17 PM [express] GET /api/campaigns/8/sessions 304 in 375ms :: [{"id":124,"campaignId":8,"sessio…
+Query: select "id", "campaign_id", "user_id", "character_id", "role", "turn_order", "is_active", "joined_at", "last_active_at" from "campaign_participants" where "campaign_participants"."campaign_id" = $1 -- params: [1]
+1:31:17 PM [express] GET /api/campaigns 304 in 447ms :: [{"id":8,"userId":2,"title":"Whispers of the…

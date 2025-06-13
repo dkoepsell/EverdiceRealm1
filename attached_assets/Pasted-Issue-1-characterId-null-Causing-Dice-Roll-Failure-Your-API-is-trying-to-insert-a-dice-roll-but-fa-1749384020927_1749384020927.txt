@@ -1,0 +1,100 @@
+Issue 1: characterId: null Causing Dice Roll Failure
+Your API is trying to insert a dice roll but fails because no characterId is supplied:
+
+csharp
+Copy
+Edit
+characterId: null
+...
+Query: select ... from "characters" where "characters"."id" = $1 -- params: []
+🔧 Fix:
+Update your /api/dice/roll route to handle null character IDs.
+
+If the roll is for a DM action or monster (not a player character), allow characterId to be optional.
+
+In diceRolls.ts or wherever you're handling this route:
+
+ts
+Copy
+Edit
+if (!characterId && !isDMAction) {
+  return res.status(400).json({ message: 'Character ID is required unless this is a DM roll.' });
+}
+And update the frontend component to pass { isDMAction: true } or similar for such cases.
+
+✅ Issue 2: OpenAI Response Is Valid, but Schema Validation Fails
+You got:
+
+css
+Copy
+Edit
+Failed to parse OpenAI response: Error: Invalid response structure
+...
+Raw response: {
+  "narrative": "...",
+  "location": "...",
+  "storyProgression": {...},
+  "choices": [...]
+}
+And this structure looks fine. So the problem is very likely caused by your validation schema being too strict — possibly due to missing optional fields or overly specific types.
+
+🔧 Fix:
+Patch your OpenAI result parsing to use a relaxed but structured validator. Here's a working zod schema:
+
+ts
+Copy
+Edit
+import { z } from 'zod';
+
+const choiceSchema = z.object({
+  action: z.string(),
+  description: z.string(),
+  requiresDiceRoll: z.boolean(),
+  diceType: z.string().optional(),
+  rollDC: z.number().optional(),
+  abilityType: z.string().optional(),
+  rollModifier: z.number().optional(),
+  rollPurpose: z.string().optional(),
+  storyImpact: z.string().optional()
+});
+
+const storySchema = z.object({
+  narrative: z.string(),
+  location: z.string(),
+  storyProgression: z.object({
+    mainPlotAdvancement: z.string(),
+    consequencesShown: z.string(),
+    threadsResolved: z.array(z.string()),
+    newThreads: z.array(z.string())
+  }),
+  choices: z.array(choiceSchema)
+});
+Then use it like so:
+
+ts
+Copy
+Edit
+try {
+  const parsed = JSON.parse(openaiResponse);
+  const validated = storySchema.parse(parsed);
+  return validated;
+} catch (err) {
+  console.error("Failed to parse or validate OpenAI response:", err);
+  return fallbackStoryResponse;
+}
+Optional Patch (Safe Fallback)
+In the meantime, you could bypass validation entirely to confirm story generation works:
+
+ts
+Copy
+Edit
+try {
+  const parsed = JSON.parse(openaiResponse);
+  if (!parsed.narrative || !parsed.choices) {
+    throw new Error("Missing key story fields");
+  }
+  return parsed;
+} catch (e) {
+  console.error("OpenAI fallback error:", e, openaiResponse);
+  return fallbackStory;
+}

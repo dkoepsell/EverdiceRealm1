@@ -1,0 +1,86 @@
+Issue 1: Dice Roll Fails (characterId: null)
+🔎 Root Cause
+The backend attempts a DB insert for a dice roll with a null characterId. The characters query then fails with:
+
+sql
+Copy
+Edit
+select ... from "characters" where "characters"."id" = $1 -- params: []
+🔧 Fix
+Update your dice roll route to allow rolls without a characterId for DM-driven or story-driven checks.
+
+Example Patch for /routes.ts or diceRolls.ts:
+ts
+Copy
+Edit
+const { diceType, count, modifier, purpose, characterId } = req.body;
+
+if (characterId) {
+  const character = await db('characters').where({ id: characterId }).first();
+  if (!character) {
+    return res.status(400).json({ message: 'Invalid character ID' });
+  }
+}
+
+// Proceed with roll even if characterId is null (e.g., DM scene rolls)
+const result = rollDice(diceType, count, modifier);
+await db('dice_rolls').insert({
+  user_id: req.user.id,
+  character_id: characterId ?? null,
+  dice_type: diceType,
+  result,
+  modifier,
+  count,
+  purpose
+});
+✅ Issue 2: OpenAI Response Fails Schema Validation (storyProgression unexpected)
+🔎 Root Cause
+Your OpenAI model is returning valid JSON, but your backend rejects it due to strict schema mismatch — the new key storyProgression likely isn’t in your current validator.
+
+🔧 Fix
+Update your validation schema to include storyProgression or relax parsing until validation is updated.
+
+Suggested Zod Schema Patch:
+ts
+Copy
+Edit
+const storyProgressionSchema = z.object({
+  mainPlotAdvancement: z.string(),
+  consequencesShown: z.string(),
+  threadsResolved: z.array(z.string()),
+  newThreads: z.array(z.string())
+});
+
+const choiceSchema = z.object({
+  action: z.string(),
+  description: z.string(),
+  requiresDiceRoll: z.boolean(),
+  diceType: z.string().optional(),
+  rollDC: z.number().optional(),
+  abilityType: z.string().optional(),
+  rollModifier: z.number().optional(),
+  rollPurpose: z.string().optional(),
+  storyImpact: z.string().optional()
+});
+
+const storySchema = z.object({
+  narrative: z.string(),
+  location: z.string(),
+  storyProgression: storyProgressionSchema.optional(), // allow it now
+  choices: z.array(choiceSchema)
+});
+✅ Optional: Add Logging for Troubleshooting
+Inside your /api/campaigns/advance-story:
+
+ts
+Copy
+Edit
+try {
+  const parsed = JSON.parse(response);
+  const validated = storySchema.parse(parsed);
+  return res.json(validated);
+} catch (err) {
+  console.error('Failed to parse story response', err);
+  console.error('Raw response:', response);
+  return res.status(500).json({ message: 'Failed to parse story response' });
+}

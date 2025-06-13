@@ -1,0 +1,95 @@
+s"."id" = $1 -- params: [2]
+Dice roll request body: {
+  diceType: 'd20',
+  count: 1,
+  modifier: 4,
+  purpose: 'Arcana Check for "Attempt to calm the Treant with magic"',
+  characterId: null
+}
+12:05:42 PM [express] POST /api/dice/roll 500 in 50ms :: {"message":"Failed to process dice roll"}
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: select "id", "user_id", "title", "description", "difficulty", "narrative_style", "current_session", "current_turn_user_id", "is_turn_based", "turn_time_limit", "turn_started_at", "xp_reward", "is_archived", "is_completed", "completed_at", "is_published", "published_at", "deployment_code", "is_private", "max_players", "created_at", "updated_at" from "campaigns" where "campaigns"."id" = $1 -- params: [8]
+Query: select "id", "campaign_id", "session_number", "title", "narrative", "location", "choices", "session_xp_reward", "is_completed", "completed_at", "created_at", "updated_at" from "campaign_sessions" where "campaign_sessions"."campaign_id" = $1 order by "campaign_sessions"."session_number" asc -- params: [8]
+Query: select "id", "user_id", "character_id", "dice_type", "result", "modifier", "count", "purpose", "created_at" from "dice_rolls" where "dice_rolls"."user_id" = $1 order by "dice_rolls"."created_at" desc limit $2 -- params: [2, 5]
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [8]
+Query: select "id", "user_id", "name", "race", "class", "level", "background", "alignment", "strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma", "hit_points", "max_hit_points", "armor_class", "experience", "gold", "skills", "equipment", "appearance", "portrait_url", "background_story", "created_at", "updated_at" from "characters" where "characters"."id" = $1 -- params: []
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: select "id", "campaign_id", "session_number", "title", "narrative", "location", "choices", "session_xp_reward", "is_completed", "completed_at", "created_at", "updated_at" from "campaign_sessions" where "campaign_sessions"."campaign_id" = $1 order by "campaign_sessions"."session_number" asc -- params: [8]
+Query: select "id", "user_id", "title", "description", "difficulty", "narrative_style", "current_session", "current_turn_user_id", "is_turn_based", "turn_time_limit", "turn_started_at", "xp_reward", "is_archived", "is_completed", "completed_at", "is_published", "published_at", "deployment_code", "is_private", "max_players", "created_at", "updated_at" from "campaigns"
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [3]
+12:05:51 PM [express] GET /api/campaigns/8/sessions 304 in 260ms :: [{"id":124,"campaignId":8,"sessio…
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [4]
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [5]
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [7]
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [1]
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [8]
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [6]
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [2]
+12:05:51 PM [express] GET /api/campaigns 304 in 615ms :: [{"id":3,"userId":2,"title":"Veils of the Ve…
+Failed to parse OpenAI response: Error: Invalid response structure
+    at <anonymous> (/home/runner/workspace/server/routes.ts:1302:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+Raw response: {
+  "narrative": "The party stirs from an uneasy rest, surrounded by a dense, mysterious fog that clings to their boots and muffles their sounds. In this shrouded realm, the ground beneath seems to pulse gently as if alive, and strange echoes of forgotten whispers taunt their senses. Each adventurer feels an unfamiliar weight in their pocket, realizing they've been marked with a strange rune overnight. As they ponder the significance, the fog begins to part, revealing a towering, ancient gate covered in luminescent runes that resonate with their newfound marks.",
+  "location": "The Veil of Echoes - an interdimensional crossroads surrounded by mist",
+  "storyProgression": {
+    "mainPlotAdvancement": "The appearance of the rune-marked gate suggests a significant, unplanned detour in their journey, revealing the mysterious influence of a powerful overseer yet unknown.",
+    "consequencesShown": "The party's overnight rest in a seemingly secure spot was interrupted by forces unseen, marking them without their knowledge, indicating a need for heightened watchfulness going forward.",
+    "threadsResolved": [],
+    "newThreads": [
+      "Who or what marked the party with runes and why?",
+      "What secrets or dangers lie beyond the rune-marked gate?"
+    ]
+  },
+  "choices": [
+    {
+      "action": "Examine the runes on the gate",
+      "description": "Study the glowing runes to discern their origin and potential purpose. Successfully understanding their magic could unveil new paths or warn of impending dangers.",
+      "requiresDiceRoll": true,
+      "diceType": "d20",
+      "rollDC": 15,
+      "abilityType": "intelligence",
+      "rollModifier": 3,
+      "rollPurpose": "Determine if the player can interpret the magic",
+      "storyImpact": "moderate"
+    },
+    {
+      "action": "Attempt to dispel the fog",
+      "description": "Use magic or a clever scheme to disperse the fog, possibly revealing hidden paths or threats.",
+      "requiresDiceRoll": true,
+      "diceType": "d20",
+      "rollDC": 14,
+      "abilityType": "wisdom",
+      "rollModifier": 2,
+      "rollPurpose": "Determine success in clearing the fog",
+      "storyImpact": "minor"
+    },
+    {
+      "action": "Enter the gate",
+      "description": "Bravely venture through the rune-marked gate without further investigation, taking the party into the unknown with no regard for potential consequences.",
+      "requiresDiceRoll": false,
+      "diceType": "",
+      "rollDC": 0,
+      "abilityType": "",
+      "rollModifier": 0,
+      "rollPurpose": "",
+      "storyImpact": "major"
+    }
+  ]
+}
+12:05:55 PM [express] POST /api/campaigns/advance-story 500 in 9836ms :: {"message":"Failed to parse …
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: select "id", "username", "password", "email", "display_name", "last_login", "created_at" from "users" where "users"."id" = $1 -- params: [2]
+Query: select "id", "user_id", "title", "description", "difficulty", "narrative_style", "current_session", "current_turn_user_id", "is_turn_based", "turn_time_limit", "turn_started_at", "xp_reward", "is_archived", "is_completed", "completed_at", "is_published", "published_at", "deployment_code", "is_private", "max_players", "created_at", "updated_at" from "campaigns"
+Query: select "id", "campaign_id", "session_number", "title", "narrative", "location", "choices", "session_xp_reward", "is_completed", "completed_at", "created_at", "updated_at" from "campaign_sessions" where "campaign_sessions"."campaign_id" = $1 order by "campaign_sessions"."session_number" asc -- params: [8]
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [3]
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [4]
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [5]
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [7]
+12:06:07 PM [express] GET /api/campaigns/8/sessions 304 in 393ms :: [{"id":124,"campaignId":8,"sessio…
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [1]
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [8]
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [6]
+Query: select "users"."id", "users"."username", "users"."display_name", "campaign_participants"."joined_at", "campaign_participants"."role", "campaign_participants"."is_active" from "campaign_participants" inner join "users" on "campaign_participants"."user_id" = "users"."id" where "campaign_participants"."campaign_id" = $1 -- params: [2]
+12:06:07 PM [express] GET /api/campaigns 304 in 587ms :: [{"id":3,"userId":2,"title":"Veils of the Ve…
