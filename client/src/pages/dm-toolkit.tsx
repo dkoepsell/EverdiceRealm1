@@ -90,6 +90,8 @@ import SharedBattleMap from "@/components/dm-toolkit/SharedBattleMap";
 import AudioVisualController from "@/components/dm-toolkit/AudioVisualController";
 import RealTimeCharacterSync from "@/components/dm-toolkit/RealTimeCharacterSync";
 import QuickReferenceLibrary from "@/components/dm-toolkit/QuickReferenceLibrary";
+import SessionRecorder from "@/components/dm-toolkit/SessionRecorder";
+import VoiceIntegration from "@/components/dm-toolkit/VoiceIntegration";
 
 export default function DMToolkit() {
   const { user, isLoading: authLoading } = useAuth();
@@ -154,7 +156,7 @@ export default function DMToolkit() {
       </div>
       
       <Tabs defaultValue="live-manager" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-4 md:grid-cols-12 w-full overflow-x-auto">
+        <TabsList className="grid grid-cols-4 lg:grid-cols-14 w-full overflow-x-auto">
           <TabsTrigger value="live-manager" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
             <PlayIcon className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
             Live
@@ -178,6 +180,14 @@ export default function DMToolkit() {
           <TabsTrigger value="audio-visual" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
             <Sparkles className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
             A/V
+          </TabsTrigger>
+          <TabsTrigger value="session-recording" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
+            <Radio className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
+            Record
+          </TabsTrigger>
+          <TabsTrigger value="voice-control" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
+            <Gamepad2 className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
+            Voice
           </TabsTrigger>
           <TabsTrigger value="reference" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
             <BookOpen className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />

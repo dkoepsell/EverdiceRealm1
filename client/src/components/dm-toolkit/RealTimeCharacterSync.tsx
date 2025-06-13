@@ -27,7 +27,7 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Sync,
+  RotateCw,
   Eye,
   Edit3,
   Plus,
@@ -215,7 +215,7 @@ export default function RealTimeCharacterSync({ campaignId }: RealTimeCharacterS
         <h3 className="text-lg font-semibold">Real-Time Character Sheets</h3>
         <div className="flex items-center space-x-2">
           <Badge variant="secondary">
-            <Sync className="h-3 w-3 mr-1" />
+            <RotateCw className="h-3 w-3 mr-1" />
             Live Sync
           </Badge>
           <Badge variant="outline">{characters.length} Characters</Badge>
