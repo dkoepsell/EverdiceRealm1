@@ -3862,6 +3862,282 @@ Return your response as a JSON object with these fields:
     }
   });
 
+  // AI Campaign Story Arc Generation
+  app.post('/api/story-arcs/generate', async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { campaignId, theme, setting, difficulty, estimatedSessions, playerLevel } = req.body;
+      if (!campaignId || !theme || !setting) {
+        return res.status(400).json({ message: "Campaign ID, theme, and setting are required" });
+      }
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert D&D campaign designer. Create a comprehensive story arc with detailed plot points that can adapt to player choices. Return only valid JSON with this exact structure:
+            {
+              "title": "Story arc title",
+              "description": "Detailed story overview",
+              "overallGoal": "Main objective for players",
+              "totalActs": 3,
+              "plotPoints": [
+                {
+                  "act": 1,
+                  "sequence": 1,
+                  "title": "Plot point title",
+                  "description": "Detailed description",
+                  "plotType": "hook|challenge|revelation|climax|resolution",
+                  "triggerConditions": ["condition1", "condition2"],
+                  "playerChoicesImpact": {"choice1": "consequence1"},
+                  "npcsInvolved": [{"name": "NPC Name", "role": "their role"}],
+                  "locationsInvolved": [{"name": "Location", "type": "location type"}],
+                  "rewards": [{"type": "xp|item|story", "value": "reward details"}]
+                }
+              ]
+            }`
+          },
+          { 
+            role: "user", 
+            content: `Create a ${difficulty} difficulty ${theme}-themed story arc set in ${setting} for ${estimatedSessions} sessions. Player level: ${playerLevel || 'mixed'}. Include dynamic plot points that can branch based on player decisions.`
+          }
+        ],
+        temperature: 0.8
+      });
+
+      const content = completion.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error("No response from AI");
+      }
+
+      // Clean the content to extract JSON from markdown
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/```\s*([\s\S]*?)\s*```/);
+      const jsonString = jsonMatch ? jsonMatch[1] : content;
+      
+      const storyData = JSON.parse(jsonString);
+      
+      // Create the story arc in database
+      const storyArc = await storage.createCampaignStoryArc({
+        campaignId,
+        title: storyData.title,
+        description: storyData.description,
+        theme,
+        setting,
+        overallGoal: storyData.overallGoal,
+        estimatedSessions: estimatedSessions || 5,
+        difficulty: difficulty || 'medium',
+        totalActs: storyData.totalActs || 3,
+        createdAt: new Date().toISOString()
+      });
+
+      // Create plot points
+      for (const plotPoint of storyData.plotPoints) {
+        await storage.createPlotPoint({
+          storyArcId: storyArc.id,
+          act: plotPoint.act,
+          sequence: plotPoint.sequence,
+          title: plotPoint.title,
+          description: plotPoint.description,
+          plotType: plotPoint.plotType,
+          triggerConditions: plotPoint.triggerConditions || [],
+          playerChoicesImpact: plotPoint.playerChoicesImpact || {},
+          npcsInvolved: plotPoint.npcsInvolved || [],
+          locationsInvolved: plotPoint.locationsInvolved || [],
+          rewards: plotPoint.rewards || [],
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      res.json({ storyArc, plotPoints: storyData.plotPoints });
+    } catch (error: any) {
+      console.error("Story arc generation error:", error);
+      res.status(500).json({ message: "Failed to generate story arc", error: error.message });
+    }
+  });
+
+  // Campaign Invitation System
+  app.post('/api/campaigns/:campaignId/invitations', async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const campaignId = parseInt(req.params.campaignId);
+      const { emails, personalMessage, role = 'player' } = req.body;
+
+      if (!emails || !Array.isArray(emails) || emails.length === 0) {
+        return res.status(400).json({ message: "At least one email is required" });
+      }
+
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign || campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Not authorized to invite to this campaign" });
+      }
+
+      const invitations = [];
+      for (const email of emails) {
+        const token = require('crypto').randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
+
+        const invitation = await storage.createCampaignInvitation({
+          campaignId,
+          inviterId: req.user.id,
+          inviteeEmail: email,
+          role,
+          personalMessage,
+          token,
+          expiresAt,
+          createdAt: new Date().toISOString()
+        });
+
+        invitations.push(invitation);
+      }
+
+      res.json({ message: "Invitations sent successfully", invitations });
+    } catch (error: any) {
+      console.error("Invitation creation error:", error);
+      res.status(500).json({ message: "Failed to create invitations", error: error.message });
+    }
+  });
+
+  // Accept Campaign Invitation
+  app.post('/api/invitations/:token/accept', async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const token = req.params.token;
+      const invitation = await storage.acceptCampaignInvitation(token, req.user.id);
+      
+      if (!invitation) {
+        return res.status(404).json({ message: "Invalid or expired invitation" });
+      }
+
+      // Add user to campaign participants
+      const campaign = await storage.getCampaign(invitation.campaignId);
+      if (campaign) {
+        // Check if user needs to select a character
+        const userCharacters = await storage.getUserCharacters(req.user.id);
+        
+        res.json({ 
+          message: "Invitation accepted successfully", 
+          campaign, 
+          needsCharacterSelection: userCharacters.length === 0 
+        });
+      } else {
+        res.status(404).json({ message: "Campaign not found" });
+      }
+    } catch (error: any) {
+      console.error("Invitation acceptance error:", error);
+      res.status(500).json({ message: "Failed to accept invitation", error: error.message });
+    }
+  });
+
+  // Player Decision Tracking and AI Response
+  app.post('/api/campaigns/:campaignId/decisions', async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const campaignId = parseInt(req.params.campaignId);
+      const { 
+        sessionId, 
+        plotPointId, 
+        characterId, 
+        decisionType, 
+        decisionText, 
+        context, 
+        diceRollIds = [],
+        outcome 
+      } = req.body;
+
+      if (!decisionText || !context || !decisionType) {
+        return res.status(400).json({ message: "Decision text, context, and type are required" });
+      }
+
+      // Create player decision record
+      const decision = await storage.createPlayerDecision({
+        campaignId,
+        sessionId,
+        plotPointId,
+        playerId: req.user.id,
+        characterId,
+        decisionType,
+        decisionText,
+        context,
+        diceRollIds,
+        outcome,
+        createdAt: new Date().toISOString()
+      });
+
+      // Generate AI suggestions for DM response
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert D&D Dungeon Master assistant. Based on the player's decision, provide suggestions for narrative consequences, potential story developments, and DM response options. Return only valid JSON:
+            {
+              "narrativeConsequences": ["consequence1", "consequence2"],
+              "suggestedDmResponse": "Immediate narrative response for the DM to use",
+              "potentialEvents": [
+                {"type": "event_type", "description": "event description", "probability": 0-100}
+              ],
+              "impactLevel": "minor|moderate|major|critical"
+            }`
+          },
+          {
+            role: "user",
+            content: `Player decision: "${decisionText}" in context: "${context}". Outcome: ${outcome || "pending"}. Campaign type: fantasy D&D.`
+          }
+        ],
+        temperature: 0.7
+      });
+
+      const content = completion.choices[0]?.message?.content;
+      if (content) {
+        const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/```\s*([\s\S]*?)\s*```/);
+        const jsonString = jsonMatch ? jsonMatch[1] : content;
+        const aiSuggestions = JSON.parse(jsonString);
+
+        // Update decision with AI suggestions
+        await storage.updatePlayerDecision(decision.id, {
+          aiSuggestions: aiSuggestions,
+          narrativeConsequences: aiSuggestions.narrativeConsequences || [],
+          impactLevel: aiSuggestions.impactLevel || 'minor'
+        });
+
+        // Create dynamic story events if impact is significant
+        if (aiSuggestions.impactLevel === 'major' || aiSuggestions.impactLevel === 'critical') {
+          for (const event of aiSuggestions.potentialEvents || []) {
+            await storage.createDynamicStoryEvent({
+              campaignId,
+              triggerDecisionId: decision.id,
+              eventType: event.type,
+              title: `Dynamic Event: ${event.type}`,
+              description: event.description,
+              probability: event.probability || 50,
+              createdAt: new Date().toISOString()
+            });
+          }
+        }
+
+        res.json({ decision, aiSuggestions });
+      } else {
+        res.json({ decision });
+      }
+    } catch (error: any) {
+      console.error("Decision tracking error:", error);
+      res.status(500).json({ message: "Failed to track decision", error: error.message });
+    }
+  });
+
   // Quick AI Generation for Live Sessions
   app.post('/api/dm-toolkit/quick-generate', async (req, res) => {
     try {

@@ -24,7 +24,12 @@ import {
   items, type Item, type InsertItem,
   characterItems, type CharacterItem, type InsertCharacterItem,
   // Campaign rewards system
-  campaignRewards, type CampaignReward, type InsertCampaignReward
+  campaignRewards, type CampaignReward, type InsertCampaignReward,
+  // Story Arc System imports
+  campaignStoryArcs, type CampaignStoryArc, type InsertCampaignStoryArc,
+  plotPoints, type PlotPoint, type InsertPlotPoint,
+  playerDecisions, type PlayerDecision, type InsertPlayerDecision,
+  dynamicStoryEvents, type DynamicStoryEvent, type InsertDynamicStoryEvent
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or } from "drizzle-orm";
@@ -202,6 +207,38 @@ export interface IStorage {
   getUserEncounters(userId: number): Promise<any[]>;
   getUserMaps(userId: number): Promise<any[]>;
   getRecentDiceRolls(campaignId: number, since: string, limit: number): Promise<DiceRoll[]>;
+
+  // Campaign Story Arc operations
+  getCampaignStoryArcs(campaignId: number): Promise<CampaignStoryArc[]>;
+  getCampaignStoryArc(id: number): Promise<CampaignStoryArc | undefined>;
+  createCampaignStoryArc(storyArc: InsertCampaignStoryArc): Promise<CampaignStoryArc>;
+  updateCampaignStoryArc(id: number, updates: Partial<CampaignStoryArc>): Promise<CampaignStoryArc | undefined>;
+  deleteCampaignStoryArc(id: number): Promise<boolean>;
+  
+  // Plot Point operations
+  getPlotPoints(storyArcId: number): Promise<PlotPoint[]>;
+  getPlotPoint(id: number): Promise<PlotPoint | undefined>;
+  createPlotPoint(plotPoint: InsertPlotPoint): Promise<PlotPoint>;
+  updatePlotPoint(id: number, updates: Partial<PlotPoint>): Promise<PlotPoint | undefined>;
+  deletePlotPoint(id: number): Promise<boolean>;
+  
+  // Player Decision operations
+  getPlayerDecisions(campaignId: number): Promise<PlayerDecision[]>;
+  getPlayerDecision(id: number): Promise<PlayerDecision | undefined>;
+  createPlayerDecision(decision: InsertPlayerDecision): Promise<PlayerDecision>;
+  updatePlayerDecision(id: number, updates: Partial<PlayerDecision>): Promise<PlayerDecision | undefined>;
+  
+  // Dynamic Story Event operations
+  getDynamicStoryEvents(campaignId: number): Promise<DynamicStoryEvent[]>;
+  getDynamicStoryEvent(id: number): Promise<DynamicStoryEvent | undefined>;
+  createDynamicStoryEvent(event: InsertDynamicStoryEvent): Promise<DynamicStoryEvent>;
+  updateDynamicStoryEvent(id: number, updates: Partial<DynamicStoryEvent>): Promise<DynamicStoryEvent | undefined>;
+  deleteDynamicStoryEvent(id: number): Promise<boolean>;
+  
+  // Enhanced Campaign Invitation operations
+  getCampaignInvitationByToken(token: string): Promise<CampaignInvitation | undefined>;
+  acceptCampaignInvitation(token: string, userId: number): Promise<CampaignInvitation | undefined>;
+  declineCampaignInvitation(token: string): Promise<CampaignInvitation | undefined>;
 }
 
 export class MemStorage implements IStorage {
