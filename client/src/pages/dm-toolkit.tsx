@@ -74,10 +74,12 @@ import {
 import InvitationsTab from "@/components/dm-toolkit/InvitationsTab";
 import NotesTabSimple from "@/components/dm-toolkit/NotesTabSimple";
 import AIAssistedDMGuide from "@/components/dm-toolkit/AIAssistedDMGuide";
+import LiveCampaignManagerTab from "@/components/dm-toolkit/LiveCampaignManagerTab";
+import DMTrainingCenterTab from "@/components/dm-toolkit/DMTrainingCenterTab";
 
 export default function DMToolkit() {
   const { user, isLoading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState("companions");
+  const [activeTab, setActiveTab] = useState("training");
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
   const [showAIGuide, setShowAIGuide] = useState(false);
   
@@ -150,8 +152,12 @@ export default function DMToolkit() {
         </div>
       </div>
       
-      <Tabs defaultValue="live-manager" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-9 w-full overflow-x-auto">
+      <Tabs defaultValue="training" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid grid-cols-5 md:grid-cols-8 lg:grid-cols-10 w-full overflow-x-auto">
+          <TabsTrigger value="training" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
+            <BookOpen className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
+            DM Training
+          </TabsTrigger>
           <TabsTrigger value="live-manager" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
             <PlayIcon className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
             Live Manager
@@ -187,86 +193,15 @@ export default function DMToolkit() {
           </TabsTrigger>
         </TabsList>
         
+        <TabsContent value="training" className="space-y-4">
+          <DMTrainingCenterTab />
+        </TabsContent>
+        
         <TabsContent value="live-manager" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <PlayIcon className="h-5 w-5" />
-                  <span>Campaign Management</span>
-                </CardTitle>
-                <CardDescription>
-                  Manage your active campaigns and sessions
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {campaigns.length === 0 ? (
-                  <div className="text-center py-6">
-                    <AlertCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-muted-foreground">No campaigns found</p>
-                    <p className="text-sm text-muted-foreground">Create a campaign to get started</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {campaigns.map((campaign) => (
-                      <div 
-                        key={campaign.id} 
-                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                          selectedCampaignId === campaign.id 
-                            ? "border-primary bg-primary/5" 
-                            : "border-muted hover:border-primary/50"
-                        }`}
-                        onClick={() => setSelectedCampaignId(campaign.id)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="font-medium">{campaign.title}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {campaign.description || "No description"}
-                            </p>
-                          </div>
-                          <Badge variant={selectedCampaignId === campaign.id ? "default" : "outline"}>
-                            {selectedCampaignId === campaign.id ? "Selected" : "Select"}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Sparkles className="h-5 w-5" />
-                  <span>AI DM Tools</span>
-                </CardTitle>
-                <CardDescription>
-                  AI-powered assistance for running your campaigns
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button
-                  onClick={() => setShowAIGuide(true)}
-                  disabled={!selectedCampaignId}
-                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                >
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Launch AI DM Assistant
-                </Button>
-                <div className="text-sm text-muted-foreground space-y-2">
-                  <p className="font-medium">Features:</p>
-                  <ul className="space-y-1 text-xs">
-                    <li>• Step-by-step combat guidance</li>
-                    <li>• Real-time encounter assistance</li>
-                    <li>• Creative problem solving tips</li>
-                    <li>• Common mistake prevention</li>
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <LiveCampaignManagerTab 
+            selectedCampaignId={selectedCampaignId}
+            onCampaignSelect={setSelectedCampaignId}
+          />
         </TabsContent>
         
         <TabsContent value="companions" className="space-y-4">
