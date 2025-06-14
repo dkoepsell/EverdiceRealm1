@@ -2740,7 +2740,17 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
   app.post('/api/magic-items', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const itemData = { ...req.body, userId };
+      const itemData = { 
+        user_id: userId,
+        name: req.body.name,
+        type: req.body.type,
+        rarity: req.body.rarity,
+        description: req.body.description,
+        requires_attunement: req.body.requires_attunement || false,
+        notes: req.body.notes || '',
+        created_at: new Date(),
+        updated_at: new Date()
+      };
       
       const [item] = await db
         .insert(magicItems)
@@ -2774,7 +2784,29 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
   app.post('/api/monsters', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const monsterData = { ...req.body, userId };
+      const monsterData = { 
+        name: req.body.name,
+        type: req.body.type,
+        size: req.body.size,
+        challenge_rating: req.body.challenge_rating,
+        armor_class: req.body.armor_class || 10,
+        hit_points: req.body.hit_points || 1,
+        speed: req.body.speed || '30 ft.',
+        stats: `STR ${req.body.strength || 10}, DEX ${req.body.dexterity || 10}, CON ${req.body.constitution || 10}, INT ${req.body.intelligence || 10}, WIS ${req.body.wisdom || 10}, CHA ${req.body.charisma || 10}`,
+        description: req.body.description,
+        lore: req.body.notes || '',
+        skills: [],
+        resistances: [],
+        immunities: [],
+        senses: [],
+        languages: [],
+        abilities: [],
+        actions: [],
+        environment: [],
+        created_by: userId,
+        is_public: false,
+        created_at: new Date()
+      };
       
       const [monster] = await db
         .insert(monsters)
