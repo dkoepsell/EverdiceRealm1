@@ -2132,15 +2132,6 @@ function MonstersTab() {
         </DialogContent>
       </Dialog>
       
-      <Card className="mb-6 p-4 border-amber-500/50 bg-amber-100 dark:bg-amber-950/20">
-        <div className="flex items-center gap-2">
-          <AlertCircle className="h-5 w-5 text-amber-500" />
-          <p className="text-amber-700 dark:text-amber-400 font-medium">
-            Coming Soon! The Monster Creation feature is under development and will be available in a future update.
-          </p>
-        </div>
-      </Card>
-      
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
