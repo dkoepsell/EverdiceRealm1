@@ -774,6 +774,9 @@ function LocationsTab() {
     name: "",
     type: "",
     description: "",
+    population: "",
+    government: "",
+    notable_features: "",
     notes: ""
   });
   const { toast } = useToast();
@@ -788,7 +791,7 @@ function LocationsTab() {
         description: "Location created successfully",
       });
       setShowCreateDialog(false);
-      setNewLocation({ name: "", type: "", description: "", notes: "" });
+      setNewLocation({ name: "", type: "", description: "", population: "", government: "", notable_features: "", notes: "" });
       queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
     },
     onError: (error: Error) => {
@@ -812,18 +815,25 @@ function LocationsTab() {
     createLocationMutation.mutate(newLocation);
   };
 
-  const aiGenerateMutation = useMutation({
-    mutationFn: async (type: string) => {
-      return await apiRequest("POST", `/api/ai-generate/${type}`, {});
+  const aiGenerateLocationMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/ai-generate/location", {});
+      return await response.json();
     },
-    onSuccess: (data, type) => {
-      if (type === 'location') {
-        setNewLocation(data);
-        setShowCreateDialog(true);
-      }
+    onSuccess: (data) => {
+      setNewLocation({
+        name: data.name || "",
+        type: data.type || "",
+        description: data.description || "",
+        population: data.population || "",
+        government: data.government || "",
+        notable_features: data.notable_features || "",
+        notes: data.notes || ""
+      });
+      setShowCreateDialog(true);
       toast({
         title: "Success",
-        description: `AI generated ${type} ready for review`,
+        description: "AI generated location ready for review",
       });
     },
     onError: (error: Error) => {
@@ -836,7 +846,9 @@ function LocationsTab() {
   });
 
   const handleAIGenerate = (type: string) => {
-    aiGenerateMutation.mutate(type);
+    if (type === 'location') {
+      aiGenerateLocationMutation.mutate();
+    }
   };
 
   return (
@@ -1164,10 +1176,19 @@ function QuestsTab() {
 
   const aiGenerateQuestMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("POST", "/api/ai-generate/quest", {});
+      const response = await apiRequest("POST", "/api/ai-generate/quest", {});
+      return await response.json();
     },
     onSuccess: (data) => {
-      setNewQuest(data);
+      setNewQuest({
+        title: data.title || "",
+        description: data.description || "",
+        category: data.category || "",
+        difficulty: data.difficulty || "",
+        level_range: data.level_range || "",
+        estimated_duration: data.estimated_duration || "",
+        notes: data.notes || ""
+      });
       setShowCreateDialog(true);
       toast({
         title: "Success",
@@ -1571,10 +1592,18 @@ function MagicItemsTab() {
 
   const aiGenerateItemMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("POST", "/api/ai-generate/magic-item", {});
+      const response = await apiRequest("POST", "/api/ai-generate/magic-item", {});
+      return await response.json();
     },
     onSuccess: (data) => {
-      setNewItem(data);
+      setNewItem({
+        name: data.name || "",
+        type: data.type || "",
+        rarity: data.rarity || "",
+        description: data.description || "",
+        requires_attunement: data.requires_attunement || false,
+        notes: data.notes || ""
+      });
       setShowCreateDialog(true);
       toast({
         title: "Success",
@@ -2006,10 +2035,28 @@ function MonstersTab() {
 
   const aiGenerateMonsterMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("POST", "/api/ai-generate/monster", {});
+      const response = await apiRequest("POST", "/api/ai-generate/monster", {});
+      return await response.json();
     },
     onSuccess: (data) => {
-      setNewMonster(data);
+      setNewMonster({
+        name: data.name || "",
+        size: data.size || "",
+        type: data.type || "",
+        alignment: data.alignment || "",
+        challenge_rating: data.challenge_rating || "",
+        armor_class: data.armor_class || 10,
+        hit_points: data.hit_points || 1,
+        speed: data.speed || "",
+        strength: data.strength || 10,
+        dexterity: data.dexterity || 10,
+        constitution: data.constitution || 10,
+        intelligence: data.intelligence || 10,
+        wisdom: data.wisdom || 10,
+        charisma: data.charisma || 10,
+        description: data.description || "",
+        notes: data.notes || ""
+      });
       setShowCreateDialog(true);
       toast({
         title: "Success",
