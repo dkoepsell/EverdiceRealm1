@@ -399,11 +399,17 @@ function CampaignBuilderTab() {
 
   const generateCampaign = useMutation({
     mutationFn: async (params: any) => {
-      const response = await apiRequest('/api/generate-campaign', {
+      const response = await fetch('/api/generate-campaign', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(params)
       });
-      return response;
+      if (!response.ok) {
+        throw new Error('Failed to generate campaign');
+      }
+      return response.json();
     },
     onSuccess: (data) => {
       setGeneratedCampaign(data);
