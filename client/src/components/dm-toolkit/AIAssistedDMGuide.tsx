@@ -180,7 +180,7 @@ export default function AIAssistedDMGuide({ campaignId, onClose }: AIAssistedDMG
             <span>AI DM Assistant</span>
             {campaign && (
               <Badge variant="outline" className="ml-2">
-                {campaign.title}
+                {(campaign as any).title}
               </Badge>
             )}
           </DialogTitle>
