@@ -56,6 +56,15 @@ import {
   Edit,
   Eye,
   Activity,
+  Sparkles,
+  Coins,
+  Package,
+  Star,
+  TrendingUp,
+  Gift,
+  Sword,
+  Crown,
+  Dice6,
 } from "lucide-react";
 
 interface LiveCampaignManagerTabProps {
@@ -72,6 +81,24 @@ export default function LiveCampaignManagerTab({
   const [sessionName, setSessionName] = useState("");
   const [sessionDescription, setSessionDescription] = useState("");
   const [sessionType, setSessionType] = useState("");
+  
+  // Content creation and editing states
+  const [showContentDialog, setShowContentDialog] = useState(false);
+  const [contentType, setContentType] = useState("");
+  const [editingContent, setEditingContent] = useState<any>(null);
+  
+  // XP and rewards states
+  const [showRewardDialog, setShowRewardDialog] = useState(false);
+  const [selectedParticipant, setSelectedParticipant] = useState<any>(null);
+  const [rewardType, setRewardType] = useState("");
+  const [xpAmount, setXpAmount] = useState("");
+  const [rewardReason, setRewardReason] = useState("");
+  
+  // Inventory management states
+  const [showInventoryDialog, setShowInventoryDialog] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [itemQuantity, setItemQuantity] = useState(1);
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -96,6 +123,27 @@ export default function LiveCampaignManagerTab({
   const { data: participants = [] } = useQuery<any[]>({
     queryKey: [`/api/campaigns/${selectedCampaignId}/participants`],
     enabled: !!selectedCampaignId,
+  });
+
+  // Fetch all content for quick access during live sessions
+  const { data: quests = [] } = useQuery<any[]>({
+    queryKey: ["/api/quests"],
+  });
+  
+  const { data: locations = [] } = useQuery<any[]>({
+    queryKey: ["/api/locations"],
+  });
+  
+  const { data: monsters = [] } = useQuery<any[]>({
+    queryKey: ["/api/monsters"],
+  });
+  
+  const { data: magicItems = [] } = useQuery<any[]>({
+    queryKey: ["/api/magic-items"],
+  });
+
+  const { data: characters = [] } = useQuery<any[]>({
+    queryKey: ["/api/characters"],
   });
 
   // Create session mutation
@@ -133,6 +181,102 @@ export default function LiveCampaignManagerTab({
     },
   });
 
+  // XP and Reward Management Mutations
+  const awardXPMutation = useMutation({
+    mutationFn: async (data: { characterId: number; xp: number; reason: string }) => {
+      return await apiRequest("POST", "/api/characters/award-xp", data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "XP Awarded",
+        description: `${xpAmount} XP awarded to ${selectedParticipant?.character?.name}`,
+      });
+      setShowRewardDialog(false);
+      setXpAmount("");
+      setRewardReason("");
+      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${selectedCampaignId}/participants`] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const addItemToInventoryMutation = useMutation({
+    mutationFn: async (data: { characterId: number; itemId: number; quantity: number }) => {
+      return await apiRequest("POST", "/api/characters/add-item", data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Item Added",
+        description: `${selectedItem?.name} added to ${selectedParticipant?.character?.name}'s inventory`,
+      });
+      setShowInventoryDialog(false);
+      setSelectedItem(null);
+      setItemQuantity(1);
+      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Content Creation/Editing Mutations (for quick access during live sessions)
+  const createContentMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const endpoint = `/api/${contentType}s`;
+      return await apiRequest("POST", endpoint, data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Content Created",
+        description: `${contentType} created successfully`,
+      });
+      setShowContentDialog(false);
+      setEditingContent(null);
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: [`/api/${contentType}s`] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateContentMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const endpoint = `/api/${contentType}s/${data.id}`;
+      return await apiRequest("PUT", endpoint, data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Content Updated",
+        description: `${contentType} updated successfully`,
+      });
+      setShowContentDialog(false);
+      setEditingContent(null);
+      queryClient.invalidateQueries({ queryKey: [`/api/${contentType}s`] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateSession = () => {
     if (!selectedCampaignId || !sessionName.trim() || !sessionType) {
       toast({
@@ -149,6 +293,52 @@ export default function LiveCampaignManagerTab({
       description: sessionDescription,
       sessionType,
     });
+  };
+
+  const handleAwardXP = () => {
+    if (!selectedParticipant || !xpAmount || !rewardReason.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please select a participant, enter XP amount, and provide a reason",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    awardXPMutation.mutate({
+      characterId: selectedParticipant.characterId,
+      xp: parseInt(xpAmount),
+      reason: rewardReason,
+    });
+  };
+
+  const handleAddItemToInventory = () => {
+    if (!selectedParticipant || !selectedItem) {
+      toast({
+        title: "Missing Information",
+        description: "Please select a participant and an item",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    addItemToInventoryMutation.mutate({
+      characterId: selectedParticipant.characterId,
+      itemId: selectedItem.id,
+      quantity: itemQuantity,
+    });
+  };
+
+  const handleQuickContentCreation = (type: string) => {
+    setContentType(type);
+    setEditingContent(null);
+    setShowContentDialog(true);
+  };
+
+  const handleQuickContentEdit = (type: string, content: any) => {
+    setContentType(type);
+    setEditingContent(content);
+    setShowContentDialog(true);
   };
 
   if (!selectedCampaignId) {
@@ -284,11 +474,12 @@ export default function LiveCampaignManagerTab({
 
       {/* Management Tabs */}
       <Tabs value={activeManagerTab} onValueChange={setActiveManagerTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="party">Party Manager</TabsTrigger>
+          <TabsTrigger value="content">Quick Content</TabsTrigger>
           <TabsTrigger value="sessions">Sessions</TabsTrigger>
-          <TabsTrigger value="players">Players</TabsTrigger>
-          <TabsTrigger value="guidance">DM Guidance</TabsTrigger>
+          <TabsTrigger value="guidance">Live Guidance</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -355,6 +546,316 @@ export default function LiveCampaignManagerTab({
                   <p>• Use the AI assistant for guidance</p>
                   <p>• Take notes during sessions</p>
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="party" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Party Members */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Users className="h-5 w-5" />
+                    <span>Party Members</span>
+                  </div>
+                  <Badge variant="outline">{participants.length} Active</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {participants.map((participant: any) => (
+                    <div key={participant.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                          <Crown className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium">{participant.character?.name || 'Unknown Character'}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Level {participant.character?.level || 1} • {participant.character?.xp || 0} XP
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedParticipant(participant);
+                            setRewardType("xp");
+                            setShowRewardDialog(true);
+                          }}
+                        >
+                          <Star className="h-4 w-4 mr-1" />
+                          Award XP
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedParticipant(participant);
+                            setShowInventoryDialog(true);
+                          }}
+                        >
+                          <Package className="h-4 w-4 mr-1" />
+                          Add Item
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {participants.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Users className="h-8 w-8 mx-auto mb-2" />
+                      <p>No party members yet</p>
+                      <p className="text-sm">Invite players to join your campaign</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Rewards Panel */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Gift className="h-5 w-5 text-green-600" />
+                  <span>Quick Rewards</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex-col"
+                    onClick={() => {
+                      if (participants.length > 0) {
+                        setRewardType("xp");
+                        setXpAmount("100");
+                        setRewardReason("Combat encounter");
+                        setShowRewardDialog(true);
+                      }
+                    }}
+                  >
+                    <Sword className="h-6 w-6 mb-1" />
+                    <span className="text-xs">Combat XP</span>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex-col"
+                    onClick={() => {
+                      if (participants.length > 0) {
+                        setRewardType("xp");
+                        setXpAmount("50");
+                        setRewardReason("Role-playing excellence");
+                        setShowRewardDialog(true);
+                      }
+                    }}
+                  >
+                    <TrendingUp className="h-6 w-6 mb-1" />
+                    <span className="text-xs">RP Bonus</span>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex-col"
+                    onClick={() => {
+                      if (participants.length > 0) {
+                        setRewardType("xp");
+                        setXpAmount("75");
+                        setRewardReason("Quest milestone");
+                        setShowRewardDialog(true);
+                      }
+                    }}
+                  >
+                    <Target className="h-6 w-6 mb-1" />
+                    <span className="text-xs">Quest XP</span>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex-col"
+                    onClick={() => {
+                      if (participants.length > 0) {
+                        setShowInventoryDialog(true);
+                      }
+                    }}
+                  >
+                    <Coins className="h-6 w-6 mb-1" />
+                    <span className="text-xs">Loot Item</span>
+                  </Button>
+                </div>
+                
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-medium mb-2">Party Statistics</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Average Level:</span>
+                      <span>{participants.length > 0 ? Math.round(participants.reduce((sum: number, p: any) => sum + (p.character?.level || 1), 0) / participants.length) : 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total XP Earned:</span>
+                      <span>{participants.reduce((sum: number, p: any) => sum + (p.character?.xp || 0), 0)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Active Session:</span>
+                      <Badge variant="outline" className="text-xs">Live</Badge>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="content" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Quick Content Creation */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Sparkles className="h-5 w-5 text-purple-600" />
+                  <span>Quick Content Creation</span>
+                </CardTitle>
+                <CardDescription>
+                  Create content on-the-fly during your live session
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex-col"
+                    onClick={() => handleQuickContentCreation("quest")}
+                  >
+                    <Target className="h-6 w-6 mb-1" />
+                    <span className="text-xs">New Quest</span>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex-col"
+                    onClick={() => handleQuickContentCreation("location")}
+                  >
+                    <MapPin className="h-6 w-6 mb-1" />
+                    <span className="text-xs">New Location</span>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex-col"
+                    onClick={() => handleQuickContentCreation("monster")}
+                  >
+                    <Shield className="h-6 w-6 mb-1" />
+                    <span className="text-xs">New Monster</span>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex-col"
+                    onClick={() => handleQuickContentCreation("magic-item")}
+                  >
+                    <Sparkles className="h-6 w-6 mb-1" />
+                    <span className="text-xs">Magic Item</span>
+                  </Button>
+                </div>
+                
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-medium mb-2">AI Quick Generate</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button size="sm" variant="ghost" className="justify-start">
+                      <Dice6 className="h-4 w-4 mr-2" />
+                      Random Encounter
+                    </Button>
+                    <Button size="sm" variant="ghost" className="justify-start">
+                      <Globe className="h-4 w-4 mr-2" />
+                      Random Location
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Live Content Browser */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <BookOpen className="h-5 w-5 text-blue-600" />
+                  <span>Available Content</span>
+                </CardTitle>
+                <CardDescription>
+                  Quick access to your created content
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Tabs defaultValue="quests" className="w-full">
+                  <TabsList className="grid w-full grid-cols-4">
+                    <TabsTrigger value="quests">Quests</TabsTrigger>
+                    <TabsTrigger value="locations">Locations</TabsTrigger>
+                    <TabsTrigger value="monsters">Monsters</TabsTrigger>
+                    <TabsTrigger value="items">Items</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="quests" className="space-y-2 max-h-60 overflow-y-auto">
+                    {quests.slice(0, 5).map((quest: any) => (
+                      <div key={quest.id} className="flex items-center justify-between p-2 border rounded">
+                        <div>
+                          <p className="font-medium text-sm">{quest.title}</p>
+                          <p className="text-xs text-muted-foreground">{quest.difficulty}</p>
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={() => handleQuickContentEdit("quest", quest)}>
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </TabsContent>
+                  
+                  <TabsContent value="locations" className="space-y-2 max-h-60 overflow-y-auto">
+                    {locations.slice(0, 5).map((location: any) => (
+                      <div key={location.id} className="flex items-center justify-between p-2 border rounded">
+                        <div>
+                          <p className="font-medium text-sm">{location.name}</p>
+                          <p className="text-xs text-muted-foreground">{location.environment}</p>
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={() => handleQuickContentEdit("location", location)}>
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </TabsContent>
+                  
+                  <TabsContent value="monsters" className="space-y-2 max-h-60 overflow-y-auto">
+                    {monsters.slice(0, 5).map((monster: any) => (
+                      <div key={monster.id} className="flex items-center justify-between p-2 border rounded">
+                        <div>
+                          <p className="font-medium text-sm">{monster.name}</p>
+                          <p className="text-xs text-muted-foreground">CR {monster.cr}</p>
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={() => handleQuickContentEdit("monster", monster)}>
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </TabsContent>
+                  
+                  <TabsContent value="items" className="space-y-2 max-h-60 overflow-y-auto">
+                    {magicItems.slice(0, 5).map((item: any) => (
+                      <div key={item.id} className="flex items-center justify-between p-2 border rounded">
+                        <div>
+                          <p className="font-medium text-sm">{item.name}</p>
+                          <p className="text-xs text-muted-foreground">{item.rarity}</p>
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={() => handleQuickContentEdit("magic-item", item)}>
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </div>
