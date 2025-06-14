@@ -79,17 +79,7 @@ export default function ContextualTooltips({ currentTab, selectedCampaignId, isF
       importance: "high"
     },
 
-    // Initiative Tracker
-    {
-      id: "initiative-combat",
-      element: "[data-tooltip='start-combat']",
-      title: "Combat Initiative",
-      content: "Start combat mode to automatically track turn order, conditions, and round progression.",
-      position: "bottom",
-      trigger: "auto",
-      importance: "high",
-      delay: 1000
-    },
+    // Initiative Tracker - removed auto-trigger to prevent unwanted popups
     {
       id: "next-turn",
       element: "[data-tooltip='next-turn']",
