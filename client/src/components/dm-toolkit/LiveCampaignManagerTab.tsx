@@ -98,6 +98,13 @@ export default function LiveCampaignManagerTab({
   const [showInventoryDialog, setShowInventoryDialog] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [itemQuantity, setItemQuantity] = useState(1);
+
+  // Quick Actions states
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
+  const [playerEmail, setPlayerEmail] = useState("");
+  const [isLiveSession, setIsLiveSession] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -341,6 +348,142 @@ export default function LiveCampaignManagerTab({
     setShowContentDialog(true);
   };
 
+  // Live Session Management
+  const startLiveSessionMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/campaigns/${selectedCampaignId}/start-live-session`, {});
+    },
+    onSuccess: () => {
+      setIsLiveSession(true);
+      toast({
+        title: "Live Session Started",
+        description: "Your campaign is now live! Players can join and participate in real-time.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const endLiveSessionMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/campaigns/${selectedCampaignId}/end-live-session`, {});
+    },
+    onSuccess: () => {
+      setIsLiveSession(false);
+      toast({
+        title: "Live Session Ended",
+        description: "The live session has been ended. You can start a new session anytime.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Player Invitation
+  const generateInviteMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/campaigns/${selectedCampaignId}/generate-invite`, {});
+    },
+    onSuccess: (data: any) => {
+      setInviteCode(data.inviteCode);
+      toast({
+        title: "Invite Code Generated",
+        description: "Share this code with your players to join the campaign.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const invitePlayerMutation = useMutation({
+    mutationFn: async (email: string) => {
+      return await apiRequest("POST", `/api/campaigns/${selectedCampaignId}/invite-player`, { email });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Invitation Sent",
+        description: `Invitation sent to ${playerEmail}`,
+      });
+      setPlayerEmail("");
+      setShowInviteDialog(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Campaign Settings
+  const updateCampaignMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("PUT", `/api/campaigns/${selectedCampaignId}`, data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Campaign Updated",
+        description: "Campaign settings have been saved successfully.",
+      });
+      setShowSettingsDialog(false);
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${selectedCampaignId}`] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleStartLiveSession = () => {
+    if (isLiveSession) {
+      endLiveSessionMutation.mutate();
+    } else {
+      startLiveSessionMutation.mutate();
+    }
+  };
+
+  const handleInvitePlayers = () => {
+    setShowInviteDialog(true);
+    if (!inviteCode) {
+      generateInviteMutation.mutate();
+    }
+  };
+
+  const handleCampaignSettings = () => {
+    setShowSettingsDialog(true);
+  };
+
+  const handleSendInvite = () => {
+    if (!playerEmail.trim()) {
+      toast({
+        title: "Missing Email",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      });
+      return;
+    }
+    invitePlayerMutation.mutate(playerEmail);
+  };
+
   if (!selectedCampaignId) {
     return (
       <div className="space-y-6">
@@ -517,15 +660,36 @@ export default function LiveCampaignManagerTab({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <Button className="w-full" size="sm">
-                  <PlayCircle className="h-4 w-4 mr-2" />
-                  Start Live Session
+                <Button 
+                  className="w-full" 
+                  size="sm"
+                  onClick={handleStartLiveSession}
+                  disabled={startLiveSessionMutation.isPending || endLiveSessionMutation.isPending}
+                  variant={isLiveSession ? "destructive" : "default"}
+                >
+                  {(startLiveSessionMutation.isPending || endLiveSessionMutation.isPending) && (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  )}
+                  {!startLiveSessionMutation.isPending && !endLiveSessionMutation.isPending && (
+                    <PlayCircle className="h-4 w-4 mr-2" />
+                  )}
+                  {isLiveSession ? "End Live Session" : "Start Live Session"}
                 </Button>
-                <Button variant="outline" className="w-full" size="sm">
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  size="sm"
+                  onClick={handleInvitePlayers}
+                >
                   <UserPlus className="h-4 w-4 mr-2" />
                   Invite Players
                 </Button>
-                <Button variant="outline" className="w-full" size="sm">
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  size="sm"
+                  onClick={handleCampaignSettings}
+                >
                   <Settings className="h-4 w-4 mr-2" />
                   Campaign Settings
                 </Button>
@@ -1297,6 +1461,207 @@ export default function LiveCampaignManagerTab({
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 )}
                 {editingContent ? "Update" : "Create"} {contentType}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Player Invitation Dialog */}
+      <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invite Players</DialogTitle>
+            <DialogDescription>
+              Invite players to join your campaign
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Campaign Invite Code</Label>
+              <div className="flex space-x-2">
+                <Input 
+                  value={inviteCode} 
+                  readOnly 
+                  placeholder="Generating invite code..."
+                />
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(inviteCode);
+                    toast({
+                      title: "Copied",
+                      description: "Invite code copied to clipboard",
+                    });
+                  }}
+                  disabled={!inviteCode}
+                >
+                  Copy
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Share this code with your players so they can join the campaign
+              </p>
+            </div>
+            
+            <div className="border-t pt-4">
+              <div className="space-y-2">
+                <Label htmlFor="player-email">Send Direct Invitation</Label>
+                <Input
+                  id="player-email"
+                  type="email"
+                  placeholder="Enter player's email address"
+                  value={playerEmail}
+                  onChange={(e) => setPlayerEmail(e.target.value)}
+                />
+              </div>
+              
+              <div className="flex justify-end space-x-2 mt-4">
+                <Button variant="outline" onClick={() => setShowInviteDialog(false)}>
+                  Close
+                </Button>
+                <Button 
+                  onClick={handleSendInvite}
+                  disabled={invitePlayerMutation.isPending || !playerEmail.trim()}
+                >
+                  {invitePlayerMutation.isPending && (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  )}
+                  Send Invitation
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Campaign Settings Dialog */}
+      <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Campaign Settings</DialogTitle>
+            <DialogDescription>
+              Configure your campaign preferences and rules
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Tabs defaultValue="general" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="general">General</TabsTrigger>
+                <TabsTrigger value="rules">Game Rules</TabsTrigger>
+                <TabsTrigger value="advanced">Advanced</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="general" className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Campaign Name</Label>
+                    <Input 
+                      placeholder="Enter campaign name"
+                      defaultValue={selectedCampaign?.title || ""}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Max Players</Label>
+                    <Select defaultValue="6">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select max players" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="3">3 Players</SelectItem>
+                        <SelectItem value="4">4 Players</SelectItem>
+                        <SelectItem value="5">5 Players</SelectItem>
+                        <SelectItem value="6">6 Players</SelectItem>
+                        <SelectItem value="8">8 Players</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Campaign Description</Label>
+                  <Textarea 
+                    placeholder="Describe your campaign..."
+                    defaultValue={selectedCampaign?.description || ""}
+                    rows={3}
+                  />
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="rules" className="space-y-4">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Allow Critical Hits</h4>
+                      <p className="text-sm text-muted-foreground">Enable critical hit mechanics</p>
+                    </div>
+                    <input type="checkbox" defaultChecked className="rounded" />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Death Saving Throws</h4>
+                      <p className="text-sm text-muted-foreground">Use standard death saving throw rules</p>
+                    </div>
+                    <input type="checkbox" defaultChecked className="rounded" />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Milestone Leveling</h4>
+                      <p className="text-sm text-muted-foreground">Level up based on story milestones instead of XP</p>
+                    </div>
+                    <input type="checkbox" className="rounded" />
+                  </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="advanced" className="space-y-4">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Session Recording</Label>
+                    <Select defaultValue="manual">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select recording option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No Recording</SelectItem>
+                        <SelectItem value="manual">Manual Recording</SelectItem>
+                        <SelectItem value="automatic">Automatic Recording</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">AI Assistance</h4>
+                      <p className="text-sm text-muted-foreground">Enable AI-powered DM assistance during sessions</p>
+                    </div>
+                    <input type="checkbox" defaultChecked className="rounded" />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Real-time Dice Rolling</h4>
+                      <p className="text-sm text-muted-foreground">Allow players to roll dice through the platform</p>
+                    </div>
+                    <input type="checkbox" defaultChecked className="rounded" />
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+            
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setShowSettingsDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => updateCampaignMutation.mutate({})}
+                disabled={updateCampaignMutation.isPending}
+              >
+                {updateCampaignMutation.isPending && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                Save Settings
               </Button>
             </div>
           </div>

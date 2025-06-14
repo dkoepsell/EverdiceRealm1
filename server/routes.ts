@@ -22,6 +22,7 @@ import {
   npcs,
   users,
   campaigns,
+  characters,
   locations,
   quests,
   magicItems,
@@ -3268,6 +3269,173 @@ Create a unique monster with balanced stats appropriate for its challenge rating
       console.error("Failed to add item to inventory:", error);
       res.status(500).json({ 
         message: "Failed to add item to inventory",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Live Session Management Routes
+  app.post("/api/campaigns/:id/start-live-session", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const userId = req.user.id;
+
+      // Verify campaign ownership
+      const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, campaignId));
+      
+      if (!campaign || campaign.userId !== userId) {
+        return res.status(404).json({ message: "Campaign not found or access denied" });
+      }
+
+      // Update campaign to live status
+      const [updatedCampaign] = await db
+        .update(campaigns)
+        .set({
+          isLive: true,
+          liveSessionStartedAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(campaigns.id, campaignId))
+        .returning();
+
+      // Broadcast to all connected WebSocket clients
+      broadcastMessage('live-session-started', {
+        campaignId,
+        campaign: updatedCampaign,
+        timestamp: new Date().toISOString()
+      });
+
+      res.json({
+        message: "Live session started successfully",
+        campaign: updatedCampaign
+      });
+    } catch (error) {
+      console.error("Failed to start live session:", error);
+      res.status(500).json({ 
+        message: "Failed to start live session",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.post("/api/campaigns/:id/end-live-session", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const userId = req.user.id;
+
+      // Verify campaign ownership
+      const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, campaignId));
+      
+      if (!campaign || campaign.userId !== userId) {
+        return res.status(404).json({ message: "Campaign not found or access denied" });
+      }
+
+      // Update campaign to end live status
+      const [updatedCampaign] = await db
+        .update(campaigns)
+        .set({
+          isLive: false,
+          liveSessionEndedAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(campaigns.id, campaignId))
+        .returning();
+
+      // Broadcast to all connected WebSocket clients
+      broadcastMessage('live-session-ended', {
+        campaignId,
+        campaign: updatedCampaign,
+        timestamp: new Date().toISOString()
+      });
+
+      res.json({
+        message: "Live session ended successfully",
+        campaign: updatedCampaign
+      });
+    } catch (error) {
+      console.error("Failed to end live session:", error);
+      res.status(500).json({ 
+        message: "Failed to end live session",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Player Invitation Routes
+  app.post("/api/campaigns/:id/generate-invite", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const userId = req.user.id;
+
+      // Verify campaign ownership
+      const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, campaignId));
+      
+      if (!campaign || campaign.userId !== userId) {
+        return res.status(404).json({ message: "Campaign not found or access denied" });
+      }
+
+      // Generate a unique invite code
+      const inviteCode = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
+      // Update campaign with invite code
+      const [updatedCampaign] = await db
+        .update(campaigns)
+        .set({
+          inviteCode,
+          inviteCodeExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+          updatedAt: new Date()
+        })
+        .where(eq(campaigns.id, campaignId))
+        .returning();
+
+      res.json({
+        inviteCode,
+        expiresAt: updatedCampaign.inviteCodeExpiresAt,
+        campaignTitle: campaign.title
+      });
+    } catch (error) {
+      console.error("Failed to generate invite code:", error);
+      res.status(500).json({ 
+        message: "Failed to generate invite code",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.post("/api/campaigns/:id/invite-player", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const userId = req.user.id;
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      // Verify campaign ownership
+      const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, campaignId));
+      
+      if (!campaign || campaign.userId !== userId) {
+        return res.status(404).json({ message: "Campaign not found or access denied" });
+      }
+
+      // For now, we'll just log the invitation (in a real app, you'd send an email)
+      console.log(`Invitation sent to ${email} for campaign "${campaign.title}" (ID: ${campaignId})`);
+
+      // In a real implementation, you would:
+      // 1. Create an invitation record in the database
+      // 2. Send an email with the invitation link
+      // 3. Handle the invitation acceptance flow
+
+      res.json({
+        message: "Invitation sent successfully",
+        email,
+        campaignTitle: campaign.title
+      });
+    } catch (error) {
+      console.error("Failed to send invitation:", error);
+      res.status(500).json({ 
+        message: "Failed to send invitation",
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }
