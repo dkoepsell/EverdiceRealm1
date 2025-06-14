@@ -51,9 +51,10 @@ interface CombatParticipant {
 
 interface LiveCampaignManagerTabProps {
   selectedCampaignId: number | null;
+  onCampaignSelect?: (campaignId: number) => void;
 }
 
-export default function LiveCampaignManagerTab({ selectedCampaignId }: LiveCampaignManagerTabProps) {
+export default function LiveCampaignManagerTab({ selectedCampaignId, onCampaignSelect }: LiveCampaignManagerTabProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("combat");
   const [isSessionActive, setIsSessionActive] = useState(false);
@@ -61,6 +62,11 @@ export default function LiveCampaignManagerTab({ selectedCampaignId }: LiveCampa
   const [round, setRound] = useState(1);
   const [combatants, setCombatants] = useState<CombatParticipant[]>([]);
   const [quickPrompt, setQuickPrompt] = useState("");
+
+  // Fetch all campaigns for selection
+  const { data: campaigns = [] } = useQuery<any[]>({
+    queryKey: ["/api/campaigns"]
+  });
 
   // Fetch campaign data
   const { data: campaign } = useQuery<any>({
@@ -187,17 +193,130 @@ export default function LiveCampaignManagerTab({ selectedCampaignId }: LiveCampa
 
   if (!selectedCampaignId) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Campaign Selected</h3>
-            <p className="text-muted-foreground">
-              Select a campaign from the dropdown above to start live management
-            </p>
+      <div className="space-y-6">
+        {/* Campaign Selection Header */}
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Play className="h-5 w-5 text-blue-600" />
+              <span>Select Campaign to Begin</span>
+            </CardTitle>
+            <CardDescription>
+              Choose an active campaign to start your live session management
+            </CardDescription>
+          </CardHeader>
+        </Card>
+
+        {/* Available Campaigns */}
+        {campaigns.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {campaigns.map((campaign: any) => (
+              <Card 
+                key={campaign.id} 
+                className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-300"
+                onClick={() => onCampaignSelect?.(campaign.id)}
+                data-tooltip="campaign-select"
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">{campaign.title}</CardTitle>
+                    <Badge variant={campaign.isActive ? "default" : "secondary"}>
+                      {campaign.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                  <CardDescription className="line-clamp-2">
+                    {campaign.description || "No description available"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <div className="flex items-center space-x-4">
+                      <span className="flex items-center space-x-1">
+                        <Users className="h-3 w-3" />
+                        <span>{campaign.participantCount || 0} players</span>
+                      </span>
+                      <span className="flex items-center space-x-1">
+                        <Clock className="h-3 w-3" />
+                        <span>Session {campaign.currentSession || 1}</span>
+                      </span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {campaign.difficulty || "Normal"}
+                    </Badge>
+                  </div>
+                  
+                  <Button 
+                    className="w-full mt-3" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCampaignSelect?.(campaign.id);
+                    }}
+                  >
+                    <Play className="h-3 w-3 mr-1" />
+                    Start Live Session
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-        </CardContent>
-      </Card>
+        ) : (
+          <Card>
+            <CardContent className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Campaigns Found</h3>
+                <p className="text-muted-foreground mb-4">
+                  Create your first campaign to start using the live session tools
+                </p>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button data-tooltip="create-campaign-button">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create New Campaign
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Create New Campaign</DialogTitle>
+                      <DialogDescription>
+                        Set up your new D&D campaign with basic details
+                      </DialogDescription>
+                    </DialogHeader>
+                    <CreateCampaignForm onSuccess={(campaignId) => onCampaignSelect?.(campaignId)} />
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Quick Start Guide */}
+        <Card className="border-green-200 bg-green-50">
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center space-x-2">
+              <Sparkles className="h-4 w-4 text-green-600" />
+              <span>Quick Start Guide</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="space-y-2 text-sm">
+              <p className="flex items-center space-x-2">
+                <span className="w-5 h-5 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                <span>Select or create a campaign above</span>
+              </p>
+              <p className="flex items-center space-x-2">
+                <span className="w-5 h-5 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                <span>Invite players to join your campaign</span>
+              </p>
+              <p className="flex items-center space-x-2">
+                <span className="w-5 h-5 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                <span>Use the live session tools during play</span>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
