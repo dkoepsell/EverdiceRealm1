@@ -66,7 +66,8 @@ import {
   Send,
   Globe,
   Mail,
-  StickyNote
+  StickyNote,
+  Play as PlayIcon
 } from "lucide-react";
 
 // Import our tabs
@@ -455,6 +456,14 @@ export default function DMToolkit() {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* AI-Assisted DM Guide */}
+      {showAIGuide && selectedCampaignId && (
+        <AIAssistedDMGuide 
+          campaignId={selectedCampaignId}
+          onClose={() => setShowAIGuide(false)}
+        />
+      )}
     </div>
   );
 }

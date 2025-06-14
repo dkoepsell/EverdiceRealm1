@@ -18,13 +18,15 @@ import {
   npcs,
   users
 } from "@shared/schema";
-import { setupAuth } from "./auth";
+import { setupAuth, isAuthenticated } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";
 import { generateCharacterPortrait, generateCharacterBackground } from "./lib/characterImageGenerator";
 import { registerCampaignDeploymentRoutes } from "./lib/campaignDeploy";
 import { db } from "./db";
 import { eq, sql } from "drizzle-orm";
 import OpenAI from "openai";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 
@@ -2566,6 +2568,80 @@ Return your response as a JSON object with these fields:
     } catch (error) {
       console.error("Failed to delete note:", error);
       res.status(500).json({ message: "Failed to delete note" });
+    }
+  });
+
+  // AI DM Assistance endpoints
+  app.post("/api/dm-assistance/generate-guidance", isAuthenticated, async (req, res) => {
+    try {
+      const { campaignId, encounterType, situation, currentStep } = req.body;
+      
+      if (!campaignId || !encounterType || !situation) {
+        return res.status(400).json({ message: "Campaign ID, encounter type, and situation are required" });
+      }
+
+      // Verify user has access to the campaign
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign || campaign.userId !== req.user.id) {
+        return res.status(404).json({ message: "Campaign not found or access denied" });
+      }
+
+      // Generate AI guidance using OpenAI
+      const prompt = `You are an expert D&D Dungeon Master assistant. Help guide a DM through a ${encounterType} encounter.
+
+Campaign: ${campaign.title}
+Campaign Description: ${campaign.description || "No description provided"}
+Current Situation: ${situation}
+${currentStep !== undefined ? `Current Step: ${currentStep + 1}` : ''}
+
+Generate a step-by-step guide for running this encounter effectively. Return your response as a JSON object with this structure:
+{
+  "steps": [
+    {
+      "id": 1,
+      "title": "Step Title",
+      "description": "Detailed description of what to do in this step",
+      "tips": ["Pro tip 1", "Pro tip 2", "Pro tip 3"],
+      "commonMistakes": ["Common mistake 1", "Common mistake 2"],
+      "suggestions": ["Suggested action 1", "Suggested action 2"]
+    }
+  ]
+}
+
+Focus on practical, actionable advice. Include 4-6 steps total. Make tips specific and helpful for new DMs. Common mistakes should highlight pitfalls to avoid. Suggestions should be concrete actions the DM can take.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert D&D Dungeon Master trainer. Provide structured, practical guidance for running encounters. Always respond with valid JSON."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+        max_tokens: 2000
+      });
+
+      const guidanceData = JSON.parse(completion.choices[0].message.content);
+      
+      // Ensure each step has an incrementing ID
+      guidanceData.steps = guidanceData.steps.map((step: any, index: number) => ({
+        ...step,
+        id: index + 1
+      }));
+
+      res.json(guidanceData);
+    } catch (error) {
+      console.error("Failed to generate DM guidance:", error);
+      res.status(500).json({ 
+        message: "Failed to generate guidance",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 
