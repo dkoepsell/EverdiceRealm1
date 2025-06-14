@@ -3441,5 +3441,122 @@ Create a unique monster with balanced stats appropriate for its challenge rating
     }
   });
 
+  // Complete Campaign Generation endpoint
+  app.post("/api/campaigns/generate-complete", isAuthenticated, async (req: any, res) => {
+    try {
+      const { type, level, length, theme, customPrompt } = req.body;
+
+      if (!type || !level || !length || !theme) {
+        return res.status(400).json({ message: "Missing required campaign parameters" });
+      }
+
+      // Build comprehensive campaign generation prompt
+      const campaignPrompt = `Generate a complete D&D campaign package with the following specifications:
+
+Campaign Type: ${type}
+Player Level Range: ${level}
+Campaign Length: ${length}
+Theme/Tone: ${theme}
+${customPrompt ? `Additional Requirements: ${customPrompt}` : ''}
+
+Generate a fully integrated campaign with interconnected elements. Return a JSON object with this exact structure:
+
+{
+  "title": "Campaign Title",
+  "description": "Detailed campaign description (2-3 sentences)",
+  "mainStoryArc": "Main story arc overview (2-3 sentences)",
+  "quests": [
+    {
+      "title": "Quest Name",
+      "type": "main|side|optional",
+      "description": "Quest description",
+      "objectives": ["Objective 1", "Objective 2"],
+      "rewards": "Quest rewards description",
+      "connections": "How this quest connects to others"
+    }
+  ],
+  "npcs": [
+    {
+      "name": "NPC Name",
+      "race": "Race",
+      "class": "Class/Profession",
+      "role": "ally|enemy|neutral|questgiver",
+      "description": "Physical and background description",
+      "personality": "Personality traits",
+      "motivations": "What drives this NPC",
+      "questConnections": "Which quests they're involved in"
+    }
+  ],
+  "locations": [
+    {
+      "name": "Location Name",
+      "type": "city|dungeon|wilderness|building",
+      "description": "Detailed location description",
+      "features": ["Feature 1", "Feature 2"],
+      "encounters": "Potential encounters or activities here"
+    }
+  ],
+  "encounters": [
+    {
+      "name": "Encounter Name",
+      "type": "combat|social|exploration|puzzle",
+      "challengeRating": "Appropriate CR",
+      "description": "Encounter description",
+      "setup": "How to set up this encounter",
+      "tactics": "Enemy tactics or challenge mechanics",
+      "treasure": "Rewards for success"
+    }
+  ],
+  "rewards": [
+    {
+      "name": "Item/Reward Name",
+      "type": "magic_item|treasure|experience|story",
+      "rarity": "common|uncommon|rare|very_rare|legendary",
+      "description": "Item description",
+      "mechanics": "Mechanical effects if applicable",
+      "questConnection": "Which quest provides this reward"
+    }
+  ]
+}
+
+Ensure all elements are interconnected and form a cohesive narrative. Include 3-5 main quests, 2-4 side quests, 8-12 NPCs, 6-10 locations, 8-12 encounters, and 6-10 meaningful rewards. Make sure everything ties together thematically.`;
+
+      // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert D&D campaign designer. Generate comprehensive, interconnected campaign content that forms a cohesive narrative. Always respond with valid JSON only."
+          },
+          {
+            role: "user",
+            content: campaignPrompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.8,
+        max_tokens: 4000
+      });
+
+      const generatedContent = JSON.parse(completion.choices[0].message.content || '{}');
+
+      // Validate the generated content has required structure
+      if (!generatedContent.title || !generatedContent.description) {
+        throw new Error("Generated content missing required fields");
+      }
+
+      console.log(`Generated complete campaign: "${generatedContent.title}"`);
+
+      res.json(generatedContent);
+    } catch (error) {
+      console.error("Failed to generate complete campaign:", error);
+      res.status(500).json({ 
+        message: "Failed to generate campaign",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   return httpServer;
 }

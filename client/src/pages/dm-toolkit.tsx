@@ -77,7 +77,8 @@ import {
   Lightbulb,
   ChevronLeft,
   ChevronRight,
-  Wand2
+  Gift,
+  Package
 } from "lucide-react";
 
 // Import our tabs
@@ -3399,17 +3400,27 @@ function CampaignBuilderTab() {
 
   const generateCampaign = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('/api/campaigns/generate-complete', {
+      const response = await fetch('/api/campaigns/generate-complete', {
         method: 'POST',
-        body: {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
           type: campaignType,
           level: campaignLevel,
           length: campaignLength,
           theme: campaignTheme,
           customPrompt: customPrompt || undefined,
-        },
+        }),
       });
-      return response;
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to generate campaign');
+      }
+      
+      return response.json();
     },
     onSuccess: (data) => {
       setGeneratedCampaign(data);
@@ -3431,17 +3442,27 @@ function CampaignBuilderTab() {
     mutationFn: async () => {
       if (!generatedCampaign) return;
       
-      const response = await apiRequest('/api/campaigns', {
+      const response = await fetch('/api/campaigns', {
         method: 'POST',
-        body: {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
           title: generatedCampaign.title,
           description: generatedCampaign.description,
           difficulty: campaignLevel,
           narrativeStyle: campaignTheme,
           generatedContent: generatedCampaign,
-        },
+        }),
       });
-      return response;
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to save campaign');
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({
