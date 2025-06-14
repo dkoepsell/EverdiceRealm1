@@ -1093,6 +1093,52 @@ function LocationsTab() {
 }
 
 function QuestsTab() {
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newQuest, setNewQuest] = useState({
+    title: "",
+    description: "",
+    category: "",
+    difficulty: "",
+    level_range: "",
+    estimated_duration: "",
+    notes: ""
+  });
+  const { toast } = useToast();
+
+  const createQuestMutation = useMutation({
+    mutationFn: async (questData: any) => {
+      return await apiRequest("POST", "/api/quests", questData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Quest created successfully",
+      });
+      setShowCreateDialog(false);
+      setNewQuest({ title: "", description: "", category: "", difficulty: "", level_range: "", estimated_duration: "", notes: "" });
+      queryClient.invalidateQueries({ queryKey: ["/api/quests"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateQuest = () => {
+    if (!newQuest.title.trim() || !newQuest.description.trim()) {
+      toast({
+        title: "Error",
+        description: "Quest title and description are required",
+        variant: "destructive",
+      });
+      return;
+    }
+    createQuestMutation.mutate(newQuest);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">
@@ -1100,19 +1146,133 @@ function QuestsTab() {
           <h2 className="text-2xl font-fantasy font-semibold">Quests & Adventures</h2>
           <p className="text-muted-foreground">Design quests and adventures for your campaigns</p>
         </div>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button disabled>
-                <Plus className="h-4 w-4 mr-2" /> Create Quest
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Coming Soon! This feature will be available in a future update.</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Button onClick={() => setShowCreateDialog(true)}>
+          <Plus className="h-4 w-4 mr-2" /> Create Quest
+        </Button>
       </div>
+
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Create New Quest</DialogTitle>
+            <DialogDescription>
+              Design a new quest or adventure for your campaign
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="title" className="text-right">Title</Label>
+              <Input
+                id="title"
+                value={newQuest.title}
+                onChange={(e) => setNewQuest({ ...newQuest, title: e.target.value })}
+                className="col-span-3"
+                placeholder="Enter quest title"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="category" className="text-right">Category</Label>
+              <Select onValueChange={(value) => setNewQuest({ ...newQuest, category: value })}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select quest category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="main">Main Quest</SelectItem>
+                  <SelectItem value="side">Side Quest</SelectItem>
+                  <SelectItem value="personal">Personal Quest</SelectItem>
+                  <SelectItem value="faction">Faction Quest</SelectItem>
+                  <SelectItem value="exploration">Exploration</SelectItem>
+                  <SelectItem value="rescue">Rescue Mission</SelectItem>
+                  <SelectItem value="investigation">Investigation</SelectItem>
+                  <SelectItem value="dungeon">Dungeon Delve</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="difficulty" className="text-right">Difficulty</Label>
+              <Select onValueChange={(value) => setNewQuest({ ...newQuest, difficulty: value })}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="easy">Easy</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="hard">Hard</SelectItem>
+                  <SelectItem value="deadly">Deadly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="level_range" className="text-right">Level Range</Label>
+              <Input
+                id="level_range"
+                value={newQuest.level_range}
+                onChange={(e) => setNewQuest({ ...newQuest, level_range: e.target.value })}
+                className="col-span-3"
+                placeholder="e.g., 1-3, 4-6, 7-10"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="estimated_duration" className="text-right">Duration</Label>
+              <Select onValueChange={(value) => setNewQuest({ ...newQuest, estimated_duration: value })}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select estimated duration" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1 session">1 Session</SelectItem>
+                  <SelectItem value="2-3 sessions">2-3 Sessions</SelectItem>
+                  <SelectItem value="4-6 sessions">4-6 Sessions</SelectItem>
+                  <SelectItem value="1-2 months">1-2 Months</SelectItem>
+                  <SelectItem value="long campaign">Long Campaign</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="description" className="text-right">Description</Label>
+              <Textarea
+                id="description"
+                value={newQuest.description}
+                onChange={(e) => setNewQuest({ ...newQuest, description: e.target.value })}
+                className="col-span-3"
+                placeholder="Describe the quest objective and story..."
+                rows={4}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="notes" className="text-right">DM Notes</Label>
+              <Textarea
+                id="notes"
+                value={newQuest.notes}
+                onChange={(e) => setNewQuest({ ...newQuest, notes: e.target.value })}
+                className="col-span-3"
+                placeholder="Private notes, plot twists, rewards..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateQuest}
+              disabled={createQuestMutation.isPending}
+            >
+              {createQuestMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Quest
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       <Card className="mb-6 p-4 border-amber-500/50 bg-amber-100 dark:bg-amber-950/20">
         <div className="flex items-center gap-2">
@@ -1318,6 +1478,51 @@ function QuestsTab() {
 }
 
 function MagicItemsTab() {
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newItem, setNewItem] = useState({
+    name: "",
+    type: "",
+    rarity: "",
+    description: "",
+    requires_attunement: false,
+    notes: ""
+  });
+  const { toast } = useToast();
+
+  const createItemMutation = useMutation({
+    mutationFn: async (itemData: any) => {
+      return await apiRequest("POST", "/api/magic-items", itemData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Magic item created successfully",
+      });
+      setShowCreateDialog(false);
+      setNewItem({ name: "", type: "", rarity: "", description: "", requires_attunement: false, notes: "" });
+      queryClient.invalidateQueries({ queryKey: ["/api/magic-items"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateItem = () => {
+    if (!newItem.name.trim() || !newItem.description.trim()) {
+      toast({
+        title: "Error",
+        description: "Item name and description are required",
+        variant: "destructive",
+      });
+      return;
+    }
+    createItemMutation.mutate(newItem);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">
@@ -1325,19 +1530,124 @@ function MagicItemsTab() {
           <h2 className="text-2xl font-fantasy font-semibold">Magic Items</h2>
           <p className="text-muted-foreground">Create and manage magical items for your campaigns</p>
         </div>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button disabled>
-                <Plus className="h-4 w-4 mr-2" /> Create Magic Item
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Coming Soon! This feature will be available in a future update.</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Button onClick={() => setShowCreateDialog(true)}>
+          <Plus className="h-4 w-4 mr-2" /> Create Magic Item
+        </Button>
       </div>
+
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Create New Magic Item</DialogTitle>
+            <DialogDescription>
+              Design a new magical item for your campaign
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">Name</Label>
+              <Input
+                id="name"
+                value={newItem.name}
+                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                className="col-span-3"
+                placeholder="Enter item name"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="type" className="text-right">Type</Label>
+              <Select onValueChange={(value) => setNewItem({ ...newItem, type: value })}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select item type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weapon">Weapon</SelectItem>
+                  <SelectItem value="armor">Armor</SelectItem>
+                  <SelectItem value="shield">Shield</SelectItem>
+                  <SelectItem value="wondrous">Wondrous Item</SelectItem>
+                  <SelectItem value="potion">Potion</SelectItem>
+                  <SelectItem value="scroll">Scroll</SelectItem>
+                  <SelectItem value="wand">Wand</SelectItem>
+                  <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="rod">Rod</SelectItem>
+                  <SelectItem value="ring">Ring</SelectItem>
+                  <SelectItem value="amulet">Amulet</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="rarity" className="text-right">Rarity</Label>
+              <Select onValueChange={(value) => setNewItem({ ...newItem, rarity: value })}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select rarity" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="common">Common</SelectItem>
+                  <SelectItem value="uncommon">Uncommon</SelectItem>
+                  <SelectItem value="rare">Rare</SelectItem>
+                  <SelectItem value="very rare">Very Rare</SelectItem>
+                  <SelectItem value="legendary">Legendary</SelectItem>
+                  <SelectItem value="artifact">Artifact</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="description" className="text-right">Description</Label>
+              <Textarea
+                id="description"
+                value={newItem.description}
+                onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+                className="col-span-3"
+                placeholder="Describe the item's appearance and magical properties..."
+                rows={4}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="attunement" className="text-right">Attunement</Label>
+              <div className="col-span-3">
+                <Checkbox
+                  id="attunement"
+                  checked={newItem.requires_attunement}
+                  onCheckedChange={(checked) => setNewItem({ ...newItem, requires_attunement: checked as boolean })}
+                />
+                <Label htmlFor="attunement" className="ml-2 text-sm">Requires Attunement</Label>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="notes" className="text-right">DM Notes</Label>
+              <Textarea
+                id="notes"
+                value={newItem.notes}
+                onChange={(e) => setNewItem({ ...newItem, notes: e.target.value })}
+                className="col-span-3"
+                placeholder="Private notes, balancing considerations, lore..."
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateItem}
+              disabled={createItemMutation.isPending}
+            >
+              {createItemMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Item
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       <Card className="mb-6 p-4 border-amber-500/50 bg-amber-100 dark:bg-amber-950/20">
         <div className="flex items-center gap-2">
@@ -1566,6 +1876,65 @@ function MagicItemsTab() {
 }
 
 function MonstersTab() {
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newMonster, setNewMonster] = useState({
+    name: "",
+    size: "",
+    type: "",
+    alignment: "",
+    challenge_rating: "",
+    armor_class: 10,
+    hit_points: 10,
+    speed: "",
+    strength: 10,
+    dexterity: 10,
+    constitution: 10,
+    intelligence: 10,
+    wisdom: 10,
+    charisma: 10,
+    description: "",
+    notes: ""
+  });
+  const { toast } = useToast();
+
+  const createMonsterMutation = useMutation({
+    mutationFn: async (monsterData: any) => {
+      return await apiRequest("POST", "/api/monsters", monsterData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Monster created successfully",
+      });
+      setShowCreateDialog(false);
+      setNewMonster({
+        name: "", size: "", type: "", alignment: "", challenge_rating: "", armor_class: 10,
+        hit_points: 10, speed: "", strength: 10, dexterity: 10, constitution: 10,
+        intelligence: 10, wisdom: 10, charisma: 10, description: "", notes: ""
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/monsters"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateMonster = () => {
+    if (!newMonster.name.trim() || !newMonster.size || !newMonster.type) {
+      toast({
+        title: "Error",
+        description: "Monster name, size, and type are required",
+        variant: "destructive",
+      });
+      return;
+    }
+    createMonsterMutation.mutate(newMonster);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">
@@ -1573,19 +1942,222 @@ function MonstersTab() {
           <h2 className="text-2xl font-fantasy font-semibold">Monster Creation</h2>
           <p className="text-muted-foreground">Design unique monsters and creatures for your campaigns</p>
         </div>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button disabled>
-                <Plus className="h-4 w-4 mr-2" /> Create Monster
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Coming Soon! This feature will be available in a future update.</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Button onClick={() => setShowCreateDialog(true)}>
+          <Plus className="h-4 w-4 mr-2" /> Create Monster
+        </Button>
       </div>
+
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Monster</DialogTitle>
+            <DialogDescription>
+              Design a new creature for your campaign
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-6 gap-4">
+              <div className="col-span-3">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={newMonster.name}
+                  onChange={(e) => setNewMonster({ ...newMonster, name: e.target.value })}
+                  placeholder="Enter monster name"
+                />
+              </div>
+              <div className="col-span-1">
+                <Label htmlFor="size">Size</Label>
+                <Select onValueChange={(value) => setNewMonster({ ...newMonster, size: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Size" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tiny">Tiny</SelectItem>
+                    <SelectItem value="small">Small</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="large">Large</SelectItem>
+                    <SelectItem value="huge">Huge</SelectItem>
+                    <SelectItem value="gargantuan">Gargantuan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2">
+                <Label htmlFor="type">Type</Label>
+                <Select onValueChange={(value) => setNewMonster({ ...newMonster, type: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Creature Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="beast">Beast</SelectItem>
+                    <SelectItem value="humanoid">Humanoid</SelectItem>
+                    <SelectItem value="undead">Undead</SelectItem>
+                    <SelectItem value="fiend">Fiend</SelectItem>
+                    <SelectItem value="celestial">Celestial</SelectItem>
+                    <SelectItem value="fey">Fey</SelectItem>
+                    <SelectItem value="dragon">Dragon</SelectItem>
+                    <SelectItem value="elemental">Elemental</SelectItem>
+                    <SelectItem value="aberration">Aberration</SelectItem>
+                    <SelectItem value="construct">Construct</SelectItem>
+                    <SelectItem value="giant">Giant</SelectItem>
+                    <SelectItem value="monstrosity">Monstrosity</SelectItem>
+                    <SelectItem value="ooze">Ooze</SelectItem>
+                    <SelectItem value="plant">Plant</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-6 gap-4">
+              <div className="col-span-2">
+                <Label htmlFor="alignment">Alignment</Label>
+                <Input
+                  id="alignment"
+                  value={newMonster.alignment}
+                  onChange={(e) => setNewMonster({ ...newMonster, alignment: e.target.value })}
+                  placeholder="e.g., Chaotic Evil"
+                />
+              </div>
+              <div className="col-span-1">
+                <Label htmlFor="cr">Challenge Rating</Label>
+                <Input
+                  id="cr"
+                  value={newMonster.challenge_rating}
+                  onChange={(e) => setNewMonster({ ...newMonster, challenge_rating: e.target.value })}
+                  placeholder="e.g., 1/4, 2, 10"
+                />
+              </div>
+              <div className="col-span-1">
+                <Label htmlFor="ac">Armor Class</Label>
+                <Input
+                  id="ac"
+                  type="number"
+                  value={newMonster.armor_class}
+                  onChange={(e) => setNewMonster({ ...newMonster, armor_class: parseInt(e.target.value) || 10 })}
+                />
+              </div>
+              <div className="col-span-1">
+                <Label htmlFor="hp">Hit Points</Label>
+                <Input
+                  id="hp"
+                  type="number"
+                  value={newMonster.hit_points}
+                  onChange={(e) => setNewMonster({ ...newMonster, hit_points: parseInt(e.target.value) || 10 })}
+                />
+              </div>
+              <div className="col-span-1">
+                <Label htmlFor="speed">Speed</Label>
+                <Input
+                  id="speed"
+                  value={newMonster.speed}
+                  onChange={(e) => setNewMonster({ ...newMonster, speed: e.target.value })}
+                  placeholder="30 ft."
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-6 gap-4">
+              <div>
+                <Label htmlFor="str">STR</Label>
+                <Input
+                  id="str"
+                  type="number"
+                  value={newMonster.strength}
+                  onChange={(e) => setNewMonster({ ...newMonster, strength: parseInt(e.target.value) || 10 })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="dex">DEX</Label>
+                <Input
+                  id="dex"
+                  type="number"
+                  value={newMonster.dexterity}
+                  onChange={(e) => setNewMonster({ ...newMonster, dexterity: parseInt(e.target.value) || 10 })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="con">CON</Label>
+                <Input
+                  id="con"
+                  type="number"
+                  value={newMonster.constitution}
+                  onChange={(e) => setNewMonster({ ...newMonster, constitution: parseInt(e.target.value) || 10 })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="int">INT</Label>
+                <Input
+                  id="int"
+                  type="number"
+                  value={newMonster.intelligence}
+                  onChange={(e) => setNewMonster({ ...newMonster, intelligence: parseInt(e.target.value) || 10 })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="wis">WIS</Label>
+                <Input
+                  id="wis"
+                  type="number"
+                  value={newMonster.wisdom}
+                  onChange={(e) => setNewMonster({ ...newMonster, wisdom: parseInt(e.target.value) || 10 })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="cha">CHA</Label>
+                <Input
+                  id="cha"
+                  type="number"
+                  value={newMonster.charisma}
+                  onChange={(e) => setNewMonster({ ...newMonster, charisma: parseInt(e.target.value) || 10 })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={newMonster.description}
+                onChange={(e) => setNewMonster({ ...newMonster, description: e.target.value })}
+                placeholder="Describe the monster's appearance and behavior..."
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="notes">DM Notes</Label>
+              <Textarea
+                id="notes"
+                value={newMonster.notes}
+                onChange={(e) => setNewMonster({ ...newMonster, notes: e.target.value })}
+                placeholder="Combat tactics, lore, special considerations..."
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateMonster}
+              disabled={createMonsterMutation.isPending}
+            >
+              {createMonsterMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Monster
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       <Card className="mb-6 p-4 border-amber-500/50 bg-amber-100 dark:bg-amber-950/20">
         <div className="flex items-center gap-2">

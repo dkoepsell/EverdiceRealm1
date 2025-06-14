@@ -15,15 +15,23 @@ import {
   insertCampaignNpcSchema,
   insertCampaignInvitationSchema,
   insertDmNoteSchema,
+  insertLocationSchema,
+  insertQuestSchema,
+  insertMagicItemSchema,
+  insertMonsterSchema,
   npcs,
-  users
+  users,
+  locations,
+  quests,
+  magicItems,
+  monsters
 } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";
 import { generateCharacterPortrait, generateCharacterBackground } from "./lib/characterImageGenerator";
 import { registerCampaignDeploymentRoutes } from "./lib/campaignDeploy";
 import { db } from "./db";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, desc } from "drizzle-orm";
 import OpenAI from "openai";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
