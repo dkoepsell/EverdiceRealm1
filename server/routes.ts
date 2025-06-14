@@ -2645,5 +2645,141 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
     }
   });
 
+  // Location management routes
+  app.post('/api/locations', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const locationData = { ...req.body, userId };
+      
+      const [location] = await db
+        .insert(locations)
+        .values(locationData)
+        .returning();
+      
+      res.json(location);
+    } catch (error) {
+      console.error("Error creating location:", error);
+      res.status(500).json({ message: "Failed to create location" });
+    }
+  });
+
+  app.get('/api/locations', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const userLocations = await db
+        .select()
+        .from(locations)
+        .where(eq(locations.userId, userId))
+        .orderBy(desc(locations.createdAt));
+      
+      res.json(userLocations);
+    } catch (error) {
+      console.error("Error fetching locations:", error);
+      res.status(500).json({ message: "Failed to fetch locations" });
+    }
+  });
+
+  // Quest management routes
+  app.post('/api/quests', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const questData = { ...req.body, userId };
+      
+      const [quest] = await db
+        .insert(quests)
+        .values(questData)
+        .returning();
+      
+      res.json(quest);
+    } catch (error) {
+      console.error("Error creating quest:", error);
+      res.status(500).json({ message: "Failed to create quest" });
+    }
+  });
+
+  app.get('/api/quests', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const userQuests = await db
+        .select()
+        .from(quests)
+        .where(eq(quests.userId, userId))
+        .orderBy(desc(quests.createdAt));
+      
+      res.json(userQuests);
+    } catch (error) {
+      console.error("Error fetching quests:", error);
+      res.status(500).json({ message: "Failed to fetch quests" });
+    }
+  });
+
+  // Magic item management routes
+  app.post('/api/magic-items', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const itemData = { ...req.body, userId };
+      
+      const [item] = await db
+        .insert(magicItems)
+        .values(itemData)
+        .returning();
+      
+      res.json(item);
+    } catch (error) {
+      console.error("Error creating magic item:", error);
+      res.status(500).json({ message: "Failed to create magic item" });
+    }
+  });
+
+  app.get('/api/magic-items', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const userItems = await db
+        .select()
+        .from(magicItems)
+        .where(eq(magicItems.userId, userId))
+        .orderBy(desc(magicItems.createdAt));
+      
+      res.json(userItems);
+    } catch (error) {
+      console.error("Error fetching magic items:", error);
+      res.status(500).json({ message: "Failed to fetch magic items" });
+    }
+  });
+
+  // Monster management routes
+  app.post('/api/monsters', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const monsterData = { ...req.body, userId };
+      
+      const [monster] = await db
+        .insert(monsters)
+        .values(monsterData)
+        .returning();
+      
+      res.json(monster);
+    } catch (error) {
+      console.error("Error creating monster:", error);
+      res.status(500).json({ message: "Failed to create monster" });
+    }
+  });
+
+  app.get('/api/monsters', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const userMonsters = await db
+        .select()
+        .from(monsters)
+        .where(eq(monsters.userId, userId))
+        .orderBy(desc(monsters.createdAt));
+      
+      res.json(userMonsters);
+    } catch (error) {
+      console.error("Error fetching monsters:", error);
+      res.status(500).json({ message: "Failed to fetch monsters" });
+    }
+  });
+
   return httpServer;
 }

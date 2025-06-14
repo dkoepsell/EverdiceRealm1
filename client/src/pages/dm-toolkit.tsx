@@ -769,6 +769,49 @@ function CompanionsTab() {
 }
 
 function LocationsTab() {
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newLocation, setNewLocation] = useState({
+    name: "",
+    type: "",
+    description: "",
+    notes: ""
+  });
+  const { toast } = useToast();
+
+  const createLocationMutation = useMutation({
+    mutationFn: async (locationData: any) => {
+      return await apiRequest("POST", "/api/locations", locationData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Location created successfully",
+      });
+      setShowCreateDialog(false);
+      setNewLocation({ name: "", type: "", description: "", notes: "" });
+      queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateLocation = () => {
+    if (!newLocation.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Location name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+    createLocationMutation.mutate(newLocation);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">
@@ -776,19 +819,96 @@ function LocationsTab() {
           <h2 className="text-2xl font-fantasy font-semibold">Locations & Maps</h2>
           <p className="text-muted-foreground">Create and manage locations for your adventures</p>
         </div>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button disabled>
-                <Plus className="h-4 w-4 mr-2" /> Create Location
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Coming Soon! This feature will be available in a future update.</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Button onClick={() => setShowCreateDialog(true)}>
+          <Plus className="h-4 w-4 mr-2" /> Create Location
+        </Button>
       </div>
+
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create New Location</DialogTitle>
+            <DialogDescription>
+              Add a new location to your campaign world
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">Name</Label>
+              <Input
+                id="name"
+                value={newLocation.name}
+                onChange={(e) => setNewLocation({ ...newLocation, name: e.target.value })}
+                className="col-span-3"
+                placeholder="Enter location name"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="type" className="text-right">Type</Label>
+              <Select onValueChange={(value) => setNewLocation({ ...newLocation, type: value })}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select location type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="city">City</SelectItem>
+                  <SelectItem value="town">Town</SelectItem>
+                  <SelectItem value="village">Village</SelectItem>
+                  <SelectItem value="dungeon">Dungeon</SelectItem>
+                  <SelectItem value="forest">Forest</SelectItem>
+                  <SelectItem value="mountain">Mountain</SelectItem>
+                  <SelectItem value="castle">Castle</SelectItem>
+                  <SelectItem value="tavern">Tavern</SelectItem>
+                  <SelectItem value="temple">Temple</SelectItem>
+                  <SelectItem value="ruins">Ruins</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="description" className="text-right">Description</Label>
+              <Textarea
+                id="description"
+                value={newLocation.description}
+                onChange={(e) => setNewLocation({ ...newLocation, description: e.target.value })}
+                className="col-span-3"
+                placeholder="Describe this location..."
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="notes" className="text-right">DM Notes</Label>
+              <Textarea
+                id="notes"
+                value={newLocation.notes}
+                onChange={(e) => setNewLocation({ ...newLocation, notes: e.target.value })}
+                className="col-span-3"
+                placeholder="Private notes for DM use..."
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateLocation}
+              disabled={createLocationMutation.isPending}
+            >
+              {createLocationMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Location
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       <Card className="mb-6 p-4 border-amber-500/50 bg-amber-100 dark:bg-amber-950/20">
         <div className="flex items-center gap-2">
