@@ -46,9 +46,8 @@ export default function ContextualTooltips({ currentTab, selectedCampaignId, isF
       title: "Start Your Session",
       content: "Click here to begin recording your session and activate real-time features for your players.",
       position: "bottom",
-      trigger: "auto",
-      importance: "high",
-      delay: 2000
+      trigger: "hover",
+      importance: "high"
     },
     {
       id: "campaign-selection",
@@ -132,17 +131,7 @@ export default function ContextualTooltips({ currentTab, selectedCampaignId, isF
       importance: "low"
     },
 
-    // Session Recording
-    {
-      id: "session-recording-start",
-      element: "[data-tooltip='record-session']",
-      title: "Session Recording",
-      content: "Record all game events, dice rolls, and important moments. Perfect for creating session summaries and tracking campaign progress.",
-      position: "bottom",
-      trigger: "auto",
-      importance: "medium",
-      delay: 3000
-    },
+    // Session Recording - removed auto-trigger to prevent unwanted popups
     {
       id: "bookmark-moments",
       element: "[data-tooltip='add-bookmark']",

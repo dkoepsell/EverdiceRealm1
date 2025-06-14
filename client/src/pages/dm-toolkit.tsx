@@ -185,12 +185,14 @@ export default function DMToolkit() {
         />
       )}
 
-      {/* Contextual Tooltips */}
-      <ContextualTooltips
-        currentTab={activeTab}
-        selectedCampaignId={selectedCampaignId}
-        isFirstTime={isFirstTimeUser}
-      />
+      {/* Contextual Tooltips - temporarily disabled to prevent unwanted popups */}
+      {false && (
+        <ContextualTooltips
+          currentTab={activeTab}
+          selectedCampaignId={selectedCampaignId}
+          isFirstTime={isFirstTimeUser}
+        />
+      )}
       
       <Tabs defaultValue="live-manager" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid grid-cols-4 lg:grid-cols-14 w-full overflow-x-auto">
