@@ -2662,8 +2662,14 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
         description: req.body.description,
         environment: req.body.type || 'unknown',
         climate: req.body.climate || 'temperate',
-        notable_features: req.body.notable_features ? [req.body.notable_features] : [],
+        terrain: req.body.terrain || 'varied',
+        notable_features: Array.isArray(req.body.notable_features) ? req.body.notable_features : 
+                         req.body.notable_features ? req.body.notable_features.split(',').map(f => f.trim()) : [],
+        inhabitants: Array.isArray(req.body.inhabitants) ? req.body.inhabitants : 
+                    req.body.inhabitants ? req.body.inhabitants.split(',').map(i => i.trim()) : [],
         secrets: req.body.notes || '',
+        hooks: Array.isArray(req.body.hooks) ? req.body.hooks : 
+               req.body.hooks ? req.body.hooks.split(',').map(h => h.trim()) : [],
         created_by: userId,
         is_public: false,
         created_at: new Date()
@@ -2701,8 +2707,10 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
   app.post('/api/quests', isAuthenticated, async (req: any, res) => {
     try {
       const questData = { 
+        campaign_id: req.body.campaign_id || null,
         title: req.body.title,
         description: req.body.description,
+        rewards: req.body.rewards ? JSON.parse(JSON.stringify(req.body.rewards)) : {},
         status: 'draft',
         created_at: new Date(),
         updated_at: new Date()
