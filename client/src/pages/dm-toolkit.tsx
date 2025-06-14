@@ -2432,6 +2432,36 @@ function MonstersTab() {
   );
 }
 
+type QuestionOption = {
+  value: string;
+  label: string;
+};
+
+type Question = {
+  id: string;
+  text: string;
+  type: "radio" | "checkbox" | "textarea";
+  options?: QuestionOption[];
+  placeholder?: string;
+};
+
+type WorkflowStep = {
+  title: string;
+  description: string;
+  questions: Question[];
+  guidance: string;
+};
+
+type Workflow = {
+  id: string;
+  title: string;
+  description: string;
+  icon: any;
+  difficulty: string;
+  duration: string;
+  steps: WorkflowStep[];
+};
+
 function DMWorkflowAndGuidance() {
   const [activeWorkflow, setActiveWorkflow] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
@@ -2456,7 +2486,7 @@ function DMWorkflowAndGuidance() {
             {
               id: "campaign-type",
               text: "What type of campaign appeals to you most?",
-              type: "radio",
+              type: "radio" as const,
               options: [
                 { value: "sandbox", label: "Sandbox - Open world exploration" },
                 { value: "linear", label: "Linear - Structured story path" },
@@ -2696,9 +2726,9 @@ function DMWorkflowAndGuidance() {
               <div key={question.id} className="space-y-3">
                 <Label className="text-base font-medium">{question.text}</Label>
                 
-                {question.type === "radio" && (
+                {question.type === "radio" && "options" in question && (
                   <div className="space-y-2">
-                    {question.options?.map((option) => (
+                    {question.options.map((option) => (
                       <div key={option.value} className="flex items-center space-x-2">
                         <input
                           type="radio"
@@ -2717,9 +2747,9 @@ function DMWorkflowAndGuidance() {
                   </div>
                 )}
 
-                {question.type === "checkbox" && (
+                {question.type === "checkbox" && "options" in question && (
                   <div className="space-y-2">
-                    {question.options?.map((option) => (
+                    {question.options.map((option) => (
                       <div key={option.value} className="flex items-center space-x-2">
                         <Checkbox
                           id={`${question.id}-${option.value}`}
@@ -2741,7 +2771,7 @@ function DMWorkflowAndGuidance() {
                   </div>
                 )}
 
-                {question.type === "textarea" && (
+                {question.type === "textarea" && "placeholder" in question && (
                   <Textarea
                     placeholder={question.placeholder}
                     value={userAnswers[question.id] || ""}
