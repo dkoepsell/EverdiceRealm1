@@ -2704,6 +2704,37 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
     }
   });
 
+  // Update a location
+  app.put('/api/locations/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const locationId = parseInt(req.params.id);
+      const locationData = { 
+        name: req.body.name,
+        description: req.body.description,
+        environment: req.body.type || req.body.environment || 'unknown',
+        climate: req.body.climate || 'temperate',
+        terrain: req.body.terrain || 'varied',
+        notable_features: Array.isArray(req.body.notable_features) ? req.body.notable_features : 
+                         req.body.notable_features ? req.body.notable_features.split(',').map((f: any) => f.trim()) : [],
+        population: req.body.population,
+        government: req.body.government,
+        notes: req.body.notes,
+        updated_at: new Date()
+      };
+
+      const [updatedLocation] = await db
+        .update(locations)
+        .set(locationData)
+        .where(eq(locations.id, locationId))
+        .returning();
+
+      res.json(updatedLocation);
+    } catch (error) {
+      console.error("Failed to update location:", error);
+      res.status(500).json({ message: "Failed to update location" });
+    }
+  });
+
   // Quest management routes
   app.post('/api/quests', isAuthenticated, async (req: any, res) => {
     try {
@@ -2898,6 +2929,42 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
     } catch (error) {
       console.error("Error fetching monsters:", error);
       res.status(500).json({ message: "Failed to fetch monsters" });
+    }
+  });
+
+  // Update a monster
+  app.put('/api/monsters/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const monsterId = parseInt(req.params.id);
+      const monsterData = {
+        name: req.body.name,
+        type: req.body.type,
+        size: req.body.size,
+        alignment: req.body.alignment,
+        ac: req.body.ac,
+        hp: req.body.hp,
+        speed: req.body.speed,
+        str: req.body.str,
+        dex: req.body.dex,
+        con: req.body.con,
+        int: req.body.int,
+        wis: req.body.wis,
+        cha: req.body.cha,
+        cr: req.body.cr,
+        description: req.body.description,
+        updated_at: new Date()
+      };
+
+      const [updatedMonster] = await db
+        .update(monsters)
+        .set(monsterData)
+        .where(eq(monsters.id, monsterId))
+        .returning();
+
+      res.json(updatedMonster);
+    } catch (error) {
+      console.error("Failed to update monster:", error);
+      res.status(500).json({ message: "Failed to update monster" });
     }
   });
 

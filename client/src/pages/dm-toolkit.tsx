@@ -1947,6 +1947,108 @@ function MagicItemsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Magic Item Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Edit Magic Item</DialogTitle>
+            <DialogDescription>
+              Modify the magical item properties
+            </DialogDescription>
+          </DialogHeader>
+          {editingItem && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-name" className="text-right">Name</Label>
+                <Input
+                  id="edit-name"
+                  value={editingItem.name}
+                  onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Enter item name"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-type" className="text-right">Type</Label>
+                <Select value={editingItem.type} onValueChange={(value) => setEditingItem({ ...editingItem, type: value })}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select item type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weapon">Weapon</SelectItem>
+                    <SelectItem value="armor">Armor</SelectItem>
+                    <SelectItem value="shield">Shield</SelectItem>
+                    <SelectItem value="wondrous">Wondrous Item</SelectItem>
+                    <SelectItem value="potion">Potion</SelectItem>
+                    <SelectItem value="scroll">Scroll</SelectItem>
+                    <SelectItem value="wand">Wand</SelectItem>
+                    <SelectItem value="staff">Staff</SelectItem>
+                    <SelectItem value="rod">Rod</SelectItem>
+                    <SelectItem value="ring">Ring</SelectItem>
+                    <SelectItem value="amulet">Amulet</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-rarity" className="text-right">Rarity</Label>
+                <Select value={editingItem.rarity} onValueChange={(value) => setEditingItem({ ...editingItem, rarity: value })}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select rarity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="common">Common</SelectItem>
+                    <SelectItem value="uncommon">Uncommon</SelectItem>
+                    <SelectItem value="rare">Rare</SelectItem>
+                    <SelectItem value="very rare">Very Rare</SelectItem>
+                    <SelectItem value="legendary">Legendary</SelectItem>
+                    <SelectItem value="artifact">Artifact</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-description" className="text-right">Description</Label>
+                <Textarea
+                  id="edit-description"
+                  value={editingItem.description}
+                  onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
+                  className="col-span-3"
+                  placeholder="Describe the item's appearance and magical properties..."
+                  rows={4}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-attunement" className="text-right">Requires Attunement</Label>
+                <div className="col-span-3">
+                  <Checkbox
+                    id="edit-attunement"
+                    checked={editingItem.requires_attunement}
+                    onCheckedChange={(checked) => setEditingItem({ ...editingItem, requires_attunement: checked })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-notes" className="text-right">Notes</Label>
+                <Textarea
+                  id="edit-notes"
+                  value={editingItem.notes}
+                  onChange={(e) => setEditingItem({ ...editingItem, notes: e.target.value })}
+                  className="col-span-3"
+                  placeholder="DM notes and usage tips..."
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
+            <Button onClick={handleUpdateItem} disabled={updateItemMutation.isPending}>
+              {updateItemMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Update Item
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {magicItemsLoading ? (
@@ -2127,6 +2229,8 @@ function MagicItemsTab() {
 
 function MonstersTab() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingMonster, setEditingMonster] = useState<any>(null);
   const [newMonster, setNewMonster] = useState({
     name: "",
     size: "",
