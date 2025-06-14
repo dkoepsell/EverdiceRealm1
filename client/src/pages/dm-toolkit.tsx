@@ -294,6 +294,36 @@ export default function DMToolkit() {
           )}
         </TabsContent>
         
+        <TabsContent value="session-recording" className="space-y-4">
+          {selectedCampaignId ? (
+            <SessionRecorder campaignId={selectedCampaignId} />
+          ) : (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <h4 className="text-lg font-medium mb-2">Select a Campaign</h4>
+                <p className="text-muted-foreground">
+                  Choose a campaign from the Live Manager to record session events
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="voice-control" className="space-y-4">
+          {selectedCampaignId ? (
+            <VoiceIntegration campaignId={selectedCampaignId} />
+          ) : (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <h4 className="text-lg font-medium mb-2">Select a Campaign</h4>
+                <p className="text-muted-foreground">
+                  Choose a campaign from the Live Manager to use voice commands
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+        
         <TabsContent value="reference" className="space-y-4">
           <QuickReferenceLibrary />
         </TabsContent>
