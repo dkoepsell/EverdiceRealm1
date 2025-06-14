@@ -2732,21 +2732,10 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
   app.get('/api/quests', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      // Get all quests for campaigns owned by this user
+      // Get all quests - both standalone (campaign_id is null) and campaign-linked
       const userQuests = await db
-        .select({
-          id: quests.id,
-          campaign_id: quests.campaign_id,
-          title: quests.title,
-          description: quests.description,
-          rewards: quests.rewards,
-          status: quests.status,
-          created_at: quests.created_at,
-          updated_at: quests.updated_at,
-        })
+        .select()
         .from(quests)
-        .leftJoin(campaigns, eq(quests.campaign_id, campaigns.id))
-        .where(eq(campaigns.userId, userId))
         .orderBy(desc(quests.created_at));
       
       res.json(userQuests);

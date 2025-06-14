@@ -781,6 +781,11 @@ function LocationsTab() {
   });
   const { toast } = useToast();
 
+  // Fetch locations from the API
+  const { data: locations = [], isLoading: locationsLoading } = useQuery<any[]>({
+    queryKey: ["/api/locations"],
+  });
+
   const createLocationMutation = useMutation({
     mutationFn: async (locationData: any) => {
       return await apiRequest("POST", "/api/locations", locationData);
@@ -963,56 +968,39 @@ function LocationsTab() {
       </Dialog>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-fantasy">Elemental Forge</CardTitle>
-            <CardDescription>Underground magical forge</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="aspect-video bg-muted/50 rounded-md flex items-center justify-center mb-3">
-              <MapPin className="h-12 w-12 text-muted-foreground" />
-            </div>
-            <p className="text-sm">An ancient forge powered by elemental fire, where legendary weapons were once crafted by the dwarves of old.</p>
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" size="sm">View Details</Button>
-            <Button size="sm">Edit Location</Button>
-          </CardFooter>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-fantasy">Whispering Woods</CardTitle>
-            <CardDescription>Enchanted forest</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="aspect-video bg-muted/50 rounded-md flex items-center justify-center mb-3">
-              <Trees className="h-12 w-12 text-muted-foreground" />
-            </div>
-            <p className="text-sm">A forest where the trees themselves whisper ancient secrets, home to fey creatures and magical beasts.</p>
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" size="sm">View Details</Button>
-            <Button size="sm">Edit Location</Button>
-          </CardFooter>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-fantasy">Stormwatch Keep</CardTitle>
-            <CardDescription>Cliffside fortress</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="aspect-video bg-muted/50 rounded-md flex items-center justify-center mb-3">
-              <Castle className="h-12 w-12 text-muted-foreground" />
-            </div>
-            <p className="text-sm">A weathered fortress built upon sheer cliffs, offering magnificent but dangerous views of the raging sea below.</p>
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" size="sm">View Details</Button>
-            <Button size="sm">Edit Location</Button>
-          </CardFooter>
-        </Card>
+        {locationsLoading ? (
+          <div className="col-span-full flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <span className="ml-2">Loading locations...</span>
+          </div>
+        ) : (
+          <>
+            {locations.map((location) => (
+              <Card key={location.id}>
+                <CardHeader>
+                  <CardTitle className="font-fantasy">{location.name}</CardTitle>
+                  <CardDescription>{location.environment || location.type}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="aspect-video bg-muted/50 rounded-md flex items-center justify-center mb-3">
+                    <MapPin className="h-12 w-12 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm">{location.description}</p>
+                  {location.notable_features && Array.isArray(location.notable_features) && location.notable_features.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-xs font-medium text-muted-foreground">Notable Features:</p>
+                      <p className="text-xs text-muted-foreground">{location.notable_features.join(", ")}</p>
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <Button variant="outline" size="sm">View Details</Button>
+                  <Button size="sm">Edit Location</Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </>
+        )}
         
         <Card className="border-dashed bg-muted/10">
           <CardHeader>
@@ -1147,6 +1135,11 @@ function QuestsTab() {
     notes: ""
   });
   const { toast } = useToast();
+
+  // Fetch quests from the API
+  const { data: quests = [], isLoading: questsLoading } = useQuery<any[]>({
+    queryKey: ["/api/quests"],
+  });
 
   const createQuestMutation = useMutation({
     mutationFn: async (questData: any) => {
@@ -1359,67 +1352,55 @@ function QuestsTab() {
       </Dialog>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between">
-              <CardTitle className="font-fantasy">The Lost Artifact</CardTitle>
-              <Badge>Level 3-5</Badge>
-            </div>
-            <CardDescription>Investigation & Retrieval</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm mb-3">A powerful magical artifact has been stolen from the city's arcane university. The characters must track it down before it falls into the wrong hands.</p>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Difficulty:</span>
-                <span>Moderate</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Suggested Party Size:</span>
-                <span>3-5 Characters</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Estimated Duration:</span>
-                <span>2-3 Sessions</span>
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" size="sm">View Details</Button>
-            <Button size="sm">Edit Quest</Button>
-          </CardFooter>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between">
-              <CardTitle className="font-fantasy">Curse of the Ancient Tomb</CardTitle>
-              <Badge>Level 5-7</Badge>
-            </div>
-            <CardDescription>Dungeon Delve & Curse Breaking</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm mb-3">A nobleman's son has fallen ill with a mysterious curse after exploring ancient ruins. The characters must enter the tomb to find the source of the curse and break it.</p>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Difficulty:</span>
-                <span>Challenging</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Suggested Party Size:</span>
-                <span>4-6 Characters</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Estimated Duration:</span>
-                <span>3-4 Sessions</span>
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" size="sm">View Details</Button>
-            <Button size="sm">Edit Quest</Button>
-          </CardFooter>
-        </Card>
+        {questsLoading ? (
+          <div className="col-span-full flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <span className="ml-2">Loading quests...</span>
+          </div>
+        ) : (
+          <>
+            {quests.map((quest) => (
+              <Card key={quest.id}>
+                <CardHeader>
+                  <div className="flex justify-between">
+                    <CardTitle className="font-fantasy">{quest.title}</CardTitle>
+                    {quest.level_range && <Badge>{quest.level_range}</Badge>}
+                  </div>
+                  <CardDescription>{quest.category}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm mb-3">{quest.description}</p>
+                  <div className="space-y-2">
+                    {quest.difficulty && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Difficulty:</span>
+                        <span>{quest.difficulty}</span>
+                      </div>
+                    )}
+                    {quest.estimated_duration && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Estimated Duration:</span>
+                        <span>{quest.estimated_duration}</span>
+                      </div>
+                    )}
+                    {quest.status && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Status:</span>
+                        <Badge variant={quest.status === 'completed' ? 'default' : 'secondary'}>
+                          {quest.status}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <Button variant="outline" size="sm">View Details</Button>
+                  <Button size="sm">Edit Quest</Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </>
+        )}
         
         <Card className="border-dashed bg-muted/10">
           <CardHeader>
