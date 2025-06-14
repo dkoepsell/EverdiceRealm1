@@ -170,6 +170,15 @@ export default function DMToolkit() {
             >
               Start Guide
             </Button>
+            <Button
+              variant="default"
+              onClick={() => setShowAIGuide(true)}
+              className="text-sm bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              disabled={!selectedCampaignId}
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              AI DM Assistant
+            </Button>
           </div>
         </div>
       </div>
@@ -1959,6 +1968,15 @@ function MonstersTab() {
           </Card>
         </div>
       </div>
+
+      {/* AI-Assisted DM Guide */}
+      {showAIGuide && selectedCampaignId && (
+        <AIAssistedDMGuide
+          campaignId={selectedCampaignId}
+          isActive={showAIGuide}
+          onClose={() => setShowAIGuide(false)}
+        />
+      )}
     </div>
   );
 }
