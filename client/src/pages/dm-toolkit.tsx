@@ -25,7 +25,9 @@ import {
   Target,
   Crown,
   Eye,
-  Save
+  Save,
+  ArrowDown,
+  ChevronDown
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 
@@ -219,134 +221,156 @@ export default function DMToolkit() {
         </div>
       </div>
 
-      {/* Selected Tool Content with Enhanced Animation */}
+      {/* Prominent Visual Connection and Content */}
       {activeTab && (
-        <div className="mt-12 animate-in slide-in-from-bottom-8 duration-700 ease-out">
-          {/* Visual Connection Indicator */}
-          <div className="flex items-center space-x-4 mb-8 p-4 bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-xl">
-            <div className="flex items-center space-x-2">
-              <div className="h-2 w-2 bg-primary rounded-full animate-pulse"></div>
-              <div className="h-1 w-8 bg-gradient-to-r from-primary to-primary/50 rounded-full"></div>
+        <div className="mt-12">
+          {/* Eye-catching bouncing arrow pointing down */}
+          <div className="flex flex-col items-center mb-8">
+            <div className="text-center mb-4">
+              <div className="inline-flex items-center px-6 py-3 bg-primary/10 border border-primary/30 rounded-full">
+                <div className="h-2 w-2 bg-primary rounded-full animate-pulse mr-3"></div>
+                <span className="text-primary font-semibold">Selected Tool Loading Below</span>
+              </div>
             </div>
-            <div className="text-lg font-semibold text-primary">
-              {activeTab === 'training' && 'DM Training Center'}
-              {activeTab === 'campaign-builder' && 'AI Campaign Builder'}
-              {activeTab === 'live-manager' && 'Live Campaign Manager'}
-              {activeTab === 'companions' && 'NPC Management'}
-              {activeTab === 'locations' && 'Location Creation'}
-              {activeTab === 'quests' && 'Quest Management'}
-              {activeTab === 'items' && 'Magic Items'}
-              {activeTab === 'monsters' && 'Monster Creation'}
-              {activeTab === 'invitations' && 'Player Invitations'}
-              {activeTab === 'notes' && 'Campaign Notes'}
-              {activeTab === 'generators' && 'Content Generators'}
-              {activeTab === 'deploy' && 'Campaign Deployment'}
+            <div className="animate-bounce">
+              <ChevronDown className="h-8 w-8 text-primary" />
             </div>
-            <div className="flex-1 h-px bg-gradient-to-r from-primary/30 via-primary/10 to-transparent"></div>
+            <div className="h-12 w-px bg-gradient-to-b from-primary to-transparent opacity-50"></div>
           </div>
-          
-          {/* Content Area with Fade Animation */}
-          <div className="animate-in fade-in-50 duration-500 delay-200">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="hidden">
-                <TabsTrigger value="training">Training</TabsTrigger>
-                <TabsTrigger value="campaign-builder">Campaign Builder</TabsTrigger>
-                <TabsTrigger value="live-manager">Live Manager</TabsTrigger>
-                <TabsTrigger value="companions">Companions</TabsTrigger>
-                <TabsTrigger value="locations">Locations</TabsTrigger>
-                <TabsTrigger value="quests">Quests</TabsTrigger>
-                <TabsTrigger value="items">Items</TabsTrigger>
-                <TabsTrigger value="monsters">Monsters</TabsTrigger>
-                <TabsTrigger value="invitations">Invitations</TabsTrigger>
-                <TabsTrigger value="notes">Notes</TabsTrigger>
-                <TabsTrigger value="generators">Generators</TabsTrigger>
-                <TabsTrigger value="deploy">Deploy</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="training" className="space-y-4">
-                <DMTrainingPlaceholder />
-              </TabsContent>
-              
-              <TabsContent value="campaign-builder" className="space-y-4">
-                <CampaignBuilderTab />
-              </TabsContent>
-              
-              <TabsContent value="live-manager" className="space-y-4">
-                <LiveManagerPlaceholder />
-              </TabsContent>
-              
-              <TabsContent value="companions" className="space-y-4">
-                <ContentPlaceholder 
-                  icon={Users} 
-                  title="NPC Management" 
-                  description="Create and manage non-player characters for your campaigns"
-                />
-              </TabsContent>
-              
-              <TabsContent value="locations" className="space-y-4">
-                <ContentPlaceholder 
-                  icon={MapPin} 
-                  title="Location Creation" 
-                  description="Design detailed locations and environments"
-                />
-              </TabsContent>
-              
-              <TabsContent value="quests" className="space-y-4">
-                <ContentPlaceholder 
-                  icon={Scroll} 
-                  title="Quest Management" 
-                  description="Create and track campaign quests and storylines"
-                />
-              </TabsContent>
-              
-              <TabsContent value="items" className="space-y-4">
-                <ContentPlaceholder 
-                  icon={Package} 
-                  title="Magic Items" 
-                  description="Design unique magical items and treasures"
-                />
-              </TabsContent>
-              
-              <TabsContent value="monsters" className="space-y-4">
-                <ContentPlaceholder 
-                  icon={Swords} 
-                  title="Monster Creation" 
-                  description="Create custom monsters and encounters"
-                />
-              </TabsContent>
-              
-              <TabsContent value="invitations" className="space-y-4">
-                <ContentPlaceholder 
-                  icon={Mail} 
-                  title="Player Invitations" 
-                  description="Invite players to join your campaigns"
-                />
-              </TabsContent>
-              
-              <TabsContent value="notes" className="space-y-4">
-                <ContentPlaceholder 
-                  icon={StickyNote} 
-                  title="Campaign Notes" 
-                  description="Keep track of important campaign information"
-                />
-              </TabsContent>
-              
-              <TabsContent value="generators" className="space-y-4">
-                <ContentPlaceholder 
-                  icon={Wand2} 
-                  title="Content Generators" 
-                  description="Generate names, encounters, and other content quickly"
-                />
-              </TabsContent>
-              
-              <TabsContent value="deploy" className="space-y-4">
-                <ContentPlaceholder 
-                  icon={Globe} 
-                  title="Campaign Deployment" 
-                  description="Share and deploy your campaigns for players"
-                />
-              </TabsContent>
-            </Tabs>
+
+          {/* Large prominent content area */}
+          <div className="animate-in slide-in-from-bottom-6 duration-700 ease-out">
+            <Card className="border-2 border-primary/40 shadow-2xl bg-gradient-to-br from-background via-primary/5 to-background">
+              <CardHeader className="border-b border-primary/20 bg-gradient-to-r from-primary/10 to-transparent">
+                <CardTitle className="text-2xl font-bold text-primary flex items-center">
+                  <div className="h-4 w-4 bg-primary rounded-full animate-pulse mr-3"></div>
+                  {activeTab === 'training' && 'DM Training Center'}
+                  {activeTab === 'campaign-builder' && 'AI Campaign Builder'}
+                  {activeTab === 'live-manager' && 'Live Campaign Manager'}
+                  {activeTab === 'companions' && 'NPC Management'}
+                  {activeTab === 'locations' && 'Location Creation'}
+                  {activeTab === 'quests' && 'Quest Management'}
+                  {activeTab === 'items' && 'Magic Items'}
+                  {activeTab === 'monsters' && 'Monster Creation'}
+                  {activeTab === 'invitations' && 'Player Invitations'}
+                  {activeTab === 'notes' && 'Campaign Notes'}
+                  {activeTab === 'generators' && 'Content Generators'}
+                  {activeTab === 'deploy' && 'Campaign Deployment'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-8">
+                <div className="animate-in fade-in-50 duration-500 delay-300">
+                  <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    <TabsList className="hidden">
+                      <TabsTrigger value="training">Training</TabsTrigger>
+                      <TabsTrigger value="campaign-builder">Campaign Builder</TabsTrigger>
+                      <TabsTrigger value="live-manager">Live Manager</TabsTrigger>
+                      <TabsTrigger value="companions">Companions</TabsTrigger>
+                      <TabsTrigger value="locations">Locations</TabsTrigger>
+                      <TabsTrigger value="quests">Quests</TabsTrigger>
+                      <TabsTrigger value="items">Items</TabsTrigger>
+                      <TabsTrigger value="monsters">Monsters</TabsTrigger>
+                      <TabsTrigger value="invitations">Invitations</TabsTrigger>
+                      <TabsTrigger value="notes">Notes</TabsTrigger>
+                      <TabsTrigger value="generators">Generators</TabsTrigger>
+                      <TabsTrigger value="deploy">Deploy</TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="training">
+                      <ContentPlaceholder 
+                        icon={BookOpen} 
+                        title="DM Training Center" 
+                        description="Master the art of Dungeon Mastering with comprehensive training modules and expert guidance"
+                      />
+                    </TabsContent>
+                    
+                    <TabsContent value="campaign-builder">
+                      <CampaignBuilderContent />
+                    </TabsContent>
+                    
+                    <TabsContent value="live-manager">
+                      <ContentPlaceholder 
+                        icon={PlayIcon} 
+                        title="Live Campaign Manager" 
+                        description="Run and manage your active game sessions with real-time tools"
+                      />
+                    </TabsContent>
+                    
+                    <TabsContent value="companions">
+                      <ContentPlaceholder 
+                        icon={Users} 
+                        title="NPC Management" 
+                        description="Create and manage memorable non-player characters for your campaigns"
+                      />
+                    </TabsContent>
+                    
+                    <TabsContent value="locations">
+                      <ContentPlaceholder 
+                        icon={MapPin} 
+                        title="Location Creation" 
+                        description="Design detailed locations and immersive environments"
+                      />
+                    </TabsContent>
+                    
+                    <TabsContent value="quests">
+                      <ContentPlaceholder 
+                        icon={Scroll} 
+                        title="Quest Management" 
+                        description="Create and track engaging campaign quests and storylines"
+                      />
+                    </TabsContent>
+                    
+                    <TabsContent value="items">
+                      <ContentPlaceholder 
+                        icon={Package} 
+                        title="Magic Items" 
+                        description="Design unique magical items and treasures for your adventures"
+                      />
+                    </TabsContent>
+                    
+                    <TabsContent value="monsters">
+                      <ContentPlaceholder 
+                        icon={Swords} 
+                        title="Monster Creation" 
+                        description="Create custom monsters and challenging encounters"
+                      />
+                    </TabsContent>
+                    
+                    <TabsContent value="invitations">
+                      <ContentPlaceholder 
+                        icon={Mail} 
+                        title="Player Invitations" 
+                        description="Invite players to join your campaigns and manage access"
+                      />
+                    </TabsContent>
+                    
+                    <TabsContent value="notes">
+                      <ContentPlaceholder 
+                        icon={StickyNote} 
+                        title="Campaign Notes" 
+                        description="Keep track of important campaign information and player details"
+                      />
+                    </TabsContent>
+                    
+                    <TabsContent value="generators">
+                      <ContentPlaceholder 
+                        icon={Wand2} 
+                        title="Content Generators" 
+                        description="Generate names, encounters, and other content quickly with AI assistance"
+                      />
+                    </TabsContent>
+                    
+                    <TabsContent value="deploy">
+                      <ContentPlaceholder 
+                        icon={Globe} 
+                        title="Campaign Deployment" 
+                        description="Share and deploy your campaigns for players to access"
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       )}
@@ -354,42 +378,32 @@ export default function DMToolkit() {
   );
 }
 
-// Placeholder Components
-function ContentPlaceholder({ icon: Icon, title, description }: { icon: any, title: string, description: string }) {
+// Placeholder component for content sections
+function ContentPlaceholder({ icon: Icon, title, description }: { 
+  icon: React.ComponentType<any>, 
+  title: string, 
+  description: string 
+}) {
   return (
-    <div className="text-center py-12">
-      <Icon className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-      <h3 className="text-xl font-semibold mb-2">{title}</h3>
-      <p className="text-muted-foreground">{description}</p>
+    <div className="text-center py-16">
+      <div className="inline-flex items-center justify-center w-20 h-20 bg-primary/10 rounded-full mb-6">
+        <Icon className="h-10 w-10 text-primary" />
+      </div>
+      <h3 className="text-2xl font-bold mb-4">{title}</h3>
+      <p className="text-lg text-muted-foreground max-w-2xl mx-auto">{description}</p>
+      <div className="mt-8">
+        <Button variant="outline" size="lg">
+          Coming Soon
+        </Button>
+      </div>
     </div>
   );
 }
 
-function DMTrainingPlaceholder() {
-  return (
-    <div className="text-center py-12">
-      <BookOpen className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-      <h3 className="text-xl font-semibold mb-2">DM Training Center</h3>
-      <p className="text-muted-foreground">Master the art of Dungeon Mastering with comprehensive training modules</p>
-    </div>
-  );
-}
-
-function LiveManagerPlaceholder() {
-  return (
-    <div className="text-center py-12">
-      <PlayIcon className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-      <h3 className="text-xl font-semibold mb-2">Live Campaign Manager</h3>
-      <p className="text-muted-foreground">Run and manage your active game sessions in real-time</p>
-    </div>
-  );
-}
-
-// Campaign Builder Component
-function CampaignBuilderTab() {
+// Campaign Builder specific content
+function CampaignBuilderContent() {
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedCampaign, setGeneratedCampaign] = useState<any>(null);
   const [campaignParams, setCampaignParams] = useState({
     type: '',
     level: '',
@@ -398,47 +412,42 @@ function CampaignBuilderTab() {
   });
 
   const generateCampaign = useMutation({
-    mutationFn: async (params: any) => {
+    mutationFn: async (params: typeof campaignParams) => {
       const response = await fetch('/api/generate-campaign', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(params)
       });
-      if (!response.ok) {
-        throw new Error('Failed to generate campaign');
-      }
+      if (!response.ok) throw new Error('Failed to generate campaign');
       return response.json();
     },
-    onSuccess: (data) => {
-      setGeneratedCampaign(data);
+    onSuccess: () => {
       setIsGenerating(false);
       toast({
         title: "Campaign Generated!",
-        description: "Your complete campaign package is ready to review and save.",
+        description: "Your complete campaign package is ready.",
       });
     },
     onError: (error: Error) => {
       setIsGenerating(false);
       toast({
         title: "Generation Failed",
-        description: error.message || "Failed to generate campaign. Please try again.",
+        description: error.message,
         variant: "destructive",
       });
     }
   });
 
   const handleGenerate = () => {
-    if (!campaignParams.type || !campaignParams.level || !campaignParams.length || !campaignParams.theme) {
+    const { type, level, length, theme } = campaignParams;
+    if (!type || !level || !length || !theme) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all campaign parameters before generating.",
+        description: "Please fill in all campaign parameters.",
         variant: "destructive",
       });
       return;
     }
-
     setIsGenerating(true);
     generateCampaign.mutate(campaignParams);
   };
@@ -446,7 +455,7 @@ function CampaignBuilderTab() {
   return (
     <div className="space-y-8">
       <div className="text-center space-y-4">
-        <div className="flex items-center justify-center space-x-3">
+        <div className="flex items-center justify-center space-x-3 mb-4">
           <Sparkles className="h-8 w-8 text-primary" />
           <h2 className="text-3xl font-bold">AI Campaign Builder</h2>
         </div>
@@ -466,8 +475,10 @@ function CampaignBuilderTab() {
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="campaign-type">Campaign Type</Label>
-              <Select value={campaignParams.type} onValueChange={(value) => setCampaignParams({...campaignParams, type: value})}>
+              <Label>Campaign Type</Label>
+              <Select value={campaignParams.type} onValueChange={(value) => 
+                setCampaignParams({...campaignParams, type: value})
+              }>
                 <SelectTrigger>
                   <SelectValue placeholder="Select campaign type" />
                 </SelectTrigger>
@@ -483,8 +494,10 @@ function CampaignBuilderTab() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="party-level">Party Level Range</Label>
-              <Select value={campaignParams.level} onValueChange={(value) => setCampaignParams({...campaignParams, level: value})}>
+              <Label>Party Level Range</Label>
+              <Select value={campaignParams.level} onValueChange={(value) => 
+                setCampaignParams({...campaignParams, level: value})
+              }>
                 <SelectTrigger>
                   <SelectValue placeholder="Select level range" />
                 </SelectTrigger>
@@ -498,8 +511,10 @@ function CampaignBuilderTab() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="campaign-length">Campaign Length</Label>
-              <Select value={campaignParams.length} onValueChange={(value) => setCampaignParams({...campaignParams, length: value})}>
+              <Label>Campaign Length</Label>
+              <Select value={campaignParams.length} onValueChange={(value) => 
+                setCampaignParams({...campaignParams, length: value})
+              }>
                 <SelectTrigger>
                   <SelectValue placeholder="Select duration" />
                 </SelectTrigger>
@@ -513,8 +528,10 @@ function CampaignBuilderTab() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="campaign-theme">Theme & Setting</Label>
-              <Select value={campaignParams.theme} onValueChange={(value) => setCampaignParams({...campaignParams, theme: value})}>
+              <Label>Theme & Setting</Label>
+              <Select value={campaignParams.theme} onValueChange={(value) => 
+                setCampaignParams({...campaignParams, theme: value})
+              }>
                 <SelectTrigger>
                   <SelectValue placeholder="Select theme" />
                 </SelectTrigger>
@@ -549,108 +566,6 @@ function CampaignBuilderTab() {
                 </>
               )}
             </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Campaign Preview */}
-      {generatedCampaign && (
-        <div className="animate-in slide-in-from-bottom-4 duration-500">
-          <Card className="border-2 border-green-500/20 bg-green-50/50 dark:bg-green-950/20">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2 text-green-700 dark:text-green-300">
-                <Star className="h-5 w-5" />
-                <span>{generatedCampaign.title}</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-6">{generatedCampaign.description}</p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                <div className="text-center p-4 bg-white/50 dark:bg-gray-800/50 rounded-lg">
-                  <Scroll className="h-8 w-8 mx-auto mb-2 text-primary" />
-                  <div className="font-semibold">{generatedCampaign.quests?.length || 0} Quests</div>
-                  <div className="text-sm text-muted-foreground">Interconnected storylines</div>
-                </div>
-                <div className="text-center p-4 bg-white/50 dark:bg-gray-800/50 rounded-lg">
-                  <Users className="h-8 w-8 mx-auto mb-2 text-primary" />
-                  <div className="font-semibold">{generatedCampaign.npcs?.length || 0} NPCs</div>
-                  <div className="text-sm text-muted-foreground">Memorable characters</div>
-                </div>
-                <div className="text-center p-4 bg-white/50 dark:bg-gray-800/50 rounded-lg">
-                  <MapPin className="h-8 w-8 mx-auto mb-2 text-primary" />
-                  <div className="font-semibold">{generatedCampaign.locations?.length || 0} Locations</div>
-                  <div className="text-sm text-muted-foreground">Detailed environments</div>
-                </div>
-              </div>
-
-              <div className="flex justify-center space-x-4">
-                <Button variant="outline" size="sm">
-                  <Eye className="h-4 w-4 mr-2" />
-                  Preview Details
-                </Button>
-                <Button size="sm">
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Campaign
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* What You'll Get Info */}
-      <Card className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 border-2 border-blue-200/50 dark:border-blue-800/50">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Gift className="h-5 w-5 text-blue-600" />
-            <span>What You'll Get</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="flex items-start space-x-3">
-              <Scroll className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <div className="font-medium">Interconnected Quests</div>
-                <p className="text-sm text-muted-foreground">Main story arc with side quests that enhance the narrative</p>
-              </div>
-            </div>
-            <div className="flex items-start space-x-3">
-              <Users className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <div className="font-medium">Memorable NPCs</div>
-                <p className="text-sm text-muted-foreground">Fully developed characters with motivations and personalities</p>
-              </div>
-            </div>
-            <div className="flex items-start space-x-3">
-              <MapPin className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <div className="font-medium">Detailed Locations</div>
-                <p className="text-sm text-muted-foreground">Rich environments with features and encounter possibilities</p>
-              </div>
-            </div>
-            <div className="flex items-start space-x-3">
-              <Swords className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <div className="font-medium">Balanced Encounters</div>
-                <p className="text-sm text-muted-foreground">Combat, social, and exploration challenges</p>
-              </div>
-            </div>
-            <div className="flex items-start space-x-3">
-              <Package className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <div className="font-medium">Meaningful Rewards</div>
-                <p className="text-sm text-muted-foreground">Magic items, treasure, and story rewards tied to quests</p>
-              </div>
-            </div>
-            <div className="flex items-start space-x-3">
-              <Brain className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <div className="font-medium">DM Guidance</div>
-                <p className="text-sm text-muted-foreground">Tips and advice for running each element effectively</p>
-              </div>
-            </div>
           </div>
         </CardContent>
       </Card>
