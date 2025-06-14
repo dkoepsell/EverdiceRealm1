@@ -72,7 +72,11 @@ import {
   Play,
   Check,
   Zap,
-  Star as StarIcon
+  Star as StarIcon,
+  Brain,
+  Lightbulb,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 
 // Import our tabs
@@ -238,16 +242,7 @@ export default function DMToolkit() {
         </TabsContent>
         
         <TabsContent value="generators" className="space-y-4">
-          <div className="text-center py-12">
-            <BookOpen className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
-            <h2 className="text-2xl font-fantasy font-semibold mb-2">DM Workflow & Guidance</h2>
-            <p className="text-muted-foreground mb-4">Advanced DM guidance tools coming soon</p>
-            <Card className="max-w-md mx-auto">
-              <CardContent className="pt-6">
-                <p className="text-sm">Comprehensive DM workflow guidance and decision-making frameworks will be available in the next update.</p>
-              </CardContent>
-            </Card>
-          </div>
+          <DMWorkflowAndGuidance />
         </TabsContent>
         
         <TabsContent value="deploy" className="space-y-6">
@@ -2431,6 +2426,503 @@ function MonstersTab() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DMWorkflowAndGuidance() {
+  const [activeWorkflow, setActiveWorkflow] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [userAnswers, setUserAnswers] = useState<Record<string, any>>({});
+  const [showDecisionTree, setShowDecisionTree] = useState(false);
+  const [selectedDecisionType, setSelectedDecisionType] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const workflows = [
+    {
+      id: "campaign-creation",
+      title: "Campaign Creation Workflow",
+      description: "Step-by-step guide to creating your first D&D campaign",
+      icon: BookOpen,
+      difficulty: "Beginner",
+      duration: "15-30 minutes",
+      steps: [
+        {
+          title: "Choose Your Campaign Type",
+          description: "Decide what kind of D&D experience you want to create",
+          questions: [
+            {
+              id: "campaign-type",
+              text: "What type of campaign appeals to you most?",
+              type: "radio",
+              options: [
+                { value: "sandbox", label: "Sandbox - Open world exploration" },
+                { value: "linear", label: "Linear - Structured story path" },
+                { value: "episodic", label: "Episodic - Self-contained adventures" },
+                { value: "mystery", label: "Mystery - Investigation focused" }
+              ]
+            }
+          ],
+          guidance: "Your campaign type shapes how you prepare content and what tools you'll need most."
+        },
+        {
+          title: "Define Your Setting",
+          description: "Establish the world where your adventures will take place",
+          questions: [
+            {
+              id: "setting-type",
+              text: "What kind of setting interests you?",
+              type: "radio",
+              options: [
+                { value: "published", label: "Published setting (Forgotten Realms, etc.)" },
+                { value: "homebrew", label: "Original homebrew world" },
+                { value: "modified", label: "Modified published setting" },
+                { value: "real-world", label: "Real world with fantasy elements" }
+              ]
+            },
+            {
+              id: "tone",
+              text: "What tone do you want for your campaign?",
+              type: "radio",
+              options: [
+                { value: "heroic", label: "Heroic - Classic good vs evil" },
+                { value: "gritty", label: "Gritty - Morally complex, realistic" },
+                { value: "comedic", label: "Comedic - Light-hearted and fun" },
+                { value: "horror", label: "Horror - Dark and frightening" }
+              ]
+            }
+          ],
+          guidance: "The setting and tone provide the foundation for all your storytelling decisions."
+        },
+        {
+          title: "Plan Your Session Zero",
+          description: "Prepare for the crucial first meeting with your players",
+          questions: [
+            {
+              id: "safety-tools",
+              text: "Which safety tools will you use?",
+              type: "checkbox",
+              options: [
+                { value: "x-card", label: "X-Card system" },
+                { value: "lines-veils", label: "Lines and Veils" },
+                { value: "consent-checklist", label: "Consent checklist" },
+                { value: "open-door", label: "Open door policy" }
+              ]
+            }
+          ],
+          guidance: "Session Zero sets expectations and ensures everyone has fun safely."
+        }
+      ]
+    },
+    {
+      id: "session-prep",
+      title: "Session Preparation Guide",
+      description: "Efficient methods for preparing engaging D&D sessions",
+      icon: Target,
+      difficulty: "Intermediate",
+      duration: "20-45 minutes",
+      steps: [
+        {
+          title: "Review Previous Session",
+          description: "Understand where your story currently stands",
+          questions: [
+            {
+              id: "loose-threads",
+              text: "What unresolved plot threads exist?",
+              type: "textarea",
+              placeholder: "List any ongoing mysteries, character arcs, or world events..."
+            }
+          ],
+          guidance: "Always start by understanding what happened before and what players expect to continue."
+        },
+        {
+          title: "Define Session Goals",
+          description: "Set clear objectives for the upcoming session",
+          questions: [
+            {
+              id: "session-type",
+              text: "What's the primary focus of this session?",
+              type: "radio",
+              options: [
+                { value: "combat", label: "Combat encounter" },
+                { value: "roleplay", label: "Roleplay and character development" },
+                { value: "exploration", label: "Exploration and discovery" },
+                { value: "puzzle", label: "Puzzles and problem-solving" }
+              ]
+            }
+          ],
+          guidance: "Having a clear focus helps you prepare the right content and pacing."
+        }
+      ]
+    },
+    {
+      id: "encounter-design",
+      title: "Encounter Design Workshop",
+      description: "Create memorable combat and non-combat encounters",
+      icon: Swords,
+      difficulty: "Intermediate",
+      duration: "30-60 minutes",
+      steps: [
+        {
+          title: "Choose Encounter Type",
+          description: "Decide what kind of challenge to create",
+          questions: [
+            {
+              id: "encounter-type",
+              text: "What type of encounter are you designing?",
+              type: "radio",
+              options: [
+                { value: "combat", label: "Combat encounter" },
+                { value: "social", label: "Social interaction" },
+                { value: "exploration", label: "Exploration challenge" },
+                { value: "puzzle", label: "Puzzle or riddle" }
+              ]
+            }
+          ],
+          guidance: "Different encounter types require different preparation approaches."
+        }
+      ]
+    }
+  ];
+
+  const decisionTrees = [
+    {
+      id: "player-conflict",
+      title: "Handling Player Conflicts",
+      description: "Navigate interpersonal issues at the table",
+      scenarios: [
+        {
+          situation: "Two players are arguing about strategy",
+          options: [
+            { text: "Let them work it out", consequence: "May resolve naturally or escalate" },
+            { text: "Call a 5-minute break", consequence: "Gives time to cool down" },
+            { text: "Suggest compromise", consequence: "Shows leadership but may not satisfy both" }
+          ]
+        }
+      ]
+    },
+    {
+      id: "rules-disputes",
+      title: "Rules Disputes at the Table",
+      description: "Handle rules disagreements smoothly",
+      scenarios: [
+        {
+          situation: "Player disagrees with your ruling",
+          options: [
+            { text: "Make a quick ruling and move on", consequence: "Keeps game flowing but may create resentment" },
+            { text: "Look up the rule together", consequence: "Accurate but slows the game" },
+            { text: "Ask player to accept ruling now, discuss after", consequence: "Good compromise approach" }
+          ]
+        }
+      ]
+    }
+  ];
+
+  const currentWorkflow = workflows.find(w => w.id === activeWorkflow);
+  const currentWorkflowStep = currentWorkflow?.steps[currentStep];
+
+  const handleWorkflowStart = (workflowId: string) => {
+    setActiveWorkflow(workflowId);
+    setCurrentStep(0);
+    setUserAnswers({});
+  };
+
+  const handleAnswerChange = (questionId: string, value: any) => {
+    setUserAnswers(prev => ({
+      ...prev,
+      [questionId]: value
+    }));
+  };
+
+  const handleNextStep = () => {
+    if (currentWorkflow && currentStep < currentWorkflow.steps.length - 1) {
+      setCurrentStep(prev => prev + 1);
+    } else {
+      toast({
+        title: "Workflow Complete!",
+        description: "You've completed this DM guidance workflow.",
+      });
+      setActiveWorkflow(null);
+      setCurrentStep(0);
+      setUserAnswers({});
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
+
+  if (activeWorkflow && currentWorkflow) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Button variant="outline" onClick={() => setActiveWorkflow(null)}>
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Back to Workflows
+            </Button>
+            <div>
+              <h2 className="text-2xl font-fantasy font-semibold">{currentWorkflow.title}</h2>
+              <p className="text-muted-foreground">Step {currentStep + 1} of {currentWorkflow.steps.length}</p>
+            </div>
+          </div>
+          <Badge variant="outline">{currentWorkflow.difficulty}</Badge>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span>Progress</span>
+            <span>{Math.round(((currentStep + 1) / currentWorkflow.steps.length) * 100)}%</span>
+          </div>
+          <div className="w-full bg-muted rounded-full h-2">
+            <div 
+              className="bg-primary h-2 rounded-full transition-all duration-300"
+              style={{ width: `${((currentStep + 1) / currentWorkflow.steps.length) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{currentWorkflowStep?.title}</CardTitle>
+            <CardDescription>{currentWorkflowStep?.description}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {currentWorkflowStep?.questions.map((question) => (
+              <div key={question.id} className="space-y-3">
+                <Label className="text-base font-medium">{question.text}</Label>
+                
+                {question.type === "radio" && (
+                  <div className="space-y-2">
+                    {question.options?.map((option) => (
+                      <div key={option.value} className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          id={`${question.id}-${option.value}`}
+                          name={question.id}
+                          value={option.value}
+                          checked={userAnswers[question.id] === option.value}
+                          onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                          className="text-primary"
+                        />
+                        <Label htmlFor={`${question.id}-${option.value}`} className="font-normal">
+                          {option.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {question.type === "checkbox" && (
+                  <div className="space-y-2">
+                    {question.options?.map((option) => (
+                      <div key={option.value} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`${question.id}-${option.value}`}
+                          checked={(userAnswers[question.id] || []).includes(option.value)}
+                          onCheckedChange={(checked) => {
+                            const current = userAnswers[question.id] || [];
+                            if (checked) {
+                              handleAnswerChange(question.id, [...current, option.value]);
+                            } else {
+                              handleAnswerChange(question.id, current.filter((v: string) => v !== option.value));
+                            }
+                          }}
+                        />
+                        <Label htmlFor={`${question.id}-${option.value}`} className="font-normal">
+                          {option.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {question.type === "textarea" && (
+                  <Textarea
+                    placeholder={question.placeholder}
+                    value={userAnswers[question.id] || ""}
+                    onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                    rows={4}
+                  />
+                )}
+              </div>
+            ))}
+
+            {currentWorkflowStep?.guidance && (
+              <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-start space-x-2">
+                  <Lightbulb className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-blue-900 dark:text-blue-100">DM Tip</p>
+                    <p className="text-sm text-blue-800 dark:text-blue-200">{currentWorkflowStep.guidance}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="flex justify-between">
+            <Button
+              variant="outline"
+              onClick={handlePrevStep}
+              disabled={currentStep === 0}
+            >
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Previous
+            </Button>
+            <Button onClick={handleNextStep}>
+              {currentStep === currentWorkflow.steps.length - 1 ? (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Complete
+                </>
+              ) : (
+                <>
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-2" />
+                </>
+              )}
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  if (showDecisionTree) {
+    const selectedTree = decisionTrees.find(t => t.id === selectedDecisionType);
+    
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Button variant="outline" onClick={() => setShowDecisionTree(false)}>
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Back to Decision Trees
+            </Button>
+            <div>
+              <h2 className="text-2xl font-fantasy font-semibold">{selectedTree?.title}</h2>
+              <p className="text-muted-foreground">{selectedTree?.description}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {selectedTree?.scenarios.map((scenario, index) => (
+            <Card key={index}>
+              <CardHeader>
+                <CardTitle className="text-lg">Scenario {index + 1}</CardTitle>
+                <CardDescription>{scenario.situation}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <Label className="font-medium">Your options:</Label>
+                  {scenario.options.map((option, optionIndex) => (
+                    <div key={optionIndex} className="border rounded-lg p-4 space-y-2">
+                      <p className="font-medium">{option.text}</p>
+                      <p className="text-sm text-muted-foreground">
+                        <span className="font-medium">Likely outcome:</span> {option.consequence}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center space-y-4">
+        <h2 className="text-2xl font-fantasy font-semibold">DM Workflow & Guidance</h2>
+        <p className="text-muted-foreground max-w-2xl mx-auto">
+          Interactive tools to teach you the art of Dungeon Mastering and provide real-time assistance for every step of campaign creation and management.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setShowDecisionTree(true)}>
+          <CardHeader>
+            <CardTitle className="flex items-center text-lg">
+              <Brain className="h-5 w-5 mr-2 text-purple-600" />
+              Decision Trees
+            </CardTitle>
+            <CardDescription>
+              Interactive decision-making tools for common DM challenges
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Get instant guidance on handling player conflicts, rules disputes, and other table situations.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-md transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center text-lg">
+              <Zap className="h-5 w-5 mr-2 text-yellow-600" />
+              Quick References
+            </CardTitle>
+            <CardDescription>
+              Essential DM information at your fingertips
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Condition effects, spell save DCs, encounter difficulty guidelines, and more.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="text-xl font-fantasy font-semibold">Guided Workflows</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {workflows.map((workflow) => {
+            const Icon = workflow.icon;
+            return (
+              <Card key={workflow.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center text-lg">
+                      <Icon className="h-5 w-5 mr-2 text-primary" />
+                      {workflow.title}
+                    </CardTitle>
+                    <Badge variant={workflow.difficulty === "Beginner" ? "default" : "secondary"}>
+                      {workflow.difficulty}
+                    </Badge>
+                  </div>
+                  <CardDescription>{workflow.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4 mr-1" />
+                    <span>{workflow.duration}</span>
+                  </div>
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <BookOpen className="h-4 w-4 mr-1" />
+                    <span>{workflow.steps.length} steps</span>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button
+                    className="w-full"
+                    onClick={() => handleWorkflowStart(workflow.id)}
+                  >
+                    Start Workflow
+                    <ChevronRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </CardFooter>
+              </Card>
+            );
+          })}
         </div>
       </div>
     </div>
