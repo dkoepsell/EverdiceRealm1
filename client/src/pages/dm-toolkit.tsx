@@ -1569,6 +1569,33 @@ function MagicItemsTab() {
     createItemMutation.mutate(newItem);
   };
 
+  const aiGenerateItemMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", "/api/ai-generate/magic-item", {});
+    },
+    onSuccess: (data) => {
+      setNewItem(data);
+      setShowCreateDialog(true);
+      toast({
+        title: "Success",
+        description: "AI generated magic item ready for review",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAIGenerate = (type: string) => {
+    if (type === 'magic-item') {
+      aiGenerateItemMutation.mutate();
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">
@@ -1975,6 +2002,33 @@ function MonstersTab() {
       return;
     }
     createMonsterMutation.mutate(newMonster);
+  };
+
+  const aiGenerateMonsterMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", "/api/ai-generate/monster", {});
+    },
+    onSuccess: (data) => {
+      setNewMonster(data);
+      setShowCreateDialog(true);
+      toast({
+        title: "Success",
+        description: "AI generated monster ready for review",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAIGenerate = (type: string) => {
+    if (type === 'monster') {
+      aiGenerateMonsterMutation.mutate();
+    }
   };
 
   return (
