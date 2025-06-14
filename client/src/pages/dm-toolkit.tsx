@@ -812,6 +812,33 @@ function LocationsTab() {
     createLocationMutation.mutate(newLocation);
   };
 
+  const aiGenerateMutation = useMutation({
+    mutationFn: async (type: string) => {
+      return await apiRequest("POST", `/api/ai-generate/${type}`, {});
+    },
+    onSuccess: (data, type) => {
+      if (type === 'location') {
+        setNewLocation(data);
+        setShowCreateDialog(true);
+      }
+      toast({
+        title: "Success",
+        description: `AI generated ${type} ready for review`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAIGenerate = (type: string) => {
+    aiGenerateMutation.mutate(type);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">
@@ -819,9 +846,14 @@ function LocationsTab() {
           <h2 className="text-2xl font-fantasy font-semibold">Locations & Maps</h2>
           <p className="text-muted-foreground">Create and manage locations for your adventures</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Create Location
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Create Location
+          </Button>
+          <Button variant="outline" onClick={() => handleAIGenerate('location')}>
+            <Sparkles className="h-4 w-4 mr-2" /> AI Generate
+          </Button>
+        </div>
       </div>
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
@@ -1130,6 +1162,33 @@ function QuestsTab() {
     createQuestMutation.mutate(newQuest);
   };
 
+  const aiGenerateQuestMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", "/api/ai-generate/quest", {});
+    },
+    onSuccess: (data) => {
+      setNewQuest(data);
+      setShowCreateDialog(true);
+      toast({
+        title: "Success",
+        description: "AI generated quest ready for review",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAIGenerate = (type: string) => {
+    if (type === 'quest') {
+      aiGenerateQuestMutation.mutate();
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">
@@ -1137,9 +1196,14 @@ function QuestsTab() {
           <h2 className="text-2xl font-fantasy font-semibold">Quests & Adventures</h2>
           <p className="text-muted-foreground">Design quests and adventures for your campaigns</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Create Quest
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Create Quest
+          </Button>
+          <Button variant="outline" onClick={() => handleAIGenerate('quest')}>
+            <Sparkles className="h-4 w-4 mr-2" /> AI Generate
+          </Button>
+        </div>
       </div>
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
@@ -1512,9 +1576,14 @@ function MagicItemsTab() {
           <h2 className="text-2xl font-fantasy font-semibold">Magic Items</h2>
           <p className="text-muted-foreground">Create and manage magical items for your campaigns</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Create Magic Item
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Create Magic Item
+          </Button>
+          <Button variant="outline" onClick={() => handleAIGenerate('magic-item')}>
+            <Sparkles className="h-4 w-4 mr-2" /> AI Generate
+          </Button>
+        </div>
       </div>
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
@@ -1915,9 +1984,14 @@ function MonstersTab() {
           <h2 className="text-2xl font-fantasy font-semibold">Monster Creation</h2>
           <p className="text-muted-foreground">Design unique monsters and creatures for your campaigns</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Create Monster
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Create Monster
+          </Button>
+          <Button variant="outline" onClick={() => handleAIGenerate('monster')}>
+            <Sparkles className="h-4 w-4 mr-2" /> AI Generate
+          </Button>
+        </div>
       </div>
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>

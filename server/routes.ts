@@ -2789,5 +2789,186 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
     }
   });
 
+  // AI Generation routes for DM toolkit
+  app.post('/api/ai-generate/location', isAuthenticated, async (req: any, res) => {
+    try {
+      const prompt = `Generate a D&D location with the following details in JSON format:
+{
+  "name": "Location name",
+  "type": "Type of location (city, dungeon, forest, etc.)",
+  "description": "Detailed description of the location",
+  "population": "Population size if applicable",
+  "government": "Government type if applicable", 
+  "notable_features": "Notable features or landmarks",
+  "notes": "DM notes and additional details"
+}
+
+Create an interesting and unique fantasy location suitable for D&D adventures.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert D&D Dungeon Master. Generate creative and detailed locations for fantasy campaigns. Always respond with valid JSON."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.8,
+        max_tokens: 1500
+      });
+
+      const locationData = JSON.parse(completion.choices[0].message.content);
+      res.json(locationData);
+    } catch (error) {
+      console.error("Failed to generate location:", error);
+      res.status(500).json({ 
+        message: "Failed to generate location",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.post('/api/ai-generate/quest', isAuthenticated, async (req: any, res) => {
+    try {
+      const prompt = `Generate a D&D quest with the following details in JSON format:
+{
+  "title": "Quest title",
+  "description": "Detailed quest description and objective",
+  "category": "Quest category (main, side, personal, etc.)",
+  "difficulty": "Difficulty level (easy, medium, hard, deadly)",
+  "level_range": "Recommended character level range",
+  "estimated_duration": "Estimated completion time",
+  "notes": "DM notes, plot hooks, and additional details"
+}
+
+Create an engaging quest suitable for D&D adventures with clear objectives and interesting story elements.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert D&D Dungeon Master. Generate engaging quests with clear objectives and interesting narratives. Always respond with valid JSON."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.8,
+        max_tokens: 1500
+      });
+
+      const questData = JSON.parse(completion.choices[0].message.content);
+      res.json(questData);
+    } catch (error) {
+      console.error("Failed to generate quest:", error);
+      res.status(500).json({ 
+        message: "Failed to generate quest",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.post('/api/ai-generate/magic-item', isAuthenticated, async (req: any, res) => {
+    try {
+      const prompt = `Generate a D&D magic item with the following details in JSON format:
+{
+  "name": "Magic item name",
+  "type": "Item type (weapon, armor, wondrous, etc.)",
+  "rarity": "Rarity level (common, uncommon, rare, very rare, legendary)",
+  "description": "Detailed description of appearance and magical properties",
+  "requires_attunement": true or false,
+  "notes": "DM notes about usage, balance, and lore"
+}
+
+Create a unique and balanced magic item suitable for D&D campaigns with interesting magical properties.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert D&D Dungeon Master. Generate balanced and creative magic items with interesting properties. Always respond with valid JSON."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.8,
+        max_tokens: 1500
+      });
+
+      const itemData = JSON.parse(completion.choices[0].message.content);
+      res.json(itemData);
+    } catch (error) {
+      console.error("Failed to generate magic item:", error);
+      res.status(500).json({ 
+        message: "Failed to generate magic item",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.post('/api/ai-generate/monster', isAuthenticated, async (req: any, res) => {
+    try {
+      const prompt = `Generate a D&D monster with the following details in JSON format:
+{
+  "name": "Monster name",
+  "size": "Size category (tiny, small, medium, large, huge, gargantuan)",
+  "type": "Creature type (beast, humanoid, undead, etc.)",
+  "alignment": "Alignment (e.g., chaotic evil)",
+  "challenge_rating": "Challenge rating (e.g., 1/4, 2, 5)",
+  "armor_class": 15,
+  "hit_points": 58,
+  "speed": "Speed (e.g., 30 ft., fly 60 ft.)",
+  "strength": 16,
+  "dexterity": 14,
+  "constitution": 16,
+  "intelligence": 10,
+  "wisdom": 12,
+  "charisma": 8,
+  "description": "Detailed description of appearance and behavior",
+  "notes": "DM notes about tactics, lore, and special abilities"
+}
+
+Create a unique monster with balanced stats appropriate for its challenge rating.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert D&D Dungeon Master. Generate balanced monsters with appropriate stats for their challenge rating. Always respond with valid JSON."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.8,
+        max_tokens: 1500
+      });
+
+      const monsterData = JSON.parse(completion.choices[0].message.content);
+      res.json(monsterData);
+    } catch (error) {
+      console.error("Failed to generate monster:", error);
+      res.status(500).json({ 
+        message: "Failed to generate monster",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   return httpServer;
 }
