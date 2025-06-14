@@ -4232,5 +4232,116 @@ Return your response as a JSON object with these fields:
     }
   });
 
+  // AI DM Assistance routes
+  app.post('/api/dm-assistance/generate-guidance', async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const { campaignId, encounterType, context } = req.body;
+      
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert D&D Dungeon Master coach. Generate step-by-step guidance for conducting a ${encounterType} encounter. 
+            Focus on practical advice, common mistakes to avoid, and creative suggestions.
+            Return a JSON response with:
+            {
+              "steps": [array of guidance steps with id, title, description, type, tips, commonMistakes],
+              "suggestions": [array of AI suggestions for this encounter],
+              "context": enhanced context object
+            }`
+          },
+          {
+            role: "user",
+            content: `Generate guidance for a ${encounterType} encounter with context: ${JSON.stringify(context)}`
+          }
+        ],
+        response_format: { type: "json_object" }
+      });
+      
+      const guidance = JSON.parse(response.choices[0].message.content);
+      res.json(guidance);
+    } catch (error) {
+      console.error("Error generating DM guidance:", error);
+      res.status(500).json({ message: "Failed to generate guidance" });
+    }
+  });
+
+  app.post('/api/dm-assistance/real-time', async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const { campaignId, request, context, currentStep, sessionNotes } = req.body;
+      
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert D&D Dungeon Master providing real-time assistance during a game session.
+            Provide practical, actionable advice based on the current situation.
+            Be concise but helpful. Focus on immediate solutions and creative suggestions.
+            Return JSON with: { "advice": "string", "suggestions": ["array of specific suggestions"], "alternatives": ["array of alternative approaches"] }`
+          },
+          {
+            role: "user",
+            content: `Current situation: ${request}
+            Context: ${JSON.stringify(context)}
+            Current step: ${currentStep}
+            Session notes: ${sessionNotes}
+            
+            Please provide immediate helpful advice.`
+          }
+        ],
+        response_format: { type: "json_object" }
+      });
+      
+      const assistance = JSON.parse(response.choices[0].message.content);
+      res.json(assistance);
+    } catch (error) {
+      console.error("Error providing real-time assistance:", error);
+      res.status(500).json({ message: "Failed to provide assistance" });
+    }
+  });
+
+  app.post('/api/dm-assistance/encounter-suggestions', async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const { campaignId, encounterType, playerLevel, difficulty } = req.body;
+      
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: `You are a creative D&D encounter designer. Generate specific, detailed encounter suggestions.
+            Include tactical elements, environmental features, and narrative hooks.
+            Return JSON with: { "encounters": [array of encounter objects with name, description, tactics, environment, hooks] }`
+          },
+          {
+            role: "user",
+            content: `Generate ${encounterType} encounters for level ${playerLevel} characters, ${difficulty} difficulty.`
+          }
+        ],
+        response_format: { type: "json_object" }
+      });
+      
+      const encounters = JSON.parse(response.choices[0].message.content);
+      res.json(encounters);
+    } catch (error) {
+      console.error("Error generating encounter suggestions:", error);
+      res.status(500).json({ message: "Failed to generate encounters" });
+    }
+  });
+
   return httpServer;
 }

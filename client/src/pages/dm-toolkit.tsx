@@ -94,6 +94,7 @@ import SessionRecorder from "@/components/dm-toolkit/SessionRecorder";
 import VoiceIntegration from "@/components/dm-toolkit/VoiceIntegration";
 import GuidedWorkflow from "@/components/dm-toolkit/GuidedWorkflow";
 import ContextualTooltips from "@/components/dm-toolkit/ContextualTooltips";
+import AIAssistedDMGuide from "@/components/dm-toolkit/AIAssistedDMGuide";
 
 export default function DMToolkit() {
   const { user, isLoading: authLoading } = useAuth();
@@ -102,6 +103,7 @@ export default function DMToolkit() {
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [showGuidedWorkflow, setShowGuidedWorkflow] = useState(false);
   const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
+  const [showAIGuide, setShowAIGuide] = useState(false);
   
   // Fetch campaigns
   const { data: campaigns = [] } = useQuery<any[]>({
