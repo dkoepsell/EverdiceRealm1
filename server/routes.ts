@@ -2657,7 +2657,17 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
   app.post('/api/locations', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const locationData = { ...req.body, userId };
+      const locationData = { 
+        name: req.body.name,
+        description: req.body.description,
+        environment: req.body.type || 'unknown',
+        climate: req.body.climate || 'temperate',
+        notable_features: req.body.notable_features ? [req.body.notable_features] : [],
+        secrets: req.body.notes || '',
+        created_by: userId,
+        is_public: false,
+        created_at: new Date()
+      };
       
       const [location] = await db
         .insert(locations)
@@ -2690,8 +2700,13 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
   // Quest management routes
   app.post('/api/quests', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.id;
-      const questData = { ...req.body, userId };
+      const questData = { 
+        title: req.body.title,
+        description: req.body.description,
+        status: 'draft',
+        created_at: new Date(),
+        updated_at: new Date()
+      };
       
       const [quest] = await db
         .insert(quests)
