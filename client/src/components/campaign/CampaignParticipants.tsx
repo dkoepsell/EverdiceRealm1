@@ -372,7 +372,7 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {allParticipants?.map((participant: ExtendedParticipant) => (
-          <Card key={participant.id} className={`${participant.isActive ? "" : "opacity-60"} bg-card border-muted`}>
+          <Card key={participant.id} className={participant.isActive ? "" : "opacity-60"}>
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">
                 <div className="flex items-center space-x-2">
@@ -390,15 +390,15 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
                   </Avatar>
                   <div>
                     {participant.isNpc ? (
-                      <CardTitle className="text-sm font-semibold text-white">
+                      <CardTitle className="text-sm font-semibold text-black">
                         {participant.npc?.name || 'NPC Companion'}
                       </CardTitle>
                     ) : (
-                      <CardTitle className="text-sm font-semibold text-white">
+                      <CardTitle className="text-sm font-semibold text-black">
                         {participant.displayName || participant.username}
                       </CardTitle>
                     )}
-                    <CardDescription className="text-xs text-muted-foreground">
+                    <CardDescription className="text-xs text-gray-700">
                       {participant.role === 'dm' ? (
                         <Badge variant="secondary" className="mr-1 font-medium">
                           <Shield className="h-3 w-3 mr-1" /> DM
@@ -472,8 +472,8 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
             
             <CardContent className="pt-0">
               <div className="text-sm">
-                <p className="font-semibold text-white">{participant.character?.name}</p>
-                <p className="text-gray-300 text-xs">
+                <p className="font-semibold text-black">{participant.character?.name}</p>
+                <p className="text-gray-700 text-xs">
                   Level {participant.character?.level || 1} {participant.character?.race} {participant.character?.class}
                 </p>
               </div>

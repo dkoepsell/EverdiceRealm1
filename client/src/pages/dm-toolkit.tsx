@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -66,66 +66,16 @@ import {
   Send,
   Globe,
   Mail,
-  StickyNote,
-  Play as PlayIcon,
-  Radio,
-  Gamepad2
+  StickyNote
 } from "lucide-react";
 
-// Import our tabs
+// Import our new tabs
 import InvitationsTab from "@/components/dm-toolkit/InvitationsTab";
 import NotesTabSimple from "@/components/dm-toolkit/NotesTabSimple";
-import SessionControlPanel from "@/components/dm-toolkit/SessionControlPanel";
-import LivePlayerTracker from "@/components/dm-toolkit/LivePlayerTracker";
-import DMQuickTools from "@/components/dm-toolkit/DMQuickTools";
-import ItemCreatorTab from "@/components/dm-toolkit/ItemCreatorTab";
-import LocationManagerTab from "@/components/dm-toolkit/LocationManagerTab";
-import EncounterBuilderTab from "@/components/dm-toolkit/EncounterBuilderTab";
-import MapGeneratorTab from "@/components/dm-toolkit/MapGeneratorTab";
-import LiveCampaignManagerTab from "@/components/dm-toolkit/LiveCampaignManagerTab";
-import StoryArcManagerTab from "@/components/dm-toolkit/StoryArcManagerTab";
-import RealTimePlayerDashboard from "@/components/dm-toolkit/RealTimePlayerDashboard";
-import InitiativeTracker from "@/components/dm-toolkit/InitiativeTracker";
-import SharedBattleMap from "@/components/dm-toolkit/SharedBattleMap";
-import AudioVisualController from "@/components/dm-toolkit/AudioVisualController";
-import RealTimeCharacterSync from "@/components/dm-toolkit/RealTimeCharacterSync";
-import QuickReferenceLibrary from "@/components/dm-toolkit/QuickReferenceLibrary";
-import SessionRecorder from "@/components/dm-toolkit/SessionRecorder";
-import VoiceIntegration from "@/components/dm-toolkit/VoiceIntegration";
-import GuidedWorkflow from "@/components/dm-toolkit/GuidedWorkflow";
-import ContextualTooltips from "@/components/dm-toolkit/ContextualTooltips";
-import AIAssistedDMGuide from "@/components/dm-toolkit/AIAssistedDMGuide";
 
 export default function DMToolkit() {
   const { user, isLoading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState("live-manager");
-  const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
-  const [isSessionActive, setIsSessionActive] = useState(false);
-  const [showGuidedWorkflow, setShowGuidedWorkflow] = useState(false);
-  const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
-  const [showAIGuide, setShowAIGuide] = useState(false);
-  
-  // Fetch campaigns
-  const { data: campaigns = [] } = useQuery<any[]>({
-    queryKey: ["/api/campaigns"],
-    enabled: !!user
-  });
-  
-  // Fetch session state if a campaign is selected
-  const { data: sessionState } = useQuery<any>({
-    queryKey: [`/api/campaigns/${selectedCampaignId}/session-state`],
-    enabled: !!selectedCampaignId,
-    refetchInterval: 30000 // Refetch every 30 seconds
-  });
-  
-  // Update session state when data changes
-  useEffect(() => {
-    if (sessionState && sessionState.status === 'active') {
-      setIsSessionActive(true);
-    } else {
-      setIsSessionActive(false);
-    }
-  }, [sessionState]);
+  const [activeTab, setActiveTab] = useState("companions");
   
   if (authLoading) {
     return (
@@ -157,263 +107,61 @@ export default function DMToolkit() {
   return (
     <div className="container px-4 py-6 md:py-8">
       <div className="space-y-2 mb-6 md:mb-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-fantasy font-bold">Dungeon Master Toolkit</h1>
-            <p className="text-sm md:text-base text-muted-foreground">Create and manage your campaigns with these powerful tools</p>
-          </div>
-          <div className="flex space-x-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowGuidedWorkflow(true)}
-              className="text-sm"
-            >
-              Start Guide
-            </Button>
-            <Button
-              variant="default"
-              onClick={() => setShowAIGuide(true)}
-              className="text-sm bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-              disabled={!selectedCampaignId}
-            >
-              <Sparkles className="h-4 w-4 mr-2" />
-              AI DM Assistant
-            </Button>
-          </div>
-        </div>
+        <h1 className="text-2xl md:text-3xl font-fantasy font-bold">Dungeon Master Toolkit</h1>
+        <p className="text-sm md:text-base text-muted-foreground">Create and manage your campaigns with these powerful tools</p>
       </div>
-
-      {/* Guided Workflow */}
-      {showGuidedWorkflow && (
-        <GuidedWorkflow
-          isActive={showGuidedWorkflow}
-          onComplete={() => setShowGuidedWorkflow(false)}
-          onClose={() => setShowGuidedWorkflow(false)}
-          currentTab={activeTab}
-          onTabChange={setActiveTab}
-          selectedCampaignId={selectedCampaignId}
-          onCampaignSelect={setSelectedCampaignId}
-        />
-      )}
-
-      {/* Contextual Tooltips - temporarily disabled to prevent unwanted popups */}
-      {false && (
-        <ContextualTooltips
-          currentTab={activeTab}
-          selectedCampaignId={selectedCampaignId}
-          isFirstTime={isFirstTimeUser}
-        />
-      )}
       
-      <Tabs defaultValue="live-manager" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-4 lg:grid-cols-14 w-full overflow-x-auto">
-          <TabsTrigger value="live-manager" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
-            <PlayIcon className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
-            Live
+      <Tabs defaultValue="companions" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid grid-cols-3 md:grid-cols-8 lg:grid-cols-9 w-full overflow-x-auto">
+          <TabsTrigger value="companions" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
+            Companions
           </TabsTrigger>
-          <TabsTrigger value="player-dashboard" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
-            <Users className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
-            Players
-          </TabsTrigger>
-          <TabsTrigger value="initiative" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
-            <Target className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
-            Initiative
-          </TabsTrigger>
-          <TabsTrigger value="battle-map" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
-            <Globe className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
-            Map
-          </TabsTrigger>
-          <TabsTrigger value="character-sync" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
-            <Circle className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
-            Sheets
-          </TabsTrigger>
-          <TabsTrigger value="audio-visual" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
-            <Sparkles className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
-            A/V
-          </TabsTrigger>
-          <TabsTrigger value="session-recording" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
-            <Radio className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
-            Record
-          </TabsTrigger>
-          <TabsTrigger value="voice-control" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
-            <Gamepad2 className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
-            Voice
-          </TabsTrigger>
-          <TabsTrigger value="reference" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
-            <BookOpen className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
-            Rules
-          </TabsTrigger>
-          <TabsTrigger value="story-arcs" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
-            <Scroll className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
-            Story
-          </TabsTrigger>
-          <TabsTrigger value="item-creator" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
-            <Star className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
-            Items
-          </TabsTrigger>
-          <TabsTrigger value="location-manager" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
-            <MapPin className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
+          <TabsTrigger value="locations" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
             Locations
           </TabsTrigger>
-          <TabsTrigger value="invitations" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
-            <Mail className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
-            Invites
+          <TabsTrigger value="quests" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
+            Quests
           </TabsTrigger>
-          <TabsTrigger value="notes" className="text-xs md:text-sm font-medium px-1 py-1.5 md:px-2 md:py-2">
+          <TabsTrigger value="items" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
+            Items
+          </TabsTrigger>
+          <TabsTrigger value="monsters" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
+            Monsters
+          </TabsTrigger>
+          <TabsTrigger value="invitations" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
+            <Mail className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
+            Invitations
+          </TabsTrigger>
+          <TabsTrigger value="notes" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
             <StickyNote className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 hidden sm:inline-block" />
             Notes
           </TabsTrigger>
+          <TabsTrigger value="generators" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
+            Generators
+          </TabsTrigger>
+          <TabsTrigger value="deploy" className="text-xs md:text-sm font-medium px-2 py-1.5 md:px-3 md:py-2">
+            Deploy
+          </TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="live-manager" className="space-y-4">
-          <LiveCampaignManagerTab 
-            selectedCampaignId={selectedCampaignId} 
-            onCampaignSelect={setSelectedCampaignId}
-          />
-        </TabsContent>
-        
-        <TabsContent value="player-dashboard" className="space-y-4">
-          {selectedCampaignId ? (
-            <RealTimePlayerDashboard campaignId={selectedCampaignId} />
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <h4 className="text-lg font-medium mb-2">Select a Campaign</h4>
-                <p className="text-muted-foreground">
-                  Choose a campaign from the Live Manager to view player status
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="initiative" className="space-y-4">
-          {selectedCampaignId ? (
-            <InitiativeTracker campaignId={selectedCampaignId} />
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <h4 className="text-lg font-medium mb-2">Select a Campaign</h4>
-                <p className="text-muted-foreground">
-                  Choose a campaign from the Live Manager to manage initiative
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="battle-map" className="space-y-4">
-          {selectedCampaignId ? (
-            <SharedBattleMap campaignId={selectedCampaignId} />
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <h4 className="text-lg font-medium mb-2">Select a Campaign</h4>
-                <p className="text-muted-foreground">
-                  Choose a campaign from the Live Manager to access the battle map
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="character-sync" className="space-y-4">
-          {selectedCampaignId ? (
-            <RealTimeCharacterSync campaignId={selectedCampaignId} />
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <h4 className="text-lg font-medium mb-2">Select a Campaign</h4>
-                <p className="text-muted-foreground">
-                  Choose a campaign from the Live Manager to sync character sheets
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="audio-visual" className="space-y-4">
-          {selectedCampaignId ? (
-            <AudioVisualController campaignId={selectedCampaignId} />
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <h4 className="text-lg font-medium mb-2">Select a Campaign</h4>
-                <p className="text-muted-foreground">
-                  Choose a campaign from the Live Manager to control audio and visuals
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="session-recording" className="space-y-4">
-          {selectedCampaignId ? (
-            <SessionRecorder campaignId={selectedCampaignId} />
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <h4 className="text-lg font-medium mb-2">Select a Campaign</h4>
-                <p className="text-muted-foreground">
-                  Choose a campaign from the Live Manager to record session events
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="voice-control" className="space-y-4">
-          {selectedCampaignId ? (
-            <VoiceIntegration campaignId={selectedCampaignId} />
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <h4 className="text-lg font-medium mb-2">Select a Campaign</h4>
-                <p className="text-muted-foreground">
-                  Choose a campaign from the Live Manager to use voice commands
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="reference" className="space-y-4">
-          <QuickReferenceLibrary />
-        </TabsContent>
-        
-        <TabsContent value="story-arcs" className="space-y-4">
-          {selectedCampaignId ? (
-            <StoryArcManagerTab campaignId={selectedCampaignId} />
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <h4 className="text-lg font-medium mb-2">Select a Campaign</h4>
-                <p className="text-muted-foreground">
-                  Choose a campaign from the Live Manager to create and manage story arcs
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="item-creator" className="space-y-4">
-          <ItemCreatorTab />
-        </TabsContent>
-        
-        <TabsContent value="location-manager" className="space-y-4">
-          <LocationManagerTab />
-        </TabsContent>
-        
-        <TabsContent value="encounter-builder" className="space-y-4">
-          <EncounterBuilderTab />
-        </TabsContent>
-        
-        <TabsContent value="map-generator" className="space-y-4">
-          <MapGeneratorTab />
-        </TabsContent>
         
         <TabsContent value="companions" className="space-y-4">
           <CompanionsTab />
+        </TabsContent>
+        
+        <TabsContent value="locations" className="space-y-4">
+          <LocationsTab />
+        </TabsContent>
+        
+        <TabsContent value="quests" className="space-y-4">
+          <QuestsTab />
+        </TabsContent>
+        
+        <TabsContent value="items" className="space-y-4">
+          <MagicItemsTab />
+        </TabsContent>
+        
+        <TabsContent value="monsters" className="space-y-4">
+          <MonstersTab />
         </TabsContent>
 
         <TabsContent value="invitations" className="space-y-4">
@@ -422,94 +170,6 @@ export default function DMToolkit() {
         
         <TabsContent value="notes" className="space-y-4">
           <NotesTabSimple />
-        </TabsContent>
-        
-        <TabsContent value="livesession" className="space-y-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-2xl font-fantasy font-semibold flex items-center">
-                <PlayIcon className="h-5 w-5 mr-2 text-primary" />
-                Live Session Management
-              </h2>
-              <p className="text-muted-foreground">Run live campaigns and manage your players in real-time</p>
-            </div>
-            
-            {/* Campaign selection for Live Session */}
-            <div className="flex-shrink-0 w-64">
-              <Select
-                value={selectedCampaignId?.toString() || ""}
-                onValueChange={(value) => setSelectedCampaignId(parseInt(value))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a campaign" />
-                </SelectTrigger>
-                <SelectContent>
-                  {campaigns.map((campaign: any) => (
-                    <SelectItem key={campaign.id} value={campaign.id.toString()}>
-                      {campaign.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          
-          <Card className="mb-4 border-primary/30 bg-card/30">
-            <CardContent className="pt-6">
-              <div className="flex items-start space-x-4">
-                <div className="bg-primary/10 p-2.5 rounded-full">
-                  <Radio className="h-5 w-5 text-primary" />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-lg font-semibold">How to Run a Live Session</h3>
-                  <p className="text-muted-foreground">Follow these steps to get started:</p>
-                  <ol className="text-sm text-muted-foreground mt-2 space-y-2">
-                    <li className="flex items-center gap-2">
-                      <span className="bg-primary/20 text-primary font-bold w-5 h-5 rounded-full flex items-center justify-center text-xs">1</span>
-                      <span>First, invite players using the <strong>Invitations</strong> tab. Select users and assign them to your campaign.</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="bg-primary/20 text-primary font-bold w-5 h-5 rounded-full flex items-center justify-center text-xs">2</span>
-                      <span>Select your campaign from the dropdown above to load your session management tools.</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="bg-primary/20 text-primary font-bold w-5 h-5 rounded-full flex items-center justify-center text-xs">3</span>
-                      <span>Use the <strong>Session Control Panel</strong> to start a session, sending notifications to all campaign participants.</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="bg-primary/20 text-primary font-bold w-5 h-5 rounded-full flex items-center justify-center text-xs">4</span>
-                      <span>Monitor players in the <strong>Live Player Tracker</strong>, adjust health points, and manage initiative order.</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="bg-primary/20 text-primary font-bold w-5 h-5 rounded-full flex items-center justify-center text-xs">5</span>
-                      <span>Use <strong>DM Quick Tools</strong> for dice rolling, encounter generation, and setting ambiance during the game.</span>
-                    </li>
-                  </ol>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          {!selectedCampaignId ? (
-            <Card className="p-8 text-center">
-              <Gamepad2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-xl font-semibold mb-2">No Campaign Selected</p>
-              <p className="text-muted-foreground mb-4">
-                Select a campaign to access live session management tools
-              </p>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="space-y-6">
-                <SessionControlPanel campaignId={selectedCampaignId} />
-                <DMQuickTools campaignId={selectedCampaignId} isSessionActive={isSessionActive} />
-              </div>
-              
-              <div>
-                <LivePlayerTracker campaignId={selectedCampaignId} isSessionActive={isSessionActive} />
-              </div>
-            </div>
-          )}
         </TabsContent>
         
         <TabsContent value="generators" className="space-y-4">
@@ -1968,15 +1628,6 @@ function MonstersTab() {
           </Card>
         </div>
       </div>
-
-      {/* AI-Assisted DM Guide */}
-      {showAIGuide && selectedCampaignId && (
-        <AIAssistedDMGuide
-          campaignId={selectedCampaignId}
-          isActive={showAIGuide}
-          onClose={() => setShowAIGuide(false)}
-        />
-      )}
     </div>
   );
 }

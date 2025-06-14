@@ -29,9 +29,8 @@ export default function Navbar() {
     { name: "Dashboard", path: "/" },
     { name: "Characters", path: "/characters" },
     { name: "Campaigns", path: "/campaigns" },
-    { name: "Combat Tools", path: "/combat-tools" },
+    { name: "Dice Roller", path: "/dice-roller" },
     { name: "DM Toolkit", path: "/dm-toolkit" },
-    { name: "Rules Reference", path: "/rules-reference" },
   ];
   
   // This link doesn't require authentication

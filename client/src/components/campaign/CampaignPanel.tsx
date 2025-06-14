@@ -77,7 +77,6 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [showCharacterSelectionDialog, setShowCharacterSelectionDialog] = useState(false);
   const [expandedSessions, setExpandedSessions] = useState<number[]>([]);
   const [selectedAction, setSelectedAction] = useState("");
-  const [customAction, setCustomAction] = useState(""); // New state for custom action input
   const [searchQuery, setSearchQuery] = useState("");
   const [isRolling, setIsRolling] = useState(false);
   const [dice1Result, setDice1Result] = useState<number | null>(null);
@@ -644,92 +643,34 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       )}
                     </div>
                     
-                    {/* Story advancement actions - only shown when not advancing story */}
-                    {!isAdvancingStory && (
-                      <div className="mt-6">
-                        <h4 className="font-semibold mb-3">What will you do?</h4>
-                        
-                        {/* Preset choice buttons */}
-                        {currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 && (
-                          <div className="grid grid-cols-1 gap-2 mb-4">
-                            {currentSession.choices.map((choice: any, index: number) => (
-                              <Button 
-                                key={index}
-                                variant="outline"
-                                className="justify-start h-auto py-3 px-4 bg-primary/5 hover:bg-primary/10 border-primary/20 text-left text-black"
-                                onClick={() => handleChoiceSelection(choice)}
-                              >
-                                <div className="flex items-start">
-                                  <ArrowRight className="h-5 w-5 mr-2 mt-0.5 shrink-0" />
-                                  <span className="text-black font-medium">
-                                    {choice.action}
-                                    {(choice.requiresRoll || choice.requiresDiceRoll) && (
-                                      <span className="ml-2 text-xs bg-primary/20 text-primary/90 px-2 py-0.5 rounded font-bold">
-                                        {choice.rollPurpose || "Skill Check"} ({choice.diceType || "d20"})
-                                      </span>
-                                    )}
-                                  </span>
-                                </div>
-                              </Button>
-                            ))}
-                          </div>
-                        )}
-                        
-                        {/* Custom Action Input - Always available */}
-                        <div className={currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 ? "pt-4 border-t border-gray-200" : ""}>
-                          <h4 className="font-semibold text-sm mb-2">
-                            {currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 
-                              ? "Or enter a custom action:" 
-                              : "Enter your action:"}
-                          </h4>
-                          <form 
-                            onSubmit={(e) => {
-                              e.preventDefault();
-                              if (customAction.trim()) {
-                                setIsAdvancingStory(true);
-                                advanceStory.mutate(customAction, {
-                                  onSettled: () => {
-                                    setIsAdvancingStory(false);
-                                    setCustomAction('');
-                                  }
-                                });
-                              }
-                            }}
-                            className="flex gap-2"
-                          >
-                            <Input 
-                              type="text" 
-                              placeholder="Type your own action..." 
-                              value={customAction}
-                              onChange={(e) => setCustomAction(e.target.value)}
-                              className="bg-white border-primary/20 text-black"
-                            />
+                    {/* Action choices */}
+                    {!isAdvancingStory && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 ? (
+                      <div className="mt-6 space-y-3">
+                        <h4 className="font-semibold">What will you do?</h4>
+                        <div className="grid grid-cols-1 gap-2">
+                          {currentSession.choices.map((choice: any, index: number) => (
                             <Button 
-                              type="submit" 
-                              disabled={!customAction.trim() || isAdvancingStory}
-                              className="shrink-0"
+                              key={index}
+                              variant="outline"
+                              className="justify-start h-auto py-3 px-4 bg-primary/5 hover:bg-primary/10 border-primary/20 text-left text-black"
+                              onClick={() => handleChoiceSelection(choice)}
                             >
-                              {isAdvancingStory ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Wait...
-                                </>
-                              ) : "Submit"}
+                              <div className="flex items-start">
+                                <ArrowRight className="h-5 w-5 mr-2 mt-0.5 shrink-0" />
+                                <span className="text-black font-medium">
+                                  {choice.action}
+                                  {(choice.requiresRoll || choice.requiresDiceRoll) && (
+                                    <span className="ml-2 text-xs bg-primary/20 text-primary/90 px-2 py-0.5 rounded font-bold">
+                                      {choice.rollPurpose || "Skill Check"} ({choice.diceType || "d20"})
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
                             </Button>
-                          </form>
+                          ))}
                         </div>
                       </div>
-                    )}
-                    
-                    {/* Loading indicator when advancing story */}
-                    {isAdvancingStory && (
-                      <div className="mt-6 flex items-center justify-center py-8">
-                        <div className="text-center">
-                          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
-                          <p className="text-muted-foreground">The story is advancing...</p>
-                        </div>
-                      </div>
-                    )}
+                    ) : null}
                   </div>
                 ) : sessionsLoading ? (
                   <div className="mt-6">

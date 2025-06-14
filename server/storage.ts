@@ -17,19 +17,7 @@ import {
   campaignNpcs, type CampaignNpc, type InsertCampaignNpc,
   // Live Campaign Management imports
   campaignInvitations, type CampaignInvitation, type InsertCampaignInvitation,
-  dmNotes, type DmNote, type InsertDmNote,
-  // Community features
-  announcements, type Announcement, type InsertAnnouncement,
-  // Equipment system imports
-  items, type Item, type InsertItem,
-  characterItems, type CharacterItem, type InsertCharacterItem,
-  // Campaign rewards system
-  campaignRewards, type CampaignReward, type InsertCampaignReward,
-  // Story Arc System imports
-  campaignStoryArcs, type CampaignStoryArc, type InsertCampaignStoryArc,
-  plotPoints, type PlotPoint, type InsertPlotPoint,
-  playerDecisions, type PlayerDecision, type InsertPlayerDecision,
-  dynamicStoryEvents, type DynamicStoryEvent, type InsertDynamicStoryEvent
+  dmNotes, type DmNote, type InsertDmNote
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or } from "drizzle-orm";
@@ -44,21 +32,6 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUserLastLogin(userId: number): Promise<void>;
   
-  // Community Announcements
-  getAllAnnouncements(): Promise<Announcement[]>;
-  getActiveAnnouncements(): Promise<Announcement[]>;
-  getAnnouncementsByType(type: string): Promise<Announcement[]>;
-  getAnnouncement(id: number): Promise<Announcement | undefined>;
-  createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement>;
-  updateAnnouncement(id: number, announcement: Partial<Announcement>): Promise<Announcement | undefined>;
-  deleteAnnouncement(id: number): Promise<boolean>;
-  
-  // Admin Moderation for Announcements
-  getAnnouncementsByStatus(status: string): Promise<Announcement[]>;
-  getFlaggedAnnouncements(): Promise<Announcement[]>;
-  moderateAnnouncement(id: number, adminId: number, status: string, notes?: string): Promise<Announcement | undefined>;
-  flagAnnouncement(id: number, userId: number): Promise<Announcement | undefined>;
-  
   // User Session operations
   createUserSession(session: InsertUserSession): Promise<UserSession>;
   getUserSession(token: string): Promise<UserSession | undefined>;
@@ -71,9 +44,6 @@ export interface IStorage {
   createCharacter(character: InsertCharacter): Promise<Character>;
   updateCharacter(id: number, character: Partial<Character>): Promise<Character | undefined>;
   deleteCharacter(id: number): Promise<boolean>;
-  // Character progression
-  awardXPToCharacter(characterId: number, xpAmount: number): Promise<Character | undefined>;
-  updateCharacterLevel(characterId: number, level: number): Promise<Character | undefined>;
   
   // Campaign operations
   getAllCampaigns(): Promise<Campaign[]>;
@@ -106,7 +76,6 @@ export interface IStorage {
   // Dice Roll operations
   createDiceRoll(diceRoll: InsertDiceRoll): Promise<DiceRoll>;
   getDiceRollHistory(userId: number, limit?: number): Promise<DiceRoll[]>;
-  getRecentDiceRolls(campaignId: number, sinceTime: string, limit?: number): Promise<DiceRoll[]>;
   
   // Adventure Completion operations
   createAdventureCompletion(completion: InsertAdventureCompletion): Promise<AdventureCompletion>;
@@ -184,61 +153,6 @@ export interface IStorage {
   getDmNote(id: number): Promise<DmNote | undefined>;
   updateDmNote(id: number, updates: Partial<DmNote>): Promise<DmNote | undefined>;
   deleteDmNote(id: number): Promise<boolean>;
-  
-  // Equipment system operations
-  getSystemItems(): Promise<Item[]>;
-  getUserItems(userId: number): Promise<Item[]>;
-  getItem(itemId: number): Promise<Item | undefined>;
-  createItem(item: InsertItem): Promise<Item>;
-  updateItem(itemId: number, updates: Partial<Item>): Promise<Item>;
-  deleteItem(itemId: number): Promise<boolean>;
-  
-  // Character inventory operations
-  getCharacterInventory(characterId: number): Promise<(CharacterItem & Item)[]>;
-  getCharacterItem(characterItemId: number): Promise<(CharacterItem & Item) | undefined>;
-  addItemToCharacter(data: InsertCharacterItem): Promise<CharacterItem>;
-  updateCharacterItem(characterItemId: number, updates: Partial<CharacterItem>): Promise<CharacterItem>;
-  removeItemFromCharacter(characterItemId: number): Promise<boolean>;
-  getCharacterAttunedItemsCount(characterId: number): Promise<number>;
-
-  // DM Toolkit methods for AI-assisted features
-  getUserItems(userId: number): Promise<any[]>;
-  getUserLocations(userId: number): Promise<any[]>;
-  getUserEncounters(userId: number): Promise<any[]>;
-  getUserMaps(userId: number): Promise<any[]>;
-  getRecentDiceRolls(campaignId: number, since: string, limit: number): Promise<DiceRoll[]>;
-
-  // Campaign Story Arc operations
-  getCampaignStoryArcs(campaignId: number): Promise<CampaignStoryArc[]>;
-  getCampaignStoryArc(id: number): Promise<CampaignStoryArc | undefined>;
-  createCampaignStoryArc(storyArc: InsertCampaignStoryArc): Promise<CampaignStoryArc>;
-  updateCampaignStoryArc(id: number, updates: Partial<CampaignStoryArc>): Promise<CampaignStoryArc | undefined>;
-  deleteCampaignStoryArc(id: number): Promise<boolean>;
-  
-  // Plot Point operations
-  getPlotPoints(storyArcId: number): Promise<PlotPoint[]>;
-  getPlotPoint(id: number): Promise<PlotPoint | undefined>;
-  createPlotPoint(plotPoint: InsertPlotPoint): Promise<PlotPoint>;
-  updatePlotPoint(id: number, updates: Partial<PlotPoint>): Promise<PlotPoint | undefined>;
-  deletePlotPoint(id: number): Promise<boolean>;
-  
-  // Player Decision operations
-  getPlayerDecisions(campaignId: number): Promise<PlayerDecision[]>;
-  getPlayerDecision(id: number): Promise<PlayerDecision | undefined>;
-  createPlayerDecision(decision: InsertPlayerDecision): Promise<PlayerDecision>;
-  updatePlayerDecision(id: number, updates: Partial<PlayerDecision>): Promise<PlayerDecision | undefined>;
-  
-  // Dynamic Story Event operations
-  getDynamicStoryEvents(campaignId: number): Promise<DynamicStoryEvent[]>;
-  getDynamicStoryEvent(id: number): Promise<DynamicStoryEvent | undefined>;
-  createDynamicStoryEvent(event: InsertDynamicStoryEvent): Promise<DynamicStoryEvent>;
-  updateDynamicStoryEvent(id: number, updates: Partial<DynamicStoryEvent>): Promise<DynamicStoryEvent | undefined>;
-  deleteDynamicStoryEvent(id: number): Promise<boolean>;
-  
-  // Enhanced Campaign Invitation operations
-  getCampaignInvitationByToken(token: string): Promise<CampaignInvitation | undefined>;
-  acceptCampaignInvitation(token: string, userId: number): Promise<CampaignInvitation | undefined>;
-  declineCampaignInvitation(token: string): Promise<CampaignInvitation | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -497,267 +411,6 @@ export class MemStorage implements IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  // Community Announcements Methods
-  async getAllAnnouncements(): Promise<Announcement[]> {
-    return await db.select().from(announcements).orderBy(desc(announcements.createdAt));
-  }
-  
-  async getActiveAnnouncements(): Promise<Announcement[]> {
-    return await db.select().from(announcements)
-      .where(eq(announcements.isActive, true))
-      .orderBy(desc(announcements.createdAt));
-  }
-  
-  async getAnnouncementsByType(type: string): Promise<Announcement[]> {
-    return await db.select().from(announcements)
-      .where(and(
-        eq(announcements.type, type),
-        eq(announcements.isActive, true)
-      ))
-      .orderBy(desc(announcements.createdAt));
-  }
-  
-  async getAnnouncement(id: number): Promise<Announcement | undefined> {
-    const [announcement] = await db.select().from(announcements).where(eq(announcements.id, id));
-    return announcement;
-  }
-  
-  async createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement> {
-    const [newAnnouncement] = await db.insert(announcements).values({
-      ...announcement,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }).returning();
-    
-    return newAnnouncement;
-  }
-  
-  async updateAnnouncement(id: number, announcement: Partial<Announcement>): Promise<Announcement | undefined> {
-    const [updatedAnnouncement] = await db.update(announcements)
-      .set({
-        ...announcement,
-        updatedAt: new Date().toISOString()
-      })
-      .where(eq(announcements.id, id))
-      .returning();
-    
-    return updatedAnnouncement;
-  }
-  
-  // Item management (equipment system)
-  async getSystemItems(): Promise<Item[]> {
-    return await db.select().from(items).where(eq(items.isSystemItem, true));
-  }
-  
-  async getUserItems(userId: number): Promise<Item[]> {
-    return await db.select().from(items).where(
-      and(
-        eq(items.isSystemItem, false),
-        eq(items.createdBy, userId)
-      )
-    );
-  }
-  
-  async getItem(itemId: number): Promise<Item | undefined> {
-    const [item] = await db.select().from(items).where(eq(items.id, itemId));
-    return item || undefined;
-  }
-  
-  async createItem(insertItem: InsertItem): Promise<Item> {
-    const [item] = await db.insert(items).values(insertItem).returning();
-    return item;
-  }
-  
-  async updateItem(itemId: number, updates: Partial<InsertItem>): Promise<Item> {
-    const [updatedItem] = await db
-      .update(items)
-      .set(updates)
-      .where(eq(items.id, itemId))
-      .returning();
-    
-    return updatedItem;
-  }
-  
-  async deleteItem(itemId: number): Promise<void> {
-    await db.delete(items).where(eq(items.id, itemId));
-  }
-  
-  // Character inventory management
-  async getCharacterInventory(characterId: number): Promise<CharacterItem[]> {
-    return await db
-      .select()
-      .from(characterItems)
-      .where(eq(characterItems.characterId, characterId));
-  }
-  
-  async getCharacterItem(characterId: number, itemId: number): Promise<CharacterItem | undefined> {
-    const [charItem] = await db
-      .select()
-      .from(characterItems)
-      .where(
-        and(
-          eq(characterItems.characterId, characterId),
-          eq(characterItems.itemId, itemId)
-        )
-      );
-    
-    return charItem || undefined;
-  }
-  
-  async getCharacterAttunedItemsCount(characterId: number): Promise<number> {
-    const result = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(characterItems)
-      .where(
-        and(
-          eq(characterItems.characterId, characterId),
-          eq(characterItems.isAttuned, true)
-        )
-      );
-    
-    return result[0]?.count || 0;
-  }
-  
-  async addItemToCharacter(insertCharacterItem: InsertCharacterItem): Promise<CharacterItem> {
-    const [charItem] = await db
-      .insert(characterItems)
-      .values(insertCharacterItem)
-      .returning();
-    
-    return charItem;
-  }
-  
-  async updateCharacterItem(
-    characterId: number, 
-    itemId: number, 
-    updates: Partial<InsertCharacterItem>
-  ): Promise<CharacterItem> {
-    const [updatedCharItem] = await db
-      .update(characterItems)
-      .set(updates)
-      .where(
-        and(
-          eq(characterItems.characterId, characterId),
-          eq(characterItems.id, itemId)
-        )
-      )
-      .returning();
-    
-    return updatedCharItem;
-  }
-  
-  async removeItemFromCharacter(characterId: number, itemId: number): Promise<void> {
-    await db
-      .delete(characterItems)
-      .where(
-        and(
-          eq(characterItems.characterId, characterId),
-          eq(characterItems.id, itemId)
-        )
-      );
-  }
-  
-  // Campaign rewards system
-  async getCampaignRewards(campaignId: number): Promise<CampaignReward[]> {
-    return await db
-      .select()
-      .from(campaignRewards)
-      .where(eq(campaignRewards.campaignId, campaignId));
-  }
-  
-  async getCampaignReward(rewardId: number): Promise<CampaignReward | undefined> {
-    const [reward] = await db
-      .select()
-      .from(campaignRewards)
-      .where(eq(campaignRewards.id, rewardId));
-    
-    return reward || undefined;
-  }
-  
-  async createCampaignReward(insertReward: InsertCampaignReward): Promise<CampaignReward> {
-    const [reward] = await db
-      .insert(campaignRewards)
-      .values(insertReward)
-      .returning();
-    
-    return reward;
-  }
-  
-  async awardCampaignReward(rewardId: number): Promise<CampaignReward> {
-    const [updatedReward] = await db
-      .update(campaignRewards)
-      .set({
-        isAwarded: true,
-        awardedAt: new Date().toISOString()
-      })
-      .where(eq(campaignRewards.id, rewardId))
-      .returning();
-    
-    return updatedReward;
-  }
-  
-  async deleteCampaignReward(rewardId: number): Promise<void> {
-    await db
-      .delete(campaignRewards)
-      .where(eq(campaignRewards.id, rewardId));
-  }
-  
-  async deleteAnnouncement(id: number): Promise<boolean> {
-    const result = await db.delete(announcements).where(eq(announcements.id, id));
-    return true;
-  }
-  
-  // Admin Moderation Methods for Announcements
-  async getAnnouncementsByStatus(status: string): Promise<Announcement[]> {
-    return await db.select().from(announcements)
-      .where(eq(announcements.status, status))
-      .orderBy(desc(announcements.createdAt));
-  }
-  
-  async getFlaggedAnnouncements(): Promise<Announcement[]> {
-    return await db.select().from(announcements)
-      .where(sql`${announcements.flagCount} > 0`)
-      .orderBy(desc(announcements.flagCount));
-  }
-  
-  async moderateAnnouncement(id: number, adminId: number, status: string, notes?: string): Promise<Announcement | undefined> {
-    const [updatedAnnouncement] = await db.update(announcements)
-      .set({
-        status,
-        moderationNotes: notes,
-        moderatedBy: adminId,
-        moderatedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      })
-      .where(eq(announcements.id, id))
-      .returning();
-    
-    return updatedAnnouncement;
-  }
-  
-  async flagAnnouncement(id: number, userId: number): Promise<Announcement | undefined> {
-    // First get the current announcement to check if this user already flagged it
-    const announcement = await this.getAnnouncement(id);
-    if (!announcement) return undefined;
-    
-    // Check if this user already flagged the announcement
-    const flaggedBy = announcement.flaggedBy || [];
-    if (flaggedBy.includes(userId)) {
-      return announcement; // User already flagged it
-    }
-    
-    // Add the user to the flagged by array and increment the flag count
-    const [updatedAnnouncement] = await db.update(announcements)
-      .set({
-        flagCount: (announcement.flagCount || 0) + 1,
-        flaggedBy: [...flaggedBy, userId],
-        updatedAt: new Date().toISOString()
-      })
-      .where(eq(announcements.id, id))
-      .returning();
-    
-    return updatedAnnouncement;
-  }
   // NPC operations
   async getAllNpcs(): Promise<Npc[]> {
     return await db.select().from(npcs).orderBy(desc(npcs.createdAt));
@@ -797,7 +450,7 @@ export class DatabaseStorage implements IStorage {
   
   async deleteNpc(id: number): Promise<boolean> {
     const result = await db.delete(npcs).where(eq(npcs.id, id));
-    return (result.rowCount || 0) > 0;
+    return result.rowCount > 0;
   }
   
   // Campaign NPC operations
@@ -1016,207 +669,7 @@ export class DatabaseStorage implements IStorage {
   
   async deleteDmNote(id: number): Promise<boolean> {
     const result = await db.delete(dmNotes).where(eq(dmNotes.id, id));
-    return (result.rowCount || 0) > 0;
-  }
-
-  // Campaign Story Arc operations
-  async getCampaignStoryArcs(campaignId: number): Promise<CampaignStoryArc[]> {
-    return await db.select().from(campaignStoryArcs)
-      .where(eq(campaignStoryArcs.campaignId, campaignId))
-      .orderBy(desc(campaignStoryArcs.createdAt));
-  }
-
-  async getCampaignStoryArc(id: number): Promise<CampaignStoryArc | undefined> {
-    const [storyArc] = await db.select().from(campaignStoryArcs)
-      .where(eq(campaignStoryArcs.id, id));
-    return storyArc;
-  }
-
-  async createCampaignStoryArc(storyArc: InsertCampaignStoryArc): Promise<CampaignStoryArc> {
-    const [createdStoryArc] = await db.insert(campaignStoryArcs)
-      .values(storyArc)
-      .returning();
-    return createdStoryArc;
-  }
-
-  async updateCampaignStoryArc(id: number, updates: Partial<CampaignStoryArc>): Promise<CampaignStoryArc | undefined> {
-    const [updatedStoryArc] = await db
-      .update(campaignStoryArcs)
-      .set({ ...updates, updatedAt: new Date().toISOString() })
-      .where(eq(campaignStoryArcs.id, id))
-      .returning();
-    return updatedStoryArc;
-  }
-
-  async deleteCampaignStoryArc(id: number): Promise<boolean> {
-    const result = await db.delete(campaignStoryArcs).where(eq(campaignStoryArcs.id, id));
-    return (result.rowCount || 0) > 0;
-  }
-
-  // Plot Point operations
-  async getPlotPoints(storyArcId: number): Promise<PlotPoint[]> {
-    return await db.select().from(plotPoints)
-      .where(eq(plotPoints.storyArcId, storyArcId))
-      .orderBy(asc(plotPoints.act), asc(plotPoints.sequence));
-  }
-
-  async getPlotPoint(id: number): Promise<PlotPoint | undefined> {
-    const [plotPoint] = await db.select().from(plotPoints)
-      .where(eq(plotPoints.id, id));
-    return plotPoint;
-  }
-
-  async createPlotPoint(plotPoint: InsertPlotPoint): Promise<PlotPoint> {
-    const [createdPlotPoint] = await db.insert(plotPoints)
-      .values(plotPoint)
-      .returning();
-    return createdPlotPoint;
-  }
-
-  async updatePlotPoint(id: number, updates: Partial<PlotPoint>): Promise<PlotPoint | undefined> {
-    const [updatedPlotPoint] = await db
-      .update(plotPoints)
-      .set({ ...updates, updatedAt: new Date().toISOString() })
-      .where(eq(plotPoints.id, id))
-      .returning();
-    return updatedPlotPoint;
-  }
-
-  async deletePlotPoint(id: number): Promise<boolean> {
-    const result = await db.delete(plotPoints).where(eq(plotPoints.id, id));
-    return (result.rowCount || 0) > 0;
-  }
-
-  // Player Decision operations
-  async getPlayerDecisions(campaignId: number): Promise<PlayerDecision[]> {
-    return await db.select().from(playerDecisions)
-      .where(eq(playerDecisions.campaignId, campaignId))
-      .orderBy(desc(playerDecisions.createdAt));
-  }
-
-  async getPlayerDecision(id: number): Promise<PlayerDecision | undefined> {
-    const [decision] = await db.select().from(playerDecisions)
-      .where(eq(playerDecisions.id, id));
-    return decision;
-  }
-
-  async createPlayerDecision(decision: InsertPlayerDecision): Promise<PlayerDecision> {
-    const [createdDecision] = await db.insert(playerDecisions)
-      .values(decision)
-      .returning();
-    return createdDecision;
-  }
-
-  async updatePlayerDecision(id: number, updates: Partial<PlayerDecision>): Promise<PlayerDecision | undefined> {
-    const [updatedDecision] = await db
-      .update(playerDecisions)
-      .set({ ...updates, updatedAt: new Date().toISOString() })
-      .where(eq(playerDecisions.id, id))
-      .returning();
-    return updatedDecision;
-  }
-
-  // Dynamic Story Event operations
-  async getDynamicStoryEvents(campaignId: number): Promise<DynamicStoryEvent[]> {
-    return await db.select().from(dynamicStoryEvents)
-      .where(eq(dynamicStoryEvents.campaignId, campaignId))
-      .orderBy(desc(dynamicStoryEvents.createdAt));
-  }
-
-  async getDynamicStoryEvent(id: number): Promise<DynamicStoryEvent | undefined> {
-    const [event] = await db.select().from(dynamicStoryEvents)
-      .where(eq(dynamicStoryEvents.id, id));
-    return event;
-  }
-
-  async createDynamicStoryEvent(event: InsertDynamicStoryEvent): Promise<DynamicStoryEvent> {
-    const [createdEvent] = await db.insert(dynamicStoryEvents)
-      .values(event)
-      .returning();
-    return createdEvent;
-  }
-
-  async updateDynamicStoryEvent(id: number, updates: Partial<DynamicStoryEvent>): Promise<DynamicStoryEvent | undefined> {
-    const [updatedEvent] = await db
-      .update(dynamicStoryEvents)
-      .set({ ...updates, updatedAt: new Date().toISOString() })
-      .where(eq(dynamicStoryEvents.id, id))
-      .returning();
-    return updatedEvent;
-  }
-
-  async deleteDynamicStoryEvent(id: number): Promise<boolean> {
-    const result = await db.delete(dynamicStoryEvents).where(eq(dynamicStoryEvents.id, id));
-    return (result.rowCount || 0) > 0;
-  }
-
-  // Enhanced Campaign Invitation operations
-  async getCampaignInvitationByToken(token: string): Promise<CampaignInvitation | undefined> {
-    const [invitation] = await db.select().from(campaignInvitations)
-      .where(eq(campaignInvitations.token, token));
-    return invitation;
-  }
-
-  async acceptCampaignInvitation(token: string, userId: number): Promise<CampaignInvitation | undefined> {
-    const invitation = await this.getCampaignInvitationByToken(token);
-    if (!invitation || invitation.status !== 'pending') {
-      return undefined;
-    }
-
-    // Check if invitation is expired
-    if (invitation.expiresAt && new Date(invitation.expiresAt) < new Date()) {
-      return undefined;
-    }
-
-    // Update invitation status
-    const [updatedInvitation] = await db
-      .update(campaignInvitations)
-      .set({ 
-        status: 'accepted',
-        acceptedAt: new Date().toISOString(),
-        inviteeUserId: userId
-      })
-      .where(eq(campaignInvitations.token, token))
-      .returning();
-
-    // Add user to campaign participants if not already a participant
-    const existingParticipant = await db.select().from(campaignParticipants)
-      .where(and(
-        eq(campaignParticipants.campaignId, invitation.campaignId),
-        eq(campaignParticipants.userId, userId)
-      ));
-
-    if (existingParticipant.length === 0) {
-      // Get user's first character for the campaign
-      const userCharacters = await this.getUserCharacters(userId);
-      const characterId = userCharacters.length > 0 ? userCharacters[0].id : null;
-
-      if (characterId) {
-        await db.insert(campaignParticipants)
-          .values({
-            campaignId: invitation.campaignId,
-            userId,
-            characterId,
-            role: invitation.role,
-            joinedAt: new Date().toISOString()
-          });
-      }
-    }
-
-    return updatedInvitation;
-  }
-
-  async declineCampaignInvitation(token: string): Promise<CampaignInvitation | undefined> {
-    const [updatedInvitation] = await db
-      .update(campaignInvitations)
-      .set({ 
-        status: 'declined',
-        declinedAt: new Date().toISOString()
-      })
-      .where(eq(campaignInvitations.token, token))
-      .returning();
-    
-    return updatedInvitation;
+    return result.rowCount > 0;
   }
   // User operations
   async getUser(id: number): Promise<User | undefined> {
@@ -1574,32 +1027,6 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(diceRolls)
       .where(eq(diceRolls.userId, userId))
-      .orderBy(desc(diceRolls.createdAt))
-      .limit(limit);
-  }
-
-  async getRecentDiceRolls(campaignId: number, sinceTime: string, limit: number = 5): Promise<DiceRoll[]> {
-    // Get campaign participants to filter dice rolls
-    const participants = await db
-      .select()
-      .from(campaignParticipants)
-      .where(eq(campaignParticipants.campaignId, campaignId));
-    
-    if (participants.length === 0) {
-      return [];
-    }
-    
-    const participantUserIds = participants.map(p => p.userId);
-    
-    return db
-      .select()
-      .from(diceRolls)
-      .where(
-        and(
-          sql`${diceRolls.userId} = ANY(${participantUserIds})`,
-          sql`${diceRolls.createdAt} >= ${sinceTime}`
-        )
-      )
       .orderBy(desc(diceRolls.createdAt))
       .limit(limit);
   }
@@ -1980,56 +1407,6 @@ export class DatabaseStorage implements IStorage {
       purpose: "Damage",
       createdAt: new Date().toISOString()
     });
-  }
-
-  // DM Toolkit methods for AI-assisted features
-  async getUserItems(userId: number): Promise<any[]> {
-    return await db.select()
-      .from(items)
-      .where(eq(items.createdBy, userId))
-      .orderBy(desc(items.createdAt));
-  }
-
-  async getUserLocations(userId: number): Promise<any[]> {
-    // For now, return empty array as locations table doesn't exist yet
-    return [];
-  }
-
-  async getUserEncounters(userId: number): Promise<any[]> {
-    // For now, return empty array as encounters table doesn't exist yet
-    return [];
-  }
-
-  async getUserMaps(userId: number): Promise<any[]> {
-    // For now, return empty array as maps table doesn't exist yet
-    return [];
-  }
-
-  async getRecentDiceRolls(campaignId: number, since: string, limit: number): Promise<DiceRoll[]> {
-    // Get campaign participants first
-    const participants = await db.select()
-      .from(campaignParticipants)
-      .where(eq(campaignParticipants.campaignId, campaignId));
-    
-    if (participants.length === 0) {
-      return [];
-    }
-
-    const userIds = participants.map(p => p.userId);
-    
-    // Get recent dice rolls from campaign participants
-    const rolls = await db.select()
-      .from(diceRolls)
-      .where(
-        and(
-          sql`${diceRolls.userId} = ANY(${userIds})`,
-          gt(diceRolls.createdAt, since)
-        )
-      )
-      .orderBy(desc(diceRolls.createdAt))
-      .limit(limit);
-    
-    return rolls;
   }
 }
 

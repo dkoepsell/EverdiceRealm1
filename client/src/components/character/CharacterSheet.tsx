@@ -4,15 +4,8 @@ import { Character } from "@shared/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, Image, BookOpen, Shield, Dumbbell, TrendingUp, Package } from "lucide-react";
+import { ChevronDown, ChevronUp, Image } from "lucide-react";
 import CharacterPortraitGenerator from "./CharacterPortraitGenerator";
-import SavingThrows from "./SavingThrows";
-import SkillProficiencies from "./SkillProficiencies";
-import EncumbranceTracker from "./EncumbranceTracker";
-import SpellSlotTracker from "./SpellSlotTracker";
-import CharacterProgression from "./CharacterProgression";
-import { EquipmentManager } from "./EquipmentManager";
-import { useQuery } from "@tanstack/react-query";
 
 interface CharacterSheetProps {
   character: Character;
@@ -21,12 +14,6 @@ interface CharacterSheetProps {
 export default function CharacterSheet({ character }: CharacterSheetProps) {
   const [activeTab, setActiveTab] = useState("main");
   const [isExpanded, setIsExpanded] = useState(true);
-  
-  // Query to refresh character data when needed
-  const { refetch: refreshCharacter } = useQuery<Character>({
-    queryKey: [`/api/characters/${character.id}`],
-    enabled: false // Only refetch when manually triggered
-  });
 
   // Calculate ability modifiers
   const getModifier = (abilityScore: number) => {
@@ -90,34 +77,12 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
           <Tabs defaultValue="main" value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
               <TabsTrigger value="main">Abilities & Combat</TabsTrigger>
-              <TabsTrigger value="skills">
-                <div className="flex items-center">
-                  <Dumbbell className="h-4 w-4 mr-1" />
-                  Skills
-                </div>
-              </TabsTrigger>
-              <TabsTrigger value="equipment">
-                <div className="flex items-center">
-                  <Shield className="h-4 w-4 mr-1" />
-                  Equipment
-                </div>
-              </TabsTrigger>
-              <TabsTrigger value="spells">
-                <div className="flex items-center">
-                  <BookOpen className="h-4 w-4 mr-1" />
-                  Spells
-                </div>
-              </TabsTrigger>
+              <TabsTrigger value="skills">Skills</TabsTrigger>
+              <TabsTrigger value="equipment">Equipment</TabsTrigger>
               <TabsTrigger value="portrait">
                 <div className="flex items-center">
                   <Image className="h-4 w-4 mr-1" />
                   Portrait
-                </div>
-              </TabsTrigger>
-              <TabsTrigger value="progression">
-                <div className="flex items-center">
-                  <TrendingUp className="h-4 w-4 mr-1" />
-                  Progression
                 </div>
               </TabsTrigger>
             </TabsList>
@@ -242,40 +207,22 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
             </TabsContent>
             
             <TabsContent value="skills">
-              {/* Skills and Saving Throws */}
+              {/* Skills */}
               <div className="text-secondary">
-                {/* Saving Throws */}
-                <SavingThrows 
-                  character={character} 
-                  proficientSaves={
-                    // Extract proficient saves from character.skills if they exist and start with "save:"
-                    character.skills 
-                      ? character.skills
-                          .filter(skill => skill.toLowerCase().startsWith('save:'))
-                          .map(skill => skill.substring(5).toLowerCase().trim())
-                      : []
-                  }
-                />
-                
-                {/* D&D Skills with proficiencies */}
-                <SkillProficiencies
-                  character={character}
-                  proficientSkills={
-                    // Extract proficient skills from character.skills if they exist and don't start with "save:"
-                    character.skills 
-                      ? character.skills
-                          .filter(skill => !skill.toLowerCase().startsWith('save:'))
-                          .map(skill => skill.toLowerCase().trim())
-                      : []
-                  }
-                  expertiseSkills={[]} // We can add expertise later
-                />
-                
-                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-xs text-amber-800">
-                    <strong>Tip:</strong> Add skills to your character with the format "Persuasion" for regular proficiency.
-                    Add saving throws with the format "Save: Dexterity" to mark proficiency in that saving throw.
-                  </p>
+                <h3 className="font-fantasy text-lg font-bold mb-3 text-primary-light">Skills</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {character.skills && character.skills.length > 0 ? (
+                    character.skills.map((skill, index) => (
+                      <div key={index} className="flex justify-between items-center py-1 border-b border-gray-300">
+                        <span className="text-sm">{skill}</span>
+                        <span className="font-bold">+3</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-2 py-4 text-center">
+                      <p>No skills added yet</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </TabsContent>
@@ -298,98 +245,12 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
                     </li>
                   )}
                 </ul>
-                
-                {/* Encumbrance tracker */}
-                <div className="mt-4">
-                  <EncumbranceTracker 
-                    character={character}
-                    equipmentItems={
-                      // Parse equipment items into structured data with weights
-                      // Format expected: "Longsword (3 lbs)" or similar
-                      character.equipment ? character.equipment.map(item => {
-                        const match = item.match(/(.+)\s*\((\d+\.?\d*)\s*lbs?\)/i);
-                        if (match) {
-                          return {
-                            name: match[1].trim(),
-                            weight: parseFloat(match[2]),
-                            quantity: 1 // Default quantity
-                          };
-                        }
-                        // If no weight specified, assume 1 lb
-                        return { name: item, weight: 1, quantity: 1 };
-                      }) : []
-                    } 
-                  />
-                </div>
-                
-                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-xs text-amber-800">
-                    <strong>Tip:</strong> Add equipment weight by formatting items like "Longsword (4 lbs)" or "Backpack (2 lbs)".
-                    The system will track your carrying capacity based on your Strength score.
-                  </p>
-                </div>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="spells">
-              {/* Spell Slots and Magic */}
-              <div className="text-secondary">
-                <SpellSlotTracker 
-                  character={character}
-                  usedSpellSlots={{
-                    // For now, we'll just assume no spell slots are used
-                    // In a full implementation, this would be stored in the database
-                    1: 0,
-                    2: 0,
-                    3: 0,
-                    4: 0,
-                    5: 0,
-                    6: 0,
-                    7: 0,
-                    8: 0,
-                    9: 0
-                  }}
-                />
-                
-                {/* If character is not a spellcaster, show appropriate message */}
-                {!['bard', 'cleric', 'druid', 'paladin', 'ranger', 'sorcerer', 'warlock', 'wizard', 'artificer']
-                  .includes(character.class.toLowerCase()) && (
-                  <div className="bg-parchment-dark rounded-lg p-4 text-center">
-                    <p className="text-lg font-medium mb-2">Not a Spellcaster</p>
-                    <p className="text-sm text-gray-600">
-                      Your character class ({character.class}) does not have spellcasting abilities.
-                    </p>
-                  </div>
-                )}
-                
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-xs text-blue-800">
-                    <strong>D&D Spell Rules:</strong> Spell slots represent the number of spells you can cast before taking a rest.
-                    Higher level spell slots are used for more powerful spells. Each class has a different spell slot progression.
-                  </p>
-                </div>
               </div>
             </TabsContent>
             
             <TabsContent value="portrait">
               {/* Character Portrait Generator */}
               <CharacterPortraitGenerator character={character} />
-            </TabsContent>
-            
-            <TabsContent value="progression">
-              {/* Character Progression (XP & Milestone Leveling) */}
-              <CharacterProgression 
-                character={character} 
-                refreshCharacter={refreshCharacter}
-              />
-            </TabsContent>
-
-            <TabsContent value="equipment">
-              {/* Equipment and Items Management */}
-              <EquipmentManager
-                character={character}
-                refreshCharacter={refreshCharacter}
-              />
             </TabsContent>
           </Tabs>
         </div>
