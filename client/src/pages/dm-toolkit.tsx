@@ -67,7 +67,12 @@ import {
   Globe,
   Mail,
   StickyNote,
-  Play as PlayIcon
+  Play as PlayIcon,
+  Clock,
+  Play,
+  Check,
+  Zap,
+  Star as StarIcon
 } from "lucide-react";
 
 // Import our tabs
@@ -233,231 +238,15 @@ export default function DMToolkit() {
         </TabsContent>
         
         <TabsContent value="generators" className="space-y-4">
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-fantasy font-semibold">DM Workflow & Guidance</h2>
-              <p className="text-muted-foreground">Step-by-step guidance for running successful D&D sessions</p>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Clock className="h-5 w-5" />
-                    <span>Pre-Session Preparation</span>
-                  </CardTitle>
-                  <CardDescription>Essential steps before your session begins</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start space-x-3">
-                      <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium">Review Last Session</h4>
-                        <p className="text-sm text-muted-foreground">Check notes, unresolved plot threads, and player decisions</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-3">
-                      <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium">Prepare Key NPCs</h4>
-                        <p className="text-sm text-muted-foreground">Have motivations, voices, and important dialogue ready</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-3">
-                      <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium">Plan Encounters</h4>
-                        <p className="text-sm text-muted-foreground">Prepare 2-3 combat encounters and 3-4 social/exploration scenes</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-3">
-                      <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium">Gather Materials</h4>
-                        <p className="text-sm text-muted-foreground">Dice, character sheets, maps, reference materials</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <PlayCircle className="h-5 w-5" />
-                    <span>During the Session</span>
-                  </CardTitle>
-                  <CardDescription>Managing the flow of gameplay</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start space-x-3">
-                      <Target className="h-5 w-5 text-blue-600 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium">Start with Recap</h4>
-                        <p className="text-sm text-muted-foreground">Remind players of recent events and current situation</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-3">
-                      <Target className="h-5 w-5 text-blue-600 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium">Encourage Player Agency</h4>
-                        <p className="text-sm text-muted-foreground">Ask "What do you want to do?" and build on their ideas</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-3">
-                      <Target className="h-5 w-5 text-blue-600 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium">Take Notes</h4>
-                        <p className="text-sm text-muted-foreground">Track important decisions, new NPCs, and plot developments</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-3">
-                      <Target className="h-5 w-5 text-blue-600 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium">Manage Spotlight Time</h4>
-                        <p className="text-sm text-muted-foreground">Ensure each player gets moments to shine</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Brain className="h-5 w-5" />
-                  <span>DM Decision-Making Framework</span>
-                </CardTitle>
-                <CardDescription>How to make quick, fair decisions during gameplay</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Accordion type="single" collapsible className="w-full">
-                  <AccordionItem value="rules-disputes">
-                    <AccordionTrigger>Handling Rules Disputes</AccordionTrigger>
-                    <AccordionContent className="space-y-3">
-                      <p className="text-sm">When players disagree about rules:</p>
-                      <div className="space-y-2">
-                        <div className="flex items-start space-x-2">
-                          <span className="text-sm font-medium">1.</span>
-                          <p className="text-sm">Make a quick ruling to keep the game moving</p>
-                        </div>
-                        <div className="flex items-start space-x-2">
-                          <span className="text-sm font-medium">2.</span>
-                          <p className="text-sm">Note to look up the actual rule after the session</p>
-                        </div>
-                        <div className="flex items-start space-x-2">
-                          <span className="text-sm font-medium">3.</span>
-                          <p className="text-sm">Clarify the official rule at the start of the next session</p>
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="player-creativity">
-                    <AccordionTrigger>Encouraging Creative Solutions</AccordionTrigger>
-                    <AccordionContent className="space-y-3">
-                      <p className="text-sm">When players suggest creative approaches:</p>
-                      <div className="space-y-2">
-                        <div className="bg-green-50 dark:bg-green-950 p-3 rounded-md">
-                          <p className="text-sm font-medium text-green-700 dark:text-green-300">Say "Yes, and..."</p>
-                          <p className="text-sm text-green-600 dark:text-green-400">Build on their idea and add interesting consequences</p>
-                        </div>
-                        <div className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-md">
-                          <p className="text-sm font-medium text-yellow-700 dark:text-yellow-300">Say "Yes, but..."</p>
-                          <p className="text-sm text-yellow-600 dark:text-yellow-400">Allow it with complications or additional requirements</p>
-                        </div>
-                        <div className="bg-red-50 dark:bg-red-950 p-3 rounded-md">
-                          <p className="text-sm font-medium text-red-700 dark:text-red-300">Avoid "No" unless necessary</p>
-                          <p className="text-sm text-red-600 dark:text-red-400">Only shut down ideas that break immersion or game balance</p>
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="improvisation-tips">
-                    <AccordionTrigger>Improvisation Techniques</AccordionTrigger>
-                    <AccordionContent className="space-y-3">
-                      <p className="text-sm">When you need to improvise:</p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <h4 className="font-medium text-sm">Quick NPC Creation</h4>
-                          <ul className="text-sm space-y-1">
-                            <li>• Pick a simple personality trait</li>
-                            <li>• Give them a clear want or need</li>
-                            <li>• Use a distinctive voice or mannerism</li>
-                            <li>• Connect them to existing story elements</li>
-                          </ul>
-                        </div>
-                        <div className="space-y-2">
-                          <h4 className="font-medium text-sm">Buying Time Techniques</h4>
-                          <ul className="text-sm space-y-1">
-                            <li>• Ask players to describe their actions in detail</li>
-                            <li>• Have them roll for something while you think</li>
-                            <li>• Ask "What are the other characters doing?"</li>
-                            <li>• Describe the environment in more detail</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
+          <div className="text-center py-12">
+            <BookOpen className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
+            <h2 className="text-2xl font-fantasy font-semibold mb-2">DM Workflow & Guidance</h2>
+            <p className="text-muted-foreground mb-4">Advanced DM guidance tools coming soon</p>
+            <Card className="max-w-md mx-auto">
+              <CardContent className="pt-6">
+                <p className="text-sm">Comprehensive DM workflow guidance and decision-making frameworks will be available in the next update.</p>
               </CardContent>
             </Card>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Lightbulb className="h-5 w-5 text-yellow-600" />
-                    <span>Common DM Challenges</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div>
-                      <h4 className="font-medium text-sm">Players Go Off-Script</h4>
-                      <p className="text-sm text-muted-foreground">Embrace it! Use their ideas to create new content. Your preparation still helps - just adapt it to fit their choices.</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-sm">Combat Feels Slow</h4>
-                      <p className="text-sm text-muted-foreground">Set time limits for decisions, describe attacks cinematically, and keep initiative moving quickly.</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-sm">Player Conflict</h4>
-                      <p className="text-sm text-muted-foreground">Address it quickly and privately if possible. Focus on finding solutions that keep everyone engaged.</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Heart className="h-5 w-5 text-red-600" />
-                    <span>Building Engagement</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div>
-                      <h4 className="font-medium text-sm">Use Player Backstories</h4>
-                      <p className="text-sm text-muted-foreground">Incorporate elements from character backgrounds into your adventures and NPCs.</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-sm">Celebrate Success</h4>
-                      <p className="text-sm text-muted-foreground">React enthusiastically to critical hits, creative solutions, and good roleplay.</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-sm">Create Memorable Moments</h4>
-                      <p className="text-sm text-muted-foreground">Design scenes that give each character a chance to be heroic in their own way.</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
           </div>
         </TabsContent>
         
