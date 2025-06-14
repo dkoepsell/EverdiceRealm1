@@ -394,22 +394,18 @@ export type DmNote = typeof dmNotes.$inferSelect;
 // Locations schema
 export const locations = pgTable("locations", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
   name: text("name").notNull(),
-  type: text("type").notNull(), // city, town, village, dungeon, forest, etc.
   description: text("description"),
-  notes: text("notes"), // DM private notes
-  mapUrl: text("map_url"), // Optional map image URL
+  environment: text("environment"), // dungeon, forest, city, etc.
   climate: text("climate"), // temperate, tropical, arctic, etc.
-  population: integer("population"),
-  government: text("government"),
-  notable_npcs: text("notable_npcs").array().default([]),
-  shops: text("shops").array().default([]),
-  services: text("services").array().default([]),
-  threats: text("threats").array().default([]),
-  secrets: text("secrets").array().default([]),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
-  updatedAt: text("updated_at"),
+  terrain: text("terrain"), // rocky, swampy, mountainous, etc.
+  notable_features: text("notable_features").array().default([]),
+  inhabitants: text("inhabitants").array().default([]),
+  secrets: text("secrets"),
+  hooks: text("hooks").array().default([]),
+  created_by: integer("created_by").notNull(),
+  is_public: boolean("is_public").default(false),
+  created_at: timestamp("created_at").defaultNow(),
 });
 
 export const insertLocationSchema = createInsertSchema(locations).omit({
@@ -422,23 +418,13 @@ export type Location = typeof locations.$inferSelect;
 // Quests schema
 export const quests = pgTable("quests", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
+  campaign_id: integer("campaign_id"),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  category: text("category").notNull(), // main, side, personal, faction, etc.
-  difficulty: text("difficulty").notNull(), // easy, medium, hard, deadly
-  level_range: text("level_range"), // "1-3", "4-6", etc.
-  estimated_duration: text("estimated_duration"), // "1 session", "2-3 sessions", etc.
-  objectives: text("objectives").array().default([]),
-  rewards: text("rewards").array().default([]),
-  locations: text("locations").array().default([]),
-  npcs_involved: text("npcs_involved").array().default([]),
-  plot_hooks: text("plot_hooks").array().default([]),
-  complications: text("complications").array().default([]),
-  notes: text("notes"), // DM private notes
+  rewards: jsonb("rewards").default({}),
   status: text("status").notNull().default("draft"), // draft, active, completed, abandoned
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
-  updatedAt: text("updated_at"),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
 });
 
 export const insertQuestSchema = createInsertSchema(quests).omit({
@@ -451,24 +437,15 @@ export type Quest = typeof quests.$inferSelect;
 // Magic Items schema
 export const magicItems = pgTable("magic_items", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
+  user_id: integer("user_id").notNull(),
   name: text("name").notNull(),
   type: text("type").notNull(), // weapon, armor, wondrous, potion, scroll, etc.
   rarity: text("rarity").notNull(), // common, uncommon, rare, very rare, legendary, artifact
   description: text("description").notNull(),
-  properties: text("properties").array().default([]),
   requires_attunement: boolean("requires_attunement").default(false),
-  damage: text("damage"), // For weapons
-  armor_class: integer("armor_class"), // For armor
-  weight: text("weight"),
-  value: text("value"), // Gold piece value
-  charges: integer("charges"), // For items with limited uses
-  recharge_condition: text("recharge_condition"), // How item recharges
-  curse: text("curse"), // If item is cursed
-  lore: text("lore"), // Background story
-  creation_notes: text("creation_notes"), // DM notes on creation/balancing
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
-  updatedAt: text("updated_at"),
+  notes: text("notes"),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
 });
 
 export const insertMagicItemSchema = createInsertSchema(magicItems).omit({
@@ -481,40 +458,27 @@ export type MagicItem = typeof magicItems.$inferSelect;
 // Monsters schema
 export const monsters = pgTable("monsters", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
   name: text("name").notNull(),
-  size: text("size").notNull(), // tiny, small, medium, large, huge, gargantuan
   type: text("type").notNull(), // beast, humanoid, undead, etc.
-  alignment: text("alignment"),
+  size: text("size").notNull(), // tiny, small, medium, large, huge, gargantuan
   challenge_rating: text("challenge_rating").notNull(),
   armor_class: integer("armor_class").notNull(),
   hit_points: integer("hit_points").notNull(),
-  hit_dice: text("hit_dice"),
   speed: text("speed").notNull(),
-  strength: integer("strength").notNull(),
-  dexterity: integer("dexterity").notNull(),
-  constitution: integer("constitution").notNull(),
-  intelligence: integer("intelligence").notNull(),
-  wisdom: integer("wisdom").notNull(),
-  charisma: integer("charisma").notNull(),
-  saving_throws: text("saving_throws").array().default([]),
+  stats: text("stats").notNull(), // Combined ability scores as string
   skills: text("skills").array().default([]),
-  damage_resistances: text("damage_resistances").array().default([]),
-  damage_immunities: text("damage_immunities").array().default([]),
-  condition_immunities: text("condition_immunities").array().default([]),
+  resistances: text("resistances").array().default([]),
+  immunities: text("immunities").array().default([]),
   senses: text("senses").array().default([]),
   languages: text("languages").array().default([]),
-  special_abilities: text("special_abilities").array().default([]),
+  abilities: text("abilities").array().default([]),
   actions: text("actions").array().default([]),
-  legendary_actions: text("legendary_actions").array().default([]),
-  reactions: text("reactions").array().default([]),
   description: text("description"),
   environment: text("environment").array().default([]),
-  tactics: text("tactics"), // Combat tactics
   lore: text("lore"), // Background information
-  notes: text("notes"), // DM private notes
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
-  updatedAt: text("updated_at"),
+  created_by: integer("created_by").notNull(),
+  is_public: boolean("is_public").default(false),
+  created_at: timestamp("created_at").defaultNow(),
 });
 
 export const insertMonsterSchema = createInsertSchema(monsters).omit({

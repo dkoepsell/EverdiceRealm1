@@ -2693,8 +2693,8 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
       const userLocations = await db
         .select()
         .from(locations)
-        .where(eq(locations.userId, userId))
-        .orderBy(desc(locations.createdAt));
+        .where(eq(locations.created_by, userId))
+        .orderBy(desc(locations.created_at));
       
       res.json(userLocations);
     } catch (error) {
@@ -2731,11 +2731,22 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
   app.get('/api/quests', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.id;
+      // Get all quests for campaigns owned by this user
       const userQuests = await db
-        .select()
+        .select({
+          id: quests.id,
+          campaign_id: quests.campaign_id,
+          title: quests.title,
+          description: quests.description,
+          rewards: quests.rewards,
+          status: quests.status,
+          created_at: quests.created_at,
+          updated_at: quests.updated_at,
+        })
         .from(quests)
-        .where(eq(quests.userId, userId))
-        .orderBy(desc(quests.createdAt));
+        .leftJoin(campaigns, eq(quests.campaign_id, campaigns.id))
+        .where(eq(campaigns.userId, userId))
+        .orderBy(desc(quests.created_at));
       
       res.json(userQuests);
     } catch (error) {

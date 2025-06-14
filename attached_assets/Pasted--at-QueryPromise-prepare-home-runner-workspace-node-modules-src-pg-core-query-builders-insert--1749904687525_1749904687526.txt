@@ -1,0 +1,42 @@
+    at QueryPromise._prepare (/home/runner/workspace/node_modules/src/pg-core/query-builders/insert.ts:400:17)
+    at <anonymous> (/home/runner/workspace/node_modules/src/pg-core/query-builders/insert.ts:422:16)
+    at Object.startActiveSpan (/home/runner/workspace/node_modules/src/tracing.ts:27:11)
+    at QueryPromise.execute (/home/runner/workspace/node_modules/src/pg-core/query-builders/insert.ts:421:17)
+    at QueryPromise.then (/home/runner/workspace/node_modules/src/query-promise.ts:31:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+12:37:32 PM [express] POST /api/locations 500 in 48ms :: {"message":"Failed to create location"}
+12:37:48 PM [express] POST /api/ai-generate/quest 200 in 6716ms :: {"title":"The Whispering Well of E…
+Error creating quest: TypeError: value.map is not a function
+    at PgArray.mapToDriverValue (/home/runner/workspace/node_modules/src/pg-core/columns/common.ts:343:19)
+    at <anonymous> (/home/runner/workspace/node_modules/src/sql/sql.ts:223:69)
+    at Array.map (<anonymous>)
+    at SQL.buildQueryFromSourceParams (/home/runner/workspace/node_modules/src/sql/sql.ts:148:30)
+    at <anonymous> (/home/runner/workspace/node_modules/src/sql/sql.ts:170:17)
+    at Array.map (<anonymous>)
+    at SQL.buildQueryFromSourceParams (/home/runner/workspace/node_modules/src/sql/sql.ts:148:30)
+    at <anonymous> (/home/runner/workspace/node_modules/src/sql/sql.ts:174:17)
+    at Array.map (<anonymous>)
+    at SQL.buildQueryFromSourceParams (/home/runner/workspace/node_modules/src/sql/sql.ts:148:30)
+    at <anonymous> (/home/runner/workspace/node_modules/src/sql/sql.ts:124:23)
+    at Object.startActiveSpan (/home/runner/workspace/node_modules/src/tracing.ts:27:11)
+    at SQL.toQuery (/home/runner/workspace/node_modules/src/sql/sql.ts:123:17)
+    at PgDialect.sqlToQuery (/home/runner/workspace/node_modules/src/pg-core/dialect.ts:591:14)
+    at <anonymous> (/home/runner/workspace/node_modules/src/pg-core/query-builders/insert.ts:405:19)
+    at Object.startActiveSpan (/home/runner/workspace/node_modules/src/tracing.ts:27:11)
+    at QueryPromise._prepare (/home/runner/workspace/node_modules/src/pg-core/query-builders/insert.ts:400:17)
+    at <anonymous> (/home/runner/workspace/node_modules/src/pg-core/query-builders/insert.ts:422:16)
+    at Object.startActiveSpan (/home/runner/workspace/node_modules/src/tracing.ts:27:11)
+    at QueryPromise.execute (/home/runner/workspace/node_modules/src/pg-core/query-builders/insert.ts:421:17)
+    at QueryPromise.then (/home/runner/workspace/node_modules/src/query-promise.ts:31:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+12:37:51 PM [express] POST /api/quests 500 in 49ms :: {"message":"Failed to create quest"}
+12:37:55 PM [express] GET /api/user 200 in 47ms :: {"id":2,"username":"KoeppyLoco ","email":null,"dis…
+12:37:55 PM [express] GET /api/dice/history 304 in 94ms :: [{"id":169,"userId":1,"characterId":null,"…
+12:37:55 PM [express] GET /api/user-stats 304 in 243ms :: {"totalRegistered":6,"onlineUsers":1}
+12:37:55 PM [express] GET /api/campaigns/archived 304 in 360ms :: [{"id":3,"userId":2,"title":"Veils …
+12:37:55 PM [express] GET /api/campaigns 304 in 480ms :: [{"id":9,"userId":2,"title":"Whispers of the…
+12:37:56 PM [express] GET /api/campaigns/9/sessions 304 in 87ms :: [{"id":211,"campaignId":9,"session…
+12:37:56 PM [express] GET /api/campaigns/9/participants 304 in 252ms :: [{"id":7,"campaignId":9,"user…
+12:37:56 PM [express] GET /api/campaigns 304 in 364ms :: [{"id":9,"userId":2,"title":"Whispers of the…
+12:37:57 PM [express] GET /api/adventure-completions 200 in 2199ms
+12:37:57 PM [express] GET /api/characters 304 in 2237ms :: [{"id":1,"userId":1,"name":"Thorne Ironfis…
