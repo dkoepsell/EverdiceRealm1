@@ -2745,6 +2745,35 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
     }
   });
 
+  // Update a quest
+  app.put('/api/quests/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const questId = parseInt(req.params.id);
+      const questData = { 
+        campaign_id: req.body.campaign_id || null,
+        title: req.body.title,
+        description: req.body.description,
+        category: req.body.category,
+        difficulty: req.body.difficulty,
+        level_range: req.body.level_range,
+        estimated_duration: req.body.estimated_duration,
+        notes: req.body.notes,
+        updated_at: new Date()
+      };
+
+      const [updatedQuest] = await db
+        .update(quests)
+        .set(questData)
+        .where(eq(quests.id, questId))
+        .returning();
+
+      res.json(updatedQuest);
+    } catch (error) {
+      console.error("Failed to update quest:", error);
+      res.status(500).json({ message: "Failed to update quest" });
+    }
+  });
+
   // Magic item management routes
   app.post('/api/magic-items', isAuthenticated, async (req: any, res) => {
     try {
@@ -2786,6 +2815,33 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
     } catch (error) {
       console.error("Error fetching magic items:", error);
       res.status(500).json({ message: "Failed to fetch magic items" });
+    }
+  });
+
+  // Update a magic item
+  app.put('/api/magic-items/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const itemId = parseInt(req.params.id);
+      const itemData = {
+        name: req.body.name,
+        type: req.body.type,
+        rarity: req.body.rarity,
+        description: req.body.description,
+        requires_attunement: req.body.requires_attunement,
+        notes: req.body.notes,
+        updated_at: new Date()
+      };
+
+      const [updatedItem] = await db
+        .update(magicItems)
+        .set(itemData)
+        .where(eq(magicItems.id, itemId))
+        .returning();
+
+      res.json(updatedItem);
+    } catch (error) {
+      console.error("Failed to update magic item:", error);
+      res.status(500).json({ message: "Failed to update magic item" });
     }
   });
 

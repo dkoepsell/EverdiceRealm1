@@ -1983,7 +1983,7 @@ function MagicItemsTab() {
                 </CardContent>
                 <CardFooter className="flex justify-between">
                   <Button variant="outline" size="sm">View Details</Button>
-                  <Button size="sm">Edit Item</Button>
+                  <Button size="sm" onClick={() => handleEditItem(item)}>Edit Item</Button>
                 </CardFooter>
               </Card>
             ))}
