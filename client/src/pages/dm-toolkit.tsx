@@ -92,12 +92,16 @@ import RealTimeCharacterSync from "@/components/dm-toolkit/RealTimeCharacterSync
 import QuickReferenceLibrary from "@/components/dm-toolkit/QuickReferenceLibrary";
 import SessionRecorder from "@/components/dm-toolkit/SessionRecorder";
 import VoiceIntegration from "@/components/dm-toolkit/VoiceIntegration";
+import GuidedWorkflow from "@/components/dm-toolkit/GuidedWorkflow";
+import ContextualTooltips from "@/components/dm-toolkit/ContextualTooltips";
 
 export default function DMToolkit() {
   const { user, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("live-manager");
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
+  const [showGuidedWorkflow, setShowGuidedWorkflow] = useState(false);
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
   
   // Fetch campaigns
   const { data: campaigns = [] } = useQuery<any[]>({
@@ -151,9 +155,42 @@ export default function DMToolkit() {
   return (
     <div className="container px-4 py-6 md:py-8">
       <div className="space-y-2 mb-6 md:mb-8">
-        <h1 className="text-2xl md:text-3xl font-fantasy font-bold">Dungeon Master Toolkit</h1>
-        <p className="text-sm md:text-base text-muted-foreground">Create and manage your campaigns with these powerful tools</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-fantasy font-bold">Dungeon Master Toolkit</h1>
+            <p className="text-sm md:text-base text-muted-foreground">Create and manage your campaigns with these powerful tools</p>
+          </div>
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowGuidedWorkflow(true)}
+              className="text-sm"
+            >
+              Start Guide
+            </Button>
+          </div>
+        </div>
       </div>
+
+      {/* Guided Workflow */}
+      {showGuidedWorkflow && (
+        <GuidedWorkflow
+          isActive={showGuidedWorkflow}
+          onComplete={() => setShowGuidedWorkflow(false)}
+          onClose={() => setShowGuidedWorkflow(false)}
+          currentTab={activeTab}
+          onTabChange={setActiveTab}
+          selectedCampaignId={selectedCampaignId}
+          onCampaignSelect={setSelectedCampaignId}
+        />
+      )}
+
+      {/* Contextual Tooltips */}
+      <ContextualTooltips
+        currentTab={activeTab}
+        selectedCampaignId={selectedCampaignId}
+        isFirstTime={isFirstTimeUser}
+      />
       
       <Tabs defaultValue="live-manager" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid grid-cols-4 lg:grid-cols-14 w-full overflow-x-auto">
@@ -216,7 +253,10 @@ export default function DMToolkit() {
         </TabsList>
         
         <TabsContent value="live-manager" className="space-y-4">
-          <LiveCampaignManagerTab selectedCampaignId={selectedCampaignId} />
+          <LiveCampaignManagerTab 
+            selectedCampaignId={selectedCampaignId} 
+            onCampaignSelect={setSelectedCampaignId}
+          />
         </TabsContent>
         
         <TabsContent value="player-dashboard" className="space-y-4">

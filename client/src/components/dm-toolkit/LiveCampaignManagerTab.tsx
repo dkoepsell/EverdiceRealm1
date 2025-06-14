@@ -36,6 +36,7 @@ import {
   Sparkles,
   Send
 } from "lucide-react";
+import CreateCampaignForm from "./CreateCampaignForm";
 
 interface CombatParticipant {
   id: string;
@@ -283,7 +284,7 @@ export default function LiveCampaignManagerTab({ selectedCampaignId, onCampaignS
                         Set up your new D&D campaign with basic details
                       </DialogDescription>
                     </DialogHeader>
-                    <CreateCampaignForm onSuccess={(campaignId) => onCampaignSelect?.(campaignId)} />
+                    <CreateCampaignForm onSuccess={(campaignId: number) => onCampaignSelect?.(campaignId)} />
                   </DialogContent>
                 </Dialog>
               </div>
