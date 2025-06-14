@@ -791,7 +791,15 @@ function LocationsTab() {
         description: "Location created successfully",
       });
       setShowCreateDialog(false);
-      setNewLocation({ name: "", type: "", description: "", population: "", government: "", notable_features: "", notes: "" });
+      setNewLocation({ 
+        name: "", 
+        type: "", 
+        description: "", 
+        population: "", 
+        government: "", 
+        notable_features: "", 
+        notes: "" 
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
     },
     onError: (error: Error) => {
