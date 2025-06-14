@@ -765,6 +765,8 @@ function CompanionsTab() {
 
 function LocationsTab() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingLocation, setEditingLocation] = useState<any>(null);
   const [newLocation, setNewLocation] = useState({
     name: "",
     type: "",
@@ -811,6 +813,28 @@ function LocationsTab() {
     },
   });
 
+  const updateLocationMutation = useMutation({
+    mutationFn: async (locationData: any) => {
+      return await apiRequest("PUT", `/api/locations/${locationData.id}`, locationData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Location updated successfully",
+      });
+      setShowEditDialog(false);
+      setEditingLocation(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateLocation = () => {
     if (!newLocation.name.trim()) {
       toast({
@@ -821,6 +845,23 @@ function LocationsTab() {
       return;
     }
     createLocationMutation.mutate(newLocation);
+  };
+
+  const handleEditLocation = (location: any) => {
+    setEditingLocation(location);
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateLocation = () => {
+    if (!editingLocation.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Location name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+    updateLocationMutation.mutate(editingLocation);
   };
 
   const aiGenerateLocationMutation = useMutation({
@@ -2282,6 +2323,28 @@ function MonstersTab() {
     },
   });
 
+  const updateMonsterMutation = useMutation({
+    mutationFn: async (monsterData: any) => {
+      return await apiRequest("PUT", `/api/monsters/${monsterData.id}`, monsterData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Monster updated successfully",
+      });
+      setShowEditDialog(false);
+      setEditingMonster(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/monsters"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateMonster = () => {
     if (!newMonster.name.trim() || !newMonster.size || !newMonster.type) {
       toast({
@@ -2292,6 +2355,23 @@ function MonstersTab() {
       return;
     }
     createMonsterMutation.mutate(newMonster);
+  };
+
+  const handleEditMonster = (monster: any) => {
+    setEditingMonster(monster);
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateMonster = () => {
+    if (!editingMonster.name.trim() || !editingMonster.size || !editingMonster.type) {
+      toast({
+        title: "Error",
+        description: "Monster name, size, and type are required",
+        variant: "destructive",
+      });
+      return;
+    }
+    updateMonsterMutation.mutate(editingMonster);
   };
 
   const aiGenerateMonsterMutation = useMutation({
