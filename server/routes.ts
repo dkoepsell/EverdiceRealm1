@@ -21,6 +21,7 @@ import {
   insertMonsterSchema,
   npcs,
   users,
+  campaigns,
   locations,
   quests,
   magicItems,
@@ -2789,8 +2790,8 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
       const userItems = await db
         .select()
         .from(magicItems)
-        .where(eq(magicItems.userId, userId))
-        .orderBy(desc(magicItems.createdAt));
+        .where(eq(magicItems.user_id, userId))
+        .orderBy(desc(magicItems.created_at));
       
       res.json(userItems);
     } catch (error) {
@@ -2845,8 +2846,8 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
       const userMonsters = await db
         .select()
         .from(monsters)
-        .where(eq(monsters.userId, userId))
-        .orderBy(desc(monsters.createdAt));
+        .where(eq(monsters.created_by, userId))
+        .orderBy(desc(monsters.created_at));
       
       res.json(userMonsters);
     } catch (error) {
