@@ -1012,6 +1012,296 @@ export default function LiveCampaignManagerTab({
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* XP Reward Dialog */}
+      <Dialog open={showRewardDialog} onOpenChange={setShowRewardDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Award Experience Points</DialogTitle>
+            <DialogDescription>
+              Award XP to {selectedParticipant?.character?.name || 'selected character'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="xp-amount">XP Amount</Label>
+              <Input
+                id="xp-amount"
+                type="number"
+                placeholder="Enter XP amount"
+                value={xpAmount}
+                onChange={(e) => setXpAmount(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="reward-reason">Reason</Label>
+              <Textarea
+                id="reward-reason"
+                placeholder="Why are you awarding this XP?"
+                value={rewardReason}
+                onChange={(e) => setRewardReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+            
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setShowRewardDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleAwardXP}
+                disabled={awardXPMutation.isPending}
+              >
+                {awardXPMutation.isPending && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                Award XP
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Inventory Management Dialog */}
+      <Dialog open={showInventoryDialog} onOpenChange={setShowInventoryDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add Item to Inventory</DialogTitle>
+            <DialogDescription>
+              Add an item to {selectedParticipant?.character?.name || 'selected character'}'s inventory
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Select Item</Label>
+              <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                {magicItems.map((item: any) => (
+                  <Button
+                    key={item.id}
+                    variant={selectedItem?.id === item.id ? "default" : "outline"}
+                    className="justify-start p-3 h-auto"
+                    onClick={() => setSelectedItem(item)}
+                  >
+                    <div className="text-left">
+                      <p className="font-medium text-sm">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">{item.type} • {item.rarity}</p>
+                    </div>
+                  </Button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="item-quantity">Quantity</Label>
+              <Input
+                id="item-quantity"
+                type="number"
+                min="1"
+                value={itemQuantity}
+                onChange={(e) => setItemQuantity(parseInt(e.target.value) || 1)}
+              />
+            </div>
+            
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setShowInventoryDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleAddItemToInventory}
+                disabled={addItemToInventoryMutation.isPending || !selectedItem}
+              >
+                {addItemToInventoryMutation.isPending && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                Add to Inventory
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Content Creation Dialog */}
+      <Dialog open={showContentDialog} onOpenChange={setShowContentDialog}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingContent ? `Edit ${contentType}` : `Create New ${contentType}`}
+            </DialogTitle>
+            <DialogDescription>
+              {editingContent ? 'Modify existing content' : 'Create content quickly during your live session'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {contentType === "quest" && (
+              <div className="grid gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Quest Title</Label>
+                    <Input 
+                      placeholder="Enter quest title"
+                      defaultValue={editingContent?.title || ""}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Difficulty</Label>
+                    <Select defaultValue={editingContent?.difficulty || ""}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select difficulty" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="easy">Easy</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="hard">Hard</SelectItem>
+                        <SelectItem value="deadly">Deadly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea 
+                    placeholder="Describe the quest..."
+                    defaultValue={editingContent?.description || ""}
+                    rows={4}
+                  />
+                </div>
+              </div>
+            )}
+            
+            {contentType === "location" && (
+              <div className="grid gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Location Name</Label>
+                    <Input 
+                      placeholder="Enter location name"
+                      defaultValue={editingContent?.name || ""}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Environment</Label>
+                    <Select defaultValue={editingContent?.environment || ""}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select environment" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="city">City</SelectItem>
+                        <SelectItem value="dungeon">Dungeon</SelectItem>
+                        <SelectItem value="forest">Forest</SelectItem>
+                        <SelectItem value="mountain">Mountain</SelectItem>
+                        <SelectItem value="desert">Desert</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea 
+                    placeholder="Describe the location..."
+                    defaultValue={editingContent?.description || ""}
+                    rows={4}
+                  />
+                </div>
+              </div>
+            )}
+            
+            {contentType === "monster" && (
+              <div className="grid gap-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Monster Name</Label>
+                    <Input 
+                      placeholder="Enter monster name"
+                      defaultValue={editingContent?.name || ""}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Challenge Rating</Label>
+                    <Input 
+                      placeholder="e.g. 1/4, 1, 5"
+                      defaultValue={editingContent?.cr || ""}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Type</Label>
+                    <Input 
+                      placeholder="e.g. humanoid, beast"
+                      defaultValue={editingContent?.type || ""}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea 
+                    placeholder="Describe the monster..."
+                    defaultValue={editingContent?.description || ""}
+                    rows={4}
+                  />
+                </div>
+              </div>
+            )}
+            
+            {contentType === "magic-item" && (
+              <div className="grid gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Item Name</Label>
+                    <Input 
+                      placeholder="Enter item name"
+                      defaultValue={editingContent?.name || ""}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Rarity</Label>
+                    <Select defaultValue={editingContent?.rarity || ""}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select rarity" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="common">Common</SelectItem>
+                        <SelectItem value="uncommon">Uncommon</SelectItem>
+                        <SelectItem value="rare">Rare</SelectItem>
+                        <SelectItem value="very rare">Very Rare</SelectItem>
+                        <SelectItem value="legendary">Legendary</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea 
+                    placeholder="Describe the magical properties..."
+                    defaultValue={editingContent?.description || ""}
+                    rows={4}
+                  />
+                </div>
+              </div>
+            )}
+            
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setShowContentDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (editingContent) {
+                    updateContentMutation.mutate(editingContent);
+                  } else {
+                    createContentMutation.mutate({});
+                  }
+                }}
+                disabled={createContentMutation.isPending || updateContentMutation.isPending}
+              >
+                {(createContentMutation.isPending || updateContentMutation.isPending) && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                {editingContent ? "Update" : "Create"} {contentType}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

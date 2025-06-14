@@ -3149,5 +3149,129 @@ Create a unique monster with balanced stats appropriate for its challenge rating
     }
   });
 
+  // Character XP and Inventory Management Routes
+  app.post("/api/characters/award-xp", isAuthenticated, async (req: any, res) => {
+    try {
+      const { characterId, xp, reason } = req.body;
+      
+      if (!characterId || !xp || !reason) {
+        return res.status(400).json({ message: "Character ID, XP amount, and reason are required" });
+      }
+
+      // Get current character data
+      const [character] = await db.select().from(characters).where(eq(characters.id, characterId));
+      
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+
+      // Calculate new XP and level
+      const newXP = (character.xp || 0) + parseInt(xp);
+      let newLevel = character.level || 1;
+      
+      // Simple level calculation (every 1000 XP = 1 level)
+      if (newXP >= 1000) {
+        newLevel = Math.floor(newXP / 1000) + 1;
+      }
+
+      // Update character
+      const [updatedCharacter] = await db
+        .update(characters)
+        .set({
+          xp: newXP,
+          level: newLevel,
+          updatedAt: new Date()
+        })
+        .where(eq(characters.id, characterId))
+        .returning();
+
+      // Log the XP award
+      console.log(`XP awarded: ${xp} to character ${characterId} (${reason})`);
+
+      res.json({
+        character: updatedCharacter,
+        xpAwarded: parseInt(xp),
+        reason,
+        levelUp: newLevel > (character.level || 1)
+      });
+    } catch (error) {
+      console.error("Failed to award XP:", error);
+      res.status(500).json({ 
+        message: "Failed to award XP",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.post("/api/characters/add-item", isAuthenticated, async (req: any, res) => {
+    try {
+      const { characterId, itemId, quantity = 1 } = req.body;
+      
+      if (!characterId || !itemId) {
+        return res.status(400).json({ message: "Character ID and item ID are required" });
+      }
+
+      // Get character and item data
+      const [character] = await db.select().from(characters).where(eq(characters.id, characterId));
+      const [item] = await db.select().from(magicItems).where(eq(magicItems.id, itemId));
+      
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      if (!item) {
+        return res.status(404).json({ message: "Item not found" });
+      }
+
+      // Update character inventory (stored as JSON array)
+      let inventory = character.inventory || [];
+      
+      // Check if item already exists in inventory
+      const existingItemIndex = inventory.findIndex((invItem: any) => invItem.id === itemId);
+      
+      if (existingItemIndex >= 0) {
+        // Update quantity
+        inventory[existingItemIndex].quantity = (inventory[existingItemIndex].quantity || 1) + parseInt(quantity);
+      } else {
+        // Add new item
+        inventory.push({
+          id: itemId,
+          name: item.name,
+          type: item.type,
+          rarity: item.rarity,
+          quantity: parseInt(quantity),
+          addedAt: new Date().toISOString()
+        });
+      }
+
+      // Update character
+      const [updatedCharacter] = await db
+        .update(characters)
+        .set({
+          inventory,
+          updatedAt: new Date()
+        })
+        .where(eq(characters.id, characterId))
+        .returning();
+
+      // Log the item addition
+      console.log(`Item added: ${item.name} (x${quantity}) to character ${characterId}`);
+
+      res.json({
+        character: updatedCharacter,
+        itemAdded: {
+          name: item.name,
+          quantity: parseInt(quantity)
+        }
+      });
+    } catch (error) {
+      console.error("Failed to add item to inventory:", error);
+      res.status(500).json({ 
+        message: "Failed to add item to inventory",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   return httpServer;
 }
