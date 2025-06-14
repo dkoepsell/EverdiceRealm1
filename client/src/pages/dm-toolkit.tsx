@@ -29,11 +29,53 @@ import {
   ArrowDown,
   ChevronDown
 } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import { Loader2, AlertCircle } from "lucide-react";
+import DMTrainingCenterTab from "@/components/dm-toolkit/DMTrainingCenterTab";
+import LiveCampaignManagerTab from "@/components/dm-toolkit/LiveCampaignManagerTab";
+import InvitationsTab from "@/components/dm-toolkit/InvitationsTab";
+import NotesTabSimple from "@/components/dm-toolkit/NotesTabSimple";
+import AIAssistedDMGuide from "@/components/dm-toolkit/AIAssistedDMGuide";
 
 export default function DMToolkit() {
   const { toast } = useToast();
+  const { user, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("training");
+  const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
+  
+  // Fetch campaigns
+  const { data: campaigns = [] } = useQuery<any[]>({
+    queryKey: ["/api/campaigns"],
+    enabled: !!user
+  });
+  
+  if (authLoading) {
+    return (
+      <div className="container flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary mb-4" />
+          <h2 className="text-2xl font-fantasy font-semibold">Loading DM Toolkit</h2>
+          <p className="text-muted-foreground">Please wait while we prepare your tools...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return (
+      <div className="container flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <AlertCircle className="h-10 w-10 mx-auto text-destructive mb-4" />
+          <h2 className="text-2xl font-bold">Authentication Required</h2>
+          <p className="text-muted-foreground mb-4">You need to be logged in to access the DM Toolkit.</p>
+          <Button asChild>
+            <a href="/auth">Login or Register</a>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-8">
@@ -277,11 +319,7 @@ export default function DMToolkit() {
                     </TabsList>
                     
                     <TabsContent value="training">
-                      <ContentPlaceholder 
-                        icon={BookOpen} 
-                        title="DM Training Center" 
-                        description="Master the art of Dungeon Mastering with comprehensive training modules and expert guidance"
-                      />
+                      <DMTrainingCenterTab />
                     </TabsContent>
                     
                     <TabsContent value="campaign-builder">
@@ -289,19 +327,14 @@ export default function DMToolkit() {
                     </TabsContent>
                     
                     <TabsContent value="live-manager">
-                      <ContentPlaceholder 
-                        icon={PlayIcon} 
-                        title="Live Campaign Manager" 
-                        description="Run and manage your active game sessions with real-time tools"
+                      <LiveCampaignManagerTab 
+                        selectedCampaignId={selectedCampaignId}
+                        onCampaignSelect={setSelectedCampaignId}
                       />
                     </TabsContent>
                     
                     <TabsContent value="companions">
-                      <ContentPlaceholder 
-                        icon={Users} 
-                        title="NPC Management" 
-                        description="Create and manage memorable non-player characters for your campaigns"
-                      />
+                      <AIAssistedDMGuide />
                     </TabsContent>
                     
                     <TabsContent value="locations">
@@ -337,19 +370,11 @@ export default function DMToolkit() {
                     </TabsContent>
                     
                     <TabsContent value="invitations">
-                      <ContentPlaceholder 
-                        icon={Mail} 
-                        title="Player Invitations" 
-                        description="Invite players to join your campaigns and manage access"
-                      />
+                      <InvitationsTab />
                     </TabsContent>
                     
                     <TabsContent value="notes">
-                      <ContentPlaceholder 
-                        icon={StickyNote} 
-                        title="Campaign Notes" 
-                        description="Keep track of important campaign information and player details"
-                      />
+                      <NotesTabSimple />
                     </TabsContent>
                     
                     <TabsContent value="generators">
