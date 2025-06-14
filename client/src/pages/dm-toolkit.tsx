@@ -3354,3 +3354,617 @@ function DMWorkflowAndGuidance() {
     </div>
   );
 }
+
+// Campaign Builder Tab Component for complete pre-packaged campaign generation
+function CampaignBuilderTab() {
+  const { toast } = useToast();
+  const [generatedCampaign, setGeneratedCampaign] = useState<any>(null);
+  const [campaignType, setCampaignType] = useState('');
+  const [campaignLevel, setCampaignLevel] = useState('');
+  const [campaignLength, setCampaignLength] = useState('');
+  const [campaignTheme, setCampaignTheme] = useState('');
+  const [customPrompt, setCustomPrompt] = useState('');
+
+  const campaignTypes = [
+    { value: 'adventure', label: 'Classic Adventure', description: 'Heroes journey with quests, exploration, and combat' },
+    { value: 'mystery', label: 'Mystery & Investigation', description: 'Solve crimes, uncover secrets, and follow clues' },
+    { value: 'political', label: 'Political Intrigue', description: 'Navigate court politics, alliances, and betrayals' },
+    { value: 'horror', label: 'Horror & Supernatural', description: 'Face ancient evils, curses, and dark mysteries' },
+    { value: 'exploration', label: 'Exploration & Discovery', description: 'Discover new lands, ruins, and civilizations' },
+    { value: 'urban', label: 'Urban Campaign', description: 'City-based adventures with guilds and factions' }
+  ];
+
+  const campaignLevels = [
+    { value: '1-5', label: 'Beginner (Levels 1-5)', description: 'Perfect for new players and DMs' },
+    { value: '6-10', label: 'Intermediate (Levels 6-10)', description: 'More complex mechanics and challenges' },
+    { value: '11-15', label: 'Advanced (Levels 11-15)', description: 'High-stakes adventures with powerful enemies' },
+    { value: '16-20', label: 'Epic (Levels 16-20)', description: 'World-shaping adventures and legendary foes' }
+  ];
+
+  const campaignLengths = [
+    { value: 'oneshot', label: 'One-Shot (1 session)', description: '3-5 hours of gameplay' },
+    { value: 'short', label: 'Short Campaign (3-5 sessions)', description: '2-3 weeks of gameplay' },
+    { value: 'medium', label: 'Medium Campaign (6-12 sessions)', description: '1-3 months of gameplay' },
+    { value: 'long', label: 'Long Campaign (13+ sessions)', description: '3+ months of ongoing adventure' }
+  ];
+
+  const campaignThemes = [
+    { value: 'classic', label: 'Classic Fantasy', description: 'Traditional D&D with dragons, magic, and heroism' },
+    { value: 'dark', label: 'Dark Fantasy', description: 'Gritty, morally complex world with dire consequences' },
+    { value: 'high-magic', label: 'High Magic', description: 'Magic is common and shapes society' },
+    { value: 'low-magic', label: 'Low Magic', description: 'Magic is rare and mysterious' },
+    { value: 'steampunk', label: 'Steampunk Fantasy', description: 'Industrial revolution meets magic' },
+    { value: 'nautical', label: 'Nautical Adventure', description: 'Pirates, sea monsters, and island exploration' }
+  ];
+
+  const generateCampaign = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('/api/campaigns/generate-complete', {
+        method: 'POST',
+        body: {
+          type: campaignType,
+          level: campaignLevel,
+          length: campaignLength,
+          theme: campaignTheme,
+          customPrompt: customPrompt || undefined,
+        },
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      setGeneratedCampaign(data);
+      toast({
+        title: "Campaign Generated Successfully!",
+        description: "Your complete campaign package is ready to run.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate campaign. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const saveCampaign = useMutation({
+    mutationFn: async () => {
+      if (!generatedCampaign) return;
+      
+      const response = await apiRequest('/api/campaigns', {
+        method: 'POST',
+        body: {
+          title: generatedCampaign.title,
+          description: generatedCampaign.description,
+          difficulty: campaignLevel,
+          narrativeStyle: campaignTheme,
+          generatedContent: generatedCampaign,
+        },
+      });
+      return response;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Campaign Saved!",
+        description: "Your campaign has been saved and is ready to run.",
+      });
+      setGeneratedCampaign(null);
+      setCampaignType('');
+      setCampaignLevel('');
+      setCampaignLength('');
+      setCampaignTheme('');
+      setCustomPrompt('');
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Save Failed",
+        description: error.message || "Failed to save campaign. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleGenerate = () => {
+    if (!campaignType || !campaignLevel || !campaignLength || !campaignTheme) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields before generating.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    generateCampaign.mutate();
+  };
+
+  if (generatedCampaign) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-fantasy font-bold">{generatedCampaign.title}</h2>
+            <p className="text-muted-foreground">Complete Campaign Package</p>
+          </div>
+          <div className="flex space-x-2">
+            <Button variant="outline" onClick={() => setGeneratedCampaign(null)}>
+              Generate New
+            </Button>
+            <Button onClick={() => saveCampaign.mutate()} disabled={saveCampaign.isPending}>
+              {saveCampaign.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Save Campaign
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <BookOpen className="h-5 w-5 mr-2" />
+                Campaign Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label className="font-medium">Description</Label>
+                <p className="text-sm text-muted-foreground mt-1">{generatedCampaign.description}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="font-medium">Level Range</Label>
+                  <p className="text-sm">{campaignLevel}</p>
+                </div>
+                <div>
+                  <Label className="font-medium">Duration</Label>
+                  <p className="text-sm">{campaignLengths.find(l => l.value === campaignLength)?.label}</p>
+                </div>
+              </div>
+              <div>
+                <Label className="font-medium">Main Story Arc</Label>
+                <p className="text-sm text-muted-foreground mt-1">{generatedCampaign.mainStoryArc}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Target className="h-5 w-5 mr-2" />
+                Content Statistics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-3 bg-muted rounded-lg">
+                  <div className="text-2xl font-bold text-primary">{generatedCampaign.quests?.length || 0}</div>
+                  <div className="text-sm text-muted-foreground">Quests</div>
+                </div>
+                <div className="text-center p-3 bg-muted rounded-lg">
+                  <div className="text-2xl font-bold text-primary">{generatedCampaign.npcs?.length || 0}</div>
+                  <div className="text-sm text-muted-foreground">NPCs</div>
+                </div>
+                <div className="text-center p-3 bg-muted rounded-lg">
+                  <div className="text-2xl font-bold text-primary">{generatedCampaign.locations?.length || 0}</div>
+                  <div className="text-sm text-muted-foreground">Locations</div>
+                </div>
+                <div className="text-center p-3 bg-muted rounded-lg">
+                  <div className="text-2xl font-bold text-primary">{generatedCampaign.encounters?.length || 0}</div>
+                  <div className="text-sm text-muted-foreground">Encounters</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Tabs defaultValue="quests" className="space-y-4">
+          <TabsList className="grid grid-cols-5 w-full">
+            <TabsTrigger value="quests">Quests</TabsTrigger>
+            <TabsTrigger value="npcs">NPCs</TabsTrigger>
+            <TabsTrigger value="locations">Locations</TabsTrigger>
+            <TabsTrigger value="encounters">Encounters</TabsTrigger>
+            <TabsTrigger value="rewards">Rewards</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="quests" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {generatedCampaign.quests?.map((quest: any, index: number) => (
+                <Card key={index}>
+                  <CardHeader>
+                    <CardTitle className="text-lg">{quest.title}</CardTitle>
+                    <Badge variant="secondary">{quest.type}</Badge>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-3">{quest.description}</p>
+                    <div className="space-y-2">
+                      <div>
+                        <Label className="font-medium">Objectives:</Label>
+                        <ul className="text-sm text-muted-foreground mt-1 space-y-1">
+                          {quest.objectives?.map((obj: string, objIndex: number) => (
+                            <li key={objIndex}>• {obj}</li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <Label className="font-medium">Rewards:</Label>
+                        <p className="text-sm text-muted-foreground">{quest.rewards}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="npcs" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {generatedCampaign.npcs?.map((npc: any, index: number) => (
+                <Card key={index}>
+                  <CardHeader>
+                    <CardTitle className="text-lg">{npc.name}</CardTitle>
+                    <CardDescription>{npc.role} - {npc.race} {npc.class}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-3">{npc.description}</p>
+                    <div className="space-y-2">
+                      <div>
+                        <Label className="font-medium">Personality:</Label>
+                        <p className="text-sm text-muted-foreground">{npc.personality}</p>
+                      </div>
+                      <div>
+                        <Label className="font-medium">Motivations:</Label>
+                        <p className="text-sm text-muted-foreground">{npc.motivations}</p>
+                      </div>
+                      {npc.questConnections && (
+                        <div>
+                          <Label className="font-medium">Quest Connections:</Label>
+                          <p className="text-sm text-muted-foreground">{npc.questConnections}</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="locations" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {generatedCampaign.locations?.map((location: any, index: number) => (
+                <Card key={index}>
+                  <CardHeader>
+                    <CardTitle className="text-lg">{location.name}</CardTitle>
+                    <Badge variant="outline">{location.type}</Badge>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-3">{location.description}</p>
+                    <div className="space-y-2">
+                      <div>
+                        <Label className="font-medium">Notable Features:</Label>
+                        <ul className="text-sm text-muted-foreground mt-1 space-y-1">
+                          {location.features?.map((feature: string, featureIndex: number) => (
+                            <li key={featureIndex}>• {feature}</li>
+                          ))}
+                        </ul>
+                      </div>
+                      {location.encounters && (
+                        <div>
+                          <Label className="font-medium">Potential Encounters:</Label>
+                          <p className="text-sm text-muted-foreground">{location.encounters}</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="encounters" className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {generatedCampaign.encounters?.map((encounter: any, index: number) => (
+                <Card key={index}>
+                  <CardHeader>
+                    <CardTitle className="text-lg">{encounter.name}</CardTitle>
+                    <div className="flex space-x-2">
+                      <Badge variant={encounter.type === 'combat' ? 'destructive' : encounter.type === 'social' ? 'default' : 'secondary'}>
+                        {encounter.type}
+                      </Badge>
+                      <Badge variant="outline">CR {encounter.challengeRating}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-3">{encounter.description}</p>
+                    <div className="space-y-2">
+                      <div>
+                        <Label className="font-medium">Setup:</Label>
+                        <p className="text-sm text-muted-foreground">{encounter.setup}</p>
+                      </div>
+                      <div>
+                        <Label className="font-medium">Tactics:</Label>
+                        <p className="text-sm text-muted-foreground">{encounter.tactics}</p>
+                      </div>
+                      {encounter.treasure && (
+                        <div>
+                          <Label className="font-medium">Treasure:</Label>
+                          <p className="text-sm text-muted-foreground">{encounter.treasure}</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="rewards" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {generatedCampaign.rewards?.map((reward: any, index: number) => (
+                <Card key={index}>
+                  <CardHeader>
+                    <CardTitle className="text-lg">{reward.name}</CardTitle>
+                    <Badge variant={reward.rarity === 'common' ? 'secondary' : reward.rarity === 'uncommon' ? 'default' : 'destructive'}>
+                      {reward.rarity}
+                    </Badge>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-3">{reward.description}</p>
+                    <div className="space-y-2">
+                      <div>
+                        <Label className="font-medium">Type:</Label>
+                        <p className="text-sm text-muted-foreground">{reward.type}</p>
+                      </div>
+                      {reward.mechanics && (
+                        <div>
+                          <Label className="font-medium">Mechanics:</Label>
+                          <p className="text-sm text-muted-foreground">{reward.mechanics}</p>
+                        </div>
+                      )}
+                      {reward.questConnection && (
+                        <div>
+                          <Label className="font-medium">Quest Connection:</Label>
+                          <p className="text-sm text-muted-foreground">{reward.questConnection}</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center space-y-2">
+        <h2 className="text-3xl font-fantasy font-bold">Complete Campaign Builder</h2>
+        <p className="text-muted-foreground max-w-2xl mx-auto">
+          Generate a fully integrated campaign with interconnected quests, NPCs, locations, encounters, and rewards. 
+          Perfect for DMs who want to jump right into running a cohesive adventure.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Campaign Type</CardTitle>
+              <CardDescription>Choose the core theme of your campaign</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {campaignTypes.map((type) => (
+                  <div
+                    key={type.value}
+                    className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                      campaignType === type.value ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground'
+                    }`}
+                    onClick={() => setCampaignType(type.value)}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-4 h-4 rounded-full border-2 ${
+                        campaignType === type.value ? 'border-primary bg-primary' : 'border-muted-foreground'
+                      }`} />
+                      <Label className="font-medium cursor-pointer">{type.label}</Label>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1 ml-6">{type.description}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Player Level</CardTitle>
+              <CardDescription>Target level range for the campaign</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {campaignLevels.map((level) => (
+                  <div
+                    key={level.value}
+                    className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                      campaignLevel === level.value ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground'
+                    }`}
+                    onClick={() => setCampaignLevel(level.value)}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-4 h-4 rounded-full border-2 ${
+                        campaignLevel === level.value ? 'border-primary bg-primary' : 'border-muted-foreground'
+                      }`} />
+                      <Label className="font-medium cursor-pointer">{level.label}</Label>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1 ml-6">{level.description}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Campaign Length</CardTitle>
+              <CardDescription>How long do you want the campaign to run?</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {campaignLengths.map((length) => (
+                  <div
+                    key={length.value}
+                    className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                      campaignLength === length.value ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground'
+                    }`}
+                    onClick={() => setCampaignLength(length.value)}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-4 h-4 rounded-full border-2 ${
+                        campaignLength === length.value ? 'border-primary bg-primary' : 'border-muted-foreground'
+                      }`} />
+                      <Label className="font-medium cursor-pointer">{length.label}</Label>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1 ml-6">{length.description}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Theme & Tone</CardTitle>
+              <CardDescription>What kind of world and atmosphere?</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {campaignThemes.map((theme) => (
+                  <div
+                    key={theme.value}
+                    className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                      campaignTheme === theme.value ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground'
+                    }`}
+                    onClick={() => setCampaignTheme(theme.value)}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-4 h-4 rounded-full border-2 ${
+                        campaignTheme === theme.value ? 'border-primary bg-primary' : 'border-muted-foreground'
+                      }`} />
+                      <Label className="font-medium cursor-pointer">{theme.label}</Label>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1 ml-6">{theme.description}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Custom Requirements (Optional)</CardTitle>
+          <CardDescription>
+            Add specific elements, themes, or requirements you want included in your campaign
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            placeholder="e.g., Include a dragon as the final boss, focus on political intrigue between noble houses, include a mysterious artifact that drives the plot..."
+            value={customPrompt}
+            onChange={(e) => setCustomPrompt(e.target.value)}
+            rows={4}
+          />
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-center">
+        <Button
+          size="lg"
+          onClick={handleGenerate}
+          disabled={generateCampaign.isPending || !campaignType || !campaignLevel || !campaignLength || !campaignTheme}
+          className="px-8 py-3 text-lg"
+        >
+          {generateCampaign.isPending ? (
+            <>
+              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+              Generating Campaign...
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-5 w-5 mr-2" />
+              Generate Complete Campaign
+            </>
+          )}
+        </Button>
+      </div>
+
+      <Card className="bg-muted/30">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Gift className="h-5 w-5 mr-2" />
+            What You'll Get
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="flex items-start space-x-3">
+              <Scroll className="h-5 w-5 text-primary mt-0.5" />
+              <div>
+                <div className="font-medium">Interconnected Quests</div>
+                <p className="text-sm text-muted-foreground">Main story arc with side quests that enhance the narrative</p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-3">
+              <Users className="h-5 w-5 text-primary mt-0.5" />
+              <div>
+                <div className="font-medium">Memorable NPCs</div>
+                <p className="text-sm text-muted-foreground">Fully developed characters with motivations and personalities</p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-3">
+              <MapPin className="h-5 w-5 text-primary mt-0.5" />
+              <div>
+                <div className="font-medium">Detailed Locations</div>
+                <p className="text-sm text-muted-foreground">Rich environments with features and encounter possibilities</p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-3">
+              <Swords className="h-5 w-5 text-primary mt-0.5" />
+              <div>
+                <div className="font-medium">Balanced Encounters</div>
+                <p className="text-sm text-muted-foreground">Combat, social, and exploration challenges</p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-3">
+              <Package className="h-5 w-5 text-primary mt-0.5" />
+              <div>
+                <div className="font-medium">Meaningful Rewards</div>
+                <p className="text-sm text-muted-foreground">Magic items, treasure, and story rewards tied to quests</p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-3">
+              <Brain className="h-5 w-5 text-primary mt-0.5" />
+              <div>
+                <div className="font-medium">DM Guidance</div>
+                <p className="text-sm text-muted-foreground">Tips and advice for running each element effectively</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
