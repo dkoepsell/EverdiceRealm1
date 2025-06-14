@@ -1545,6 +1545,11 @@ function MagicItemsTab() {
   });
   const { toast } = useToast();
 
+  // Fetch magic items from the API
+  const { data: magicItems = [], isLoading: magicItemsLoading } = useQuery<any[]>({
+    queryKey: ["/api/magic-items"],
+  });
+
   const createItemMutation = useMutation({
     mutationFn: async (itemData: any) => {
       return await apiRequest("POST", "/api/magic-items", itemData);
@@ -1746,86 +1751,46 @@ function MagicItemsTab() {
       </Dialog>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex justify-between">
-              <CardTitle className="font-fantasy">Frostbrand Dagger</CardTitle>
-              <Badge variant="outline">Rare</Badge>
-            </div>
-            <CardDescription>Weapon (dagger), requires attunement</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-center mb-3">
-              <div className="w-20 h-20 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                <Sparkles className="h-10 w-10 text-blue-500" />
-              </div>
-            </div>
-            <p className="text-sm mb-3">A dagger with a blade made of enchanted ice that never melts. It deals an additional 1d6 cold damage and can create a small patch of ice on any surface once per day.</p>
-            <Separator className="my-2" />
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <span>Damage: 1d4 + 1d6 cold</span>
-              <span>Weight: 1 lb</span>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" size="sm">View Details</Button>
-            <Button size="sm">Edit Item</Button>
-          </CardFooter>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex justify-between">
-              <CardTitle className="font-fantasy">Cloak of Shadows</CardTitle>
-              <Badge variant="outline">Uncommon</Badge>
-            </div>
-            <CardDescription>Wondrous item, requires attunement</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-center mb-3">
-              <div className="w-20 h-20 rounded-full bg-violet-100 dark:bg-violet-900 flex items-center justify-center">
-                <Circle className="h-10 w-10 text-violet-500 fill-current" />
-              </div>
-            </div>
-            <p className="text-sm mb-3">This dark cloak seems to absorb light around it. While wearing it, you have advantage on Dexterity (Stealth) checks made to hide in dim light or darkness.</p>
-            <Separator className="my-2" />
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <span>Requires attunement</span>
-              <span>Weight: 1 lb</span>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" size="sm">View Details</Button>
-            <Button size="sm">Edit Item</Button>
-          </CardFooter>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex justify-between">
-              <CardTitle className="font-fantasy">Ring of Mind Shielding</CardTitle>
-              <Badge variant="outline">Uncommon</Badge>
-            </div>
-            <CardDescription>Ring, requires attunement</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-center mb-3">
-              <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                <Shield className="h-10 w-10 text-green-500" />
-              </div>
-            </div>
-            <p className="text-sm mb-3">While wearing this ring, you are immune to magic that allows other creatures to read your thoughts, determine if you are lying, or know your alignment.</p>
-            <Separator className="my-2" />
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <span>Requires attunement</span>
-              <span>Weight: —</span>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" size="sm">View Details</Button>
-            <Button size="sm">Edit Item</Button>
-          </CardFooter>
-        </Card>
+        {magicItemsLoading ? (
+          <div className="col-span-full flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <span className="ml-2">Loading magic items...</span>
+          </div>
+        ) : (
+          <>
+            {magicItems.map((item) => (
+              <Card key={item.id}>
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between">
+                    <CardTitle className="font-fantasy">{item.name}</CardTitle>
+                    {item.rarity && <Badge variant="outline">{item.rarity}</Badge>}
+                  </div>
+                  <CardDescription>{item.type}{item.requires_attunement ? ', requires attunement' : ''}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex justify-center mb-3">
+                    <div className="w-20 h-20 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
+                      <Sparkles className="h-10 w-10 text-purple-500" />
+                    </div>
+                  </div>
+                  <p className="text-sm mb-3">{item.description}</p>
+                  {item.requires_attunement && (
+                    <>
+                      <Separator className="my-2" />
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Requires attunement</span>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <Button variant="outline" size="sm">View Details</Button>
+                  <Button size="sm">Edit Item</Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </>
+        )}
         
         <Card className="border-dashed bg-muted/10">
           <CardHeader>
@@ -1983,6 +1948,11 @@ function MonstersTab() {
     notes: ""
   });
   const { toast } = useToast();
+
+  // Fetch monsters from the API
+  const { data: monsters = [], isLoading: monstersLoading } = useQuery<any[]>({
+    queryKey: ["/api/monsters"],
+  });
 
   const createMonsterMutation = useMutation({
     mutationFn: async (monsterData: any) => {
@@ -2298,149 +2268,85 @@ function MonstersTab() {
       
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex justify-between">
-                <CardTitle className="font-fantasy">Shadow Drake</CardTitle>
-                <Badge>CR 5</Badge>
-              </div>
-              <CardDescription>Medium dragon, neutral evil</CardDescription>
-            </CardHeader>
-            <CardContent className="pb-0">
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <div>
-                    <span className="font-medium">Armor Class:</span> 16 (natural armor)
-                  </div>
-                  <div>
-                    <span className="font-medium">Hit Points:</span> 110 (13d8 + 52)
-                  </div>
-                </div>
-                
-                <div className="flex justify-between text-sm">
-                  <div>
-                    <span className="font-medium">Speed:</span> 30 ft., fly 60 ft.
-                  </div>
-                  <div>
-                    <span className="font-medium">Size:</span> Medium
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-6 gap-2 text-center text-sm mt-2">
-                  <div className="space-y-1">
-                    <div className="font-medium">STR</div>
-                    <div className="bg-muted rounded-md py-1">16 (+3)</div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="font-medium">DEX</div>
-                    <div className="bg-muted rounded-md py-1">18 (+4)</div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="font-medium">CON</div>
-                    <div className="bg-muted rounded-md py-1">18 (+4)</div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="font-medium">INT</div>
-                    <div className="bg-muted rounded-md py-1">12 (+1)</div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="font-medium">WIS</div>
-                    <div className="bg-muted rounded-md py-1">14 (+2)</div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="font-medium">CHA</div>
-                    <div className="bg-muted rounded-md py-1">16 (+3)</div>
-                  </div>
-                </div>
-                
-                <div className="space-y-1">
-                  <div className="font-medium text-sm">Special Abilities</div>
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-medium">Shadow Stealth.</span> While in dim light or darkness, the drake can take the Hide action as a bonus action.
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-medium">Innate Spellcasting.</span> The drake can cast darkness 3/day, requiring no material components.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-between pt-3">
-              <Button variant="outline" size="sm">View Details</Button>
-              <Button size="sm">Edit Monster</Button>
-            </CardFooter>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex justify-between">
-                <CardTitle className="font-fantasy">Forest Guardian</CardTitle>
-                <Badge>CR 3</Badge>
-              </div>
-              <CardDescription>Large fey, neutral good</CardDescription>
-            </CardHeader>
-            <CardContent className="pb-0">
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <div>
-                    <span className="font-medium">Armor Class:</span> 14 (natural armor)
-                  </div>
-                  <div>
-                    <span className="font-medium">Hit Points:</span> 76 (9d10 + 27)
-                  </div>
-                </div>
-                
-                <div className="flex justify-between text-sm">
-                  <div>
-                    <span className="font-medium">Speed:</span> 40 ft.
-                  </div>
-                  <div>
-                    <span className="font-medium">Size:</span> Large
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-6 gap-2 text-center text-sm mt-2">
-                  <div className="space-y-1">
-                    <div className="font-medium">STR</div>
-                    <div className="bg-muted rounded-md py-1">18 (+4)</div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="font-medium">DEX</div>
-                    <div className="bg-muted rounded-md py-1">14 (+2)</div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="font-medium">CON</div>
-                    <div className="bg-muted rounded-md py-1">16 (+3)</div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="font-medium">INT</div>
-                    <div className="bg-muted rounded-md py-1">10 (+0)</div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="font-medium">WIS</div>
-                    <div className="bg-muted rounded-md py-1">16 (+3)</div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="font-medium">CHA</div>
-                    <div className="bg-muted rounded-md py-1">13 (+1)</div>
-                  </div>
-                </div>
-                
-                <div className="space-y-1">
-                  <div className="font-medium text-sm">Special Abilities</div>
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-medium">Magic Resistance.</span> The guardian has advantage on saving throws against spells and other magical effects.
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-medium">Forest Blend.</span> The guardian has advantage on Dexterity (Stealth) checks made to hide in forest terrain.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-between pt-3">
-              <Button variant="outline" size="sm">View Details</Button>
-              <Button size="sm">Edit Monster</Button>
-            </CardFooter>
-          </Card>
+          {monstersLoading ? (
+            <div className="col-span-full flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <span className="ml-2">Loading monsters...</span>
+            </div>
+          ) : (
+            <>
+              {monsters.map((monster) => (
+                <Card key={monster.id}>
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between">
+                      <CardTitle className="font-fantasy">{monster.name}</CardTitle>
+                      {monster.challenge_rating && <Badge>CR {monster.challenge_rating}</Badge>}
+                    </div>
+                    <CardDescription>{monster.size} {monster.type}, {monster.alignment}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pb-0">
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <div>
+                          <span className="font-medium">Armor Class:</span> {monster.armor_class}
+                        </div>
+                        <div>
+                          <span className="font-medium">Hit Points:</span> {monster.hit_points}
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between text-sm">
+                        <div>
+                          <span className="font-medium">Speed:</span> {monster.speed}
+                        </div>
+                        <div>
+                          <span className="font-medium">Size:</span> {monster.size}
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-6 gap-2 text-center text-sm mt-2">
+                        <div className="space-y-1">
+                          <div className="font-medium">STR</div>
+                          <div className="bg-muted rounded-md py-1">{monster.strength} ({Math.floor((monster.strength - 10) / 2) >= 0 ? '+' : ''}{Math.floor((monster.strength - 10) / 2)})</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="font-medium">DEX</div>
+                          <div className="bg-muted rounded-md py-1">{monster.dexterity} ({Math.floor((monster.dexterity - 10) / 2) >= 0 ? '+' : ''}{Math.floor((monster.dexterity - 10) / 2)})</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="font-medium">CON</div>
+                          <div className="bg-muted rounded-md py-1">{monster.constitution} ({Math.floor((monster.constitution - 10) / 2) >= 0 ? '+' : ''}{Math.floor((monster.constitution - 10) / 2)})</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="font-medium">INT</div>
+                          <div className="bg-muted rounded-md py-1">{monster.intelligence} ({Math.floor((monster.intelligence - 10) / 2) >= 0 ? '+' : ''}{Math.floor((monster.intelligence - 10) / 2)})</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="font-medium">WIS</div>
+                          <div className="bg-muted rounded-md py-1">{monster.wisdom} ({Math.floor((monster.wisdom - 10) / 2) >= 0 ? '+' : ''}{Math.floor((monster.wisdom - 10) / 2)})</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="font-medium">CHA</div>
+                          <div className="bg-muted rounded-md py-1">{monster.charisma} ({Math.floor((monster.charisma - 10) / 2) >= 0 ? '+' : ''}{Math.floor((monster.charisma - 10) / 2)})</div>
+                        </div>
+                      </div>
+                      
+                      {monster.description && (
+                        <div className="space-y-1">
+                          <div className="font-medium text-sm">Description</div>
+                          <p className="text-sm text-muted-foreground">{monster.description}</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex justify-between pt-3">
+                    <Button variant="outline" size="sm">View Details</Button>
+                    <Button size="sm">Edit Monster</Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </>
+          )}
           
           <Card className="border-dashed bg-muted/10">
             <CardHeader>
