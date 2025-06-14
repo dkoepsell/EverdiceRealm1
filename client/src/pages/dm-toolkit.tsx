@@ -1120,6 +1120,8 @@ function LocationsTab() {
 
 function QuestsTab() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingQuest, setEditingQuest] = useState<any>(null);
   const [newQuest, setNewQuest] = useState({
     title: "",
     description: "",
@@ -1158,6 +1160,28 @@ function QuestsTab() {
     },
   });
 
+  const updateQuestMutation = useMutation({
+    mutationFn: async (questData: any) => {
+      return await apiRequest("PUT", `/api/quests/${questData.id}`, questData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Quest updated successfully",
+      });
+      setShowEditDialog(false);
+      setEditingQuest(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/quests"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateQuest = () => {
     if (!newQuest.title.trim() || !newQuest.description.trim()) {
       toast({
@@ -1168,6 +1192,23 @@ function QuestsTab() {
       return;
     }
     createQuestMutation.mutate(newQuest);
+  };
+
+  const handleEditQuest = (quest: any) => {
+    setEditingQuest(quest);
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateQuest = () => {
+    if (!editingQuest.title.trim() || !editingQuest.description.trim()) {
+      toast({
+        title: "Error",
+        description: "Quest title and description are required",
+        variant: "destructive",
+      });
+      return;
+    }
+    updateQuestMutation.mutate(editingQuest);
   };
 
   const aiGenerateQuestMutation = useMutation({
@@ -1345,6 +1386,127 @@ function QuestsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Quest Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-[625px]">
+          <DialogHeader>
+            <DialogTitle>Edit Quest</DialogTitle>
+            <DialogDescription>
+              Modify the quest details and requirements.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-title" className="text-right">Title</Label>
+              <Input
+                id="edit-title"
+                value={editingQuest?.title || ""}
+                onChange={(e) => setEditingQuest({ ...editingQuest, title: e.target.value })}
+                className="col-span-3"
+                placeholder="Quest title..."
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-category" className="text-right">Category</Label>
+              <Select value={editingQuest?.category || ""} onValueChange={(value) => setEditingQuest({ ...editingQuest, category: value })}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="main">Main Quest</SelectItem>
+                  <SelectItem value="side">Side Quest</SelectItem>
+                  <SelectItem value="fetch">Fetch Quest</SelectItem>
+                  <SelectItem value="escort">Escort Quest</SelectItem>
+                  <SelectItem value="investigation">Investigation</SelectItem>
+                  <SelectItem value="combat">Combat Encounter</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-difficulty" className="text-right">Difficulty</Label>
+              <Select value={editingQuest?.difficulty || ""} onValueChange={(value) => setEditingQuest({ ...editingQuest, difficulty: value })}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="easy">Easy</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="hard">Hard</SelectItem>
+                  <SelectItem value="deadly">Deadly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-level-range" className="text-right">Level Range</Label>
+              <Input
+                id="edit-level-range"
+                value={editingQuest?.level_range || ""}
+                onChange={(e) => setEditingQuest({ ...editingQuest, level_range: e.target.value })}
+                className="col-span-3"
+                placeholder="e.g., 1-3, 5-7"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-duration" className="text-right">Duration</Label>
+              <Select value={editingQuest?.estimated_duration || ""} onValueChange={(value) => setEditingQuest({ ...editingQuest, estimated_duration: value })}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select duration" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1-2 hours">1-2 hours</SelectItem>
+                  <SelectItem value="2-4 hours">2-4 hours</SelectItem>
+                  <SelectItem value="4-6 hours">4-6 hours</SelectItem>
+                  <SelectItem value="Full session">Full session</SelectItem>
+                  <SelectItem value="Multiple sessions">Multiple sessions</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-description" className="text-right">Description</Label>
+              <Textarea
+                id="edit-description"
+                value={editingQuest?.description || ""}
+                onChange={(e) => setEditingQuest({ ...editingQuest, description: e.target.value })}
+                className="col-span-3"
+                placeholder="Describe the quest objective and story..."
+                rows={4}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-notes" className="text-right">DM Notes</Label>
+              <Textarea
+                id="edit-notes"
+                value={editingQuest?.notes || ""}
+                onChange={(e) => setEditingQuest({ ...editingQuest, notes: e.target.value })}
+                className="col-span-3"
+                placeholder="Private notes, plot twists, rewards..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdateQuest}
+              disabled={updateQuestMutation.isPending}
+            >
+              {updateQuestMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {questsLoading ? (
@@ -1390,7 +1552,7 @@ function QuestsTab() {
                 </CardContent>
                 <CardFooter className="flex justify-between">
                   <Button variant="outline" size="sm">View Details</Button>
-                  <Button size="sm">Edit Quest</Button>
+                  <Button size="sm" onClick={() => handleEditQuest(quest)}>Edit Quest</Button>
                 </CardFooter>
               </Card>
             ))}
@@ -1530,6 +1692,8 @@ function QuestsTab() {
 
 function MagicItemsTab() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
   const [newItem, setNewItem] = useState({
     name: "",
     type: "",
@@ -1567,6 +1731,28 @@ function MagicItemsTab() {
     },
   });
 
+  const updateItemMutation = useMutation({
+    mutationFn: async (itemData: any) => {
+      return await apiRequest("PUT", `/api/magic-items/${itemData.id}`, itemData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Magic item updated successfully",
+      });
+      setShowEditDialog(false);
+      setEditingItem(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/magic-items"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateItem = () => {
     if (!newItem.name.trim() || !newItem.description.trim()) {
       toast({
@@ -1577,6 +1763,23 @@ function MagicItemsTab() {
       return;
     }
     createItemMutation.mutate(newItem);
+  };
+
+  const handleEditItem = (item: any) => {
+    setEditingItem(item);
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateItem = () => {
+    if (!editingItem.name.trim() || !editingItem.description.trim()) {
+      toast({
+        title: "Error",
+        description: "Item name and description are required",
+        variant: "destructive",
+      });
+      return;
+    }
+    updateItemMutation.mutate(editingItem);
   };
 
   const aiGenerateItemMutation = useMutation({
