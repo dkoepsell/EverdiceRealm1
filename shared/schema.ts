@@ -133,20 +133,30 @@ export const insertCampaignParticipantSchema = createInsertSchema(campaignPartic
 export type InsertCampaignParticipant = z.infer<typeof insertCampaignParticipantSchema>;
 export type CampaignParticipant = typeof campaignParticipants.$inferSelect;
 
-// Campaign session schema with XP rewards
+// Campaign session schema with enhanced story continuity tracking
 export const campaignSessions = pgTable("campaign_sessions", {
   id: serial("id").primaryKey(),
   campaignId: integer("campaign_id").notNull(),
   sessionNumber: integer("session_number").notNull(),
   title: text("title").notNull(),
-  narrative: text("narrative").notNull(),
+  narrative: text("narrative").notNull(), // Current narrative shown to players
   location: text("location"),
-  choices: jsonb("choices").notNull(),
+  choices: jsonb("choices").notNull(), // Available choices for players
   sessionXpReward: integer("session_xp_reward").default(0),
   isCompleted: boolean("is_completed").default(false),
   completedAt: text("completed_at"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at"),
+  // Enhanced story continuity fields
+  previousSessionResult: jsonb("previous_session_result"), // What happened in previous session
+  storyState: jsonb("story_state"), // Current story context and state
+  dmNarrative: text("dm_narrative"), // What DM sees (fuller context)
+  playerChoicesMade: jsonb("player_choices_made"), // Choices already made by players
+  pendingEvents: jsonb("pending_events"), // Events queued for this session
+  npcInteractions: jsonb("npc_interactions"), // Active NPCs and their states
+  isInCombat: boolean("is_in_combat").default(false),
+  combatState: jsonb("combat_state"), // Initiative order, HP, conditions
+  quickContentGenerated: jsonb("quick_content_generated"), // DM-generated content for this session
 });
 
 export const insertCampaignSessionSchema = createInsertSchema(campaignSessions).omit({

@@ -3558,5 +3558,350 @@ Ensure all elements are interconnected and form a cohesive narrative. Include 3-
     }
   });
 
+  // Enhanced Live Session Management APIs
+
+  // Get current session with DM context
+  app.get("/api/campaigns/:campaignId/live-session", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const session = await storage.getCurrentSession(campaignId);
+      
+      if (!session) {
+        return res.status(404).json({ message: "No active session found" });
+      }
+
+      // Check if user is DM to provide enhanced context
+      const campaign = await storage.getCampaign(campaignId);
+      const isDM = campaign && campaign.userId === req.user.id;
+      
+      // Provide different context for DM vs players
+      const responseData = {
+        ...session,
+        isDM,
+        dmView: isDM ? {
+          dmNarrative: session.dmNarrative || session.narrative,
+          storyState: session.storyState,
+          pendingEvents: session.pendingEvents,
+          npcInteractions: session.npcInteractions,
+          quickContentGenerated: session.quickContentGenerated,
+          playerChoicesMade: session.playerChoicesMade
+        } : undefined
+      };
+      
+      res.json(responseData);
+    } catch (error) {
+      console.error("Failed to get live session:", error);
+      res.status(500).json({ message: "Failed to get live session" });
+    }
+  });
+
+  // Advance story based on player choice with continuity
+  app.post("/api/campaigns/:campaignId/advance-story", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const { choice, rollResult } = req.body;
+      
+      const currentSession = await storage.getCurrentSession(campaignId);
+      if (!currentSession) {
+        return res.status(404).json({ message: "No active session found" });
+      }
+
+      // Generate story continuation based on choice and previous context
+      const prompt = `
+Continue this D&D story based on the player's choice and maintain story continuity.
+
+Previous Session Context:
+${currentSession.previousSessionResult ? JSON.stringify(currentSession.previousSessionResult) : 'Beginning of adventure'}
+
+Current Story State:
+${JSON.stringify(currentSession.storyState || {})}
+
+Current Narrative:
+${currentSession.narrative}
+
+Player Choice Made: ${choice}
+Roll Result: ${rollResult ? `${rollResult.diceType} rolled ${rollResult.result} + ${rollResult.modifier || 0} = ${rollResult.total}` : 'No roll'}
+
+NPC Interactions in Progress:
+${JSON.stringify(currentSession.npcInteractions || {})}
+
+Generate the next story segment that:
+1. Directly addresses the outcome of their choice and roll
+2. Maintains continuity with previous events and NPCs
+3. Advances the story meaningfully
+4. Provides 3-4 new meaningful choices
+5. Updates NPC states if they were involved
+
+Respond with JSON:
+{
+  "narrative": "Next story segment for players",
+  "dmNarrative": "Fuller context for DM including behind-the-scenes info",
+  "choices": [{"text": "choice", "type": "action/dialogue/exploration", "difficulty": "easy/medium/hard"}],
+  "storyState": {"location": "", "activeNPCs": [], "plotPoints": [], "conditions": []},
+  "npcInteractions": {"npcName": {"mood": "", "relationship": "", "nextAction": ""}},
+  "consequencesOfChoice": "What happened as a result of the player's action"
+}`;
+
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+      });
+
+      const storyAdvancement = JSON.parse(response.choices[0].message.content);
+
+      // Update session with story advancement
+      const updatedSession = await storage.advanceSessionStory(campaignId, {
+        narrative: storyAdvancement.narrative,
+        dmNarrative: storyAdvancement.dmNarrative,
+        choices: storyAdvancement.choices,
+        storyState: storyAdvancement.storyState,
+        npcInteractions: storyAdvancement.npcInteractions,
+        playerChoicesMade: [...(currentSession.playerChoicesMade || []), {
+          choice,
+          rollResult,
+          timestamp: new Date().toISOString(),
+          consequences: storyAdvancement.consequencesOfChoice
+        }]
+      });
+
+      // Broadcast story update to all participants
+      broadcastMessage('story_advanced', {
+        campaignId,
+        narrative: storyAdvancement.narrative,
+        choices: storyAdvancement.choices,
+        playerChoice: choice,
+        rollResult
+      });
+
+      res.json(updatedSession);
+    } catch (error) {
+      console.error("Failed to advance story:", error);
+      res.status(500).json({ message: "Failed to advance story" });
+    }
+  });
+
+  // Generate quick content for DMs
+  app.post("/api/campaigns/:campaignId/generate-quick-content", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const { contentType, parameters } = req.body;
+      
+      // Verify DM permissions
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign || campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can generate quick content" });
+      }
+
+      const currentSession = await storage.getCurrentSession(campaignId);
+      
+      let prompt = "";
+      switch (contentType) {
+        case "encounter":
+          prompt = `Generate a random encounter for a D&D session.
+Current Context: ${currentSession?.narrative || 'Adventure in progress'}
+Location: ${currentSession?.storyState?.location || parameters.location || 'Current area'}
+Party Level: ${parameters.partyLevel || '1-3'}
+Difficulty: ${parameters.difficulty || 'medium'}
+
+Create an encounter with:
+- Description of the situation
+- Combat statistics if needed
+- Non-combat resolution options
+- Potential rewards
+
+Respond with JSON: {"type": "encounter", "title": "", "description": "", "combat": {}, "rewards": [], "nonCombatOptions": []}`;
+          break;
+        
+        case "loot":
+          prompt = `Generate magical items and treasure for a D&D session.
+Current Context: ${currentSession?.narrative || 'Adventure rewards'}
+Party Level: ${parameters.partyLevel || '1-3'}
+Value Tier: ${parameters.tier || 'common'}
+
+Create 3-5 items including:
+- Mix of magical items, gold, and consumables
+- Items appropriate for the story context
+- Interesting magical properties
+
+Respond with JSON: {"type": "loot", "items": [{"name": "", "type": "", "description": "", "value": "", "magical": true/false}]}`;
+          break;
+        
+        case "npc":
+          prompt = `Generate an NPC for immediate use in a D&D session.
+Current Context: ${currentSession?.narrative || 'Current scene'}
+NPC Role: ${parameters.role || 'helpful/neutral/hostile'}
+Location: ${currentSession?.storyState?.location || 'current area'}
+
+Create an NPC with:
+- Name, appearance, and personality
+- Motivation and goals
+- Knowledge they possess
+- How they react to the party
+
+Respond with JSON: {"type": "npc", "name": "", "appearance": "", "personality": "", "motivation": "", "knowledge": [], "attitude": ""}`;
+          break;
+        
+        default:
+          return res.status(400).json({ message: "Invalid content type" });
+      }
+
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+      });
+
+      const generatedContent = JSON.parse(response.choices[0].message.content);
+
+      // Save to session's quick content
+      await storage.addQuickContentToSession(campaignId, generatedContent);
+
+      res.json(generatedContent);
+    } catch (error) {
+      console.error("Failed to generate quick content:", error);
+      res.status(500).json({ message: "Failed to generate quick content" });
+    }
+  });
+
+  // Start combat scenario
+  app.post("/api/campaigns/:campaignId/start-combat", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const { enemies, environment } = req.body;
+      
+      // Verify DM permissions
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign || campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can start combat" });
+      }
+
+      // Get current participants for initiative order
+      const participants = await storage.getCampaignParticipants(campaignId);
+      
+      // Generate initiative order and combat state
+      const combatState = {
+        round: 1,
+        turn: 0,
+        participants: participants.map(p => ({
+          ...p,
+          initiative: Math.floor(Math.random() * 20) + 1,
+          hp: p.character?.hitPoints || 10,
+          maxHp: p.character?.maxHitPoints || 10,
+          conditions: []
+        })).sort((a, b) => b.initiative - a.initiative),
+        enemies: enemies.map((enemy: any) => ({
+          ...enemy,
+          initiative: Math.floor(Math.random() * 20) + 1,
+          hp: enemy.maxHp,
+          conditions: []
+        })),
+        environment: environment || {}
+      };
+
+      // Update session to combat mode
+      await storage.startCombat(campaignId, combatState);
+
+      // Broadcast combat start
+      broadcastMessage('combat_started', {
+        campaignId,
+        combatState,
+        message: "Combat has begun! Roll for initiative!"
+      });
+
+      res.json({ success: true, combatState });
+    } catch (error) {
+      console.error("Failed to start combat:", error);
+      res.status(500).json({ message: "Failed to start combat" });
+    }
+  });
+
+  // Handle combat actions
+  app.post("/api/campaigns/:campaignId/combat-action", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const { action, target, rollResult } = req.body;
+      
+      const currentSession = await storage.getCurrentSession(campaignId);
+      if (!currentSession?.isInCombat) {
+        return res.status(400).json({ message: "Not currently in combat" });
+      }
+
+      // Process the combat action with AI assistance
+      const prompt = `
+Process this combat action in D&D 5e:
+
+Action: ${action}
+Target: ${target || 'none'}
+Roll Result: ${rollResult ? `${rollResult.diceType} = ${rollResult.result} + ${rollResult.modifier || 0} = ${rollResult.total}` : 'no roll'}
+
+Current Combat State: ${JSON.stringify(currentSession.combatState)}
+
+Determine:
+1. Whether the action succeeds
+2. Damage/effects if applicable
+3. Updated combat state
+4. Narrative description of what happens
+5. Next choices for the current player
+
+Respond with JSON:
+{
+  "success": true/false,
+  "damage": number,
+  "effects": [],
+  "narrative": "What happens in the combat",
+  "updatedCombatState": {},
+  "nextChoices": [{"text": "", "type": "attack/spell/move", "description": ""}]
+}`;
+
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+      });
+
+      const combatResult = JSON.parse(response.choices[0].message.content);
+
+      // Update combat state
+      await storage.updateCombatState(campaignId, combatResult.updatedCombatState);
+
+      // Broadcast combat update
+      broadcastMessage('combat_action', {
+        campaignId,
+        action,
+        result: combatResult,
+        narrative: combatResult.narrative
+      });
+
+      res.json(combatResult);
+    } catch (error) {
+      console.error("Failed to process combat action:", error);
+      res.status(500).json({ message: "Failed to process combat action" });
+    }
+  });
+
   return httpServer;
 }
