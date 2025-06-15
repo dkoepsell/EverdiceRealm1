@@ -3907,5 +3907,61 @@ Respond with JSON:
     }
   });
 
+  // Chat API Routes
+  app.get("/api/chat/messages/:channel", isAuthenticated, async (req, res) => {
+    try {
+      const { channel } = req.params;
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      const messages = await storage.getChatMessages(channel, limit);
+      res.json(messages);
+    } catch (error) {
+      console.error("Failed to fetch chat messages:", error);
+      res.status(500).json({ message: "Failed to fetch chat messages" });
+    }
+  });
+
+  app.post("/api/chat/messages", isAuthenticated, async (req, res) => {
+    try {
+      const messageData = insertChatMessageSchema.parse(req.body);
+      const message = await storage.createChatMessage(messageData);
+      res.status(201).json(message);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid message data", errors: error.errors });
+      } else {
+        console.error("Failed to create chat message:", error);
+        res.status(500).json({ message: "Failed to create chat message" });
+      }
+    }
+  });
+
+  app.get("/api/chat/online-users", isAuthenticated, async (req, res) => {
+    try {
+      const onlineUsers = await storage.getOnlineUsers();
+      res.json(onlineUsers);
+    } catch (error) {
+      console.error("Failed to fetch online users:", error);
+      res.status(500).json({ message: "Failed to fetch online users" });
+    }
+  });
+
+  app.post("/api/chat/user-status", isAuthenticated, async (req, res) => {
+    try {
+      const { userId, username, isOnline, campaignId } = req.body;
+      
+      await storage.updateUserOnlineStatus(userId, username, isOnline);
+      
+      if (campaignId !== undefined) {
+        await storage.setUserCurrentCampaign(userId, campaignId);
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to update user status:", error);
+      res.status(500).json({ message: "Failed to update user status" });
+    }
+  });
+
   return httpServer;
 }

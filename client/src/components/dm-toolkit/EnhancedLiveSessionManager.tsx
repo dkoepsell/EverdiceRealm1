@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import QuickPlayerInvitation from "./QuickPlayerInvitation";
+import UniversalChat from "@/components/chat/UniversalChat";
 import {
   Card,
   CardContent,
@@ -292,12 +293,13 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="session-view">Live Session</TabsTrigger>
           <TabsTrigger value="story-control">Story Control</TabsTrigger>
           <TabsTrigger value="quick-content">Quick Content</TabsTrigger>
           <TabsTrigger value="combat">Combat Manager</TabsTrigger>
           <TabsTrigger value="invitations">Invite Players</TabsTrigger>
+          <TabsTrigger value="chat">Chat</TabsTrigger>
         </TabsList>
 
         {/* Live Session View - Issue #2: DM visibility into what players see */}
@@ -706,6 +708,17 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
               campaignTitle={selectedCampaign.title}
             />
           )}
+        </TabsContent>
+
+        {/* Chat Tab - Universal chat system */}
+        <TabsContent value="chat" className="space-y-4">
+          <div className="flex justify-center">
+            <UniversalChat 
+              currentCampaignId={selectedCampaignId || undefined}
+              currentCampaignTitle={selectedCampaign?.title}
+              className="w-full max-w-4xl"
+            />
+          </div>
         </TabsContent>
       </Tabs>
 

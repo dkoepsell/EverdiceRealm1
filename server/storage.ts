@@ -97,6 +97,13 @@ export interface IStorage {
   createLearningContent(content: InsertLearningContent): Promise<LearningContent>;
   updateLearningContent(id: number, content: Partial<LearningContent>): Promise<LearningContent | undefined>;
   deleteLearningContent(id: number): Promise<boolean>;
+
+  // Chat operations
+  getChatMessages(channel: string, limit?: number): Promise<ChatMessage[]>;
+  createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
+  getOnlineUsers(): Promise<OnlineUser[]>;
+  updateUserOnlineStatus(userId: number, username: string, isOnline: boolean): Promise<void>;
+  setUserCurrentCampaign(userId: number, campaignId?: number): Promise<void>;
   
   // Adventure Template operations
   getAllAdventureTemplates(): Promise<AdventureTemplate[]>;
