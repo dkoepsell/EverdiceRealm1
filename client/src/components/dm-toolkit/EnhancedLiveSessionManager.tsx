@@ -85,8 +85,9 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
   
   // Combat management states
   const [showCombatDialog, setShowCombatDialog] = useState(false);
-  const [combatEnemies, setCombatEnemies] = useState<any[]>([{ name: "", maxHp: 10, ac: 12 }]);
+  const [combatEnemies, setCombatEnemies] = useState<any[]>([{ name: "", maxHp: 10, ac: 12, type: "custom" }]);
   const [combatEnvironment, setCombatEnvironment] = useState("");
+  const [selectedMonsters, setSelectedMonsters] = useState<any[]>([]);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -106,6 +107,11 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
   const { data: selectedCampaign } = useQuery({
     queryKey: [`/api/campaigns/${selectedCampaignId}`],
     enabled: !!selectedCampaignId,
+  });
+
+  const { data: availableMonsters } = useQuery({
+    queryKey: ['/api/monsters'],
+    enabled: showCombatDialog,
   });
 
   // Story advancement mutation
@@ -263,17 +269,49 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
     });
   };
 
+  // Handle adding existing monsters to combat
+  const handleAddMonster = (monster: any) => {
+    const monsterEnemy = {
+      name: monster.name,
+      maxHp: monster.hitPoints || 30,
+      ac: monster.armorClass || 12,
+      type: "monster",
+      monsterId: monster.id,
+      challengeRating: monster.challengeRating,
+      actions: monster.actions,
+      abilities: {
+        strength: monster.strength,
+        dexterity: monster.dexterity,
+        constitution: monster.constitution,
+        intelligence: monster.intelligence,
+        wisdom: monster.wisdom,
+        charisma: monster.charisma
+      }
+    };
+    
+    setSelectedMonsters([...selectedMonsters, monsterEnemy]);
+  };
+
+  // Handle removing monster from combat
+  const handleRemoveMonster = (index: number) => {
+    const newSelectedMonsters = selectedMonsters.filter((_, i) => i !== index);
+    setSelectedMonsters(newSelectedMonsters);
+  };
+
   const handleStartCombat = () => {
-    if (combatEnemies.length === 0) {
+    const customEnemies = combatEnemies.filter(e => e.name && e.type === "custom");
+    const allEnemies = [...customEnemies, ...selectedMonsters];
+    
+    if (allEnemies.length === 0) {
       toast({
         title: "No Enemies",
-        description: "Please add at least one enemy to start combat.",
+        description: "Please add at least one enemy or monster to start combat.",
         variant: "destructive",
       });
       return;
     }
     
-    startCombatMutation.mutate({ enemies: combatEnemies, environment: combatEnvironment });
+    startCombatMutation.mutate({ enemies: allEnemies, environment: combatEnvironment });
   };
 
   if (!selectedCampaignId) {
@@ -843,8 +881,64 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
               />
             </div>
             
+            {/* Existing Monsters Section */}
             <div>
-              <Label>Enemies</Label>
+              <Label>Add Existing Monsters</Label>
+              <div className="max-h-48 overflow-y-auto border rounded-md p-2 space-y-2">
+                {availableMonsters && availableMonsters.length > 0 ? (
+                  availableMonsters.map((monster: any) => (
+                    <div key={monster.id} className="flex items-center justify-between p-2 border rounded hover:bg-muted/50">
+                      <div className="flex-1">
+                        <div className="font-medium">{monster.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          CR {monster.challengeRating} • HP {monster.hitPoints} • AC {monster.armorClass}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleAddMonster(monster)}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center text-muted-foreground py-4">
+                    No monsters available
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Selected Monsters Display */}
+            {selectedMonsters.length > 0 && (
+              <div>
+                <Label>Selected Monsters</Label>
+                <div className="space-y-2">
+                  {selectedMonsters.map((monster, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 border rounded bg-blue-50">
+                      <div>
+                        <div className="font-medium">{monster.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          HP {monster.maxHp} • AC {monster.ac} • CR {monster.challengeRating}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleRemoveMonster(index)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <Label>Custom Enemies</Label>
               <div className="space-y-2">
                 {combatEnemies.map((enemy, index) => (
                   <div key={index} className="grid grid-cols-3 gap-2">
@@ -883,11 +977,11 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
               
               <Button
                 variant="outline"
-                onClick={() => setCombatEnemies([...combatEnemies, { name: "", maxHp: 10, ac: 12 }])}
+                onClick={() => setCombatEnemies([...combatEnemies, { name: "", maxHp: 10, ac: 12, type: "custom" }])}
                 className="w-full mt-2"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Enemy
+                Add Custom Enemy
               </Button>
             </div>
             
