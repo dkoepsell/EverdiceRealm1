@@ -19,6 +19,8 @@ import {
   insertQuestSchema,
   insertMagicItemSchema,
   insertMonsterSchema,
+  insertChatMessageSchema,
+  insertOnlineUserSchema,
   npcs,
   users,
   campaigns,
@@ -26,7 +28,9 @@ import {
   locations,
   quests,
   magicItems,
-  monsters
+  monsters,
+  chatMessages,
+  onlineUsers
 } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";

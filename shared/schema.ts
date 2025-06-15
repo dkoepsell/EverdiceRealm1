@@ -498,15 +498,18 @@ export const insertMonsterSchema = createInsertSchema(monsters).omit({
 export type InsertMonster = z.infer<typeof insertMonsterSchema>;
 export type Monster = typeof monsters.$inferSelect;
 
-// Universal Chat Messages
+// Chat Messages - Both global and campaign-specific
 export const chatMessages = pgTable("chat_messages", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   username: text("username").notNull(),
+  displayName: text("display_name"),
   message: text("message").notNull(),
-  messageType: text("message_type").notNull().default("text"), // text, campaign-link, system
-  campaignId: integer("campaign_id"), // Optional - for campaign link messages
-  campaignTitle: text("campaign_title"), // Optional - for campaign link messages
+  messageType: text("message_type").notNull().default("text"), // text, campaign-link, system, dice-roll
+  channelType: text("channel_type").notNull().default("global"), // global, campaign
+  campaignId: integer("campaign_id"), // Required for campaign channels, optional for global
+  campaignTitle: text("campaign_title"), // For campaign link sharing
+  diceRoll: jsonb("dice_roll"), // For dice roll messages
   isEdited: boolean("is_edited").default(false),
   editedAt: text("edited_at"),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
