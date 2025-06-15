@@ -72,6 +72,11 @@ export interface IStorage {
   getCampaignSession(campaignId: number, sessionNumber: number): Promise<CampaignSession | undefined>;
   getCampaignSessions(campaignId: number): Promise<CampaignSession[]>;
   createCampaignSession(session: InsertCampaignSession): Promise<CampaignSession>;
+  getCurrentSession(campaignId: number): Promise<CampaignSession | undefined>;
+  advanceSessionStory(campaignId: number, storyData: any): Promise<CampaignSession>;
+  addQuickContentToSession(campaignId: number, content: any): Promise<void>;
+  startCombat(campaignId: number, combatState: any): Promise<void>;
+  updateCombatState(campaignId: number, combatState: any): Promise<void>;
   
   // Dice Roll operations
   createDiceRoll(diceRoll: InsertDiceRoll): Promise<DiceRoll>;
@@ -1407,6 +1412,95 @@ export class DatabaseStorage implements IStorage {
       purpose: "Damage",
       createdAt: new Date().toISOString()
     });
+  }
+
+  // Enhanced live session management methods
+  async getCurrentSession(campaignId: number): Promise<CampaignSession | undefined> {
+    const [session] = await db
+      .select()
+      .from(campaignSessions)
+      .where(and(
+        eq(campaignSessions.campaignId, campaignId),
+        eq(campaignSessions.isCompleted, false)
+      ))
+      .orderBy(desc(campaignSessions.sessionNumber))
+      .limit(1);
+    return session;
+  }
+
+  async advanceSessionStory(campaignId: number, storyData: any): Promise<CampaignSession> {
+    const currentSession = await this.getCurrentSession(campaignId);
+    if (!currentSession) {
+      throw new Error("No active session found");
+    }
+
+    const [updatedSession] = await db
+      .update(campaignSessions)
+      .set({
+        narrative: storyData.narrative,
+        dmNarrative: storyData.dmNarrative,
+        choices: storyData.choices,
+        storyState: storyData.storyState,
+        npcInteractions: storyData.npcInteractions,
+        playerChoicesMade: storyData.playerChoicesMade,
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(campaignSessions.id, currentSession.id))
+      .returning();
+
+    return updatedSession;
+  }
+
+  async addQuickContentToSession(campaignId: number, content: any): Promise<void> {
+    const currentSession = await this.getCurrentSession(campaignId);
+    if (!currentSession) {
+      throw new Error("No active session found");
+    }
+
+    const existingContent = currentSession.quickContentGenerated || [];
+    const updatedContent = [...existingContent, {
+      ...content,
+      timestamp: new Date().toISOString()
+    }];
+
+    await db
+      .update(campaignSessions)
+      .set({
+        quickContentGenerated: updatedContent,
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(campaignSessions.id, currentSession.id));
+  }
+
+  async startCombat(campaignId: number, combatState: any): Promise<void> {
+    const currentSession = await this.getCurrentSession(campaignId);
+    if (!currentSession) {
+      throw new Error("No active session found");
+    }
+
+    await db
+      .update(campaignSessions)
+      .set({
+        isInCombat: true,
+        combatState: combatState,
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(campaignSessions.id, currentSession.id));
+  }
+
+  async updateCombatState(campaignId: number, combatState: any): Promise<void> {
+    const currentSession = await this.getCurrentSession(campaignId);
+    if (!currentSession) {
+      throw new Error("No active session found");
+    }
+
+    await db
+      .update(campaignSessions)
+      .set({
+        combatState: combatState,
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(campaignSessions.id, currentSession.id));
   }
 }
 

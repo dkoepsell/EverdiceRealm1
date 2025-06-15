@@ -76,11 +76,31 @@ export default function LiveCampaignManagerTab({
   selectedCampaignId, 
   onCampaignSelect 
 }: LiveCampaignManagerTabProps) {
-  const [activeManagerTab, setActiveManagerTab] = useState("overview");
-  const [showCreateSessionDialog, setShowCreateSessionDialog] = useState(false);
-  const [sessionName, setSessionName] = useState("");
-  const [sessionDescription, setSessionDescription] = useState("");
-  const [sessionType, setSessionType] = useState("");
+  const [activeManagerTab, setActiveManagerTab] = useState("live-session");
+  
+  // Live session management states
+  const [currentSession, setCurrentSession] = useState<any>(null);
+  const [playerChoice, setPlayerChoice] = useState("");
+  const [rollResult, setRollResult] = useState<any>(null);
+  const [isAdvancingStory, setIsAdvancingStory] = useState(false);
+  
+  // Quick content generation states
+  const [showQuickContentDialog, setShowQuickContentDialog] = useState(false);
+  const [quickContentType, setQuickContentType] = useState("");
+  const [quickContentParams, setQuickContentParams] = useState<any>({});
+  const [generatedContent, setGeneratedContent] = useState<any>(null);
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+  
+  // Combat management states
+  const [showCombatDialog, setShowCombatDialog] = useState(false);
+  const [combatEnemies, setCombatEnemies] = useState<any[]>([]);
+  const [combatEnvironment, setCombatEnvironment] = useState("");
+  const [isInCombat, setIsInCombat] = useState(false);
+  const [combatState, setCombatState] = useState<any>(null);
+  
+  // Session tracking states
+  const [dmNotes, setDmNotes] = useState("");
+  const [sessionLog, setSessionLog] = useState<any[]>([]);
   
   // Content creation and editing states
   const [showContentDialog, setShowContentDialog] = useState(false);
