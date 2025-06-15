@@ -497,3 +497,43 @@ export const insertMonsterSchema = createInsertSchema(monsters).omit({
 
 export type InsertMonster = z.infer<typeof insertMonsterSchema>;
 export type Monster = typeof monsters.$inferSelect;
+
+// Universal Chat Messages
+export const chatMessages = pgTable("chat_messages", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  username: text("username").notNull(),
+  message: text("message").notNull(),
+  messageType: text("message_type").notNull().default("text"), // text, campaign-link, system
+  campaignId: integer("campaign_id"), // Optional - for campaign link messages
+  campaignTitle: text("campaign_title"), // Optional - for campaign link messages
+  isEdited: boolean("is_edited").default(false),
+  editedAt: text("edited_at"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
+  id: true,
+});
+
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+
+// Online Users tracking
+export const onlineUsers = pgTable("online_users", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().unique(),
+  username: text("username").notNull(),
+  displayName: text("display_name"),
+  lastSeen: text("last_seen").notNull(),
+  socketId: text("socket_id"),
+  isInCampaign: boolean("is_in_campaign").default(false),
+  currentCampaignId: integer("current_campaign_id"),
+});
+
+export const insertOnlineUserSchema = createInsertSchema(onlineUsers).omit({
+  id: true,
+});
+
+export type InsertOnlineUser = z.infer<typeof insertOnlineUserSchema>;
+export type OnlineUser = typeof onlineUsers.$inferSelect;
