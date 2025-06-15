@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import QuickPlayerInvitation from "./QuickPlayerInvitation";
 import {
   Card,
   CardContent,
@@ -98,6 +99,11 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
 
   const { data: participants } = useQuery({
     queryKey: [`/api/campaigns/${selectedCampaignId}/participants`],
+    enabled: !!selectedCampaignId,
+  });
+
+  const { data: selectedCampaign } = useQuery({
+    queryKey: [`/api/campaigns/${selectedCampaignId}`],
     enabled: !!selectedCampaignId,
   });
 
@@ -286,11 +292,12 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="session-view">Live Session</TabsTrigger>
           <TabsTrigger value="story-control">Story Control</TabsTrigger>
           <TabsTrigger value="quick-content">Quick Content</TabsTrigger>
           <TabsTrigger value="combat">Combat Manager</TabsTrigger>
+          <TabsTrigger value="invitations">Invite Players</TabsTrigger>
         </TabsList>
 
         {/* Live Session View - Issue #2: DM visibility into what players see */}
@@ -688,6 +695,16 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
                 </div>
               </CardContent>
             </Card>
+          )}
+        </TabsContent>
+
+        {/* Player Invitations Tab - Quick player invitation system */}
+        <TabsContent value="invitations" className="space-y-4">
+          {selectedCampaign && (
+            <QuickPlayerInvitation 
+              campaignId={selectedCampaignId}
+              campaignTitle={selectedCampaign.title}
+            />
           )}
         </TabsContent>
       </Tabs>
