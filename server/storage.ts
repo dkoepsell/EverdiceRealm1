@@ -17,7 +17,10 @@ import {
   campaignNpcs, type CampaignNpc, type InsertCampaignNpc,
   // Live Campaign Management imports
   campaignInvitations, type CampaignInvitation, type InsertCampaignInvitation,
-  dmNotes, type DmNote, type InsertDmNote
+  dmNotes, type DmNote, type InsertDmNote,
+  // Chat system imports
+  chatMessages, type ChatMessage, type InsertChatMessage,
+  onlineUsers, type OnlineUser, type InsertOnlineUser
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or } from "drizzle-orm";
@@ -1508,6 +1511,86 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date().toISOString()
       })
       .where(eq(campaignSessions.id, currentSession.id));
+  }
+
+  // Chat operations
+  async getChatMessages(channel: string, limit: number = 50): Promise<ChatMessage[]> {
+    const [channelType, channelId] = channel.split('-');
+    
+    let whereClause;
+    if (channelType === 'campaign' && channelId) {
+      whereClause = and(
+        eq(chatMessages.channelType, 'campaign'),
+        eq(chatMessages.campaignId, parseInt(channelId))
+      );
+    } else {
+      whereClause = eq(chatMessages.channelType, 'global');
+    }
+
+    const messages = await db
+      .select()
+      .from(chatMessages)
+      .where(whereClause)
+      .orderBy(desc(chatMessages.createdAt))
+      .limit(limit);
+
+    return messages.reverse();
+  }
+
+  async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
+    const [newMessage] = await db
+      .insert(chatMessages)
+      .values({
+        ...message,
+        createdAt: new Date().toISOString()
+      })
+      .returning();
+
+    return newMessage;
+  }
+
+  async getOnlineUsers(): Promise<OnlineUser[]> {
+    // Clean up old entries (users offline for more than 5 minutes)
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    await db
+      .delete(onlineUsers)
+      .where(sql`${onlineUsers.lastSeen} < ${fiveMinutesAgo}`);
+
+    return await db.select().from(onlineUsers);
+  }
+
+  async updateUserOnlineStatus(userId: number, username: string, isOnline: boolean): Promise<void> {
+    if (isOnline) {
+      await db
+        .insert(onlineUsers)
+        .values({
+          userId,
+          username,
+          isInCampaign: false,
+          lastSeen: new Date().toISOString()
+        })
+        .onConflictDoUpdate({
+          target: onlineUsers.userId,
+          set: {
+            lastSeen: new Date().toISOString()
+          }
+        });
+    } else {
+      await db
+        .delete(onlineUsers)
+        .where(eq(onlineUsers.userId, userId));
+    }
+  }
+
+  async setUserCurrentCampaign(userId: number, campaignId?: number): Promise<void> {
+    await db
+      .update(onlineUsers)
+      .set({
+        isInCampaign: !!campaignId,
+        currentCampaignId: campaignId || null,
+        lastSeen: new Date().toISOString()
+      })
+      .where(eq(onlineUsers.userId, userId));
   }
 }
 
