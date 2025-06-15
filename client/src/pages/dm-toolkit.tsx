@@ -86,6 +86,7 @@ import InvitationsTab from "@/components/dm-toolkit/InvitationsTab";
 import NotesTabSimple from "@/components/dm-toolkit/NotesTabSimple";
 import AIAssistedDMGuide from "@/components/dm-toolkit/AIAssistedDMGuide";
 import LiveCampaignManagerTab from "@/components/dm-toolkit/LiveCampaignManagerTab";
+import EnhancedLiveSessionManager from "@/components/dm-toolkit/EnhancedLiveSessionManager";
 import DMTrainingCenterTab from "@/components/dm-toolkit/DMTrainingCenterTab";
 
 export default function DMToolkit() {
