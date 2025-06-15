@@ -359,10 +359,7 @@ export default function DMToolkit() {
         </TabsContent>
         
         <TabsContent value="live-manager" className="space-y-4">
-          <LiveCampaignManagerTab 
-            selectedCampaignId={selectedCampaignId}
-            onCampaignSelect={setSelectedCampaignId}
-          />
+          <EnhancedLiveSessionManager selectedCampaignId={selectedCampaignId} />
         </TabsContent>
         
         <TabsContent value="companions" className="space-y-4">
