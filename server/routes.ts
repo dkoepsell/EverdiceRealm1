@@ -1092,7 +1092,7 @@ Return your response as a JSON object with these fields:
     }
   });
 
-  // AI Scene Generation for Live Sessions
+  // AI Scene Generation for Live Sessions with Skill Check Embedding
   app.post("/api/campaigns/:id/generate-scene", async (req, res) => {
     try {
       const campaignId = parseInt(req.params.id);
@@ -1109,10 +1109,23 @@ Return your response as a JSON object with these fields:
       }
 
       // Get current session for additional context
-      const currentSession = await storage.getCurrentCampaignSession(campaignId);
+      const currentSession = await storage.getCampaignSession(campaignId, campaign.currentSession);
       
       // Get campaign participants for NPC context
       const participants = await storage.getCampaignParticipants(campaignId);
+
+      // Handle structured player action data with skill checks
+      const isStructuredAction = typeof playerAction === 'object' && playerAction.description;
+      const actionDescription = isStructuredAction ? playerAction.description : playerAction;
+      const skillCheck = isStructuredAction ? playerAction.skill_check : null;
+
+      // Build skill check continuation prompt
+      let skillCheckContinuation = "";
+      if (skillCheck) {
+        skillCheckContinuation = `
+PLAYER ACTION CARRIED FORWARD:
+Last session, a player made a ${skillCheck.skill} check targeting "${skillCheck.target}" with the intent to ${skillCheck.intent}. The result was ${skillCheck.result}. This moment must carry forward - begin the next scene by reflecting how this influences the situation and the group's next steps. Do not ignore this previous choice.`;
+      }
 
       const scenePrompt = `
 You are a fantasy RPG narrator working with a live Dungeon Master. Generate the next scene for the DM to describe.
@@ -1124,11 +1137,16 @@ Campaign Context:
 - Current Location: ${currentLocation || "Unknown Location"}
 
 Current Situation: ${context}
-Last Player Action: ${playerAction}
+Last Player Action: ${actionDescription}
+
+${skillCheckContinuation}
 
 ${currentSession ? `Previous Scene: ${currentSession.narrative}` : ''}
 
 ${participants?.length > 0 ? `Active NPCs/Characters: ${participants.map(p => p.character?.name || 'Unknown').join(', ')}` : ''}
+
+CRITICAL INSTRUCTIONS:
+You must carry forward the effects of player skill checks or major decisions. If players succeeded in a skill check, those effects should influence NPC behavior, environment changes, or story progression. Do not ignore previous choices. Refer to the result and build new tension from it.
 
 TASK: Generate the next scene for the DM to describe, including:
 - Vivid location description
@@ -1136,25 +1154,26 @@ TASK: Generate the next scene for the DM to describe, including:
 - Narrative development based on the player action
 - Three meaningful player options or events
 
-Respond in structured JSON format:
+Respond in structured JSON format for structured consequence tracking:
 {
-  "scene": "Detailed description of what happens next (3-4 paragraphs)",
+  "scene": "Detailed description of what happens next reflecting the skill check outcome (3-4 paragraphs)",
   "npc_reactions": {
-    "npc_name": "reaction description"
+    "npc_name": "reaction description showing how they respond to the skill check result"
   },
-  "environment": "Updated environment description",
+  "environment": "Updated environment description showing changes from player actions",
   "options": [
     {
       "label": "Action description",
-      "type": "exploration|dialogue|risk|combat",
+      "path_type": "Exploration|Magic|Stealth|Combat|Dialogue",
       "effect": "Brief description of potential outcome",
+      "consequence": "Specific result of choosing this path",
       "requiresDiceRoll": boolean,
       "diceType": "d20|d6|etc (if dice roll required)",
       "rollDC": number,
       "rollPurpose": "What the roll is for"
     }
   ],
-  "dmNotes": "Private notes for the DM about consequences, hidden information, or plot hooks"
+  "dmNotes": "Private notes for the DM about consequences, hidden information, or plot hooks arising from the skill check"
 }`;
 
       const openaiClient = new OpenAI({ 

@@ -1,0 +1,53 @@
+1. Embed Skill Check Results into the Prompt
+When a player makes a skill check (e.g., Animal Handling), you must pass both the check type and the result to the next session’s prompt as structured input.
+
+Add this to your session_data:
+json
+Copy
+Edit
+"player_action": {
+  "skill": "Animal Handling",
+  "result": "Success",
+  "target": "Shadow Wolf Pack",
+  "intent": "To calm or communicate with the wolves rather than fight them"
+}
+Then integrate it into the prompt:
+text
+Copy
+Edit
+PLAYER ACTION CARRIED FORWARD:
+Last session, Thorne made an Animal Handling check to calm a trio of shadow-infused wolves. The result was a success. The wolves hesitated, showing signs of recognition and confusion. This moment should carry forward. Begin the next session by reflecting how this influences the wolves' behavior and the group's next steps.
+🛠️ 2. Update Your Prompt Template to Expect Action Continuity
+Modify your base template to force GPT to incorporate prior choices like this:
+
+📌 Add to your prompt logic:
+text
+Copy
+Edit
+You must carry forward the effects of player skill checks or major decisions. If the players succeeded in an Animal Handling check to pacify wolves, those wolves may follow, flee, offer clues, or connect emotionally. Do not ignore previous choices. Refer to the result and build new tension from it.
+🔁 3. Optional: Enforce Consequence Output (in JSON)
+If you're rendering this into a UI or game engine, enforce structured tracking of consequences:
+
+json
+Copy
+Edit
+{
+  "scene": "As the mists part, the wolves lower their heads slightly, tails flicking in conflicted tension. One pads forward, ears twitching, sniffing the air around Thorne before letting out a low whine. Elowen watches silently. A bond — faint but present — now holds.",
+  "choices": [
+    {
+      "label": "Follow the wolves into the mist",
+      "path_type": "Exploration",
+      "consequence": "The wolves guide you to a hidden glade where corruption has spread"
+    },
+    {
+      "label": "Ask Elowen to commune with them",
+      "path_type": "Magic",
+      "consequence": "Learn of an ancient pact broken by the grove’s guardians"
+    },
+    {
+      "label": "Leave them and press onward",
+      "path_type": "Stealth",
+      "consequence": "You travel undetected but miss the wolves’ warning about what's ahead"
+    }
+  ]
+}

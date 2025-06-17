@@ -95,6 +95,10 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
   const [showSceneGenerationDialog, setShowSceneGenerationDialog] = useState(false);
   const [sceneContext, setSceneContext] = useState("");
   const [lastPlayerAction, setLastPlayerAction] = useState("");
+  const [skillCheckType, setSkillCheckType] = useState("");
+  const [skillCheckResult, setSkillCheckResult] = useState("");
+  const [skillCheckTarget, setSkillCheckTarget] = useState("");
+  const [skillCheckIntent, setSkillCheckIntent] = useState("");
   const [generatedScene, setGeneratedScene] = useState<any>(null);
   const [isGeneratingScene, setIsGeneratingScene] = useState(false);
   
@@ -356,7 +360,7 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
     startCombatMutation.mutate({ enemies: allEnemies, environment: combatEnvironment });
   };
 
-  // Handle AI scene generation
+  // Handle AI scene generation with skill check embedding
   const handleGenerateScene = () => {
     if (!sceneContext.trim() || !lastPlayerAction.trim()) {
       toast({
@@ -367,9 +371,20 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
       return;
     }
 
+    // Build structured player action data
+    const playerActionData = {
+      description: lastPlayerAction,
+      skill_check: skillCheckType ? {
+        skill: skillCheckType,
+        result: skillCheckResult,
+        target: skillCheckTarget,
+        intent: skillCheckIntent
+      } : null
+    };
+
     generateSceneMutation.mutate({
       context: sceneContext,
-      playerAction: lastPlayerAction,
+      playerAction: playerActionData,
       currentLocation: liveSession?.dmView?.currentLocation || "Unknown Location"
     });
   };
@@ -686,6 +701,90 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
                     onChange={(e) => setLastPlayerAction(e.target.value)}
                     rows={4}
                   />
+                </div>
+              </div>
+
+              {/* Skill Check Details Section */}
+              <div className="border rounded-lg p-4 bg-muted/30">
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <Dice6 className="h-4 w-4" />
+                  Skill Check Details (Optional)
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div>
+                    <Label htmlFor="skill-check-type">Skill Check Type</Label>
+                    <Select onValueChange={setSkillCheckType} value={skillCheckType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select skill" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Animal Handling">Animal Handling</SelectItem>
+                        <SelectItem value="Arcana">Arcana</SelectItem>
+                        <SelectItem value="Athletics">Athletics</SelectItem>
+                        <SelectItem value="Deception">Deception</SelectItem>
+                        <SelectItem value="History">History</SelectItem>
+                        <SelectItem value="Insight">Insight</SelectItem>
+                        <SelectItem value="Intimidation">Intimidation</SelectItem>
+                        <SelectItem value="Investigation">Investigation</SelectItem>
+                        <SelectItem value="Medicine">Medicine</SelectItem>
+                        <SelectItem value="Nature">Nature</SelectItem>
+                        <SelectItem value="Perception">Perception</SelectItem>
+                        <SelectItem value="Performance">Performance</SelectItem>
+                        <SelectItem value="Persuasion">Persuasion</SelectItem>
+                        <SelectItem value="Religion">Religion</SelectItem>
+                        <SelectItem value="Sleight of Hand">Sleight of Hand</SelectItem>
+                        <SelectItem value="Stealth">Stealth</SelectItem>
+                        <SelectItem value="Survival">Survival</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="skill-check-result">Result</Label>
+                    <Select onValueChange={setSkillCheckResult} value={skillCheckResult}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Success/Failure" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Critical Success">Critical Success</SelectItem>
+                        <SelectItem value="Success">Success</SelectItem>
+                        <SelectItem value="Failure">Failure</SelectItem>
+                        <SelectItem value="Critical Failure">Critical Failure</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="skill-check-target">Target/Object</Label>
+                    <Input
+                      id="skill-check-target"
+                      placeholder="e.g., Shadow Wolf Pack"
+                      value={skillCheckTarget}
+                      onChange={(e) => setSkillCheckTarget(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="skill-check-intent">Player Intent</Label>
+                    <Input
+                      id="skill-check-intent"
+                      placeholder="e.g., Calm the wolves"
+                      value={skillCheckIntent}
+                      onChange={(e) => setSkillCheckIntent(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end mt-3">
+                  <Button
+                    onClick={() => {
+                      setSkillCheckType("");
+                      setSkillCheckResult("");
+                      setSkillCheckTarget("");
+                      setSkillCheckIntent("");
+                    }}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Clear Results
+                  </Button>
                 </div>
               </div>
 
