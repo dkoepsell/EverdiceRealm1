@@ -64,6 +64,8 @@ import {
   RefreshCw,
   Send,
   Wand2,
+  X,
+  Brain,
 } from "lucide-react";
 
 interface EnhancedLiveSessionManagerProps {
@@ -88,6 +90,13 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
   const [combatEnemies, setCombatEnemies] = useState<any[]>([{ name: "", maxHp: 10, ac: 12, type: "custom" }]);
   const [combatEnvironment, setCombatEnvironment] = useState("");
   const [selectedMonsters, setSelectedMonsters] = useState<any[]>([]);
+  
+  // AI-powered scene generation states
+  const [showSceneGenerationDialog, setShowSceneGenerationDialog] = useState(false);
+  const [sceneContext, setSceneContext] = useState("");
+  const [lastPlayerAction, setLastPlayerAction] = useState("");
+  const [generatedScene, setGeneratedScene] = useState<any>(null);
+  const [isGeneratingScene, setIsGeneratingScene] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -249,6 +258,39 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
     },
   });
 
+  // AI scene generation mutation
+  const generateSceneMutation = useMutation({
+    mutationFn: async ({ context, playerAction, currentLocation }: { context: string; playerAction: string; currentLocation?: string }) => {
+      const response = await fetch(`/api/campaigns/${selectedCampaignId}/generate-scene`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ context, playerAction, currentLocation }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to generate scene');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setGeneratedScene(data.scene);
+      toast({
+        title: "Scene Generated",
+        description: "AI has created your next scene with dynamic options.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Generation Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAdvanceStory = () => {
     if (!playerChoice.trim()) {
       toast({
@@ -312,6 +354,40 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
     }
     
     startCombatMutation.mutate({ enemies: allEnemies, environment: combatEnvironment });
+  };
+
+  // Handle AI scene generation
+  const handleGenerateScene = () => {
+    if (!sceneContext.trim() || !lastPlayerAction.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide both scene context and the last player action.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    generateSceneMutation.mutate({
+      context: sceneContext,
+      playerAction: lastPlayerAction,
+      currentLocation: liveSession?.dmView?.currentLocation || "Unknown Location"
+    });
+  };
+
+  // Handle applying generated scene to session
+  const handleApplyGeneratedScene = (selectedOption?: any) => {
+    if (!generatedScene) return;
+
+    const sceneNarrative = generatedScene.scene;
+    const chosenOption = selectedOption || generatedScene.options?.[0];
+
+    advanceStoryMutation.mutate({
+      choice: `AI Generated Scene: ${sceneNarrative}${chosenOption ? ` | Selected: ${chosenOption.label}` : ''}`,
+      rollResult: null
+    });
+
+    setGeneratedScene(null);
+    setShowSceneGenerationDialog(false);
   };
 
   if (!selectedCampaignId) {
