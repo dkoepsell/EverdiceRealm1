@@ -844,13 +844,18 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
                                 <p className="text-xs text-muted-foreground">{option.effect}</p>
                               </div>
                               <div className="flex items-center gap-2 text-xs">
-                                <Badge variant="outline">{option.type}</Badge>
+                                <Badge variant="outline">{option.path_type || option.type}</Badge>
                                 {option.requiresDiceRoll && (
                                   <Badge variant="secondary">
                                     {option.diceType} DC{option.rollDC}
                                   </Badge>
                                 )}
                               </div>
+                              {option.consequence && (
+                                <p className="text-xs text-blue-600 mt-1">
+                                  <strong>Consequence:</strong> {option.consequence}
+                                </p>
+                              )}
                             </div>
                           </div>
                         ))}
