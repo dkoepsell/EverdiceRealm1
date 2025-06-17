@@ -66,7 +66,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('WebSocket client connected');
     activeConnections.add(ws);
     
-    ws.on('message', (message: WebSocket.Data) => {
+    ws.on('message', (message: any) => {
       try {
         const data = JSON.parse(message.toString());
         console.log('Received WebSocket message:', data);
