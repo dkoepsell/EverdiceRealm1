@@ -77,10 +77,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Create WebSocket connection after login
       try {
-        const wsModule = require('../lib/websocket');
-        if (wsModule && wsModule.createWSConnection) {
-          wsModule.createWSConnection(true);
-        }
+        import('../lib/websocket').then(wsModule => {
+          if (wsModule && wsModule.createWSConnection) {
+            wsModule.createWSConnection(true);
+          }
+        }).catch(err => {
+          console.error('Failed to initialize WebSocket after login:', err);
+        });
       } catch (err) {
         console.error('Failed to initialize WebSocket after login:', err);
       }
@@ -121,10 +124,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Create WebSocket connection after registration
       try {
-        const wsModule = require('../lib/websocket');
-        if (wsModule && wsModule.createWSConnection) {
-          wsModule.createWSConnection(true);
-        }
+        import('../lib/websocket').then(wsModule => {
+          if (wsModule && wsModule.createWSConnection) {
+            wsModule.createWSConnection(true);
+          }
+        }).catch(err => {
+          console.error('Failed to initialize WebSocket after registration:', err);
+        });
       } catch (err) {
         console.error('Failed to initialize WebSocket after registration:', err);
       }
