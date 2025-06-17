@@ -1092,6 +1092,110 @@ Return your response as a JSON object with these fields:
     }
   });
 
+  // AI Scene Generation for Live Sessions
+  app.post("/api/campaigns/:id/generate-scene", async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const { context, playerAction, currentLocation } = req.body;
+
+      if (!context || !playerAction) {
+        return res.status(400).json({ message: "Context and player action are required" });
+      }
+
+      // Get campaign information for context
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+
+      // Get current session for additional context
+      const currentSession = await storage.getCurrentCampaignSession(campaignId);
+      
+      // Get campaign participants for NPC context
+      const participants = await storage.getCampaignParticipants(campaignId);
+
+      const scenePrompt = `
+You are a fantasy RPG narrator working with a live Dungeon Master. Generate the next scene for the DM to describe.
+
+Campaign Context:
+- Title: ${campaign.title}
+- Difficulty: ${campaign.difficulty}
+- Narrative Style: ${campaign.narrativeStyle}
+- Current Location: ${currentLocation || "Unknown Location"}
+
+Current Situation: ${context}
+Last Player Action: ${playerAction}
+
+${currentSession ? `Previous Scene: ${currentSession.narrative}` : ''}
+
+${participants?.length > 0 ? `Active NPCs/Characters: ${participants.map(p => p.character?.name || 'Unknown').join(', ')}` : ''}
+
+TASK: Generate the next scene for the DM to describe, including:
+- Vivid location description
+- NPC emotional reactions (if applicable)
+- Narrative development based on the player action
+- Three meaningful player options or events
+
+Respond in structured JSON format:
+{
+  "scene": "Detailed description of what happens next (3-4 paragraphs)",
+  "npc_reactions": {
+    "npc_name": "reaction description"
+  },
+  "environment": "Updated environment description",
+  "options": [
+    {
+      "label": "Action description",
+      "type": "exploration|dialogue|risk|combat",
+      "effect": "Brief description of potential outcome",
+      "requiresDiceRoll": boolean,
+      "diceType": "d20|d6|etc (if dice roll required)",
+      "rollDC": number,
+      "rollPurpose": "What the roll is for"
+    }
+  ],
+  "dmNotes": "Private notes for the DM about consequences, hidden information, or plot hooks"
+}`;
+
+      const openaiClient = new OpenAI({ 
+        apiKey: process.env.OPENAI_API_KEY
+      });
+      
+      const response = await openaiClient.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+        messages: [{ role: "user", content: scenePrompt }],
+        response_format: { type: "json_object" },
+        max_tokens: 1200,
+      });
+
+      const responseContent = response.choices[0].message.content;
+      let sceneData;
+      
+      try {
+        sceneData = JSON.parse(responseContent);
+        
+        // Ensure the response has the expected structure
+        if (!sceneData.scene || !Array.isArray(sceneData.options)) {
+          throw new Error("Invalid scene generation response structure");
+        }
+      } catch (parseError) {
+        console.error("Failed to parse scene generation response:", parseError);
+        return res.status(500).json({ 
+          message: "Failed to parse scene generation response",
+          error: parseError.message
+        });
+      }
+
+      res.json({ scene: sceneData });
+    } catch (error) {
+      console.error("Error generating scene:", error);
+      res.status(500).json({ 
+        message: "Failed to generate scene",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // OpenAI integration routes
   app.post("/api/openai/generate-story", async (req, res) => {
     try {

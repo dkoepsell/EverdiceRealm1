@@ -407,9 +407,10 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="session-view">Live Session</TabsTrigger>
           <TabsTrigger value="story-control">Story Control</TabsTrigger>
+          <TabsTrigger value="ai-scene">AI Scenes</TabsTrigger>
           <TabsTrigger value="quick-content">Quick Content</TabsTrigger>
           <TabsTrigger value="combat">Combat Manager</TabsTrigger>
           <TabsTrigger value="invitations">Invite Players</TabsTrigger>
@@ -648,6 +649,141 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
                   Advance Story Based on Choice
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* AI Scene Generation Tab - Dynamic Live Play System */}
+        <TabsContent value="ai-scene" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="h-5 w-5" />
+                AI Scene Generator
+              </CardTitle>
+              <CardDescription>
+                Generate dynamic scenes and narrative options based on player actions
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="scene-context">Current Scene Context</Label>
+                  <Textarea
+                    id="scene-context"
+                    placeholder="Describe the current situation, location, and any relevant NPCs or events..."
+                    value={sceneContext}
+                    onChange={(e) => setSceneContext(e.target.value)}
+                    rows={4}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="player-action">Last Player Action</Label>
+                  <Textarea
+                    id="player-action"
+                    placeholder="What did the players just do? Include any dice rolls or outcomes..."
+                    value={lastPlayerAction}
+                    onChange={(e) => setLastPlayerAction(e.target.value)}
+                    rows={4}
+                  />
+                </div>
+              </div>
+
+              <Button
+                onClick={handleGenerateScene}
+                disabled={generateSceneMutation.isPending}
+                className="w-full"
+              >
+                {generateSceneMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Wand2 className="h-4 w-4 mr-2" />
+                )}
+                Generate Next Scene
+              </Button>
+
+              {generatedScene && (
+                <div className="space-y-4 mt-6 p-4 border rounded-lg bg-muted/50">
+                  <div>
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      Generated Scene
+                    </h4>
+                    <div className="prose prose-sm max-w-none">
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                        {generatedScene.scene}
+                      </p>
+                    </div>
+                  </div>
+
+                  {generatedScene.npc_reactions && Object.keys(generatedScene.npc_reactions).length > 0 && (
+                    <div>
+                      <h5 className="font-medium mb-2">NPC Reactions</h5>
+                      <div className="space-y-1">
+                        {Object.entries(generatedScene.npc_reactions).map(([npc, reaction]: [string, any]) => (
+                          <div key={npc} className="text-sm">
+                            <span className="font-medium">{npc}:</span> {reaction}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {generatedScene.options && generatedScene.options.length > 0 && (
+                    <div>
+                      <h5 className="font-medium mb-2">Player Options</h5>
+                      <div className="grid gap-2">
+                        {generatedScene.options.map((option: any, index: number) => (
+                          <div
+                            key={index}
+                            className="p-3 border rounded cursor-pointer hover:bg-muted/70 transition-colors"
+                            onClick={() => handleApplyGeneratedScene(option)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-sm">{option.label}</p>
+                                <p className="text-xs text-muted-foreground">{option.effect}</p>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs">
+                                <Badge variant="outline">{option.type}</Badge>
+                                {option.requiresDiceRoll && (
+                                  <Badge variant="secondary">
+                                    {option.diceType} DC{option.rollDC}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {generatedScene.dmNotes && (
+                    <div className="border-t pt-3">
+                      <h5 className="font-medium mb-2 text-orange-600">DM Notes (Private)</h5>
+                      <p className="text-sm text-muted-foreground">{generatedScene.dmNotes}</p>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-3 border-t">
+                    <Button
+                      onClick={() => handleApplyGeneratedScene()}
+                      variant="default"
+                      size="sm"
+                    >
+                      Apply to Session
+                    </Button>
+                    <Button
+                      onClick={() => setGeneratedScene(null)}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Discard
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
