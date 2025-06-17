@@ -3741,6 +3741,31 @@ Ensure all elements are interconnected and form a cohesive narrative. Include 3-
         return res.status(404).json({ message: "No active session found" });
       }
 
+      // Parse skill check information if it exists
+      let skillCheckInfo = "";
+      let skillCheckContinuation = "";
+      
+      if (rollResult) {
+        const rollSuccess = rollResult.total >= (rollResult.dc || 10);
+        const skillType = rollResult.purpose || "skill check";
+        
+        skillCheckInfo = `
+SKILL CHECK RESULT ANALYSIS:
+- Skill Check: ${skillType}
+- Roll: ${rollResult.diceType} rolled ${rollResult.result} + ${rollResult.modifier || 0} = ${rollResult.total}
+- DC: ${rollResult.dc || 10}
+- Result: ${rollSuccess ? 'SUCCESS' : 'FAILURE'}
+- Target: ${rollResult.target || 'Unknown target'}
+- Intent: ${rollResult.intent || choice}`;
+
+        skillCheckContinuation = `
+CRITICAL: You must carry forward the effects of this ${rollSuccess ? 'successful' : 'failed'} ${skillType}. 
+${rollSuccess ? 
+  `The success should meaningfully impact the situation - NPCs may react favorably, obstacles are overcome, information is gained, or new opportunities arise.` : 
+  `The failure should create interesting complications - NPCs may react negatively, obstacles remain or worsen, misinformation occurs, or new challenges emerge.`}
+Do not ignore this result. Build the entire next scene around this outcome.`;
+      }
+
       // Generate story continuation based on choice and previous context
       const prompt = `
 Continue this D&D story based on the player's choice and maintain story continuity.
@@ -3755,26 +3780,50 @@ Current Narrative:
 ${currentSession.narrative}
 
 Player Choice Made: ${choice}
-Roll Result: ${rollResult ? `${rollResult.diceType} rolled ${rollResult.result} + ${rollResult.modifier || 0} = ${rollResult.total}` : 'No roll'}
+${skillCheckInfo}
+
+${skillCheckContinuation}
+
+Previous Player Actions History:
+${currentSession.playerChoicesMade && currentSession.playerChoicesMade.length > 0 ? 
+  currentSession.playerChoicesMade.slice(-3).map((action, i) => 
+    `${i + 1}. ${action.choice} ${action.rollResult ? `(${action.rollResult.diceType}: ${action.rollResult.total})` : ''} - ${action.consequences || 'No recorded consequences'}`
+  ).join('\n') : 'No previous actions recorded'}
 
 NPC Interactions in Progress:
 ${JSON.stringify(currentSession.npcInteractions || {})}
 
+INSTRUCTIONS FOR NARRATIVE CONTINUITY:
+You must carry forward the effects of player skill checks or major decisions. If players succeeded in a skill check, those effects should influence NPC behavior, environment changes, or story progression. If they failed, create meaningful complications. Do not ignore previous choices. Refer to the result and build new tension from it.
+
 Generate the next story segment that:
-1. Directly addresses the outcome of their choice and roll
-2. Maintains continuity with previous events and NPCs
-3. Advances the story meaningfully
-4. Provides 3-4 new meaningful choices
-5. Updates NPC states if they were involved
+1. DIRECTLY addresses the outcome of their choice and any dice roll results
+2. Shows immediate consequences of skill check success/failure
+3. Maintains continuity with previous events and NPCs
+4. Advances the story meaningfully based on player actions
+5. Updates NPC states to reflect how they respond to player actions
+6. Provides 3-4 new meaningful choices that build on the consequences
 
 Respond with JSON:
 {
-  "narrative": "Next story segment for players",
-  "dmNarrative": "Fuller context for DM including behind-the-scenes info",
-  "choices": [{"text": "choice", "type": "action/dialogue/exploration", "difficulty": "easy/medium/hard"}],
-  "storyState": {"location": "", "activeNPCs": [], "plotPoints": [], "conditions": []},
-  "npcInteractions": {"npcName": {"mood": "", "relationship": "", "nextAction": ""}},
-  "consequencesOfChoice": "What happened as a result of the player's action"
+  "narrative": "Next story segment that DIRECTLY reflects the skill check outcome and choice consequences (3-4 paragraphs)",
+  "dmNarrative": "Fuller context for DM including behind-the-scenes info about consequences and future implications",
+  "choices": [
+    {
+      "text": "Choice description",
+      "type": "action/dialogue/exploration/magic/stealth/combat",
+      "difficulty": "easy/medium/hard",
+      "requiresDiceRoll": true/false,
+      "diceType": "d20/d6/etc (if roll required)",
+      "rollDC": "number (if roll required)",
+      "rollPurpose": "What the roll represents",
+      "successText": "What happens on success",
+      "failureText": "What happens on failure"
+    }
+  ],
+  "storyState": {"location": "current location", "activeNPCs": ["list of NPCs present"], "plotPoints": ["active plot elements"], "conditions": ["environmental or story conditions"]},
+  "npcInteractions": {"npcName": {"mood": "how they feel after player actions", "relationship": "changed relationship status", "nextAction": "what they plan to do"}},
+  "consequencesOfChoice": "Detailed description of what happened as a direct result of the player's action and roll"
 }`;
 
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
