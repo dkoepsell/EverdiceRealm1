@@ -679,7 +679,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 {currentSession ? (
                   <div className="mt-6 space-y-4">
                     <div className="flex justify-between items-start">
-                      <h3 className="text-lg font-semibold flex items-center text-black">
+                      <h3 className="text-lg font-semibold flex items-center text-foreground">
                         <Scroll className="h-5 w-5 mr-2 text-primary-foreground" />
                         Session {currentSession.sessionNumber}: {currentSession.title}
                       </h3>
@@ -702,7 +702,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           </p>
                         </div>
                       ) : (
-                        <p className="whitespace-pre-line text-sm sm:text-base leading-relaxed text-black">
+                        <p className="whitespace-pre-line text-sm sm:text-base leading-relaxed text-foreground">
                           {currentSession.narrative}
                         </p>
                       )}
@@ -719,12 +719,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             <Button 
                               key={index}
                               variant="outline"
-                              className="justify-start h-auto py-3 px-4 bg-primary/5 hover:bg-primary/10 border-primary/20 text-left text-black"
+                              className="justify-start h-auto py-3 px-4 bg-primary/5 hover:bg-primary/10 border-primary/20 text-left text-foreground"
                               onClick={() => handleChoiceSelection(choice)}
                             >
                               <div className="flex items-start">
                                 <ArrowRight className="h-5 w-5 mr-2 mt-0.5 shrink-0" />
-                                <span className="text-black font-medium">
+                                <span className="text-foreground font-medium">
                                   {choice.action || choice.text}
                                   {(choice.requiresRoll || choice.requiresDiceRoll) && (
                                     <span className="ml-2 text-xs bg-primary/20 text-primary/90 px-2 py-0.5 rounded font-bold">
@@ -869,7 +869,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         <CollapsibleContent>
                           <div className="p-3 pt-0 border-t">
                             <div className="bg-parchment-light p-3 rounded-md text-sm whitespace-pre-line">
-                              <p className="text-black">{session.narrative}</p>
+                              <p className="text-foreground">{session.narrative}</p>
                             </div>
                           </div>
                         </CollapsibleContent>

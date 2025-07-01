@@ -472,7 +472,7 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
             
             <CardContent className="pt-0">
               <div className="text-sm">
-                <p className="font-semibold text-black">{participant.character?.name}</p>
+                <p className="font-semibold text-foreground">{participant.character?.name}</p>
                 <p className="text-gray-700 text-xs">
                   Level {participant.character?.level || 1} {participant.character?.race} {participant.character?.class}
                 </p>
@@ -484,8 +484,8 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
       
       {participants?.length === 0 && (
         <div className="text-center p-8 border-2 border-dashed rounded-lg">
-          <p className="text-black font-medium mb-2 text-lg">No participants in this campaign yet.</p>
-          {isDM && <p className="text-black font-medium">Use the Invite button to add players.</p>}
+          <p className="text-foreground font-medium mb-2 text-lg">No participants in this campaign yet.</p>
+          {isDM && <p className="text-foreground font-medium">Use the Invite button to add players.</p>}
         </div>
       )}
     </div>
