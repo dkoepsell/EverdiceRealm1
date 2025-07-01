@@ -3793,24 +3793,34 @@ ${currentSession.playerChoicesMade && currentSession.playerChoicesMade.length > 
 NPC Interactions in Progress:
 ${JSON.stringify(currentSession.npcInteractions || {})}
 
-INSTRUCTIONS FOR NARRATIVE CONTINUITY:
-You must carry forward the effects of player skill checks or major decisions. If players succeeded in a skill check, those effects should influence NPC behavior, environment changes, or story progression. If they failed, create meaningful complications. Do not ignore previous choices. Refer to the result and build new tension from it.
+CRITICAL INSTRUCTIONS - FOLLOW EXACTLY:
+
+1. FOCUS ON ACTION AND CONSEQUENCES, NOT DESCRIPTION
+2. Start with immediate results of the skill check/choice
+3. Keep environmental description to 1 sentence maximum
+4. Prioritize character reactions and story progression
+5. Build directly on the specific skill check outcome
+
+WRITING STYLE REQUIREMENTS:
+- Be CONCISE and ACTION-FOCUSED
+- No flowery descriptions of scenery or atmosphere
+- Lead with what HAPPENS as a result of the player action
+- Keep narrative under 150 words total
+- Every sentence must advance the plot or show consequences
 
 Generate the next story segment that:
-1. DIRECTLY addresses the outcome of their choice and any dice roll results
-2. Shows immediate consequences of skill check success/failure
-3. Maintains continuity with previous events and NPCs
-4. Advances the story meaningfully based on player actions
-5. Updates NPC states to reflect how they respond to player actions
-6. Provides 3-4 new meaningful choices that build on the consequences
+1. IMMEDIATELY shows what happened because of their specific action/roll
+2. Demonstrates clear success/failure consequences from the skill check
+3. Advances plot through character reactions and new developments
+4. Provides 3-4 choices that build directly on what just occurred
 
 Respond with JSON:
 {
-  "narrative": "Next story segment that DIRECTLY reflects the skill check outcome and choice consequences (3-4 paragraphs)",
-  "dmNarrative": "Fuller context for DM including behind-the-scenes info about consequences and future implications",
+  "narrative": "CONCISE story segment focused on immediate action results and character reactions (2-3 sentences maximum)",
+  "dmNarrative": "Behind-the-scenes context for DM about consequences and what NPCs are thinking/planning",
   "choices": [
     {
-      "text": "Choice description",
+      "text": "Action-focused choice description", 
       "type": "action/dialogue/exploration/magic/stealth/combat",
       "difficulty": "easy/medium/hard",
       "requiresDiceRoll": true/false,
@@ -3821,9 +3831,9 @@ Respond with JSON:
       "failureText": "What happens on failure"
     }
   ],
-  "storyState": {"location": "current location", "activeNPCs": ["list of NPCs present"], "plotPoints": ["active plot elements"], "conditions": ["environmental or story conditions"]},
-  "npcInteractions": {"npcName": {"mood": "how they feel after player actions", "relationship": "changed relationship status", "nextAction": "what they plan to do"}},
-  "consequencesOfChoice": "Detailed description of what happened as a direct result of the player's action and roll"
+  "storyState": {"location": "current location", "activeNPCs": ["NPCs present"], "plotPoints": ["active plot elements"], "conditions": ["current conditions"]},
+  "npcInteractions": {"npcName": {"mood": "current mood", "relationship": "relationship change", "nextAction": "immediate plan"}},
+  "consequencesOfChoice": "Specific result of the player's action and skill check outcome"
 }`;
 
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });

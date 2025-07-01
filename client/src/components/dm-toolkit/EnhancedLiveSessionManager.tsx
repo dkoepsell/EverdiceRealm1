@@ -515,7 +515,7 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
                       </div>
                     )}
                     
-                    {liveSession.dmView.playerChoicesMade && liveSession.dmView.playerChoicesMade.length > 0 && (
+                    {liveSession?.dmView?.playerChoicesMade && liveSession.dmView.playerChoicesMade.length > 0 && (
                       <div>
                         <h4 className="font-medium mb-2 flex items-center gap-2">
                           <div className="h-2 w-2 bg-green-500 rounded-full"></div>
