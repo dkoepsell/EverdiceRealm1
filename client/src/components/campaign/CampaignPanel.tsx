@@ -98,6 +98,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     successText: string;
     failureText: string;
   } | null>(null);
+  const [customAction, setCustomAction] = useState("");
   
   // Find the user's participant record in this campaign
   const userParticipant = useMemo(() => {
@@ -316,6 +317,25 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       });
     }
   };
+
+  const handleCustomAction = () => {
+    if (!customAction.trim()) return;
+    
+    // Treat custom action as a choice that doesn't require dice roll initially
+    // The AI will determine if it needs a roll and respond accordingly
+    const customChoice = {
+      action: customAction.trim(),
+      requiresDiceRoll: false
+    };
+    
+    setIsAdvancingStory(true);
+    advanceStory.mutate({ choice: customChoice.action }, {
+      onSettled: () => {
+        setIsAdvancingStory(false);
+        setCustomAction(""); // Clear the input after submission
+      }
+    });
+  };
   
   const handleDiceRoll = async () => {
     if (!currentDiceRoll) return;
@@ -390,7 +410,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           // Advance the story with the roll result using enhanced format
           const rollResultData = {
             diceType: currentDiceRoll.diceType,
-            result: result.result,
+            result: result.rolls[0], // Get the actual dice roll result
             modifier: currentDiceRoll.rollModifier,
             total: result.total,
             dc: rollDC,
@@ -651,8 +671,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     
                     {/* Action choices */}
                     {!isAdvancingStory && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 ? (
-                      <div className="mt-6 space-y-3">
+                      <div className="mt-6 space-y-4">
                         <h4 className="font-semibold">What will you do?</h4>
+                        
+                        {/* Suggested Actions */}
                         <div className="grid grid-cols-1 gap-2">
                           {currentSession.choices.map((choice: any, index: number) => (
                             <Button 
@@ -664,7 +686,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               <div className="flex items-start">
                                 <ArrowRight className="h-5 w-5 mr-2 mt-0.5 shrink-0" />
                                 <span className="text-black font-medium">
-                                  {choice.action}
+                                  {choice.action || choice.text}
                                   {(choice.requiresRoll || choice.requiresDiceRoll) && (
                                     <span className="ml-2 text-xs bg-primary/20 text-primary/90 px-2 py-0.5 rounded font-bold">
                                       {choice.rollPurpose || "Skill Check"} ({choice.diceType || "d20"})
@@ -674,6 +696,36 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               </div>
                             </Button>
                           ))}
+                        </div>
+                        
+                        {/* Custom Action Input */}
+                        <div className="mt-4 p-4 bg-secondary/10 rounded-lg border border-secondary/20">
+                          <div className="space-y-3">
+                            <h5 className="font-medium text-sm">Or describe your own action:</h5>
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="e.g., 'Search the chapel thoroughly for hidden symbols' or 'Approach the children and ask what they saw'"
+                                value={customAction}
+                                onChange={(e) => setCustomAction(e.target.value)}
+                                className="flex-1"
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter' && customAction.trim()) {
+                                    handleCustomAction();
+                                  }
+                                }}
+                              />
+                              <Button 
+                                onClick={handleCustomAction}
+                                disabled={!customAction.trim() || isAdvancingStory}
+                                className="shrink-0"
+                              >
+                                <ArrowRight className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              The AI will determine if your action needs a dice roll and what type.
+                            </p>
+                          </div>
                         </div>
                       </div>
                     ) : null}

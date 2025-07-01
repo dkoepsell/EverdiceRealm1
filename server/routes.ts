@@ -3812,7 +3812,13 @@ Generate the next story segment that:
 1. IMMEDIATELY shows what happened because of their specific action/roll
 2. Demonstrates clear success/failure consequences from the skill check
 3. Advances plot through character reactions and new developments
-4. Provides 3-4 choices that build directly on what just occurred
+4. Provides 4-5 diverse choices that build directly on what just occurred
+
+CHOICE REQUIREMENTS:
+- At least 4 choices, up to 5 maximum
+- Include variety: dialogue, exploration, action, stealth, magic/investigation
+- At least 2 choices should require dice rolls
+- Make choices specific to the current situation, not generic
 
 Respond with JSON:
 {
