@@ -517,18 +517,35 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
                     
                     {liveSession.dmView.playerChoicesMade && liveSession.dmView.playerChoicesMade.length > 0 && (
                       <div>
-                        <h4 className="font-medium mb-2">Recent Player Choices</h4>
-                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                        <h4 className="font-medium mb-2 flex items-center gap-2">
+                          <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                          Consequence Chain (Last 3 Actions)
+                        </h4>
+                        <div className="space-y-3 max-h-40 overflow-y-auto">
                           {liveSession.dmView.playerChoicesMade.slice(-3).map((choice: any, index: number) => (
-                            <div key={index} className="p-2 bg-muted rounded text-xs">
-                              <p><strong>Choice:</strong> {choice.choice}</p>
+                            <div key={index} className="p-3 border-l-4 border-blue-200 bg-muted/50 rounded-r text-xs">
+                              <p className="font-medium text-blue-800 mb-1">Action: {choice.choice}</p>
                               {choice.rollResult && (
-                                <p><strong>Roll:</strong> {choice.rollResult.total}</p>
+                                <p className="mb-1">
+                                  <strong>Roll:</strong> {choice.rollResult.purpose || 'Skill Check'} 
+                                  <span className={`ml-2 ${
+                                    choice.rollResult.total >= (choice.rollResult.dc || 10) 
+                                      ? 'text-green-600 font-medium' 
+                                      : 'text-red-600 font-medium'
+                                  }`}>
+                                    {choice.rollResult.total} vs DC {choice.rollResult.dc || 10} 
+                                    ({choice.rollResult.total >= (choice.rollResult.dc || 10) ? 'SUCCESS' : 'FAILURE'})
+                                  </span>
+                                </p>
                               )}
-                              <p><strong>Result:</strong> {choice.consequences}</p>
+                              <p className="text-gray-700"><strong>Consequence:</strong> {choice.consequences || 'No consequences recorded'}</p>
+                              <p className="text-xs text-muted-foreground mt-1">{new Date(choice.timestamp).toLocaleTimeString()}</p>
                             </div>
                           ))}
                         </div>
+                        <p className="text-xs text-muted-foreground mt-2 italic">
+                          The AI uses this history to build meaningful narrative continuity
+                        </p>
                       </div>
                     )}
                   </>
@@ -602,67 +619,121 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
             <CardContent className="space-y-4">
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="player-choice">Player Choice Made</Label>
+                  <Label htmlFor="player-choice">Player Action & Intent</Label>
                   <Textarea
                     id="player-choice"
-                    placeholder="Describe what the player(s) chose to do..."
+                    placeholder="Describe what the player chose to do and what they're trying to accomplish..."
                     value={playerChoice}
                     onChange={(e) => setPlayerChoice(e.target.value)}
                     className="mt-1"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Be specific about their goal. Example: "Attempts to calm the wolves with Animal Handling to gain their trust and ask for directions"
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="dice-type">Dice Roll (Optional)</Label>
-                    <Select onValueChange={(value) => setRollResult({...rollResult, diceType: value})}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select dice" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="d20">d20</SelectItem>
-                        <SelectItem value="d12">d12</SelectItem>
-                        <SelectItem value="d10">d10</SelectItem>
-                        <SelectItem value="d8">d8</SelectItem>
-                        <SelectItem value="d6">d6</SelectItem>
-                        <SelectItem value="d4">d4</SelectItem>
-                      </SelectContent>
-                    </Select>
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                    Skill Check Details (Required for meaningful progression)
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <Label htmlFor="skill-type">Skill Check Type</Label>
+                      <Input
+                        id="skill-type"
+                        placeholder="e.g., Animal Handling, Persuasion, Investigation"
+                        value={rollResult?.purpose || ""}
+                        onChange={(e) => setRollResult({...rollResult, purpose: e.target.value})}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="target-dc">Target/DC</Label>
+                      <Input
+                        id="target-dc"
+                        type="number"
+                        placeholder="Difficulty Class (DC)"
+                        value={rollResult?.dc || ""}
+                        onChange={(e) => setRollResult({...rollResult, dc: parseInt(e.target.value) || 10})}
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="roll-result">Roll Result</Label>
-                    <Input
-                      id="roll-result"
-                      type="number"
-                      placeholder="Roll result"
-                      onChange={(e) => setRollResult({...rollResult, result: parseInt(e.target.value)})}
-                    />
-                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="dice-type">Dice Type</Label>
+                      <Select onValueChange={(value) => setRollResult({...rollResult, diceType: value})}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select dice" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="d20">d20 (Ability Check)</SelectItem>
+                          <SelectItem value="d12">d12</SelectItem>
+                          <SelectItem value="d10">d10</SelectItem>
+                          <SelectItem value="d8">d8</SelectItem>
+                          <SelectItem value="d6">d6</SelectItem>
+                          <SelectItem value="d4">d4</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  <div>
-                    <Label htmlFor="modifier">Modifier</Label>
-                    <Input
-                      id="modifier"
-                      type="number"
-                      placeholder="0"
-                      onChange={(e) => setRollResult({...rollResult, modifier: parseInt(e.target.value) || 0})}
-                    />
+                    <div>
+                      <Label htmlFor="roll-result">Roll Result</Label>
+                      <Input
+                        id="roll-result"
+                        type="number"
+                        placeholder="Dice result"
+                        value={rollResult?.result || ""}
+                        onChange={(e) => setRollResult({...rollResult, result: parseInt(e.target.value) || 0})}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="modifier">Modifier</Label>
+                      <Input
+                        id="modifier"
+                        type="number"
+                        placeholder="Ability modifier"
+                        value={rollResult?.modifier || ""}
+                        onChange={(e) => setRollResult({...rollResult, modifier: parseInt(e.target.value) || 0})}
+                      />
+                    </div>
                   </div>
+                  
+                  {rollResult?.result && rollResult?.modifier !== undefined && rollResult?.dc && (
+                    <div className="mt-3 p-2 bg-background rounded border">
+                      <p className="text-sm">
+                        <strong>Total:</strong> {(rollResult.result || 0) + (rollResult.modifier || 0)} 
+                        <span className={`ml-2 font-medium ${
+                          ((rollResult.result || 0) + (rollResult.modifier || 0)) >= (rollResult.dc || 10) 
+                            ? 'text-green-600' 
+                            : 'text-red-600'
+                        }`}>
+                          {((rollResult.result || 0) + (rollResult.modifier || 0)) >= (rollResult.dc || 10) ? 'SUCCESS' : 'FAILURE'}
+                        </span>
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <Button
                   onClick={handleAdvanceStory}
                   disabled={advanceStoryMutation.isPending || !playerChoice.trim()}
-                  className="w-full"
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  size="lg"
                 >
                   {advanceStoryMutation.isPending ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
                     <Send className="h-4 w-4 mr-2" />
                   )}
-                  Advance Story Based on Choice
+                  Process Player Action & Continue Story
                 </Button>
+                <p className="text-xs text-center text-muted-foreground mt-2">
+                  This processes skill checks and builds narrative continuity based on roll results
+                </p>
               </div>
             </CardContent>
           </Card>
