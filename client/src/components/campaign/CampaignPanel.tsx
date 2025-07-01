@@ -84,6 +84,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
   const [diceRollResult, setDiceRollResult] = useState<DiceRollResult | null>(null);
   const [isAdvancingStory, setIsAdvancingStory] = useState(false);
+  const [progressionRewards, setProgressionRewards] = useState<{
+    xpAwarded: number;
+    newLevel: number;
+    leveledUp: boolean;
+    itemsFound: any[];
+  } | null>(null);
   const [narrativeStyle, setNarrativeStyle] = useState(campaign.narrativeStyle);
   const [difficulty, setDifficulty] = useState(campaign.difficulty);
   const [settingsChanged, setSettingsChanged] = useState(false);
@@ -221,10 +227,30 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
       }
       
-      toast({
-        title: "Story advanced",
-        description: "The adventure continues..."
-      });
+      // Check if response contains progression data
+      if (response && response.progression) {
+        setProgressionRewards(response.progression);
+        
+        // Show progression toast
+        if (response.progression.leveledUp) {
+          toast({
+            title: `🎉 Level Up! You're now level ${response.progression.newLevel}!`,
+            description: `Gained ${response.progression.xpAwarded} XP` + 
+              (response.progression.itemsFound?.length > 0 ? ` and found ${response.progression.itemsFound.length} item(s)!` : ""),
+          });
+        } else {
+          toast({
+            title: `Gained ${response.progression.xpAwarded} XP!`,
+            description: "Experience gained from your actions" + 
+              (response.progression.itemsFound?.length > 0 ? ` and found ${response.progression.itemsFound.length} item(s)!` : ""),
+          });
+        }
+      } else {
+        toast({
+          title: "Story advanced",
+          description: "The adventure continues..."
+        });
+      }
       
       // Close dialogs
       setShowChoiceDialog(false);

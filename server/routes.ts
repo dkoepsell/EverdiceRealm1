@@ -3851,6 +3851,78 @@ Respond with JSON:
 
       const storyAdvancement = JSON.parse(response.choices[0].message.content);
 
+      // Calculate XP and item rewards based on story advancement
+      let xpAwarded = 0;
+      let itemsFound = [];
+      const consequences = storyAdvancement.consequencesOfChoice || "";
+      
+      // Award XP for successful skill checks and story progression
+      if (rollResult) {
+        const wasSuccessful = rollResult.total >= (rollResult.dc || 10);
+        if (wasSuccessful) {
+          // Award XP based on DC difficulty
+          const dc = rollResult.dc || 10;
+          if (dc >= 20) xpAwarded += 100; // Very hard
+          else if (dc >= 15) xpAwarded += 75; // Hard
+          else if (dc >= 10) xpAwarded += 50; // Medium
+          else xpAwarded += 25; // Easy
+        } else {
+          // Small XP for attempting difficult actions even if failed
+          xpAwarded += 10;
+        }
+      } else {
+        // Base XP for story participation
+        xpAwarded += 25;
+      }
+      
+      // Bonus XP for significant story advancement
+      if (consequences.toLowerCase().includes('discover') || 
+          consequences.toLowerCase().includes('solve') ||
+          consequences.toLowerCase().includes('defeat')) {
+        xpAwarded += 50;
+      }
+
+      // Check for random item drops based on story context
+      const shouldDropItem = Math.random() < 0.15; // 15% chance
+      if (shouldDropItem && (consequences.toLowerCase().includes('search') || 
+                             consequences.toLowerCase().includes('find') ||
+                             consequences.toLowerCase().includes('chest') ||
+                             consequences.toLowerCase().includes('treasure') ||
+                             (rollResult && rollResult.total >= (rollResult.dc || 10) + 5))) {
+        // Generate a random item based on character level
+        const campaign = await storage.getCampaign(campaignId);
+        const participants = await storage.getCampaignParticipants(campaignId);
+        if (participants && participants.length > 0) {
+          const characterId = participants[0].characterId;
+          const character = await storage.getCharacter(characterId);
+          if (character) {
+            const itemRarity = character.level < 3 ? 'common' : 
+                             character.level < 6 ? 'uncommon' : 
+                             character.level < 10 ? 'rare' : 'very rare';
+            
+            const itemPrompt = `Generate a random D&D 5e magic item or treasure suitable for level ${character.level} character.
+            Rarity: ${itemRarity}
+            Context: ${consequences}
+            
+            Respond with JSON: {"name": "Item Name", "type": "weapon/armor/wondrous/consumable", "rarity": "${itemRarity}", "description": "Brief description", "properties": "Game mechanics"}`;
+            
+            try {
+              const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+              const itemResponse = await openai.chat.completions.create({
+                model: "gpt-4o",
+                messages: [{ role: "user", content: itemPrompt }],
+                response_format: { type: "json_object" },
+              });
+              
+              const generatedItem = JSON.parse(itemResponse.choices[0].message.content);
+              itemsFound.push(generatedItem);
+            } catch (error) {
+              console.error("Failed to generate item:", error);
+            }
+          }
+        }
+      }
+
       // Update session with story advancement
       const updatedSession = await storage.advanceSessionStory(campaignId, {
         narrative: storyAdvancement.narrative,
@@ -3862,9 +3934,38 @@ Respond with JSON:
           choice,
           rollResult,
           timestamp: new Date().toISOString(),
-          consequences: storyAdvancement.consequencesOfChoice
+          consequences: storyAdvancement.consequencesOfChoice,
+          xpAwarded,
+          itemsFound
         }]
       });
+
+      // Apply XP and items to character if there's a participant
+      let characterProgression = null;
+      const participants = await storage.getCampaignParticipants(campaignId);
+      if (participants && participants.length > 0 && xpAwarded > 0) {
+        const characterId = participants[0].characterId;
+        const character = await storage.getCharacter(characterId);
+        if (character) {
+          const newXP = (character.experience || 0) + xpAwarded;
+          const newLevel = Math.max(1, Math.floor(newXP / 1000) + 1);
+          const leveledUp = newLevel > character.level;
+          
+          await storage.updateCharacter(characterId, {
+            experience: newXP,
+            level: newLevel,
+            updatedAt: new Date().toISOString()
+          });
+          
+          characterProgression = {
+            xpAwarded,
+            newXP,
+            newLevel,
+            leveledUp,
+            itemsFound
+          };
+        }
+      }
 
       // Broadcast story update to all participants
       broadcastMessage('story_advanced', {
@@ -3872,7 +3973,8 @@ Respond with JSON:
         narrative: storyAdvancement.narrative,
         choices: storyAdvancement.choices,
         playerChoice: choice,
-        rollResult
+        rollResult,
+        progression: characterProgression
       });
 
       res.json(updatedSession);
