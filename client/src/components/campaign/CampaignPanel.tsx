@@ -711,7 +711,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     {/* Action choices */}
                     {!isAdvancingStory && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 ? (
                       <div className="mt-6 space-y-4">
-                        <h4 className="font-semibold">What will you do?</h4>
+                        <h4 className="font-semibold text-foreground">What will you do?</h4>
                         
                         {/* Suggested Actions */}
                         <div className="grid grid-cols-1 gap-2">
@@ -738,9 +738,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </div>
                         
                         {/* Custom Action Input */}
-                        <div className="mt-4 p-4 bg-secondary/10 rounded-lg border border-secondary/20">
+                        <div className="mt-4 p-4 bg-card/50 rounded-lg border border-border">
                           <div className="space-y-3">
-                            <h5 className="font-medium text-sm">Or describe your own action:</h5>
+                            <h5 className="font-medium text-sm text-foreground">Or describe your own action:</h5>
                             <div className="flex gap-2">
                               <Input
                                 placeholder="e.g., 'Search the chapel thoroughly for hidden symbols' or 'Approach the children and ask what they saw'"
@@ -761,7 +761,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 <ArrowRight className="h-4 w-4" />
                               </Button>
                             </div>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-foreground/70">
                               The AI will determine if your action needs a dice roll and what type.
                             </p>
                           </div>
