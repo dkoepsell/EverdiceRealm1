@@ -142,7 +142,24 @@ The application is designed for deployment on Replit with the following consider
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+### Campaign Navigation Improvements (July 01, 2025)
+- Added campaign selection dropdown to dashboard for multiple active campaigns
+- Enhanced campaigns page layout to show full narrative and choice interface
+- Improved user experience when switching between multiple campaigns
+- Auto-selects most recent campaign when multiple are available
+
+### RPG Progression System (July 01, 2025)
+- Implemented automatic XP awards (25-100 XP based on skill check difficulty)
+- Added random item drops (15% chance per adventure action)
+- Created character progression tracking with level-up detection
+- Integrated progression rewards dialog to display found items
+- Added toast notifications for XP gains and level-ups
+
 ## Changelog
 
 Changelog:
 - July 01, 2025. Initial setup
+- July 01, 2025. Added RPG progression system with XP tracking and item drops
+- July 01, 2025. Enhanced campaign navigation with selection dropdown

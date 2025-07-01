@@ -429,7 +429,33 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               ) : activeCampaign ? (
-                <CampaignPanel campaign={activeCampaign} />
+                <div className="space-y-6">
+                  {availableCampaigns.length > 1 && (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg">Select Active Campaign</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <Select 
+                          value={selectedCampaignId?.toString() || ""} 
+                          onValueChange={(value) => setSelectedCampaignId(parseInt(value))}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select a campaign" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableCampaigns.map((campaign) => (
+                              <SelectItem key={campaign.id} value={campaign.id.toString()}>
+                                {campaign.title}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </CardContent>
+                    </Card>
+                  )}
+                  <CampaignPanel campaign={activeCampaign} />
+                </div>
               ) : (
                 <Card className="bg-secondary-light rounded-lg shadow-xl overflow-hidden">
                   <CardHeader className="bg-primary p-4 flex justify-between items-center">

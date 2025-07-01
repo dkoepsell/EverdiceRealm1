@@ -260,7 +260,7 @@ export default function Campaigns() {
                       Back to Campaign List
                     </Button>
                   </div>
-                  <div className="h-[80vh] overflow-hidden">
+                  <div className="min-h-[80vh]">
                     <CampaignPanel campaign={selectedCampaign} />
                   </div>
                 </div>
