@@ -757,7 +757,7 @@ export default function LiveCampaignManagerTab({
                           <Crown className="h-5 w-5 text-blue-600" />
                         </div>
                         <div>
-                          <h4 className="font-medium">{participant.character?.name || 'Unknown Character'}</h4>
+                          <h4 className="font-medium text-foreground">{participant.character?.name || 'Unknown Character'}</h4>
                           <p className="text-sm text-muted-foreground">
                             Level {participant.character?.level || 1} • {participant.character?.xp || 0} XP
                           </p>

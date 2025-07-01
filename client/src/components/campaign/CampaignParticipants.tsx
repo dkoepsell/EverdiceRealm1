@@ -228,7 +228,7 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-black">Campaign Participants</h3>
+        <h3 className="text-lg font-bold text-foreground">Campaign Participants</h3>
         
         <div className="flex gap-2">
           {/* Join Campaign Button - Only show if user is not already participating */}
@@ -264,12 +264,12 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
                   }
                 }}
               >
-                <SelectTrigger className="bg-primary text-primary-foreground border-0 hover:bg-primary/90 h-9 text-black">
+                <SelectTrigger className="bg-primary text-primary-foreground border-0 hover:bg-primary/90 h-9">
                   <SelectValue placeholder="Add One of My Characters" />
                 </SelectTrigger>
                 <SelectContent className="min-w-[240px]">
                     <div className="p-1">
-                      <div className="py-1.5 pl-8 pr-2 text-sm font-semibold text-black">My Characters</div>
+                      <div className="py-1.5 pl-8 pr-2 text-sm font-semibold text-foreground">My Characters</div>
                     {/* Display the user's characters */}
                     {myCharacters && myCharacters.length > 0 ? (
                       myCharacters.map(character => (
@@ -319,7 +319,7 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
                 
                 <div className="grid gap-4 py-4">
                   <div className="space-y-2">
-                    <label htmlFor="user" className="text-sm font-medium text-black">User</label>
+                    <label htmlFor="user" className="text-sm font-medium text-foreground">User</label>
                     <Select 
                       onValueChange={(value) => setSelectedUserId(Number(value))}
                     >
@@ -337,7 +337,7 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
                   </div>
                   
                   <div className="space-y-2">
-                    <label htmlFor="character" className="text-sm font-medium text-black">Character</label>
+                    <label htmlFor="character" className="text-sm font-medium text-foreground">Character</label>
                     <Select
                       onValueChange={(value) => setSelectedCharacterId(Number(value))}
                       disabled={!selectedUserId}
@@ -390,11 +390,11 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
                   </Avatar>
                   <div>
                     {participant.isNpc ? (
-                      <CardTitle className="text-sm font-semibold text-black">
+                      <CardTitle className="text-sm font-semibold text-foreground">
                         {participant.npc?.name || 'NPC Companion'}
                       </CardTitle>
                     ) : (
-                      <CardTitle className="text-sm font-semibold text-black">
+                      <CardTitle className="text-sm font-semibold text-foreground">
                         {participant.displayName || participant.username}
                       </CardTitle>
                     )}
