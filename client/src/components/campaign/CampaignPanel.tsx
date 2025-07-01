@@ -670,9 +670,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   <h2 className="text-2xl font-bold font-fantasy text-primary">
                     {campaign.title}
                   </h2>
-                  <p className="text-foreground font-medium">
-                    {campaign.description}
-                  </p>
+                  <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-md border">
+                    <p className="text-gray-900 dark:text-gray-50 font-semibold text-base leading-relaxed">
+                      {campaign.description}
+                    </p>
+                  </div>
                 </div>
                 
                 {/* Current Session */}
