@@ -218,7 +218,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       });
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       // Invalidate sessions data to refresh
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
       
@@ -227,22 +227,22 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
       }
       
-      // Check if response contains progression data
-      if (response && response.progression) {
-        setProgressionRewards(response.progression);
+      // Check if data contains progression data
+      if (data && data.progression) {
+        setProgressionRewards(data.progression);
         
         // Show progression toast
-        if (response.progression.leveledUp) {
+        if (data.progression.leveledUp) {
           toast({
-            title: `🎉 Level Up! You're now level ${response.progression.newLevel}!`,
-            description: `Gained ${response.progression.xpAwarded} XP` + 
-              (response.progression.itemsFound?.length > 0 ? ` and found ${response.progression.itemsFound.length} item(s)!` : ""),
+            title: `🎉 Level Up! You're now level ${data.progression.newLevel}!`,
+            description: `Gained ${data.progression.xpAwarded} XP` + 
+              (data.progression.itemsFound?.length > 0 ? ` and found ${data.progression.itemsFound.length} item(s)!` : ""),
           });
-        } else {
+        } else if (data.progression.xpAwarded > 0) {
           toast({
-            title: `Gained ${response.progression.xpAwarded} XP!`,
+            title: `Gained ${data.progression.xpAwarded} XP!`,
             description: "Experience gained from your actions" + 
-              (response.progression.itemsFound?.length > 0 ? ` and found ${response.progression.itemsFound.length} item(s)!` : ""),
+              (data.progression.itemsFound?.length > 0 ? ` and found ${data.progression.itemsFound.length} item(s)!` : ""),
           });
         }
       } else {
@@ -997,6 +997,43 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Progression Rewards Dialog */}
+      {progressionRewards && progressionRewards.itemsFound && progressionRewards.itemsFound.length > 0 && (
+        <Dialog open={true} onOpenChange={() => setProgressionRewards(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Items Found!</DialogTitle>
+              <DialogDescription>
+                You discovered some items during your adventure!
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-3">
+              {progressionRewards.itemsFound.map((item: any, index: number) => (
+                <div key={index} className="p-3 border rounded-lg bg-muted/30">
+                  <div className="font-semibold text-primary">{item.name}</div>
+                  <div className="text-sm text-muted-foreground mb-1">
+                    {item.type} • {item.rarity}
+                  </div>
+                  <div className="text-sm">{item.description}</div>
+                  {item.properties && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {item.properties}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end">
+              <Button onClick={() => setProgressionRewards(null)}>
+                Continue Adventure
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

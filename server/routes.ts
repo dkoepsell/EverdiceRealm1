@@ -3977,7 +3977,10 @@ Respond with JSON:
         progression: characterProgression
       });
 
-      res.json(updatedSession);
+      res.json({
+        ...updatedSession,
+        progression: characterProgression
+      });
     } catch (error) {
       console.error("Failed to advance story:", error);
       res.status(500).json({ message: "Failed to advance story" });
