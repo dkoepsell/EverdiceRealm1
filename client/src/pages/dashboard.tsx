@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import CampaignPanel from "@/components/campaign/CampaignPanel";
 import CharacterSheet from "@/components/character/CharacterSheet";
 import CharacterProgress from "@/components/character/CharacterProgress";
@@ -25,6 +26,9 @@ export default function Dashboard() {
     totalRegistered: 0,
     onlineUsers: 0
   });
+
+  // For campaign selection
+  const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
 
   const { data: characters = [], isLoading: charactersLoading } = useQuery<Character[]>({
     queryKey: ['/api/characters'],
@@ -131,15 +135,24 @@ export default function Dashboard() {
     }
   }, [campaignsError, refetchCampaigns]);
   
-  // Get active campaign (most recent non-archived, non-completed campaign)
-  const activeCampaign = campaigns
-    ?.filter(campaign => !campaign.isArchived && !campaign.isCompleted)
-    .sort((a, b) => {
-      // Sort by most recently created
-      const dateA = new Date(a.createdAt);
-      const dateB = new Date(b.createdAt);
-      return dateB.getTime() - dateA.getTime();
-    })[0];
+  // Get available campaigns (non-archived, non-completed)
+  const availableCampaigns = campaigns?.filter(campaign => !campaign.isArchived && !campaign.isCompleted) || [];
+  
+  // Auto-select first campaign if none selected and campaigns are available
+  useEffect(() => {
+    if (!selectedCampaignId && availableCampaigns.length > 0) {
+      // Auto-select the most recently created campaign
+      const mostRecent = availableCampaigns.sort((a, b) => {
+        const dateA = new Date(a.createdAt);
+        const dateB = new Date(b.createdAt);
+        return dateB.getTime() - dateA.getTime();
+      })[0];
+      setSelectedCampaignId(mostRecent.id);
+    }
+  }, [selectedCampaignId, availableCampaigns]);
+
+  // Get active campaign based on selection
+  const activeCampaign = selectedCampaignId ? campaigns?.find(c => c.id === selectedCampaignId) : null;
 
   return (
     <div className="pb-16">
@@ -243,7 +256,33 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               ) : activeCampaign ? (
-                <CampaignPanel campaign={activeCampaign} />
+                <div className="space-y-4">
+                  {availableCampaigns.length > 1 && (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg">Select Active Campaign</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <Select 
+                          value={selectedCampaignId?.toString() || ""} 
+                          onValueChange={(value) => setSelectedCampaignId(parseInt(value))}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select a campaign" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableCampaigns.map((campaign) => (
+                              <SelectItem key={campaign.id} value={campaign.id.toString()}>
+                                {campaign.title}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </CardContent>
+                    </Card>
+                  )}
+                  <CampaignPanel campaign={activeCampaign} />
+                </div>
               ) : (
                 <Card className="bg-secondary-light rounded-lg shadow-xl overflow-hidden">
                   <CardHeader className="bg-primary p-4">
