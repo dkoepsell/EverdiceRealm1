@@ -424,9 +424,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             onSettled: () => {
               // When the story advancement is complete (success or error)
               setIsAdvancingStory(false);
-              // Close the dialog
+              // Close the dialog and reset all dice roll state
               setShowDiceRollDialog(false);
               setCurrentDiceRoll(null);
+              setDiceRollResult(null);
+              setIsRolling(false);
             }
           });
         }, 1000);
@@ -434,15 +436,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       
     } catch (error) {
       console.error("Error with dice roll:", error);
+      // Reset all dice roll state on error
       setIsRolling(false);
+      setDiceRollResult(null);
+      setShowDiceRollDialog(false);
+      setCurrentDiceRoll(null);
       toast({
         title: "Dice Roll Error",
         description: "There was a problem with your dice roll",
         variant: "destructive"
       });
-      
-      setShowDiceRollDialog(false);
-      setCurrentDiceRoll(null);
     }
   };
   
@@ -459,7 +462,17 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   return (
     <div className="w-full">
       {/* Dice Roll Dialog */}
-      <Dialog open={showDiceRollDialog} onOpenChange={setShowDiceRollDialog}>
+      <Dialog open={showDiceRollDialog} onOpenChange={(open) => {
+        if (!open) {
+          // Reset all dice roll state when dialog is closed
+          setShowDiceRollDialog(false);
+          setCurrentDiceRoll(null);
+          setDiceRollResult(null);
+          setIsRolling(false);
+        } else {
+          setShowDiceRollDialog(true);
+        }
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Roll the Dice</DialogTitle>
