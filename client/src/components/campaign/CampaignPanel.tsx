@@ -719,15 +719,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             <Button 
                               key={index}
                               variant="outline"
-                              className="justify-start h-auto py-3 px-4 bg-primary/5 hover:bg-primary/10 border-primary/20 text-left text-foreground"
+                              className="justify-start h-auto py-3 px-4 bg-background hover:bg-accent border-2 border-border hover:border-primary text-left"
                               onClick={() => handleChoiceSelection(choice)}
                             >
                               <div className="flex items-start">
-                                <ArrowRight className="h-5 w-5 mr-2 mt-0.5 shrink-0" />
+                                <ArrowRight className="h-5 w-5 mr-2 mt-0.5 shrink-0 text-primary" />
                                 <span className="text-foreground font-medium">
                                   {choice.action || choice.text}
                                   {(choice.requiresRoll || choice.requiresDiceRoll) && (
-                                    <span className="ml-2 text-xs bg-primary/20 text-primary/90 px-2 py-0.5 rounded font-bold">
+                                    <span className="ml-2 text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded font-bold">
                                       {choice.rollPurpose || "Skill Check"} ({choice.diceType || "d20"})
                                     </span>
                                   )}
