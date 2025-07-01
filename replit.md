@@ -152,6 +152,7 @@ Preferred communication style: Simple, everyday language.
 - Fixed black text on black background styling issues in party tabs across all components
 - Enhanced HP and AC contrast in character cards with color-coded backgrounds and borders
 - Improved choice button readability with proper contrast backgrounds and skill check tag visibility
+- Enhanced narrative text contrast by using card background with proper text colors for better readability
 
 ### RPG Progression System (July 01, 2025)
 - Implemented automatic XP awards (25-100 XP based on skill check difficulty)

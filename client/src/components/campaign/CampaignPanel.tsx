@@ -670,7 +670,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   <h2 className="text-2xl font-bold font-fantasy text-primary">
                     {campaign.title}
                   </h2>
-                  <p className="text-muted-foreground">
+                  <p className="text-foreground/80 font-medium">
                     {campaign.description}
                   </p>
                 </div>
@@ -680,7 +680,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   <div className="mt-6 space-y-4">
                     <div className="flex justify-between items-start">
                       <h3 className="text-lg font-semibold flex items-center text-foreground">
-                        <Scroll className="h-5 w-5 mr-2 text-primary-foreground" />
+                        <Scroll className="h-5 w-5 mr-2 text-primary" />
                         Session {currentSession.sessionNumber}: {currentSession.title}
                       </h3>
                       
@@ -693,7 +693,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       )}
                     </div>
                     
-                    <div className="bg-parchment-light p-4 rounded-md border border-border shadow-inner">
+                    <div className="bg-card p-4 rounded-md border border-border shadow-inner">
                       {isAdvancingStory ? (
                         <div className="flex flex-col items-center justify-center py-10">
                           <div className="animate-spin h-12 w-12 rounded-full border-4 border-primary border-t-transparent"></div>
@@ -702,7 +702,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           </p>
                         </div>
                       ) : (
-                        <p className="whitespace-pre-line text-sm sm:text-base leading-relaxed text-foreground">
+                        <p className="whitespace-pre-line text-sm sm:text-base leading-relaxed text-card-foreground font-medium">
                           {currentSession.narrative}
                         </p>
                       )}
