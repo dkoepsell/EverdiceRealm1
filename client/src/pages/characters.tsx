@@ -264,14 +264,14 @@ export default function Characters() {
                         </div>
                       </div>
                       
-                      <div className="flex justify-between mt-4">
-                        <div className="flex items-center">
-                          <Swords size={16} className="text-primary-light mr-1" />
-                          <span className="text-sm">HP: {character.hitPoints}/{character.maxHitPoints}</span>
+                      <div className="flex justify-between mt-4 gap-2">
+                        <div className="flex items-center bg-destructive/10 px-2 py-1 rounded border border-destructive/20">
+                          <Swords size={16} className="text-destructive mr-1" />
+                          <span className="text-sm font-bold text-foreground">HP: {character.hitPoints}/{character.maxHitPoints}</span>
                         </div>
-                        <div className="flex items-center">
-                          <Dice6 size={16} className="text-primary-light mr-1" />
-                          <span className="text-sm">AC: {character.armorClass}</span>
+                        <div className="flex items-center bg-primary/10 px-2 py-1 rounded border border-primary/20">
+                          <Dice6 size={16} className="text-primary mr-1" />
+                          <span className="text-sm font-bold text-foreground">AC: {character.armorClass}</span>
                         </div>
                       </div>
                     </CardContent>

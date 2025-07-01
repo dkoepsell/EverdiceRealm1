@@ -150,6 +150,7 @@ Preferred communication style: Simple, everyday language.
 - Improved user experience when switching between multiple campaigns
 - Auto-selects most recent campaign when multiple are available
 - Fixed black text on black background styling issues in party tabs across all components
+- Enhanced HP and AC contrast in character cards with color-coded backgrounds and borders
 
 ### RPG Progression System (July 01, 2025)
 - Implemented automatic XP awards (25-100 XP based on skill check difficulty)

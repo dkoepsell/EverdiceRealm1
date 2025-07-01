@@ -116,13 +116,13 @@ export default function CharacterProgress({ character }: CharacterProgressProps)
           
           {/* Brief Character Info */}
           <div className="flex flex-wrap gap-2 mt-2">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-semibold">HP:</span>
-              <span className="text-sm">{character.hitPoints}/{character.maxHitPoints}</span>
+            <div className="flex items-center space-x-2 bg-destructive/10 px-2 py-1 rounded border border-destructive/20">
+              <span className="text-sm font-semibold text-destructive">HP:</span>
+              <span className="text-sm font-bold text-foreground">{character.hitPoints}/{character.maxHitPoints}</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-semibold">AC:</span>
-              <span className="text-sm">{character.armorClass}</span>
+            <div className="flex items-center space-x-2 bg-primary/10 px-2 py-1 rounded border border-primary/20">
+              <span className="text-sm font-semibold text-primary">AC:</span>
+              <span className="text-sm font-bold text-foreground">{character.armorClass}</span>
             </div>
             {character.background && (
               <div className="flex items-center space-x-2">
