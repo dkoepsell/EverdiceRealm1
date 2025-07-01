@@ -670,7 +670,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   <h2 className="text-2xl font-bold font-fantasy text-primary">
                     {campaign.title}
                   </h2>
-                  <p className="text-foreground/80 font-medium">
+                  <p className="text-foreground font-medium">
                     {campaign.description}
                   </p>
                 </div>
