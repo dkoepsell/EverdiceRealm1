@@ -202,13 +202,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
   });
   
-  // Advance story mutation
+  // Advance story mutation with enhanced skill check integration
   const advanceStory = useMutation({
-    mutationFn: async (action: string) => {
-      const response = await apiRequest('POST', `/api/campaigns/advance-story`, {
-        campaignId: campaign.id,
-        sessionId: currentSession?.id,
-        action
+    mutationFn: async ({ choice, rollResult }: { choice: string; rollResult?: any }) => {
+      const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/advance-story`, {
+        choice,
+        rollResult
       });
       return await response.json();
     },
@@ -310,7 +309,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     } else {
       // Just advance the story with this action
       setIsAdvancingStory(true);
-      advanceStory.mutate(choice.action, {
+      advanceStory.mutate({ choice: choice.action }, {
         onSettled: () => {
           setIsAdvancingStory(false);
         }
@@ -388,21 +387,28 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         
         // Set a small delay to show the roll result before advancing
         setTimeout(() => {
-          // Advance the story with the roll result
-          advanceStory.mutate(
-            success 
-              ? `${currentDiceRoll.action} [SUCCESS: ${result.total} vs DC ${rollDC}]` 
-              : `${currentDiceRoll.action} [FAILURE: ${result.total} vs DC ${rollDC}]`,
-            {
-              onSettled: () => {
-                // When the story advancement is complete (success or error)
-                setIsAdvancingStory(false);
-                // Close the dialog
-                setShowDiceRollDialog(false);
-                setCurrentDiceRoll(null);
-              }
+          // Advance the story with the roll result using enhanced format
+          const rollResultData = {
+            diceType: currentDiceRoll.diceType,
+            result: result.result,
+            modifier: currentDiceRoll.rollModifier,
+            total: result.total,
+            dc: rollDC,
+            purpose: currentDiceRoll.action
+          };
+          
+          advanceStory.mutate({
+            choice: currentDiceRoll.action,
+            rollResult: rollResultData
+          }, {
+            onSettled: () => {
+              // When the story advancement is complete (success or error)
+              setIsAdvancingStory(false);
+              // Close the dialog
+              setShowDiceRollDialog(false);
+              setCurrentDiceRoll(null);
             }
-          );
+          });
         }, 1000);
       }, 1500);
       
