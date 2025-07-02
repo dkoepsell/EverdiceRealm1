@@ -15,8 +15,32 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
+import { SkillCheckExplainer } from "@/components/education/SkillCheckExplainer";
+import { Badge } from "@/components/ui/badge";
+import { HelpCircle, BookOpen } from "lucide-react";
 
 const diceTypes: DiceType[] = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"];
+
+const SKILL_PURPOSES = [
+  "Athletics", "Acrobatics", "Sleight of Hand", "Stealth",
+  "Arcana", "History", "Investigation", "Nature", "Religion",
+  "Animal Handling", "Insight", "Medicine", "Perception", "Survival",
+  "Deception", "Intimidation", "Performance", "Persuasion"
+];
+
+const getSkillAbility = (skill: string): string => {
+  const skillMap: Record<string, string> = {
+    "Athletics": "Strength",
+    "Acrobatics": "Dexterity", "Sleight of Hand": "Dexterity", "Stealth": "Dexterity",
+    "Arcana": "Intelligence", "History": "Intelligence", "Investigation": "Intelligence", 
+    "Nature": "Intelligence", "Religion": "Intelligence",
+    "Animal Handling": "Wisdom", "Insight": "Wisdom", "Medicine": "Wisdom", 
+    "Perception": "Wisdom", "Survival": "Wisdom",
+    "Deception": "Charisma", "Intimidation": "Charisma", 
+    "Performance": "Charisma", "Persuasion": "Charisma"
+  };
+  return skillMap[skill] || "Unknown";
+};
 
 export default function DiceRoller() {
   const [selectedDiceType, setSelectedDiceType] = useState<DiceType>("d20");
@@ -181,14 +205,27 @@ export default function DiceRoller() {
                 />
               </div>
               
-              <div className="mt-3 flex space-x-2">
-                <Input
-                  type="text"
-                  placeholder="Purpose (e.g. Attack Roll)"
-                  value={purpose}
-                  onChange={(e) => setPurpose(e.target.value)}
-                  className="flex-1 bg-secondary-light border border-gray-700 rounded-lg px-2 py-1 text-white"
-                />
+              <div className="mt-3 space-y-2">
+                <div className="flex space-x-2">
+                  <Input
+                    type="text"
+                    placeholder="Purpose (e.g. Attack Roll)"
+                    value={purpose}
+                    onChange={(e) => setPurpose(e.target.value)}
+                    className="flex-1 bg-secondary-light border border-gray-700 rounded-lg px-2 py-1 text-white"
+                  />
+                  <Select onValueChange={(value) => setPurpose(value)}>
+                    <SelectTrigger className="w-32 bg-secondary-light border border-gray-700 rounded-lg text-white">
+                      <SelectValue placeholder="Skill" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Custom</SelectItem>
+                      {SKILL_PURPOSES.map((skill) => (
+                        <SelectItem key={skill} value={skill}>{skill}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 
                 {characters && characters.length > 0 && (
                   <Select 
@@ -212,33 +249,40 @@ export default function DiceRoller() {
             </div>
             
             <div className="bg-secondary rounded-lg p-3">
-              <h4 className="text-white font-medium mb-2">Common Rolls</h4>
+              <div className="flex items-center gap-2 mb-2">
+                <h4 className="text-white font-medium">Practice Skill Checks</h4>
+                <BookOpen className="h-4 w-4 text-gold" />
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <Button 
                   className="bg-primary-light hover:bg-primary text-white p-2 rounded-lg transition text-sm"
-                  onClick={() => handleQuickRoll("d20", 1, 3, "Attack Roll")}
+                  onClick={() => handleQuickRoll("d20", 1, 3, "Perception")}
                 >
-                  Attack (d20+3)
+                  Perception (d20+3)
                 </Button>
                 <Button 
                   className="bg-primary-light hover:bg-primary text-white p-2 rounded-lg transition text-sm"
-                  onClick={() => handleQuickRoll("d8", 1, 3, "Damage")}
+                  onClick={() => handleQuickRoll("d20", 1, 2, "Persuasion")}
                 >
-                  Damage (1d8+3)
+                  Persuasion (d20+2)
                 </Button>
                 <Button 
                   className="bg-primary-light hover:bg-primary text-white p-2 rounded-lg transition text-sm"
-                  onClick={() => handleQuickRoll("d20", 1, 5, "Skill Check")}
+                  onClick={() => handleQuickRoll("d20", 1, 4, "Investigation")}
                 >
-                  Skill Check (d20+5)
+                  Investigation (d20+4)
                 </Button>
                 <Button 
                   className="bg-primary-light hover:bg-primary text-white p-2 rounded-lg transition text-sm"
-                  onClick={() => handleQuickRoll("d20", 1, 2, "Saving Throw")}
+                  onClick={() => handleQuickRoll("d20", 1, 1, "Athletics")}
                 >
-                  Saving Throw (d20+2)
+                  Athletics (d20+1)
                 </Button>
               </div>
+              <p className="text-gray-400 text-xs mt-2 flex items-center gap-1">
+                <HelpCircle className="h-3 w-3" />
+                Click the help icon next to skill results to learn more!
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -297,9 +341,25 @@ export default function DiceRoller() {
                   </p>
                 )}
                 {diceResult.purpose && (
-                  <p className="text-gray-300 mt-1">
-                    {diceResult.purpose}
-                  </p>
+                  <div className="flex items-center justify-center gap-2 mt-1">
+                    <p className="text-gray-300">
+                      {diceResult.purpose}
+                    </p>
+                    {SKILL_PURPOSES.includes(diceResult.purpose) && (
+                      <div className="flex items-center gap-1">
+                        <Badge variant="outline" className="text-xs">
+                          {getSkillAbility(diceResult.purpose)}
+                        </Badge>
+                        <SkillCheckExplainer
+                          skill={diceResult.purpose}
+                          roll={diceResult.rolls[0]}
+                          modifier={diceResult.modifier}
+                          total={diceResult.total}
+                          context="Practice Roll"
+                        />
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}

@@ -162,9 +162,18 @@ Preferred communication style: Simple, everyday language.
 - Integrated progression rewards dialog to display found items
 - Added toast notifications for XP gains and level-ups
 
+### D&D Educational Features (July 02, 2025)
+- Added comprehensive D&D Learning Center with guided learning paths
+- Created interactive Rules Reference with searchable D&D mechanics
+- Built comprehensive DM Guide with session prep and encounter design
+- Enhanced dice roller with educational skill check explanations
+- Added skill check explainer component with difficulty guidelines
+- Integrated practice skill checks with contextual learning tips
+
 ## Changelog
 
 Changelog:
 - July 01, 2025. Initial setup
 - July 01, 2025. Added RPG progression system with XP tracking and item drops
 - July 01, 2025. Enhanced campaign navigation with selection dropdown
+- July 02, 2025. Added comprehensive D&D educational features and learning systems

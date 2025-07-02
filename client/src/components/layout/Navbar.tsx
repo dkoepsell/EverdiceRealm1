@@ -30,6 +30,7 @@ export default function Navbar() {
     { name: "Characters", path: "/characters" },
     { name: "Campaigns", path: "/campaigns" },
     { name: "Dice Roller", path: "/dice-roller" },
+    { name: "Learn D&D", path: "/learn" },
     { name: "DM Toolkit", path: "/dm-toolkit" },
   ];
   
