@@ -25,7 +25,7 @@ export function createWSConnection(force = false) {
           socket.close();
         }
       } catch (err) {
-        console.error('Error closing existing socket:', err);
+        // Silent error handling
       }
     }
     
@@ -41,18 +41,16 @@ export function createWSConnection(force = false) {
     // Set a connection timeout
     const connectionTimeout = setTimeout(() => {
       if (socket && socket.readyState !== WebSocket.OPEN) {
-        console.warn('WebSocket connection timeout - forcing close and reconnect');
         try {
           socket.close();
         } catch (err) {
-          console.error('Error closing socket on timeout:', err);
+          // Silent error handling
         }
         scheduleReconnect();
       }
     }, 10000);
     
     socket.onopen = () => {
-      console.log('WebSocket connection established');
       clearTimeout(connectionTimeout);
       reconnectAttempts = 0;
       isReconnecting = false;
@@ -88,7 +86,6 @@ export function createWSConnection(force = false) {
     
     socket.onclose = (event) => {
       clearTimeout(connectionTimeout);
-      console.log('WebSocket connection closed', event.code, event.reason);
       
       // Don't attempt to reconnect if closing was intentional (code 1000)
       if (event.code !== 1000) {
@@ -100,11 +97,10 @@ export function createWSConnection(force = false) {
     };
     
     socket.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      // We'll let onclose handle the reconnection
+      // Silent error handling - onclose will handle reconnection
     };
   } catch (error) {
-    console.error('Failed to create WebSocket connection:', error);
+    // Silent error handling
     scheduleReconnect();
   }
 }
@@ -112,7 +108,6 @@ export function createWSConnection(force = false) {
 function scheduleReconnect() {
   // If max attempts reached, stop trying
   if (reconnectAttempts >= maxReconnectAttempts) {
-    console.error(`Maximum reconnection attempts (${maxReconnectAttempts}) reached. Giving up.`);
     isReconnecting = false;
     return;
   }
@@ -126,10 +121,7 @@ function scheduleReconnect() {
   const delay = Math.min(1000 * Math.pow(1.5, reconnectAttempts) + Math.random() * 1000, 30000);
   reconnectAttempts++;
   
-  console.log(`Scheduling WebSocket reconnect attempt ${reconnectAttempts}/${maxReconnectAttempts} in ${Math.round(delay)}ms`);
-  
   reconnectTimer = window.setTimeout(() => {
-    console.log('Attempting to reconnect WebSocket...');
     createWSConnection(true);
   }, delay);
 }
@@ -137,8 +129,6 @@ function scheduleReconnect() {
 export function sendWSMessage(type: string, payload: any) {
   if (socket && socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify({ type, payload }));
-  } else {
-    console.warn('WebSocket not connected, cannot send message');
   }
 }
 
