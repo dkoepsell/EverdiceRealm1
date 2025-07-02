@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
-import { SkillCheckExplainer } from "@/components/education/SkillCheckExplainer";
+// import { SkillCheckExplainer } from "@/components/education/SkillCheckExplainer";
 import { Badge } from "@/components/ui/badge";
 import { HelpCircle, BookOpen } from "lucide-react";
 
@@ -219,7 +219,7 @@ export default function DiceRoller() {
                       <SelectValue placeholder="Skill" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Custom</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
                       {SKILL_PURPOSES.map((skill) => (
                         <SelectItem key={skill} value={skill}>{skill}</SelectItem>
                       ))}
@@ -350,13 +350,7 @@ export default function DiceRoller() {
                         <Badge variant="outline" className="text-xs">
                           {getSkillAbility(diceResult.purpose)}
                         </Badge>
-                        <SkillCheckExplainer
-                          skill={diceResult.purpose}
-                          roll={diceResult.rolls[0]}
-                          modifier={diceResult.modifier}
-                          total={diceResult.total}
-                          context="Practice Roll"
-                        />
+                        {/* Temporarily disabled skill explainer */}
                       </div>
                     )}
                   </div>
