@@ -390,25 +390,31 @@ Campaign: ${campaign.title}. ${campaign.description || ""}
 Difficulty level: ${campaign.difficulty || "Normal - Balanced Challenge"}
 
 Generate the opening scene for this campaign. Include:
-1. A descriptive narrative of the initial setting and situation (3-4 paragraphs)
+1. A descriptive narrative of the initial setting and situation (2-3 paragraphs, keep it concise)
 2. A title for this opening scene
-3. Four possible actions the players can take next, with at least 2 actions requiring dice rolls (skill checks, saving throws, or combat rolls)
+3. Four possible actions the players can take next, with at least 2 actions requiring dice rolls
+4. Initial quests/objectives for the players to complete
 
 Return your response as a JSON object with these fields:
-- narrative: The descriptive text of the opening scene
+- narrative: The descriptive text of the opening scene (keep under 150 words)
 - sessionTitle: A short, engaging title for this scene
 - location: The current location or setting where the campaign begins
 - choices: An array of 4 objects, each with:
   - action: A short description of a possible action
   - description: A brief explanation of what this action entails 
-  - icon: A simple icon identifier (use: "search", "hand-sparkles", "running", "sword", or any basic icon name)
   - requiresDiceRoll: Boolean indicating if this action requires a dice roll
-  - diceType: If requiresDiceRoll is true, include the type of dice to roll ("d20" for most skill checks and attacks, "d4", "d6", "d8", etc. for damage)
+  - diceType: If requiresDiceRoll is true, include the type of dice to roll ("d20" for most skill checks)
   - rollDC: If requiresDiceRoll is true, include the DC/difficulty (number to beat) for this roll
-  - rollModifier: The modifier to add to the roll (based on character attributes, usually -2 to +5)
-  - rollPurpose: A short explanation of what the roll is for (e.g., "Perception Check", "Athletics Check", "Attack Roll")
+  - rollModifier: The modifier to add to the roll (usually -2 to +5)
+  - rollPurpose: A short explanation of what the roll is for (e.g., "Perception Check", "Athletics Check")
   - successText: Brief text to display on a successful roll
   - failureText: Brief text to display on a failed roll
+- activeQuests: An array of 1-3 initial quests, each with:
+  - id: Unique identifier like "quest_main_1" or "quest_side_1"
+  - title: Short quest title
+  - description: What the player needs to accomplish
+  - status: Always "active" for initial quests
+  - xpReward: XP reward (100-500 based on difficulty)
 `;
         
         const response = await openaiClient.chat.completions.create({
@@ -437,15 +443,26 @@ Return your response as a JSON object with these fields:
             }
           });
           
-          // Create initial session
+          // Create initial session with quests in storyState
+          const initialStoryState = {
+            location: initialSessionData.location,
+            activeNPCs: [],
+            plotPoints: [],
+            conditions: [],
+            activeQuests: initialSessionData.activeQuests || [
+              { id: "quest_main_1", title: "Begin the Adventure", description: "Explore your surroundings and discover the first clues", status: "active", xpReward: 100 }
+            ]
+          };
+          
           const sessionData = {
             campaignId: campaign.id,
             sessionNumber: 1,
             title: initialSessionData.sessionTitle,
             narrative: initialSessionData.narrative,
             location: initialSessionData.location,
-            choices: JSON.stringify(initialSessionData.choices), // Convert to JSON string
-            sessionXpReward: 100, // Add initial XP reward 
+            choices: JSON.stringify(initialSessionData.choices),
+            storyState: JSON.stringify(initialStoryState),
+            sessionXpReward: 100,
             createdAt: new Date().toISOString(),
           };
           
@@ -466,8 +483,17 @@ Return your response as a JSON object with these fields:
             choices: JSON.stringify([
               { action: "Visit the local tavern", description: "Gather information from the locals", requiresDiceRoll: false },
               { action: "Meet with the town elder", description: "Learn about problems facing the settlement", requiresDiceRoll: false },
-              { action: "Investigate nearby ruins", description: "Search for treasure and adventure", requiresDiceRoll: true, diceType: "d20", rollDC: 12, rollModifier: 0 }
+              { action: "Investigate nearby ruins", description: "Search for treasure and adventure", requiresDiceRoll: true, diceType: "d20", rollDC: 12, rollModifier: 0, rollPurpose: "Investigation Check", successText: "You find something interesting!", failureText: "Nothing catches your eye." }
             ]),
+            storyState: JSON.stringify({
+              location: "Starting Village",
+              activeNPCs: [],
+              plotPoints: [],
+              conditions: [],
+              activeQuests: [
+                { id: "quest_main_1", title: "Uncover the Mystery", description: "Explore the village and discover what adventure awaits", status: "active", xpReward: 100 }
+              ]
+            }),
             sessionXpReward: 100,
             createdAt: new Date().toISOString(),
           };
@@ -492,8 +518,17 @@ Return your response as a JSON object with these fields:
           choices: JSON.stringify([
             { action: "Visit the local tavern", description: "Gather information from the locals", requiresDiceRoll: false },
             { action: "Meet with the town elder", description: "Learn about problems facing the settlement", requiresDiceRoll: false },
-            { action: "Investigate nearby ruins", description: "Search for treasure and adventure", requiresDiceRoll: true, diceType: "d20", rollDC: 12, rollModifier: 0 }
+            { action: "Investigate nearby ruins", description: "Search for treasure and adventure", requiresDiceRoll: true, diceType: "d20", rollDC: 12, rollModifier: 0, rollPurpose: "Investigation Check", successText: "You find something interesting!", failureText: "Nothing catches your eye." }
           ]),
+          storyState: JSON.stringify({
+            location: "Starting Village",
+            activeNPCs: [],
+            plotPoints: [],
+            conditions: [],
+            activeQuests: [
+              { id: "quest_main_1", title: "Uncover the Mystery", description: "Explore the village and discover what adventure awaits", status: "active", xpReward: 100 }
+            ]
+          }),
           sessionXpReward: 100,
           createdAt: new Date().toISOString(),
         };
@@ -3766,6 +3801,9 @@ ${rollSuccess ?
 Do not ignore this result. Build the entire next scene around this outcome.`;
       }
 
+      // Get current quests from story state
+      const currentQuests = (currentSession.storyState as any)?.activeQuests || [];
+      
       // Generate story continuation based on choice and previous context
       const prompt = `
 Continue this D&D story based on the player's choice and maintain story continuity.
@@ -3775,6 +3813,11 @@ ${currentSession.previousSessionResult ? JSON.stringify(currentSession.previousS
 
 Current Story State:
 ${JSON.stringify(currentSession.storyState || {})}
+
+ACTIVE QUESTS (track completion!):
+${currentQuests.length > 0 ? currentQuests.map((q: any) => 
+  `- ${q.title}: ${q.description} [Status: ${q.status}]`
+).join('\n') : 'No active quests - create 1-2 initial quests based on the story'}
 
 Current Narrative:
 ${currentSession.narrative}
@@ -3786,7 +3829,7 @@ ${skillCheckContinuation}
 
 Previous Player Actions History:
 ${currentSession.playerChoicesMade && currentSession.playerChoicesMade.length > 0 ? 
-  currentSession.playerChoicesMade.slice(-3).map((action, i) => 
+  currentSession.playerChoicesMade.slice(-3).map((action: any, i: number) => 
     `${i + 1}. ${action.choice} ${action.rollResult ? `(${action.rollResult.diceType}: ${action.rollResult.total})` : ''} - ${action.consequences || 'No recorded consequences'}`
   ).join('\n') : 'No previous actions recorded'}
 
@@ -3800,6 +3843,13 @@ CRITICAL INSTRUCTIONS - FOLLOW EXACTLY:
 3. Keep environmental description to 1 sentence maximum
 4. Prioritize character reactions and story progression
 5. Build directly on the specific skill check outcome
+6. TRACK QUEST PROGRESS - Update quest status when player makes progress!
+
+QUEST TRACKING REQUIREMENTS:
+- If the player's action advances a quest, update its status to "in_progress" or "completed"
+- Mark quests "completed" when objectives are clearly achieved
+- Add new quests when story naturally introduces new objectives
+- Always include at least 1 active quest
 
 WRITING STYLE REQUIREMENTS:
 - Be CONCISE and ACTION-FOCUSED
@@ -3837,9 +3887,18 @@ Respond with JSON:
       "failureText": "What happens on failure"
     }
   ],
-  "storyState": {"location": "current location", "activeNPCs": ["NPCs present"], "plotPoints": ["active plot elements"], "conditions": ["current conditions"]},
+  "storyState": {
+    "location": "current location",
+    "activeNPCs": ["NPCs present"],
+    "plotPoints": ["active plot elements"],
+    "conditions": ["current conditions"],
+    "activeQuests": [
+      {"id": "quest_1", "title": "Quest Title", "description": "What the player needs to do", "status": "active/in_progress/completed", "xpReward": 100}
+    ]
+  },
   "npcInteractions": {"npcName": {"mood": "current mood", "relationship": "relationship change", "nextAction": "immediate plan"}},
-  "consequencesOfChoice": "Specific result of the player's action and skill check outcome"
+  "consequencesOfChoice": "Specific result of the player's action and skill check outcome",
+  "questUpdates": [{"questId": "quest_1", "newStatus": "in_progress/completed", "progressNote": "What changed"}]
 }`;
 
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -3880,6 +3939,24 @@ Respond with JSON:
           consequences.toLowerCase().includes('solve') ||
           consequences.toLowerCase().includes('defeat')) {
         xpAwarded += 50;
+      }
+
+      // Award XP for completed quests
+      const questUpdates = storyAdvancement.questUpdates || [];
+      const completedQuests: any[] = [];
+      for (const update of questUpdates) {
+        if (update.newStatus === 'completed') {
+          // Find the quest in the story state to get its XP reward
+          const activeQuests = storyAdvancement.storyState?.activeQuests || [];
+          const completedQuest = activeQuests.find((q: any) => q.id === update.questId);
+          if (completedQuest) {
+            xpAwarded += completedQuest.xpReward || 100; // Default 100 XP if not specified
+            completedQuests.push({
+              ...completedQuest,
+              progressNote: update.progressNote
+            });
+          }
+        }
       }
 
       // Check for random item drops based on story context
@@ -3962,7 +4039,8 @@ Respond with JSON:
             newXP,
             newLevel,
             leveledUp,
-            itemsFound
+            itemsFound,
+            completedQuests
           };
         }
       }

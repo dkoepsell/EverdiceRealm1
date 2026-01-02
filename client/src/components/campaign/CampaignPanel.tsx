@@ -112,6 +112,20 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     return participants.find((p: any) => p.userId === user.id);
   }, [participants, user]);
   
+  // Parse storyState - it may be stored as JSON string or already parsed
+  const parsedStoryState = useMemo(() => {
+    if (!currentSession?.storyState) return null;
+    try {
+      if (typeof currentSession.storyState === 'string') {
+        return JSON.parse(currentSession.storyState);
+      }
+      return currentSession.storyState;
+    } catch (e) {
+      console.error('Failed to parse storyState:', e);
+      return null;
+    }
+  }, [currentSession?.storyState]);
+  
   // Check if settings are changed
   useEffect(() => {
     setSettingsChanged(
@@ -230,6 +244,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       // Check if data contains progression data
       if (data && data.progression) {
         setProgressionRewards(data.progression);
+        
+        // Show quest completion toast first (more exciting!)
+        if (data.progression.completedQuests?.length > 0) {
+          const questNames = data.progression.completedQuests.map((q: any) => q.title).join(', ');
+          toast({
+            title: `🏆 Quest Complete!`,
+            description: `${questNames} - Earned bonus XP!`,
+          });
+        }
         
         // Show progression toast
         if (data.progression.leveledUp) {
@@ -695,6 +718,42 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       )}
                     </div>
                     
+                    {/* Active Quests Display */}
+                    {parsedStoryState?.activeQuests && 
+                     (parsedStoryState.activeQuests as any[]).length > 0 && (
+                      <div className="bg-amber-50 dark:bg-amber-950/30 p-4 rounded-md border border-amber-200 dark:border-amber-800 mb-4">
+                        <h4 className="font-semibold text-amber-800 dark:text-amber-200 flex items-center mb-3">
+                          <Scroll className="h-4 w-4 mr-2" />
+                          Active Quests
+                        </h4>
+                        <div className="space-y-2">
+                          {(parsedStoryState.activeQuests as any[]).map((quest: any, index: number) => (
+                            <div 
+                              key={quest.id || index}
+                              className={`flex items-start gap-2 p-2 rounded ${
+                                quest.status === 'completed' 
+                                  ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200' 
+                                  : quest.status === 'in_progress'
+                                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
+                                  : 'bg-amber-100/50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-100'
+                              }`}
+                            >
+                              <span className="text-lg">
+                                {quest.status === 'completed' ? '✓' : quest.status === 'in_progress' ? '→' : '○'}
+                              </span>
+                              <div className="flex-1">
+                                <p className="font-medium text-sm">{quest.title}</p>
+                                <p className="text-xs opacity-80">{quest.description}</p>
+                                {quest.xpReward && quest.status !== 'completed' && (
+                                  <p className="text-xs mt-1 font-semibold">Reward: {quest.xpReward} XP</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="bg-card p-4 rounded-md border border-border shadow-inner">
                       {isAdvancingStory ? (
                         <div className="flex flex-col items-center justify-center py-10">
