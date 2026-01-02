@@ -179,6 +179,15 @@ Preferred communication style: Simple, everyday language.
 - AI now tracks quest progress and marks objectives complete based on player actions
 - Story state persists properly to database so adventures maintain continuity
 
+### Combat Mechanics System (January 02, 2026)
+- Implemented proper D&D combat mechanics with damage tracking
+- Enemy HP tracking with visual health bars (green/orange/red based on health)
+- Combat status display showing all combatants and their condition (healthy/wounded/bloodied/defeated)
+- Player damage application - attacks that hit reduce character HP
+- Enemy damage tracking - successful attacks reduce enemy HP
+- Toast notifications for damage dealt and taken during combat
+- Combat state persists in storyState (inCombat flag, combatants array)
+
 ## Changelog
 
 Changelog:
@@ -187,3 +196,4 @@ Changelog:
 - July 01, 2025. Enhanced campaign navigation with selection dropdown
 - July 02, 2025. Added comprehensive D&D educational features and learning systems
 - July 02, 2025. Implemented quest tracking with completion status and story progression persistence
+- January 02, 2026. Added combat mechanics with damage tracking, enemy HP bars, and combat effects
