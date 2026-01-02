@@ -254,6 +254,24 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           });
         }
         
+        // Show combat effects toast if damage occurred
+        if (data.progression.combatEffects) {
+          const combat = data.progression.combatEffects;
+          if (combat.damageTaken > 0) {
+            toast({
+              title: `⚔️ Combat! You took ${combat.damageTaken} damage!`,
+              description: `HP: ${combat.newHitPoints}/${combat.maxHitPoints}` + 
+                (combat.damageDealt > 0 ? ` - You dealt ${combat.damageDealt} damage!` : ""),
+              variant: combat.newHitPoints <= 0 ? "destructive" : undefined,
+            });
+          } else if (combat.damageDealt > 0) {
+            toast({
+              title: `⚔️ Hit! You dealt ${combat.damageDealt} damage!`,
+              description: combat.combatDescription || "Your attack connected!",
+            });
+          }
+        }
+        
         // Show progression toast
         if (data.progression.leveledUp) {
           toast({
@@ -748,6 +766,60 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   <p className="text-xs mt-1 font-semibold">Reward: {quest.xpReward} XP</p>
                                 )}
                               </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Combat Status Display */}
+                    {parsedStoryState?.inCombat && parsedStoryState?.combatants && 
+                     (parsedStoryState.combatants as any[]).length > 0 && (
+                      <div className="bg-red-50 dark:bg-red-950/30 p-4 rounded-md border-2 border-red-400 dark:border-red-700 mb-4 animate-pulse">
+                        <h4 className="font-bold text-red-700 dark:text-red-300 flex items-center mb-3 text-lg">
+                          ⚔️ COMBAT!
+                        </h4>
+                        <div className="space-y-3">
+                          {(parsedStoryState.combatants as any[]).filter((c: any) => c.status !== 'defeated').map((enemy: any, index: number) => (
+                            <div 
+                              key={enemy.name || index}
+                              className="bg-white dark:bg-gray-800 p-3 rounded border border-red-200 dark:border-red-800"
+                            >
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="font-bold text-red-800 dark:text-red-200">{enemy.name}</span>
+                                <span className={`text-sm font-medium px-2 py-0.5 rounded ${
+                                  enemy.status === 'bloodied' 
+                                    ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' 
+                                    : enemy.status === 'wounded'
+                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                    : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                }`}>
+                                  {enemy.status || 'healthy'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-gray-600 dark:text-gray-400">HP:</span>
+                                <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                                  <div 
+                                    className={`h-full rounded-full transition-all ${
+                                      (enemy.currentHp / enemy.maxHp) <= 0.25 
+                                        ? 'bg-red-500' 
+                                        : (enemy.currentHp / enemy.maxHp) <= 0.5 
+                                        ? 'bg-orange-500' 
+                                        : 'bg-green-500'
+                                    }`}
+                                    style={{ width: `${Math.max(0, (enemy.currentHp / enemy.maxHp) * 100)}%` }}
+                                  />
+                                </div>
+                                <span className="text-sm font-mono text-gray-700 dark:text-gray-300 min-w-[60px] text-right">
+                                  {enemy.currentHp}/{enemy.maxHp}
+                                </span>
+                              </div>
+                              {enemy.ac && (
+                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                  AC: {enemy.ac}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>

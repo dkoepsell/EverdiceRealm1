@@ -3851,6 +3851,15 @@ QUEST TRACKING REQUIREMENTS:
 - Add new quests when story naturally introduces new objectives
 - Always include at least 1 active quest
 
+COMBAT MECHANICS REQUIREMENTS:
+- When combat occurs, track enemy HP and apply realistic damage
+- Attack rolls that succeed should deal damage (use standard D&D damage: 1d6+modifier for light weapons, 1d8+modifier for medium, 1d10+ for heavy)
+- Failed attack rolls mean the attack misses - no damage dealt
+- Track when enemies are wounded, bloodied (below 50% HP), or defeated
+- Player can also take damage from enemy counterattacks or environmental hazards
+- Include "combatEffects" in your response with damage dealt/taken
+- Combat should feel dangerous and consequential
+
 WRITING STYLE REQUIREMENTS:
 - Be CONCISE and ACTION-FOCUSED
 - No flowery descriptions of scenery or atmosphere
@@ -3894,11 +3903,21 @@ Respond with JSON:
     "conditions": ["current conditions"],
     "activeQuests": [
       {"id": "quest_1", "title": "Quest Title", "description": "What the player needs to do", "status": "active/in_progress/completed", "xpReward": 100}
+    ],
+    "inCombat": true/false,
+    "combatants": [
+      {"name": "Enemy Name", "maxHp": 30, "currentHp": 30, "ac": 13, "status": "healthy/wounded/bloodied/defeated"}
     ]
   },
   "npcInteractions": {"npcName": {"mood": "current mood", "relationship": "relationship change", "nextAction": "immediate plan"}},
   "consequencesOfChoice": "Specific result of the player's action and skill check outcome",
-  "questUpdates": [{"questId": "quest_1", "newStatus": "in_progress/completed", "progressNote": "What changed"}]
+  "questUpdates": [{"questId": "quest_1", "newStatus": "in_progress/completed", "progressNote": "What changed"}],
+  "combatEffects": {
+    "playerDamageTaken": 0,
+    "playerDamageDealt": 0,
+    "enemyDamage": [{"name": "Enemy Name", "damageTaken": 8, "newHp": 22, "defeated": false}],
+    "combatDescription": "Brief description of the combat exchange"
+  }
 }`;
 
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -4017,10 +4036,10 @@ Respond with JSON:
         }]
       });
 
-      // Apply XP and items to character if there's a participant
+      // Apply XP, items, and combat damage to character if there's a participant
       let characterProgression = null;
       const participants = await storage.getCampaignParticipants(campaignId);
-      if (participants && participants.length > 0 && xpAwarded > 0) {
+      if (participants && participants.length > 0) {
         const characterId = participants[0].characterId;
         const character = await storage.getCharacter(characterId);
         if (character) {
@@ -4028,9 +4047,25 @@ Respond with JSON:
           const newLevel = Math.max(1, Math.floor(newXP / 1000) + 1);
           const leveledUp = newLevel > character.level;
           
+          // Apply combat damage if any
+          const combatEffects = storyAdvancement.combatEffects;
+          let newHitPoints = character.hitPoints;
+          let damageTaken = 0;
+          let damageDealt = 0;
+          
+          if (combatEffects) {
+            damageTaken = combatEffects.playerDamageTaken || 0;
+            damageDealt = combatEffects.playerDamageDealt || 0;
+            
+            if (damageTaken > 0) {
+              newHitPoints = Math.max(0, character.hitPoints - damageTaken);
+            }
+          }
+          
           await storage.updateCharacter(characterId, {
             experience: newXP,
             level: newLevel,
+            hitPoints: newHitPoints,
             updatedAt: new Date().toISOString()
           });
           
@@ -4040,7 +4075,15 @@ Respond with JSON:
             newLevel,
             leveledUp,
             itemsFound,
-            completedQuests
+            completedQuests,
+            combatEffects: combatEffects ? {
+              damageTaken,
+              damageDealt,
+              newHitPoints,
+              maxHitPoints: character.maxHitPoints,
+              combatDescription: combatEffects.combatDescription,
+              enemyDamage: combatEffects.enemyDamage
+            } : null
           };
         }
       }
