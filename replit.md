@@ -212,6 +212,17 @@ Preferred communication style: Simple, everyday language.
 - Bonus XP (50 per enemy) awarded for defeating enemies in combat
 - Toast notifications for skill improvements
 
+### Death Saving Throws & Status Tracking (January 02, 2026)
+- Character status tracking: conscious, unconscious, stabilized, dead
+- Death saving throws: Roll d20 when unconscious (10+ success, 9- failure)
+- Critical rolls: Natural 20 restores 1 HP and consciousness; natural 1 counts as 2 failures
+- 3 successes = stabilized; 3 failures = dead
+- Stabilize action: Medicine check to stop death saves (character remains at 0 HP)
+- Heal action: Any healing restores consciousness if HP becomes positive
+- UI shows status with death save progress and action buttons
+- Rest mechanics respect status: Short rest blocked for unconscious/dead; long rest resets to conscious
+- Toast notifications for status changes (unconscious, dead)
+
 ## Changelog
 
 Changelog:
@@ -221,3 +232,4 @@ Changelog:
 - July 02, 2025. Added comprehensive D&D educational features and learning systems
 - July 02, 2025. Implemented quest tracking with completion status and story progression persistence
 - January 02, 2026. Added combat mechanics with damage tracking, enemy HP bars, and combat effects
+- January 02, 2026. Added death saving throws with D&D 5e mechanics and status tracking
