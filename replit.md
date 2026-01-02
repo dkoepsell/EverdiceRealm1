@@ -190,6 +190,9 @@ Preferred communication style: Simple, everyday language.
 - AI companion combat actions - companions take turns and attack enemies
 - Toast notifications for damage dealt/taken and companion actions
 - Combat state persists in storyState (inCombat flag, combatants array, partyMembers array)
+- AI prompt now includes player character info (name, class, HP, weapon) for proper combat tracking
+- Combat end detection: combat ends when all enemies are defeated, fled, or surrendered
+- Tactical combat options: disengage/retreat, switch weapons, defensive stance, use items, cast spells
 
 ## Changelog
 
