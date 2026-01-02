@@ -201,6 +201,17 @@ Preferred communication style: Simple, everyday language.
 - Equipment display showing equipped weapon (first item in inventory) and armor class
 - Backend routes for character resting and inventory CRUD operations
 
+### Skill Progression & Loot System (January 02, 2026)
+- Skill progression tracking: Skills improve through successful use
+- Every 5 successful skill checks = +1 bonus to that skill (max +5)
+- skillProgress field added to character schema to track uses and bonuses
+- Skill progress UI in Party tab showing all trained skills with uses and bonuses
+- Combat loot drops: Defeated enemies drop items and gold
+- AI generates lootDrops and rewardItems based on story context
+- Items automatically added to character inventory when found
+- Bonus XP (50 per enemy) awarded for defeating enemies in combat
+- Toast notifications for skill improvements
+
 ## Changelog
 
 Changelog:
