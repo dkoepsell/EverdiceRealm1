@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ChevronsUpDown, Shield, User, UserPlus, X, Users } from 'lucide-react';
+import { ChevronsUpDown, Shield, User, UserPlus, X, Users, Sword, Heart } from 'lucide-react';
 import { Character, User as UserType } from '@shared/schema';
 
 interface CampaignParticipant {
@@ -472,10 +472,41 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
             
             <CardContent className="pt-0">
               <div className="text-sm">
-                <p className="font-semibold text-foreground">{participant.character?.name}</p>
+                <p className="font-semibold text-foreground">{participant.isNpc ? participant.npc?.name : participant.character?.name}</p>
                 <p className="text-gray-700 text-xs">
-                  Level {participant.character?.level || 1} {participant.character?.race} {participant.character?.class}
+                  Level {participant.isNpc ? (participant.npc?.level || 1) : (participant.character?.level || 1)} {participant.isNpc ? participant.npc?.race : participant.character?.race} {participant.isNpc ? participant.npc?.occupation : participant.character?.class}
                 </p>
+                
+                {/* Combat Stats - HP, Weapon, AC */}
+                {!participant.isNpc && participant.character && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {/* HP Display */}
+                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+                      (participant.character.hitPoints || 0) <= 0 
+                        ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300' 
+                        : (participant.character.hitPoints || 0) < (participant.character.maxHitPoints || 1) / 2
+                          ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300'
+                          : 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
+                    }`}>
+                      <Heart className="h-3 w-3" />
+                      {participant.character.hitPoints || 0}/{participant.character.maxHitPoints || 0}
+                    </div>
+                    
+                    {/* Equipped Weapon */}
+                    {participant.character.equipment && participant.character.equipment.length > 0 && (
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+                        <Sword className="h-3 w-3" />
+                        {participant.character.equipment[0]}
+                      </div>
+                    )}
+                    
+                    {/* Armor Class */}
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+                      <Shield className="h-3 w-3" />
+                      AC {participant.character.armorClass || 10}
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
