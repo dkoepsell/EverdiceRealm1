@@ -194,6 +194,13 @@ Preferred communication style: Simple, everyday language.
 - Combat end detection: combat ends when all enemies are defeated, fled, or surrendered
 - Tactical combat options: disengage/retreat, switch weapons, defensive stance, use items, cast spells
 
+### Rest & Inventory System (January 02, 2026)
+- Added rest mechanics: Short rest (25% HP recovery) and Long rest (full HP recovery)
+- REST buttons in Party tab with visual HP display (color-coded based on health)
+- Inventory management: View, add, and remove items from character inventory
+- Equipment display showing equipped weapon (first item in inventory) and armor class
+- Backend routes for character resting and inventory CRUD operations
+
 ## Changelog
 
 Changelog:

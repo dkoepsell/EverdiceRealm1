@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -105,6 +105,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     failureText: string;
   } | null>(null);
   const [customAction, setCustomAction] = useState("");
+  const [newItemName, setNewItemName] = useState("");
   
   // Find the user's participant record in this campaign
   const userParticipant = useMemo(() => {
@@ -330,6 +331,97 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     onError: (error: Error) => {
       toast({
         title: "Failed to record dice roll",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Rest mutations for HP recovery
+  const shortRestMutation = useMutation({
+    mutationFn: async (characterId: number) => {
+      const response = await apiRequest('POST', `/api/characters/${characterId}/short-rest`);
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: "Short Rest Complete",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Rest Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const longRestMutation = useMutation({
+    mutationFn: async (characterId: number) => {
+      const response = await apiRequest('POST', `/api/characters/${characterId}/long-rest`);
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: "Long Rest Complete",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Rest Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Inventory management mutations
+  const addItemMutation = useMutation({
+    mutationFn: async ({ characterId, item }: { characterId: number; item: string }) => {
+      const response = await apiRequest('POST', `/api/characters/${characterId}/inventory/add`, { item });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: "Item Added",
+        description: data.message,
+      });
+      setNewItemName("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Add Item",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const removeItemMutation = useMutation({
+    mutationFn: async ({ characterId, item }: { characterId: number; item: string }) => {
+      const response = await apiRequest('POST', `/api/characters/${characterId}/inventory/remove`, { item });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: "Item Removed",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Remove Item",
         description: error.message,
         variant: "destructive"
       });
@@ -1123,6 +1215,132 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 </div>
                 
                 <CampaignParticipants campaignId={campaign.id} isDM={isDM} />
+
+                {/* Rest & Recovery Section */}
+                {userParticipant?.character && (
+                  <div className="mt-6 p-4 border rounded-lg bg-card">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <Heart className="h-5 w-5 text-red-500" />
+                      Rest & Recovery
+                    </h3>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="flex-1 p-3 border rounded bg-muted/30">
+                        <div className="text-sm font-medium mb-1">Current HP</div>
+                        <div className="text-2xl font-bold">
+                          <span className={userParticipant.character.hitPoints < userParticipant.character.maxHitPoints / 2 ? "text-orange-500" : "text-green-500"}>
+                            {userParticipant.character.hitPoints}
+                          </span>
+                          <span className="text-muted-foreground">/{userParticipant.character.maxHitPoints}</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Button
+                          onClick={() => shortRestMutation.mutate(userParticipant.character.id)}
+                          disabled={shortRestMutation.isPending || userParticipant.character.hitPoints >= userParticipant.character.maxHitPoints}
+                          variant="outline"
+                          className="flex items-center gap-2"
+                          data-testid="button-short-rest"
+                        >
+                          {shortRestMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sun className="h-4 w-4" />}
+                          Short Rest (+25% HP)
+                        </Button>
+                        <Button
+                          onClick={() => longRestMutation.mutate(userParticipant.character.id)}
+                          disabled={longRestMutation.isPending || userParticipant.character.hitPoints >= userParticipant.character.maxHitPoints}
+                          variant="outline"
+                          className="flex items-center gap-2"
+                          data-testid="button-long-rest"
+                        >
+                          {longRestMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Moon className="h-4 w-4" />}
+                          Long Rest (Full HP)
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Inventory Management Section */}
+                {userParticipant?.character && (
+                  <div className="mt-6 p-4 border rounded-lg bg-card">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <Backpack className="h-5 w-5 text-amber-600" />
+                      Inventory & Equipment
+                    </h3>
+                    
+                    {/* Equipment Slots */}
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="p-3 border rounded bg-muted/30">
+                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                          <Sword className="h-3 w-3" /> Equipped Weapon
+                        </div>
+                        <div className="font-medium">
+                          {userParticipant.character.equipment?.[0] || "None"}
+                        </div>
+                      </div>
+                      <div className="p-3 border rounded bg-muted/30">
+                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                          <Shield className="h-3 w-3" /> Armor Class
+                        </div>
+                        <div className="font-medium">{userParticipant.character.armorClass || 10}</div>
+                      </div>
+                    </div>
+
+                    {/* Inventory Items */}
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Items ({userParticipant.character.equipment?.length || 0})</div>
+                      <div className="max-h-40 overflow-y-auto space-y-1">
+                        {userParticipant.character.equipment && userParticipant.character.equipment.length > 0 ? (
+                          userParticipant.character.equipment.map((item: string, index: number) => (
+                            <div key={index} className="flex items-center justify-between p-2 bg-muted/20 rounded text-sm" data-testid={`item-${index}`}>
+                              <span>{item}</span>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                onClick={() => removeItemMutation.mutate({ 
+                                  characterId: userParticipant.character.id, 
+                                  item 
+                                })}
+                                disabled={removeItemMutation.isPending}
+                                data-testid={`button-remove-item-${index}`}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground py-2">No items in inventory</p>
+                        )}
+                      </div>
+
+                      {/* Add Item */}
+                      <div className="flex gap-2 mt-3">
+                        <Input
+                          placeholder="Add new item..."
+                          value={newItemName}
+                          onChange={(e) => setNewItemName(e.target.value)}
+                          className="flex-1"
+                          data-testid="input-new-item"
+                        />
+                        <Button
+                          onClick={() => {
+                            if (newItemName.trim()) {
+                              addItemMutation.mutate({ 
+                                characterId: userParticipant.character.id, 
+                                item: newItemName.trim() 
+                              });
+                            }
+                          }}
+                          disabled={!newItemName.trim() || addItemMutation.isPending}
+                          size="sm"
+                          data-testid="button-add-item"
+                        >
+                          {addItemMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 {isTurnBased && (
                   <div className="mt-6">

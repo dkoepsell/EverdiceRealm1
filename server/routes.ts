@@ -250,6 +250,202 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Character Rest Routes - HP Recovery
+  app.post("/api/characters/:id/short-rest", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const character = await storage.getCharacter(id);
+      
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      // Short rest: Heal 25% of max HP (minimum 1)
+      const healAmount = Math.max(1, Math.floor(character.maxHitPoints * 0.25));
+      const newHP = Math.min(character.maxHitPoints, character.hitPoints + healAmount);
+      const actualHeal = newHP - character.hitPoints;
+      
+      const updatedCharacter = await storage.updateCharacter(id, {
+        hitPoints: newHP,
+        updatedAt: new Date().toISOString()
+      });
+      
+      res.json({
+        character: updatedCharacter,
+        healedAmount: actualHeal,
+        message: `Short rest complete. Recovered ${actualHeal} HP.`
+      });
+    } catch (error: any) {
+      console.error("Error during short rest:", error);
+      res.status(500).json({ message: "Failed to complete short rest", error: error.message });
+    }
+  });
+
+  app.post("/api/characters/:id/long-rest", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const character = await storage.getCharacter(id);
+      
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      // Long rest: Fully restore HP
+      const actualHeal = character.maxHitPoints - character.hitPoints;
+      
+      const updatedCharacter = await storage.updateCharacter(id, {
+        hitPoints: character.maxHitPoints,
+        updatedAt: new Date().toISOString()
+      });
+      
+      res.json({
+        character: updatedCharacter,
+        healedAmount: actualHeal,
+        message: `Long rest complete. Fully restored to ${character.maxHitPoints} HP.`
+      });
+    } catch (error: any) {
+      console.error("Error during long rest:", error);
+      res.status(500).json({ message: "Failed to complete long rest", error: error.message });
+    }
+  });
+
+  // Character Inventory Management Routes
+  app.get("/api/characters/:id/inventory", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const character = await storage.getCharacter(id);
+      
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      // Parse equipment array into structured inventory
+      const equipment = character.equipment || [];
+      
+      res.json({
+        characterId: id,
+        items: equipment,
+        equippedWeapon: (character as any).equippedWeapon || equipment[0] || null,
+        equippedArmor: (character as any).equippedArmor || null
+      });
+    } catch (error: any) {
+      console.error("Error fetching inventory:", error);
+      res.status(500).json({ message: "Failed to fetch inventory", error: error.message });
+    }
+  });
+
+  app.post("/api/characters/:id/inventory/add", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { item } = req.body;
+      
+      if (!item) {
+        return res.status(400).json({ message: "Item name is required" });
+      }
+      
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      const currentEquipment = character.equipment || [];
+      const updatedEquipment = [...currentEquipment, item];
+      
+      const updatedCharacter = await storage.updateCharacter(id, {
+        equipment: updatedEquipment,
+        updatedAt: new Date().toISOString()
+      });
+      
+      res.json({
+        character: updatedCharacter,
+        message: `Added ${item} to inventory.`
+      });
+    } catch (error: any) {
+      console.error("Error adding item:", error);
+      res.status(500).json({ message: "Failed to add item", error: error.message });
+    }
+  });
+
+  app.post("/api/characters/:id/inventory/remove", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { item } = req.body;
+      
+      if (!item) {
+        return res.status(400).json({ message: "Item name is required" });
+      }
+      
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      const currentEquipment = character.equipment || [];
+      const itemIndex = currentEquipment.indexOf(item);
+      
+      if (itemIndex === -1) {
+        return res.status(404).json({ message: "Item not found in inventory" });
+      }
+      
+      const updatedEquipment = currentEquipment.filter((_, i) => i !== itemIndex);
+      
+      const updatedCharacter = await storage.updateCharacter(id, {
+        equipment: updatedEquipment,
+        updatedAt: new Date().toISOString()
+      });
+      
+      res.json({
+        character: updatedCharacter,
+        message: `Removed ${item} from inventory.`
+      });
+    } catch (error: any) {
+      console.error("Error removing item:", error);
+      res.status(500).json({ message: "Failed to remove item", error: error.message });
+    }
+  });
+
+  app.post("/api/characters/:id/equip-weapon", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { weapon } = req.body;
+      
+      if (!weapon) {
+        return res.status(400).json({ message: "Weapon name is required" });
+      }
+      
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      // Check if weapon is in inventory
+      const currentEquipment = character.equipment || [];
+      const weaponIndex = currentEquipment.indexOf(weapon);
+      if (weaponIndex === -1) {
+        return res.status(400).json({ message: "Weapon not in inventory" });
+      }
+      
+      // Move ONE instance of the equipped weapon to front of array (first item is equipped)
+      // This preserves duplicate items
+      const reorderedEquipment = [...currentEquipment];
+      reorderedEquipment.splice(weaponIndex, 1); // Remove one instance
+      reorderedEquipment.unshift(weapon); // Add to front
+      
+      const updatedCharacter = await storage.updateCharacter(id, {
+        equipment: reorderedEquipment,
+        updatedAt: new Date().toISOString()
+      });
+      
+      res.json({
+        character: updatedCharacter,
+        message: `Equipped ${weapon}.`
+      });
+    } catch (error: any) {
+      console.error("Error equipping weapon:", error);
+      res.status(500).json({ message: "Failed to equip weapon", error: error.message });
+    }
+  });
+
   // Campaign routes
   app.get("/api/campaigns", async (req, res) => {
     try {
