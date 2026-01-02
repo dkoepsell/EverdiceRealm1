@@ -319,6 +319,23 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             description: `Your ${data.progression.skillImproved.skill} skill has improved to +${data.progression.skillImproved.newBonus}!`,
           });
         }
+        
+        // Show status change notifications (unconscious/dead)
+        if (data.progression.statusChange) {
+          if (data.progression.statusChange === "unconscious") {
+            toast({
+              title: "⚠️ You have fallen unconscious!",
+              description: "You are at 0 HP and must make death saving throws.",
+              variant: "destructive"
+            });
+          } else if (data.progression.statusChange === "dead") {
+            toast({
+              title: "💀 You have died!",
+              description: "Your character has perished. Resurrection magic may be required.",
+              variant: "destructive"
+            });
+          }
+        }
       } else {
         toast({
           title: "Story advanced",
@@ -398,6 +415,53 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     onError: (error: Error) => {
       toast({
         title: "Rest Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Death saving throw mutation
+  const deathSaveMutation = useMutation({
+    mutationFn: async (characterId: number) => {
+      const response = await apiRequest('POST', `/api/characters/${characterId}/death-save`);
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: `Death Save: Rolled ${data.roll}`,
+        description: data.message,
+        variant: data.status === "dead" ? "destructive" : data.status === "conscious" ? "default" : undefined
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Death Save Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Stabilize mutation
+  const stabilizeMutation = useMutation({
+    mutationFn: async (characterId: number) => {
+      const response = await apiRequest('POST', `/api/characters/${characterId}/stabilize`);
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: "Character Stabilized",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Stabilization Failed",
         description: error.message,
         variant: "destructive"
       });
@@ -1245,11 +1309,66 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       <Heart className="h-5 w-5 text-red-500" />
                       Rest & Recovery - {activeCharacter.name}
                     </h3>
+                    
+                    {/* Status Display */}
+                    {activeCharacter.status && activeCharacter.status !== "conscious" && (
+                      <div className={`mb-4 p-3 rounded-lg border-2 ${
+                        activeCharacter.status === "dead" ? "bg-gray-900 border-gray-700 text-gray-300" :
+                        activeCharacter.status === "unconscious" ? "bg-red-900/50 border-red-700 text-red-200" :
+                        "bg-yellow-900/50 border-yellow-700 text-yellow-200"
+                      }`}>
+                        <div className="font-bold text-lg uppercase">
+                          {activeCharacter.status === "dead" ? "💀 DEAD" :
+                           activeCharacter.status === "unconscious" ? "⚠️ UNCONSCIOUS - DYING" :
+                           "🩹 STABILIZED"}
+                        </div>
+                        {activeCharacter.status === "unconscious" && (
+                          <div className="mt-2">
+                            <div className="text-sm">Death Saves: {activeCharacter.deathSaveSuccesses || 0}/3 successes, {activeCharacter.deathSaveFailures || 0}/3 failures</div>
+                            <div className="flex gap-2 mt-2">
+                              <Button
+                                onClick={() => deathSaveMutation.mutate(activeCharacter.id)}
+                                disabled={deathSaveMutation.isPending}
+                                variant="destructive"
+                                size="sm"
+                                className="flex items-center gap-2"
+                                data-testid="button-death-save"
+                              >
+                                {deathSaveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Dices className="h-4 w-4" />}
+                                Roll Death Save
+                              </Button>
+                              <Button
+                                onClick={() => stabilizeMutation.mutate(activeCharacter.id)}
+                                disabled={stabilizeMutation.isPending}
+                                variant="secondary"
+                                size="sm"
+                                className="flex items-center gap-2"
+                                data-testid="button-stabilize"
+                              >
+                                {stabilizeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Heart className="h-4 w-4" />}
+                                Stabilize (Medicine)
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        {activeCharacter.status === "stabilized" && (
+                          <div className="text-sm mt-1">Character is stable but unconscious at 0 HP. Healing will restore consciousness.</div>
+                        )}
+                        {activeCharacter.status === "dead" && (
+                          <div className="text-sm mt-1">This character has died. Resurrection magic may be required.</div>
+                        )}
+                      </div>
+                    )}
+                    
                     <div className="flex flex-col sm:flex-row gap-3">
                       <div className="flex-1 p-3 border rounded bg-muted/30">
                         <div className="text-sm font-medium mb-1">Current HP</div>
                         <div className="text-2xl font-bold">
-                          <span className={activeCharacter.hitPoints < activeCharacter.maxHitPoints / 2 ? "text-orange-500" : "text-green-500"}>
+                          <span className={
+                            activeCharacter.hitPoints <= 0 ? "text-red-500" :
+                            activeCharacter.hitPoints < activeCharacter.maxHitPoints / 2 ? "text-orange-500" : 
+                            "text-green-500"
+                          }>
                             {activeCharacter.hitPoints}
                           </span>
                           <span className="text-muted-foreground">/{activeCharacter.maxHitPoints}</span>
@@ -1258,7 +1377,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       <div className="flex flex-col gap-2">
                         <Button
                           onClick={() => shortRestMutation.mutate(activeCharacter.id)}
-                          disabled={shortRestMutation.isPending || activeCharacter.hitPoints >= activeCharacter.maxHitPoints}
+                          disabled={shortRestMutation.isPending || activeCharacter.hitPoints >= activeCharacter.maxHitPoints || activeCharacter.status === "unconscious" || activeCharacter.status === "dead"}
                           variant="outline"
                           className="flex items-center gap-2"
                           data-testid="button-short-rest"
@@ -1268,7 +1387,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </Button>
                         <Button
                           onClick={() => longRestMutation.mutate(activeCharacter.id)}
-                          disabled={longRestMutation.isPending || activeCharacter.hitPoints >= activeCharacter.maxHitPoints}
+                          disabled={longRestMutation.isPending || activeCharacter.hitPoints >= activeCharacter.maxHitPoints || activeCharacter.status === "dead"}
                           variant="outline"
                           className="flex items-center gap-2"
                           data-testid="button-long-rest"

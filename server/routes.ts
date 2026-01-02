@@ -260,13 +260,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Character not found" });
       }
       
-      // Short rest: Heal 25% of max HP (minimum 1)
+      // Short rest: Heal 25% of max HP (minimum 1) - only if conscious or stabilized
+      // Dead characters cannot rest, unconscious need stabilization first
+      if (character.status === "dead") {
+        return res.status(400).json({ message: "Dead characters cannot rest." });
+      }
+      if (character.status === "unconscious") {
+        return res.status(400).json({ message: "Unconscious characters must be stabilized or healed first." });
+      }
+      
       const healAmount = Math.max(1, Math.floor(character.maxHitPoints * 0.25));
       const newHP = Math.min(character.maxHitPoints, character.hitPoints + healAmount);
       const actualHeal = newHP - character.hitPoints;
       
+      // If healing brings HP above 0 and was stabilized, become conscious
+      let newStatus = character.status;
+      if (newHP > 0 && character.status === "stabilized") {
+        newStatus = "conscious";
+      }
+      
       const updatedCharacter = await storage.updateCharacter(id, {
         hitPoints: newHP,
+        status: newStatus,
         updatedAt: new Date().toISOString()
       });
       
@@ -290,11 +305,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Character not found" });
       }
       
-      // Long rest: Fully restore HP
+      // Long rest: Fully restore HP and reset status
       const actualHeal = character.maxHitPoints - character.hitPoints;
       
       const updatedCharacter = await storage.updateCharacter(id, {
         hitPoints: character.maxHitPoints,
+        status: "conscious",
+        deathSaveSuccesses: 0,
+        deathSaveFailures: 0,
         updatedAt: new Date().toISOString()
       });
       
@@ -306,6 +324,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error during long rest:", error);
       res.status(500).json({ message: "Failed to complete long rest", error: error.message });
+    }
+  });
+
+  // Death Saving Throw
+  app.post("/api/characters/:id/death-save", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const character = await storage.getCharacter(id);
+      
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      if (character.status !== "unconscious") {
+        return res.status(400).json({ message: "Death saves only apply to unconscious characters." });
+      }
+      
+      // Roll a d20 for death save
+      const roll = Math.floor(Math.random() * 20) + 1;
+      let successes = character.deathSaveSuccesses || 0;
+      let failures = character.deathSaveFailures || 0;
+      let newStatus = character.status;
+      let message = "";
+      let newHP = character.hitPoints;
+      
+      if (roll === 20) {
+        // Natural 20: Regain 1 HP and become conscious
+        newHP = 1;
+        newStatus = "conscious";
+        successes = 0;
+        failures = 0;
+        message = "Critical success! You regain 1 HP and are conscious!";
+      } else if (roll === 1) {
+        // Natural 1: Two failures
+        failures += 2;
+        message = "Critical failure! Two death save failures.";
+      } else if (roll >= 10) {
+        // Success
+        successes += 1;
+        message = `Success (${roll})! ${successes}/3 successes.`;
+      } else {
+        // Failure
+        failures += 1;
+        message = `Failure (${roll}). ${failures}/3 failures.`;
+      }
+      
+      // Check for stabilization (3 successes) or death (3 failures)
+      if (successes >= 3) {
+        newStatus = "stabilized";
+        message = "Stabilized! You are no longer dying.";
+      } else if (failures >= 3) {
+        newStatus = "dead";
+        message = "You have died.";
+      }
+      
+      const updatedCharacter = await storage.updateCharacter(id, {
+        hitPoints: newHP,
+        status: newStatus,
+        deathSaveSuccesses: successes,
+        deathSaveFailures: failures,
+        updatedAt: new Date().toISOString()
+      });
+      
+      res.json({
+        character: updatedCharacter,
+        roll,
+        successes,
+        failures,
+        status: newStatus,
+        message
+      });
+    } catch (error: any) {
+      console.error("Error rolling death save:", error);
+      res.status(500).json({ message: "Failed to roll death save", error: error.message });
+    }
+  });
+
+  // Stabilize an unconscious character (requires Medicine check DC 10)
+  app.post("/api/characters/:id/stabilize", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const character = await storage.getCharacter(id);
+      
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      if (character.status !== "unconscious") {
+        return res.status(400).json({ message: "Only unconscious characters can be stabilized." });
+      }
+      
+      // Stabilize the character
+      const updatedCharacter = await storage.updateCharacter(id, {
+        status: "stabilized",
+        deathSaveSuccesses: 0,
+        deathSaveFailures: 0,
+        updatedAt: new Date().toISOString()
+      });
+      
+      res.json({
+        character: updatedCharacter,
+        message: "Character stabilized! They are no longer dying but remain unconscious at 0 HP."
+      });
+    } catch (error: any) {
+      console.error("Error stabilizing character:", error);
+      res.status(500).json({ message: "Failed to stabilize character", error: error.message });
+    }
+  });
+
+  // Heal an unconscious/stabilized character
+  app.post("/api/characters/:id/heal", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { amount } = req.body;
+      const character = await storage.getCharacter(id);
+      
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      if (character.status === "dead") {
+        return res.status(400).json({ message: "Dead characters cannot be healed by normal means." });
+      }
+      
+      const healAmount = parseInt(amount) || 1;
+      const newHP = Math.min(character.maxHitPoints, character.hitPoints + healAmount);
+      
+      // Any healing brings unconscious/stabilized characters back to conscious
+      let newStatus = character.status;
+      if (newHP > 0 && (character.status === "unconscious" || character.status === "stabilized")) {
+        newStatus = "conscious";
+      }
+      
+      const updatedCharacter = await storage.updateCharacter(id, {
+        hitPoints: newHP,
+        status: newStatus,
+        deathSaveSuccesses: 0,
+        deathSaveFailures: 0,
+        updatedAt: new Date().toISOString()
+      });
+      
+      res.json({
+        character: updatedCharacter,
+        healedAmount: healAmount,
+        message: `Healed ${healAmount} HP. ${newStatus === "conscious" ? "Character regained consciousness!" : ""}`
+      });
+    } catch (error: any) {
+      console.error("Error healing character:", error);
+      res.status(500).json({ message: "Failed to heal character", error: error.message });
     }
   });
 
@@ -4280,13 +4447,42 @@ Respond with JSON:
           let newHitPoints = character.hitPoints;
           let damageTaken = 0;
           let damageDealt = 0;
+          let newStatus = character.status || "conscious";
+          let deathSaveFailures = character.deathSaveFailures || 0;
+          let deathSaveSuccesses = character.deathSaveSuccesses || 0;
+          let statusChange: string | null = null;
           
           if (combatEffects) {
             damageTaken = combatEffects.playerDamageTaken || 0;
             damageDealt = combatEffects.playerDamageDealt || 0;
             
             if (damageTaken > 0) {
-              newHitPoints = Math.max(0, character.hitPoints - damageTaken);
+              // Check if already unconscious - damage at 0 HP = death save failure
+              if (character.hitPoints <= 0 && newStatus === "unconscious") {
+                deathSaveFailures += 1;
+                if (deathSaveFailures >= 3) {
+                  newStatus = "dead";
+                  statusChange = "dead";
+                }
+              } else {
+                newHitPoints = Math.max(0, character.hitPoints - damageTaken);
+                
+                // Check for unconscious
+                if (newHitPoints <= 0 && character.hitPoints > 0) {
+                  newStatus = "unconscious";
+                  statusChange = "unconscious";
+                  // Reset death saves
+                  deathSaveSuccesses = 0;
+                  deathSaveFailures = 0;
+                  
+                  // Check for massive damage (instant death)
+                  const excessDamage = Math.abs(newHitPoints);
+                  if (excessDamage >= character.maxHitPoints) {
+                    newStatus = "dead";
+                    statusChange = "dead";
+                  }
+                }
+              }
             }
           }
           
@@ -4322,6 +4518,9 @@ Respond with JSON:
             experience: newXP,
             level: newLevel,
             hitPoints: newHitPoints,
+            status: newStatus,
+            deathSaveSuccesses,
+            deathSaveFailures,
             equipment: newEquipment,
             skillProgress: updatedSkillProgress,
             updatedAt: new Date().toISOString()
@@ -4336,6 +4535,10 @@ Respond with JSON:
             completedQuests,
             skillImproved,
             skillProgress: updatedSkillProgress,
+            statusChange,
+            currentStatus: newStatus,
+            deathSaveSuccesses,
+            deathSaveFailures,
             combatEffects: combatEffects ? {
               damageTaken,
               damageDealt,

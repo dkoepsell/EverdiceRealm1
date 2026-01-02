@@ -62,6 +62,11 @@ export const characters = pgTable("characters", {
   maxHitPoints: integer("max_hit_points").notNull(),
   armorClass: integer("armor_class").notNull(),
   experience: integer("experience").notNull().default(0),
+  // Combat status: conscious, unconscious, dead, stabilized
+  status: text("status").default("conscious"),
+  // Death saving throws tracking
+  deathSaveSuccesses: integer("death_save_successes").default(0),
+  deathSaveFailures: integer("death_save_failures").default(0),
   skills: text("skills").array(),
   equipment: text("equipment").array(),
   // Skill progression tracking - stores {skillName: {uses: number, bonus: number}}
