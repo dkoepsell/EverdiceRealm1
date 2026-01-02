@@ -3804,6 +3804,23 @@ Do not ignore this result. Build the entire next scene around this outcome.`;
       // Get current quests from story state
       const currentQuests = (currentSession.storyState as any)?.activeQuests || [];
       
+      // Get player character info for combat tracking
+      const participants = await storage.getCampaignParticipants(campaignId);
+      let playerCharacterInfo = "";
+      if (participants && participants.length > 0) {
+        const character = await storage.getCharacter(participants[0].characterId);
+        if (character) {
+          playerCharacterInfo = `
+PLAYER CHARACTER:
+- Name: ${character.name}
+- Class: ${character.class}
+- Level: ${character.level}
+- Current HP: ${character.hitPoints}/${character.maxHitPoints}
+- AC: ${character.armorClass || 10}
+- Equipped Weapon: ${character.equipment?.weapon || 'Unarmed'}`;
+        }
+      }
+      
       // Generate story continuation based on choice and previous context
       const prompt = `
 Continue this D&D story based on the player's choice and maintain story continuity.
@@ -3821,6 +3838,7 @@ ${currentQuests.length > 0 ? currentQuests.map((q: any) =>
 
 Current Narrative:
 ${currentSession.narrative}
+${playerCharacterInfo}
 
 Player Choice Made: ${choice}
 ${skillCheckInfo}
@@ -3853,7 +3871,8 @@ QUEST TRACKING REQUIREMENTS:
 
 COMBAT MECHANICS REQUIREMENTS:
 - When combat occurs, track BOTH enemy HP AND party member HP
-- Track the player character AND any AI companions in "partyMembers" array
+- Use the ACTUAL player character name from PLAYER CHARACTER section above in partyMembers
+- Track the player character AND any AI companions in "partyMembers" array with PROPER NAMES
 - Attack rolls that succeed should deal damage (use standard D&D damage: 1d6+modifier for light weapons, 1d8+modifier for medium, 1d10+ for heavy)
 - Failed attack rolls mean the attack misses - no damage dealt
 - Track when combatants are wounded, bloodied (below 50% HP), or defeated
@@ -3862,6 +3881,19 @@ COMBAT MECHANICS REQUIREMENTS:
 - Include "combatEffects" with damage for ALL combatants (player, companions, enemies)
 - Include "companionActions" describing what each AI companion did this round
 - Combat should feel dangerous and consequential
+
+COMBAT END CONDITIONS:
+- Set "inCombat": false when ALL enemies are defeated, fled, or surrendered
+- Combat can also end via successful disengage/retreat by the party
+- Describe the combat resolution clearly in the narrative
+
+TACTICAL COMBAT OPTIONS (include these choices when in combat):
+- Attack with current weapon (requires attack roll)
+- Switch weapons (free action, describe new weapon)
+- Disengage/retreat (requires Athletics or Acrobatics check)
+- Defensive stance (take cover, +2 AC, no attack)
+- Use item/potion (consumes turn)
+- Cast a spell (if magic user)
 
 WRITING STYLE REQUIREMENTS:
 - Be CONCISE and ACTION-FOCUSED
@@ -4047,7 +4079,7 @@ Respond with JSON:
 
       // Apply XP, items, and combat damage to character if there's a participant
       let characterProgression = null;
-      const participants = await storage.getCampaignParticipants(campaignId);
+      // participants already fetched earlier for character info
       if (participants && participants.length > 0) {
         const characterId = participants[0].characterId;
         const character = await storage.getCharacter(characterId);
