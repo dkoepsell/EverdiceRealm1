@@ -4091,7 +4091,9 @@ Respond with JSON:
               newHitPoints,
               maxHitPoints: character.maxHitPoints,
               combatDescription: combatEffects.combatDescription,
-              enemyDamage: combatEffects.enemyDamage
+              enemyDamage: combatEffects.enemyDamage,
+              partyDamage: combatEffects.partyDamage,
+              companionActions: combatEffects.companionActions
             } : null
           };
         }

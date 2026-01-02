@@ -182,11 +182,14 @@ Preferred communication style: Simple, everyday language.
 ### Combat Mechanics System (January 02, 2026)
 - Implemented proper D&D combat mechanics with damage tracking
 - Enemy HP tracking with visual health bars (green/orange/red based on health)
+- Party member HP tracking with player and AI companion health bars
+- Two-column combat UI showing party on left and enemies on right
 - Combat status display showing all combatants and their condition (healthy/wounded/bloodied/defeated)
 - Player damage application - attacks that hit reduce character HP
 - Enemy damage tracking - successful attacks reduce enemy HP
-- Toast notifications for damage dealt and taken during combat
-- Combat state persists in storyState (inCombat flag, combatants array)
+- AI companion combat actions - companions take turns and attack enemies
+- Toast notifications for damage dealt/taken and companion actions
+- Combat state persists in storyState (inCombat flag, combatants array, partyMembers array)
 
 ## Changelog
 
