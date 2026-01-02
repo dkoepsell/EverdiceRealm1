@@ -270,6 +270,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               description: combat.combatDescription || "Your attack connected!",
             });
           }
+          
+          // Show companion actions
+          if (combat.companionActions && combat.companionActions.length > 0) {
+            for (const companion of combat.companionActions) {
+              toast({
+                title: `🤝 ${companion.name}`,
+                description: `${companion.action}${companion.damageDealt ? ` (${companion.damageDealt} damage!)` : ''}`,
+              });
+            }
+          }
         }
         
         // Show progression toast
@@ -773,55 +783,118 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     )}
                     
                     {/* Combat Status Display */}
-                    {parsedStoryState?.inCombat && parsedStoryState?.combatants && 
-                     (parsedStoryState.combatants as any[]).length > 0 && (
-                      <div className="bg-red-50 dark:bg-red-950/30 p-4 rounded-md border-2 border-red-400 dark:border-red-700 mb-4 animate-pulse">
+                    {parsedStoryState?.inCombat && (
+                      <div className="bg-red-50 dark:bg-red-950/30 p-4 rounded-md border-2 border-red-400 dark:border-red-700 mb-4">
                         <h4 className="font-bold text-red-700 dark:text-red-300 flex items-center mb-3 text-lg">
                           ⚔️ COMBAT!
                         </h4>
-                        <div className="space-y-3">
-                          {(parsedStoryState.combatants as any[]).filter((c: any) => c.status !== 'defeated').map((enemy: any, index: number) => (
-                            <div 
-                              key={enemy.name || index}
-                              className="bg-white dark:bg-gray-800 p-3 rounded border border-red-200 dark:border-red-800"
-                            >
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="font-bold text-red-800 dark:text-red-200">{enemy.name}</span>
-                                <span className={`text-sm font-medium px-2 py-0.5 rounded ${
-                                  enemy.status === 'bloodied' 
-                                    ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' 
-                                    : enemy.status === 'wounded'
-                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                    : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                }`}>
-                                  {enemy.status || 'healthy'}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-gray-600 dark:text-gray-400">HP:</span>
-                                <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
-                                  <div 
-                                    className={`h-full rounded-full transition-all ${
-                                      (enemy.currentHp / enemy.maxHp) <= 0.25 
-                                        ? 'bg-red-500' 
-                                        : (enemy.currentHp / enemy.maxHp) <= 0.5 
-                                        ? 'bg-orange-500' 
-                                        : 'bg-green-500'
-                                    }`}
-                                    style={{ width: `${Math.max(0, (enemy.currentHp / enemy.maxHp) * 100)}%` }}
-                                  />
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Party Members Column */}
+                          <div>
+                            <h5 className="font-semibold text-green-700 dark:text-green-300 mb-2 flex items-center">
+                              🛡️ Your Party
+                            </h5>
+                            <div className="space-y-2">
+                              {(parsedStoryState.partyMembers as any[] || []).filter((m: any) => m.status !== 'unconscious').map((member: any, index: number) => (
+                                <div 
+                                  key={member.name || index}
+                                  className={`p-2 rounded border ${
+                                    member.type === 'player' 
+                                      ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700' 
+                                      : 'bg-green-50 dark:bg-green-900/30 border-green-300 dark:border-green-700'
+                                  }`}
+                                >
+                                  <div className="flex justify-between items-center mb-1">
+                                    <span className={`font-bold text-sm ${
+                                      member.type === 'player' ? 'text-blue-800 dark:text-blue-200' : 'text-green-800 dark:text-green-200'
+                                    }`}>
+                                      {member.type === 'player' ? '👤 ' : '🤝 '}{member.name}
+                                      {member.class && <span className="text-xs ml-1 opacity-70">({member.class})</span>}
+                                    </span>
+                                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                                      member.status === 'bloodied' 
+                                        ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' 
+                                        : member.status === 'wounded'
+                                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                        : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                    }`}>
+                                      {member.status || 'healthy'}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-600 dark:text-gray-400">HP:</span>
+                                    <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                                      <div 
+                                        className={`h-full rounded-full transition-all ${
+                                          (member.currentHp / member.maxHp) <= 0.25 
+                                            ? 'bg-red-500' 
+                                            : (member.currentHp / member.maxHp) <= 0.5 
+                                            ? 'bg-orange-500' 
+                                            : 'bg-green-500'
+                                        }`}
+                                        style={{ width: `${Math.max(0, (member.currentHp / member.maxHp) * 100)}%` }}
+                                      />
+                                    </div>
+                                    <span className="text-xs font-mono text-gray-700 dark:text-gray-300 min-w-[45px] text-right">
+                                      {member.currentHp}/{member.maxHp}
+                                    </span>
+                                  </div>
                                 </div>
-                                <span className="text-sm font-mono text-gray-700 dark:text-gray-300 min-w-[60px] text-right">
-                                  {enemy.currentHp}/{enemy.maxHp}
-                                </span>
-                              </div>
-                              {enemy.ac && (
-                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                  AC: {enemy.ac}
-                                </div>
-                              )}
+                              ))}
                             </div>
-                          ))}
+                          </div>
+                          
+                          {/* Enemies Column */}
+                          <div>
+                            <h5 className="font-semibold text-red-700 dark:text-red-300 mb-2 flex items-center">
+                              👹 Enemies
+                            </h5>
+                            <div className="space-y-2">
+                              {(parsedStoryState.combatants as any[] || []).filter((c: any) => c.status !== 'defeated').map((enemy: any, index: number) => (
+                                <div 
+                                  key={enemy.name || index}
+                                  className="bg-red-100 dark:bg-red-900/30 p-2 rounded border border-red-300 dark:border-red-700"
+                                >
+                                  <div className="flex justify-between items-center mb-1">
+                                    <span className="font-bold text-sm text-red-800 dark:text-red-200">💀 {enemy.name}</span>
+                                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                                      enemy.status === 'bloodied' 
+                                        ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' 
+                                        : enemy.status === 'wounded'
+                                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                        : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                    }`}>
+                                      {enemy.status || 'healthy'}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-600 dark:text-gray-400">HP:</span>
+                                    <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                                      <div 
+                                        className={`h-full rounded-full transition-all ${
+                                          (enemy.currentHp / enemy.maxHp) <= 0.25 
+                                            ? 'bg-red-500' 
+                                            : (enemy.currentHp / enemy.maxHp) <= 0.5 
+                                            ? 'bg-orange-500' 
+                                            : 'bg-green-500'
+                                        }`}
+                                        style={{ width: `${Math.max(0, (enemy.currentHp / enemy.maxHp) * 100)}%` }}
+                                      />
+                                    </div>
+                                    <span className="text-xs font-mono text-gray-700 dark:text-gray-300 min-w-[45px] text-right">
+                                      {enemy.currentHp}/{enemy.maxHp}
+                                    </span>
+                                  </div>
+                                  {enemy.ac && (
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                      AC: {enemy.ac}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}

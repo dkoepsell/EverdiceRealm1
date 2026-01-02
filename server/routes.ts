@@ -3852,12 +3852,15 @@ QUEST TRACKING REQUIREMENTS:
 - Always include at least 1 active quest
 
 COMBAT MECHANICS REQUIREMENTS:
-- When combat occurs, track enemy HP and apply realistic damage
+- When combat occurs, track BOTH enemy HP AND party member HP
+- Track the player character AND any AI companions in "partyMembers" array
 - Attack rolls that succeed should deal damage (use standard D&D damage: 1d6+modifier for light weapons, 1d8+modifier for medium, 1d10+ for heavy)
 - Failed attack rolls mean the attack misses - no damage dealt
-- Track when enemies are wounded, bloodied (below 50% HP), or defeated
-- Player can also take damage from enemy counterattacks or environmental hazards
-- Include "combatEffects" in your response with damage dealt/taken
+- Track when combatants are wounded, bloodied (below 50% HP), or defeated
+- Player and party members can take damage from enemy attacks
+- AI companions should take actions each round - describe what they do!
+- Include "combatEffects" with damage for ALL combatants (player, companions, enemies)
+- Include "companionActions" describing what each AI companion did this round
 - Combat should feel dangerous and consequential
 
 WRITING STYLE REQUIREMENTS:
@@ -3906,7 +3909,11 @@ Respond with JSON:
     ],
     "inCombat": true/false,
     "combatants": [
-      {"name": "Enemy Name", "maxHp": 30, "currentHp": 30, "ac": 13, "status": "healthy/wounded/bloodied/defeated"}
+      {"name": "Enemy Name", "type": "enemy", "maxHp": 30, "currentHp": 30, "ac": 13, "status": "healthy/wounded/bloodied/defeated"}
+    ],
+    "partyMembers": [
+      {"name": "Player Name", "type": "player", "maxHp": 25, "currentHp": 25, "ac": 14, "status": "healthy/wounded/bloodied/unconscious"},
+      {"name": "Companion Name", "type": "companion", "class": "Fighter/Cleric/etc", "maxHp": 20, "currentHp": 20, "ac": 12, "status": "healthy"}
     ]
   },
   "npcInteractions": {"npcName": {"mood": "current mood", "relationship": "relationship change", "nextAction": "immediate plan"}},
@@ -3916,7 +3923,9 @@ Respond with JSON:
     "playerDamageTaken": 0,
     "playerDamageDealt": 0,
     "enemyDamage": [{"name": "Enemy Name", "damageTaken": 8, "newHp": 22, "defeated": false}],
-    "combatDescription": "Brief description of the combat exchange"
+    "partyDamage": [{"name": "Companion Name", "damageTaken": 5, "newHp": 15, "defeated": false}],
+    "combatDescription": "Brief description of the combat exchange",
+    "companionActions": [{"name": "Companion Name", "action": "Swung her sword at the goblin", "result": "Hit for 6 damage", "damageDealt": 6}]
   }
 }`;
 
