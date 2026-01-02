@@ -112,6 +112,19 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     if (!participants || !user) return null;
     return participants.find((p: any) => p.userId === user.id);
   }, [participants, user]);
+
+  // Get the active character for the current user (from participant or user's first character)
+  const activeCharacter = useMemo(() => {
+    // First try to get character from participant record
+    if (userParticipant?.character) {
+      return userParticipant.character;
+    }
+    // Fallback to user's first character (for DMs who may not be participants)
+    if (userCharacters && userCharacters.length > 0) {
+      return userCharacters[0];
+    }
+    return null;
+  }, [userParticipant, userCharacters]);
   
   // Parse storyState - it may be stored as JSON string or already parsed
   const parsedStoryState = useMemo(() => {
@@ -1217,26 +1230,26 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 <CampaignParticipants campaignId={campaign.id} isDM={isDM} />
 
                 {/* Rest & Recovery Section */}
-                {userParticipant?.character && (
+                {activeCharacter && (
                   <div className="mt-6 p-4 border rounded-lg bg-card">
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                       <Heart className="h-5 w-5 text-red-500" />
-                      Rest & Recovery
+                      Rest & Recovery - {activeCharacter.name}
                     </h3>
                     <div className="flex flex-col sm:flex-row gap-3">
                       <div className="flex-1 p-3 border rounded bg-muted/30">
                         <div className="text-sm font-medium mb-1">Current HP</div>
                         <div className="text-2xl font-bold">
-                          <span className={userParticipant.character.hitPoints < userParticipant.character.maxHitPoints / 2 ? "text-orange-500" : "text-green-500"}>
-                            {userParticipant.character.hitPoints}
+                          <span className={activeCharacter.hitPoints < activeCharacter.maxHitPoints / 2 ? "text-orange-500" : "text-green-500"}>
+                            {activeCharacter.hitPoints}
                           </span>
-                          <span className="text-muted-foreground">/{userParticipant.character.maxHitPoints}</span>
+                          <span className="text-muted-foreground">/{activeCharacter.maxHitPoints}</span>
                         </div>
                       </div>
                       <div className="flex flex-col gap-2">
                         <Button
-                          onClick={() => shortRestMutation.mutate(userParticipant.character.id)}
-                          disabled={shortRestMutation.isPending || userParticipant.character.hitPoints >= userParticipant.character.maxHitPoints}
+                          onClick={() => shortRestMutation.mutate(activeCharacter.id)}
+                          disabled={shortRestMutation.isPending || activeCharacter.hitPoints >= activeCharacter.maxHitPoints}
                           variant="outline"
                           className="flex items-center gap-2"
                           data-testid="button-short-rest"
@@ -1245,8 +1258,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           Short Rest (+25% HP)
                         </Button>
                         <Button
-                          onClick={() => longRestMutation.mutate(userParticipant.character.id)}
-                          disabled={longRestMutation.isPending || userParticipant.character.hitPoints >= userParticipant.character.maxHitPoints}
+                          onClick={() => longRestMutation.mutate(activeCharacter.id)}
+                          disabled={longRestMutation.isPending || activeCharacter.hitPoints >= activeCharacter.maxHitPoints}
                           variant="outline"
                           className="flex items-center gap-2"
                           data-testid="button-long-rest"
@@ -1260,11 +1273,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 )}
 
                 {/* Inventory Management Section */}
-                {userParticipant?.character && (
+                {activeCharacter && (
                   <div className="mt-6 p-4 border rounded-lg bg-card">
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                       <Backpack className="h-5 w-5 text-amber-600" />
-                      Inventory & Equipment
+                      Inventory & Equipment - {activeCharacter.name}
                     </h3>
                     
                     {/* Equipment Slots */}
@@ -1274,23 +1287,23 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           <Sword className="h-3 w-3" /> Equipped Weapon
                         </div>
                         <div className="font-medium">
-                          {userParticipant.character.equipment?.[0] || "None"}
+                          {activeCharacter.equipment?.[0] || "None"}
                         </div>
                       </div>
                       <div className="p-3 border rounded bg-muted/30">
                         <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                           <Shield className="h-3 w-3" /> Armor Class
                         </div>
-                        <div className="font-medium">{userParticipant.character.armorClass || 10}</div>
+                        <div className="font-medium">{activeCharacter.armorClass || 10}</div>
                       </div>
                     </div>
 
                     {/* Inventory Items */}
                     <div className="space-y-2">
-                      <div className="text-sm font-medium">Items ({userParticipant.character.equipment?.length || 0})</div>
+                      <div className="text-sm font-medium">Items ({activeCharacter.equipment?.length || 0})</div>
                       <div className="max-h-40 overflow-y-auto space-y-1">
-                        {userParticipant.character.equipment && userParticipant.character.equipment.length > 0 ? (
-                          userParticipant.character.equipment.map((item: string, index: number) => (
+                        {activeCharacter.equipment && activeCharacter.equipment.length > 0 ? (
+                          activeCharacter.equipment.map((item: string, index: number) => (
                             <div key={index} className="flex items-center justify-between p-2 bg-muted/20 rounded text-sm" data-testid={`item-${index}`}>
                               <span>{item}</span>
                               <Button
@@ -1298,7 +1311,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 variant="ghost"
                                 className="h-6 w-6 p-0 text-destructive hover:text-destructive"
                                 onClick={() => removeItemMutation.mutate({ 
-                                  characterId: userParticipant.character.id, 
+                                  characterId: activeCharacter.id, 
                                   item 
                                 })}
                                 disabled={removeItemMutation.isPending}
@@ -1326,7 +1339,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           onClick={() => {
                             if (newItemName.trim()) {
                               addItemMutation.mutate({ 
-                                characterId: userParticipant.character.id, 
+                                characterId: activeCharacter.id, 
                                 item: newItemName.trim() 
                               });
                             }

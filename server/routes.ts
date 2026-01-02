@@ -825,49 +825,7 @@ Return your response as a JSON object with these fields:
   });
   
   // Multi-user Campaign Participant Management
-  
-  // Get participants for a campaign
-  app.get("/api/campaigns/:campaignId/participants", async (req, res) => {
-    try {
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-      
-      const campaignId = parseInt(req.params.campaignId);
-      const campaign = await storage.getCampaign(campaignId);
-      
-      if (!campaign) {
-        return res.status(404).json({ message: "Campaign not found" });
-      }
-      
-      // Check if user is authorized to view this campaign's participants
-      const userParticipant = await storage.getCampaignParticipant(campaignId, req.user.id);
-      if (!userParticipant && campaign.userId !== req.user.id) {
-        return res.status(403).json({ message: "Not authorized to view participants" });
-      }
-      
-      const participants = await storage.getCampaignParticipants(campaignId);
-      
-      // Get user and character details for each participant
-      const participantsWithDetails = await Promise.all(
-        participants.map(async (p) => {
-          const character = await storage.getCharacter(p.characterId);
-          const user = await storage.getUser(p.userId);
-          return {
-            ...p,
-            character,
-            username: user ? user.username : 'Unknown',
-            displayName: user ? user.displayName : null
-          };
-        })
-      );
-      
-      res.json(participantsWithDetails);
-    } catch (error) {
-      console.error("Error fetching participants:", error);
-      res.status(500).json({ message: "Failed to fetch participants" });
-    }
-  });
+  // Note: The main /api/campaigns/:campaignId/participants GET route is defined in the Multi-user Campaign Management section below
   
   // Add a participant to a campaign - THIS ROUTE IS DUPLICATED
   // SEE MULTI-USER CAMPAIGN MANAGEMENT SECTION FOR THE ACTIVE IMPLEMENTATION
