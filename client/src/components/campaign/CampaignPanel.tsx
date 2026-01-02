@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2 } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -89,6 +89,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     newLevel: number;
     leveledUp: boolean;
     itemsFound: any[];
+    skillImproved?: { skill: string; newBonus: number } | null;
   } | null>(null);
   const [narrativeStyle, setNarrativeStyle] = useState(campaign.narrativeStyle);
   const [difficulty, setDifficulty] = useState(campaign.difficulty);
@@ -308,6 +309,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             title: `Gained ${data.progression.xpAwarded} XP!`,
             description: "Experience gained from your actions" + 
               (data.progression.itemsFound?.length > 0 ? ` and found ${data.progression.itemsFound.length} item(s)!` : ""),
+          });
+        }
+        
+        // Show skill improvement toast
+        if (data.progression.skillImproved) {
+          toast({
+            title: `📈 Skill Improved: ${data.progression.skillImproved.skill}`,
+            description: `Your ${data.progression.skillImproved.skill} skill has improved to +${data.progression.skillImproved.newBonus}!`,
           });
         }
       } else {
@@ -1351,6 +1360,34 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           {addItemMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                         </Button>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Skill Progress Section */}
+                {activeCharacter && activeCharacter.skillProgress && Object.keys(activeCharacter.skillProgress as Record<string, any>).length > 0 && (
+                  <div className="mt-6 p-4 border rounded-lg bg-card">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <Target className="h-5 w-5 text-blue-500" />
+                      Skill Progress - {activeCharacter.name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Skills improve through use. Every 5 successful checks = +1 bonus (max +5).
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.entries(activeCharacter.skillProgress as Record<string, { uses: number; bonus: number }>).map(([skill, progress]) => (
+                        <div key={skill} className="p-2 border rounded bg-muted/20 flex justify-between items-center">
+                          <span className="font-medium text-sm">{skill}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">{progress.uses} uses</span>
+                            {progress.bonus > 0 && (
+                              <span className="text-xs font-bold text-green-600 bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded">
+                                +{progress.bonus}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}

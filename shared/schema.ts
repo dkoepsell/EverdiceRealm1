@@ -64,6 +64,8 @@ export const characters = pgTable("characters", {
   experience: integer("experience").notNull().default(0),
   skills: text("skills").array(),
   equipment: text("equipment").array(),
+  // Skill progression tracking - stores {skillName: {uses: number, bonus: number}}
+  skillProgress: jsonb("skill_progress").default({}),
   // New fields for character visualization
   appearance: text("appearance"),
   portraitUrl: text("portrait_url"),

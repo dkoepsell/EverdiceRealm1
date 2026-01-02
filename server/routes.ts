@@ -4111,8 +4111,11 @@ Respond with JSON:
     "enemyDamage": [{"name": "Enemy Name", "damageTaken": 8, "newHp": 22, "defeated": false}],
     "partyDamage": [{"name": "Companion Name", "damageTaken": 5, "newHp": 15, "defeated": false}],
     "combatDescription": "Brief description of the combat exchange",
-    "companionActions": [{"name": "Companion Name", "action": "Swung her sword at the goblin", "result": "Hit for 6 damage", "damageDealt": 6}]
-  }
+    "companionActions": [{"name": "Companion Name", "action": "Swung her sword at the goblin", "result": "Hit for 6 damage", "damageDealt": 6}],
+    "lootDrops": [{"name": "Gold Coins", "type": "currency", "value": "15 gp", "fromEnemy": "Goblin"}]
+  },
+  "skillUsed": "Stealth/Perception/Athletics/etc or null if no skill check",
+  "rewardItems": [{"name": "Healing Potion", "type": "consumable", "description": "Restores 2d4+2 HP", "rarity": "common"}]
 }`;
 
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -4126,12 +4129,22 @@ Respond with JSON:
 
       // Calculate XP and item rewards based on story advancement
       let xpAwarded = 0;
-      let itemsFound = [];
+      let itemsFound: any[] = [];
+      let skillProgressUpdate: { skill: string, wasSuccessful: boolean } | null = null;
       const consequences = storyAdvancement.consequencesOfChoice || "";
+      
+      // Track skill used for progression
+      const skillUsed = storyAdvancement.skillUsed;
       
       // Award XP for successful skill checks and story progression
       if (rollResult) {
         const wasSuccessful = rollResult.total >= (rollResult.dc || 10);
+        
+        // Track skill usage for progression
+        if (skillUsed && skillUsed !== "null") {
+          skillProgressUpdate = { skill: skillUsed, wasSuccessful };
+        }
+        
         if (wasSuccessful) {
           // Award XP based on DC difficulty
           const dc = rollResult.dc || 10;
@@ -4146,6 +4159,26 @@ Respond with JSON:
       } else {
         // Base XP for story participation
         xpAwarded += 25;
+      }
+      
+      // Collect AI-generated reward items
+      if (storyAdvancement.rewardItems && storyAdvancement.rewardItems.length > 0) {
+        itemsFound.push(...storyAdvancement.rewardItems);
+      }
+      
+      // Collect loot drops from defeated enemies
+      const combatEffects = storyAdvancement.combatEffects;
+      if (combatEffects?.lootDrops && combatEffects.lootDrops.length > 0) {
+        itemsFound.push(...combatEffects.lootDrops);
+      }
+      
+      // Check for defeated enemies and generate additional loot
+      if (combatEffects?.enemyDamage) {
+        const defeatedEnemies = combatEffects.enemyDamage.filter((e: any) => e.defeated);
+        if (defeatedEnemies.length > 0) {
+          // Award bonus XP for defeating enemies
+          xpAwarded += defeatedEnemies.length * 50;
+        }
       }
       
       // Bonus XP for significant story advancement
@@ -4231,7 +4264,7 @@ Respond with JSON:
         }]
       });
 
-      // Apply XP, items, and combat damage to character if there's a participant
+      // Apply XP, items, skill progress, and combat damage to character if there's a participant
       let characterProgression = null;
       // participants already fetched earlier for character info
       if (participants && participants.length > 0) {
@@ -4257,10 +4290,40 @@ Respond with JSON:
             }
           }
           
+          // Update skill progression
+          let updatedSkillProgress = (character.skillProgress as Record<string, { uses: number, bonus: number }>) || {};
+          let skillImproved = null;
+          
+          if (skillProgressUpdate) {
+            const { skill, wasSuccessful } = skillProgressUpdate;
+            const currentProgress = updatedSkillProgress[skill] || { uses: 0, bonus: 0 };
+            const newUses = currentProgress.uses + 1;
+            
+            // Skills improve after successful uses (every 5 successful uses = +1 bonus, max +5)
+            let newBonus = currentProgress.bonus;
+            if (wasSuccessful && newUses % 5 === 0 && currentProgress.bonus < 5) {
+              newBonus = currentProgress.bonus + 1;
+              skillImproved = { skill, newBonus };
+            }
+            
+            updatedSkillProgress[skill] = { uses: newUses, bonus: newBonus };
+          }
+          
+          // Add found items to character equipment
+          const currentEquipment = character.equipment || [];
+          const newEquipment = [...currentEquipment];
+          for (const item of itemsFound) {
+            if (item.name && !newEquipment.includes(item.name)) {
+              newEquipment.push(item.name);
+            }
+          }
+          
           await storage.updateCharacter(characterId, {
             experience: newXP,
             level: newLevel,
             hitPoints: newHitPoints,
+            equipment: newEquipment,
+            skillProgress: updatedSkillProgress,
             updatedAt: new Date().toISOString()
           });
           
@@ -4271,6 +4334,8 @@ Respond with JSON:
             leveledUp,
             itemsFound,
             completedQuests,
+            skillImproved,
+            skillProgress: updatedSkillProgress,
             combatEffects: combatEffects ? {
               damageTaken,
               damageDealt,
