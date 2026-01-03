@@ -4505,6 +4505,10 @@ QUEST TRACKING REQUIREMENTS:
 - Always include at least 1 active quest
 
 COMBAT MECHANICS REQUIREMENTS:
+- IMPORTANT: Set "inCombat": true in storyState IMMEDIATELY when:
+  * Player chooses an attack action against any creature
+  * An enemy attacks the party
+  * Any hostile encounter begins
 - When combat occurs, track BOTH enemy HP AND party member HP
 - Use the ACTUAL player character name from PLAYER CHARACTER section above in partyMembers
 - Track the player character AND any AI companions in "partyMembers" array with PROPER NAMES
@@ -4516,6 +4520,8 @@ COMBAT MECHANICS REQUIREMENTS:
 - Include "combatEffects" with damage for ALL combatants (player, companions, enemies)
 - Include "companionActions" describing what each AI companion did this round
 - Combat should feel dangerous and consequential
+- ALWAYS populate "combatants" array with enemies when inCombat is true
+- ALWAYS populate "partyMembers" array with player and companions when inCombat is true
 
 COMBAT END CONDITIONS:
 - Set "inCombat": false when ALL enemies are defeated, fled, or surrendered
