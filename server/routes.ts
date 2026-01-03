@@ -975,7 +975,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .map((c: any) => c.id);
         
         // Get all campaigns where the dead character is a participant
-        const allCampaigns = await storage.getCampaigns();
+        const allCampaigns = await storage.getAllCampaigns();
         for (const campaign of allCampaigns) {
           const participants = await storage.getCampaignParticipants(campaign.id);
           const deadCharInCampaign = participants.some((p: any) => p.characterId === character.id);
