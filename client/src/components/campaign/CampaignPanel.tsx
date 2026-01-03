@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -508,6 +508,96 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     onError: (error: Error) => {
       toast({
         title: "Failed to Remove Item",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Currency management mutations
+  const addCurrencyMutation = useMutation({
+    mutationFn: async ({ characterId, gold = 0, silver = 0, copper = 0, platinum = 0 }: { characterId: number; gold?: number; silver?: number; copper?: number; platinum?: number }) => {
+      const response = await apiRequest('POST', `/api/characters/${characterId}/currency/add`, { gold, silver, copper, platinum });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: "Currency Added",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Add Currency",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const spendCurrencyMutation = useMutation({
+    mutationFn: async ({ characterId, gold = 0, silver = 0, copper = 0, platinum = 0 }: { characterId: number; gold?: number; silver?: number; copper?: number; platinum?: number }) => {
+      const response = await apiRequest('POST', `/api/characters/${characterId}/currency/spend`, { gold, silver, copper, platinum });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: "Currency Spent",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Not Enough Currency",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Consumables management mutations
+  const addConsumableMutation = useMutation({
+    mutationFn: async ({ characterId, name, quantity = 1 }: { characterId: number; name: string; quantity?: number }) => {
+      const response = await apiRequest('POST', `/api/characters/${characterId}/consumables/add`, { name, quantity });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: "Consumable Added",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Add Consumable",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const useConsumableMutation = useMutation({
+    mutationFn: async ({ characterId, name }: { characterId: number; name: string }) => {
+      const response = await apiRequest('POST', `/api/characters/${characterId}/consumables/use`, { name });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: data.healedAmount > 0 ? `Healed ${data.healedAmount} HP!` : "Item Used",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Use Item",
         description: error.message,
         variant: "destructive"
       });
@@ -1479,6 +1569,110 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           {addItemMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                         </Button>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Currency Section */}
+                {activeCharacter && (
+                  <div className="mt-6 p-4 border rounded-lg bg-card">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <Coins className="h-5 w-5 text-yellow-500" />
+                      Currency - {activeCharacter.name}
+                    </h3>
+                    <div className="grid grid-cols-4 gap-2 mb-3">
+                      <div className="p-2 border rounded bg-gradient-to-b from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 text-center">
+                        <div className="text-xs text-muted-foreground">Platinum</div>
+                        <div className="text-lg font-bold text-gray-400">{(activeCharacter as any).platinum || 0}</div>
+                      </div>
+                      <div className="p-2 border rounded bg-gradient-to-b from-yellow-100 to-yellow-200 dark:from-yellow-900/50 dark:to-yellow-800/50 text-center">
+                        <div className="text-xs text-muted-foreground">Gold</div>
+                        <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{(activeCharacter as any).gold || 0}</div>
+                      </div>
+                      <div className="p-2 border rounded bg-gradient-to-b from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-center">
+                        <div className="text-xs text-muted-foreground">Silver</div>
+                        <div className="text-lg font-bold text-slate-500">{(activeCharacter as any).silver || 0}</div>
+                      </div>
+                      <div className="p-2 border rounded bg-gradient-to-b from-orange-100 to-orange-200 dark:from-orange-900/50 dark:to-orange-800/50 text-center">
+                        <div className="text-xs text-muted-foreground">Copper</div>
+                        <div className="text-lg font-bold text-orange-600 dark:text-orange-400">{(activeCharacter as any).copper || 0}</div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => addCurrencyMutation.mutate({ characterId: activeCharacter.id, gold: 10 })}
+                        disabled={addCurrencyMutation.isPending}
+                        data-testid="button-add-gold"
+                      >
+                        {addCurrencyMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "+10 GP"}
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => spendCurrencyMutation.mutate({ characterId: activeCharacter.id, gold: 5 })}
+                        disabled={spendCurrencyMutation.isPending || ((activeCharacter as any).gold || 0) < 5}
+                        data-testid="button-spend-gold"
+                      >
+                        {spendCurrencyMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "-5 GP"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Consumables Section */}
+                {activeCharacter && (
+                  <div className="mt-6 p-4 border rounded-lg bg-card">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <FlaskConical className="h-5 w-5 text-purple-500" />
+                      Consumables - {activeCharacter.name}
+                    </h3>
+                    
+                    {/* Current Consumables */}
+                    <div className="space-y-2 mb-4">
+                      {(activeCharacter as any).consumables && (activeCharacter as any).consumables.length > 0 ? (
+                        ((activeCharacter as any).consumables as any[]).map((item: any, index: number) => (
+                          <div key={index} className="flex items-center justify-between p-2 bg-muted/20 rounded border" data-testid={`consumable-${index}`}>
+                            <div className="flex-1">
+                              <div className="font-medium text-sm flex items-center gap-2">
+                                {item.type === "healing" ? <Heart className="h-3 w-3 text-red-500" /> : <Sparkles className="h-3 w-3 text-blue-500" />}
+                                {item.name}
+                                <span className="text-xs text-muted-foreground">x{item.quantity}</span>
+                              </div>
+                              <div className="text-xs text-muted-foreground">{item.effect}</div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => useConsumableMutation.mutate({ characterId: activeCharacter.id, name: item.name })}
+                              disabled={useConsumableMutation.isPending || activeCharacter.status === "dead"}
+                              data-testid={`button-use-consumable-${index}`}
+                            >
+                              {useConsumableMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Use"}
+                            </Button>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground py-2">No consumables. Add potions or scrolls!</p>
+                      )}
+                    </div>
+                    
+                    {/* Add Consumable */}
+                    <div className="flex gap-2">
+                      <Select onValueChange={(value) => addConsumableMutation.mutate({ characterId: activeCharacter.id, name: value })}>
+                        <SelectTrigger className="flex-1" data-testid="select-add-consumable">
+                          <SelectValue placeholder="Add a consumable..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Healing Potion">Healing Potion (2d4+2 HP)</SelectItem>
+                          <SelectItem value="Greater Healing Potion">Greater Healing Potion (4d4+4 HP)</SelectItem>
+                          <SelectItem value="Superior Healing Potion">Superior Healing Potion (8d4+8 HP)</SelectItem>
+                          <SelectItem value="Antitoxin">Antitoxin</SelectItem>
+                          <SelectItem value="Scroll of Cure Wounds">Scroll of Cure Wounds (1d8+3 HP)</SelectItem>
+                          <SelectItem value="Scroll of Lesser Restoration">Scroll of Lesser Restoration</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 )}
