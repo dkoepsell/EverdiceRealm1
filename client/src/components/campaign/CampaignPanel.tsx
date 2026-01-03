@@ -996,8 +996,32 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   </div>
                 </div>
                 
+                {/* Adventure Ended - Game Over Display */}
+                {parsedStoryState?.adventureEnded && parsedStoryState?.endReason === 'player_death' && (
+                  <div className="mt-6 p-6 bg-gradient-to-b from-gray-900 to-black rounded-lg border-2 border-red-800 text-center">
+                    <div className="text-6xl mb-4">💀</div>
+                    <h2 className="text-3xl font-bold text-red-500 mb-4">GAME OVER</h2>
+                    <p className="text-gray-300 mb-6 text-lg">
+                      Your hero has fallen. The adventure has come to a tragic end.
+                    </p>
+                    <div className="space-y-3">
+                      <p className="text-gray-400 text-sm">
+                        You may create a new character or start a new adventure to continue playing.
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        className="border-red-600 text-red-400 hover:bg-red-900/30"
+                        onClick={() => window.location.href = '/characters'}
+                        data-testid="button-create-new-character"
+                      >
+                        Create New Character
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Current Session */}
-                {currentSession ? (
+                {currentSession && !parsedStoryState?.adventureEnded ? (
                   <div className="mt-6 space-y-4">
                     <div className="flex justify-between items-start">
                       <h3 className="text-lg font-semibold flex items-center text-foreground">

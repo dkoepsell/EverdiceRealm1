@@ -4442,9 +4442,29 @@ Do not ignore this result. Build the entire next scene around this outcome.`;
       // Get player character info for combat tracking
       const participants = await storage.getCampaignParticipants(campaignId);
       let playerCharacterInfo = "";
+      let playerCharacter: any = null;
+      let isSoloAdventure = participants && participants.length === 1;
+      
       if (participants && participants.length > 0) {
         const character = await storage.getCharacter(participants[0].characterId);
+        playerCharacter = character;
         if (character) {
+          // Get equipped weapon from inventory (first item is typically equipped)
+          const equippedWeapon = character.equipment && Array.isArray(character.equipment) && character.equipment.length > 0 
+            ? character.equipment[0] 
+            : 'Unarmed';
+          
+          // Get consumables list
+          const consumables = (character as any).consumables || [];
+          const consumablesList = consumables.length > 0 
+            ? consumables.map((c: any) => `${c.name} x${c.quantity}`).join(', ')
+            : 'None';
+          
+          // Get currency
+          const gold = (character as any).gold || 0;
+          const silver = (character as any).silver || 0;
+          const copper = (character as any).copper || 0;
+          
           playerCharacterInfo = `
 PLAYER CHARACTER:
 - Name: ${character.name}
@@ -4452,8 +4472,56 @@ PLAYER CHARACTER:
 - Level: ${character.level}
 - Current HP: ${character.hitPoints}/${character.maxHitPoints}
 - AC: ${character.armorClass || 10}
-- Equipped Weapon: ${character.equipment?.weapon || 'Unarmed'}`;
+- Status: ${character.status || 'conscious'}
+- Equipped Weapon: ${equippedWeapon}
+- Inventory: ${character.equipment && Array.isArray(character.equipment) ? character.equipment.join(', ') : 'Empty'}
+- Consumables: ${consumablesList}
+- Currency: ${gold} gp, ${silver} sp, ${copper} cp
+
+IMPORTANT CHARACTER STATUS:
+${character.status === 'dead' ? '⚠️ THIS CHARACTER IS DEAD - They cannot take actions, speak, or participate in the adventure. The adventure should focus on their death and its consequences.' : 
+  character.status === 'unconscious' ? '⚠️ This character is UNCONSCIOUS at 0 HP - They cannot take actions until healed or stabilized.' :
+  character.status === 'stabilized' ? '⚠️ This character is STABILIZED at 0 HP - They are stable but unconscious and cannot take actions.' :
+  'Character is conscious and can act normally.'}`;
         }
+      }
+      
+      // Check if player is dead in a solo adventure - adventure should end
+      if (isSoloAdventure && playerCharacter && playerCharacter.status === 'dead') {
+        // Update session to reflect adventure end due to death
+        const adventureEndNarrative = `
+The adventure has come to a tragic end. ${playerCharacter.name} has fallen, their journey cut short by the dangers of this world.
+
+Perhaps another hero will rise to continue where they left off, or perhaps their tale will serve as a warning to those who come after.
+
+**GAME OVER**
+
+You may create a new character or start a new adventure to continue playing.`;
+        
+        await storage.updateSession(currentSession.id, {
+          narrative: adventureEndNarrative,
+          choices: [],
+          storyState: {
+            ...(currentSession.storyState as any || {}),
+            adventureEnded: true,
+            endReason: 'player_death',
+            inCombat: false
+          }
+        });
+        
+        return res.json({
+          ...currentSession,
+          narrative: adventureEndNarrative,
+          choices: [],
+          storyState: {
+            ...(currentSession.storyState as any || {}),
+            adventureEnded: true,
+            endReason: 'player_death',
+            inCombat: false
+          },
+          adventureEnded: true,
+          endReason: 'player_death'
+        });
       }
       
       // Generate story continuation based on choice and previous context
