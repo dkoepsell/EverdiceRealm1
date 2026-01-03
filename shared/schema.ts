@@ -341,6 +341,13 @@ export const npcs = pgTable("npcs", {
   charisma: integer("charisma"),
   skills: text("skills").array(),
   equipment: text("equipment").array(),
+  consumables: jsonb("consumables").default([]),
+  gold: integer("gold").default(0),
+  equippedWeapon: text("equipped_weapon"),
+  equippedArmor: text("equipped_armor"),
+  equippedShield: text("equipped_shield"),
+  equippedAccessory: text("equipped_accessory"),
+  status: text("status").default("conscious"),
   portraitUrl: text("portrait_url"),
   isPublic: boolean("is_public").default(false),
   createdBy: integer("created_by").notNull(), // User ID

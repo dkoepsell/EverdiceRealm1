@@ -3093,6 +3093,238 @@ Return your response as a JSON object with these fields:
     }
   });
   
+  // NPC Inventory Management Routes
+  
+  // Get NPC inventory
+  app.get("/api/npcs/:id/inventory", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const npc = await storage.getNpc(id);
+      
+      if (!npc) {
+        return res.status(404).json({ message: "NPC not found" });
+      }
+      
+      res.json({
+        npcId: id,
+        items: npc.equipment || [],
+        consumables: npc.consumables || [],
+        gold: npc.gold || 0,
+        equippedWeapon: npc.equippedWeapon,
+        equippedArmor: npc.equippedArmor,
+        equippedShield: npc.equippedShield,
+        equippedAccessory: npc.equippedAccessory
+      });
+    } catch (error: any) {
+      console.error("Error fetching NPC inventory:", error);
+      res.status(500).json({ message: "Failed to fetch NPC inventory" });
+    }
+  });
+  
+  // Add item to NPC inventory
+  app.post("/api/npcs/:id/inventory/add", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { item } = req.body;
+      
+      if (!item) {
+        return res.status(400).json({ message: "Item name is required" });
+      }
+      
+      const npc = await storage.getNpc(id);
+      if (!npc) {
+        return res.status(404).json({ message: "NPC not found" });
+      }
+      
+      const currentEquipment = npc.equipment || [];
+      const updatedEquipment = [...currentEquipment, item];
+      
+      const updatedNpc = await storage.updateNpc(id, {
+        equipment: updatedEquipment,
+        updatedAt: new Date().toISOString()
+      });
+      
+      res.json({
+        npc: updatedNpc,
+        message: `Added ${item} to inventory.`
+      });
+    } catch (error: any) {
+      console.error("Error adding item to NPC:", error);
+      res.status(500).json({ message: "Failed to add item" });
+    }
+  });
+  
+  // Remove item from NPC inventory
+  app.post("/api/npcs/:id/inventory/remove", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { item } = req.body;
+      
+      if (!item) {
+        return res.status(400).json({ message: "Item name is required" });
+      }
+      
+      const npc = await storage.getNpc(id);
+      if (!npc) {
+        return res.status(404).json({ message: "NPC not found" });
+      }
+      
+      const currentEquipment = npc.equipment || [];
+      const itemIndex = currentEquipment.indexOf(item);
+      
+      if (itemIndex === -1) {
+        return res.status(404).json({ message: "Item not found in inventory" });
+      }
+      
+      const updatedEquipment = currentEquipment.filter((_, i) => i !== itemIndex);
+      
+      const updatedNpc = await storage.updateNpc(id, {
+        equipment: updatedEquipment,
+        updatedAt: new Date().toISOString()
+      });
+      
+      res.json({
+        npc: updatedNpc,
+        message: `Removed ${item} from inventory.`
+      });
+    } catch (error: any) {
+      console.error("Error removing item from NPC:", error);
+      res.status(500).json({ message: "Failed to remove item" });
+    }
+  });
+  
+  // Equip item for NPC
+  app.post("/api/npcs/:id/equip", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { item, slot } = req.body;
+      
+      if (!item || !slot) {
+        return res.status(400).json({ message: "Item and slot are required" });
+      }
+      
+      const validSlots = ["weapon", "armor", "shield", "accessory"];
+      if (!validSlots.includes(slot)) {
+        return res.status(400).json({ message: "Invalid slot. Valid slots: weapon, armor, shield, accessory" });
+      }
+      
+      const npc = await storage.getNpc(id);
+      if (!npc) {
+        return res.status(404).json({ message: "NPC not found" });
+      }
+      
+      const slotFieldMap: Record<string, string> = {
+        weapon: "equippedWeapon",
+        armor: "equippedArmor",
+        shield: "equippedShield",
+        accessory: "equippedAccessory"
+      };
+      
+      const updateData: any = {
+        [slotFieldMap[slot]]: item,
+        updatedAt: new Date().toISOString()
+      };
+      
+      const updatedNpc = await storage.updateNpc(id, updateData);
+      
+      res.json({
+        npc: updatedNpc,
+        message: `Equipped ${item} to ${slot} slot`
+      });
+    } catch (error: any) {
+      console.error("Error equipping item for NPC:", error);
+      res.status(500).json({ message: "Failed to equip item" });
+    }
+  });
+  
+  // Unequip item from NPC
+  app.post("/api/npcs/:id/unequip", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { slot } = req.body;
+      
+      if (!slot) {
+        return res.status(400).json({ message: "Slot is required" });
+      }
+      
+      const validSlots = ["weapon", "armor", "shield", "accessory"];
+      if (!validSlots.includes(slot)) {
+        return res.status(400).json({ message: "Invalid slot. Valid slots: weapon, armor, shield, accessory" });
+      }
+      
+      const npc = await storage.getNpc(id);
+      if (!npc) {
+        return res.status(404).json({ message: "NPC not found" });
+      }
+      
+      const slotFieldMap: Record<string, keyof typeof npc> = {
+        weapon: "equippedWeapon",
+        armor: "equippedArmor",
+        shield: "equippedShield",
+        accessory: "equippedAccessory"
+      };
+      
+      const currentItem = npc[slotFieldMap[slot]];
+      if (!currentItem) {
+        return res.status(400).json({ message: `Nothing equipped in ${slot} slot` });
+      }
+      
+      const updateData: any = {
+        [slotFieldMap[slot]]: null,
+        updatedAt: new Date().toISOString()
+      };
+      
+      const updatedNpc = await storage.updateNpc(id, updateData);
+      
+      res.json({
+        npc: updatedNpc,
+        message: `Unequipped ${currentItem} from ${slot} slot`
+      });
+    } catch (error: any) {
+      console.error("Error unequipping item from NPC:", error);
+      res.status(500).json({ message: "Failed to unequip item" });
+    }
+  });
+  
+  // Update NPC gold
+  app.post("/api/npcs/:id/gold", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { amount, operation } = req.body;
+      
+      if (typeof amount !== 'number') {
+        return res.status(400).json({ message: "Amount is required and must be a number" });
+      }
+      
+      const npc = await storage.getNpc(id);
+      if (!npc) {
+        return res.status(404).json({ message: "NPC not found" });
+      }
+      
+      let newGold = npc.gold || 0;
+      if (operation === 'add') {
+        newGold += amount;
+      } else if (operation === 'subtract') {
+        newGold = Math.max(0, newGold - amount);
+      } else {
+        newGold = amount;
+      }
+      
+      const updatedNpc = await storage.updateNpc(id, {
+        gold: newGold,
+        updatedAt: new Date().toISOString()
+      });
+      
+      res.json({
+        npc: updatedNpc,
+        message: operation === 'add' ? `Added ${amount} gold` : operation === 'subtract' ? `Removed ${amount} gold` : `Set gold to ${amount}`
+      });
+    } catch (error: any) {
+      console.error("Error updating NPC gold:", error);
+      res.status(500).json({ message: "Failed to update gold" });
+    }
+  });
+  
   // Campaign NPC Routes
   
   // Get NPCs in a campaign
