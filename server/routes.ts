@@ -114,7 +114,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/characters", async (req, res) => {
     try {
       const characterData = insertCharacterSchema.parse(req.body);
-      const character = await storage.createCharacter(characterData);
+      
+      // Add starter consumables including resurrection scrolls
+      const starterConsumables = [
+        { name: "Healing Potion", quantity: 2, effect: "Restores 2d4+2 HP" },
+        { name: "Scroll of Revivify", quantity: 2, effect: "Resurrects a dead character" },
+        { name: "Antitoxin", quantity: 1, effect: "Advantage on poison saves for 1 hour" }
+      ];
+      
+      // Merge with any existing consumables
+      const existingConsumables = (characterData as any).consumables || [];
+      const mergedConsumables = [...starterConsumables, ...existingConsumables];
+      
+      // Add starter gold
+      const starterGold = 50;
+      
+      const character = await storage.createCharacter({
+        ...characterData,
+        consumables: mergedConsumables,
+        gold: ((characterData as any).gold || 0) + starterGold
+      } as any);
       res.status(201).json(character);
     } catch (error) {
       if (error instanceof z.ZodError) {
