@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Campaign, CampaignSession, Character } from "@shared/schema";
+import { Campaign, CampaignSession, Character, Npc } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { generateStory, StoryRequest } from "@/lib/openai";
 import { DiceType, DiceRoll, DiceRollResult, rollDice, clientRollDice } from "@/lib/dice";
@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -71,6 +71,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     enabled: !!campaign.id,
   });
   
+  // Campaign NPCs
+  const { data: campaignNpcs = [], isLoading: npcsLoading } = useQuery<any[]>({
+    queryKey: [`/api/campaigns/${campaign.id}/npcs`],
+    enabled: !!campaign.id,
+  });
+  
   // Local state
   const [showChoiceDialog, setShowChoiceDialog] = useState(false);
   const [showDiceRollDialog, setShowDiceRollDialog] = useState(false);
@@ -107,6 +113,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   } | null>(null);
   const [customAction, setCustomAction] = useState("");
   const [newItemName, setNewItemName] = useState("");
+  const [selectedPartyMemberType, setSelectedPartyMemberType] = useState<"character" | "npc">("character");
+  const [selectedNpcId, setSelectedNpcId] = useState<number | null>(null);
   
   // Find the user's participant record in this campaign
   const userParticipant = useMemo(() => {
@@ -126,6 +134,19 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
     return null;
   }, [userParticipant, userCharacters]);
+  
+  // Get the selected NPC for management
+  const selectedNpc = useMemo(() => {
+    if (!selectedNpcId || !campaignNpcs) return null;
+    const campaignNpc = campaignNpcs.find((cn: any) => cn.npcId === selectedNpcId);
+    return campaignNpc?.npc || null;
+  }, [selectedNpcId, campaignNpcs]);
+  
+  // Get all party NPCs for the dropdown
+  const partyNpcs = useMemo(() => {
+    if (!campaignNpcs) return [];
+    return campaignNpcs.filter((cn: any) => cn.role === 'companion' || cn.role === 'ally').map((cn: any) => cn.npc);
+  }, [campaignNpcs]);
   
   // Parse storyState - it may be stored as JSON string or already parsed
   const parsedStoryState = useMemo(() => {
@@ -687,6 +708,113 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     onError: (error: Error) => {
       toast({
         title: "Transfer Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // NPC Inventory Management Mutations
+  const addNpcItemMutation = useMutation({
+    mutationFn: async ({ npcId, item }: { npcId: number; item: string }) => {
+      const response = await apiRequest('POST', `/api/npcs/${npcId}/inventory/add`, { item });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
+      toast({
+        title: "Item Added",
+        description: data.message,
+      });
+      setNewItemName("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Add Item",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const removeNpcItemMutation = useMutation({
+    mutationFn: async ({ npcId, item }: { npcId: number; item: string }) => {
+      const response = await apiRequest('POST', `/api/npcs/${npcId}/inventory/remove`, { item });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
+      toast({
+        title: "Item Removed",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Remove Item",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const equipNpcItemMutation = useMutation({
+    mutationFn: async ({ npcId, item, slot }: { npcId: number; item: string; slot: string }) => {
+      const response = await apiRequest('POST', `/api/npcs/${npcId}/equip`, { item, slot });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
+      toast({
+        title: "Item Equipped",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Equip Item",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const unequipNpcItemMutation = useMutation({
+    mutationFn: async ({ npcId, slot }: { npcId: number; slot: string }) => {
+      const response = await apiRequest('POST', `/api/npcs/${npcId}/unequip`, { slot });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
+      toast({
+        title: "Item Unequipped",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Unequip Item",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const updateNpcGoldMutation = useMutation({
+    mutationFn: async ({ npcId, amount, operation }: { npcId: number; amount: number; operation: 'add' | 'subtract' }) => {
+      const response = await apiRequest('POST', `/api/npcs/${npcId}/gold`, { amount, operation });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
+      toast({
+        title: "Gold Updated",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Update Gold",
         description: error.message,
         variant: "destructive"
       });
@@ -1505,8 +1633,54 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 
                 <CampaignParticipants campaignId={campaign.id} isDM={isDM} />
 
-                {/* Rest & Recovery Section */}
-                {activeCharacter && (
+                {/* Party Member Selection */}
+                <div className="mt-6 p-4 border rounded-lg bg-card">
+                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Manage Party Member
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {/* Character button */}
+                    {activeCharacter && (
+                      <Button
+                        variant={selectedPartyMemberType === "character" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setSelectedPartyMemberType("character");
+                          setSelectedNpcId(null);
+                        }}
+                        className="flex items-center gap-2"
+                        data-testid="button-select-character"
+                      >
+                        <User className="h-4 w-4" />
+                        {activeCharacter.name} (You)
+                      </Button>
+                    )}
+                    {/* NPC buttons */}
+                    {partyNpcs.map((npc: any) => (
+                      <Button
+                        key={`npc-select-${npc.id}`}
+                        variant={selectedPartyMemberType === "npc" && selectedNpcId === npc.id ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setSelectedPartyMemberType("npc");
+                          setSelectedNpcId(npc.id);
+                        }}
+                        className="flex items-center gap-2"
+                        data-testid={`button-select-npc-${npc.id}`}
+                      >
+                        <Users className="h-4 w-4" />
+                        {npc.name} (Companion)
+                      </Button>
+                    ))}
+                    {!activeCharacter && partyNpcs.length === 0 && (
+                      <p className="text-sm text-muted-foreground">No party members to manage</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Rest & Recovery Section - Character Only */}
+                {selectedPartyMemberType === "character" && activeCharacter && (
                   <div className="mt-6 p-4 border rounded-lg bg-card">
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                       <Heart className="h-5 w-5 text-red-500" />
@@ -1632,8 +1806,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   </div>
                 )}
 
-                {/* Inventory Management Section */}
-                {activeCharacter && (
+                {/* Inventory Management Section - Character */}
+                {selectedPartyMemberType === "character" && activeCharacter && (
                   <div className="mt-6 p-4 border rounded-lg bg-card">
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                       <Backpack className="h-5 w-5 text-amber-600" />
@@ -1811,8 +1985,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   </div>
                 )}
 
-                {/* Currency Section */}
-                {activeCharacter && (
+                {/* Currency Section - Character */}
+                {selectedPartyMemberType === "character" && activeCharacter && (
                   <div className="mt-6 p-4 border rounded-lg bg-card">
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                       <Coins className="h-5 w-5 text-yellow-500" />
@@ -1859,8 +2033,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   </div>
                 )}
 
-                {/* Consumables Section */}
-                {activeCharacter && (
+                {/* Consumables Section - Character */}
+                {selectedPartyMemberType === "character" && activeCharacter && (
                   <div className="mt-6 p-4 border rounded-lg bg-card">
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                       <FlaskConical className="h-5 w-5 text-purple-500" />
@@ -1916,8 +2090,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   </div>
                 )}
 
-                {/* Skill Progress Section */}
-                {activeCharacter && activeCharacter.skillProgress && Object.keys(activeCharacter.skillProgress as Record<string, any>).length > 0 && (
+                {/* Skill Progress Section - Character */}
+                {selectedPartyMemberType === "character" && activeCharacter && activeCharacter.skillProgress && Object.keys(activeCharacter.skillProgress as Record<string, any>).length > 0 && (
                   <div className="mt-6 p-4 border rounded-lg bg-card">
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                       <Target className="h-5 w-5 text-blue-500" />
@@ -1940,6 +2114,231 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* NPC Inventory Management Section */}
+                {selectedPartyMemberType === "npc" && selectedNpc && (
+                  <div className="mt-6 p-4 border rounded-lg bg-card">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <Backpack className="h-5 w-5 text-amber-600" />
+                      Inventory & Equipment - {selectedNpc.name}
+                    </h3>
+                    
+                    {/* NPC Stats Display */}
+                    <div className="flex gap-4 mb-4">
+                      <div className="p-2 border rounded bg-muted/30">
+                        <div className="text-xs text-muted-foreground">HP</div>
+                        <div className="text-lg font-bold">
+                          <span className={
+                            (selectedNpc.hitPoints || 0) <= 0 ? "text-red-500" :
+                            (selectedNpc.hitPoints || 0) < (selectedNpc.maxHitPoints || 10) / 2 ? "text-orange-500" : 
+                            "text-green-500"
+                          }>
+                            {selectedNpc.hitPoints || 0}
+                          </span>
+                          <span className="text-muted-foreground">/{selectedNpc.maxHitPoints || 10}</span>
+                        </div>
+                      </div>
+                      <div className="p-2 border rounded bg-muted/30">
+                        <div className="text-xs text-muted-foreground">AC</div>
+                        <div className="text-lg font-bold">{selectedNpc.armorClass || 10}</div>
+                      </div>
+                      <div className="p-2 border rounded bg-muted/30">
+                        <div className="text-xs text-muted-foreground">Level</div>
+                        <div className="text-lg font-bold">{selectedNpc.level || 1}</div>
+                      </div>
+                    </div>
+                    
+                    {/* NPC Equipment Slots */}
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="p-3 border rounded bg-muted/30">
+                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                          <Sword className="h-3 w-3" /> Weapon
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">
+                            {selectedNpc.equippedWeapon || "None"}
+                          </span>
+                          {selectedNpc.equippedWeapon && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => unequipNpcItemMutation.mutate({ npcId: selectedNpc.id, slot: "weapon" })}
+                              disabled={unequipNpcItemMutation.isPending}
+                              data-testid="button-npc-unequip-weapon"
+                            >
+                              Unequip
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="p-3 border rounded bg-muted/30">
+                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                          <Shield className="h-3 w-3" /> Armor
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">
+                            {selectedNpc.equippedArmor || "None"}
+                          </span>
+                          {selectedNpc.equippedArmor && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => unequipNpcItemMutation.mutate({ npcId: selectedNpc.id, slot: "armor" })}
+                              disabled={unequipNpcItemMutation.isPending}
+                              data-testid="button-npc-unequip-armor"
+                            >
+                              Unequip
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="p-3 border rounded bg-muted/30">
+                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                          <Shield className="h-3 w-3" /> Shield
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">
+                            {selectedNpc.equippedShield || "None"}
+                          </span>
+                          {selectedNpc.equippedShield && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => unequipNpcItemMutation.mutate({ npcId: selectedNpc.id, slot: "shield" })}
+                              disabled={unequipNpcItemMutation.isPending}
+                              data-testid="button-npc-unequip-shield"
+                            >
+                              Unequip
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="p-3 border rounded bg-muted/30">
+                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" /> Accessory
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">
+                            {selectedNpc.equippedAccessory || "None"}
+                          </span>
+                          {selectedNpc.equippedAccessory && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => unequipNpcItemMutation.mutate({ npcId: selectedNpc.id, slot: "accessory" })}
+                              disabled={unequipNpcItemMutation.isPending}
+                              data-testid="button-npc-unequip-accessory"
+                            >
+                              Unequip
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* NPC Inventory Items */}
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Items ({selectedNpc.equipment?.length || 0})</div>
+                      <div className="max-h-48 overflow-y-auto space-y-1">
+                        {selectedNpc.equipment && selectedNpc.equipment.length > 0 ? (
+                          selectedNpc.equipment.map((item: string, index: number) => (
+                            <div key={index} className="flex items-center justify-between p-2 bg-muted/20 rounded text-sm" data-testid={`npc-item-${index}`}>
+                              <span className="flex-1">{item}</span>
+                              <div className="flex items-center gap-1">
+                                <Select onValueChange={(slot) => equipNpcItemMutation.mutate({ npcId: selectedNpc.id, item, slot })}>
+                                  <SelectTrigger className="h-6 w-20 text-xs" data-testid={`npc-select-equip-${index}`}>
+                                    <SelectValue placeholder="Equip" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="weapon">Weapon</SelectItem>
+                                    <SelectItem value="armor">Armor</SelectItem>
+                                    <SelectItem value="shield">Shield</SelectItem>
+                                    <SelectItem value="accessory">Accessory</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                  onClick={() => removeNpcItemMutation.mutate({ npcId: selectedNpc.id, item })}
+                                  disabled={removeNpcItemMutation.isPending}
+                                  data-testid={`button-npc-remove-item-${index}`}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground py-2">No items in inventory</p>
+                        )}
+                      </div>
+
+                      {/* Add Item to NPC */}
+                      <div className="flex gap-2 mt-3">
+                        <Input
+                          placeholder="Add new item..."
+                          value={newItemName}
+                          onChange={(e) => setNewItemName(e.target.value)}
+                          className="flex-1"
+                          data-testid="input-npc-new-item"
+                        />
+                        <Button
+                          onClick={() => {
+                            if (newItemName.trim()) {
+                              addNpcItemMutation.mutate({ 
+                                npcId: selectedNpc.id, 
+                                item: newItemName.trim() 
+                              });
+                            }
+                          }}
+                          disabled={!newItemName.trim() || addNpcItemMutation.isPending}
+                          size="sm"
+                          data-testid="button-npc-add-item"
+                        >
+                          {addNpcItemMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* NPC Gold Management */}
+                {selectedPartyMemberType === "npc" && selectedNpc && (
+                  <div className="mt-6 p-4 border rounded-lg bg-card">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <Coins className="h-5 w-5 text-yellow-500" />
+                      Gold - {selectedNpc.name}
+                    </h3>
+                    <div className="p-2 border rounded bg-gradient-to-b from-yellow-100 to-yellow-200 dark:from-yellow-900/50 dark:to-yellow-800/50 text-center mb-3">
+                      <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{selectedNpc.gold || 0} GP</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => updateNpcGoldMutation.mutate({ npcId: selectedNpc.id, amount: 10, operation: 'add' })}
+                        disabled={updateNpcGoldMutation.isPending}
+                        data-testid="button-npc-add-gold"
+                      >
+                        {updateNpcGoldMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "+10 GP"}
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => updateNpcGoldMutation.mutate({ npcId: selectedNpc.id, amount: 5, operation: 'subtract' })}
+                        disabled={updateNpcGoldMutation.isPending || (selectedNpc.gold || 0) < 5}
+                        data-testid="button-npc-spend-gold"
+                      >
+                        {updateNpcGoldMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "-5 GP"}
+                      </Button>
                     </div>
                   </div>
                 )}
