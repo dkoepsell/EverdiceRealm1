@@ -603,6 +603,95 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       });
     }
   });
+
+  // Equipment management mutations
+  const equipItemMutation = useMutation({
+    mutationFn: async ({ characterId, item, slot }: { characterId: number; item: string; slot: string }) => {
+      const response = await apiRequest('POST', `/api/characters/${characterId}/equipment/equip`, { item, slot });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: "Item Equipped",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Equip Item",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const unequipItemMutation = useMutation({
+    mutationFn: async ({ characterId, slot }: { characterId: number; slot: string }) => {
+      const response = await apiRequest('POST', `/api/characters/${characterId}/equipment/unequip`, { slot });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: "Item Unequipped",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Unequip Item",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const resurrectMutation = useMutation({
+    mutationFn: async ({ characterId, method }: { characterId: number; method: string }) => {
+      const response = await apiRequest('POST', `/api/characters/${characterId}/resurrect`, { method });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: "Character Resurrected!",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Resurrection Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const transferItemMutation = useMutation({
+    mutationFn: async ({ fromCharacterId, toCharacterId, item }: { fromCharacterId: number; toCharacterId: number; item: string }) => {
+      const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/items/transfer`, { fromCharacterId, toCharacterId, item });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: "Item Transferred",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Transfer Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
   
   // Filter sessions by search query
   const filteredSessions = useMemo(() => {
@@ -1469,7 +1558,36 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           <div className="text-sm mt-1">Character is stable but unconscious at 0 HP. Healing will restore consciousness.</div>
                         )}
                         {activeCharacter.status === "dead" && (
-                          <div className="text-sm mt-1">This character has died. Resurrection magic may be required.</div>
+                          <div className="mt-3 p-3 bg-gray-800 rounded-lg border border-gray-600">
+                            <div className="text-sm text-gray-300 mb-3">💀 This character has died and needs resurrection to rejoin adventures.</div>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                onClick={() => resurrectMutation.mutate({ characterId: activeCharacter.id, method: "consumable" })}
+                                disabled={resurrectMutation.isPending}
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center gap-2 border-purple-500 text-purple-400 hover:bg-purple-900/30"
+                                data-testid="button-resurrect-consumable"
+                              >
+                                {resurrectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scroll className="h-4 w-4" />}
+                                Use Scroll of Revivify
+                              </Button>
+                              <Button
+                                onClick={() => resurrectMutation.mutate({ characterId: activeCharacter.id, method: "temple" })}
+                                disabled={resurrectMutation.isPending || ((activeCharacter as any).gold || 0) < 500}
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center gap-2 border-yellow-500 text-yellow-400 hover:bg-yellow-900/30"
+                                data-testid="button-resurrect-temple"
+                              >
+                                {resurrectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Coins className="h-4 w-4" />}
+                                Temple Service (500 gp)
+                              </Button>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">
+                              Temple resurrection costs 500 gold. Current gold: {(activeCharacter as any).gold || 0}
+                            </p>
+                          </div>
                         )}
                       </div>
                     )}
@@ -1524,43 +1642,139 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     
                     {/* Equipment Slots */}
                     <div className="grid grid-cols-2 gap-3 mb-4">
+                      {/* Weapon Slot */}
                       <div className="p-3 border rounded bg-muted/30">
                         <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                          <Sword className="h-3 w-3" /> Equipped Weapon
+                          <Sword className="h-3 w-3" /> Weapon
                         </div>
-                        <div className="font-medium">
-                          {activeCharacter.equipment?.[0] || "None"}
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">
+                            {(activeCharacter as any).equippedWeapon || "None"}
+                          </span>
+                          {(activeCharacter as any).equippedWeapon && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => unequipItemMutation.mutate({ characterId: activeCharacter.id, slot: "weapon" })}
+                              disabled={unequipItemMutation.isPending}
+                              data-testid="button-unequip-weapon"
+                            >
+                              Unequip
+                            </Button>
+                          )}
                         </div>
                       </div>
+                      {/* Armor Slot */}
                       <div className="p-3 border rounded bg-muted/30">
                         <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                          <Shield className="h-3 w-3" /> Armor Class
+                          <Shield className="h-3 w-3" /> Armor
                         </div>
-                        <div className="font-medium">{activeCharacter.armorClass || 10}</div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">
+                            {(activeCharacter as any).equippedArmor || "None"}
+                          </span>
+                          {(activeCharacter as any).equippedArmor && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => unequipItemMutation.mutate({ characterId: activeCharacter.id, slot: "armor" })}
+                              disabled={unequipItemMutation.isPending}
+                              data-testid="button-unequip-armor"
+                            >
+                              Unequip
+                            </Button>
+                          )}
+                        </div>
                       </div>
+                      {/* Shield Slot */}
+                      <div className="p-3 border rounded bg-muted/30">
+                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                          <Shield className="h-3 w-3" /> Shield
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">
+                            {(activeCharacter as any).equippedShield || "None"}
+                          </span>
+                          {(activeCharacter as any).equippedShield && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => unequipItemMutation.mutate({ characterId: activeCharacter.id, slot: "shield" })}
+                              disabled={unequipItemMutation.isPending}
+                              data-testid="button-unequip-shield"
+                            >
+                              Unequip
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      {/* Accessory Slot */}
+                      <div className="p-3 border rounded bg-muted/30">
+                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" /> Accessory
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">
+                            {(activeCharacter as any).equippedAccessory || "None"}
+                          </span>
+                          {(activeCharacter as any).equippedAccessory && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => unequipItemMutation.mutate({ characterId: activeCharacter.id, slot: "accessory" })}
+                              disabled={unequipItemMutation.isPending}
+                              data-testid="button-unequip-accessory"
+                            >
+                              Unequip
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* AC Display */}
+                    <div className="text-sm text-muted-foreground mb-4">
+                      Armor Class: <span className="font-bold text-foreground">{activeCharacter.armorClass || 10}</span>
                     </div>
 
                     {/* Inventory Items */}
                     <div className="space-y-2">
                       <div className="text-sm font-medium">Items ({activeCharacter.equipment?.length || 0})</div>
-                      <div className="max-h-40 overflow-y-auto space-y-1">
+                      <div className="max-h-48 overflow-y-auto space-y-1">
                         {activeCharacter.equipment && activeCharacter.equipment.length > 0 ? (
                           activeCharacter.equipment.map((item: string, index: number) => (
                             <div key={index} className="flex items-center justify-between p-2 bg-muted/20 rounded text-sm" data-testid={`item-${index}`}>
-                              <span>{item}</span>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                                onClick={() => removeItemMutation.mutate({ 
-                                  characterId: activeCharacter.id, 
-                                  item 
-                                })}
-                                disabled={removeItemMutation.isPending}
-                                data-testid={`button-remove-item-${index}`}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
+                              <span className="flex-1">{item}</span>
+                              <div className="flex items-center gap-1">
+                                <Select onValueChange={(slot) => equipItemMutation.mutate({ characterId: activeCharacter.id, item, slot })}>
+                                  <SelectTrigger className="h-6 w-20 text-xs" data-testid={`select-equip-${index}`}>
+                                    <SelectValue placeholder="Equip" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="weapon">Weapon</SelectItem>
+                                    <SelectItem value="armor">Armor</SelectItem>
+                                    <SelectItem value="shield">Shield</SelectItem>
+                                    <SelectItem value="accessory">Accessory</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                  onClick={() => removeItemMutation.mutate({ 
+                                    characterId: activeCharacter.id, 
+                                    item 
+                                  })}
+                                  disabled={removeItemMutation.isPending}
+                                  data-testid={`button-remove-item-${index}`}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
                           ))
                         ) : (
@@ -1695,6 +1909,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           <SelectItem value="Antitoxin">Antitoxin</SelectItem>
                           <SelectItem value="Scroll of Cure Wounds">Scroll of Cure Wounds (1d8+3 HP)</SelectItem>
                           <SelectItem value="Scroll of Lesser Restoration">Scroll of Lesser Restoration</SelectItem>
+                          <SelectItem value="Scroll of Revivify">Scroll of Revivify (Resurrects)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
