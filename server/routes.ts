@@ -964,7 +964,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Character not found" });
       }
       
-      if (character.userId !== req.user.id) {
+      // Allow resurrection if: user owns the character OR they're in the same campaign
+      let isAuthorized = character.userId === req.user.id;
+      
+      if (!isAuthorized) {
+        // Check if user is in the same campaign as this character
+        const allCharacters = await storage.getAllCharacters();
+        const userCharacterIds = allCharacters
+          .filter((c: any) => c.userId === req.user.id)
+          .map((c: any) => c.id);
+        
+        // Get all campaigns where the dead character is a participant
+        const allCampaigns = await storage.getCampaigns();
+        for (const campaign of allCampaigns) {
+          const participants = await storage.getCampaignParticipants(campaign.id);
+          const deadCharInCampaign = participants.some((p: any) => p.characterId === character.id);
+          const userInCampaign = participants.some((p: any) => userCharacterIds.includes(p.characterId)) || campaign.userId === req.user.id;
+          
+          if (deadCharInCampaign && userInCampaign) {
+            isAuthorized = true;
+            break;
+          }
+        }
+      }
+      
+      if (!isAuthorized) {
         return res.status(403).json({ message: "Not authorized" });
       }
       
