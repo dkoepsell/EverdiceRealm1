@@ -69,6 +69,11 @@ export const characters = pgTable("characters", {
   deathSaveFailures: integer("death_save_failures").default(0),
   skills: text("skills").array(),
   equipment: text("equipment").array(),
+  // Equipment slots - what is actively equipped
+  equippedWeapon: text("equipped_weapon"),
+  equippedArmor: text("equipped_armor"),
+  equippedShield: text("equipped_shield"),
+  equippedAccessory: text("equipped_accessory"),
   // Skill progression tracking - stores {skillName: {uses: number, bonus: number}}
   skillProgress: jsonb("skill_progress").default({}),
   // Currency tracking (D&D standard: 10cp=1sp, 10sp=1gp, 10gp=1pp)
@@ -78,6 +83,9 @@ export const characters = pgTable("characters", {
   platinum: integer("platinum").default(0),
   // Consumable items - [{name, type, effect, quantity}]
   consumables: jsonb("consumables").default([]),
+  // Resurrection tracking
+  deathTimestamp: text("death_timestamp"),
+  resurrectedAt: text("resurrected_at"),
   // New fields for character visualization
   appearance: text("appearance"),
   portraitUrl: text("portrait_url"),

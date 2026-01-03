@@ -927,6 +927,321 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get available characters (excludes dead characters for campaign joining)
+  app.get("/api/characters/available", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const userId = req.user.id;
+      const allCharacters = await storage.getCharactersByUserId(userId);
+      
+      // Filter out dead characters - they must be resurrected first
+      const availableCharacters = allCharacters.filter(
+        (char: any) => char.status !== "dead"
+      );
+      
+      res.json(availableCharacters);
+    } catch (error: any) {
+      console.error("Error fetching available characters:", error);
+      res.status(500).json({ message: "Failed to fetch available characters", error: error.message });
+    }
+  });
+
+  // Resurrect a dead character
+  app.post("/api/characters/:id/resurrect", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const id = parseInt(req.params.id);
+      const { method, consumableName } = req.body;
+      
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      if (character.userId !== req.user.id) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      if (character.status !== "dead") {
+        return res.status(400).json({ message: "Character is not dead" });
+      }
+      
+      let costMessage = "";
+      const consumables = ((character as any).consumables || []) as any[];
+      
+      if (method === "consumable") {
+        // Check for resurrection consumable
+        const resurrectionItems = ["Scroll of Revivify", "Scroll of Raise Dead", "Diamond Dust", "Resurrection Scroll"];
+        const itemIndex = consumables.findIndex((c: any) => 
+          resurrectionItems.includes(c.name) || c.name === consumableName
+        );
+        
+        if (itemIndex === -1) {
+          return res.status(400).json({ 
+            message: "No resurrection item found. You need a Scroll of Revivify, Raise Dead, or similar item." 
+          });
+        }
+        
+        const item = consumables[itemIndex];
+        costMessage = `Used ${item.name} to resurrect ${character.name}!`;
+        
+        // Remove the consumable
+        if (item.quantity <= 1) {
+          consumables.splice(itemIndex, 1);
+        } else {
+          item.quantity -= 1;
+        }
+      } else if (method === "temple") {
+        // Temple resurrection costs gold
+        const gold = (character as any).gold || 0;
+        const resurrectionCost = 500; // 500 gold for temple resurrection
+        
+        if (gold < resurrectionCost) {
+          return res.status(400).json({ 
+            message: `Not enough gold for temple resurrection. Need ${resurrectionCost} gp, have ${gold} gp.` 
+          });
+        }
+        
+        costMessage = `Paid ${resurrectionCost} gold at a temple to resurrect ${character.name}!`;
+        
+        // Deduct the gold
+        await storage.updateCharacter(id, {
+          gold: gold - resurrectionCost
+        });
+      } else {
+        return res.status(400).json({ message: "Invalid resurrection method. Use 'consumable' or 'temple'." });
+      }
+      
+      // Resurrect the character - restore to 1 HP, reset death saves
+      const updatedCharacter = await storage.updateCharacter(id, {
+        status: "conscious",
+        hitPoints: 1,
+        deathSaveSuccesses: 0,
+        deathSaveFailures: 0,
+        consumables,
+        resurrectedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      
+      res.json({
+        character: updatedCharacter,
+        message: costMessage
+      });
+    } catch (error: any) {
+      console.error("Error resurrecting character:", error);
+      res.status(500).json({ message: "Failed to resurrect character", error: error.message });
+    }
+  });
+
+  // Equip an item to a slot
+  app.post("/api/characters/:id/equipment/equip", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const id = parseInt(req.params.id);
+      const { item, slot } = req.body;
+      
+      if (!item || !slot) {
+        return res.status(400).json({ message: "Item and slot are required" });
+      }
+      
+      const validSlots = ["weapon", "armor", "shield", "accessory"];
+      if (!validSlots.includes(slot)) {
+        return res.status(400).json({ message: `Invalid slot. Use: ${validSlots.join(", ")}` });
+      }
+      
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      if (character.userId !== req.user.id) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      // Check if item is in inventory
+      const equipment = character.equipment || [];
+      if (!equipment.includes(item)) {
+        return res.status(400).json({ message: "Item not in inventory" });
+      }
+      
+      // Build update object based on slot
+      const updateData: any = { updatedAt: new Date().toISOString() };
+      
+      switch (slot) {
+        case "weapon":
+          updateData.equippedWeapon = item;
+          break;
+        case "armor":
+          updateData.equippedArmor = item;
+          break;
+        case "shield":
+          updateData.equippedShield = item;
+          break;
+        case "accessory":
+          updateData.equippedAccessory = item;
+          break;
+      }
+      
+      const updatedCharacter = await storage.updateCharacter(id, updateData);
+      
+      res.json({
+        character: updatedCharacter,
+        message: `Equipped ${item} to ${slot} slot`
+      });
+    } catch (error: any) {
+      console.error("Error equipping item:", error);
+      res.status(500).json({ message: "Failed to equip item", error: error.message });
+    }
+  });
+
+  // Unequip an item from a slot
+  app.post("/api/characters/:id/equipment/unequip", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const id = parseInt(req.params.id);
+      const { slot } = req.body;
+      
+      if (!slot) {
+        return res.status(400).json({ message: "Slot is required" });
+      }
+      
+      const validSlots = ["weapon", "armor", "shield", "accessory"];
+      if (!validSlots.includes(slot)) {
+        return res.status(400).json({ message: `Invalid slot. Use: ${validSlots.join(", ")}` });
+      }
+      
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      if (character.userId !== req.user.id) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      // Build update object based on slot
+      const updateData: any = { updatedAt: new Date().toISOString() };
+      let unequippedItem = "";
+      
+      switch (slot) {
+        case "weapon":
+          unequippedItem = (character as any).equippedWeapon || "";
+          updateData.equippedWeapon = null;
+          break;
+        case "armor":
+          unequippedItem = (character as any).equippedArmor || "";
+          updateData.equippedArmor = null;
+          break;
+        case "shield":
+          unequippedItem = (character as any).equippedShield || "";
+          updateData.equippedShield = null;
+          break;
+        case "accessory":
+          unequippedItem = (character as any).equippedAccessory || "";
+          updateData.equippedAccessory = null;
+          break;
+      }
+      
+      if (!unequippedItem) {
+        return res.status(400).json({ message: `Nothing equipped in ${slot} slot` });
+      }
+      
+      const updatedCharacter = await storage.updateCharacter(id, updateData);
+      
+      res.json({
+        character: updatedCharacter,
+        message: `Unequipped ${unequippedItem} from ${slot} slot`
+      });
+    } catch (error: any) {
+      console.error("Error unequipping item:", error);
+      res.status(500).json({ message: "Failed to unequip item", error: error.message });
+    }
+  });
+
+  // Transfer item between characters in the same campaign
+  app.post("/api/campaigns/:campaignId/items/transfer", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const { fromCharacterId, toCharacterId, item } = req.body;
+      
+      if (!fromCharacterId || !toCharacterId || !item) {
+        return res.status(400).json({ message: "fromCharacterId, toCharacterId, and item are required" });
+      }
+      
+      // Verify both characters are in the campaign
+      const participants = await storage.getCampaignParticipants(campaignId);
+      const fromParticipant = participants.find((p: any) => p.characterId === fromCharacterId);
+      const toParticipant = participants.find((p: any) => p.characterId === toCharacterId);
+      
+      if (!fromParticipant || !toParticipant) {
+        return res.status(400).json({ message: "Both characters must be in the campaign" });
+      }
+      
+      const fromCharacter = await storage.getCharacter(fromCharacterId);
+      const toCharacter = await storage.getCharacter(toCharacterId);
+      
+      if (!fromCharacter || !toCharacter) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      // Check if item is in from character's inventory
+      const fromEquipment = fromCharacter.equipment || [];
+      const itemIndex = fromEquipment.indexOf(item);
+      
+      if (itemIndex === -1) {
+        return res.status(400).json({ message: "Item not in source character's inventory" });
+      }
+      
+      // Remove from source
+      fromEquipment.splice(itemIndex, 1);
+      
+      // Unequip if it was equipped
+      const unequipUpdates: any = {};
+      if ((fromCharacter as any).equippedWeapon === item) unequipUpdates.equippedWeapon = null;
+      if ((fromCharacter as any).equippedArmor === item) unequipUpdates.equippedArmor = null;
+      if ((fromCharacter as any).equippedShield === item) unequipUpdates.equippedShield = null;
+      if ((fromCharacter as any).equippedAccessory === item) unequipUpdates.equippedAccessory = null;
+      
+      await storage.updateCharacter(fromCharacterId, {
+        equipment: fromEquipment,
+        ...unequipUpdates,
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Add to target
+      const toEquipment = toCharacter.equipment || [];
+      toEquipment.push(item);
+      
+      await storage.updateCharacter(toCharacterId, {
+        equipment: toEquipment,
+        updatedAt: new Date().toISOString()
+      });
+      
+      res.json({
+        message: `Transferred ${item} from ${fromCharacter.name} to ${toCharacter.name}`
+      });
+    } catch (error: any) {
+      console.error("Error transferring item:", error);
+      res.status(500).json({ message: "Failed to transfer item", error: error.message });
+    }
+  });
+
   // Campaign routes
   app.get("/api/campaigns", async (req, res) => {
     try {
