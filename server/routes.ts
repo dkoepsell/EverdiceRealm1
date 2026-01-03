@@ -122,9 +122,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { name: "Antitoxin", quantity: 1, effect: "Advantage on poison saves for 1 hour" }
       ];
       
-      // Merge with any existing consumables
+      // Add starter equipment based on class
+      const characterClass = (characterData as any).class?.toLowerCase() || "";
+      let starterWeapon = "Shortsword";
+      let starterArmor = "Leather Armor";
+      
+      // Class-specific starting equipment
+      if (["fighter", "paladin", "barbarian"].includes(characterClass)) {
+        starterWeapon = "Longsword";
+        starterArmor = "Chain Mail";
+      } else if (["ranger", "rogue"].includes(characterClass)) {
+        starterWeapon = "Shortbow";
+        starterArmor = "Leather Armor";
+      } else if (["wizard", "sorcerer", "warlock"].includes(characterClass)) {
+        starterWeapon = "Quarterstaff";
+        starterArmor = "Robes";
+      } else if (["cleric", "druid"].includes(characterClass)) {
+        starterWeapon = "Mace";
+        starterArmor = "Scale Mail";
+      } else if (["monk"].includes(characterClass)) {
+        starterWeapon = "Quarterstaff";
+        starterArmor = "Simple Clothes";
+      } else if (["bard"].includes(characterClass)) {
+        starterWeapon = "Rapier";
+        starterArmor = "Leather Armor";
+      }
+      
+      const starterEquipment = [starterWeapon, starterArmor, "Backpack", "Waterskin", "Rations (5 days)"];
+      
+      // Merge with any existing consumables and equipment
       const existingConsumables = (characterData as any).consumables || [];
       const mergedConsumables = [...starterConsumables, ...existingConsumables];
+      const existingEquipment = (characterData as any).equipment || [];
+      const mergedEquipment = [...starterEquipment, ...existingEquipment];
       
       // Add starter gold
       const starterGold = 50;
@@ -132,6 +162,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const character = await storage.createCharacter({
         ...characterData,
         consumables: mergedConsumables,
+        equipment: mergedEquipment,
+        equippedWeapon: starterWeapon,
+        equippedArmor: starterArmor,
         gold: ((characterData as any).gold || 0) + starterGold
       } as any);
       res.status(201).json(character);
