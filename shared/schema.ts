@@ -71,6 +71,13 @@ export const characters = pgTable("characters", {
   equipment: text("equipment").array(),
   // Skill progression tracking - stores {skillName: {uses: number, bonus: number}}
   skillProgress: jsonb("skill_progress").default({}),
+  // Currency tracking (D&D standard: 10cp=1sp, 10sp=1gp, 10gp=1pp)
+  gold: integer("gold").default(0),
+  silver: integer("silver").default(0),
+  copper: integer("copper").default(0),
+  platinum: integer("platinum").default(0),
+  // Consumable items - [{name, type, effect, quantity}]
+  consumables: jsonb("consumables").default([]),
   // New fields for character visualization
   appearance: text("appearance"),
   portraitUrl: text("portrait_url"),

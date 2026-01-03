@@ -613,6 +613,320 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Currency Management Routes
+  app.get("/api/characters/:id/currency", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const character = await storage.getCharacter(id);
+      
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      res.json({
+        characterId: id,
+        gold: (character as any).gold || 0,
+        silver: (character as any).silver || 0,
+        copper: (character as any).copper || 0,
+        platinum: (character as any).platinum || 0,
+        // Total value in gold pieces
+        totalGP: ((character as any).platinum || 0) * 10 + 
+                 ((character as any).gold || 0) + 
+                 ((character as any).silver || 0) / 10 + 
+                 ((character as any).copper || 0) / 100
+      });
+    } catch (error: any) {
+      console.error("Error fetching currency:", error);
+      res.status(500).json({ message: "Failed to fetch currency", error: error.message });
+    }
+  });
+
+  app.post("/api/characters/:id/currency/add", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { gold = 0, silver = 0, copper = 0, platinum = 0 } = req.body;
+      
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      const updatedCharacter = await storage.updateCharacter(id, {
+        gold: ((character as any).gold || 0) + gold,
+        silver: ((character as any).silver || 0) + silver,
+        copper: ((character as any).copper || 0) + copper,
+        platinum: ((character as any).platinum || 0) + platinum,
+        updatedAt: new Date().toISOString()
+      } as any);
+      
+      const addedParts = [];
+      if (platinum > 0) addedParts.push(`${platinum} pp`);
+      if (gold > 0) addedParts.push(`${gold} gp`);
+      if (silver > 0) addedParts.push(`${silver} sp`);
+      if (copper > 0) addedParts.push(`${copper} cp`);
+      
+      res.json({
+        character: updatedCharacter,
+        message: `Added ${addedParts.join(", ") || "no currency"}.`
+      });
+    } catch (error: any) {
+      console.error("Error adding currency:", error);
+      res.status(500).json({ message: "Failed to add currency", error: error.message });
+    }
+  });
+
+  app.post("/api/characters/:id/currency/spend", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { gold = 0, silver = 0, copper = 0, platinum = 0 } = req.body;
+      
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      // Convert all to copper for easy calculation
+      const totalHave = 
+        ((character as any).platinum || 0) * 1000 + 
+        ((character as any).gold || 0) * 100 + 
+        ((character as any).silver || 0) * 10 + 
+        ((character as any).copper || 0);
+      
+      const totalSpend = platinum * 1000 + gold * 100 + silver * 10 + copper;
+      
+      if (totalSpend > totalHave) {
+        return res.status(400).json({ message: "Not enough currency!" });
+      }
+      
+      // Simple subtraction (could be optimized for proper change-making)
+      let newPlatinum = (character as any).platinum || 0;
+      let newGold = (character as any).gold || 0;
+      let newSilver = (character as any).silver || 0;
+      let newCopper = (character as any).copper || 0;
+      
+      // Subtract from each denomination, borrowing if needed
+      newCopper -= copper;
+      if (newCopper < 0) {
+        const borrow = Math.ceil(-newCopper / 10);
+        newSilver -= borrow;
+        newCopper += borrow * 10;
+      }
+      
+      newSilver -= silver;
+      if (newSilver < 0) {
+        const borrow = Math.ceil(-newSilver / 10);
+        newGold -= borrow;
+        newSilver += borrow * 10;
+      }
+      
+      newGold -= gold;
+      if (newGold < 0) {
+        const borrow = Math.ceil(-newGold / 10);
+        newPlatinum -= borrow;
+        newGold += borrow * 10;
+      }
+      
+      newPlatinum -= platinum;
+      
+      const updatedCharacter = await storage.updateCharacter(id, {
+        gold: newGold,
+        silver: newSilver,
+        copper: newCopper,
+        platinum: newPlatinum,
+        updatedAt: new Date().toISOString()
+      } as any);
+      
+      const spentParts = [];
+      if (platinum > 0) spentParts.push(`${platinum} pp`);
+      if (gold > 0) spentParts.push(`${gold} gp`);
+      if (silver > 0) spentParts.push(`${silver} sp`);
+      if (copper > 0) spentParts.push(`${copper} cp`);
+      
+      res.json({
+        character: updatedCharacter,
+        message: `Spent ${spentParts.join(", ")}.`
+      });
+    } catch (error: any) {
+      console.error("Error spending currency:", error);
+      res.status(500).json({ message: "Failed to spend currency", error: error.message });
+    }
+  });
+
+  // Consumable Items Routes
+  const CONSUMABLE_EFFECTS: Record<string, { type: string; effect: string; healDice?: string; healBonus?: number }> = {
+    "Healing Potion": { type: "healing", effect: "Restores 2d4+2 HP", healDice: "2d4", healBonus: 2 },
+    "Greater Healing Potion": { type: "healing", effect: "Restores 4d4+4 HP", healDice: "4d4", healBonus: 4 },
+    "Superior Healing Potion": { type: "healing", effect: "Restores 8d4+8 HP", healDice: "8d4", healBonus: 8 },
+    "Supreme Healing Potion": { type: "healing", effect: "Restores 10d4+20 HP", healDice: "10d4", healBonus: 20 },
+    "Potion of Resistance": { type: "buff", effect: "Resistance to one damage type for 1 hour" },
+    "Antitoxin": { type: "utility", effect: "Advantage on saves vs poison for 1 hour" },
+    "Scroll of Cure Wounds": { type: "healing", effect: "Casts Cure Wounds (1d8+3 HP)", healDice: "1d8", healBonus: 3 },
+    "Scroll of Lesser Restoration": { type: "utility", effect: "Ends one condition (poisoned, blinded, etc.)" },
+  };
+
+  app.get("/api/characters/:id/consumables", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const character = await storage.getCharacter(id);
+      
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      const consumables = (character as any).consumables || [];
+      
+      res.json({
+        characterId: id,
+        consumables,
+        knownConsumables: Object.keys(CONSUMABLE_EFFECTS).map(name => ({
+          name,
+          ...CONSUMABLE_EFFECTS[name]
+        }))
+      });
+    } catch (error: any) {
+      console.error("Error fetching consumables:", error);
+      res.status(500).json({ message: "Failed to fetch consumables", error: error.message });
+    }
+  });
+
+  app.post("/api/characters/:id/consumables/add", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { name, quantity = 1 } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ message: "Consumable name is required" });
+      }
+      
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      const consumables: any[] = (character as any).consumables || [];
+      const existing = consumables.find(c => c.name === name);
+      
+      if (existing) {
+        existing.quantity += quantity;
+      } else {
+        const effectInfo = CONSUMABLE_EFFECTS[name] || { type: "unknown", effect: "Unknown effect" };
+        consumables.push({
+          name,
+          quantity,
+          ...effectInfo
+        });
+      }
+      
+      const updatedCharacter = await storage.updateCharacter(id, {
+        consumables,
+        updatedAt: new Date().toISOString()
+      } as any);
+      
+      res.json({
+        character: updatedCharacter,
+        message: `Added ${quantity}x ${name}.`
+      });
+    } catch (error: any) {
+      console.error("Error adding consumable:", error);
+      res.status(500).json({ message: "Failed to add consumable", error: error.message });
+    }
+  });
+
+  // Helper function to roll dice
+  function rollDice(diceStr: string): number {
+    const match = diceStr.match(/(\d+)d(\d+)/);
+    if (!match) return 0;
+    const [_, numDice, dieSize] = match;
+    let total = 0;
+    for (let i = 0; i < parseInt(numDice); i++) {
+      total += Math.floor(Math.random() * parseInt(dieSize)) + 1;
+    }
+    return total;
+  }
+
+  app.post("/api/characters/:id/consumables/use", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { name } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ message: "Consumable name is required" });
+      }
+      
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      if (character.status === "dead") {
+        return res.status(400).json({ message: "Dead characters cannot use items." });
+      }
+      
+      const consumables: any[] = (character as any).consumables || [];
+      const itemIndex = consumables.findIndex(c => c.name === name);
+      
+      if (itemIndex === -1) {
+        return res.status(404).json({ message: "Consumable not found" });
+      }
+      
+      const item = consumables[itemIndex];
+      let resultMessage = "";
+      let healedAmount = 0;
+      let newHP = character.hitPoints;
+      let newStatus = character.status;
+      
+      // Apply effect based on type
+      if (item.type === "healing" && item.healDice) {
+        const diceRoll = rollDice(item.healDice);
+        healedAmount = diceRoll + (item.healBonus || 0);
+        newHP = Math.min(character.maxHitPoints, character.hitPoints + healedAmount);
+        
+        // If unconscious/stabilized and healed above 0, become conscious
+        if (newHP > 0 && (character.status === "unconscious" || character.status === "stabilized")) {
+          newStatus = "conscious";
+          resultMessage = `Used ${name}! Healed ${healedAmount} HP and regained consciousness!`;
+        } else {
+          resultMessage = `Used ${name}! Healed ${healedAmount} HP (${character.hitPoints} → ${newHP}).`;
+        }
+      } else {
+        resultMessage = `Used ${name}! ${item.effect}`;
+      }
+      
+      // Reduce quantity or remove
+      if (item.quantity <= 1) {
+        consumables.splice(itemIndex, 1);
+      } else {
+        item.quantity -= 1;
+      }
+      
+      const updateData: any = {
+        consumables,
+        updatedAt: new Date().toISOString()
+      };
+      
+      if (healedAmount > 0) {
+        updateData.hitPoints = newHP;
+        updateData.status = newStatus;
+        if (newStatus === "conscious") {
+          updateData.deathSaveSuccesses = 0;
+          updateData.deathSaveFailures = 0;
+        }
+      }
+      
+      const updatedCharacter = await storage.updateCharacter(id, updateData);
+      
+      res.json({
+        character: updatedCharacter,
+        healedAmount,
+        newHP,
+        message: resultMessage
+      });
+    } catch (error: any) {
+      console.error("Error using consumable:", error);
+      res.status(500).json({ message: "Failed to use consumable", error: error.message });
+    }
+  });
+
   // Campaign routes
   app.get("/api/campaigns", async (req, res) => {
     try {
