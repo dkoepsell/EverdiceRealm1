@@ -1294,17 +1294,17 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   <h4 className="font-semibold text-sm mb-2 text-primary">Roll Breakdown (D&D 5e):</h4>
                   <div className="space-y-1 text-sm font-mono">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">{currentDiceRoll?.diceType} roll:</span>
+                      <span className="text-slate-600 dark:text-slate-400">{currentDiceRoll?.diceType} roll:</span>
                       <span className="font-bold">{diceRollResult.rolls[0]}</span>
                     </div>
                     {diceRollResult.rolls.length > 1 && (
-                      <div className="flex justify-between text-muted-foreground">
+                      <div className="flex justify-between text-slate-600 dark:text-slate-400">
                         <span>(Advantage/Disadvantage roll: {diceRollResult.rolls[1]})</span>
                       </div>
                     )}
                     {currentDiceRoll?.rollModifier !== 0 && (
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">
+                        <span className="text-slate-600 dark:text-slate-400">
                           {currentDiceRoll?.rollPurpose?.toLowerCase().includes('attack') 
                             ? 'Attack Bonus (Ability + Proficiency):' 
                             : currentDiceRoll?.rollPurpose?.toLowerCase().includes('save')
@@ -1320,12 +1320,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       <span className="font-semibold">Total:</span>
                       <span className="font-bold text-lg">{diceRollResult.total}</span>
                     </div>
-                    <div className="flex justify-between text-muted-foreground">
+                    <div className="flex justify-between text-slate-600 dark:text-slate-400">
                       <span>vs. Difficulty Class (DC):</span>
                       <span className="font-bold">{currentDiceRoll?.rollDC}</span>
                     </div>
                   </div>
-                  <p className="mt-3 text-xs text-muted-foreground italic">
+                  <p className="mt-3 text-xs text-slate-600 dark:text-slate-400 italic">
                     {diceRollResult.total >= (currentDiceRoll?.rollDC || 0) 
                       ? `Your roll of ${diceRollResult.total} meets or exceeds the DC of ${currentDiceRoll?.rollDC}, so you succeed!`
                       : `Your roll of ${diceRollResult.total} is below the DC of ${currentDiceRoll?.rollDC}, so you fail.`}
@@ -1336,7 +1336,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               <div className="flex flex-col items-center justify-center py-6">
                 <div className="text-center mb-4">
                   <p className="font-medium">Rolling {currentDiceRoll?.diceType}{currentDiceRoll?.rollModifier ? ` with a ${currentDiceRoll.rollModifier >= 0 ? '+' : ''}${currentDiceRoll.rollModifier} modifier` : ''}</p>
-                  <p className="text-sm text-muted-foreground mt-1">For: {currentDiceRoll?.action}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">For: {currentDiceRoll?.action}</p>
                 </div>
                 
                 <Button 
@@ -1366,7 +1366,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">Select a Character</DialogTitle>
-            <DialogDescription className="text-foreground/80">
+            <DialogDescription className="text-slate-900 dark:text-slate-100/80">
               Choose a character to join this campaign
             </DialogDescription>
           </DialogHeader>
@@ -1394,7 +1394,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="text-lg font-medium">{character.name}</h3>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
                           Level {character.level} {character.race} {character.class}
                         </p>
                       </div>
@@ -1409,7 +1409,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               </div>
             ) : (
               <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">You need to create a character first</p>
+                <p className="text-slate-600 dark:text-slate-400 mb-4">You need to create a character first</p>
                 <Button asChild>
                   <a href="/characters">Create a Character</a>
                 </Button>
@@ -1860,7 +1860,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </div>
                     )}
 
-                    <div className="bg-card p-4 rounded-md border border-border shadow-inner">
+                    <div className="bg-white dark:bg-slate-800 p-4 rounded-md border border-border shadow-inner">
                       {isAdvancingStory ? (
                         <div className="flex flex-col items-center justify-center py-10">
                           <div className="animate-spin h-12 w-12 rounded-full border-4 border-primary border-t-transparent"></div>
@@ -1878,7 +1878,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     {/* Action choices */}
                     {!isAdvancingStory && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 ? (
                       <div className="mt-6 space-y-4">
-                        <h4 className="font-semibold text-foreground">What will you do?</h4>
+                        <h4 className="font-semibold text-slate-900 dark:text-slate-100">What will you do?</h4>
                         
                         {/* Suggested Actions */}
                         <div className="grid grid-cols-1 gap-2">
@@ -1921,7 +1921,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 <div className="flex items-start w-full min-w-0">
                                   <ArrowRight className="h-5 w-5 mr-2 mt-0.5 shrink-0 text-primary" />
                                   <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 sm:gap-2 min-w-0 flex-1">
-                                    <span className="text-foreground font-medium break-words">
+                                    <span className="text-slate-900 dark:text-slate-100 font-medium break-words">
                                       {choiceText}
                                     </span>
                                     {hasRoll && (
@@ -1960,9 +1960,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </div>
                         
                         {/* Custom Action Input */}
-                        <div className="mt-4 p-4 bg-card/50 rounded-lg border border-border">
+                        <div className="mt-4 p-4 bg-white dark:bg-slate-800/50 rounded-lg border border-border">
                           <div className="space-y-3">
-                            <h5 className="font-medium text-sm text-foreground">Or describe your own action:</h5>
+                            <h5 className="font-medium text-sm text-slate-900 dark:text-slate-100">Or describe your own action:</h5>
                             <div className="flex gap-2">
                               <Input
                                 placeholder="e.g., 'Search the chapel thoroughly for hidden symbols' or 'Approach the children and ask what they saw'"
@@ -1983,7 +1983,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 <ArrowRight className="h-4 w-4" />
                               </Button>
                             </div>
-                            <p className="text-xs text-foreground/70">
+                            <p className="text-xs text-slate-900 dark:text-slate-100/70">
                               The AI will determine if your action needs a dice roll and what type.
                             </p>
                           </div>
@@ -2004,7 +2004,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 ) : (
                   <div className="mt-6 space-y-4">
                     <h3 className="text-lg font-semibold">No Sessions Available</h3>
-                    <p className="text-muted-foreground">
+                    <p className="text-slate-600 dark:text-slate-400">
                       This campaign has no sessions yet. 
                       {isDM ? " Start your adventure by creating the first session." : " Wait for the DM to begin the campaign."}
                     </p>
@@ -2040,7 +2040,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   <h2 className="text-xl font-bold font-fantasy text-slate-900 dark:text-slate-100">Journey Log</h2>
                   
                   <div className="relative">
-                    <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-muted-foreground" />
+                    <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-slate-600 dark:text-slate-400" />
                     <Input
                       type="search"
                       placeholder="Search journey log..."
@@ -2054,11 +2054,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 {/* Live Exploration Events from storyState */}
                 {parsedStoryState?.journeyLog && (parsedStoryState.journeyLog as any[]).length > 0 && (
                   <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-2">
                       <MapPin className="h-4 w-4" />
                       Recent Exploration
                     </h3>
-                    <div className="max-h-64 overflow-y-auto space-y-2 border rounded-md p-3 bg-card">
+                    <div className="max-h-64 overflow-y-auto space-y-2 border rounded-md p-3 bg-white dark:bg-slate-800">
                       {[...(parsedStoryState.journeyLog as any[])].reverse().map((entry: any) => (
                         <div 
                           key={entry.id} 
@@ -2143,7 +2143,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     ))
                   ) : (
                     <div className="text-center py-8">
-                      <p className="text-muted-foreground">No session history available</p>
+                      <p className="text-slate-600 dark:text-slate-400">No session history available</p>
                     </div>
                   )}
                 </div>
@@ -2157,8 +2157,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <div>
-                      <h3 className="text-lg font-semibold">Party Management</h3>
-                      <p className="text-muted-foreground text-sm">Manage the players in this campaign</p>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Party Management</h3>
+                      <p className="text-slate-600 dark:text-slate-400 text-sm">Manage the players in this campaign</p>
                     </div>
                     
                     {/* DM only settings */}
@@ -2185,9 +2185,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 <CampaignParticipants campaignId={campaign.id} isDM={isDM} />
 
                 {/* Party Member Selection */}
-                <div className="mt-6 p-4 border rounded-lg bg-card">
-                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                    <Users className="h-5 w-5" />
+                <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
+                    <Users className="h-5 w-5 text-slate-700 dark:text-slate-300" />
                     Manage Party Member
                   </h3>
                   <div className="flex flex-wrap gap-2">
@@ -2225,15 +2225,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </Button>
                     ))}
                     {!activeCharacter && partyNpcs.length === 0 && (
-                      <p className="text-sm text-muted-foreground">No party members to manage</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">No party members to manage</p>
                     )}
                   </div>
                 </div>
 
                 {/* Rest & Recovery Section - Character Only */}
                 {selectedPartyMemberType === "character" && activeCharacter && (
-                  <div className="mt-6 p-4 border rounded-lg bg-card">
-                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
                       <Heart className="h-5 w-5 text-red-500" />
                       Rest & Recovery - {activeCharacter.name}
                     </h3>
@@ -2318,7 +2318,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     )}
                     
                     <div className="flex flex-col sm:flex-row gap-3">
-                      <div className="flex-1 p-3 border rounded bg-muted/30">
+                      <div className="flex-1 p-3 border rounded bg-slate-100 dark:bg-slate-700">
                         <div className="text-sm font-medium mb-1">Current HP</div>
                         <div className="text-2xl font-bold">
                           <span className={
@@ -2328,7 +2328,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           }>
                             {activeCharacter.hitPoints}
                           </span>
-                          <span className="text-muted-foreground">/{activeCharacter.maxHitPoints}</span>
+                          <span className="text-slate-600 dark:text-slate-400">/{activeCharacter.maxHitPoints}</span>
                         </div>
                       </div>
                       <div className="flex flex-col gap-2">
@@ -2364,8 +2364,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
                 {/* Inventory Management Section - Character */}
                 {selectedPartyMemberType === "character" && activeCharacter && (
-                  <div className="mt-6 p-4 border rounded-lg bg-card">
-                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
                       <Backpack className="h-5 w-5 text-amber-600" />
                       Inventory & Equipment - {activeCharacter.name}
                     </h3>
@@ -2373,8 +2373,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     {/* Equipment Slots */}
                     <div className="grid grid-cols-2 gap-3 mb-4">
                       {/* Weapon Slot */}
-                      <div className="p-3 border rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                      <div className="p-3 border rounded bg-slate-100 dark:bg-slate-700">
+                        <div className="text-xs text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
                           <Sword className="h-3 w-3" /> Weapon
                         </div>
                         <div className="flex items-center justify-between">
@@ -2396,8 +2396,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </div>
                       </div>
                       {/* Armor Slot */}
-                      <div className="p-3 border rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                      <div className="p-3 border rounded bg-slate-100 dark:bg-slate-700">
+                        <div className="text-xs text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
                           <Shield className="h-3 w-3" /> Armor
                         </div>
                         <div className="flex items-center justify-between">
@@ -2419,8 +2419,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </div>
                       </div>
                       {/* Shield Slot */}
-                      <div className="p-3 border rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                      <div className="p-3 border rounded bg-slate-100 dark:bg-slate-700">
+                        <div className="text-xs text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
                           <Shield className="h-3 w-3" /> Shield
                         </div>
                         <div className="flex items-center justify-between">
@@ -2442,8 +2442,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </div>
                       </div>
                       {/* Accessory Slot */}
-                      <div className="p-3 border rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                      <div className="p-3 border rounded bg-slate-100 dark:bg-slate-700">
+                        <div className="text-xs text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
                           <Sparkles className="h-3 w-3" /> Accessory
                         </div>
                         <div className="flex items-center justify-between">
@@ -2467,8 +2467,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     </div>
                     
                     {/* AC Display */}
-                    <div className="text-sm text-muted-foreground mb-4">
-                      Armor Class: <span className="font-bold text-foreground">{activeCharacter.armorClass || 10}</span>
+                    <div className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                      Armor Class: <span className="font-bold text-slate-900 dark:text-slate-100">{activeCharacter.armorClass || 10}</span>
                     </div>
 
                     {/* Inventory Items */}
@@ -2477,7 +2477,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       <div className="max-h-48 overflow-y-auto space-y-1">
                         {activeCharacter.equipment && activeCharacter.equipment.length > 0 ? (
                           activeCharacter.equipment.map((item: string, index: number) => (
-                            <div key={index} className="flex items-center justify-between p-2 bg-muted/20 rounded text-sm" data-testid={`item-${index}`}>
+                            <div key={index} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-700 rounded text-sm" data-testid={`item-${index}`}>
                               <span className="flex-1 truncate" title={item}>{item}</span>
                               <div className="flex items-center gap-1">
                                 <Select 
@@ -2542,7 +2542,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             </div>
                           ))
                         ) : (
-                          <p className="text-sm text-muted-foreground py-2">No items in inventory</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-400 py-2">No items in inventory</p>
                         )}
                       </div>
 
@@ -2577,26 +2577,26 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
                 {/* Currency Section - Character */}
                 {selectedPartyMemberType === "character" && activeCharacter && (
-                  <div className="mt-6 p-4 border rounded-lg bg-card">
-                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
                       <Coins className="h-5 w-5 text-yellow-500" />
                       Currency - {activeCharacter.name}
                     </h3>
                     <div className="grid grid-cols-4 gap-2 mb-3">
                       <div className="p-2 border rounded bg-gradient-to-b from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 text-center">
-                        <div className="text-xs text-muted-foreground">Platinum</div>
+                        <div className="text-xs text-slate-600 dark:text-slate-400">Platinum</div>
                         <div className="text-lg font-bold text-gray-400">{(activeCharacter as any).platinum || 0}</div>
                       </div>
                       <div className="p-2 border rounded bg-gradient-to-b from-yellow-100 to-yellow-200 dark:from-yellow-900/50 dark:to-yellow-800/50 text-center">
-                        <div className="text-xs text-muted-foreground">Gold</div>
+                        <div className="text-xs text-slate-600 dark:text-slate-400">Gold</div>
                         <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{(activeCharacter as any).gold || 0}</div>
                       </div>
                       <div className="p-2 border rounded bg-gradient-to-b from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-center">
-                        <div className="text-xs text-muted-foreground">Silver</div>
+                        <div className="text-xs text-slate-600 dark:text-slate-400">Silver</div>
                         <div className="text-lg font-bold text-slate-500">{(activeCharacter as any).silver || 0}</div>
                       </div>
                       <div className="p-2 border rounded bg-gradient-to-b from-orange-100 to-orange-200 dark:from-orange-900/50 dark:to-orange-800/50 text-center">
-                        <div className="text-xs text-muted-foreground">Copper</div>
+                        <div className="text-xs text-slate-600 dark:text-slate-400">Copper</div>
                         <div className="text-lg font-bold text-orange-600 dark:text-orange-400">{(activeCharacter as any).copper || 0}</div>
                       </div>
                     </div>
@@ -2625,8 +2625,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
                 {/* Consumables Section - Character */}
                 {selectedPartyMemberType === "character" && activeCharacter && (
-                  <div className="mt-6 p-4 border rounded-lg bg-card">
-                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
                       <FlaskConical className="h-5 w-5 text-purple-500" />
                       Consumables - {activeCharacter.name}
                     </h3>
@@ -2635,14 +2635,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     <div className="space-y-2 mb-4">
                       {(activeCharacter as any).consumables && (activeCharacter as any).consumables.length > 0 ? (
                         ((activeCharacter as any).consumables as any[]).map((item: any, index: number) => (
-                          <div key={index} className="flex items-center justify-between p-2 bg-muted/20 rounded border" data-testid={`consumable-${index}`}>
+                          <div key={index} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-700 rounded border" data-testid={`consumable-${index}`}>
                             <div className="flex-1">
                               <div className="font-medium text-sm flex items-center gap-2">
                                 {item.type === "healing" ? <Heart className="h-3 w-3 text-red-500" /> : <Sparkles className="h-3 w-3 text-blue-500" />}
                                 {item.name}
-                                <span className="text-xs text-muted-foreground">x{item.quantity}</span>
+                                <span className="text-xs text-slate-600 dark:text-slate-400">x{item.quantity}</span>
                               </div>
-                              <div className="text-xs text-muted-foreground">{item.effect}</div>
+                              <div className="text-xs text-slate-600 dark:text-slate-400">{item.effect}</div>
                             </div>
                             <Button
                               size="sm"
@@ -2656,7 +2656,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           </div>
                         ))
                       ) : (
-                        <p className="text-sm text-muted-foreground py-2">No consumables. Add potions or scrolls!</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 py-2">No consumables. Add potions or scrolls!</p>
                       )}
                     </div>
                     
@@ -2682,20 +2682,20 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
                 {/* Skill Progress Section - Character */}
                 {selectedPartyMemberType === "character" && activeCharacter && activeCharacter.skillProgress && Object.keys(activeCharacter.skillProgress as Record<string, any>).length > 0 && (
-                  <div className="mt-6 p-4 border rounded-lg bg-card">
-                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
                       <Target className="h-5 w-5 text-blue-500" />
                       Skill Progress - {activeCharacter.name}
                     </h3>
-                    <p className="text-sm text-muted-foreground mb-3">
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
                       Skills improve through use. Every 5 successful checks = +1 bonus (max +5).
                     </p>
                     <div className="grid grid-cols-2 gap-2">
                       {Object.entries(activeCharacter.skillProgress as Record<string, { uses: number; bonus: number }>).map(([skill, progress]) => (
-                        <div key={skill} className="p-2 border rounded bg-muted/20 flex justify-between items-center">
+                        <div key={skill} className="p-2 border rounded bg-slate-50 dark:bg-slate-700 flex justify-between items-center">
                           <span className="font-medium text-sm">{skill}</span>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">{progress.uses} uses</span>
+                            <span className="text-xs text-slate-600 dark:text-slate-400">{progress.uses} uses</span>
                             {progress.bonus > 0 && (
                               <span className="text-xs font-bold text-green-600 bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded">
                                 +{progress.bonus}
@@ -2710,16 +2710,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
                 {/* NPC Inventory Management Section */}
                 {selectedPartyMemberType === "npc" && selectedNpc && (
-                  <div className="mt-6 p-4 border rounded-lg bg-card">
-                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
                       <Backpack className="h-5 w-5 text-amber-600" />
                       Inventory & Equipment - {selectedNpc.name}
                     </h3>
                     
                     {/* NPC Stats Display */}
                     <div className="flex gap-4 mb-4">
-                      <div className="p-2 border rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground">HP</div>
+                      <div className="p-2 border rounded bg-slate-100 dark:bg-slate-700">
+                        <div className="text-xs text-slate-600 dark:text-slate-400">HP</div>
                         <div className="text-lg font-bold">
                           <span className={
                             (selectedNpc.hitPoints || 0) <= 0 ? "text-red-500" :
@@ -2728,23 +2728,23 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           }>
                             {selectedNpc.hitPoints || 0}
                           </span>
-                          <span className="text-muted-foreground">/{selectedNpc.maxHitPoints || 10}</span>
+                          <span className="text-slate-600 dark:text-slate-400">/{selectedNpc.maxHitPoints || 10}</span>
                         </div>
                       </div>
-                      <div className="p-2 border rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground">AC</div>
+                      <div className="p-2 border rounded bg-slate-100 dark:bg-slate-700">
+                        <div className="text-xs text-slate-600 dark:text-slate-400">AC</div>
                         <div className="text-lg font-bold">{selectedNpc.armorClass || 10}</div>
                       </div>
-                      <div className="p-2 border rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground">Level</div>
+                      <div className="p-2 border rounded bg-slate-100 dark:bg-slate-700">
+                        <div className="text-xs text-slate-600 dark:text-slate-400">Level</div>
                         <div className="text-lg font-bold">{selectedNpc.level || 1}</div>
                       </div>
                     </div>
                     
                     {/* NPC Equipment Slots */}
                     <div className="grid grid-cols-2 gap-3 mb-4">
-                      <div className="p-3 border rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                      <div className="p-3 border rounded bg-slate-100 dark:bg-slate-700">
+                        <div className="text-xs text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
                           <Sword className="h-3 w-3" /> Weapon
                         </div>
                         <div className="flex items-center justify-between">
@@ -2765,8 +2765,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           )}
                         </div>
                       </div>
-                      <div className="p-3 border rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                      <div className="p-3 border rounded bg-slate-100 dark:bg-slate-700">
+                        <div className="text-xs text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
                           <Shield className="h-3 w-3" /> Armor
                         </div>
                         <div className="flex items-center justify-between">
@@ -2787,8 +2787,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           )}
                         </div>
                       </div>
-                      <div className="p-3 border rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                      <div className="p-3 border rounded bg-slate-100 dark:bg-slate-700">
+                        <div className="text-xs text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
                           <Shield className="h-3 w-3" /> Shield
                         </div>
                         <div className="flex items-center justify-between">
@@ -2809,8 +2809,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           )}
                         </div>
                       </div>
-                      <div className="p-3 border rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                      <div className="p-3 border rounded bg-slate-100 dark:bg-slate-700">
+                        <div className="text-xs text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
                           <Sparkles className="h-3 w-3" /> Accessory
                         </div>
                         <div className="flex items-center justify-between">
@@ -2839,7 +2839,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       <div className="max-h-48 overflow-y-auto space-y-1">
                         {selectedNpc.equipment && selectedNpc.equipment.length > 0 ? (
                           selectedNpc.equipment.map((item: string, index: number) => (
-                            <div key={index} className="flex items-center justify-between p-2 bg-muted/20 rounded text-sm" data-testid={`npc-item-${index}`}>
+                            <div key={index} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-700 rounded text-sm" data-testid={`npc-item-${index}`}>
                               <span className="flex-1">{item}</span>
                               <div className="flex items-center gap-1">
                                 <Select 
@@ -2874,7 +2874,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             </div>
                           ))
                         ) : (
-                          <p className="text-sm text-muted-foreground py-2">No items in inventory</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-400 py-2">No items in inventory</p>
                         )}
                       </div>
 
@@ -2909,7 +2909,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
                 {/* NPC Gold Management */}
                 {selectedPartyMemberType === "npc" && selectedNpc && (
-                  <div className="mt-6 p-4 border rounded-lg bg-card">
+                  <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800">
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                       <Coins className="h-5 w-5 text-yellow-500" />
                       Gold - {selectedNpc.name}
@@ -3097,14 +3097,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             
             <div className="space-y-3">
               {progressionRewards.itemsFound.map((item: any, index: number) => (
-                <div key={index} className="p-3 border rounded-lg bg-muted/30">
+                <div key={index} className="p-3 border rounded-lg bg-slate-100 dark:bg-slate-700">
                   <div className="font-semibold text-primary">{item.name}</div>
-                  <div className="text-sm text-muted-foreground mb-1">
+                  <div className="text-sm text-slate-600 dark:text-slate-400 mb-1">
                     {item.type} • {item.rarity}
                   </div>
                   <div className="text-sm">{item.description}</div>
                   {item.properties && (
-                    <div className="text-xs text-muted-foreground mt-1">
+                    <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                       {item.properties}
                     </div>
                   )}
