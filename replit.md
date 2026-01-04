@@ -231,6 +231,29 @@ Preferred communication style: Simple, everyday language.
 - NPC inventory management with full equipment slot support
 - Party member selector allows switching between player characters and NPC companions
 
+### D&D 5e Item Stats & Dice Mechanics (January 04, 2026)
+- Items API with computed character stats endpoint (/api/characters/:id/computed-stats)
+- AC calculation using D&D 5e rules: light armor (base + DEX), medium armor (base + DEX cap 2), heavy armor (base only)
+- Attack and damage bonus calculations from equipped weapons with ability modifiers
+- Finesse weapons use higher of STR/DEX, ranged weapons use DEX
+- Advantage/disadvantage dice roll mechanics: roll 2d20, take higher/lower
+- Ability modifiers automatically applied to skill checks based on character stats
+- Dice roll API returns advantageRolls, totalModifier, abilityModifier for transparency
+
+### Grid-Based Dungeon Maps (January 04, 2026)
+- DungeonMap component with interactive tile grid rendering
+- Tile types: floor, wall, door, secret_door, trap, treasure, stairs_up, stairs_down, water, lava, pit, fog
+- Entity rendering for players, allies, enemies, NPCs, and bosses with health bars
+- Keyboard (WASD/arrows) and button-based player movement
+- Zoom controls (50%-200%) and view reset functionality
+- Fog of war with explored vs visible tile states
+- DungeonGenerator with BSP-inspired room generation algorithm
+- L-shaped corridor connections between rooms
+- Special room designation: entrance, exit, treasure, boss
+- Automatic door, trap, and treasure placement
+- Enemy spawning based on configurable density
+- Dynamic dungeon name generation
+
 ## Changelog
 
 Changelog:
