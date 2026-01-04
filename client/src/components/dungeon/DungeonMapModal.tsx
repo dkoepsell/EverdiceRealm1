@@ -180,67 +180,105 @@ export function DungeonMapModal({
     // Prevent movement while a move is in progress
     if (moveMutation.isPending) return;
     
-    const oldPosition = mapData.playerPosition;
-    const proposedMapData = movePlayer(mapData, direction);
+    const currentPosition = mapData.playerPosition;
     
-    if (proposedMapData.playerPosition.x !== oldPosition.x || proposedMapData.playerPosition.y !== oldPosition.y) {
-      const newTile = proposedMapData.tiles[proposedMapData.playerPosition.y][proposedMapData.playerPosition.x];
-      
-      const nearbyEntities = proposedMapData.entities.filter(e => {
-        const dist = Math.sqrt(
-          Math.pow(e.x - proposedMapData.playerPosition.x, 2) + 
-          Math.pow(e.y - proposedMapData.playerPosition.y, 2)
-        );
-        return dist <= 1.5;
-      });
-      
-      if (campaignId) {
-        // Call backend FIRST - only update local state if allowed
-        moveMutation.mutate({
-          direction,
-          currentPosition: oldPosition,
-          newPosition: proposedMapData.playerPosition,
-          tileType: newTile.type,
-          nearbyEntities,
-          mapData: proposedMapData,
-        }, {
-          onSuccess: (data) => {
-            // Only update local map state after backend confirms movement
-            if (data.success) {
-              setMapData(proposedMapData);
-              onMapDataChange?.(proposedMapData);
-            }
+    // Calculate proposed new position without updating state
+    const directionOffsets = {
+      up: { x: 0, y: -1 },
+      down: { x: 0, y: 1 },
+      left: { x: -1, y: 0 },
+      right: { x: 1, y: 0 },
+    };
+    const offset = directionOffsets[direction];
+    const proposedPosition = {
+      x: currentPosition.x + offset.x,
+      y: currentPosition.y + offset.y,
+    };
+    
+    // Check bounds
+    if (proposedPosition.x < 0 || proposedPosition.x >= mapData.width ||
+        proposedPosition.y < 0 || proposedPosition.y >= mapData.height) {
+      return;
+    }
+    
+    // Check for walls locally (quick reject)
+    const proposedTile = mapData.tiles[proposedPosition.y]?.[proposedPosition.x];
+    if (!proposedTile || proposedTile.type === "wall") {
+      return;
+    }
+    
+    const nearbyEntities = mapData.entities.filter(e => {
+      const dist = Math.sqrt(
+        Math.pow(e.x - proposedPosition.x, 2) + 
+        Math.pow(e.y - proposedPosition.y, 2)
+      );
+      return dist <= 1.5;
+    });
+    
+    if (campaignId) {
+      // Send move request to backend - do NOT update local state until confirmed
+      moveMutation.mutate({
+        direction,
+        currentPosition,
+        newPosition: proposedPosition,
+        tileType: proposedTile.type,
+        nearbyEntities,
+        mapData: mapData,
+      }, {
+        onSuccess: (data) => {
+          // Only update local map state after backend confirms movement
+          if (data.success && data.newPosition) {
+            const updatedMapData = {
+              ...mapData,
+              playerPosition: data.newPosition,
+              tiles: mapData.tiles.map((row, y) =>
+                row.map((tile, x) => {
+                  // Mark tiles as explored when player moves near them
+                  const dist = Math.sqrt(
+                    Math.pow(x - data.newPosition.x, 2) + 
+                    Math.pow(y - data.newPosition.y, 2)
+                  );
+                  if (dist <= 2) {
+                    return { ...tile, explored: true, visible: dist <= 1.5 };
+                  }
+                  return { ...tile, visible: false };
+                })
+              ),
+            };
+            setMapData(updatedMapData);
+            onMapDataChange?.(updatedMapData);
           }
+        }
+      });
+    } else {
+      // Standalone mode without campaign - allow local movement
+      const updatedMapData = movePlayer(mapData, direction);
+      setMapData(updatedMapData);
+      onMapDataChange?.(updatedMapData);
+      
+      if (proposedTile.type === "trap") {
+        toast({
+          title: "Trap!",
+          description: "You've triggered a trap! Roll a Dexterity saving throw.",
+          variant: "destructive",
         });
-      } else {
-        // Standalone mode without campaign - allow local movement
-        setMapData(proposedMapData);
-        onMapDataChange?.(proposedMapData);
-        
-        if (newTile.type === "trap") {
-          toast({
-            title: "Trap!",
-            description: "You've triggered a trap! Roll a Dexterity saving throw.",
-            variant: "destructive",
-          });
-          onTileInteraction?.(proposedMapData.playerPosition.x, proposedMapData.playerPosition.y, "trap");
-        } else if (newTile.type === "treasure") {
-          toast({
-            title: "Treasure Found!",
-            description: "You've discovered a treasure chest!",
-          });
-          onTileInteraction?.(proposedMapData.playerPosition.x, proposedMapData.playerPosition.y, "treasure");
-        }
-        
-        const enemies = nearbyEntities.filter(e => e.type === "enemy" || e.type === "boss");
-        if (enemies.length > 0) {
-          toast({
-            title: "Combat!",
-            description: `${enemies.map(e => e.name).join(", ")} ${enemies.length > 1 ? "are" : "is"} nearby!`,
-            variant: "destructive",
-          });
-          enemies.forEach(e => onEntityInteraction?.(e));
-        }
+        onTileInteraction?.(proposedPosition.x, proposedPosition.y, "trap");
+      } else if (proposedTile.type === "treasure") {
+        toast({
+          title: "Treasure Found!",
+          description: "You've discovered a treasure chest!",
+        });
+        onTileInteraction?.(proposedPosition.x, proposedPosition.y, "treasure");
+      }
+      
+      const enemies = nearbyEntities.filter(e => e.type === "enemy" || e.type === "boss");
+      if (enemies.length > 0) {
+        toast({
+          title: "Combat!",
+          description: `${enemies.map(e => e.name).join(", ")} ${enemies.length > 1 ? "are" : "is"} nearby!`,
+          variant: "destructive",
+        });
+        enemies.forEach(e => onEntityInteraction?.(e));
       }
     }
   };
