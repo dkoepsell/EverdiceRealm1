@@ -85,6 +85,7 @@ export interface IStorage {
   addQuickContentToSession(campaignId: number, content: any): Promise<void>;
   startCombat(campaignId: number, combatState: any): Promise<void>;
   updateCombatState(campaignId: number, combatState: any): Promise<void>;
+  updateSessionStoryState(campaignId: number, sessionNumber: number, storyState: any): Promise<CampaignSession | undefined>;
   
   // Dice Roll operations
   createDiceRoll(diceRoll: InsertDiceRoll): Promise<DiceRoll>;
@@ -339,6 +340,15 @@ export class MemStorage implements IStorage {
     const key = `${session.campaignId}:${session.sessionNumber}`;
     this.sessionStore.set(key, session);
     return session;
+  }
+  
+  async updateSessionStoryState(campaignId: number, sessionNumber: number, storyState: any): Promise<CampaignSession | undefined> {
+    const key = `${campaignId}:${sessionNumber}`;
+    const session = this.sessionStore.get(key);
+    if (!session) return undefined;
+    const updatedSession = { ...session, storyState };
+    this.sessionStore.set(key, updatedSession);
+    return updatedSession;
   }
   
   // Dice Roll operations
@@ -1559,6 +1569,21 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date().toISOString()
       })
       .where(eq(campaignSessions.id, currentSession.id));
+  }
+  
+  async updateSessionStoryState(campaignId: number, sessionNumber: number, storyState: any): Promise<CampaignSession | undefined> {
+    const [updatedSession] = await db
+      .update(campaignSessions)
+      .set({
+        storyState: storyState,
+        updatedAt: new Date().toISOString()
+      })
+      .where(and(
+        eq(campaignSessions.campaignId, campaignId),
+        eq(campaignSessions.sessionNumber, sessionNumber)
+      ))
+      .returning();
+    return updatedSession || undefined;
   }
 
   // Chat operations

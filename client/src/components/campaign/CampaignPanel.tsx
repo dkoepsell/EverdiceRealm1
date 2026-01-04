@@ -1398,8 +1398,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           campaignId={campaign.id}
                           campaignName={campaign.title}
                           dungeonLevel={currentSession.sessionNumber}
+                          mapId={dungeonMapId}
                           initialMapData={dungeonMapData}
                           onMapDataChange={handleDungeonMapChange}
+                          pendingEncounter={parsedStoryState?.pendingEncounter}
                           onTileInteraction={(x, y, tileType) => {
                             if (tileType === "treasure") {
                               toast({
