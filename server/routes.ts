@@ -4034,6 +4034,20 @@ Return your response as a JSON object with these fields:
         resolved: !encounterTriggered
       };
       
+      // Initialize or update adventure progress
+      const { getRequirementsForDifficulty, createEmptyProgress, checkAdventureCompletion } = await import('../shared/rules/adventure');
+      const difficulty = campaign.difficulty || "Normal - Balanced Challenge";
+      const requirements = getRequirementsForDifficulty(difficulty);
+      let adventureProgress = storyState.adventureProgress || createEmptyProgress();
+      
+      // Track discoveries from narrative events
+      if (narrativeEvent && !encounterTriggered) {
+        adventureProgress = {
+          ...adventureProgress,
+          discoveries: (adventureProgress.discoveries || 0) + 1
+        };
+      }
+      
       // Update story state with pending encounter and journey log
       const existingJourneyLog = storyState.journeyLog || [];
       const updatedStoryState = {
@@ -4046,7 +4060,9 @@ Return your response as a JSON object with these fields:
         },
         pendingEncounter: encounterTriggered ? encounterData : null,
         movementsSinceLastEvent: encounterTriggered || narrativeEvent ? 0 : movesSinceEvent,
-        journeyLog: [...existingJourneyLog, journeyEntry].slice(-50) // Keep last 50 entries
+        journeyLog: [...existingJourneyLog, journeyEntry].slice(-50),
+        adventureProgress,
+        adventureRequirements: requirements
       };
       
       // Save updated story state
@@ -4166,6 +4182,30 @@ Return your response as a JSON object with these fields:
       
       const existingJourneyLog = storyState.journeyLog || [];
       
+      // Update adventure progress when encounter is resolved
+      const { getRequirementsForDifficulty, createEmptyProgress, checkAdventureCompletion } = await import('../shared/rules/adventure');
+      const difficulty = campaign.difficulty || "Normal - Balanced Challenge";
+      const requirements = getRequirementsForDifficulty(difficulty);
+      let adventureProgress = storyState.adventureProgress || createEmptyProgress();
+      
+      // Increment the appropriate encounter counter
+      const encounterType = encounter.type as 'combat' | 'trap' | 'treasure';
+      adventureProgress = {
+        ...adventureProgress,
+        encounters: {
+          ...adventureProgress.encounters,
+          [encounterType]: (adventureProgress.encounters?.[encounterType] || 0) + 1,
+          total: (adventureProgress.encounters?.total || 0) + 1
+        }
+      };
+      
+      // Check if adventure is complete
+      const completionStatus = checkAdventureCompletion(adventureProgress, requirements);
+      if (completionStatus.isComplete && !adventureProgress.isComplete) {
+        adventureProgress.isComplete = true;
+        adventureProgress.completedAt = new Date().toISOString();
+      }
+      
       // Mark encounter as resolved and clear it
       const updatedStoryState = {
         ...storyState,
@@ -4179,7 +4219,10 @@ Return your response as a JSON object with these fields:
             outcome
           }
         },
-        journeyLog: [...existingJourneyLog, resolutionEntry].slice(-50)
+        journeyLog: [...existingJourneyLog, resolutionEntry].slice(-50),
+        adventureProgress,
+        adventureRequirements: requirements,
+        adventureCompletion: completionStatus
       };
       
       await storage.updateSessionStoryState(campaignId, currentSessionNumber, updatedStoryState);
