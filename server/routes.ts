@@ -6804,6 +6804,49 @@ Respond with JSON:
       // Update combat state
       await storage.updateCombatState(campaignId, combatResult.updatedCombatState);
 
+      // Check if combat ended (all enemies defeated)
+      const combatState = combatResult.updatedCombatState || currentSession.combatState;
+      const allEnemiesDefeated = combatState?.enemies?.every((e: any) => e.hp <= 0 || e.defeated);
+      
+      // Update world progress if combat ended successfully
+      if (allEnemiesDefeated) {
+        const campaign = await storage.getCampaign(campaignId);
+        const participants = await storage.getCampaignParticipants(campaignId);
+        
+        if (campaign && participants && participants.length > 0) {
+          for (const participant of participants) {
+            // Update location progress
+            if (campaign.worldLocationId) {
+              try {
+                await storage.updateUserWorldProgress(participant.userId, null, campaign.worldLocationId, {
+                  hasVisited: true,
+                  hasDiscovered: true,
+                  completionState: "in_progress",
+                  lastVisitedAt: new Date().toISOString(),
+                  lastCampaignId: campaignId
+                });
+              } catch (e) {
+                console.error("Failed to update world progress for location after combat:", e);
+              }
+            }
+            // Update region progress
+            if (campaign.worldRegionId) {
+              try {
+                await storage.updateUserWorldProgress(participant.userId, campaign.worldRegionId, null, {
+                  hasVisited: true,
+                  hasDiscovered: true,
+                  completionState: "in_progress",
+                  lastVisitedAt: new Date().toISOString(),
+                  lastCampaignId: campaignId
+                });
+              } catch (e) {
+                console.error("Failed to update world progress for region after combat:", e);
+              }
+            }
+          }
+        }
+      }
+
       // Broadcast combat update
       broadcastMessage('combat_action', {
         campaignId,
