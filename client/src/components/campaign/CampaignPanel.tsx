@@ -81,14 +81,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   
   // Campaign dungeon map (persistent)
   const { data: persistedDungeonMap, isLoading: dungeonMapLoading } = useQuery<any>({
-    queryKey: ['/api/campaigns', campaign.id, 'dungeon-map'],
+    queryKey: [`/api/campaigns/${campaign.id}/dungeon-map`],
     enabled: !!campaign.id,
     retry: false,
   });
   
   // Campaign quests (from database)
   const { data: campaignQuests = [], isLoading: questsLoading } = useQuery<any[]>({
-    queryKey: ['/api/campaigns', campaign.id, 'quests'],
+    queryKey: [`/api/campaigns/${campaign.id}/quests`],
     enabled: !!campaign.id,
   });
   
@@ -105,7 +105,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       return await response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/campaigns', campaign.id, 'dungeon-map'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/dungeon-map`] });
     },
   });
   
@@ -116,7 +116,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       return await response.json();
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/campaigns', campaign.id, 'quests'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/quests`] });
       queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
       
       if (data.rewards) {
