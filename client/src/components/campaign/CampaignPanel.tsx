@@ -2096,7 +2096,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 
                 {/* Sessions list */}
                 <div className="space-y-3 mt-6">
-                  <h3 className="text-sm font-semibold text-muted-foreground">Session History</h3>
+                  <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Session History</h3>
                   {sessionsLoading ? (
                     <div className="space-y-4">
                       <Skeleton className="h-16 w-full" />
@@ -2111,13 +2111,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         onOpenChange={() => toggleSessionExpanded(session.id)}
                         className="border rounded-md"
                       >
-                        <CollapsibleTrigger className="flex justify-between items-center w-full p-3 hover:bg-muted/30 transition-colors">
+                        <CollapsibleTrigger className="flex justify-between items-center w-full p-3 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors bg-white dark:bg-slate-800">
                           <div className="flex items-center">
-                            <Scroll className="h-5 w-5 mr-2 text-primary-foreground" />
+                            <Scroll className="h-5 w-5 mr-2 text-indigo-600 dark:text-indigo-400" />
                             <div className="text-left">
-                              <div className="font-medium text-black">Session {session.sessionNumber}: {session.title}</div>
+                              <div className="font-bold text-slate-900 dark:text-slate-100">Session {session.sessionNumber}: {session.title}</div>
                               {session.location && (
-                                <div className="text-sm text-muted-foreground flex items-center">
+                                <div className="text-sm text-slate-600 dark:text-slate-400 flex items-center">
                                   <MapPin className="h-3 w-3 mr-1" />
                                   {session.location}
                                 </div>
@@ -2133,9 +2133,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </CollapsibleTrigger>
                         
                         <CollapsibleContent>
-                          <div className="p-3 pt-0 border-t">
-                            <div className="bg-parchment-light p-3 rounded-md text-sm whitespace-pre-line">
-                              <p className="text-foreground">{session.narrative}</p>
+                          <div className="p-3 pt-0 border-t bg-white dark:bg-slate-800">
+                            <div className="bg-slate-100 dark:bg-slate-700 p-3 rounded-md text-sm whitespace-pre-line">
+                              <p className="text-slate-800 dark:text-slate-200">{session.narrative}</p>
                             </div>
                           </div>
                         </CollapsibleContent>
