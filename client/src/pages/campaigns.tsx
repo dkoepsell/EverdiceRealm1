@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Campaign, insertCampaignSchema } from "@shared/schema";
+import { Campaign, insertCampaignSchema, WorldRegion, WorldLocation } from "@shared/schema";
 import { queryClient, apiRequest, getQueryFn } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CampaignPanel from "@/components/campaign/CampaignPanel";
-import { AlertCircle, Book, Plus, Scroll, Wand2 } from "lucide-react";
+import { AlertCircle, Book, MapPin, Plus, Scroll, Wand2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 // Extended schema with validation rules
@@ -82,6 +82,22 @@ export default function Campaigns() {
     queryFn: getQueryFn({ on401: "throw" })
   });
 
+  // Fetch world regions and locations for linking campaigns to the world map
+  const { data: worldRegions = [] } = useQuery<WorldRegion[]>({
+    queryKey: ['/api/world/regions'],
+  });
+
+  const { data: worldLocations = [] } = useQuery<WorldLocation[]>({
+    queryKey: ['/api/world/locations'],
+  });
+
+  const [selectedWorldRegion, setSelectedWorldRegion] = useState<number | null>(null);
+
+  // Filter locations by selected region
+  const filteredWorldLocations = selectedWorldRegion 
+    ? worldLocations.filter(loc => loc.regionId === selectedWorldRegion)
+    : worldLocations;
+
   const form = useForm<FormValues>({
     resolver: zodResolver(createCampaignSchema),
     defaultValues: {
@@ -92,6 +108,8 @@ export default function Campaigns() {
       narrativeStyle: "",
       currentSession: 1,
       characters: [],
+      worldRegionId: null,
+      worldLocationId: null,
       createdAt: new Date().toISOString(),
     },
   });
@@ -229,7 +247,7 @@ export default function Campaigns() {
                       <div className="flex justify-between items-center">
                         <CardTitle className="font-fantasy">{campaign.title}</CardTitle>
                         <span className="bg-primary-light text-white text-sm px-3 py-1 rounded-full">
-                          Session {campaign.currentSession}
+                          Ch. {campaign.currentSession}
                         </span>
                       </div>
                     </CardHeader>
@@ -430,6 +448,84 @@ export default function Campaigns() {
                         </FormItem>
                       )}
                     />
+                  </div>
+
+                  {/* World Map Location - where this adventure takes place */}
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700/50">
+                    <div className="flex items-center gap-2 mb-3">
+                      <MapPin className="h-5 w-5 text-amber-600" />
+                      <h3 className="font-semibold text-amber-800 dark:text-amber-300">World Location</h3>
+                    </div>
+                    <p className="text-sm text-amber-700 dark:text-amber-400 mb-3">
+                      Link this adventure to a location on the world map. Other players will see active adventures here.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="worldRegionId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Region</FormLabel>
+                            <Select 
+                              onValueChange={(value) => {
+                                const numValue = value ? parseInt(value) : null;
+                                field.onChange(numValue);
+                                setSelectedWorldRegion(numValue);
+                                // Clear location when region changes
+                                form.setValue('worldLocationId', null);
+                              }} 
+                              value={field.value?.toString() || ""}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a region" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="">No specific region</SelectItem>
+                                {worldRegions.map(region => (
+                                  <SelectItem key={region.id} value={region.id.toString()}>
+                                    {region.name} (Lvl {region.levelRange})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="worldLocationId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Specific Location</FormLabel>
+                            <Select 
+                              onValueChange={(value) => {
+                                field.onChange(value ? parseInt(value) : null);
+                              }} 
+                              value={field.value?.toString() || ""}
+                              disabled={!selectedWorldRegion && filteredWorldLocations.length === 0}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a location (optional)" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="">No specific location</SelectItem>
+                                {filteredWorldLocations.map(location => (
+                                  <SelectItem key={location.id} value={location.id.toString()}>
+                                    {location.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
                   
                   <FormField
