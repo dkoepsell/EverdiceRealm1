@@ -1695,19 +1695,21 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             <Button 
                               key={index}
                               variant="outline"
-                              className="justify-start h-auto py-3 px-4 bg-background hover:bg-accent border-2 border-border hover:border-primary text-left"
+                              className="justify-start h-auto py-3 px-4 bg-background hover:bg-accent border-2 border-border hover:border-primary text-left w-full"
                               onClick={() => handleChoiceSelection(choice)}
                             >
-                              <div className="flex items-start">
+                              <div className="flex items-start w-full min-w-0">
                                 <ArrowRight className="h-5 w-5 mr-2 mt-0.5 shrink-0 text-primary" />
-                                <span className="text-foreground font-medium">
-                                  {choice.action || choice.text}
+                                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 sm:gap-2 min-w-0 flex-1">
+                                  <span className="text-foreground font-medium break-words">
+                                    {choice.action || choice.text}
+                                  </span>
                                   {(choice.requiresRoll || choice.requiresDiceRoll) && (
-                                    <span className="ml-2 text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded font-bold">
+                                    <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded font-bold whitespace-nowrap shrink-0">
                                       {choice.rollPurpose || "Skill Check"} ({choice.diceType || "d20"})
                                     </span>
                                   )}
-                                </span>
+                                </div>
                               </div>
                             </Button>
                           ))}
