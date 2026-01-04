@@ -1,267 +1,66 @@
 # Everdice - Fantasy RPG Companion
 
 ## Overview
+Everdice is a full-stack web application designed as an AI-enhanced companion for tabletop RPGs, primarily Dungeons & Dragons. It integrates a React frontend with an Express.js backend to offer character creation, campaign management, dice rolling, and AI-powered storytelling tools. The platform aims to make D&D more accessible to new players while providing advanced features for experienced players and Dungeon Masters, bridging traditional gaming with digital assistance.
 
-Everdice is a full-stack web application that serves as an AI-enhanced companion for tabletop RPG experiences, specifically designed for Dungeons & Dragons. The platform combines a React-based frontend with an Express.js backend to provide character creation, campaign management, dice rolling mechanics, and AI-powered storytelling tools. The application bridges the gap between traditional tabletop gaming and modern digital assistance, making D&D more accessible to newcomers while providing valuable tools for experienced players and Dungeon Masters.
+## User Preferences
+Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Frontend Architecture
-- **Framework**: React with TypeScript using Vite as the build tool
-- **Routing**: Wouter for client-side routing
-- **State Management**: TanStack React Query for server state management
-- **UI Framework**: shadcn/ui components built on Radix UI primitives
-- **Styling**: Tailwind CSS with custom CSS variables for theming
-- **Authentication**: Context-based authentication system with protected routes
+### Frontend
+- **Framework**: React with TypeScript (Vite)
+- **Routing**: Wouter
+- **State Management**: TanStack React Query
+- **UI Framework**: shadcn/ui (Radix UI)
+- **Styling**: Tailwind CSS
+- **Authentication**: Context-based system
 
-### Backend Architecture
+### Backend
 - **Framework**: Express.js with TypeScript
-- **Database ORM**: Drizzle ORM for type-safe database operations
-- **Authentication**: Passport.js with local strategy and session management
-- **Real-time Communication**: WebSocket implementation for live dice rolls and campaign updates
-- **AI Integration**: OpenAI GPT-4o integration for story generation and character assistance
+- **Database ORM**: Drizzle ORM
+- **Authentication**: Passport.js (local strategy, sessions)
+- **Real-time**: WebSocket for dice rolls and campaign updates
+- **AI Integration**: OpenAI GPT-4o for story and character assistance
 
-### Database Architecture
-- **Primary Database**: PostgreSQL (Neon serverless)
-- **Schema Management**: Drizzle Kit for migrations and schema evolution
-- **Session Storage**: Database-backed sessions using connect-pg-simple
+### Database
+- **Primary**: PostgreSQL (Neon serverless)
+- **Schema Management**: Drizzle Kit
+- **Session Storage**: `connect-pg-simple`
 
-## Key Components
-
-### User Management System
-- User registration and authentication with password hashing (scrypt)
-- Session-based authentication with persistent login
-- User profile management with display names and last login tracking
-
-### Character Management
-- Comprehensive D&D 5e character creation with ability scores, races, and classes
-- XP tracking and character progression system
-- AI-powered character portrait generation using DALL-E 3
-- Character sheet visualization with stat calculations
-
-### Campaign System
-- Campaign creation and management with metadata (difficulty, narrative style)
-- Session tracking with AI-generated storylines
-- Turn-based gameplay support with time limits
-- Campaign archiving and completion tracking
-- Deployment system for sharing campaigns with unique codes
-
-### Dice Rolling Engine
-- Support for standard RPG dice (d4, d6, d8, d10, d12, d20, d100)
-- Real-time dice rolling with WebSocket broadcasting
-- Roll history tracking and character-associated rolls
-- Critical hit and fumble detection
-
-### AI-Powered Features
-- Campaign generation using OpenAI GPT-4o
-- Dynamic story generation based on player choices
-- Character background and portrait generation
-- DM assistance tools for NPCs, locations, quests, and monsters
-
-### DM Toolkit
-- NPC creation and management with AI personalities
-- Location, quest, and magic item generators
-- Monster and encounter management
-- Campaign notes and invitation system
-
-## Data Flow
-
-### Authentication Flow
-1. User submits credentials via login form
-2. Passport.js validates credentials against database
-3. Session created and stored in PostgreSQL
-4. Frontend receives user data and updates authentication context
-5. Protected routes accessible via authentication middleware
-
-### Campaign Session Flow
-1. DM creates campaign with initial parameters
-2. AI generates opening narrative based on campaign settings
-3. Players make choices or perform dice rolls
-4. Backend processes actions and updates campaign state
-5. AI generates continuation based on previous context and player actions
-6. WebSocket broadcasts updates to all connected participants
-
-### Real-time Communication Flow
-1. WebSocket connection established on client connection
-2. Dice rolls and campaign updates broadcast to relevant participants
-3. Connection management with automatic reconnection logic
-4. Graceful degradation when WebSocket unavailable
+### Core Features
+- **User Management**: Registration, authentication, profile management.
+- **Character Management**: D&D 5e character creation, XP tracking, progression, AI-powered portrait generation (DALL-E 3), computed stats (AC, attack/damage bonuses).
+- **Campaign System**: Creation, management, session tracking, AI-generated storylines, turn-based support, archiving, deployment. Persistent dungeon maps with interactive grid, fog of war, and generator.
+- **Dice Rolling Engine**: Standard RPG dice, real-time WebSocket rolls, history, critical hit/fumble detection, advantage/disadvantage mechanics.
+- **AI-Powered Features**: Campaign/story generation, dynamic narrative, character backgrounds/portraits, DM assistance (NPCs, locations, quests, monsters). AI focuses on exploration, discovery, mystery, and social encounters.
+- **DM Toolkit**: NPC/location/quest/monster generators, campaign notes, invitation system.
+- **RPG Systems**:
+    - **Progression**: Automatic XP, random item drops, character progression tracking, skill progression (+1 bonus every 5 uses, max +5).
+    - **Combat**: D&D mechanics, HP tracking (party/enemies), visual health bars, tactical options, combat end detection, bonus XP for defeating enemies.
+    - **Rest & Inventory**: Short/Long rests, inventory management (view, add, remove), item equip/unequip, item transfer between party members.
+    - **Death & Status**: Death saving throws (conscious, unconscious, stabilized, dead), critical rolls (Nat 20/1), stabilize/heal actions.
+    - **Quests**: Structured quest system with status tracking, AI-generated initial quests, rewards (XP, gold, items), persistence, and UI display.
 
 ## External Dependencies
 
-### Core Dependencies
-- **@neondatabase/serverless**: PostgreSQL database connection
-- **drizzle-orm**: Type-safe database ORM
+### Core
+- **@neondatabase/serverless**: PostgreSQL connection
+- **drizzle-orm**: Database ORM
 - **express**: Web application framework
 - **passport**: Authentication middleware
 - **ws**: WebSocket implementation
-- **openai**: AI integration for story and image generation
+- **openai**: AI integration
 
-### Frontend Dependencies
+### Frontend
 - **@tanstack/react-query**: Server state management
-- **@radix-ui/***: Accessible UI component primitives
-- **wouter**: Lightweight React router
+- **@radix-ui/***: UI component primitives
+- **wouter**: React router
 - **framer-motion**: Animation library
-- **tailwindcss**: Utility-first CSS framework
+- **tailwindcss**: CSS framework
 
-### Development Dependencies
-- **typescript**: Type safety across the stack
-- **vite**: Fast build tool and development server
+### Development
+- **typescript**: Type checking
+- **vite**: Build tool
 - **drizzle-kit**: Database schema management
-- **tsx**: TypeScript execution engine
-
-## Deployment Strategy
-
-The application is designed for deployment on Replit with the following considerations:
-
-### Environment Configuration
-- DATABASE_URL for PostgreSQL connection
-- OPENAI_API_KEY for AI features
-- SESSION_SECRET for secure session management
-- NODE_ENV for environment-specific behavior
-
-### Build Process
-1. Frontend builds to `dist/public` using Vite
-2. Backend compiles TypeScript to `dist` using esbuild
-3. Database migrations run automatically on startup
-4. Static assets served from build directory
-
-### Database Management
-- Migrations handled through Drizzle Kit
-- Sample data initialization on first run
-- Connection pooling for optimal performance
-- Graceful error handling for database operations
-
-### Production Considerations
-- Session security with secure cookies in production
-- WebSocket connection management with reconnection logic
-- Error boundaries and graceful degradation
-- API rate limiting considerations for OpenAI integration
-
-## User Preferences
-
-Preferred communication style: Simple, everyday language.
-
-## Recent Changes
-
-### Campaign Navigation Improvements (July 01, 2025)
-- Added campaign selection dropdown to dashboard for multiple active campaigns
-- Enhanced campaigns page layout to show full narrative and choice interface
-- Improved user experience when switching between multiple campaigns
-- Auto-selects most recent campaign when multiple are available
-- Fixed black text on black background styling issues in party tabs across all components
-- Enhanced HP and AC contrast in character cards with color-coded backgrounds and borders
-- Improved choice button readability with proper contrast backgrounds and skill check tag visibility
-- Enhanced narrative text contrast by using card background with proper text colors for better readability
-- Fixed campaign description text contrast by removing opacity fade for full foreground visibility
-
-### RPG Progression System (July 01, 2025)
-- Implemented automatic XP awards (25-100 XP based on skill check difficulty)
-- Added random item drops (15% chance per adventure action)
-- Created character progression tracking with level-up detection
-- Integrated progression rewards dialog to display found items
-- Added toast notifications for XP gains and level-ups
-
-### D&D Educational Features (July 02, 2025)
-- Added comprehensive D&D Learning Center with guided learning paths
-- Created interactive Rules Reference with searchable D&D mechanics
-- Built comprehensive DM Guide with session prep and encounter design
-- Enhanced dice roller with educational skill check explanations
-- Added skill check explainer component with difficulty guidelines
-- Integrated practice skill checks with contextual learning tips
-
-### Quest Tracking & Story Progression (July 02, 2025)
-- Added structured quest system with status tracking (active/in_progress/completed)
-- New campaigns now start with initial quests generated by AI
-- Quest display panel shows color-coded status with progress indicators
-- XP rewards for completing quests (100-500 XP based on difficulty)
-- Toast notifications when quests are completed
-- AI now tracks quest progress and marks objectives complete based on player actions
-- Story state persists properly to database so adventures maintain continuity
-
-### Combat Mechanics System (January 02, 2026)
-- Implemented proper D&D combat mechanics with damage tracking
-- Enemy HP tracking with visual health bars (green/orange/red based on health)
-- Party member HP tracking with player and AI companion health bars
-- Two-column combat UI showing party on left and enemies on right
-- Combat status display showing all combatants and their condition (healthy/wounded/bloodied/defeated)
-- Player damage application - attacks that hit reduce character HP
-- Enemy damage tracking - successful attacks reduce enemy HP
-- AI companion combat actions - companions take turns and attack enemies
-- Toast notifications for damage dealt/taken and companion actions
-- Combat state persists in storyState (inCombat flag, combatants array, partyMembers array)
-- AI prompt now includes player character info (name, class, HP, weapon) for proper combat tracking
-- Combat end detection: combat ends when all enemies are defeated, fled, or surrendered
-- Tactical combat options: disengage/retreat, switch weapons, defensive stance, use items, cast spells
-
-### Rest & Inventory System (January 02, 2026)
-- Added rest mechanics: Short rest (25% HP recovery) and Long rest (full HP recovery)
-- REST buttons in Party tab with visual HP display (color-coded based on health)
-- Inventory management: View, add, and remove items from character inventory
-- Equipment display showing equipped weapon (first item in inventory) and armor class
-- Backend routes for character resting and inventory CRUD operations
-
-### Skill Progression & Loot System (January 02, 2026)
-- Skill progression tracking: Skills improve through successful use
-- Every 5 successful skill checks = +1 bonus to that skill (max +5)
-- skillProgress field added to character schema to track uses and bonuses
-- Skill progress UI in Party tab showing all trained skills with uses and bonuses
-- Combat loot drops: Defeated enemies drop items and gold
-- AI generates lootDrops and rewardItems based on story context
-- Items automatically added to character inventory when found
-- Bonus XP (50 per enemy) awarded for defeating enemies in combat
-- Toast notifications for skill improvements
-
-### Death Saving Throws & Status Tracking (January 02, 2026)
-- Character status tracking: conscious, unconscious, stabilized, dead
-- Death saving throws: Roll d20 when unconscious (10+ success, 9- failure)
-- Critical rolls: Natural 20 restores 1 HP and consciousness; natural 1 counts as 2 failures
-- 3 successes = stabilized; 3 failures = dead
-- Stabilize action: Medicine check to stop death saves (character remains at 0 HP)
-- Heal action: Any healing restores consciousness if HP becomes positive
-- UI shows status with death save progress and action buttons
-- Rest mechanics respect status: Short rest blocked for unconscious/dead; long rest resets to conscious
-- Toast notifications for status changes (unconscious, dead)
-
-### Item Management & Narrative Improvements (January 04, 2026)
-- Fixed item equip/unequip for characters and NPCs with controlled Select components
-- Added item transfer between party members via "Give" dropdown in inventory
-- Fixed narrative mode selection to properly apply to story generation
-- Improved story pacing with dynamic narrative style instructions
-- NPC inventory management with full equipment slot support
-- Party member selector allows switching between player characters and NPC companions
-
-### D&D 5e Item Stats & Dice Mechanics (January 04, 2026)
-- Items API with computed character stats endpoint (/api/characters/:id/computed-stats)
-- AC calculation using D&D 5e rules: light armor (base + DEX), medium armor (base + DEX cap 2), heavy armor (base only)
-- Attack and damage bonus calculations from equipped weapons with ability modifiers
-- Finesse weapons use higher of STR/DEX, ranged weapons use DEX
-- Advantage/disadvantage dice roll mechanics: roll 2d20, take higher/lower
-- Ability modifiers automatically applied to skill checks based on character stats
-- Dice roll API returns advantageRolls, totalModifier, abilityModifier for transparency
-
-### Grid-Based Dungeon Maps (January 04, 2026)
-- DungeonMap component with interactive tile grid rendering
-- Tile types: floor, wall, door, secret_door, trap, treasure, stairs_up, stairs_down, water, lava, pit, fog
-- Entity rendering for players, allies, enemies, NPCs, and bosses with health bars
-- Keyboard (WASD/arrows) and button-based player movement
-- Zoom controls (50%-200%) and view reset functionality
-- Fog of war with explored vs visible tile states
-- DungeonGenerator with BSP-inspired room generation algorithm
-- L-shaped corridor connections between rooms
-- Special room designation: entrance, exit, treasure, boss
-- Automatic door, trap, and treasure placement
-- Enemy spawning based on configurable density
-- Dynamic dungeon name generation
-
-## Changelog
-
-Changelog:
-- July 01, 2025. Initial setup
-- July 01, 2025. Added RPG progression system with XP tracking and item drops
-- July 01, 2025. Enhanced campaign navigation with selection dropdown
-- July 02, 2025. Added comprehensive D&D educational features and learning systems
-- July 02, 2025. Implemented quest tracking with completion status and story progression persistence
-- January 02, 2026. Added combat mechanics with damage tracking, enemy HP bars, and combat effects
-- January 02, 2026. Added death saving throws with D&D 5e mechanics and status tracking
-- January 04, 2026. Fixed item equip/unequip, added item transfer, improved narrative mode selection and story pacing
+- **tsx**: TypeScript execution

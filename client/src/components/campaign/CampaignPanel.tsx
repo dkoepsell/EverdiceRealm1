@@ -79,6 +79,55 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     enabled: !!campaign.id,
   });
   
+  // Campaign dungeon map (persistent)
+  const { data: persistedDungeonMap, isLoading: dungeonMapLoading } = useQuery<any>({
+    queryKey: ['/api/campaigns', campaign.id, 'dungeon-map'],
+    enabled: !!campaign.id,
+    retry: false,
+  });
+  
+  // Campaign quests (from database)
+  const { data: campaignQuests = [], isLoading: questsLoading } = useQuery<any[]>({
+    queryKey: ['/api/campaigns', campaign.id, 'quests'],
+    enabled: !!campaign.id,
+  });
+  
+  // Mutation to save dungeon map
+  const saveDungeonMapMutation = useMutation({
+    mutationFn: async (mapData: { mapId?: number; mapName: string; mapData: any; playerPosition: any; exploredTiles: any[]; entityPositions: any[] }) => {
+      let response: Response;
+      if (mapData.mapId) {
+        response = await apiRequest('PATCH', `/api/campaigns/${campaign.id}/dungeon-map/${mapData.mapId}`, mapData);
+      } else {
+        response = await apiRequest('POST', `/api/campaigns/${campaign.id}/dungeon-map`, mapData);
+      }
+      // Parse and return the JSON response
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/campaigns', campaign.id, 'dungeon-map'] });
+    },
+  });
+  
+  // Mutation to complete a quest
+  const completeQuestMutation = useMutation({
+    mutationFn: async ({ questId, characterId }: { questId: number; characterId?: number }) => {
+      const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/quests/${questId}/complete`, { characterId });
+      return await response.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/campaigns', campaign.id, 'quests'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      
+      if (data.rewards) {
+        toast({
+          title: "Quest Completed!",
+          description: `Earned ${data.rewards.xp} XP, ${data.rewards.gold} gold${data.rewards.items?.length ? `, and ${data.rewards.items.length} item(s)` : ''}!`,
+        });
+      }
+    },
+  });
+  
   // Local state
   const [showChoiceDialog, setShowChoiceDialog] = useState(false);
   const [showDiceRollDialog, setShowDiceRollDialog] = useState(false);
@@ -118,6 +167,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [selectedPartyMemberType, setSelectedPartyMemberType] = useState<"character" | "npc">("character");
   const [selectedNpcId, setSelectedNpcId] = useState<number | null>(null);
   const [dungeonMapData, setDungeonMapData] = useState<DungeonMapData | null>(null);
+  const [dungeonMapId, setDungeonMapId] = useState<number | null>(null);
   
   // Find the user's participant record in this campaign
   const userParticipant = useMemo(() => {
@@ -183,6 +233,47 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       }
     }
   }, [sessions, campaign]);
+  
+  // Load persisted dungeon map from database
+  useEffect(() => {
+    if (persistedDungeonMap && persistedDungeonMap.mapData) {
+      // Store the map ID for later PATCH requests
+      if (persistedDungeonMap.id && persistedDungeonMap.id !== dungeonMapId) {
+        setDungeonMapId(persistedDungeonMap.id);
+      }
+      // Only set map data if we don't have it yet
+      if (!dungeonMapData) {
+        setDungeonMapData({
+          ...persistedDungeonMap.mapData,
+          playerPosition: persistedDungeonMap.playerPosition || { x: 0, y: 0 },
+        });
+      }
+    }
+  }, [persistedDungeonMap, dungeonMapData, dungeonMapId]);
+  
+  // Handler to save dungeon map changes with debounce
+  const handleDungeonMapChange = (newMapData: DungeonMapData | null) => {
+    setDungeonMapData(newMapData);
+    
+    if (newMapData) {
+      saveDungeonMapMutation.mutate({
+        mapId: dungeonMapId ?? undefined,
+        mapName: newMapData.name || "Dungeon",
+        mapData: newMapData,
+        playerPosition: newMapData.playerPosition || { x: 0, y: 0 },
+        exploredTiles: [],
+        entityPositions: newMapData.entities || [],
+      }, {
+        onSuccess: (result: any) => {
+          // After creating a new map, store its ID for future updates
+          // apiRequest returns already-parsed JSON, so result is the data directly
+          if (!dungeonMapId && result?.id) {
+            setDungeonMapId(result.id);
+          }
+        }
+      });
+    }
+  };
   
   // Save settings mutation
   const handleSaveSettings = () => {
@@ -1256,7 +1347,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           campaignName={campaign.title}
                           dungeonLevel={currentSession.sessionNumber}
                           initialMapData={dungeonMapData}
-                          onMapDataChange={setDungeonMapData}
+                          onMapDataChange={handleDungeonMapChange}
                           onTileInteraction={(x, y, tileType) => {
                             if (tileType === "treasure") {
                               toast({
@@ -1290,8 +1381,91 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </div>
                     </div>
                     
-                    {/* Active Quests Display */}
-                    {parsedStoryState?.activeQuests && 
+                    {/* Active Quests Display - Database Quests */}
+                    {campaignQuests.length > 0 && (
+                      <div className="bg-amber-50 dark:bg-amber-950/30 p-4 rounded-md border border-amber-200 dark:border-amber-800 mb-4">
+                        <h4 className="font-semibold text-amber-800 dark:text-amber-200 flex items-center mb-3">
+                          <Scroll className="h-4 w-4 mr-2" />
+                          Campaign Quests
+                        </h4>
+                        <div className="space-y-2">
+                          {campaignQuests.map((quest: any) => (
+                            <div 
+                              key={quest.id}
+                              className={`flex items-start gap-2 p-3 rounded ${
+                                quest.status === 'completed' 
+                                  ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200' 
+                                  : quest.status === 'in_progress'
+                                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
+                                  : 'bg-amber-100/50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-100'
+                              }`}
+                              data-testid={`quest-${quest.id}`}
+                            >
+                              <span className="text-lg">
+                                {quest.status === 'completed' ? '✓' : quest.status === 'in_progress' ? '→' : '○'}
+                              </span>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                  <p className="font-medium text-sm">{quest.title}</p>
+                                  <span className={`text-xs px-2 py-0.5 rounded ${
+                                    quest.questType === 'main' ? 'bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200' :
+                                    quest.questType === 'side' ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300' :
+                                    'bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200'
+                                  }`}>
+                                    {quest.questType || 'quest'}
+                                  </span>
+                                </div>
+                                <p className="text-xs opacity-80 mt-1">{quest.description}</p>
+                                <div className="flex items-center gap-3 mt-2 text-xs font-medium">
+                                  {quest.xpReward > 0 && (
+                                    <span className="flex items-center gap-1 text-purple-600 dark:text-purple-400">
+                                      <Sparkles className="h-3 w-3" />
+                                      {quest.xpReward} XP
+                                    </span>
+                                  )}
+                                  {quest.goldReward > 0 && (
+                                    <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                                      <Coins className="h-3 w-3" />
+                                      {quest.goldReward} Gold
+                                    </span>
+                                  )}
+                                  {quest.lootRewards?.length > 0 && (
+                                    <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                      <Backpack className="h-3 w-3" />
+                                      {quest.lootRewards.length} Item(s)
+                                    </span>
+                                  )}
+                                </div>
+                                {quest.status !== 'completed' && isDM && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-2 h-7 text-xs"
+                                    onClick={() => completeQuestMutation.mutate({ 
+                                      questId: quest.id, 
+                                      characterId: activeCharacter?.id 
+                                    })}
+                                    disabled={completeQuestMutation.isPending}
+                                    data-testid={`button-complete-quest-${quest.id}`}
+                                  >
+                                    {completeQuestMutation.isPending ? (
+                                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                    ) : (
+                                      <Target className="h-3 w-3 mr-1" />
+                                    )}
+                                    Complete Quest
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Fallback: Story State Quests */}
+                    {(!campaignQuests || campaignQuests.length === 0) && 
+                     parsedStoryState?.activeQuests && 
                      (parsedStoryState.activeQuests as any[]).length > 0 && (
                       <div className="bg-amber-50 dark:bg-amber-950/30 p-4 rounded-md border border-amber-200 dark:border-amber-800 mb-4">
                         <h4 className="font-semibold text-amber-800 dark:text-amber-200 flex items-center mb-3">
