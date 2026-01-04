@@ -4007,7 +4007,35 @@ Return your response as a JSON object with these fields:
         });
       }
       
-      // Update story state with pending encounter if any
+      // Every 3 moves without an encounter, generate a minor narrative event
+      let narrativeEvent = null;
+      const movesSinceEvent = (storyState.movementsSinceLastEvent || 0) + 1;
+      
+      if (!encounterTriggered && movesSinceEvent >= 3) {
+        const minorEvents = [
+          "You hear distant echoes deeper in the dungeon.",
+          "A cold draft suggests hidden passages nearby.",
+          "Ancient runes on the wall catch your eye - perhaps they hold a clue.",
+          "The faint smell of something cooking wafts through the corridor.",
+          "You find old adventurer's marks scratched into the stone."
+        ];
+        narrativeEvent = minorEvents[Math.floor(Math.random() * minorEvents.length)];
+      }
+      
+      // Create journey log entry for this movement
+      const journeyEntry = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        type: encounterTriggered ? encounterData.type : (narrativeEvent ? 'discovery' : 'movement'),
+        position: newPosition,
+        description: encounterTriggered 
+          ? encounterData.description 
+          : narrativeEvent || `Moved ${direction} to position (${newPosition.x}, ${newPosition.y}).`,
+        resolved: !encounterTriggered
+      };
+      
+      // Update story state with pending encounter and journey log
+      const existingJourneyLog = storyState.journeyLog || [];
       const updatedStoryState = {
         ...storyState,
         lastMovement: {
@@ -4017,22 +4045,9 @@ Return your response as a JSON object with these fields:
           timestamp: new Date().toISOString()
         },
         pendingEncounter: encounterTriggered ? encounterData : null,
-        movementsSinceLastEvent: encounterTriggered ? 0 : (storyState.movementsSinceLastEvent || 0) + 1
+        movementsSinceLastEvent: encounterTriggered || narrativeEvent ? 0 : movesSinceEvent,
+        journeyLog: [...existingJourneyLog, journeyEntry].slice(-50) // Keep last 50 entries
       };
-      
-      // Every 3 moves without an encounter, generate a minor narrative event
-      let narrativeEvent = null;
-      if (!encounterTriggered && updatedStoryState.movementsSinceLastEvent >= 3) {
-        const minorEvents = [
-          "You hear distant echoes deeper in the dungeon.",
-          "A cold draft suggests hidden passages nearby.",
-          "Ancient runes on the wall catch your eye - perhaps they hold a clue.",
-          "The faint smell of something cooking wafts through the corridor.",
-          "You find old adventurer's marks scratched into the stone."
-        ];
-        narrativeEvent = minorEvents[Math.floor(Math.random() * minorEvents.length)];
-        updatedStoryState.movementsSinceLastEvent = 0;
-      }
       
       // Save updated story state
       if (session) {
@@ -4138,10 +4153,24 @@ Return your response as a JSON object with these fields:
         }
       }
       
-      // Mark encounter as resolved
+      // Add resolution to journey log
+      const resolutionEntry = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        type: `${encounter.type}_resolved`,
+        description: outcome.narrative,
+        success: outcome.success,
+        rewards: outcome.rewards,
+        resolved: true
+      };
+      
+      const existingJourneyLog = storyState.journeyLog || [];
+      
+      // Mark encounter as resolved and clear it
       const updatedStoryState = {
         ...storyState,
-        pendingEncounter: {
+        pendingEncounter: null, // Clear the pending encounter so movement can continue
+        lastResolvedEncounter: {
           ...encounter,
           resolved: true,
           resolution: {
@@ -4149,7 +4178,8 @@ Return your response as a JSON object with these fields:
             rollResult,
             outcome
           }
-        }
+        },
+        journeyLog: [...existingJourneyLog, resolutionEntry].slice(-50)
       };
       
       await storage.updateSessionStoryState(campaignId, currentSessionNumber, updatedStoryState);
@@ -5380,22 +5410,57 @@ Create a unique monster with balanced stats appropriate for its challenge rating
         return res.status(404).json({ message: "Character not found" });
       }
 
-      // Calculate new XP and level
-      const newXP = (character.xp || 0) + parseInt(xp);
-      let newLevel = character.level || 1;
+      // Calculate new XP and level using proper D&D 5e thresholds
+      const newXP = (character.experience || 0) + parseInt(xp);
+      const oldLevel = character.level || 1;
       
-      // Simple level calculation (every 1000 XP = 1 level)
-      if (newXP >= 1000) {
-        newLevel = Math.floor(newXP / 1000) + 1;
+      // Use D&D 5e XP thresholds from shared/rules/xp.ts
+      const { getLevelFromXP, getAbilityModifier } = await import('../shared/rules/xp');
+      const newLevel = getLevelFromXP(newXP);
+      
+      // If level increased, calculate HP increase using class hit dice
+      let newMaxHp = character.maxHitPoints;
+      let newCurrentHp = character.hitPoints;
+      
+      if (newLevel > oldLevel) {
+        // D&D 5e class hit dice
+        const CLASS_HIT_DICE: Record<string, number> = {
+          'Barbarian': 12,
+          'Fighter': 10,
+          'Paladin': 10,
+          'Ranger': 10,
+          'Bard': 8,
+          'Cleric': 8,
+          'Druid': 8,
+          'Monk': 8,
+          'Rogue': 8,
+          'Warlock': 8,
+          'Sorcerer': 6,
+          'Wizard': 6,
+        };
+        
+        const hitDie = CLASS_HIT_DICE[character.class] || 8;
+        const conMod = getAbilityModifier(character.constitution);
+        
+        // For each level gained, add average hit die roll + CON modifier
+        // D&D 5e uses average (hit die / 2 + 1) for leveling up
+        const levelsGained = newLevel - oldLevel;
+        const hpPerLevel = Math.floor(hitDie / 2) + 1 + conMod;
+        const hpGain = Math.max(levelsGained, levelsGained * hpPerLevel); // Minimum 1 HP per level
+        
+        newMaxHp = (character.maxHitPoints || 10) + hpGain;
+        newCurrentHp = (character.hitPoints || 10) + hpGain; // Heal the gained HP
       }
 
       // Update character
       const [updatedCharacter] = await db
         .update(characters)
         .set({
-          xp: newXP,
+          experience: newXP,
           level: newLevel,
-          updatedAt: new Date()
+          maxHitPoints: newMaxHp,
+          hitPoints: newCurrentHp,
+          updatedAt: new Date().toISOString()
         })
         .where(eq(characters.id, characterId))
         .returning();

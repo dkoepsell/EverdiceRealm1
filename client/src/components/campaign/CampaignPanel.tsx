@@ -1731,8 +1731,50 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   </div>
                 </div>
                 
+                {/* Live Exploration Events from storyState */}
+                {parsedStoryState?.journeyLog && (parsedStoryState.journeyLog as any[]).length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Recent Exploration
+                    </h3>
+                    <div className="max-h-64 overflow-y-auto space-y-2 border rounded-md p-3 bg-muted/20">
+                      {[...(parsedStoryState.journeyLog as any[])].reverse().map((entry: any) => (
+                        <div 
+                          key={entry.id} 
+                          className={`p-2 rounded text-sm border-l-4 ${
+                            entry.type === 'combat' || entry.type === 'combat_resolved' 
+                              ? 'border-l-red-500 bg-red-950/20' 
+                              : entry.type === 'trap' || entry.type === 'trap_resolved'
+                              ? 'border-l-orange-500 bg-orange-950/20'
+                              : entry.type === 'treasure' || entry.type === 'treasure_resolved'
+                              ? 'border-l-yellow-500 bg-yellow-950/20'
+                              : entry.type === 'discovery'
+                              ? 'border-l-blue-500 bg-blue-950/20'
+                              : 'border-l-gray-500 bg-gray-950/20'
+                          }`}
+                          data-testid={`journey-entry-${entry.id}`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <p className="text-foreground">{entry.description}</p>
+                            <span className="text-xs text-muted-foreground ml-2 whitespace-nowrap">
+                              {new Date(entry.timestamp).toLocaleTimeString()}
+                            </span>
+                          </div>
+                          {entry.position && (
+                            <span className="text-xs text-muted-foreground">
+                              Position: ({entry.position.x}, {entry.position.y})
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 {/* Sessions list */}
                 <div className="space-y-3 mt-6">
+                  <h3 className="text-sm font-semibold text-muted-foreground">Session History</h3>
                   {sessionsLoading ? (
                     <div className="space-y-4">
                       <Skeleton className="h-16 w-full" />
@@ -1779,7 +1821,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     ))
                   ) : (
                     <div className="text-center py-8">
-                      <p className="text-muted-foreground">No journey logs available</p>
+                      <p className="text-muted-foreground">No session history available</p>
                     </div>
                   )}
                 </div>
