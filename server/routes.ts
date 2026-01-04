@@ -6476,12 +6476,25 @@ Respond with JSON:
         }
       }
       
+      // Add narrative event to journey log
+      const existingJourneyLog = (currentStoryState.journeyLog as any[]) || [];
+      const narrativeSummary = storyAdvancement.narrative?.slice(0, 150) || choice;
+      const newJourneyEntry = {
+        id: `story-${Date.now()}`,
+        type: 'story',
+        description: narrativeSummary + (storyAdvancement.narrative && storyAdvancement.narrative.length > 150 ? '...' : ''),
+        timestamp: new Date().toISOString(),
+        choice: choice,
+        consequences: storyAdvancement.consequencesOfChoice
+      };
+      const updatedJourneyLog = [...existingJourneyLog, newJourneyEntry].slice(-50);
+      
       // Merge the new exploration limit with the AI-generated story state
       const mergedStoryState = {
         ...storyAdvancement.storyState,
         explorationLimit: newExplorationLimit,
         startPosition: currentStoryState.startPosition || { x: 4, y: 4 },
-        journeyLog: currentStoryState.journeyLog || [],
+        journeyLog: updatedJourneyLog,
         adventureProgress: currentStoryState.adventureProgress,
         adventureRequirements: currentStoryState.adventureRequirements,
         movesWithoutStory: 0, // Reset moves counter after story advancement

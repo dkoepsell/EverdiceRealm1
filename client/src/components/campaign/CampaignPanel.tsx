@@ -1850,31 +1850,33 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       <MapPin className="h-4 w-4" />
                       Recent Exploration
                     </h3>
-                    <div className="max-h-64 overflow-y-auto space-y-2 border rounded-md p-3 bg-muted/20">
+                    <div className="max-h-64 overflow-y-auto space-y-2 border rounded-md p-3 bg-card">
                       {[...(parsedStoryState.journeyLog as any[])].reverse().map((entry: any) => (
                         <div 
                           key={entry.id} 
-                          className={`p-2 rounded text-sm border-l-4 ${
+                          className={`p-3 rounded-lg text-sm border-l-4 shadow-sm ${
                             entry.type === 'combat' || entry.type === 'combat_resolved' 
-                              ? 'border-l-red-500 bg-red-950/20' 
+                              ? 'border-l-red-500 bg-red-50 dark:bg-red-950/30' 
                               : entry.type === 'trap' || entry.type === 'trap_resolved'
-                              ? 'border-l-orange-500 bg-orange-950/20'
+                              ? 'border-l-orange-500 bg-orange-50 dark:bg-orange-950/30'
                               : entry.type === 'treasure' || entry.type === 'treasure_resolved'
-                              ? 'border-l-yellow-500 bg-yellow-950/20'
+                              ? 'border-l-yellow-500 bg-yellow-50 dark:bg-yellow-950/30'
                               : entry.type === 'discovery'
-                              ? 'border-l-blue-500 bg-blue-950/20'
-                              : 'border-l-gray-500 bg-gray-950/20'
+                              ? 'border-l-blue-500 bg-blue-50 dark:bg-blue-950/30'
+                              : entry.type === 'story' || entry.type === 'narrative'
+                              ? 'border-l-purple-500 bg-purple-50 dark:bg-purple-950/30'
+                              : 'border-l-stone-400 bg-stone-100 dark:bg-stone-800/50'
                           }`}
                           data-testid={`journey-entry-${entry.id}`}
                         >
-                          <div className="flex justify-between items-start">
-                            <p className="text-foreground">{entry.description}</p>
-                            <span className="text-xs text-muted-foreground ml-2 whitespace-nowrap">
+                          <div className="flex justify-between items-start gap-2">
+                            <p className="text-stone-800 dark:text-stone-100 leading-relaxed">{entry.description}</p>
+                            <span className="text-xs text-stone-500 dark:text-stone-400 ml-2 whitespace-nowrap flex-shrink-0">
                               {new Date(entry.timestamp).toLocaleTimeString()}
                             </span>
                           </div>
                           {entry.position && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-stone-500 dark:text-stone-400 mt-1 block">
                               Position: ({entry.position.x}, {entry.position.y})
                             </span>
                           )}
