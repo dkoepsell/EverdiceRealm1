@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { 
   Map, MapPin, Mountain, Trees, Waves, Skull, Flame, Building2, 
   Castle, Landmark, Compass, ChevronLeft, ChevronRight, User, Crown,
-  CircleDot, Eye, CheckCircle2, Lock
+  CircleDot, Eye, CheckCircle2, Lock, Swords, Users
 } from "lucide-react";
 import { useState } from "react";
 import type { WorldRegion, WorldLocation, UserWorldProgress } from "@shared/schema";
@@ -67,6 +67,23 @@ export default function WorldMapPage() {
     queryKey: ["/api/world/progress"],
     enabled: !!user,
   });
+
+  // Fetch active adventures/campaigns per region and location
+  interface WorldActivity {
+    regionActivity: Record<number, { campaigns: any[], adventurerCount: number }>;
+    locationActivity: Record<number, { campaigns: any[], adventurerCount: number }>;
+  }
+  const { data: worldActivity } = useQuery<WorldActivity>({
+    queryKey: ["/api/world/activity"],
+  });
+
+  const getRegionActivity = (regionId: number) => {
+    return worldActivity?.regionActivity?.[regionId] || { campaigns: [], adventurerCount: 0 };
+  };
+
+  const getLocationActivity = (locationId: number) => {
+    return worldActivity?.locationActivity?.[locationId] || { campaigns: [], adventurerCount: 0 };
+  };
 
   const getRegionProgress = (regionId: number): UserWorldProgress | undefined => {
     return myProgress.find(p => p.regionId === regionId);
@@ -294,6 +311,41 @@ export default function WorldMapPage() {
                   </div>
                 )}
 
+                {/* Active Adventures in this Region */}
+                {(() => {
+                  const activity = getRegionActivity(selectedRegion.id);
+                  if (activity.campaigns.length === 0) return null;
+                  return (
+                    <div className="p-3 bg-amber-900/20 border border-amber-700/30 rounded-lg">
+                      <h4 className="font-semibold mb-2 flex items-center gap-2 text-amber-300">
+                        <Swords className="h-4 w-4" />
+                        Active Adventures ({activity.campaigns.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {activity.campaigns.slice(0, 5).map((campaign: any) => (
+                          <div key={campaign.id} className="flex items-center gap-2 text-sm">
+                            <div className={`w-2 h-2 rounded-full ${campaign.isActive ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`} />
+                            <span className="flex-1 truncate">{campaign.title}</span>
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Users className="h-3 w-3" />
+                              <span className="text-xs">{campaign.adventurerCount}</span>
+                            </div>
+                          </div>
+                        ))}
+                        {activity.campaigns.length > 5 && (
+                          <p className="text-xs text-muted-foreground">
+                            +{activity.campaigns.length - 5} more adventures...
+                          </p>
+                        )}
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-amber-700/30 flex items-center gap-2 text-xs text-amber-200">
+                        <Users className="h-3 w-3" />
+                        {activity.adventurerCount} adventurers exploring this region
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div>
                   <h4 className="font-semibold mb-2 flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
@@ -326,11 +378,21 @@ export default function WorldMapPage() {
                           <p className="text-xs text-muted-foreground mt-1">
                             {location.description}
                           </p>
-                          {location.linkedCampaignId && (
-                            <Badge variant="secondary" className="mt-1 text-xs">
-                              Active Adventure
-                            </Badge>
-                          )}
+                          {(() => {
+                            const locActivity = getLocationActivity(location.id);
+                            if (locActivity.campaigns.length === 0) return null;
+                            return (
+                              <div className="mt-1 flex items-center gap-1">
+                                <Badge variant="secondary" className="text-xs bg-amber-600/30 text-amber-200 border-amber-600/50">
+                                  <Swords className="h-3 w-3 mr-1" />
+                                  {locActivity.campaigns.length} active
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  ({locActivity.adventurerCount} adventurers)
+                                </span>
+                              </div>
+                            );
+                          })()}
                         </div>
                       );
                     })}

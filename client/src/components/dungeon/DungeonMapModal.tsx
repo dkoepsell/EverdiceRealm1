@@ -340,14 +340,18 @@ export function DungeonMapModal({
           {!mapData ? (
             <div className="flex flex-col items-center justify-center py-8 space-y-4">
               <p className="text-muted-foreground text-center">
-                No dungeon map loaded. Generate a new dungeon to explore!
+                {readOnly 
+                  ? "The dungeon map will appear as your adventure progresses through story choices."
+                  : "No dungeon map loaded. Generate a new dungeon to explore!"}
               </p>
-              <Button 
-                onClick={handleGenerateNewDungeon}
-                data-testid="button-generate-dungeon"
-              >
-                Generate Dungeon
-              </Button>
+              {!readOnly && (
+                <Button 
+                  onClick={handleGenerateNewDungeon}
+                  data-testid="button-generate-dungeon"
+                >
+                  Generate Dungeon
+                </Button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -437,29 +441,32 @@ export function DungeonMapModal({
                   </div>
                 </div>
                 
-                <div className="flex flex-col gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={handleGenerateNewDungeon}
-                    data-testid="button-regenerate-dungeon"
-                  >
-                    New Dungeon
-                  </Button>
-                  {onExitDungeon && (
+                {/* Only show dungeon controls in standalone mode, not during campaign play */}
+                {!readOnly && (
+                  <div className="flex flex-col gap-2">
                     <Button 
-                      variant="secondary" 
+                      variant="outline" 
                       size="sm"
-                      onClick={() => {
-                        onExitDungeon();
-                        setIsOpen(false);
-                      }}
-                      data-testid="button-exit-dungeon"
+                      onClick={handleGenerateNewDungeon}
+                      data-testid="button-regenerate-dungeon"
                     >
-                      Exit Dungeon
+                      New Dungeon
                     </Button>
-                  )}
-                </div>
+                    {onExitDungeon && (
+                      <Button 
+                        variant="secondary" 
+                        size="sm"
+                        onClick={() => {
+                          onExitDungeon();
+                          setIsOpen(false);
+                        }}
+                        data-testid="button-exit-dungeon"
+                      >
+                        Exit Dungeon
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}

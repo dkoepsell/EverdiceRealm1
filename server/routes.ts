@@ -7010,6 +7010,65 @@ Respond with JSON:
   // World Map API Routes
   // ========================================
   
+  // Get active campaigns/adventures per world region and location
+  app.get("/api/world/activity", async (req, res) => {
+    try {
+      // Get all campaigns that are linked to world regions or locations
+      const campaigns = await storage.getCampaigns();
+      
+      // Group by region and location
+      const regionActivity: Record<number, { campaigns: any[], adventurerCount: number }> = {};
+      const locationActivity: Record<number, { campaigns: any[], adventurerCount: number }> = {};
+      
+      for (const campaign of campaigns) {
+        // Skip archived campaigns
+        if (campaign.status === 'archived') continue;
+        
+        // Get participant count
+        const participants = await storage.getCampaignParticipants(campaign.id);
+        const adventurerCount = participants?.length || 0;
+        
+        // Get current session for status
+        const currentSession = await storage.getCurrentSession(campaign.id);
+        const isActive = currentSession && campaign.status !== 'completed';
+        
+        const campaignInfo = {
+          id: campaign.id,
+          title: campaign.title,
+          status: campaign.status,
+          isActive,
+          adventurerCount,
+          currentSessionTitle: currentSession?.title || null,
+          worldLocationId: campaign.worldLocationId,
+          worldRegionId: campaign.worldRegionId,
+        };
+        
+        // Add to region activity
+        if (campaign.worldRegionId) {
+          if (!regionActivity[campaign.worldRegionId]) {
+            regionActivity[campaign.worldRegionId] = { campaigns: [], adventurerCount: 0 };
+          }
+          regionActivity[campaign.worldRegionId].campaigns.push(campaignInfo);
+          regionActivity[campaign.worldRegionId].adventurerCount += adventurerCount;
+        }
+        
+        // Add to location activity
+        if (campaign.worldLocationId) {
+          if (!locationActivity[campaign.worldLocationId]) {
+            locationActivity[campaign.worldLocationId] = { campaigns: [], adventurerCount: 0 };
+          }
+          locationActivity[campaign.worldLocationId].campaigns.push(campaignInfo);
+          locationActivity[campaign.worldLocationId].adventurerCount += adventurerCount;
+        }
+      }
+      
+      res.json({ regionActivity, locationActivity });
+    } catch (error) {
+      console.error("Failed to fetch world activity:", error);
+      res.status(500).json({ message: "Failed to fetch world activity" });
+    }
+  });
+  
   // Get all world regions (public - anyone can view the world map)
   app.get("/api/world/regions", async (req, res) => {
     try {
