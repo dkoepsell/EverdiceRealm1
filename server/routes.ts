@@ -4126,6 +4126,98 @@ Return your response as a JSON object with these fields:
         };
       }
       
+      // Social encounter chance (10% - adds variety with NPC interactions)
+      if (!encounterTriggered && Math.random() < 0.10) {
+        const socialEncounters = [
+          {
+            description: 'A weary traveler sits by a small fire, offering to share information about the dangers ahead.',
+            choices: [
+              { id: 'persuade', text: 'Convince them to share their knowledge (Persuasion DC 12)', rollRequired: { type: 'd20', skill: 'persuasion' } },
+              { id: 'intimidate', text: 'Demand they tell you everything (Intimidation DC 14)', rollRequired: { type: 'd20', skill: 'intimidation' } },
+              { id: 'share', text: 'Share your own supplies and stories', rollRequired: null }
+            ]
+          },
+          {
+            description: 'A mysterious merchant has set up a small stall in an alcove, dealing in unusual wares.',
+            choices: [
+              { id: 'insight', text: 'Sense their true intentions (Insight DC 13)', rollRequired: { type: 'd20', skill: 'insight' } },
+              { id: 'deception', text: 'Pretend to be a fellow merchant (Deception DC 14)', rollRequired: { type: 'd20', skill: 'deception' } },
+              { id: 'browse', text: 'Browse their wares peacefully', rollRequired: null }
+            ]
+          },
+          {
+            description: 'You encounter a group of lost adventurers arguing over which direction to go.',
+            choices: [
+              { id: 'diplomacy', text: 'Help mediate their dispute (Persuasion DC 11)', rollRequired: { type: 'd20', skill: 'persuasion' } },
+              { id: 'guide', text: 'Offer to guide them out (Survival DC 12)', rollRequired: { type: 'd20', skill: 'survival' } },
+              { id: 'observe', text: 'Watch from a distance', rollRequired: null }
+            ]
+          },
+          {
+            description: 'A sprite hovers nearby, speaking in riddles and offering a bargain for safe passage.',
+            choices: [
+              { id: 'arcana', text: 'Speak in the old tongue (Arcana DC 13)', rollRequired: { type: 'd20', skill: 'arcana' } },
+              { id: 'performance', text: 'Entertain with a song or tale (Performance DC 12)', rollRequired: { type: 'd20', skill: 'performance' } },
+              { id: 'decline', text: 'Politely decline and continue', rollRequired: null }
+            ]
+          }
+        ];
+        const social = socialEncounters[Math.floor(Math.random() * socialEncounters.length)];
+        encounterTriggered = true;
+        encounterData = {
+          type: 'social',
+          description: social.description,
+          choices: social.choices,
+          resolved: false
+        };
+      }
+      
+      // Exploration/Discovery encounter chance (12% - finding hidden areas, clues, lore)
+      if (!encounterTriggered && Math.random() < 0.12) {
+        const explorationEncounters = [
+          {
+            description: 'You notice loose stones in the wall that might conceal a hidden passage.',
+            choices: [
+              { id: 'investigate', text: 'Search for a hidden mechanism (Investigation DC 13)', rollRequired: { type: 'd20', skill: 'investigation' } },
+              { id: 'perception', text: 'Listen for sounds beyond the wall (Perception DC 14)', rollRequired: { type: 'd20', skill: 'perception' } },
+              { id: 'leave', text: 'Continue on your current path', rollRequired: null }
+            ]
+          },
+          {
+            description: 'Ancient murals cover the walls, depicting events that may hold clues to your quest.',
+            choices: [
+              { id: 'history', text: 'Study the historical significance (History DC 12)', rollRequired: { type: 'd20', skill: 'history' } },
+              { id: 'religion', text: 'Interpret the religious symbolism (Religion DC 13)', rollRequired: { type: 'd20', skill: 'religion' } },
+              { id: 'sketch', text: 'Make a quick sketch for later', rollRequired: null }
+            ]
+          },
+          {
+            description: 'A faint magical aura emanates from somewhere nearby, barely perceptible.',
+            choices: [
+              { id: 'arcana', text: 'Trace the source of magic (Arcana DC 14)', rollRequired: { type: 'd20', skill: 'arcana' } },
+              { id: 'nature', text: 'Sense if it is natural magic (Nature DC 12)', rollRequired: { type: 'd20', skill: 'nature' } },
+              { id: 'ignore', text: 'Proceed cautiously', rollRequired: null }
+            ]
+          },
+          {
+            description: 'Old journals and maps are scattered across a dusty table, left by previous explorers.',
+            choices: [
+              { id: 'investigation', text: 'Search for useful information (Investigation DC 11)', rollRequired: { type: 'd20', skill: 'investigation' } },
+              { id: 'survival', text: 'Check for signs of what happened here (Survival DC 13)', rollRequired: { type: 'd20', skill: 'survival' } },
+              { id: 'take', text: 'Gather the documents for later', rollRequired: null }
+            ]
+          }
+        ];
+        const exploration = explorationEncounters[Math.floor(Math.random() * explorationEncounters.length)];
+        encounterTriggered = true;
+        encounterData = {
+          type: 'exploration',
+          description: exploration.description,
+          choices: exploration.choices,
+          resolved: false
+        };
+      }
+      
       // Update dungeon map position
       if (mapId) {
         await storage.updateCampaignDungeonMap(mapId, {
@@ -4297,6 +4389,34 @@ Return your response as a JSON object with these fields:
           } else {
             outcome.narrative = "You struggle with the puzzle but can't quite figure it out. Perhaps you can try again later.";
           }
+        } else if (encounter.type === 'social') {
+          if (outcome.success) {
+            const socialRewards = [
+              { narrative: "The traveler shares valuable information about the dangers ahead and gives you a healing potion for your kindness.", reward: { items: ['Potion of Healing'], xp: 30 } },
+              { narrative: "The merchant is impressed by your insight and offers you a discount on their finest wares.", reward: { gold: 20, xp: 25 } },
+              { narrative: "You successfully mediate the dispute. The grateful adventurers share their map with you.", reward: { xp: 40 } },
+              { narrative: "The sprite is delighted by your knowledge and grants you a minor blessing.", reward: { xp: 35 } }
+            ];
+            const reward = socialRewards[Math.floor(Math.random() * socialRewards.length)];
+            outcome.narrative = reward.narrative;
+            outcome.rewards = reward.reward;
+          } else {
+            outcome.narrative = "Your social approach doesn't quite work out, but no harm is done. The interaction ends awkwardly.";
+          }
+        } else if (encounter.type === 'exploration') {
+          if (outcome.success) {
+            const explorationRewards = [
+              { narrative: "You discover a hidden passage! It leads to a small cache containing gold and an old map.", reward: { gold: 40, xp: 30 } },
+              { narrative: "The murals reveal ancient secrets about this place. You gain valuable historical knowledge.", reward: { xp: 50 } },
+              { narrative: "You trace the magical aura to a hidden enchanted item glowing faintly in an alcove.", reward: { items: ['Enchanted Trinket'], xp: 35 } },
+              { narrative: "The journals contain detailed notes about the dungeon's layout and hidden dangers.", reward: { xp: 45 } }
+            ];
+            const reward = explorationRewards[Math.floor(Math.random() * explorationRewards.length)];
+            outcome.narrative = reward.narrative;
+            outcome.rewards = reward.reward;
+          } else {
+            outcome.narrative = "Your investigation doesn't reveal anything of note, but you've learned more about this place.";
+          }
         }
       } else {
         // Non-roll choices
@@ -4324,6 +4444,36 @@ Return your response as a JSON object with these fields:
         } else if (choiceId === 'trigger' && encounter.type === 'puzzle') {
           outcome.narrative = "You throw a rock to trigger the plates from safety. The mechanism resets after the trap fires.";
           outcome.success = true;
+        } else if (encounter.type === 'social') {
+          // Non-roll social choices
+          if (choiceId === 'share') {
+            outcome.narrative = "You share your supplies and stories. The traveler appreciates your kindness and wishes you well.";
+            outcome.success = true;
+          } else if (choiceId === 'browse') {
+            outcome.narrative = "You browse the merchant's unusual wares. Some items catch your eye for future reference.";
+            outcome.success = true;
+          } else if (choiceId === 'observe') {
+            outcome.narrative = "You watch the adventurers from a distance. Eventually they sort out their differences and move on.";
+            outcome.success = true;
+          } else if (choiceId === 'decline') {
+            outcome.narrative = "You politely decline the sprite's offer. It shrugs and vanishes in a puff of glitter.";
+            outcome.success = true;
+          }
+        } else if (encounter.type === 'exploration') {
+          // Non-roll exploration choices
+          if (choiceId === 'leave') {
+            outcome.narrative = "You decide not to investigate further and continue on your way.";
+            outcome.success = true;
+          } else if (choiceId === 'sketch') {
+            outcome.narrative = "You make a quick sketch of the murals for later study.";
+            outcome.success = true;
+          } else if (choiceId === 'ignore') {
+            outcome.narrative = "You proceed cautiously past the magical aura, keeping your distance.";
+            outcome.success = true;
+          } else if (choiceId === 'take') {
+            outcome.narrative = "You gather the scattered documents. They might prove useful later.";
+            outcome.success = true;
+          }
         }
       }
       
@@ -4363,6 +4513,12 @@ Return your response as a JSON object with these fields:
             [encounterType]: (adventureProgress.encounters?.[encounterType] || 0) + 1,
             total: (adventureProgress.encounters?.total || 0) + 1
           }
+        };
+      } else if (['social', 'exploration'].includes(encounterType)) {
+        // Social and exploration encounters count as discoveries
+        adventureProgress = {
+          ...adventureProgress,
+          discoveries: (adventureProgress.discoveries || 0) + 1
         };
       }
       
@@ -4621,6 +4777,57 @@ Return your response as a JSON object with these fields:
     } catch (error) {
       console.error("Error fetching users:", error);
       res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // Adventure completions endpoint
+  app.get("/api/adventure-completions", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const userId = req.user!.id;
+      
+      // Get all campaigns for this user by querying directly
+      const userCampaigns = await db.select().from(campaigns).where(eq(campaigns.userId, userId));
+      const completions: any[] = [];
+      
+      for (const campaign of userCampaigns) {
+        // Get sessions for this campaign
+        const sessions = await storage.getCampaignSessions(campaign.id);
+        
+        for (const session of sessions) {
+          if (session.storyState) {
+            try {
+              const storyState = typeof session.storyState === 'string' 
+                ? JSON.parse(session.storyState) 
+                : session.storyState;
+              
+              if (storyState.adventureProgress?.isComplete) {
+                completions.push({
+                  id: session.id,
+                  campaignId: campaign.id,
+                  campaignTitle: campaign.title,
+                  sessionNumber: session.sessionNumber,
+                  completedAt: storyState.adventureProgress.completedAt || session.updatedAt,
+                  difficulty: campaign.difficulty,
+                  encounters: storyState.adventureProgress.encounters,
+                  puzzles: storyState.adventureProgress.puzzles,
+                  discoveries: storyState.adventureProgress.discoveries
+                });
+              }
+            } catch (e) {
+              // Skip sessions with invalid JSON
+            }
+          }
+        }
+      }
+      
+      res.json(completions);
+    } catch (error) {
+      console.error("Failed to fetch adventure completions:", error);
+      res.status(500).json({ message: "Failed to fetch adventure completions" });
     }
   });
 

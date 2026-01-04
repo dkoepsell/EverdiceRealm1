@@ -1124,16 +1124,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       
       console.log("Dice roll request:", diceRoll);
       
-      // Show animation while we wait for server response
-      setDiceRollResult({
-        diceType: diceRoll.diceType,
-        rolls: [0], // Placeholder 
-        total: 0,
-        modifier: diceRoll.modifier || 0,
-        purpose: diceRoll.purpose || '',
-        isCritical: false,
-        isFumble: false
-      });
+      // Clear previous result while rolling (don't set a placeholder with zeros)
+      setDiceRollResult(null);
       
       // Roll the dice on the server
       let result;
