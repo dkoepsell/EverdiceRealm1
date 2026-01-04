@@ -5147,8 +5147,27 @@ You may create a new character or start a new adventure to continue playing.`;
         });
       }
       
+      // Get campaign for narrative style and difficulty
+      const campaign = await storage.getCampaign(campaignId);
+      const narrativeStyle = campaign?.narrativeStyle || "Descriptive";
+      const difficulty = campaign?.difficulty || "Normal - Balanced Challenge";
+      
+      // Define narrative style instructions based on setting (case-insensitive lookup)
+      const normalizedStyle = narrativeStyle.toLowerCase();
+      const narrativeStyleInstructions = {
+        "descriptive": "Use vivid, detailed descriptions of settings and actions. Paint the scene with sensory details.",
+        "dramatic": "Focus on tension, emotion, and high-stakes moments. Build suspense and emphasize character reactions.",
+        "conversational": "Keep the tone light and accessible. Use natural dialogue and straightforward descriptions.",
+        "humorous": "Include witty observations, amusing situations, and playful narrative voice. Don't take things too seriously.",
+        "dark": "Emphasize danger, consequences, and grim atmosphere. Focus on moral ambiguity and harsh realities."
+      }[normalizedStyle] || "Use vivid, detailed descriptions of settings and actions.";
+      
       // Generate story continuation based on choice and previous context
       const prompt = `
+You are an expert Dungeon Master for a D&D game with a ${narrativeStyle} storytelling style.
+${narrativeStyleInstructions}
+Difficulty: ${difficulty}
+
 Continue this D&D story based on the player's choice and maintain story continuity.
 
 Previous Session Context:
@@ -5228,11 +5247,13 @@ TACTICAL COMBAT OPTIONS (include these choices when in combat):
 - Cast a spell (if magic user)
 
 WRITING STYLE REQUIREMENTS:
-- Be CONCISE and ACTION-FOCUSED
-- No flowery descriptions of scenery or atmosphere
+- Apply the ${narrativeStyle} storytelling style consistently
 - Lead with what HAPPENS as a result of the player action
-- Keep narrative under 150 words total
+- Keep narrative between 80-120 words - tight and punchy
 - Every sentence must advance the plot or show consequences
+- IMPORTANT: Make each story beat SIGNIFICANT - big reveals, meaningful encounters, plot twists
+- Advance the story rapidly - skip mundane travel or waiting periods
+- Jump to the next interesting moment or encounter
 
 Generate the next story segment that:
 1. IMMEDIATELY shows what happened because of their specific action/roll

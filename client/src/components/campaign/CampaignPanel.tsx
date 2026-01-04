@@ -1922,10 +1922,17 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         {activeCharacter.equipment && activeCharacter.equipment.length > 0 ? (
                           activeCharacter.equipment.map((item: string, index: number) => (
                             <div key={index} className="flex items-center justify-between p-2 bg-muted/20 rounded text-sm" data-testid={`item-${index}`}>
-                              <span className="flex-1">{item}</span>
+                              <span className="flex-1 truncate" title={item}>{item}</span>
                               <div className="flex items-center gap-1">
-                                <Select onValueChange={(slot) => equipItemMutation.mutate({ characterId: activeCharacter.id, item, slot })}>
-                                  <SelectTrigger className="h-6 w-20 text-xs" data-testid={`select-equip-${index}`}>
+                                <Select 
+                                  value=""
+                                  onValueChange={(slot) => {
+                                    if (slot) {
+                                      equipItemMutation.mutate({ characterId: activeCharacter.id, item, slot });
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger className="h-6 w-16 text-xs" data-testid={`select-equip-${index}`}>
                                     <SelectValue placeholder="Equip" />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -1935,6 +1942,33 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                     <SelectItem value="accessory">Accessory</SelectItem>
                                   </SelectContent>
                                 </Select>
+                                {participants && participants.length > 1 && (
+                                  <Select 
+                                    value=""
+                                    onValueChange={(targetId) => {
+                                      if (targetId) {
+                                        transferItemMutation.mutate({ 
+                                          fromCharacterId: activeCharacter.id, 
+                                          toCharacterId: parseInt(targetId), 
+                                          item 
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-6 w-14 text-xs" data-testid={`select-transfer-${index}`}>
+                                      <SelectValue placeholder="Give" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {participants
+                                        .filter((p: any) => p.characterId !== activeCharacter.id)
+                                        .map((p: any) => (
+                                          <SelectItem key={p.characterId} value={p.characterId.toString()}>
+                                            {p.character?.name || `Character ${p.characterId}`}
+                                          </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
                                 <Button
                                   size="sm"
                                   variant="ghost"
@@ -2252,8 +2286,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             <div key={index} className="flex items-center justify-between p-2 bg-muted/20 rounded text-sm" data-testid={`npc-item-${index}`}>
                               <span className="flex-1">{item}</span>
                               <div className="flex items-center gap-1">
-                                <Select onValueChange={(slot) => equipNpcItemMutation.mutate({ npcId: selectedNpc.id, item, slot })}>
-                                  <SelectTrigger className="h-6 w-20 text-xs" data-testid={`npc-select-equip-${index}`}>
+                                <Select 
+                                  value=""
+                                  onValueChange={(slot) => {
+                                    if (slot) {
+                                      equipNpcItemMutation.mutate({ npcId: selectedNpc.id, item, slot });
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger className="h-6 w-16 text-xs" data-testid={`npc-select-equip-${index}`}>
                                     <SelectValue placeholder="Equip" />
                                   </SelectTrigger>
                                   <SelectContent>
