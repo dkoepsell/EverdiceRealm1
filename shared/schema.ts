@@ -160,6 +160,9 @@ export const campaigns = pgTable("campaigns", {
   deploymentCode: text("deployment_code"), // Unique code for joining this campaign
   isPrivate: boolean("is_private").default(true), // Whether the campaign requires code to join
   maxPlayers: integer("max_players").default(6), // Maximum number of players allowed
+  // World map linkage - where this adventure takes place
+  worldLocationId: integer("world_location_id"), // Link to world_locations table
+  worldRegionId: integer("world_region_id"), // Link to world_regions table
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at"),
 });
@@ -654,3 +657,94 @@ export const insertCampaignQuestSchema = createInsertSchema(campaignQuests).omit
 
 export type InsertCampaignQuest = z.infer<typeof insertCampaignQuestSchema>;
 export type CampaignQuest = typeof campaignQuests.$inferSelect;
+
+// World Map - The persistent realm of Everdice
+export const worldRegions = pgTable("world_regions", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  regionType: text("region_type").notNull().default("territory"), // continent, kingdom, territory, area, dungeon
+  parentRegionId: integer("parent_region_id"), // For hierarchical regions
+  // Position on the world map (grid-based coordinates)
+  gridX: integer("grid_x").notNull().default(0),
+  gridY: integer("grid_y").notNull().default(0),
+  width: integer("width").notNull().default(1), // Width in grid units
+  height: integer("height").notNull().default(1), // Height in grid units
+  // Visual display
+  color: text("color").default("#4a5568"), // Display color on map
+  iconType: text("icon_type").default("territory"), // Icon to display
+  terrain: text("terrain").default("plains"), // plains, forest, mountain, desert, swamp, ocean, etc.
+  dangerLevel: integer("danger_level").default(1), // 1-5 danger rating
+  levelRange: text("level_range").default("1-5"), // Recommended character level range
+  // Lore and details
+  lore: text("lore"),
+  knownFor: text("known_for"), // Brief description shown on hover
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertWorldRegionSchema = createInsertSchema(worldRegions).omit({
+  id: true,
+});
+
+export type InsertWorldRegion = z.infer<typeof insertWorldRegionSchema>;
+export type WorldRegion = typeof worldRegions.$inferSelect;
+
+// World Locations - Points of interest within regions (adventure sites)
+export const worldLocations = pgTable("world_locations", {
+  id: serial("id").primaryKey(),
+  regionId: integer("region_id").notNull(), // Which region this is in
+  name: text("name").notNull(),
+  description: text("description"),
+  locationType: text("location_type").notNull().default("landmark"), // city, town, village, dungeon, landmark, ruins, shrine, cave, tower
+  // Position within the region (relative coordinates 0-100%)
+  posX: integer("pos_x").notNull().default(50),
+  posY: integer("pos_y").notNull().default(50),
+  // Display properties
+  iconType: text("icon_type").default("marker"),
+  isDiscoverable: boolean("is_discoverable").default(true), // Can players discover this?
+  isMainQuest: boolean("is_main_quest").default(false), // Is this a main storyline location?
+  // Adventure linkage - a campaign/adventure can be associated with this location
+  linkedCampaignId: integer("linked_campaign_id"),
+  // Lore
+  lore: text("lore"),
+  secrets: text("secrets"), // Hidden info revealed when discovered
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertWorldLocationSchema = createInsertSchema(worldLocations).omit({
+  id: true,
+});
+
+export type InsertWorldLocation = z.infer<typeof insertWorldLocationSchema>;
+export type WorldLocation = typeof worldLocations.$inferSelect;
+
+// User World Progress - Tracks each user's exploration of the world
+export const userWorldProgress = pgTable("user_world_progress", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  regionId: integer("region_id"), // Which region (null if location-based)
+  locationId: integer("location_id"), // Which location (null if region-based)
+  // Progress state
+  hasDiscovered: boolean("has_discovered").default(false), // Has the user found this?
+  hasVisited: boolean("has_visited").default(false), // Has the user entered/explored?
+  completionPercent: integer("completion_percent").default(0), // 0-100%
+  completionState: text("completion_state").default("undiscovered"), // undiscovered, discovered, in_progress, completed
+  // Stats
+  timesVisited: integer("times_visited").default(0),
+  lastVisitedAt: text("last_visited_at"),
+  firstDiscoveredAt: text("first_discovered_at"),
+  completedAt: text("completed_at"),
+  // Link to sessions - which session brought them here
+  lastSessionId: integer("last_session_id"),
+  lastCampaignId: integer("last_campaign_id"),
+  // Notes the player made about this area
+  playerNotes: text("player_notes"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertUserWorldProgressSchema = createInsertSchema(userWorldProgress).omit({
+  id: true,
+});
+
+export type InsertUserWorldProgress = z.infer<typeof insertUserWorldProgressSchema>;
+export type UserWorldProgress = typeof userWorldProgress.$inferSelect;

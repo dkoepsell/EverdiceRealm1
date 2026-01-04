@@ -25,7 +25,11 @@ import {
   items, type Item, type InsertItem,
   // Dungeon maps and quests
   campaignDungeonMaps, type CampaignDungeonMap, type InsertCampaignDungeonMap,
-  campaignQuests, type CampaignQuest, type InsertCampaignQuest
+  campaignQuests, type CampaignQuest, type InsertCampaignQuest,
+  // World map system
+  worldRegions, type WorldRegion, type InsertWorldRegion,
+  worldLocations, type WorldLocation, type InsertWorldLocation,
+  userWorldProgress, type UserWorldProgress, type InsertUserWorldProgress
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or } from "drizzle-orm";
@@ -198,6 +202,31 @@ export interface IStorage {
   updateCampaignQuest(id: number, updates: Partial<CampaignQuest>): Promise<CampaignQuest | undefined>;
   completeCampaignQuest(id: number): Promise<CampaignQuest | undefined>;
   deleteCampaignQuest(id: number): Promise<boolean>;
+  
+  // World Map operations
+  getAllWorldRegions(): Promise<WorldRegion[]>;
+  getWorldRegion(id: number): Promise<WorldRegion | undefined>;
+  createWorldRegion(region: InsertWorldRegion): Promise<WorldRegion>;
+  updateWorldRegion(id: number, updates: Partial<WorldRegion>): Promise<WorldRegion | undefined>;
+  deleteWorldRegion(id: number): Promise<boolean>;
+  
+  // World Location operations
+  getWorldLocations(regionId?: number): Promise<WorldLocation[]>;
+  getWorldLocation(id: number): Promise<WorldLocation | undefined>;
+  getWorldLocationByCampaign(campaignId: number): Promise<WorldLocation | undefined>;
+  createWorldLocation(location: InsertWorldLocation): Promise<WorldLocation>;
+  updateWorldLocation(id: number, updates: Partial<WorldLocation>): Promise<WorldLocation | undefined>;
+  deleteWorldLocation(id: number): Promise<boolean>;
+  
+  // User World Progress operations
+  getUserWorldProgress(userId: number): Promise<UserWorldProgress[]>;
+  getUserProgressForRegion(userId: number, regionId: number): Promise<UserWorldProgress | undefined>;
+  getUserProgressForLocation(userId: number, locationId: number): Promise<UserWorldProgress | undefined>;
+  updateUserWorldProgress(userId: number, regionId: number | null, locationId: number | null, updates: Partial<UserWorldProgress>): Promise<UserWorldProgress>;
+  discoverRegion(userId: number, regionId: number, campaignId?: number, sessionId?: number): Promise<UserWorldProgress>;
+  discoverLocation(userId: number, locationId: number, campaignId?: number, sessionId?: number): Promise<UserWorldProgress>;
+  completeRegion(userId: number, regionId: number): Promise<UserWorldProgress | undefined>;
+  completeLocation(userId: number, locationId: number): Promise<UserWorldProgress | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -1802,6 +1831,164 @@ export class DatabaseStorage implements IStorage {
   async deleteCampaignQuest(id: number): Promise<boolean> {
     await db.delete(campaignQuests).where(eq(campaignQuests.id, id));
     return true;
+  }
+  
+  // World Region operations
+  async getAllWorldRegions(): Promise<WorldRegion[]> {
+    return await db.select().from(worldRegions).orderBy(asc(worldRegions.gridY), asc(worldRegions.gridX));
+  }
+  
+  async getWorldRegion(id: number): Promise<WorldRegion | undefined> {
+    const [region] = await db.select().from(worldRegions).where(eq(worldRegions.id, id));
+    return region || undefined;
+  }
+  
+  async createWorldRegion(region: InsertWorldRegion): Promise<WorldRegion> {
+    const [newRegion] = await db.insert(worldRegions)
+      .values({ ...region, createdAt: new Date().toISOString() })
+      .returning();
+    return newRegion;
+  }
+  
+  async updateWorldRegion(id: number, updates: Partial<WorldRegion>): Promise<WorldRegion | undefined> {
+    const [updated] = await db.update(worldRegions).set(updates).where(eq(worldRegions.id, id)).returning();
+    return updated || undefined;
+  }
+  
+  async deleteWorldRegion(id: number): Promise<boolean> {
+    await db.delete(worldRegions).where(eq(worldRegions.id, id));
+    return true;
+  }
+  
+  // World Location operations
+  async getWorldLocations(regionId?: number): Promise<WorldLocation[]> {
+    if (regionId) {
+      return await db.select().from(worldLocations).where(eq(worldLocations.regionId, regionId));
+    }
+    return await db.select().from(worldLocations);
+  }
+  
+  async getWorldLocation(id: number): Promise<WorldLocation | undefined> {
+    const [location] = await db.select().from(worldLocations).where(eq(worldLocations.id, id));
+    return location || undefined;
+  }
+  
+  async getWorldLocationByCampaign(campaignId: number): Promise<WorldLocation | undefined> {
+    const [location] = await db.select().from(worldLocations).where(eq(worldLocations.linkedCampaignId, campaignId));
+    return location || undefined;
+  }
+  
+  async createWorldLocation(location: InsertWorldLocation): Promise<WorldLocation> {
+    const [newLocation] = await db.insert(worldLocations)
+      .values({ ...location, createdAt: new Date().toISOString() })
+      .returning();
+    return newLocation;
+  }
+  
+  async updateWorldLocation(id: number, updates: Partial<WorldLocation>): Promise<WorldLocation | undefined> {
+    const [updated] = await db.update(worldLocations).set(updates).where(eq(worldLocations.id, id)).returning();
+    return updated || undefined;
+  }
+  
+  async deleteWorldLocation(id: number): Promise<boolean> {
+    await db.delete(worldLocations).where(eq(worldLocations.id, id));
+    return true;
+  }
+  
+  // User World Progress operations
+  async getUserWorldProgress(userId: number): Promise<UserWorldProgress[]> {
+    return await db.select().from(userWorldProgress).where(eq(userWorldProgress.userId, userId));
+  }
+  
+  async getUserProgressForRegion(userId: number, regionId: number): Promise<UserWorldProgress | undefined> {
+    const [progress] = await db.select().from(userWorldProgress)
+      .where(and(eq(userWorldProgress.userId, userId), eq(userWorldProgress.regionId, regionId)));
+    return progress || undefined;
+  }
+  
+  async getUserProgressForLocation(userId: number, locationId: number): Promise<UserWorldProgress | undefined> {
+    const [progress] = await db.select().from(userWorldProgress)
+      .where(and(eq(userWorldProgress.userId, userId), eq(userWorldProgress.locationId, locationId)));
+    return progress || undefined;
+  }
+  
+  async updateUserWorldProgress(userId: number, regionId: number | null, locationId: number | null, updates: Partial<UserWorldProgress>): Promise<UserWorldProgress> {
+    // Try to find existing progress
+    let existing: UserWorldProgress | undefined;
+    if (regionId) {
+      existing = await this.getUserProgressForRegion(userId, regionId);
+    } else if (locationId) {
+      existing = await this.getUserProgressForLocation(userId, locationId);
+    }
+    
+    if (existing) {
+      const [updated] = await db.update(userWorldProgress)
+        .set(updates)
+        .where(eq(userWorldProgress.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(userWorldProgress)
+        .values({
+          userId,
+          regionId,
+          locationId,
+          ...updates,
+          createdAt: new Date().toISOString()
+        })
+        .returning();
+      return created;
+    }
+  }
+  
+  async discoverRegion(userId: number, regionId: number, campaignId?: number, sessionId?: number): Promise<UserWorldProgress> {
+    return this.updateUserWorldProgress(userId, regionId, null, {
+      hasDiscovered: true,
+      completionState: "discovered",
+      firstDiscoveredAt: new Date().toISOString(),
+      lastCampaignId: campaignId,
+      lastSessionId: sessionId
+    });
+  }
+  
+  async discoverLocation(userId: number, locationId: number, campaignId?: number, sessionId?: number): Promise<UserWorldProgress> {
+    return this.updateUserWorldProgress(userId, null, locationId, {
+      hasDiscovered: true,
+      completionState: "discovered",
+      firstDiscoveredAt: new Date().toISOString(),
+      lastCampaignId: campaignId,
+      lastSessionId: sessionId
+    });
+  }
+  
+  async completeRegion(userId: number, regionId: number): Promise<UserWorldProgress | undefined> {
+    const existing = await this.getUserProgressForRegion(userId, regionId);
+    if (!existing) return undefined;
+    
+    const [updated] = await db.update(userWorldProgress)
+      .set({
+        completionState: "completed",
+        completionPercent: 100,
+        completedAt: new Date().toISOString()
+      })
+      .where(eq(userWorldProgress.id, existing.id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async completeLocation(userId: number, locationId: number): Promise<UserWorldProgress | undefined> {
+    const existing = await this.getUserProgressForLocation(userId, locationId);
+    if (!existing) return undefined;
+    
+    const [updated] = await db.update(userWorldProgress)
+      .set({
+        completionState: "completed",
+        completionPercent: 100,
+        completedAt: new Date().toISOString()
+      })
+      .where(eq(userWorldProgress.id, existing.id))
+      .returning();
+    return updated || undefined;
   }
 }
 
