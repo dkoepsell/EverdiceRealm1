@@ -232,3 +232,147 @@ export function getProficiencyBonus(level: number): number {
 export function getAbilityModifier(abilityScore: number): number {
   return Math.floor((abilityScore - 10) / 2);
 }
+
+// D&D 5e Class Hit Dice
+export const CLASS_HIT_DICE: Record<string, number> = {
+  'Barbarian': 12,
+  'Fighter': 10,
+  'Paladin': 10,
+  'Ranger': 10,
+  'Bard': 8,
+  'Cleric': 8,
+  'Druid': 8,
+  'Monk': 8,
+  'Rogue': 8,
+  'Warlock': 8,
+  'Sorcerer': 6,
+  'Wizard': 6,
+};
+
+// D&D 5e Armor Table
+export const ARMOR_TABLE: Record<string, { baseAC: number; type: 'light' | 'medium' | 'heavy'; stealthDisadvantage?: boolean; strengthReq?: number }> = {
+  // Light Armor (AC + full DEX modifier)
+  'Padded': { baseAC: 11, type: 'light', stealthDisadvantage: true },
+  'Leather Armor': { baseAC: 11, type: 'light' },
+  'Studded Leather': { baseAC: 12, type: 'light' },
+  // Medium Armor (AC + DEX modifier, max +2)
+  'Hide': { baseAC: 12, type: 'medium' },
+  'Chain Shirt': { baseAC: 13, type: 'medium' },
+  'Scale Mail': { baseAC: 14, type: 'medium', stealthDisadvantage: true },
+  'Breastplate': { baseAC: 14, type: 'medium' },
+  'Half Plate': { baseAC: 15, type: 'medium', stealthDisadvantage: true },
+  // Heavy Armor (AC only, no DEX)
+  'Ring Mail': { baseAC: 14, type: 'heavy', stealthDisadvantage: true },
+  'Chain Mail': { baseAC: 16, type: 'heavy', stealthDisadvantage: true, strengthReq: 13 },
+  'Splint': { baseAC: 17, type: 'heavy', stealthDisadvantage: true, strengthReq: 15 },
+  'Plate': { baseAC: 18, type: 'heavy', stealthDisadvantage: true, strengthReq: 15 },
+  // Unarmored defaults
+  'Robes': { baseAC: 10, type: 'light' },
+  'Simple Clothes': { baseAC: 10, type: 'light' },
+};
+
+// Shield provides +2 AC bonus (handled separately from armor)
+export const SHIELD_AC_BONUS = 2;
+
+export function calculateArmorClass(
+  armorName: string | null,
+  dexterity: number,
+  hasShield: boolean = false,
+  unarmoredBonus: number = 0 // For Barbarian (CON mod) or Monk (WIS mod)
+): number {
+  const dexMod = getAbilityModifier(dexterity);
+  const shieldBonus = hasShield ? SHIELD_AC_BONUS : 0;
+  
+  if (!armorName || armorName === 'None' || armorName === 'Unarmored') {
+    // Unarmored: 10 + DEX + any unarmored bonus (e.g., Barbarian/Monk)
+    return 10 + dexMod + unarmoredBonus + shieldBonus;
+  }
+  
+  const armor = ARMOR_TABLE[armorName];
+  if (!armor) {
+    // Unknown armor, default to 10 + DEX
+    return 10 + dexMod + shieldBonus;
+  }
+  
+  let ac = armor.baseAC;
+  
+  switch (armor.type) {
+    case 'light':
+      ac += dexMod; // Full DEX modifier
+      break;
+    case 'medium':
+      ac += Math.min(dexMod, 2); // DEX modifier capped at +2
+      break;
+    case 'heavy':
+      // No DEX modifier for heavy armor
+      break;
+  }
+  
+  return ac + shieldBonus;
+}
+
+// D&D 5e Attack Bonus Calculation
+export function calculateAttackBonus(
+  level: number,
+  abilityScore: number, // STR for melee, DEX for ranged/finesse
+  isProficient: boolean = true
+): number {
+  const abilityMod = getAbilityModifier(abilityScore);
+  const profBonus = isProficient ? getProficiencyBonus(level) : 0;
+  return abilityMod + profBonus;
+}
+
+// D&D 5e Saving Throw Calculation
+export function calculateSavingThrow(
+  level: number,
+  abilityScore: number,
+  isProficient: boolean = false
+): number {
+  const abilityMod = getAbilityModifier(abilityScore);
+  const profBonus = isProficient ? getProficiencyBonus(level) : 0;
+  return abilityMod + profBonus;
+}
+
+// Class saving throw proficiencies
+export const CLASS_SAVE_PROFICIENCIES: Record<string, string[]> = {
+  'Barbarian': ['strength', 'constitution'],
+  'Bard': ['dexterity', 'charisma'],
+  'Cleric': ['wisdom', 'charisma'],
+  'Druid': ['intelligence', 'wisdom'],
+  'Fighter': ['strength', 'constitution'],
+  'Monk': ['strength', 'dexterity'],
+  'Paladin': ['wisdom', 'charisma'],
+  'Ranger': ['strength', 'dexterity'],
+  'Rogue': ['dexterity', 'intelligence'],
+  'Sorcerer': ['constitution', 'charisma'],
+  'Warlock': ['wisdom', 'charisma'],
+  'Wizard': ['intelligence', 'wisdom'],
+};
+
+export function getClassSaveProficiencies(characterClass: string): string[] {
+  return CLASS_SAVE_PROFICIENCIES[characterClass] || [];
+}
+
+// Calculate HP for leveling up
+export function calculateHPGainOnLevelUp(
+  characterClass: string,
+  constitution: number,
+  levelsGained: number = 1
+): number {
+  const hitDie = CLASS_HIT_DICE[characterClass] || 8;
+  const conMod = getAbilityModifier(constitution);
+  // D&D 5e uses average: (hit die / 2) + 1 + CON modifier per level
+  const hpPerLevel = Math.floor(hitDie / 2) + 1 + conMod;
+  return Math.max(levelsGained, levelsGained * hpPerLevel); // Minimum 1 HP per level
+}
+
+// Calculate starting HP at level 1
+export function calculateStartingHP(
+  characterClass: string,
+  constitution: number
+): number {
+  const hitDie = CLASS_HIT_DICE[characterClass] || 8;
+  const conMod = getAbilityModifier(constitution);
+  // At level 1: max hit die + CON modifier
+  return hitDie + conMod;
+}
