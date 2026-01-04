@@ -2962,12 +2962,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-black">Narrative Style</label>
+                    <label className="text-sm font-semibold text-slate-800 dark:text-slate-200">Narrative Style</label>
                     <Select value={narrativeStyle} onValueChange={setNarrativeStyle}>
-                      <SelectTrigger className="w-[180px] bg-parchment-dark text-black">
+                      <SelectTrigger className="w-[220px] bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600">
                         <SelectValue placeholder="Narrative style" />
                       </SelectTrigger>
-                      <SelectContent className="bg-parchment-dark">
+                      <SelectContent className="bg-white dark:bg-slate-800">
                         <SelectItem value="Descriptive">Descriptive</SelectItem>
                         <SelectItem value="Dramatic">Dramatic</SelectItem>
                         <SelectItem value="Conversational">Conversational</SelectItem>
@@ -2978,12 +2978,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   </div>
                   
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-black">Difficulty</label>
+                    <label className="text-sm font-semibold text-slate-800 dark:text-slate-200">Difficulty</label>
                     <Select value={difficulty} onValueChange={setDifficulty}>
-                      <SelectTrigger className="w-[180px] bg-parchment-dark text-black">
+                      <SelectTrigger className="w-[260px] bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600">
                         <SelectValue placeholder="Difficulty" />
                       </SelectTrigger>
-                      <SelectContent className="bg-parchment-dark">
+                      <SelectContent className="bg-white dark:bg-slate-800">
                         <SelectItem value="Easy - Beginner Friendly">Easy - Beginner Friendly</SelectItem>
                         <SelectItem value="Normal - Balanced Challenge">Normal - Balanced Challenge</SelectItem>
                         <SelectItem value="Hard - Deadly Encounters">Hard - Deadly Encounters</SelectItem>
@@ -2992,17 +2992,17 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   </div>
 
                   {/* World Map Location */}
-                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700/50 mt-4">
+                  <div className="p-4 bg-white dark:bg-slate-800 rounded-lg border-2 border-slate-300 dark:border-slate-600 mt-4 shadow-sm">
                     <div className="flex items-center gap-2 mb-2">
-                      <MapPin className="h-5 w-5 text-amber-600" />
-                      <h3 className="font-semibold text-amber-800 dark:text-amber-300">World Map Location</h3>
+                      <MapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                      <h3 className="font-bold text-slate-900 dark:text-slate-100">World Map Location</h3>
                     </div>
-                    <p className="text-xs text-amber-700 dark:text-amber-400 mb-3">
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
                       Link this adventure to a location on the world map so other players can see it.
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="text-sm font-medium text-black">Region</label>
+                        <label className="text-sm font-semibold text-slate-800 dark:text-slate-200">Region</label>
                         <Select 
                           value={worldRegionId?.toString() || "none"} 
                           onValueChange={(value) => {
@@ -3012,10 +3012,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             if (!numValue) setWorldLocationId(null);
                           }}
                         >
-                          <SelectTrigger className="bg-parchment-dark text-black">
+                          <SelectTrigger className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600">
                             <SelectValue placeholder="Select a region" />
                           </SelectTrigger>
-                          <SelectContent className="bg-parchment-dark">
+                          <SelectContent className="bg-white dark:bg-slate-800">
                             <SelectItem value="none">No specific region</SelectItem>
                             {worldRegions.map(region => (
                               <SelectItem key={region.id} value={region.id.toString()}>
@@ -3026,7 +3026,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </Select>
                       </div>
                       <div className="space-y-1">
-                        <label className="text-sm font-medium text-black">Location</label>
+                        <label className="text-sm font-semibold text-slate-800 dark:text-slate-200">Location</label>
                         <Select 
                           value={worldLocationId?.toString() || "none"} 
                           onValueChange={(value) => {
@@ -3034,10 +3034,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           }}
                           disabled={filteredWorldLocations.length === 0}
                         >
-                          <SelectTrigger className="bg-parchment-dark text-black">
+                          <SelectTrigger className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600">
                             <SelectValue placeholder="Select a location" />
                           </SelectTrigger>
-                          <SelectContent className="bg-parchment-dark">
+                          <SelectContent className="bg-white dark:bg-slate-800">
                             <SelectItem value="none">No specific location</SelectItem>
                             {filteredWorldLocations.map(location => (
                               <SelectItem key={location.id} value={location.id.toString()}>
