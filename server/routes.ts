@@ -3936,6 +3936,26 @@ Return your response as a JSON object with these fields:
         });
       }
       
+      // Narrative-Map Tie-in: Limit exploration radius based on story progression
+      const explorationLimit = storyState.explorationLimit || 5; // Default 5 tiles from start
+      const startPosition = storyState.startPosition || { x: 4, y: 4 };
+      const distanceFromStart = Math.abs(newPosition.x - startPosition.x) + Math.abs(newPosition.y - startPosition.y);
+      
+      if (distanceFromStart > explorationLimit) {
+        return res.status(400).json({
+          message: "You've reached the edge of the explored area. Advance the story to unlock more of the dungeon.",
+          narrativeRequired: true,
+          explorationLimit,
+          distanceFromStart
+        });
+      }
+      
+      // Track consecutive moves without narrative to force story progression
+      const movesWithoutStory = (storyState.movesWithoutStory || 0) + 1;
+      const maxMovesWithoutStory = 6; // Force narrative after 6 moves
+      
+      let forceNarrativeEvent = movesWithoutStory >= maxMovesWithoutStory;
+      
       // Generate narrative based on movement context
       const tileDescriptions: Record<string, string> = {
         floor: "an empty stone corridor",
@@ -4050,6 +4070,8 @@ Return your response as a JSON object with these fields:
       
       // Update story state with pending encounter and journey log
       const existingJourneyLog = storyState.journeyLog || [];
+      const hasStoryEvent = encounterTriggered || narrativeEvent || forceNarrativeEvent;
+      
       const updatedStoryState = {
         ...storyState,
         lastMovement: {
@@ -4059,7 +4081,10 @@ Return your response as a JSON object with these fields:
           timestamp: new Date().toISOString()
         },
         pendingEncounter: encounterTriggered ? encounterData : null,
-        movementsSinceLastEvent: encounterTriggered || narrativeEvent ? 0 : movesSinceEvent,
+        movementsSinceLastEvent: hasStoryEvent ? 0 : movesSinceEvent,
+        movesWithoutStory: hasStoryEvent ? 0 : movesWithoutStory,
+        startPosition: storyState.startPosition || startPosition,
+        explorationLimit: storyState.explorationLimit || explorationLimit,
         journeyLog: [...existingJourneyLog, journeyEntry].slice(-50),
         adventureProgress,
         adventureRequirements: requirements
@@ -6354,12 +6379,28 @@ Respond with JSON:
         }
       }
 
+      // Expand exploration limit when story advances (narrative unlocks more of the map)
+      const currentStoryState = currentSession.storyState as any || {};
+      const currentExplorationLimit = currentStoryState.explorationLimit || 5;
+      const newExplorationLimit = currentExplorationLimit + 2; // Expand by 2 tiles per story advancement
+      
+      // Merge the new exploration limit with the AI-generated story state
+      const mergedStoryState = {
+        ...storyAdvancement.storyState,
+        explorationLimit: newExplorationLimit,
+        startPosition: currentStoryState.startPosition || { x: 4, y: 4 },
+        journeyLog: currentStoryState.journeyLog || [],
+        adventureProgress: currentStoryState.adventureProgress,
+        adventureRequirements: currentStoryState.adventureRequirements,
+        movesWithoutStory: 0 // Reset moves counter after story advancement
+      };
+      
       // Update session with story advancement
       const updatedSession = await storage.advanceSessionStory(campaignId, {
         narrative: storyAdvancement.narrative,
         dmNarrative: storyAdvancement.dmNarrative,
         choices: storyAdvancement.choices,
-        storyState: storyAdvancement.storyState,
+        storyState: mergedStoryState,
         npcInteractions: storyAdvancement.npcInteractions,
         playerChoicesMade: [...(currentSession.playerChoicesMade || []), {
           choice,

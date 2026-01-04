@@ -207,23 +207,59 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
             </TabsContent>
             
             <TabsContent value="skills">
-              {/* Skills */}
+              {/* Skills - D&D 5e Standard Skills */}
               <div className="text-secondary">
                 <h3 className="font-fantasy text-lg font-bold mb-3 text-primary-light">Skills</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {character.skills && character.skills.length > 0 ? (
-                    character.skills.map((skill, index) => (
-                      <div key={index} className="flex justify-between items-center py-1 border-b border-gray-300">
-                        <span className="text-sm">{skill}</span>
-                        <span className="font-bold">+3</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                  {[
+                    { name: "Acrobatics", ability: "dexterity" },
+                    { name: "Animal Handling", ability: "wisdom" },
+                    { name: "Arcana", ability: "intelligence" },
+                    { name: "Athletics", ability: "strength" },
+                    { name: "Deception", ability: "charisma" },
+                    { name: "History", ability: "intelligence" },
+                    { name: "Insight", ability: "wisdom" },
+                    { name: "Intimidation", ability: "charisma" },
+                    { name: "Investigation", ability: "intelligence" },
+                    { name: "Medicine", ability: "wisdom" },
+                    { name: "Nature", ability: "intelligence" },
+                    { name: "Perception", ability: "wisdom" },
+                    { name: "Performance", ability: "charisma" },
+                    { name: "Persuasion", ability: "charisma" },
+                    { name: "Religion", ability: "intelligence" },
+                    { name: "Sleight of Hand", ability: "dexterity" },
+                    { name: "Stealth", ability: "dexterity" },
+                    { name: "Survival", ability: "wisdom" },
+                  ].map((skill) => {
+                    const abilityScore = character[skill.ability as keyof typeof character] as number || 10;
+                    const baseMod = getModifier(abilityScore);
+                    const isProficient = character.skills?.includes(skill.name) || false;
+                    const profBonus = Math.ceil(1 + character.level / 4);
+                    const totalMod = isProficient ? baseMod + profBonus : baseMod;
+                    
+                    return (
+                      <div 
+                        key={skill.name} 
+                        className={`flex justify-between items-center py-1 px-2 rounded ${
+                          isProficient ? 'bg-primary/10 border-l-2 border-primary' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-1">
+                          <span className={`w-2 h-2 rounded-full ${isProficient ? 'bg-primary' : 'bg-gray-300'}`} />
+                          <span className="text-sm">{skill.name}</span>
+                          <span className="text-xs text-gray-500">({skill.ability.slice(0, 3).toUpperCase()})</span>
+                        </div>
+                        <span className={`font-bold ${isProficient ? 'text-primary' : ''}`}>
+                          {formatModifier(totalMod)}
+                        </span>
                       </div>
-                    ))
-                  ) : (
-                    <div className="col-span-2 py-4 text-center">
-                      <p>No skills added yet</p>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Proficiency Bonus: +{Math.ceil(1 + character.level / 4)} | 
+                  Filled circles indicate proficiency
+                </p>
               </div>
             </TabsContent>
             
