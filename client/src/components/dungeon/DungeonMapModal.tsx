@@ -166,7 +166,7 @@ export function DungeonMapModal({
     });
   };
 
-  const handlePlayerMove = (direction: "up" | "down" | "left" | "right") => {
+  const handlePlayerMove = async (direction: "up" | "down" | "left" | "right") => {
     if (!mapData) return;
     if (pendingEncounter && !pendingEncounter.resolved) {
       toast({
@@ -177,46 +177,59 @@ export function DungeonMapModal({
       return;
     }
     
-    const oldPosition = mapData.playerPosition;
-    const newMapData = movePlayer(mapData, direction);
+    // Prevent movement while a move is in progress
+    if (moveMutation.isPending) return;
     
-    if (newMapData.playerPosition.x !== oldPosition.x || newMapData.playerPosition.y !== oldPosition.y) {
-      setMapData(newMapData);
-      onMapDataChange?.(newMapData);
+    const oldPosition = mapData.playerPosition;
+    const proposedMapData = movePlayer(mapData, direction);
+    
+    if (proposedMapData.playerPosition.x !== oldPosition.x || proposedMapData.playerPosition.y !== oldPosition.y) {
+      const newTile = proposedMapData.tiles[proposedMapData.playerPosition.y][proposedMapData.playerPosition.x];
       
-      const newTile = newMapData.tiles[newMapData.playerPosition.y][newMapData.playerPosition.x];
-      
-      const nearbyEntities = newMapData.entities.filter(e => {
+      const nearbyEntities = proposedMapData.entities.filter(e => {
         const dist = Math.sqrt(
-          Math.pow(e.x - newMapData.playerPosition.x, 2) + 
-          Math.pow(e.y - newMapData.playerPosition.y, 2)
+          Math.pow(e.x - proposedMapData.playerPosition.x, 2) + 
+          Math.pow(e.y - proposedMapData.playerPosition.y, 2)
         );
         return dist <= 1.5;
       });
       
       if (campaignId) {
+        // Call backend FIRST - only update local state if allowed
         moveMutation.mutate({
           direction,
           currentPosition: oldPosition,
-          newPosition: newMapData.playerPosition,
+          newPosition: proposedMapData.playerPosition,
           tileType: newTile.type,
           nearbyEntities,
-          mapData: newMapData,
+          mapData: proposedMapData,
+        }, {
+          onSuccess: (data) => {
+            // Only update local map state after backend confirms movement
+            if (data.success) {
+              setMapData(proposedMapData);
+              onMapDataChange?.(proposedMapData);
+            }
+          }
         });
       } else {
+        // Standalone mode without campaign - allow local movement
+        setMapData(proposedMapData);
+        onMapDataChange?.(proposedMapData);
+        
         if (newTile.type === "trap") {
           toast({
             title: "Trap!",
             description: "You've triggered a trap! Roll a Dexterity saving throw.",
             variant: "destructive",
           });
-          onTileInteraction?.(newMapData.playerPosition.x, newMapData.playerPosition.y, "trap");
+          onTileInteraction?.(proposedMapData.playerPosition.x, proposedMapData.playerPosition.y, "trap");
         } else if (newTile.type === "treasure") {
           toast({
             title: "Treasure Found!",
             description: "You've discovered a treasure chest!",
           });
-          onTileInteraction?.(newMapData.playerPosition.x, newMapData.playerPosition.y, "treasure");
+          onTileInteraction?.(proposedMapData.playerPosition.x, proposedMapData.playerPosition.y, "treasure");
         }
         
         const enemies = nearbyEntities.filter(e => e.type === "enemy" || e.type === "boss");
@@ -256,7 +269,7 @@ export function DungeonMapModal({
     onEntityInteraction?.(entity);
   };
 
-  const isMovementBlocked = pendingEncounter && !pendingEncounter.resolved;
+  const isMovementBlocked = (pendingEncounter && !pendingEncounter.resolved) || moveMutation.isPending;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -309,8 +322,15 @@ export function DungeonMapModal({
                 />
                 
                 {isMovementBlocked && (
-                  <div className="mt-2 p-2 bg-red-900/30 border border-red-700 rounded text-red-300 text-sm text-center">
-                    Movement blocked - resolve the encounter first!
+                  <div className="mt-2 p-2 bg-red-900/30 border border-red-700 rounded text-red-300 text-sm text-center flex items-center justify-center gap-2">
+                    {moveMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Processing movement...
+                      </>
+                    ) : (
+                      "Movement blocked - resolve the encounter first!"
+                    )}
                   </div>
                 )}
                 
