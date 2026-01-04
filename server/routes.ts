@@ -4079,6 +4079,53 @@ Return your response as a JSON object with these fields:
         };
       }
       
+      // Random puzzle encounter chance (if no other encounter triggered)
+      // Triggers ~15% of the time on non-special tiles to vary gameplay
+      if (!encounterTriggered && Math.random() < 0.15) {
+        const puzzleTypes = [
+          {
+            description: 'Ancient runes glow on the wall, forming a cryptic riddle. The answer may unlock hidden secrets.',
+            choices: [
+              { id: 'solve', text: 'Attempt to solve the riddle (Intelligence DC 14)', rollRequired: { type: 'd20', skill: 'intelligence' } },
+              { id: 'arcana', text: 'Use arcane knowledge (Arcana DC 12)', rollRequired: { type: 'd20', skill: 'arcana' } },
+              { id: 'skip', text: 'Move on without solving', rollRequired: null }
+            ]
+          },
+          {
+            description: 'A locked mechanism blocks your path. Gears and levers must be arranged correctly.',
+            choices: [
+              { id: 'investigate', text: 'Study the mechanism (Investigation DC 13)', rollRequired: { type: 'd20', skill: 'investigation' } },
+              { id: 'force', text: 'Try to force it open (Strength DC 16)', rollRequired: { type: 'd20', skill: 'strength' } },
+              { id: 'bypass', text: 'Find another way around', rollRequired: null }
+            ]
+          },
+          {
+            description: 'A magical barrier shimmers before you. Words of power are inscribed nearby.',
+            choices: [
+              { id: 'dispel', text: 'Attempt to dispel it (Arcana DC 15)', rollRequired: { type: 'd20', skill: 'arcana' } },
+              { id: 'read', text: 'Read the inscription (History DC 12)', rollRequired: { type: 'd20', skill: 'history' } },
+              { id: 'wait', text: 'Study the barrier pattern', rollRequired: null }
+            ]
+          },
+          {
+            description: 'Pressure plates form a pattern on the floor. One wrong step could trigger disaster.',
+            choices: [
+              { id: 'perception', text: 'Study the safe path (Perception DC 14)', rollRequired: { type: 'd20', skill: 'perception' } },
+              { id: 'acrobatics', text: 'Leap across carefully (Acrobatics DC 13)', rollRequired: { type: 'd20', skill: 'acrobatics' } },
+              { id: 'trigger', text: 'Trigger them deliberately from afar', rollRequired: null }
+            ]
+          }
+        ];
+        const puzzle = puzzleTypes[Math.floor(Math.random() * puzzleTypes.length)];
+        encounterTriggered = true;
+        encounterData = {
+          type: 'puzzle',
+          description: puzzle.description,
+          choices: puzzle.choices,
+          resolved: false
+        };
+      }
+      
       // Update dungeon map position
       if (mapId) {
         await storage.updateCampaignDungeonMap(mapId, {
@@ -4236,6 +4283,20 @@ Return your response as a JSON object with these fields:
               ? "Your words convince them to let you pass peacefully."
               : "They are not interested in talking. Prepare for combat!";
           }
+        } else if (encounter.type === 'puzzle') {
+          if (outcome.success) {
+            const puzzleRewards = [
+              { narrative: "The puzzle clicks into place, revealing a hidden compartment with treasure!", reward: { gold: 30, items: ['Mysterious Key'] } },
+              { narrative: "The runes glow brightly and fade, granting you ancient knowledge.", reward: { xp: 50 } },
+              { narrative: "The mechanism unlocks with a satisfying click. A secret passage opens!", reward: null },
+              { narrative: "You solve the puzzle! The magical barrier dissipates harmlessly.", reward: { xp: 25 } }
+            ];
+            const reward = puzzleRewards[Math.floor(Math.random() * puzzleRewards.length)];
+            outcome.narrative = reward.narrative;
+            outcome.rewards = reward.reward;
+          } else {
+            outcome.narrative = "You struggle with the puzzle but can't quite figure it out. Perhaps you can try again later.";
+          }
         }
       } else {
         // Non-roll choices
@@ -4250,6 +4311,18 @@ Return your response as a JSON object with these fields:
           outcome.narrative = "You brace yourself as the trap activates. Take 2d6 damage.";
         } else if (choiceId === 'attack') {
           outcome.narrative = "Combat begins! Roll for initiative.";
+          outcome.success = true;
+        } else if (choiceId === 'skip' && encounter.type === 'puzzle') {
+          outcome.narrative = "You move on without attempting the puzzle.";
+          outcome.success = false;
+        } else if (choiceId === 'bypass' && encounter.type === 'puzzle') {
+          outcome.narrative = "You find another way around, avoiding the puzzle entirely.";
+          outcome.success = false;
+        } else if (choiceId === 'wait' && encounter.type === 'puzzle') {
+          outcome.narrative = "You study the barrier's pattern carefully. It seems to weaken at certain intervals...";
+          outcome.success = true;
+        } else if (choiceId === 'trigger' && encounter.type === 'puzzle') {
+          outcome.narrative = "You throw a rock to trigger the plates from safety. The mechanism resets after the trap fires.";
           outcome.success = true;
         }
       }
@@ -4273,16 +4346,25 @@ Return your response as a JSON object with these fields:
       const requirements = getRequirementsForDifficulty(difficulty);
       let adventureProgress = storyState.adventureProgress || createEmptyProgress();
       
-      // Increment the appropriate encounter counter
-      const encounterType = encounter.type as 'combat' | 'trap' | 'treasure';
-      adventureProgress = {
-        ...adventureProgress,
-        encounters: {
-          ...adventureProgress.encounters,
-          [encounterType]: (adventureProgress.encounters?.[encounterType] || 0) + 1,
-          total: (adventureProgress.encounters?.total || 0) + 1
-        }
-      };
+      // Increment the appropriate encounter counter based on type
+      const encounterType = encounter.type as string;
+      if (encounterType === 'puzzle') {
+        // Puzzles are tracked separately from encounters
+        adventureProgress = {
+          ...adventureProgress,
+          puzzles: (adventureProgress.puzzles || 0) + 1
+        };
+      } else if (['combat', 'trap', 'treasure'].includes(encounterType)) {
+        // Standard encounter types
+        adventureProgress = {
+          ...adventureProgress,
+          encounters: {
+            ...adventureProgress.encounters,
+            [encounterType]: (adventureProgress.encounters?.[encounterType] || 0) + 1,
+            total: (adventureProgress.encounters?.total || 0) + 1
+          }
+        };
+      }
       
       // Check if adventure is complete
       const completionStatus = checkAdventureCompletion(adventureProgress, requirements);
