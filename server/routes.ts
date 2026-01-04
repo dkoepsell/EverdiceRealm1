@@ -2851,7 +2851,22 @@ Return your response as a JSON object with these fields:
       
       const completedCampaign = await storage.completeCampaign(campaignId);
       
-      // TODO: Award XP to all characters involved in this campaign
+      // Mark world location/region as completed for all participants
+      if (completedCampaign) {
+        const participants = await storage.getCampaignParticipants(campaignId);
+        for (const participant of participants) {
+          if (completedCampaign.worldLocationId) {
+            await storage.completeLocation(participant.userId, completedCampaign.worldLocationId);
+          }
+          if (completedCampaign.worldRegionId) {
+            // Update region progress but don't mark complete (regions need multiple locations)
+            await storage.updateUserWorldProgress(participant.userId, completedCampaign.worldRegionId, null, {
+              hasVisited: true,
+              lastVisitedAt: new Date().toISOString()
+            });
+          }
+        }
+      }
       
       res.json(completedCampaign);
     } catch (error) {
@@ -6534,6 +6549,43 @@ Respond with JSON:
         }
       }
 
+      // Update user world progress if campaign is linked to a world location
+      const campaignForWorld = await storage.getCampaign(campaignId);
+      if (campaignForWorld && participants && participants.length > 0) {
+        for (const participant of participants) {
+          // If campaign has a linked world location, update user progress
+          if (campaignForWorld.worldLocationId) {
+            try {
+              await storage.updateUserWorldProgress(participant.userId, null, campaignForWorld.worldLocationId, {
+                hasVisited: true,
+                hasDiscovered: true,
+                completionState: "in_progress",
+                lastVisitedAt: new Date().toISOString(),
+                lastSessionId: updatedSession.id,
+                lastCampaignId: campaignId
+              });
+            } catch (e) {
+              console.error("Failed to update world progress for location:", e);
+            }
+          }
+          // If campaign has a linked world region, update region progress
+          if (campaignForWorld.worldRegionId) {
+            try {
+              await storage.updateUserWorldProgress(participant.userId, campaignForWorld.worldRegionId, null, {
+                hasVisited: true,
+                hasDiscovered: true,
+                completionState: "in_progress",
+                lastVisitedAt: new Date().toISOString(),
+                lastSessionId: updatedSession.id,
+                lastCampaignId: campaignId
+              });
+            } catch (e) {
+              console.error("Failed to update world progress for region:", e);
+            }
+          }
+        }
+      }
+      
       // Broadcast story update to all participants
       broadcastMessage('story_advanced', {
         campaignId,

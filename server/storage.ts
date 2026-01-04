@@ -1922,17 +1922,41 @@ export class DatabaseStorage implements IStorage {
     }
     
     if (existing) {
+      // Smart merge: increment visit count, don't downgrade completion state
+      const mergedUpdates = { ...updates };
+      
+      // Increment times visited instead of overwriting
+      if (updates.timesVisited !== undefined || updates.hasVisited) {
+        mergedUpdates.timesVisited = (existing.timesVisited || 0) + 1;
+      }
+      
+      // Don't downgrade completion state (completed > in_progress > discovered > undiscovered)
+      const stateRanking: Record<string, number> = {
+        'undiscovered': 0,
+        'discovered': 1,
+        'in_progress': 2,
+        'completed': 3
+      };
+      const existingRank = stateRanking[existing.completionState || 'undiscovered'] || 0;
+      const newRank = stateRanking[updates.completionState || 'undiscovered'] || 0;
+      if (newRank < existingRank) {
+        delete mergedUpdates.completionState;
+      }
+      
       const [updated] = await db.update(userWorldProgress)
-        .set(updates)
+        .set(mergedUpdates)
         .where(eq(userWorldProgress.id, existing.id))
         .returning();
       return updated;
     } else {
+      // New record - set initial values
       const [created] = await db.insert(userWorldProgress)
         .values({
           userId,
           regionId,
           locationId,
+          timesVisited: 1,
+          firstDiscoveredAt: new Date().toISOString(),
           ...updates,
           createdAt: new Date().toISOString()
         })
