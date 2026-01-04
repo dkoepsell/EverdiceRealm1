@@ -6676,13 +6676,6 @@ Respond with JSON:
         }
       }
       
-      // Also check if combat just ended (was in combat, now not)
-      const wasInCombat = currentStoryState.inCombat || false;
-      const nowInCombat = storyAdvancement.storyState?.inCombat || false;
-      if (wasInCombat && !nowInCombat) {
-        combatCompleted = true;
-      }
-      
       // Bonus XP for significant story advancement
       if (consequences.toLowerCase().includes('discover') || 
           consequences.toLowerCase().includes('solve') ||
@@ -6840,6 +6833,13 @@ Respond with JSON:
       const updatedJourneyLog = [...existingJourneyLog, newJourneyEntry].slice(-50);
       
       // Update adventure progress if combat was completed
+      // Check if combat just ended (was in combat, now not) - must be done AFTER currentStoryState is defined
+      const wasInCombat = currentStoryState.inCombat || false;
+      const nowInCombat = storyAdvancement.storyState?.inCombat || false;
+      if (wasInCombat && !nowInCombat) {
+        combatCompleted = true;
+      }
+      
       let updatedAdventureProgress = currentStoryState.adventureProgress || {
         encounters: { combat: 0, trap: 0, treasure: 0, total: 0 },
         puzzles: 0,
