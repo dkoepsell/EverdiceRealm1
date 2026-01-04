@@ -42,6 +42,8 @@ import {
 import CampaignParticipants from "./CampaignParticipants";
 import TurnManager from "./TurnManager";
 import CampaignDeploymentTab from "./CampaignDeploymentTab";
+import { DungeonMapModal } from "../dungeon/DungeonMapModal";
+import type { DungeonMapData, MapEntity } from "../dungeon/DungeonMap";
 
 interface CampaignPanelProps {
   campaign: Campaign;
@@ -115,6 +117,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [newItemName, setNewItemName] = useState("");
   const [selectedPartyMemberType, setSelectedPartyMemberType] = useState<"character" | "npc">("character");
   const [selectedNpcId, setSelectedNpcId] = useState<number | null>(null);
+  const [dungeonMapData, setDungeonMapData] = useState<DungeonMapData | null>(null);
   
   // Find the user's participant record in this campaign
   const userParticipant = useMemo(() => {
@@ -1246,13 +1249,45 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         Session {currentSession.sessionNumber}: {currentSession.title}
                       </h3>
                       
-                      {/* Map link if available */}
-                      {currentSession.location && (
-                        <Button variant="outline" size="sm" className="flex items-center gap-1">
-                          <MapPin className="h-4 w-4" />
-                          <span className="hidden sm:inline">{currentSession.location}</span>
-                        </Button>
-                      )}
+                      {/* Map and location controls */}
+                      <div className="flex items-center gap-2">
+                        <DungeonMapModal
+                          campaignId={campaign.id}
+                          campaignName={campaign.title}
+                          dungeonLevel={currentSession.sessionNumber}
+                          initialMapData={dungeonMapData}
+                          onMapDataChange={setDungeonMapData}
+                          onTileInteraction={(x, y, tileType) => {
+                            if (tileType === "treasure") {
+                              toast({
+                                title: "Treasure!",
+                                description: "You found treasure! Roll Investigation to search.",
+                              });
+                            } else if (tileType === "trap") {
+                              toast({
+                                title: "Trap triggered!",
+                                description: "Make a Dexterity save to avoid damage.",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          onEntityInteraction={(entity) => {
+                            if (entity.type === "enemy" || entity.type === "boss") {
+                              toast({
+                                title: `${entity.name} encountered!`,
+                                description: `HP: ${entity.hp}/${entity.maxHp}`,
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                        />
+                        {currentSession.location && (
+                          <Button variant="outline" size="sm" className="flex items-center gap-1">
+                            <MapPin className="h-4 w-4" />
+                            <span className="hidden sm:inline">{currentSession.location}</span>
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     
                     {/* Active Quests Display */}
