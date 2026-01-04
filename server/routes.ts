@@ -6581,12 +6581,33 @@ Respond with JSON:
         const character = await storage.getCharacter(characterId);
         if (character) {
           const newXP = (character.experience || 0) + xpAwarded;
-          const newLevel = Math.max(1, Math.floor(newXP / 1000) + 1);
+          // Use official D&D 5e XP thresholds for level calculation
+          const newLevel = getLevelFromXP(newXP);
           const leveledUp = newLevel > character.level;
+          
+          // D&D 5e class hit dice for HP calculation
+          const CLASS_HIT_DICE: Record<string, number> = {
+            'Barbarian': 12, 'Fighter': 10, 'Paladin': 10, 'Ranger': 10,
+            'Bard': 8, 'Cleric': 8, 'Druid': 8, 'Monk': 8, 'Rogue': 8, 'Warlock': 8,
+            'Sorcerer': 6, 'Wizard': 6
+          };
+          
+          // Calculate HP increase on level up using D&D 5e rules
+          let newMaxHitPoints = character.maxHitPoints;
+          let hpGainFromLevelUp = 0;
+          if (leveledUp) {
+            const hitDie = CLASS_HIT_DICE[character.class] || 8;
+            const conMod = Math.floor((character.constitution - 10) / 2);
+            const levelsGained = newLevel - character.level;
+            // D&D 5e average: (hit die / 2) + 1 + CON modifier per level
+            const hpPerLevel = Math.floor(hitDie / 2) + 1 + conMod;
+            hpGainFromLevelUp = Math.max(levelsGained, levelsGained * hpPerLevel);
+            newMaxHitPoints = (character.maxHitPoints || 10) + hpGainFromLevelUp;
+          }
           
           // Apply combat damage if any
           const combatEffects = storyAdvancement.combatEffects;
-          let newHitPoints = character.hitPoints;
+          let newHitPoints = leveledUp ? character.hitPoints + hpGainFromLevelUp : character.hitPoints;
           let damageTaken = 0;
           let damageDealt = 0;
           let newStatus = character.status || "conscious";
@@ -6660,6 +6681,7 @@ Respond with JSON:
             experience: newXP,
             level: newLevel,
             hitPoints: newHitPoints,
+            maxHitPoints: newMaxHitPoints,
             status: newStatus,
             deathSaveSuccesses,
             deathSaveFailures,
@@ -6673,6 +6695,8 @@ Respond with JSON:
             newXP,
             newLevel,
             leveledUp,
+            hpGainFromLevelUp: leveledUp ? hpGainFromLevelUp : 0,
+            newMaxHitPoints,
             itemsFound,
             completedQuests,
             skillImproved,
@@ -6685,7 +6709,7 @@ Respond with JSON:
               damageTaken,
               damageDealt,
               newHitPoints,
-              maxHitPoints: character.maxHitPoints,
+              maxHitPoints: newMaxHitPoints,
               combatDescription: combatEffects.combatDescription,
               enemyDamage: combatEffects.enemyDamage,
               partyDamage: combatEffects.partyDamage,
