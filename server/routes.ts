@@ -1673,6 +1673,33 @@ Return your response as a JSON object with these fields:
     }
   });
 
+  app.patch("/api/campaigns/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const id = parseInt(req.params.id);
+      const campaign = await storage.getCampaign(id);
+      
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      if (campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Not authorized to update this campaign" });
+      }
+      
+      const updates = req.body;
+      const updatedCampaign = await storage.updateCampaign(id, updates);
+      
+      res.json(updatedCampaign);
+    } catch (error) {
+      console.error("Error updating campaign:", error);
+      res.status(500).json({ message: "Failed to update campaign" });
+    }
+  });
+
   // Campaign Session routes
   app.get("/api/campaigns/:campaignId/sessions/:sessionNumber", async (req, res) => {
     try {
