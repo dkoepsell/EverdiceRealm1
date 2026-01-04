@@ -3890,6 +3890,282 @@ Return your response as a JSON object with these fields:
     }
   });
   
+  // Move player on dungeon map (turn-based, generates narrative)
+  app.post("/api/campaigns/:campaignId/dungeon-move", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const { direction, mapId, currentPosition, newPosition, tileType, nearbyEntities } = req.body;
+      
+      // Get campaign and verify user is a participant
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      const participants = await storage.getCampaignParticipants(campaignId);
+      const userParticipant = participants.find(p => p.userId === req.user.id);
+      
+      if (campaign.userId !== req.user.id && !userParticipant) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      // Get current session to check story state
+      const currentSessionNumber = campaign.currentSession || 1;
+      const session = await storage.getCampaignSession(campaignId, currentSessionNumber);
+      
+      let storyState: any = {};
+      if (session?.storyState) {
+        try {
+          storyState = typeof session.storyState === 'string' 
+            ? JSON.parse(session.storyState) 
+            : session.storyState;
+        } catch (e) {
+          storyState = {};
+        }
+      }
+      
+      // Check if there's a pending encounter that must be resolved
+      if (storyState.pendingEncounter && !storyState.pendingEncounter.resolved) {
+        return res.status(400).json({ 
+          message: "You must resolve the current encounter before moving",
+          pendingEncounter: storyState.pendingEncounter
+        });
+      }
+      
+      // Generate narrative based on movement context
+      const tileDescriptions: Record<string, string> = {
+        floor: "an empty stone corridor",
+        door: "through a creaking wooden door",
+        trap: "a suspicious-looking section of floor",
+        treasure: "a glittering treasure chest",
+        stairs_up: "stairs leading upward",
+        stairs_down: "stairs descending into darkness",
+        water: "shallow water pooling on the floor",
+        lava: "the heat of nearby lava",
+        pit: "a deep pit in the floor",
+        secret_door: "a hidden passage"
+      };
+      
+      const tileDesc = tileDescriptions[tileType] || "an unknown area";
+      const hasEnemies = nearbyEntities && nearbyEntities.some((e: any) => e.type === 'enemy' || e.type === 'boss');
+      
+      let narrativePrompt = `The party moves ${direction} to (${newPosition.x}, ${newPosition.y}), entering ${tileDesc}.`;
+      let encounterTriggered = false;
+      let encounterData: any = null;
+      
+      // Check for special tile interactions that require choices
+      if (tileType === 'trap') {
+        encounterTriggered = true;
+        encounterData = {
+          type: 'trap',
+          description: 'A hidden trap springs to life as you step on a pressure plate!',
+          choices: [
+            { id: 'dodge', text: 'Attempt to dodge (Dexterity save DC 14)', rollRequired: { type: 'd20', skill: 'dexterity' } },
+            { id: 'disarm', text: 'Try to disarm it (Thieves\' Tools DC 15)', rollRequired: { type: 'd20', skill: 'thieves_tools' } },
+            { id: 'take_hit', text: 'Brace for impact', rollRequired: null }
+          ],
+          resolved: false
+        };
+      } else if (tileType === 'treasure') {
+        encounterTriggered = true;
+        encounterData = {
+          type: 'treasure',
+          description: 'You discover an ornate chest covered in dust. It might be trapped, or it could contain valuable loot.',
+          choices: [
+            { id: 'search', text: 'Search for traps (Investigation DC 12)', rollRequired: { type: 'd20', skill: 'investigation' } },
+            { id: 'open', text: 'Open it immediately', rollRequired: null },
+            { id: 'leave', text: 'Leave it alone', rollRequired: null }
+          ],
+          resolved: false
+        };
+      } else if (hasEnemies) {
+        const enemyNames = nearbyEntities.filter((e: any) => e.type === 'enemy' || e.type === 'boss').map((e: any) => e.name);
+        encounterTriggered = true;
+        encounterData = {
+          type: 'combat',
+          description: `${enemyNames.join(' and ')} blocks your path! Combat is imminent.`,
+          enemies: nearbyEntities.filter((e: any) => e.type === 'enemy' || e.type === 'boss'),
+          choices: [
+            { id: 'attack', text: 'Attack!', rollRequired: { type: 'd20', skill: 'attack' } },
+            { id: 'stealth', text: 'Try to sneak past (Stealth DC 13)', rollRequired: { type: 'd20', skill: 'stealth' } },
+            { id: 'diplomacy', text: 'Attempt to negotiate (Persuasion DC 15)', rollRequired: { type: 'd20', skill: 'persuasion' } },
+            { id: 'flee', text: 'Run back the way you came', rollRequired: null }
+          ],
+          resolved: false
+        };
+      }
+      
+      // Update dungeon map position
+      if (mapId) {
+        await storage.updateCampaignDungeonMap(mapId, {
+          playerPosition: newPosition,
+          mapData: req.body.mapData
+        });
+      }
+      
+      // Update story state with pending encounter if any
+      const updatedStoryState = {
+        ...storyState,
+        lastMovement: {
+          from: currentPosition,
+          to: newPosition,
+          direction,
+          timestamp: new Date().toISOString()
+        },
+        pendingEncounter: encounterTriggered ? encounterData : null,
+        movementsSinceLastEvent: encounterTriggered ? 0 : (storyState.movementsSinceLastEvent || 0) + 1
+      };
+      
+      // Every 3 moves without an encounter, generate a minor narrative event
+      let narrativeEvent = null;
+      if (!encounterTriggered && updatedStoryState.movementsSinceLastEvent >= 3) {
+        const minorEvents = [
+          "You hear distant echoes deeper in the dungeon.",
+          "A cold draft suggests hidden passages nearby.",
+          "Ancient runes on the wall catch your eye - perhaps they hold a clue.",
+          "The faint smell of something cooking wafts through the corridor.",
+          "You find old adventurer's marks scratched into the stone."
+        ];
+        narrativeEvent = minorEvents[Math.floor(Math.random() * minorEvents.length)];
+        updatedStoryState.movementsSinceLastEvent = 0;
+      }
+      
+      // Save updated story state
+      if (session) {
+        await storage.updateSessionStoryState(campaignId, currentSessionNumber, updatedStoryState);
+      }
+      
+      res.json({
+        success: true,
+        newPosition,
+        tileType,
+        encounterTriggered,
+        encounter: encounterData,
+        narrativeEvent,
+        message: encounterTriggered 
+          ? encounterData.description 
+          : narrativeEvent || `You move ${direction} into ${tileDesc}.`
+      });
+      
+    } catch (error) {
+      console.error("Error processing dungeon movement:", error);
+      res.status(500).json({ message: "Failed to process movement" });
+    }
+  });
+  
+  // Resolve pending dungeon encounter
+  app.post("/api/campaigns/:campaignId/dungeon-resolve", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const { choiceId, rollResult } = req.body;
+      
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      const currentSessionNumber = campaign.currentSession || 1;
+      const session = await storage.getCampaignSession(campaignId, currentSessionNumber);
+      
+      let storyState: any = {};
+      if (session?.storyState) {
+        try {
+          storyState = typeof session.storyState === 'string' 
+            ? JSON.parse(session.storyState) 
+            : session.storyState;
+        } catch (e) {
+          storyState = {};
+        }
+      }
+      
+      if (!storyState.pendingEncounter) {
+        return res.status(400).json({ message: "No pending encounter to resolve" });
+      }
+      
+      const encounter = storyState.pendingEncounter;
+      const choice = encounter.choices.find((c: any) => c.id === choiceId);
+      
+      let outcome = { success: true, narrative: '', rewards: null as any };
+      
+      // Determine outcome based on choice and roll
+      if (choice?.rollRequired && rollResult) {
+        const dc = parseInt(choice.text.match(/DC (\d+)/)?.[1] || '10');
+        outcome.success = rollResult >= dc;
+        
+        if (encounter.type === 'trap') {
+          outcome.narrative = outcome.success 
+            ? "You successfully avoid the trap's effects!"
+            : "The trap catches you! Take 2d6 damage.";
+        } else if (encounter.type === 'treasure') {
+          if (choiceId === 'search') {
+            outcome.narrative = outcome.success
+              ? "You carefully search and find no traps. The chest is safe to open."
+              : "You don't find any traps, but you're not entirely sure it's safe.";
+          }
+        } else if (encounter.type === 'combat') {
+          if (choiceId === 'stealth') {
+            outcome.narrative = outcome.success
+              ? "You successfully sneak past the enemies unnoticed!"
+              : "The enemies spot you! Roll for initiative!";
+          } else if (choiceId === 'diplomacy') {
+            outcome.narrative = outcome.success
+              ? "Your words convince them to let you pass peacefully."
+              : "They are not interested in talking. Prepare for combat!";
+          }
+        }
+      } else {
+        // Non-roll choices
+        if (choiceId === 'open' && encounter.type === 'treasure') {
+          outcome.narrative = "You open the chest and find: 25 gold pieces and a potion of healing!";
+          outcome.rewards = { gold: 25, items: ['Potion of Healing'] };
+        } else if (choiceId === 'leave') {
+          outcome.narrative = "You decide to leave it undisturbed and continue on.";
+        } else if (choiceId === 'flee') {
+          outcome.narrative = "You turn and flee back the way you came!";
+        } else if (choiceId === 'take_hit') {
+          outcome.narrative = "You brace yourself as the trap activates. Take 2d6 damage.";
+        } else if (choiceId === 'attack') {
+          outcome.narrative = "Combat begins! Roll for initiative.";
+          outcome.success = true;
+        }
+      }
+      
+      // Mark encounter as resolved
+      const updatedStoryState = {
+        ...storyState,
+        pendingEncounter: {
+          ...encounter,
+          resolved: true,
+          resolution: {
+            choiceId,
+            rollResult,
+            outcome
+          }
+        }
+      };
+      
+      await storage.updateSessionStoryState(campaignId, currentSessionNumber, updatedStoryState);
+      
+      res.json({
+        success: true,
+        outcome,
+        canContinueMoving: true
+      });
+      
+    } catch (error) {
+      console.error("Error resolving encounter:", error);
+      res.status(500).json({ message: "Failed to resolve encounter" });
+    }
+  });
+  
   // ==================== Campaign Quest Routes ====================
   
   // Get all quests for a campaign
