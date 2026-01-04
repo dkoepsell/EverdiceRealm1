@@ -2037,7 +2037,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             <TabsContent value="journey-log" className="p-4">
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-bold font-fantasy text-slate-900 dark:text-slate-100">Journey Log</h2>
+                  <h2 className="text-xl font-bold font-fantasy" style={{ color: '#0f172a' }}>Journey Log</h2>
                   
                   <div className="relative">
                     <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-slate-600 dark:text-slate-400" />
@@ -2054,7 +2054,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 {/* Live Exploration Events from storyState */}
                 {parsedStoryState?.journeyLog && (parsedStoryState.journeyLog as any[]).length > 0 && (
                   <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                    <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: '#1e293b' }}>
                       <MapPin className="h-4 w-4" />
                       Recent Exploration
                     </h3>
@@ -2152,13 +2152,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             
             <TabsContent value="party" className="p-4">
               <div className="space-y-4">
-                <h2 className="text-xl font-bold font-fantasy text-slate-900 dark:text-slate-100">Campaign Party</h2>
+                <h2 className="text-xl font-bold font-fantasy" style={{ color: '#0f172a' }}>Campaign Party</h2>
                 
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Party Management</h3>
-                      <p className="text-slate-600 dark:text-slate-400 text-sm">Manage the players in this campaign</p>
+                      <h3 className="text-lg font-bold" style={{ color: '#0f172a' }}>Party Management</h3>
+                      <p className="text-sm" style={{ color: '#475569' }}>Manage the players in this campaign</p>
                     </div>
                     
                     {/* DM only settings */}
@@ -2958,11 +2958,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             
             <TabsContent value="settings" className="p-4">
               <div className="space-y-4">
-                <h2 className="text-xl font-bold font-fantasy text-slate-900 dark:text-slate-100">Campaign Settings</h2>
+                <h2 className="text-xl font-bold font-fantasy" style={{ color: '#0f172a' }}>Campaign Settings</h2>
                 
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <label className="text-sm font-semibold text-slate-800 dark:text-slate-200">Narrative Style</label>
+                    <label className="text-sm font-semibold" style={{ color: '#0f172a' }}>Narrative Style</label>
                     <Select value={narrativeStyle} onValueChange={setNarrativeStyle}>
                       <SelectTrigger className="w-[220px] bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600">
                         <SelectValue placeholder="Narrative style" />
@@ -2978,7 +2978,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   </div>
                   
                   <div className="space-y-1">
-                    <label className="text-sm font-semibold text-slate-800 dark:text-slate-200">Difficulty</label>
+                    <label className="text-sm font-semibold" style={{ color: '#0f172a' }}>Difficulty</label>
                     <Select value={difficulty} onValueChange={setDifficulty}>
                       <SelectTrigger className="w-[260px] bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600">
                         <SelectValue placeholder="Difficulty" />

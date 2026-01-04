@@ -228,7 +228,7 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Campaign Participants</h3>
+        <h3 className="text-lg font-bold" style={{ color: '#0f172a' }}>Campaign Participants</h3>
         
         <div className="flex gap-2">
           {/* Join Campaign Button - Only show if user is not already participating */}
