@@ -1493,7 +1493,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 {currentSession && !parsedStoryState?.adventureEnded ? (
                   <div className="mt-6 space-y-4">
                     <div className="flex justify-between items-start">
-                      <h3 className="text-xl font-bold flex items-center text-slate-900 dark:text-slate-100">
+                      <h3 className="text-xl font-bold flex items-center" style={{ color: '#0f172a' }}>
                         <Scroll className="h-5 w-5 mr-2 text-indigo-600 dark:text-indigo-400" />
                         Session {currentSession.sessionNumber}: {currentSession.title}
                       </h3>
