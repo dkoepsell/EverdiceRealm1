@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Campaign, CampaignSession, Character, Npc } from "@shared/schema";
+import { Campaign, CampaignSession, Character, Npc, WorldRegion, WorldLocation } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { generateStory, StoryRequest } from "@/lib/openai";
 import { DiceType, DiceRoll, DiceRollResult, rollDice, clientRollDice } from "@/lib/dice";
@@ -93,6 +93,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     queryKey: [`/api/campaigns/${campaign.id}/quests`],
     enabled: !!campaign.id,
   });
+
+  // World regions and locations for linking campaign to world map
+  const { data: worldRegions = [] } = useQuery<WorldRegion[]>({
+    queryKey: ['/api/world/regions'],
+  });
+
+  const { data: worldLocations = [] } = useQuery<WorldLocation[]>({
+    queryKey: ['/api/world/locations'],
+  });
   
   // Mutation to save dungeon map
   const saveDungeonMapMutation = useMutation({
@@ -152,6 +161,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   } | null>(null);
   const [narrativeStyle, setNarrativeStyle] = useState(campaign.narrativeStyle);
   const [difficulty, setDifficulty] = useState(campaign.difficulty);
+  const [worldRegionId, setWorldRegionId] = useState<number | null>(campaign.worldRegionId || null);
+  const [worldLocationId, setWorldLocationId] = useState<number | null>(campaign.worldLocationId || null);
   const [settingsChanged, setSettingsChanged] = useState(false);
   const [currentSession, setCurrentSession] = useState<CampaignSession | null>(null);
   const [isTurnBased, setIsTurnBased] = useState(campaign.isTurnBased || false);
@@ -217,13 +228,21 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
   }, [currentSession?.storyState]);
   
+  // Filter world locations by selected region
+  const filteredWorldLocations = useMemo(() => {
+    if (!worldRegionId) return worldLocations;
+    return worldLocations.filter(loc => loc.regionId === worldRegionId);
+  }, [worldRegionId, worldLocations]);
+
   // Check if settings are changed
   useEffect(() => {
     setSettingsChanged(
       narrativeStyle !== campaign.narrativeStyle ||
-      difficulty !== campaign.difficulty
+      difficulty !== campaign.difficulty ||
+      worldRegionId !== (campaign.worldRegionId || null) ||
+      worldLocationId !== (campaign.worldLocationId || null)
     );
-  }, [narrativeStyle, difficulty, campaign]);
+  }, [narrativeStyle, difficulty, worldRegionId, worldLocationId, campaign]);
   
   // Set the current session
   useEffect(() => {
@@ -333,7 +352,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const handleSaveSettings = () => {
     updateCampaignMutation.mutate({
       narrativeStyle,
-      difficulty
+      difficulty,
+      worldRegionId,
+      worldLocationId
     });
   };
   
@@ -2758,6 +2779,70 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         <SelectItem value="Hard - Deadly Encounters">Hard - Deadly Encounters</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  {/* World Map Location */}
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700/50 mt-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <MapPin className="h-5 w-5 text-amber-600" />
+                      <h3 className="font-semibold text-amber-800 dark:text-amber-300">World Map Location</h3>
+                    </div>
+                    <p className="text-xs text-amber-700 dark:text-amber-400 mb-3">
+                      Link this adventure to a location on the world map so other players can see it.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium text-black">Region</label>
+                        <Select 
+                          value={worldRegionId?.toString() || ""} 
+                          onValueChange={(value) => {
+                            const numValue = value ? parseInt(value) : null;
+                            setWorldRegionId(numValue);
+                            // Clear location when region changes
+                            if (!numValue) setWorldLocationId(null);
+                          }}
+                        >
+                          <SelectTrigger className="bg-parchment-dark text-black">
+                            <SelectValue placeholder="Select a region" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-parchment-dark">
+                            <SelectItem value="">No specific region</SelectItem>
+                            {worldRegions.map(region => (
+                              <SelectItem key={region.id} value={region.id.toString()}>
+                                {region.name} (Lvl {region.levelRange})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium text-black">Location</label>
+                        <Select 
+                          value={worldLocationId?.toString() || ""} 
+                          onValueChange={(value) => {
+                            setWorldLocationId(value ? parseInt(value) : null);
+                          }}
+                          disabled={filteredWorldLocations.length === 0}
+                        >
+                          <SelectTrigger className="bg-parchment-dark text-black">
+                            <SelectValue placeholder="Select a location" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-parchment-dark">
+                            <SelectItem value="">No specific location</SelectItem>
+                            {filteredWorldLocations.map(location => (
+                              <SelectItem key={location.id} value={location.id.toString()}>
+                                {location.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    {(worldRegionId || worldLocationId) && (
+                      <div className="mt-2 text-xs text-green-600 dark:text-green-400">
+                        This adventure will appear on the world map!
+                      </div>
+                    )}
                   </div>
                   
                   <div className="flex justify-end mt-4">
