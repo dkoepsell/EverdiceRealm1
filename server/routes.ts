@@ -1139,7 +1139,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Character not found" });
       }
       
-      if (character.userId !== req.user.id) {
+      const canManage = await storage.canUserManageCharacter(req.user.id, id);
+      if (!canManage) {
         return res.status(403).json({ message: "Not authorized" });
       }
       
@@ -1203,7 +1204,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Character not found" });
       }
       
-      if (character.userId !== req.user.id) {
+      const canManage = await storage.canUserManageCharacter(req.user.id, id);
+      if (!canManage) {
         return res.status(403).json({ message: "Not authorized" });
       }
       

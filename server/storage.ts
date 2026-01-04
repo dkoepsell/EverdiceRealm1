@@ -923,6 +923,25 @@ export class DatabaseStorage implements IStorage {
     return true; // If no error occurs, consider it successful
   }
   
+  async canUserManageCharacter(userId: number, characterId: number): Promise<boolean> {
+    // Check if user owns the character directly
+    const character = await this.getCharacter(characterId);
+    if (character && character.userId === userId) {
+      return true;
+    }
+    
+    // Check if user has this character assigned via campaign participation
+    const [participation] = await db
+      .select()
+      .from(campaignParticipants)
+      .where(and(
+        eq(campaignParticipants.userId, userId),
+        eq(campaignParticipants.characterId, characterId)
+      ));
+    
+    return !!participation;
+  }
+  
   // Turn-based campaign operations
   async getCurrentTurn(campaignId: number): Promise<{ userId: number; startedAt: string } | undefined> {
     const [campaign] = await db
