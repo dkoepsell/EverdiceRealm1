@@ -39,6 +39,7 @@ import { registerCampaignDeploymentRoutes } from "./lib/campaignDeploy";
 import { db } from "./db";
 import { eq, sql, desc } from "drizzle-orm";
 import OpenAI from "openai";
+import { getXPFromCR, calculateEncounterXP, QUEST_XP_REWARDS, getLevelFromXP, getXPToNextLevel } from "../shared/rules/xp";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -5784,7 +5785,7 @@ Respond with JSON:
     ],
     "inCombat": true/false,
     "combatants": [
-      {"name": "Enemy Name", "type": "enemy", "maxHp": 30, "currentHp": 30, "ac": 13, "status": "healthy/wounded/bloodied/defeated"}
+      {"name": "Enemy Name", "type": "enemy", "cr": "1/4", "maxHp": 30, "currentHp": 30, "ac": 13, "status": "healthy/wounded/bloodied/defeated"}
     ],
     "partyMembers": [
       {"name": "Player Name", "type": "player", "maxHp": 25, "currentHp": 25, "ac": 14, "status": "healthy/wounded/bloodied/unconscious"},
@@ -5797,7 +5798,7 @@ Respond with JSON:
   "combatEffects": {
     "playerDamageTaken": 0,
     "playerDamageDealt": 0,
-    "enemyDamage": [{"name": "Enemy Name", "damageTaken": 8, "newHp": 22, "defeated": false}],
+    "enemyDamage": [{"name": "Enemy Name", "cr": "1/4", "damageTaken": 8, "newHp": 22, "defeated": false}],
     "partyDamage": [{"name": "Companion Name", "damageTaken": 5, "newHp": 15, "defeated": false}],
     "combatDescription": "Brief description of the combat exchange",
     "companionActions": [{"name": "Companion Name", "action": "Swung her sword at the goblin", "result": "Hit for 6 damage", "damageDealt": 6}],
@@ -5825,7 +5826,7 @@ Respond with JSON:
       // Track skill used for progression
       const skillUsed = storyAdvancement.skillUsed;
       
-      // Award XP for successful skill checks and story progression
+      // Award XP for successful skill checks and story progression (D&D 5e style)
       if (rollResult) {
         const wasSuccessful = rollResult.total >= (rollResult.dc || 10);
         
@@ -5835,19 +5836,21 @@ Respond with JSON:
         }
         
         if (wasSuccessful) {
-          // Award XP based on DC difficulty
+          // Award XP based on DC difficulty (scaled for D&D 5e progression)
+          // DC 10 = Easy (25 XP), DC 15 = Medium (50 XP), DC 20 = Hard (75 XP), DC 25+ = Very Hard (100 XP)
           const dc = rollResult.dc || 10;
-          if (dc >= 20) xpAwarded += 100; // Very hard
-          else if (dc >= 15) xpAwarded += 75; // Hard
-          else if (dc >= 10) xpAwarded += 50; // Medium
-          else xpAwarded += 25; // Easy
+          if (dc >= 25) xpAwarded += 100; // Nearly impossible
+          else if (dc >= 20) xpAwarded += 75; // Very hard
+          else if (dc >= 15) xpAwarded += 50; // Hard
+          else if (dc >= 10) xpAwarded += 25; // Medium
+          else xpAwarded += 10; // Easy
         } else {
-          // Small XP for attempting difficult actions even if failed
-          xpAwarded += 10;
+          // Minimal XP for attempting (learning from failure)
+          xpAwarded += 5;
         }
       } else {
-        // Base XP for story participation
-        xpAwarded += 25;
+        // Base XP for story participation (roleplay/exploration)
+        xpAwarded += 10;
       }
       
       // Collect AI-generated reward items
@@ -5861,12 +5864,16 @@ Respond with JSON:
         itemsFound.push(...combatEffects.lootDrops);
       }
       
-      // Check for defeated enemies and generate additional loot
+      // Check for defeated enemies and award XP based on D&D 5e CR table
       if (combatEffects?.enemyDamage) {
         const defeatedEnemies = combatEffects.enemyDamage.filter((e: any) => e.defeated);
         if (defeatedEnemies.length > 0) {
-          // Award bonus XP for defeating enemies
-          xpAwarded += defeatedEnemies.length * 50;
+          // Award XP based on enemy Challenge Rating (D&D 5e official)
+          for (const enemy of defeatedEnemies) {
+            const cr = enemy.cr || "1/4"; // Default CR 1/4 for basic enemies
+            const enemyXP = getXPFromCR(cr);
+            xpAwarded += enemyXP;
+          }
         }
       }
       
