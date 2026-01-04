@@ -32,6 +32,7 @@ export default function Navbar() {
     { name: "Dice Roller", path: "/dice-roller" },
     { name: "Learn D&D", path: "/learn" },
     { name: "DM Toolkit", path: "/dm-toolkit" },
+    { name: "CAML", path: "/caml" },
   ];
   
   // This link doesn't require authentication

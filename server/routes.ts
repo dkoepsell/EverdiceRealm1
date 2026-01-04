@@ -40,6 +40,16 @@ import { db } from "./db";
 import { eq, sql, desc } from "drizzle-orm";
 import OpenAI from "openai";
 import { getXPFromCR, calculateEncounterXP, QUEST_XP_REWARDS, getLevelFromXP, getXPToNextLevel } from "../shared/rules/xp";
+import { 
+  parseCAMLYaml, 
+  parseCAMLJson, 
+  convertCAMLToCampaign, 
+  convertCampaignToCAML, 
+  exportToYAML, 
+  exportToJSON, 
+  buildAdventureGraph,
+  CAML_AI_PROMPT
+} from "./caml";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -7809,6 +7819,290 @@ Respond with JSON:
     } catch (error) {
       console.error("Failed to fetch region progress:", error);
       res.status(500).json({ message: "Failed to fetch region progress" });
+    }
+  });
+
+  // ==================== CAML Adventure Routes ====================
+  
+  // Import a CAML adventure (YAML or JSON)
+  app.post("/api/caml/import", isAuthenticated, async (req, res) => {
+    try {
+      const { content, format, createCampaign: shouldCreateCampaign } = req.body;
+      const userId = req.user!.id;
+      
+      if (!content) {
+        return res.status(400).json({ message: "No content provided" });
+      }
+      
+      let pack;
+      if (format === 'yaml' || format === 'yml') {
+        pack = parseCAMLYaml(content);
+      } else {
+        pack = parseCAMLJson(content);
+      }
+      
+      if (!pack) {
+        return res.status(400).json({ message: "Failed to parse CAML content" });
+      }
+      
+      const campaignData = convertCAMLToCampaign(pack);
+      
+      if (shouldCreateCampaign) {
+        const campaign = await storage.createCampaign({
+          userId,
+          title: campaignData.title,
+          description: campaignData.description,
+          setting: campaignData.setting,
+          isActive: true,
+          currentSessionNumber: 1
+        });
+        
+        const session = await storage.createCampaignSession({
+          campaignId: campaign.id,
+          sessionNumber: 1,
+          summary: `Imported from CAML: ${campaignData.title}`,
+          storyState: campaignData.initialStoryState
+        });
+        
+        for (const npc of campaignData.npcs) {
+          try {
+            const createdNpc = await storage.createNpc({
+              name: npc.name,
+              description: npc.description,
+              race: npc.race,
+              class: npc.class,
+              alignment: npc.alignment,
+              statblock: npc.statblock
+            });
+            await storage.addNpcToCampaign(campaign.id, createdNpc.id);
+          } catch (e) {
+            console.error("Failed to create NPC:", e);
+          }
+        }
+        
+        for (const quest of campaignData.quests) {
+          try {
+            await storage.createQuest({
+              campaignId: campaign.id,
+              title: quest.name,
+              description: quest.description,
+              status: 'active',
+              xpReward: quest.rewards?.xp || 100,
+              goldReward: quest.rewards?.gold || 0
+            });
+          } catch (e) {
+            console.error("Failed to create quest:", e);
+          }
+        }
+        
+        res.json({
+          success: true,
+          campaignId: campaign.id,
+          adventure: pack.adventure,
+          imported: {
+            npcs: campaignData.npcs.length,
+            locations: campaignData.locations.length,
+            encounters: campaignData.encounters.length,
+            quests: campaignData.quests.length,
+            items: campaignData.items.length
+          }
+        });
+      } else {
+        res.json({
+          success: true,
+          adventure: pack.adventure,
+          campaignData,
+          graph: buildAdventureGraph(pack)
+        });
+      }
+    } catch (error) {
+      console.error("Failed to import CAML adventure:", error);
+      res.status(500).json({ message: "Failed to import adventure" });
+    }
+  });
+  
+  // Export a campaign as CAML
+  app.get("/api/campaigns/:campaignId/export/caml", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const format = req.query.format as string || 'json';
+      const userId = req.user!.id;
+      
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      if (campaign.userId !== userId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      const sessions = await storage.getCampaignSessions(campaignId);
+      const participants = await storage.getCampaignParticipants(campaignId);
+      const npcs = await storage.getCampaignNpcs(campaignId);
+      const quests = await storage.getCampaignQuests(campaignId);
+      
+      const camlAdventure = convertCampaignToCAML(
+        campaign,
+        sessions,
+        participants,
+        npcs,
+        quests
+      );
+      
+      if (format === 'yaml' || format === 'yml') {
+        const yamlContent = exportToYAML(camlAdventure);
+        res.setHeader('Content-Type', 'text/yaml');
+        res.setHeader('Content-Disposition', `attachment; filename="${campaign.title.replace(/\s+/g, '_')}.caml.yaml"`);
+        res.send(yamlContent);
+      } else {
+        const jsonContent = exportToJSON(camlAdventure);
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename="${campaign.title.replace(/\s+/g, '_')}.caml.json"`);
+        res.send(jsonContent);
+      }
+    } catch (error) {
+      console.error("Failed to export campaign as CAML:", error);
+      res.status(500).json({ message: "Failed to export campaign" });
+    }
+  });
+  
+  // Get adventure graph for a campaign
+  app.get("/api/campaigns/:campaignId/adventure-graph", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = req.user!.id;
+      
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      const sessions = await storage.getCampaignSessions(campaignId);
+      const participants = await storage.getCampaignParticipants(campaignId);
+      const npcs = await storage.getCampaignNpcs(campaignId);
+      const quests = await storage.getCampaignQuests(campaignId);
+      
+      const camlAdventure = convertCampaignToCAML(
+        campaign,
+        sessions,
+        participants,
+        npcs,
+        quests
+      );
+      
+      const pack = {
+        adventure: camlAdventure,
+        entities: {} as Record<string, any>
+      };
+      
+      pack.entities[camlAdventure.id] = camlAdventure;
+      for (const loc of camlAdventure.locations || []) {
+        pack.entities[loc.id] = loc;
+      }
+      for (const npc of camlAdventure.npcs || []) {
+        pack.entities[npc.id] = npc;
+      }
+      for (const quest of camlAdventure.quests || []) {
+        pack.entities[quest.id] = quest;
+      }
+      for (const enc of camlAdventure.encounters || []) {
+        pack.entities[enc.id] = enc;
+      }
+      
+      const graph = buildAdventureGraph(pack);
+      res.json(graph);
+    } catch (error) {
+      console.error("Failed to build adventure graph:", error);
+      res.status(500).json({ message: "Failed to build adventure graph" });
+    }
+  });
+  
+  // Generate a CAML adventure using AI
+  app.post("/api/caml/generate", isAuthenticated, async (req, res) => {
+    try {
+      const { 
+        title, 
+        theme, 
+        setting, 
+        minLevel, 
+        maxLevel, 
+        encounterCount,
+        includeQuests,
+        includePuzzles
+      } = req.body;
+      
+      const prompt = `${CAML_AI_PROMPT}
+
+Generate a D&D 5e adventure with these parameters:
+- Title: ${title || 'The Lost Temple'}
+- Theme: ${theme || 'exploration and mystery'}
+- Setting: ${setting || 'fantasy dungeon'}
+- Level range: ${minLevel || 1} to ${maxLevel || 5}
+- Include ${encounterCount || 5} encounters (mix of combat, social, and exploration)
+${includeQuests ? '- Include 2-3 quests with clear objectives' : ''}
+${includePuzzles ? '- Include 1-2 puzzle encounters' : ''}
+
+Make it interesting, varied, and playable. Include at least:
+- 4-6 locations with connections
+- 3-5 NPCs (friendly and hostile)
+- 3-5 items/treasures
+- Clear adventure hooks
+
+Respond with valid JSON only.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        max_tokens: 4000
+      });
+      
+      const generatedAdventure = JSON.parse(response.choices[0].message.content || '{}');
+      
+      res.json({
+        success: true,
+        adventure: generatedAdventure,
+        yaml: exportToYAML(generatedAdventure),
+        json: exportToJSON(generatedAdventure)
+      });
+    } catch (error) {
+      console.error("Failed to generate CAML adventure:", error);
+      res.status(500).json({ message: "Failed to generate adventure" });
+    }
+  });
+  
+  // Parse CAML content and return structure (preview without creating campaign)
+  app.post("/api/caml/parse", async (req, res) => {
+    try {
+      const { content, format } = req.body;
+      
+      if (!content) {
+        return res.status(400).json({ message: "No content provided" });
+      }
+      
+      let pack;
+      if (format === 'yaml' || format === 'yml') {
+        pack = parseCAMLYaml(content);
+      } else {
+        pack = parseCAMLJson(content);
+      }
+      
+      if (!pack) {
+        return res.status(400).json({ message: "Failed to parse CAML content" });
+      }
+      
+      const graph = buildAdventureGraph(pack);
+      
+      res.json({
+        success: true,
+        adventure: pack.adventure,
+        entityCount: Object.keys(pack.entities).length,
+        graph
+      });
+    } catch (error) {
+      console.error("Failed to parse CAML:", error);
+      res.status(500).json({ message: "Failed to parse CAML content" });
     }
   });
 
