@@ -468,13 +468,13 @@ export default function Campaigns() {
                             <FormLabel>Region</FormLabel>
                             <Select 
                               onValueChange={(value) => {
-                                const numValue = value ? parseInt(value) : null;
+                                const numValue = value && value !== "none" ? parseInt(value) : null;
                                 field.onChange(numValue);
                                 setSelectedWorldRegion(numValue);
                                 // Clear location when region changes
                                 form.setValue('worldLocationId', null);
                               }} 
-                              value={field.value?.toString() || ""}
+                              value={field.value?.toString() || "none"}
                             >
                               <FormControl>
                                 <SelectTrigger>
@@ -482,7 +482,7 @@ export default function Campaigns() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="">No specific region</SelectItem>
+                                <SelectItem value="none">No specific region</SelectItem>
                                 {worldRegions.map(region => (
                                   <SelectItem key={region.id} value={region.id.toString()}>
                                     {region.name} (Lvl {region.levelRange})
@@ -502,9 +502,9 @@ export default function Campaigns() {
                             <FormLabel>Specific Location</FormLabel>
                             <Select 
                               onValueChange={(value) => {
-                                field.onChange(value ? parseInt(value) : null);
+                                field.onChange(value && value !== "none" ? parseInt(value) : null);
                               }} 
-                              value={field.value?.toString() || ""}
+                              value={field.value?.toString() || "none"}
                               disabled={!selectedWorldRegion && filteredWorldLocations.length === 0}
                             >
                               <FormControl>
@@ -513,7 +513,7 @@ export default function Campaigns() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="">No specific location</SelectItem>
+                                <SelectItem value="none">No specific location</SelectItem>
                                 {filteredWorldLocations.map(location => (
                                   <SelectItem key={location.id} value={location.id.toString()}>
                                     {location.name}

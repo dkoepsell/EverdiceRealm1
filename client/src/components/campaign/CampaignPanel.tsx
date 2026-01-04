@@ -2794,9 +2794,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       <div className="space-y-1">
                         <label className="text-sm font-medium text-black">Region</label>
                         <Select 
-                          value={worldRegionId?.toString() || ""} 
+                          value={worldRegionId?.toString() || "none"} 
                           onValueChange={(value) => {
-                            const numValue = value ? parseInt(value) : null;
+                            const numValue = value && value !== "none" ? parseInt(value) : null;
                             setWorldRegionId(numValue);
                             // Clear location when region changes
                             if (!numValue) setWorldLocationId(null);
@@ -2806,7 +2806,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             <SelectValue placeholder="Select a region" />
                           </SelectTrigger>
                           <SelectContent className="bg-parchment-dark">
-                            <SelectItem value="">No specific region</SelectItem>
+                            <SelectItem value="none">No specific region</SelectItem>
                             {worldRegions.map(region => (
                               <SelectItem key={region.id} value={region.id.toString()}>
                                 {region.name} (Lvl {region.levelRange})
@@ -2818,9 +2818,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       <div className="space-y-1">
                         <label className="text-sm font-medium text-black">Location</label>
                         <Select 
-                          value={worldLocationId?.toString() || ""} 
+                          value={worldLocationId?.toString() || "none"} 
                           onValueChange={(value) => {
-                            setWorldLocationId(value ? parseInt(value) : null);
+                            setWorldLocationId(value && value !== "none" ? parseInt(value) : null);
                           }}
                           disabled={filteredWorldLocations.length === 0}
                         >
@@ -2828,7 +2828,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             <SelectValue placeholder="Select a location" />
                           </SelectTrigger>
                           <SelectContent className="bg-parchment-dark">
-                            <SelectItem value="">No specific location</SelectItem>
+                            <SelectItem value="none">No specific location</SelectItem>
                             {filteredWorldLocations.map(location => (
                               <SelectItem key={location.id} value={location.id.toString()}>
                                 {location.name}

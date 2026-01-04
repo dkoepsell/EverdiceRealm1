@@ -6509,6 +6509,57 @@ Respond with JSON:
         }]
       });
 
+      // Auto-link campaign to world location if not already linked
+      const campaignForLinking = await storage.getCampaign(campaignId);
+      if (campaignForLinking && !campaignForLinking.worldLocationId && !campaignForLinking.worldRegionId) {
+        try {
+          // Get location from story state or session
+          const storyLocation = mergedStoryState?.location || 
+                               currentSession.location || 
+                               updatedSession?.location;
+          
+          if (storyLocation) {
+            // Try to match location name to world locations
+            const allWorldLocations = await storage.getAllWorldLocations();
+            const matchedLocation = allWorldLocations.find(loc => {
+              const locName = loc.name.toLowerCase();
+              const storyLocLower = storyLocation.toLowerCase();
+              // Match if names contain each other or are similar
+              return locName.includes(storyLocLower) || 
+                     storyLocLower.includes(locName) ||
+                     locName.split(' ').some((word: string) => storyLocLower.includes(word) && word.length > 3);
+            });
+            
+            if (matchedLocation) {
+              await storage.updateCampaign(campaignId, {
+                worldLocationId: matchedLocation.id,
+                worldRegionId: matchedLocation.regionId
+              });
+              console.log(`Auto-linked campaign ${campaignId} to world location: ${matchedLocation.name}`);
+            } else {
+              // Try to match to a region by name
+              const allRegions = await storage.getAllWorldRegions();
+              const matchedRegion = allRegions.find(region => {
+                const regionName = region.name.toLowerCase();
+                const storyLocLower = storyLocation.toLowerCase();
+                return regionName.includes(storyLocLower) || 
+                       storyLocLower.includes(regionName) ||
+                       regionName.split(' ').some((word: string) => storyLocLower.includes(word) && word.length > 3);
+              });
+              
+              if (matchedRegion) {
+                await storage.updateCampaign(campaignId, {
+                  worldRegionId: matchedRegion.id
+                });
+                console.log(`Auto-linked campaign ${campaignId} to world region: ${matchedRegion.name}`);
+              }
+            }
+          }
+        } catch (linkError) {
+          console.error("Failed to auto-link campaign to world location:", linkError);
+        }
+      }
+
       // Apply XP, items, skill progress, and combat damage to character if there's a participant
       let characterProgression = null;
       // participants already fetched earlier for character info
@@ -7014,7 +7065,7 @@ Respond with JSON:
   app.get("/api/world/activity", async (req, res) => {
     try {
       // Get all campaigns that are linked to world regions or locations
-      const campaigns = await storage.getCampaigns();
+      const campaigns = await storage.getAllCampaigns();
       
       // Group by region and location
       const regionActivity: Record<number, { campaigns: any[], adventurerCount: number }> = {};
