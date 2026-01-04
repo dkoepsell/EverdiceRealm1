@@ -1903,6 +1903,170 @@ Return your response as a JSON object with these fields:
     }
   });
 
+  // Items database routes
+  app.get("/api/items", async (req, res) => {
+    try {
+      const { type } = req.query;
+      if (type && typeof type === 'string') {
+        const items = await storage.getItemsByType(type);
+        res.json(items);
+      } else {
+        const items = await storage.getAllItems();
+        res.json(items);
+      }
+    } catch (error) {
+      console.error("Error fetching items:", error);
+      res.status(500).json({ message: "Failed to fetch items" });
+    }
+  });
+  
+  app.get("/api/items/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const item = await storage.getItem(id);
+      if (!item) {
+        return res.status(404).json({ message: "Item not found" });
+      }
+      res.json(item);
+    } catch (error) {
+      console.error("Error fetching item:", error);
+      res.status(500).json({ message: "Failed to fetch item" });
+    }
+  });
+  
+  app.get("/api/items/name/:name", async (req, res) => {
+    try {
+      const name = req.params.name;
+      const item = await storage.getItemByName(name);
+      if (!item) {
+        return res.status(404).json({ message: "Item not found" });
+      }
+      res.json(item);
+    } catch (error) {
+      console.error("Error fetching item:", error);
+      res.status(500).json({ message: "Failed to fetch item" });
+    }
+  });
+  
+  // Calculate character stats from equipped items
+  app.get("/api/characters/:id/computed-stats", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      // Calculate ability modifiers
+      const getModifier = (score: number) => Math.floor((score - 10) / 2);
+      const dexMod = getModifier(character.dexterity);
+      const strMod = getModifier(character.strength);
+      
+      // Start with base AC (10 + Dex modifier for unarmored)
+      let computedAC = 10 + dexMod;
+      let attackBonus = 0;
+      let damageBonus = 0;
+      let damageDice = "1d4"; // Unarmed
+      let damageType = "bludgeoning";
+      let weaponName = "Unarmed Strike";
+      let armorName = "Unarmored";
+      let shieldBonus = 0;
+      
+      // Get equipped armor stats
+      if ((character as any).equippedArmor) {
+        const armor = await storage.getItemByName((character as any).equippedArmor);
+        if (armor && armor.baseAc) {
+          armorName = armor.name;
+          if (armor.armorType === 'light') {
+            computedAC = armor.baseAc + dexMod + (armor.magicBonus || 0);
+          } else if (armor.armorType === 'medium') {
+            const cappedDex = armor.maxDexBonus !== null ? Math.min(dexMod, armor.maxDexBonus) : dexMod;
+            computedAC = armor.baseAc + cappedDex + (armor.magicBonus || 0);
+          } else if (armor.armorType === 'heavy') {
+            computedAC = armor.baseAc + (armor.magicBonus || 0);
+          }
+        }
+      }
+      
+      // Get equipped shield stats
+      if ((character as any).equippedShield) {
+        const shield = await storage.getItemByName((character as any).equippedShield);
+        if (shield && shield.baseAc) {
+          shieldBonus = shield.baseAc + (shield.magicBonus || 0);
+          computedAC += shieldBonus;
+        }
+      }
+      
+      // Get equipped weapon stats
+      if ((character as any).equippedWeapon) {
+        const weapon = await storage.getItemByName((character as any).equippedWeapon);
+        if (weapon) {
+          weaponName = weapon.name;
+          damageDice = weapon.damageDice || "1d4";
+          damageType = weapon.damageType || "bludgeoning";
+          damageBonus = (weapon.magicBonus || 0);
+          attackBonus = (weapon.attackBonus || 0) + (weapon.magicBonus || 0);
+          
+          // Add ability modifier to attack/damage
+          const properties = weapon.properties || [];
+          if (properties.includes('finesse')) {
+            // Use higher of STR or DEX
+            const abilityMod = Math.max(strMod, dexMod);
+            attackBonus += abilityMod;
+            damageBonus += abilityMod;
+          } else if (weapon.weaponRange === 'ranged') {
+            attackBonus += dexMod;
+            damageBonus += dexMod;
+          } else {
+            attackBonus += strMod;
+            damageBonus += strMod;
+          }
+        }
+      } else {
+        // Unarmed strike uses STR
+        attackBonus = strMod;
+        damageBonus = strMod;
+      }
+      
+      // Get accessory bonuses
+      let accessoryBonus = 0;
+      if ((character as any).equippedAccessory) {
+        const accessory = await storage.getItemByName((character as any).equippedAccessory);
+        if (accessory && accessory.magicBonus) {
+          // Items like Ring of Protection add to AC
+          if (accessory.specialEffect?.toLowerCase().includes('ac')) {
+            accessoryBonus = accessory.magicBonus;
+            computedAC += accessoryBonus;
+          }
+        }
+      }
+      
+      res.json({
+        characterId: id,
+        computedAC,
+        attackBonus,
+        damageBonus,
+        damageDice,
+        damageType,
+        weaponName,
+        armorName,
+        shieldBonus,
+        accessoryBonus,
+        abilityModifiers: {
+          strength: strMod,
+          dexterity: dexMod,
+          constitution: getModifier(character.constitution),
+          intelligence: getModifier(character.intelligence),
+          wisdom: getModifier(character.wisdom),
+          charisma: getModifier(character.charisma)
+        }
+      });
+    } catch (error) {
+      console.error("Error computing character stats:", error);
+      res.status(500).json({ message: "Failed to compute character stats" });
+    }
+  });
+
   // Dice roll routes
   app.post("/api/dice/roll", async (req, res) => {
     try {

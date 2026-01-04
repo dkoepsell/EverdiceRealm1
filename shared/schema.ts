@@ -101,6 +101,42 @@ export const insertCharacterSchema = createInsertSchema(characters).omit({
 export type InsertCharacter = z.infer<typeof insertCharacterSchema>;
 export type Character = typeof characters.$inferSelect;
 
+// Items database with D&D 5e stats
+export const items = pgTable("items", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  type: text("type").notNull(), // weapon, armor, shield, accessory, consumable
+  rarity: text("rarity").default("common"), // common, uncommon, rare, very_rare, legendary
+  description: text("description"),
+  // Weapon stats
+  damageDice: text("damage_dice"), // e.g., "1d8", "2d6"
+  damageType: text("damage_type"), // slashing, piercing, bludgeoning, fire, etc.
+  weaponType: text("weapon_type"), // simple, martial
+  weaponRange: text("weapon_range"), // melee, ranged
+  attackBonus: integer("attack_bonus").default(0), // magic weapon bonus
+  properties: text("properties").array(), // finesse, versatile, two-handed, etc.
+  // Armor stats
+  baseAC: integer("base_ac"), // Base AC provided (e.g., 14 for chain shirt)
+  maxDexBonus: integer("max_dex_bonus"), // Max dex modifier allowed (null = unlimited)
+  stealthDisadvantage: boolean("stealth_disadvantage").default(false),
+  strengthRequirement: integer("strength_requirement"), // Min STR to wear without penalty
+  armorType: text("armor_type"), // light, medium, heavy, shield
+  // General stats
+  weight: integer("weight").default(0), // Weight in pounds
+  value: integer("value").default(0), // Value in gold pieces
+  requiresAttunement: boolean("requires_attunement").default(false),
+  magicBonus: integer("magic_bonus").default(0), // +1, +2, +3 magic items
+  specialEffect: text("special_effect"), // Special magical effects
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertItemSchema = createInsertSchema(items).omit({
+  id: true,
+});
+
+export type InsertItem = z.infer<typeof insertItemSchema>;
+export type Item = typeof items.$inferSelect;
+
 // Campaign schema with archive functionality, XP rewards, and multi-user support
 export const campaigns = pgTable("campaigns", {
   id: serial("id").primaryKey(),

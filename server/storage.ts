@@ -20,7 +20,9 @@ import {
   dmNotes, type DmNote, type InsertDmNote,
   // Chat system imports
   chatMessages, type ChatMessage, type InsertChatMessage,
-  onlineUsers, type OnlineUser, type InsertOnlineUser
+  onlineUsers, type OnlineUser, type InsertOnlineUser,
+  // Items database imports
+  items, type Item, type InsertItem
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or } from "drizzle-orm";
@@ -168,6 +170,15 @@ export interface IStorage {
   getDmNote(id: number): Promise<DmNote | undefined>;
   updateDmNote(id: number, updates: Partial<DmNote>): Promise<DmNote | undefined>;
   deleteDmNote(id: number): Promise<boolean>;
+  
+  // Item database operations
+  getAllItems(): Promise<Item[]>;
+  getItemsByType(type: string): Promise<Item[]>;
+  getItem(id: number): Promise<Item | undefined>;
+  getItemByName(name: string): Promise<Item | undefined>;
+  createItem(item: InsertItem): Promise<Item>;
+  updateItem(id: number, item: Partial<Item>): Promise<Item | undefined>;
+  deleteItem(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -1610,6 +1621,50 @@ export class DatabaseStorage implements IStorage {
         lastSeen: new Date().toISOString()
       })
       .where(eq(onlineUsers.userId, userId));
+  }
+  
+  // Item database operations
+  async getAllItems(): Promise<Item[]> {
+    return await db.select().from(items).orderBy(asc(items.name));
+  }
+  
+  async getItemsByType(type: string): Promise<Item[]> {
+    return await db.select().from(items).where(eq(items.type, type)).orderBy(asc(items.name));
+  }
+  
+  async getItem(id: number): Promise<Item | undefined> {
+    const [item] = await db.select().from(items).where(eq(items.id, id));
+    return item || undefined;
+  }
+  
+  async getItemByName(name: string): Promise<Item | undefined> {
+    const [item] = await db.select().from(items).where(eq(items.name, name));
+    return item || undefined;
+  }
+  
+  async createItem(item: InsertItem): Promise<Item> {
+    const [newItem] = await db
+      .insert(items)
+      .values({
+        ...item,
+        createdAt: new Date().toISOString()
+      })
+      .returning();
+    return newItem;
+  }
+  
+  async updateItem(id: number, updates: Partial<Item>): Promise<Item | undefined> {
+    const [updatedItem] = await db
+      .update(items)
+      .set(updates)
+      .where(eq(items.id, id))
+      .returning();
+    return updatedItem || undefined;
+  }
+  
+  async deleteItem(id: number): Promise<boolean> {
+    await db.delete(items).where(eq(items.id, id));
+    return true;
   }
 }
 
