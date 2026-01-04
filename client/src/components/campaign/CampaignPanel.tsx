@@ -1455,7 +1455,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             <TabsContent value="narrative" className="p-4 sm:p-6">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <h2 className="text-2xl font-bold font-fantasy text-slate-900 dark:text-slate-100">
+                  <h2 className="text-2xl font-bold font-fantasy" style={{ color: '#0f172a' }}>
                     {campaign.title}
                   </h2>
                   <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-md border">
