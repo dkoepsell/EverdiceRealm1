@@ -1543,76 +1543,93 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     </div>
                     
                     {/* Adventure Progress Display */}
-                    {parsedStoryState?.adventureProgress && parsedStoryState?.adventureRequirements && (
-                      <div className="bg-indigo-50 dark:bg-indigo-950/30 p-4 rounded-md border border-indigo-200 dark:border-indigo-800 mb-4">
-                        <h4 className="font-semibold text-indigo-800 dark:text-indigo-200 flex items-center mb-3">
-                          <Target className="h-4 w-4 mr-2" />
-                          Adventure Progress
-                          {parsedStoryState.adventureCompletion?.isComplete && (
-                            <Badge className="ml-2 bg-green-500">Complete!</Badge>
-                          )}
-                        </h4>
-                        
-                        <div className="mb-3">
-                          <div className="flex justify-between text-xs text-indigo-700 dark:text-indigo-300 mb-1">
-                            <span>Overall Progress</span>
-                            <span>{parsedStoryState.adventureCompletion?.percentComplete || 0}%</span>
+                    {parsedStoryState?.adventureProgress && parsedStoryState?.adventureRequirements && (() => {
+                      // Calculate progress percentage locally for reliability
+                      const progress = parsedStoryState.adventureProgress as any;
+                      const requirements = parsedStoryState.adventureRequirements as any;
+                      
+                      const combatDone = Math.min(progress.encounters?.combat || 0, requirements.encounters?.combat || 1);
+                      const trapDone = Math.min(progress.encounters?.trap || 0, requirements.encounters?.trap || 1);
+                      const treasureDone = Math.min(progress.encounters?.treasure || 0, requirements.encounters?.treasure || 1);
+                      const puzzlesDone = Math.min(progress.puzzles || 0, requirements.puzzles || 1);
+                      const discoveriesDone = Math.min(progress.discoveries || 0, requirements.discoveries || 1);
+                      const subquestsDone = Math.min(progress.subquestsCompleted || 0, requirements.subquests || 1);
+                      
+                      const totalDone = combatDone + trapDone + treasureDone + puzzlesDone + discoveriesDone + subquestsDone;
+                      const totalRequired = (requirements.encounters?.combat || 0) + (requirements.encounters?.trap || 0) + 
+                                           (requirements.encounters?.treasure || 0) + (requirements.puzzles || 0) + 
+                                           (requirements.discoveries || 0) + (requirements.subquests || 0);
+                      
+                      const percentComplete = totalRequired > 0 ? Math.floor((totalDone / totalRequired) * 100) : 0;
+                      const isComplete = percentComplete >= 100;
+                      
+                      return (
+                        <div className="bg-slate-100 dark:bg-slate-900/50 p-4 rounded-md border-2 border-slate-300 dark:border-slate-700 mb-4 shadow-sm">
+                          <h4 className="font-bold text-slate-900 dark:text-slate-100 flex items-center mb-3 text-base">
+                            <Target className="h-5 w-5 mr-2 text-indigo-600 dark:text-indigo-400" />
+                            Adventure Progress
+                            {isComplete && (
+                              <Badge className="ml-2 bg-green-600 text-white">Complete!</Badge>
+                            )}
+                          </h4>
+                          
+                          <div className="mb-4">
+                            <div className="flex justify-between text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">
+                              <span>Overall Progress</span>
+                              <span>{percentComplete}%</span>
+                            </div>
+                            <div className="h-3 bg-slate-300 dark:bg-slate-700 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
+                                style={{ width: `${percentComplete}%` }}
+                              />
+                            </div>
                           </div>
-                          <Progress 
-                            value={parsedStoryState.adventureCompletion?.percentComplete || 0} 
-                            className="h-2"
-                          />
+                          
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                            <div className="bg-red-600 dark:bg-red-700 p-2 rounded text-center shadow">
+                              <div className="font-bold text-white text-lg">
+                                {progress.encounters?.combat || 0}/{requirements.encounters?.combat || 0}
+                              </div>
+                              <div className="text-red-100 font-medium">Combat</div>
+                            </div>
+                            <div className="bg-orange-600 dark:bg-orange-700 p-2 rounded text-center shadow">
+                              <div className="font-bold text-white text-lg">
+                                {progress.encounters?.trap || 0}/{requirements.encounters?.trap || 0}
+                              </div>
+                              <div className="text-orange-100 font-medium">Traps</div>
+                            </div>
+                            <div className="bg-amber-500 dark:bg-amber-600 p-2 rounded text-center shadow">
+                              <div className="font-bold text-white text-lg">
+                                {progress.encounters?.treasure || 0}/{requirements.encounters?.treasure || 0}
+                              </div>
+                              <div className="text-amber-100 font-medium">Treasure</div>
+                            </div>
+                            <div className="bg-sky-600 dark:bg-sky-700 p-2 rounded text-center shadow">
+                              <div className="font-bold text-white text-lg">
+                                {progress.discoveries || 0}/{requirements.discoveries || 0}
+                              </div>
+                              <div className="text-sky-100 font-medium">Discoveries</div>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                            <div className="bg-violet-600 dark:bg-violet-700 p-2 rounded text-center shadow">
+                              <div className="font-bold text-white text-lg">
+                                {progress.puzzles || 0}/{requirements.puzzles || 0}
+                              </div>
+                              <div className="text-violet-100 font-medium">Puzzles</div>
+                            </div>
+                            <div className="bg-emerald-600 dark:bg-emerald-700 p-2 rounded text-center shadow">
+                              <div className="font-bold text-white text-lg">
+                                {progress.subquestsCompleted || 0}/{requirements.subquests || 0}
+                              </div>
+                              <div className="text-emerald-100 font-medium">Subquests</div>
+                            </div>
+                          </div>
                         </div>
-                        
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                          <div className="bg-red-100 dark:bg-red-900/30 p-2 rounded text-center">
-                            <div className="font-bold text-red-700 dark:text-red-300">
-                              {(parsedStoryState.adventureProgress as any).encounters?.combat || 0}/
-                              {(parsedStoryState.adventureRequirements as any).encounters?.combat || 0}
-                            </div>
-                            <div className="text-red-600 dark:text-red-400">Combat</div>
-                          </div>
-                          <div className="bg-orange-100 dark:bg-orange-900/30 p-2 rounded text-center">
-                            <div className="font-bold text-orange-700 dark:text-orange-300">
-                              {(parsedStoryState.adventureProgress as any).encounters?.trap || 0}/
-                              {(parsedStoryState.adventureRequirements as any).encounters?.trap || 0}
-                            </div>
-                            <div className="text-orange-600 dark:text-orange-400">Traps</div>
-                          </div>
-                          <div className="bg-yellow-100 dark:bg-yellow-900/30 p-2 rounded text-center">
-                            <div className="font-bold text-yellow-700 dark:text-yellow-300">
-                              {(parsedStoryState.adventureProgress as any).encounters?.treasure || 0}/
-                              {(parsedStoryState.adventureRequirements as any).encounters?.treasure || 0}
-                            </div>
-                            <div className="text-yellow-600 dark:text-yellow-400">Treasure</div>
-                          </div>
-                          <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded text-center">
-                            <div className="font-bold text-blue-700 dark:text-blue-300">
-                              {(parsedStoryState.adventureProgress as any).discoveries || 0}/
-                              {(parsedStoryState.adventureRequirements as any).discoveries || 0}
-                            </div>
-                            <div className="text-blue-600 dark:text-blue-400">Discoveries</div>
-                          </div>
-                        </div>
-                        
-                        <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                          <div className="bg-purple-100 dark:bg-purple-900/30 p-2 rounded text-center">
-                            <div className="font-bold text-purple-700 dark:text-purple-300">
-                              {(parsedStoryState.adventureProgress as any).puzzles || 0}/
-                              {(parsedStoryState.adventureRequirements as any).puzzles || 0}
-                            </div>
-                            <div className="text-purple-600 dark:text-purple-400">Puzzles</div>
-                          </div>
-                          <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded text-center">
-                            <div className="font-bold text-emerald-700 dark:text-emerald-300">
-                              {(parsedStoryState.adventureProgress as any).subquestsCompleted || 0}/
-                              {(parsedStoryState.adventureRequirements as any).subquests || 0}
-                            </div>
-                            <div className="text-emerald-600 dark:text-emerald-400">Subquests</div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                     
                     {/* Adventure Objectives - Story-driven quests that auto-complete */}
                     {parsedStoryState?.activeQuests && 
