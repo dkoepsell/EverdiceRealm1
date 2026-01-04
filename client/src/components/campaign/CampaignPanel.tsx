@@ -1455,7 +1455,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             <TabsContent value="narrative" className="p-4 sm:p-6">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <h2 className="text-2xl font-bold font-fantasy text-primary">
+                  <h2 className="text-2xl font-bold font-fantasy text-slate-900 dark:text-slate-100">
                     {campaign.title}
                   </h2>
                   <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-md border">
@@ -1493,8 +1493,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 {currentSession && !parsedStoryState?.adventureEnded ? (
                   <div className="mt-6 space-y-4">
                     <div className="flex justify-between items-start">
-                      <h3 className="text-lg font-semibold flex items-center text-foreground">
-                        <Scroll className="h-5 w-5 mr-2 text-primary" />
+                      <h3 className="text-xl font-bold flex items-center text-slate-900 dark:text-slate-100">
+                        <Scroll className="h-5 w-5 mr-2 text-indigo-600 dark:text-indigo-400" />
                         Session {currentSession.sessionNumber}: {currentSession.title}
                       </h3>
                       
@@ -2037,7 +2037,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             <TabsContent value="journey-log" className="p-4">
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-bold font-fantasy text-primary">Journey Log</h2>
+                  <h2 className="text-xl font-bold font-fantasy text-slate-900 dark:text-slate-100">Journey Log</h2>
                   
                   <div className="relative">
                     <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-muted-foreground" />
@@ -2152,7 +2152,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             
             <TabsContent value="party" className="p-4">
               <div className="space-y-4">
-                <h2 className="text-xl font-bold font-fantasy text-primary">Campaign Party</h2>
+                <h2 className="text-xl font-bold font-fantasy text-slate-900 dark:text-slate-100">Campaign Party</h2>
                 
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -2958,7 +2958,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             
             <TabsContent value="settings" className="p-4">
               <div className="space-y-4">
-                <h2 className="text-xl font-bold font-fantasy text-primary">Campaign Settings</h2>
+                <h2 className="text-xl font-bold font-fantasy text-slate-900 dark:text-slate-100">Campaign Settings</h2>
                 
                 <div className="space-y-4">
                   <div className="space-y-1">
