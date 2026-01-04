@@ -605,3 +605,52 @@ export const insertOnlineUserSchema = createInsertSchema(onlineUsers).omit({
 
 export type InsertOnlineUser = z.infer<typeof insertOnlineUserSchema>;
 export type OnlineUser = typeof onlineUsers.$inferSelect;
+
+// Campaign Dungeon Maps - Persistent map state for campaigns
+export const campaignDungeonMaps = pgTable("campaign_dungeon_maps", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  sessionId: integer("session_id"), // Optional tie to specific session
+  mapName: text("map_name").notNull(),
+  mapData: jsonb("map_data").notNull(), // Full dungeon grid data (tiles, rooms, corridors)
+  exploredTiles: jsonb("explored_tiles").default([]), // Array of {x, y} coordinates explored
+  entityPositions: jsonb("entity_positions").default([]), // Current positions of all entities
+  playerPosition: jsonb("player_position").default({ x: 0, y: 0 }), // Player's current position
+  fogOfWar: jsonb("fog_of_war").default({}), // Visibility state for tiles
+  discoveredSecrets: jsonb("discovered_secrets").default([]), // Secret doors/traps found
+  lootedChests: jsonb("looted_chests").default([]), // Chest positions that have been looted
+  isActive: boolean("is_active").default(true), // Whether this is the current active map
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  updatedAt: text("updated_at"),
+});
+
+export const insertCampaignDungeonMapSchema = createInsertSchema(campaignDungeonMaps).omit({
+  id: true,
+});
+
+export type InsertCampaignDungeonMap = z.infer<typeof insertCampaignDungeonMapSchema>;
+export type CampaignDungeonMap = typeof campaignDungeonMaps.$inferSelect;
+
+// Campaign Quests - Milestone tracking within adventures
+export const campaignQuests = pgTable("campaign_quests", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  questType: text("quest_type").notNull().default("main"), // main, side, exploration, combat
+  status: text("status").notNull().default("active"), // active, in_progress, completed, failed
+  objectives: jsonb("objectives").default([]), // Array of {text, completed} objectives
+  xpReward: integer("xp_reward").default(100),
+  goldReward: integer("gold_reward").default(0),
+  lootRewards: jsonb("loot_rewards").default([]), // Array of item names/objects
+  completedAt: text("completed_at"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  order: integer("order").default(0), // Display order
+});
+
+export const insertCampaignQuestSchema = createInsertSchema(campaignQuests).omit({
+  id: true,
+});
+
+export type InsertCampaignQuest = z.infer<typeof insertCampaignQuestSchema>;
+export type CampaignQuest = typeof campaignQuests.$inferSelect;
