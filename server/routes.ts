@@ -4530,9 +4530,13 @@ Return your response as a JSON object with these fields:
       }
       
       // Mark encounter as resolved and clear it
+      // Also clear combat state if this was a combat encounter
+      const isCombatEncounter = encounterType === 'combat';
       const updatedStoryState = {
         ...storyState,
         pendingEncounter: null, // Clear the pending encounter so movement can continue
+        inCombat: isCombatEncounter ? false : storyState.inCombat, // Clear combat flag after combat resolution
+        combatants: isCombatEncounter ? [] : storyState.combatants, // Clear enemies
         lastResolvedEncounter: {
           ...encounter,
           resolved: true,
@@ -4547,6 +4551,8 @@ Return your response as a JSON object with these fields:
         adventureRequirements: requirements,
         adventureCompletion: completionStatus
       };
+      
+      console.log(`Encounter resolved: type=${encounterType}, progress updated:`, adventureProgress.encounters);
       
       await storage.updateSessionStoryState(campaignId, currentSessionNumber, updatedStoryState);
       
@@ -6655,9 +6661,12 @@ Respond with JSON:
       }
       
       // Check for defeated enemies and award XP based on D&D 5e CR table
+      // Also track combat completion for adventure progress
+      let combatCompleted = false;
       if (combatEffects?.enemyDamage) {
         const defeatedEnemies = combatEffects.enemyDamage.filter((e: any) => e.defeated);
         if (defeatedEnemies.length > 0) {
+          combatCompleted = true;
           // Award XP based on enemy Challenge Rating (D&D 5e official)
           for (const enemy of defeatedEnemies) {
             const cr = enemy.cr || "1/4"; // Default CR 1/4 for basic enemies
@@ -6665,6 +6674,13 @@ Respond with JSON:
             xpAwarded += enemyXP;
           }
         }
+      }
+      
+      // Also check if combat just ended (was in combat, now not)
+      const wasInCombat = currentStoryState.inCombat || false;
+      const nowInCombat = storyAdvancement.storyState?.inCombat || false;
+      if (wasInCombat && !nowInCombat) {
+        combatCompleted = true;
       }
       
       // Bonus XP for significant story advancement
@@ -6823,13 +6839,35 @@ Respond with JSON:
       };
       const updatedJourneyLog = [...existingJourneyLog, newJourneyEntry].slice(-50);
       
+      // Update adventure progress if combat was completed
+      let updatedAdventureProgress = currentStoryState.adventureProgress || {
+        encounters: { combat: 0, trap: 0, treasure: 0, total: 0 },
+        puzzles: 0,
+        discoveries: 0,
+        subquestsCompleted: 0,
+        startedAt: new Date().toISOString(),
+        isComplete: false
+      };
+      
+      if (combatCompleted) {
+        updatedAdventureProgress = {
+          ...updatedAdventureProgress,
+          encounters: {
+            ...updatedAdventureProgress.encounters,
+            combat: (updatedAdventureProgress.encounters?.combat || 0) + 1,
+            total: (updatedAdventureProgress.encounters?.total || 0) + 1
+          }
+        };
+        console.log("Combat completed - incrementing counter:", updatedAdventureProgress.encounters);
+      }
+      
       // Merge the new exploration limit with the AI-generated story state
       const mergedStoryState = {
         ...storyAdvancement.storyState,
         explorationLimit: newExplorationLimit,
         startPosition: currentStoryState.startPosition || { x: 4, y: 4 },
         journeyLog: updatedJourneyLog,
-        adventureProgress: currentStoryState.adventureProgress,
+        adventureProgress: updatedAdventureProgress,
         adventureRequirements: currentStoryState.adventureRequirements,
         movesWithoutStory: 0, // Reset moves counter after story advancement
         lastMovement: movement?.occurred ? {
@@ -6839,11 +6877,74 @@ Respond with JSON:
         } : currentStoryState.lastMovement
       };
       
+      // Add movement choices if not in combat
+      let finalChoices = storyAdvancement.choices || [];
+      const inCombat = storyAdvancement.storyState?.inCombat || mergedStoryState.inCombat;
+      
+      if (!inCombat) {
+        // Get current dungeon map position for movement context
+        const dungeonMap = await storage.getCampaignDungeonMap(campaignId);
+        const currentPosition = dungeonMap?.playerPosition || { x: 4, y: 4 };
+        
+        // Add movement choices for exploration
+        const movementChoices = [
+          {
+            text: "Move North (explore ahead)",
+            type: "exploration",
+            difficulty: "easy",
+            requiresDiceRoll: false,
+            isMovement: true,
+            movementDirection: "north"
+          },
+          {
+            text: "Move South (go back)",
+            type: "exploration", 
+            difficulty: "easy",
+            requiresDiceRoll: false,
+            isMovement: true,
+            movementDirection: "south"
+          },
+          {
+            text: "Move East (explore right)",
+            type: "exploration",
+            difficulty: "easy",
+            requiresDiceRoll: false,
+            isMovement: true,
+            movementDirection: "east"
+          },
+          {
+            text: "Move West (explore left)",
+            type: "exploration",
+            difficulty: "easy",
+            requiresDiceRoll: false,
+            isMovement: true,
+            movementDirection: "west"
+          }
+        ];
+        
+        // Add movement choices that aren't already represented
+        const hasMovementChoice = finalChoices.some((c: any) => 
+          c.isMovement || 
+          c.text?.toLowerCase().includes('north') ||
+          c.text?.toLowerCase().includes('south') ||
+          c.text?.toLowerCase().includes('east') ||
+          c.text?.toLowerCase().includes('west') ||
+          c.text?.toLowerCase().includes('move') ||
+          c.text?.toLowerCase().includes('explore')
+        );
+        
+        if (!hasMovementChoice) {
+          // Add 2-3 movement options to give variety
+          const shuffledMovements = movementChoices.sort(() => Math.random() - 0.5);
+          finalChoices = [...finalChoices.slice(0, 3), ...shuffledMovements.slice(0, 2)];
+        }
+      }
+      
       // Update session with story advancement
       const updatedSession = await storage.advanceSessionStory(campaignId, {
         narrative: storyAdvancement.narrative,
         dmNarrative: storyAdvancement.dmNarrative,
-        choices: storyAdvancement.choices,
+        choices: finalChoices,
         storyState: mergedStoryState,
         npcInteractions: storyAdvancement.npcInteractions,
         playerChoicesMade: [...(currentSession.playerChoicesMade || []), {
