@@ -2092,38 +2092,91 @@ Return your response as a JSON object with these fields:
       // Now try to parse with the schema
       const validatedData = insertDiceRollSchema.parse(diceRollData);
       
-      // Implement actual dice rolling
+      // Implement actual dice rolling with advantage/disadvantage support
       const { diceType, modifier, purpose } = validatedData;
-      const count = validatedData.count || 1; // Default to 1 if count is not provided
+      const count = validatedData.count || 1;
+      const advantage = req.body.advantage === true;
+      const disadvantage = req.body.disadvantage === true;
+      const abilityType = req.body.abilityType; // e.g., 'strength', 'dexterity'
+      const characterId = req.body.characterId;
       
       // Parse and validate dice type
-      let max = 20; // Default to d20
+      let max = 20;
       if (diceType && diceType.startsWith('d')) {
         const parsedMax = parseInt(diceType.substring(1));
         if (!isNaN(parsedMax) && parsedMax > 0) {
           max = parsedMax;
-        } else {
-          console.warn(`Server: Invalid dice type format: ${diceType}, defaulting to d20`);
         }
-      } else {
-        console.warn(`Server: Invalid dice type: ${diceType}, defaulting to d20`);
       }
       
-      console.log(`Server rolling ${count}d${max} with modifier ${modifier || 0}`);
+      // Calculate ability modifier if character and ability type provided
+      let abilityModifier = 0;
+      if (characterId && abilityType) {
+        const character = await storage.getCharacter(characterId);
+        if (character) {
+          const getModifier = (score: number) => Math.floor((score - 10) / 2);
+          switch (abilityType.toLowerCase()) {
+            case 'strength': abilityModifier = getModifier(character.strength); break;
+            case 'dexterity': abilityModifier = getModifier(character.dexterity); break;
+            case 'constitution': abilityModifier = getModifier(character.constitution); break;
+            case 'intelligence': abilityModifier = getModifier(character.intelligence); break;
+            case 'wisdom': abilityModifier = getModifier(character.wisdom); break;
+            case 'charisma': abilityModifier = getModifier(character.charisma); break;
+          }
+        }
+      }
       
-      // Roll the dice the specified number of times
+      const totalModifier = (modifier || 0) + abilityModifier;
+      
+      console.log(`Server rolling ${count}d${max} with modifier ${totalModifier}, advantage: ${advantage}, disadvantage: ${disadvantage}`);
+      
+      // Roll the dice
       const rolls: number[] = [];
-      for (let i = 0; i < count; i++) {
-        const roll = Math.floor(Math.random() * max) + 1;
-        console.log(`Server roll ${i+1} result: ${roll}`);
-        rolls.push(roll);
+      let usedRoll: number;
+      let advantageRolls: number[] = [];
+      
+      // Handle advantage/disadvantage for d20 rolls
+      if (max === 20 && (advantage || disadvantage) && !advantage === !disadvantage) {
+        // Advantage and disadvantage cancel out - roll normally
+        for (let i = 0; i < count; i++) {
+          rolls.push(Math.floor(Math.random() * max) + 1);
+        }
+        usedRoll = rolls.reduce((sum, roll) => sum + roll, 0);
+      } else if (max === 20 && advantage) {
+        // Roll 2d20 and take the higher for each die in count
+        for (let i = 0; i < count; i++) {
+          const roll1 = Math.floor(Math.random() * max) + 1;
+          const roll2 = Math.floor(Math.random() * max) + 1;
+          advantageRolls.push(roll1, roll2);
+          const higher = Math.max(roll1, roll2);
+          rolls.push(higher);
+          console.log(`Advantage roll: ${roll1} vs ${roll2}, using ${higher}`);
+        }
+        usedRoll = rolls.reduce((sum, roll) => sum + roll, 0);
+      } else if (max === 20 && disadvantage) {
+        // Roll 2d20 and take the lower for each die in count
+        for (let i = 0; i < count; i++) {
+          const roll1 = Math.floor(Math.random() * max) + 1;
+          const roll2 = Math.floor(Math.random() * max) + 1;
+          advantageRolls.push(roll1, roll2);
+          const lower = Math.min(roll1, roll2);
+          rolls.push(lower);
+          console.log(`Disadvantage roll: ${roll1} vs ${roll2}, using ${lower}`);
+        }
+        usedRoll = rolls.reduce((sum, roll) => sum + roll, 0);
+      } else {
+        // Normal roll
+        for (let i = 0; i < count; i++) {
+          const roll = Math.floor(Math.random() * max) + 1;
+          rolls.push(roll);
+        }
+        usedRoll = rolls.reduce((sum, roll) => sum + roll, 0);
       }
       
       // Calculate total
-      const rollSum = rolls.reduce((sum, roll) => sum + roll, 0);
-      const total = rollSum + (modifier || 0); // Ensure modifier is a number
+      const total = usedRoll + totalModifier;
       
-      // Check for critical hit or fumble (only applies to d20)
+      // Check for critical hit or fumble (based on the used roll, not all rolls)
       const isCritical = diceType === "d20" && rolls.some(roll => roll === 20);
       const isFumble = diceType === "d20" && rolls.some(roll => roll === 1);
       
@@ -2144,10 +2197,14 @@ Return your response as a JSON object with these fields:
       const fullResult = {
         ...diceRoll,
         rolls,
+        advantageRolls: advantageRolls.length > 0 ? advantageRolls : undefined,
         total,
         isCritical,
         isFumble,
-        // Make sure we include these for the client
+        hasAdvantage: advantage,
+        hasDisadvantage: disadvantage,
+        abilityModifier,
+        totalModifier,
         diceType: diceType,
         modifier: modifier || 0,
         count: count,
