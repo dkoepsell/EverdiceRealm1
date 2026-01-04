@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { RulesReference } from "@/components/education/RulesReference";
 import { DMGuide } from "@/components/education/DMGuide";
+import { LearningPathContent } from "@/components/education/LearningPathContent";
 import { 
   BookOpen, 
   Users, 
@@ -121,14 +122,18 @@ export default function LearnPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 mb-8">
+          <TabsList className="grid w-full grid-cols-5 mb-8">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <Star className="h-4 w-4" />
               Overview
             </TabsTrigger>
+            <TabsTrigger value="paths" className="flex items-center gap-2">
+              <GraduationCap className="h-4 w-4" />
+              Lessons
+            </TabsTrigger>
             <TabsTrigger value="rules" className="flex items-center gap-2">
               <BookOpen className="h-4 w-4" />
-              Rules Reference
+              Rules
             </TabsTrigger>
             <TabsTrigger value="dm-guide" className="flex items-center gap-2">
               <Crown className="h-4 w-4" />
@@ -149,7 +154,12 @@ export default function LearnPage() {
                   {LEARNING_PATHS.map((path, index) => {
                     const IconComponent = path.icon;
                     return (
-                      <Card key={index} className={`${path.color} ${path.darkColor} border-2 hover:shadow-lg transition-shadow`}>
+                      <Card 
+                        key={index} 
+                        className={`${path.color} ${path.darkColor} border-2 hover:shadow-lg transition-shadow cursor-pointer`}
+                        onClick={() => setActiveTab("paths")}
+                        data-testid={`overview-path-${index}`}
+                      >
                         <CardHeader>
                           <div className="flex items-center gap-3 mb-2">
                             <IconComponent className="h-6 w-6" />
@@ -247,6 +257,10 @@ export default function LearnPage() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="paths">
+            <LearningPathContent />
           </TabsContent>
 
           <TabsContent value="rules">
