@@ -223,6 +223,14 @@ Preferred communication style: Simple, everyday language.
 - Rest mechanics respect status: Short rest blocked for unconscious/dead; long rest resets to conscious
 - Toast notifications for status changes (unconscious, dead)
 
+### Item Management & Narrative Improvements (January 04, 2026)
+- Fixed item equip/unequip for characters and NPCs with controlled Select components
+- Added item transfer between party members via "Give" dropdown in inventory
+- Fixed narrative mode selection to properly apply to story generation
+- Improved story pacing with dynamic narrative style instructions
+- NPC inventory management with full equipment slot support
+- Party member selector allows switching between player characters and NPC companions
+
 ## Changelog
 
 Changelog:
@@ -233,3 +241,4 @@ Changelog:
 - July 02, 2025. Implemented quest tracking with completion status and story progression persistence
 - January 02, 2026. Added combat mechanics with damage tracking, enemy HP bars, and combat effects
 - January 02, 2026. Added death saving throws with D&D 5e mechanics and status tracking
+- January 04, 2026. Fixed item equip/unequip, added item transfer, improved narrative mode selection and story pacing
