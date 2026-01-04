@@ -6823,5 +6823,229 @@ Respond with JSON:
     }
   });
 
+  // ========================================
+  // World Map API Routes
+  // ========================================
+  
+  // Get all world regions (public - anyone can view the world map)
+  app.get("/api/world/regions", async (req, res) => {
+    try {
+      const regions = await storage.getAllWorldRegions();
+      res.json(regions);
+    } catch (error) {
+      console.error("Failed to fetch world regions:", error);
+      res.status(500).json({ message: "Failed to fetch world regions" });
+    }
+  });
+  
+  // Get a specific region
+  app.get("/api/world/regions/:id", async (req, res) => {
+    try {
+      const regionId = parseInt(req.params.id);
+      const region = await storage.getWorldRegion(regionId);
+      if (!region) {
+        return res.status(404).json({ message: "Region not found" });
+      }
+      res.json(region);
+    } catch (error) {
+      console.error("Failed to fetch world region:", error);
+      res.status(500).json({ message: "Failed to fetch world region" });
+    }
+  });
+  
+  // Create a new world region (admin/DM only)
+  app.post("/api/world/regions", isAuthenticated, async (req, res) => {
+    try {
+      const region = await storage.createWorldRegion(req.body);
+      res.status(201).json(region);
+    } catch (error) {
+      console.error("Failed to create world region:", error);
+      res.status(500).json({ message: "Failed to create world region" });
+    }
+  });
+  
+  // Update a world region
+  app.patch("/api/world/regions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const regionId = parseInt(req.params.id);
+      const updated = await storage.updateWorldRegion(regionId, req.body);
+      if (!updated) {
+        return res.status(404).json({ message: "Region not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to update world region:", error);
+      res.status(500).json({ message: "Failed to update world region" });
+    }
+  });
+  
+  // Get all world locations (optionally filtered by region)
+  app.get("/api/world/locations", async (req, res) => {
+    try {
+      const regionId = req.query.regionId ? parseInt(req.query.regionId as string) : undefined;
+      const locations = await storage.getWorldLocations(regionId);
+      res.json(locations);
+    } catch (error) {
+      console.error("Failed to fetch world locations:", error);
+      res.status(500).json({ message: "Failed to fetch world locations" });
+    }
+  });
+  
+  // Get a specific location
+  app.get("/api/world/locations/:id", async (req, res) => {
+    try {
+      const locationId = parseInt(req.params.id);
+      const location = await storage.getWorldLocation(locationId);
+      if (!location) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+      res.json(location);
+    } catch (error) {
+      console.error("Failed to fetch world location:", error);
+      res.status(500).json({ message: "Failed to fetch world location" });
+    }
+  });
+  
+  // Create a new world location
+  app.post("/api/world/locations", isAuthenticated, async (req, res) => {
+    try {
+      const location = await storage.createWorldLocation(req.body);
+      res.status(201).json(location);
+    } catch (error) {
+      console.error("Failed to create world location:", error);
+      res.status(500).json({ message: "Failed to create world location" });
+    }
+  });
+  
+  // Update a world location
+  app.patch("/api/world/locations/:id", isAuthenticated, async (req, res) => {
+    try {
+      const locationId = parseInt(req.params.id);
+      const updated = await storage.updateWorldLocation(locationId, req.body);
+      if (!updated) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to update world location:", error);
+      res.status(500).json({ message: "Failed to update world location" });
+    }
+  });
+  
+  // Link a campaign/adventure to a world location
+  app.post("/api/world/locations/:id/link-campaign", isAuthenticated, async (req, res) => {
+    try {
+      const locationId = parseInt(req.params.id);
+      const { campaignId } = req.body;
+      
+      // Update the location with the linked campaign
+      const updatedLocation = await storage.updateWorldLocation(locationId, { linkedCampaignId: campaignId });
+      
+      // Also update the campaign to reference this location
+      if (updatedLocation) {
+        await storage.updateCampaign(campaignId, { worldLocationId: locationId });
+      }
+      
+      res.json(updatedLocation);
+    } catch (error) {
+      console.error("Failed to link campaign to location:", error);
+      res.status(500).json({ message: "Failed to link campaign to location" });
+    }
+  });
+  
+  // Get user's world progress
+  app.get("/api/world/progress", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const progress = await storage.getUserWorldProgress(userId);
+      res.json(progress);
+    } catch (error) {
+      console.error("Failed to fetch user world progress:", error);
+      res.status(500).json({ message: "Failed to fetch user world progress" });
+    }
+  });
+  
+  // Get any user's world progress (public for viewing other users' progress on the map)
+  app.get("/api/world/progress/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const progress = await storage.getUserWorldProgress(userId);
+      res.json(progress);
+    } catch (error) {
+      console.error("Failed to fetch user world progress:", error);
+      res.status(500).json({ message: "Failed to fetch user world progress" });
+    }
+  });
+  
+  // Discover a region
+  app.post("/api/world/regions/:id/discover", isAuthenticated, async (req, res) => {
+    try {
+      const regionId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      const { campaignId, sessionId } = req.body;
+      
+      const progress = await storage.discoverRegion(userId, regionId, campaignId, sessionId);
+      res.json(progress);
+    } catch (error) {
+      console.error("Failed to discover region:", error);
+      res.status(500).json({ message: "Failed to discover region" });
+    }
+  });
+  
+  // Discover a location
+  app.post("/api/world/locations/:id/discover", isAuthenticated, async (req, res) => {
+    try {
+      const locationId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      const { campaignId, sessionId } = req.body;
+      
+      const progress = await storage.discoverLocation(userId, locationId, campaignId, sessionId);
+      res.json(progress);
+    } catch (error) {
+      console.error("Failed to discover location:", error);
+      res.status(500).json({ message: "Failed to discover location" });
+    }
+  });
+  
+  // Complete a region
+  app.post("/api/world/regions/:id/complete", isAuthenticated, async (req, res) => {
+    try {
+      const regionId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      
+      const progress = await storage.completeRegion(userId, regionId);
+      res.json(progress);
+    } catch (error) {
+      console.error("Failed to complete region:", error);
+      res.status(500).json({ message: "Failed to complete region" });
+    }
+  });
+  
+  // Complete a location
+  app.post("/api/world/locations/:id/complete", isAuthenticated, async (req, res) => {
+    try {
+      const locationId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      
+      const progress = await storage.completeLocation(userId, locationId);
+      res.json(progress);
+    } catch (error) {
+      console.error("Failed to complete location:", error);
+      res.status(500).json({ message: "Failed to complete location" });
+    }
+  });
+  
+  // Get all users' progress for a specific region (for aggregate map view)
+  app.get("/api/world/regions/:id/all-progress", async (req, res) => {
+    try {
+      const regionId = parseInt(req.params.id);
+      // This would need a new storage method - for now return empty
+      res.json([]);
+    } catch (error) {
+      console.error("Failed to fetch region progress:", error);
+      res.status(500).json({ message: "Failed to fetch region progress" });
+    }
+  });
+
   return httpServer;
 }
