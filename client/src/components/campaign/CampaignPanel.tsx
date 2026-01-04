@@ -4,6 +4,7 @@ import { Campaign, CampaignSession, Character, Npc, WorldRegion, WorldLocation }
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { generateStory, StoryRequest } from "@/lib/openai";
 import { DiceType, DiceRoll, DiceRollResult, rollDice, clientRollDice } from "@/lib/dice";
+import { getSkillModifier, parseDCFromText, calculateSuccessProbability, getLikelihoodDescription } from "@/lib/skills";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -1864,28 +1865,81 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         
                         {/* Suggested Actions */}
                         <div className="grid grid-cols-1 gap-2">
-                          {currentSession.choices.map((choice: any, index: number) => (
-                            <Button 
-                              key={index}
-                              variant="outline"
-                              className="justify-start h-auto py-3 px-4 bg-background hover:bg-accent border-2 border-border hover:border-primary text-left w-full"
-                              onClick={() => handleChoiceSelection(choice)}
-                            >
-                              <div className="flex items-start w-full min-w-0">
-                                <ArrowRight className="h-5 w-5 mr-2 mt-0.5 shrink-0 text-primary" />
-                                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 sm:gap-2 min-w-0 flex-1">
-                                  <span className="text-foreground font-medium break-words">
-                                    {choice.action || choice.text}
-                                  </span>
-                                  {(choice.requiresRoll || choice.requiresDiceRoll) && (
-                                    <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded font-bold whitespace-nowrap shrink-0">
-                                      {choice.rollPurpose || "Skill Check"} ({choice.diceType || "d20"})
-                                    </span>
-                                  )}
+                          {currentSession.choices.map((choice: any, index: number) => {
+                            // Parse DC and calculate success probability
+                            const choiceText = choice.action || choice.text || '';
+                            const dc = choice.rollDC || parseDCFromText(choiceText);
+                            const skillName = choice.skillType || choice.rollPurpose?.toLowerCase().replace(/\s+check/i, '') || 'strength';
+                            const hasRoll = choice.requiresRoll || choice.requiresDiceRoll || dc;
+                            
+                            // Get modifier and probability if we have a character and a roll is required
+                            let tooltipContent = null;
+                            if (hasRoll && activeCharacter && dc) {
+                              const { modifier, breakdown } = getSkillModifier(activeCharacter, skillName);
+                              const probability = calculateSuccessProbability(dc, modifier);
+                              const likelihood = getLikelihoodDescription(probability);
+                              
+                              tooltipContent = (
+                                <div className="text-sm space-y-1 p-1">
+                                  <div className="font-bold text-white">DC {dc} {skillName.charAt(0).toUpperCase() + skillName.slice(1)} Check</div>
+                                  <div className="text-gray-300">Your modifier: {breakdown}</div>
+                                  <div className={`font-semibold ${likelihood.color}`}>
+                                    Success chance: {Math.round(probability)}% ({likelihood.text})
+                                  </div>
+                                  <div className="text-xs text-gray-400 mt-1">
+                                    Need to roll {Math.max(1, dc - getSkillModifier(activeCharacter, skillName).modifier)}+ on d20
+                                  </div>
                                 </div>
-                              </div>
-                            </Button>
-                          ))}
+                              );
+                            }
+                            
+                            const button = (
+                              <Button 
+                                key={index}
+                                variant="outline"
+                                className="justify-start h-auto py-3 px-4 bg-background hover:bg-accent border-2 border-border hover:border-primary text-left w-full"
+                                onClick={() => handleChoiceSelection(choice)}
+                                data-testid={`choice-button-${index}`}
+                              >
+                                <div className="flex items-start w-full min-w-0">
+                                  <ArrowRight className="h-5 w-5 mr-2 mt-0.5 shrink-0 text-primary" />
+                                  <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 sm:gap-2 min-w-0 flex-1">
+                                    <span className="text-foreground font-medium break-words">
+                                      {choiceText}
+                                    </span>
+                                    {hasRoll && (
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded font-bold whitespace-nowrap">
+                                          {choice.rollPurpose || "Skill Check"} ({choice.diceType || "d20"})
+                                        </span>
+                                        {tooltipContent && activeCharacter && (
+                                          <span className={`text-xs px-1.5 py-0.5 rounded font-bold whitespace-nowrap ${getLikelihoodDescription(calculateSuccessProbability(dc, getSkillModifier(activeCharacter, skillName).modifier)).color} bg-black/20`}>
+                                            {Math.round(calculateSuccessProbability(dc, getSkillModifier(activeCharacter, skillName).modifier))}%
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </Button>
+                            );
+                            
+                            // Wrap with tooltip if we have content
+                            if (tooltipContent) {
+                              return (
+                                <Tooltip key={index}>
+                                  <TooltipTrigger asChild>
+                                    {button}
+                                  </TooltipTrigger>
+                                  <TooltipContent side="right" className="bg-gray-900 border-gray-700 max-w-xs" data-testid={`tooltip-choice-${index}`}>
+                                    {tooltipContent}
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            }
+                            
+                            return button;
+                          })}
                         </div>
                         
                         {/* Custom Action Input */}
