@@ -41,6 +41,7 @@ interface DungeonMapModalProps {
   initialMapData?: DungeonMapData | null;
   onMapDataChange?: (mapData: DungeonMapData) => void;
   pendingEncounter?: PendingEncounter | null;
+  readOnly?: boolean;
 }
 
 export function DungeonMapModal({
@@ -54,6 +55,7 @@ export function DungeonMapModal({
   initialMapData,
   onMapDataChange,
   pendingEncounter: externalPendingEncounter,
+  readOnly = false,
 }: DungeonMapModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [mapData, setMapData] = useState<DungeonMapData | null>(initialMapData || null);
@@ -307,7 +309,8 @@ export function DungeonMapModal({
     onEntityInteraction?.(entity);
   };
 
-  const isMovementBlocked = (pendingEncounter && !pendingEncounter.resolved) || moveMutation.isPending;
+  // In campaign mode with readOnly=true, movement is controlled by narrative choices only
+  const isMovementBlocked = readOnly || (pendingEncounter && !pendingEncounter.resolved) || moveMutation.isPending;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -360,11 +363,20 @@ export function DungeonMapModal({
                 />
                 
                 {isMovementBlocked && (
-                  <div className="mt-2 p-2 bg-red-900/30 border border-red-700 rounded text-red-300 text-sm text-center flex items-center justify-center gap-2">
+                  <div className={`mt-2 p-2 border rounded text-sm text-center flex items-center justify-center gap-2 ${
+                    readOnly 
+                      ? "bg-blue-900/30 border-blue-700 text-blue-300" 
+                      : "bg-red-900/30 border-red-700 text-red-300"
+                  }`}>
                     {moveMutation.isPending ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
                         Processing movement...
+                      </>
+                    ) : readOnly ? (
+                      <>
+                        <Map className="w-4 h-4" />
+                        Movement is driven by your story choices above
                       </>
                     ) : (
                       "Movement blocked - resolve the encounter first!"

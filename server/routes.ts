@@ -6256,7 +6256,12 @@ Respond with JSON:
     "lootDrops": [{"name": "Gold Coins", "type": "currency", "value": "15 gp", "fromEnemy": "Goblin"}]
   },
   "skillUsed": "Stealth/Perception/Athletics/etc or null if no skill check",
-  "rewardItems": [{"name": "Healing Potion", "type": "consumable", "description": "Restores 2d4+2 HP", "rarity": "common"}]
+  "rewardItems": [{"name": "Healing Potion", "type": "consumable", "description": "Restores 2d4+2 HP", "rarity": "common"}],
+  "movement": {
+    "occurred": true/false,
+    "direction": "up/down/left/right/null (if movement occurred, which direction on the map grid)",
+    "description": "Brief description of where the party moved (e.g. 'entered the eastern chamber', 'descended the stairs')"
+  }
 }`;
 
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -6399,6 +6404,78 @@ Respond with JSON:
       const currentExplorationLimit = currentStoryState.explorationLimit || 5;
       const newExplorationLimit = currentExplorationLimit + 2; // Expand by 2 tiles per story advancement
       
+      // Handle movement from narrative choices - update dungeon map position
+      let updatedMapData = null;
+      const movement = storyAdvancement.movement;
+      if (movement && movement.occurred && movement.direction) {
+        try {
+          // Get the current dungeon map for this campaign
+          const dungeonMap = await storage.getCampaignDungeonMap(campaignId);
+          if (dungeonMap && dungeonMap.mapData) {
+            const mapData = typeof dungeonMap.mapData === 'string' 
+              ? JSON.parse(dungeonMap.mapData) 
+              : dungeonMap.mapData;
+            
+            // Normalize various direction terms to canonical directions
+            const normalizeDirection = (dir: string): string | null => {
+              const normalized = dir.toLowerCase().trim();
+              // Map various terms to canonical directions
+              if (['up', 'north', 'n', 'forward', 'ahead', 'forwards'].includes(normalized)) return 'up';
+              if (['down', 'south', 's', 'back', 'backward', 'backwards'].includes(normalized)) return 'down';
+              if (['left', 'west', 'w'].includes(normalized)) return 'left';
+              if (['right', 'east', 'e'].includes(normalized)) return 'right';
+              // Handle compound directions - take primary direction
+              if (normalized.includes('north') || normalized.includes('up')) return 'up';
+              if (normalized.includes('south') || normalized.includes('down')) return 'down';
+              if (normalized.includes('west') || normalized.includes('left')) return 'left';
+              if (normalized.includes('east') || normalized.includes('right')) return 'right';
+              return null;
+            };
+            
+            const canonicalDirection = normalizeDirection(movement.direction);
+            
+            // Calculate new position based on direction
+            const directionOffsets: Record<string, {x: number, y: number}> = {
+              up: { x: 0, y: -1 },
+              down: { x: 0, y: 1 },
+              left: { x: -1, y: 0 },
+              right: { x: 1, y: 0 },
+            };
+            const offset = canonicalDirection ? directionOffsets[canonicalDirection] : { x: 0, y: 0 };
+            const currentPos = mapData.playerPosition || { x: 4, y: 4 };
+            const newPosition = {
+              x: Math.max(0, Math.min(mapData.width - 1, currentPos.x + offset.x)),
+              y: Math.max(0, Math.min(mapData.height - 1, currentPos.y + offset.y)),
+            };
+            
+            // Check that the new position is not a wall
+            const targetTile = mapData.tiles?.[newPosition.y]?.[newPosition.x];
+            if (targetTile && targetTile.type !== "wall") {
+              // Update player position and mark tiles as explored
+              mapData.playerPosition = newPosition;
+              mapData.tiles = mapData.tiles.map((row: any[], y: number) =>
+                row.map((tile: any, x: number) => {
+                  const dist = Math.sqrt(
+                    Math.pow(x - newPosition.x, 2) + 
+                    Math.pow(y - newPosition.y, 2)
+                  );
+                  if (dist <= 2) {
+                    return { ...tile, explored: true, visible: dist <= 1.5 };
+                  }
+                  return { ...tile, visible: false };
+                })
+              );
+              
+              // Save updated map
+              await storage.updateCampaignDungeonMap(dungeonMap.id, { mapData });
+              updatedMapData = mapData;
+            }
+          }
+        } catch (mapError) {
+          console.error("Failed to update dungeon map from story movement:", mapError);
+        }
+      }
+      
       // Merge the new exploration limit with the AI-generated story state
       const mergedStoryState = {
         ...storyAdvancement.storyState,
@@ -6407,7 +6484,12 @@ Respond with JSON:
         journeyLog: currentStoryState.journeyLog || [],
         adventureProgress: currentStoryState.adventureProgress,
         adventureRequirements: currentStoryState.adventureRequirements,
-        movesWithoutStory: 0 // Reset moves counter after story advancement
+        movesWithoutStory: 0, // Reset moves counter after story advancement
+        lastMovement: movement?.occurred ? {
+          direction: movement.direction,
+          description: movement.description,
+          timestamp: new Date().toISOString()
+        } : currentStoryState.lastMovement
       };
       
       // Update session with story advancement
@@ -6598,7 +6680,13 @@ Respond with JSON:
 
       res.json({
         ...updatedSession,
-        progression: characterProgression
+        progression: characterProgression,
+        dungeonMapData: updatedMapData,
+        movement: movement?.occurred ? {
+          occurred: true,
+          direction: movement.direction,
+          description: movement.description
+        } : null
       });
     } catch (error) {
       console.error("Failed to advance story:", error);

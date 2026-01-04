@@ -512,6 +512,20 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         });
       }
       
+      // Update dungeon map if movement occurred from narrative
+      if (data.dungeonMapData) {
+        setDungeonMapData(data.dungeonMapData);
+        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/dungeon-map`] });
+        
+        // Show movement notification if there was movement
+        if (data.movement?.occurred) {
+          toast({
+            title: "Party moved",
+            description: data.movement.description || `You moved ${data.movement.direction}.`,
+          });
+        }
+      }
+      
       // Close dialogs
       setShowChoiceDialog(false);
     },
@@ -1404,6 +1418,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           initialMapData={dungeonMapData}
                           onMapDataChange={handleDungeonMapChange}
                           pendingEncounter={parsedStoryState?.pendingEncounter}
+                          readOnly={true}
                           onTileInteraction={(x, y, tileType) => {
                             if (tileType === "treasure") {
                               toast({
