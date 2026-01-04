@@ -22,7 +22,10 @@ import {
   chatMessages, type ChatMessage, type InsertChatMessage,
   onlineUsers, type OnlineUser, type InsertOnlineUser,
   // Items database imports
-  items, type Item, type InsertItem
+  items, type Item, type InsertItem,
+  // Dungeon maps and quests
+  campaignDungeonMaps, type CampaignDungeonMap, type InsertCampaignDungeonMap,
+  campaignQuests, type CampaignQuest, type InsertCampaignQuest
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or } from "drizzle-orm";
@@ -179,6 +182,21 @@ export interface IStorage {
   createItem(item: InsertItem): Promise<Item>;
   updateItem(id: number, item: Partial<Item>): Promise<Item | undefined>;
   deleteItem(id: number): Promise<boolean>;
+  
+  // Campaign Dungeon Map operations
+  getCampaignDungeonMap(campaignId: number): Promise<CampaignDungeonMap | undefined>;
+  getCampaignDungeonMaps(campaignId: number): Promise<CampaignDungeonMap[]>;
+  createCampaignDungeonMap(map: InsertCampaignDungeonMap): Promise<CampaignDungeonMap>;
+  updateCampaignDungeonMap(id: number, updates: Partial<CampaignDungeonMap>): Promise<CampaignDungeonMap | undefined>;
+  deleteCampaignDungeonMap(id: number): Promise<boolean>;
+  
+  // Campaign Quest operations
+  getCampaignQuests(campaignId: number): Promise<CampaignQuest[]>;
+  getCampaignQuest(id: number): Promise<CampaignQuest | undefined>;
+  createCampaignQuest(quest: InsertCampaignQuest): Promise<CampaignQuest>;
+  updateCampaignQuest(id: number, updates: Partial<CampaignQuest>): Promise<CampaignQuest | undefined>;
+  completeCampaignQuest(id: number): Promise<CampaignQuest | undefined>;
+  deleteCampaignQuest(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -1664,6 +1682,100 @@ export class DatabaseStorage implements IStorage {
   
   async deleteItem(id: number): Promise<boolean> {
     await db.delete(items).where(eq(items.id, id));
+    return true;
+  }
+  
+  // Campaign Dungeon Map operations
+  async getCampaignDungeonMap(campaignId: number): Promise<CampaignDungeonMap | undefined> {
+    const [map] = await db.select().from(campaignDungeonMaps)
+      .where(and(
+        eq(campaignDungeonMaps.campaignId, campaignId),
+        eq(campaignDungeonMaps.isActive, true)
+      ));
+    return map || undefined;
+  }
+  
+  async getCampaignDungeonMaps(campaignId: number): Promise<CampaignDungeonMap[]> {
+    return await db.select().from(campaignDungeonMaps)
+      .where(eq(campaignDungeonMaps.campaignId, campaignId))
+      .orderBy(desc(campaignDungeonMaps.createdAt));
+  }
+  
+  async createCampaignDungeonMap(map: InsertCampaignDungeonMap): Promise<CampaignDungeonMap> {
+    // Deactivate existing maps for this campaign first
+    await db.update(campaignDungeonMaps)
+      .set({ isActive: false, updatedAt: new Date().toISOString() })
+      .where(eq(campaignDungeonMaps.campaignId, map.campaignId));
+    
+    const [newMap] = await db.insert(campaignDungeonMaps)
+      .values({
+        ...map,
+        createdAt: new Date().toISOString()
+      })
+      .returning();
+    return newMap;
+  }
+  
+  async updateCampaignDungeonMap(id: number, updates: Partial<CampaignDungeonMap>): Promise<CampaignDungeonMap | undefined> {
+    const [updatedMap] = await db.update(campaignDungeonMaps)
+      .set({
+        ...updates,
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(campaignDungeonMaps.id, id))
+      .returning();
+    return updatedMap || undefined;
+  }
+  
+  async deleteCampaignDungeonMap(id: number): Promise<boolean> {
+    await db.delete(campaignDungeonMaps).where(eq(campaignDungeonMaps.id, id));
+    return true;
+  }
+  
+  // Campaign Quest operations
+  async getCampaignQuests(campaignId: number): Promise<CampaignQuest[]> {
+    return await db.select().from(campaignQuests)
+      .where(eq(campaignQuests.campaignId, campaignId))
+      .orderBy(asc(campaignQuests.order), asc(campaignQuests.createdAt));
+  }
+  
+  async getCampaignQuest(id: number): Promise<CampaignQuest | undefined> {
+    const [quest] = await db.select().from(campaignQuests)
+      .where(eq(campaignQuests.id, id));
+    return quest || undefined;
+  }
+  
+  async createCampaignQuest(quest: InsertCampaignQuest): Promise<CampaignQuest> {
+    const [newQuest] = await db.insert(campaignQuests)
+      .values({
+        ...quest,
+        createdAt: new Date().toISOString()
+      })
+      .returning();
+    return newQuest;
+  }
+  
+  async updateCampaignQuest(id: number, updates: Partial<CampaignQuest>): Promise<CampaignQuest | undefined> {
+    const [updatedQuest] = await db.update(campaignQuests)
+      .set(updates)
+      .where(eq(campaignQuests.id, id))
+      .returning();
+    return updatedQuest || undefined;
+  }
+  
+  async completeCampaignQuest(id: number): Promise<CampaignQuest | undefined> {
+    const [completedQuest] = await db.update(campaignQuests)
+      .set({
+        status: "completed",
+        completedAt: new Date().toISOString()
+      })
+      .where(eq(campaignQuests.id, id))
+      .returning();
+    return completedQuest || undefined;
+  }
+  
+  async deleteCampaignQuest(id: number): Promise<boolean> {
+    await db.delete(campaignQuests).where(eq(campaignQuests.id, id));
     return true;
   }
 }

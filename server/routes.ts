@@ -2541,33 +2541,58 @@ Respond in structured JSON format for structured consequence tracking:
         }
       }
 
+      // Get quest context for milestone tracking
+      let questContext = "";
+      let activeQuests: any[] = [];
+      if (campaignId) {
+        activeQuests = await storage.getCampaignQuests(parseInt(campaignId));
+        const inProgressQuests = activeQuests.filter(q => q.status === "active" || q.status === "in_progress");
+        if (inProgressQuests.length > 0) {
+          questContext = "\n\nACTIVE QUESTS:\n" + inProgressQuests.map(q => 
+            `- ${q.title}: ${q.description} (XP: ${q.xpReward}, Gold: ${q.goldReward})`
+          ).join("\n");
+        }
+      }
+
       const promptWithContext = `
 You are an expert Dungeon Master for a D&D game with a ${narrativeStyle || "descriptive"} storytelling style.
 ${campaignContext}
 ${locationContext}
+${questContext}
 Difficulty level: ${difficulty || "Normal - Balanced Challenge"}
 Story direction preference: ${storyDirection || "balanced mix of combat, roleplay, and exploration"}
 
-Based on the player's action: "${prompt}", generate the next part of the adventure. Include:
-1. A descriptive narrative of what happens next (3-4 paragraphs)
-2. A title for this scene/encounter
-3. Four possible actions the player can take next, with at least 2 actions requiring dice rolls (skill checks, saving throws, or combat rolls)
+PACING GUIDELINES - IMPORTANT:
+- AVOID frequent combat encounters. Only 1 in 4-5 story beats should involve combat.
+- Focus on EXPLORATION, DISCOVERY, MYSTERY, and SOCIAL ENCOUNTERS.
+- Make progress feel FAST and MEANINGFUL - each scene should advance the story significantly.
+- Include TREASURE FINDS, SECRET DISCOVERIES, or NPC INTERACTIONS regularly.
+- When players complete objectives, mark them as QUEST MILESTONES with rewards.
+
+Based on the player's action: "${prompt}", generate the next part of the adventure.
 
 Return your response as a JSON object with these fields:
-- narrative: The descriptive text of what happens next
+- narrative: The descriptive text of what happens next (2-3 paragraphs, keep it moving)
 - sessionTitle: A short, engaging title for this scene
 - location: The current location or setting where this scene takes place
 - choices: An array of 4 objects, each with:
   - action: A short description of a possible action
   - description: A brief explanation of what this action entails 
-  - icon: A simple icon identifier (use: "search", "hand-sparkles", "running", "sword", or any basic icon name)
+  - icon: A simple icon identifier (use: "search", "hand-sparkles", "running", "sword", "door", "treasure", "key", "talk", or any basic icon name)
   - requiresDiceRoll: Boolean indicating if this action requires a dice roll
-  - diceType: If requiresDiceRoll is true, include the type of dice to roll ("d20" for most skill checks and attacks, "d4", "d6", "d8", etc. for damage)
-  - rollDC: If requiresDiceRoll is true, include the DC/difficulty (number to beat) for this roll
+  - diceType: If requiresDiceRoll is true, include the type of dice to roll ("d20" for most skill checks)
+  - rollDC: If requiresDiceRoll is true, include the DC/difficulty (10-15 for most, 16-20 for hard)
   - rollModifier: The modifier to add to the roll (based on character attributes, usually -2 to +5)
-  - rollPurpose: A short explanation of what the roll is for (e.g., "Perception Check", "Athletics Check", "Attack Roll")
+  - rollPurpose: A short explanation of what the roll is for (e.g., "Perception Check", "Investigation Check")
   - successText: Brief text to display on a successful roll
   - failureText: Brief text to display on a failed roll
+- questUpdate: Optional object with quest progress. Include if this action completes or advances a quest:
+  - questCompleted: Boolean if a quest milestone was achieved
+  - questTitle: Title of the completed quest
+  - xpReward: XP to award (50-300 for milestones)
+  - goldReward: Gold to award (10-100)
+  - lootItems: Array of item names found (1-3 items like "Health Potion", "Shortsword +1", "Ruby Ring")
+- treasureFound: Optional array of treasure/items discovered in this scene (only if exploration reveals treasure)
 `;
 
       const openaiClient = new OpenAI({ 
@@ -3736,6 +3761,244 @@ Return your response as a JSON object with these fields:
     } catch (error) {
       console.error("Failed to simulate NPC turn:", error);
       res.status(500).json({ message: "Failed to simulate NPC turn" });
+    }
+  });
+
+  // ==================== Campaign Dungeon Map Routes ====================
+  
+  // Get active dungeon map for a campaign
+  app.get("/api/campaigns/:campaignId/dungeon-map", async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const map = await storage.getCampaignDungeonMap(campaignId);
+      if (!map) {
+        return res.status(404).json({ message: "No active dungeon map found" });
+      }
+      res.json(map);
+    } catch (error) {
+      console.error("Error fetching dungeon map:", error);
+      res.status(500).json({ message: "Failed to fetch dungeon map" });
+    }
+  });
+  
+  // Get all dungeon maps for a campaign
+  app.get("/api/campaigns/:campaignId/dungeon-maps", async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const maps = await storage.getCampaignDungeonMaps(campaignId);
+      res.json(maps);
+    } catch (error) {
+      console.error("Error fetching dungeon maps:", error);
+      res.status(500).json({ message: "Failed to fetch dungeon maps" });
+    }
+  });
+  
+  // Create a new dungeon map for a campaign
+  app.post("/api/campaigns/:campaignId/dungeon-map", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const { mapName, mapData, playerPosition } = req.body;
+      
+      const map = await storage.createCampaignDungeonMap({
+        campaignId,
+        mapName: mapName || "Dungeon",
+        mapData,
+        playerPosition: playerPosition || { x: 0, y: 0 },
+        exploredTiles: [],
+        entityPositions: [],
+        fogOfWar: {},
+        discoveredSecrets: [],
+        lootedChests: [],
+        isActive: true,
+        createdAt: new Date().toISOString()
+      });
+      
+      res.status(201).json(map);
+    } catch (error) {
+      console.error("Error creating dungeon map:", error);
+      res.status(500).json({ message: "Failed to create dungeon map" });
+    }
+  });
+  
+  // Update dungeon map (player movement, exploration, etc.)
+  app.patch("/api/campaigns/:campaignId/dungeon-map/:mapId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const mapId = parseInt(req.params.mapId);
+      const updates = req.body;
+      
+      const updatedMap = await storage.updateCampaignDungeonMap(mapId, updates);
+      if (!updatedMap) {
+        return res.status(404).json({ message: "Dungeon map not found" });
+      }
+      
+      res.json(updatedMap);
+    } catch (error) {
+      console.error("Error updating dungeon map:", error);
+      res.status(500).json({ message: "Failed to update dungeon map" });
+    }
+  });
+  
+  // Delete dungeon map
+  app.delete("/api/campaigns/:campaignId/dungeon-map/:mapId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const mapId = parseInt(req.params.mapId);
+      await storage.deleteCampaignDungeonMap(mapId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting dungeon map:", error);
+      res.status(500).json({ message: "Failed to delete dungeon map" });
+    }
+  });
+  
+  // ==================== Campaign Quest Routes ====================
+  
+  // Get all quests for a campaign
+  app.get("/api/campaigns/:campaignId/quests", async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const quests = await storage.getCampaignQuests(campaignId);
+      res.json(quests);
+    } catch (error) {
+      console.error("Error fetching quests:", error);
+      res.status(500).json({ message: "Failed to fetch quests" });
+    }
+  });
+  
+  // Create a new quest for a campaign
+  app.post("/api/campaigns/:campaignId/quests", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const { title, description, questType, xpReward, goldReward, lootRewards, objectives } = req.body;
+      
+      const quest = await storage.createCampaignQuest({
+        campaignId,
+        title,
+        description,
+        questType: questType || "main",
+        status: "active",
+        xpReward: xpReward || 100,
+        goldReward: goldReward || 0,
+        lootRewards: lootRewards || [],
+        objectives: objectives || [],
+        createdAt: new Date().toISOString()
+      });
+      
+      res.status(201).json(quest);
+    } catch (error) {
+      console.error("Error creating quest:", error);
+      res.status(500).json({ message: "Failed to create quest" });
+    }
+  });
+  
+  // Update a quest
+  app.patch("/api/campaigns/:campaignId/quests/:questId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const questId = parseInt(req.params.questId);
+      const updates = req.body;
+      
+      const updatedQuest = await storage.updateCampaignQuest(questId, updates);
+      if (!updatedQuest) {
+        return res.status(404).json({ message: "Quest not found" });
+      }
+      
+      res.json(updatedQuest);
+    } catch (error) {
+      console.error("Error updating quest:", error);
+      res.status(500).json({ message: "Failed to update quest" });
+    }
+  });
+  
+  // Complete a quest (mark as completed with rewards)
+  app.post("/api/campaigns/:campaignId/quests/:questId/complete", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const questId = parseInt(req.params.questId);
+      const { characterId } = req.body;
+      
+      // Complete the quest
+      const completedQuest = await storage.completeCampaignQuest(questId);
+      if (!completedQuest) {
+        return res.status(404).json({ message: "Quest not found" });
+      }
+      
+      // If a character is specified, award XP and gold
+      if (characterId) {
+        const character = await storage.getCharacter(characterId);
+        if (character) {
+          // Award XP
+          if (completedQuest.xpReward) {
+            await storage.awardXPToCharacter(characterId, completedQuest.xpReward);
+          }
+          
+          // Award gold
+          if (completedQuest.goldReward) {
+            const currentGold = character.gold || 0;
+            await storage.updateCharacter(characterId, {
+              gold: currentGold + completedQuest.goldReward
+            });
+          }
+          
+          // Add loot items to inventory
+          const lootRewards = completedQuest.lootRewards as string[] || [];
+          if (lootRewards.length > 0) {
+            const currentEquipment = character.equipment || [];
+            await storage.updateCharacter(characterId, {
+              equipment: [...currentEquipment, ...lootRewards]
+            });
+          }
+        }
+      }
+      
+      res.json({
+        quest: completedQuest,
+        rewards: {
+          xp: completedQuest.xpReward,
+          gold: completedQuest.goldReward,
+          items: completedQuest.lootRewards
+        }
+      });
+    } catch (error) {
+      console.error("Error completing quest:", error);
+      res.status(500).json({ message: "Failed to complete quest" });
+    }
+  });
+  
+  // Delete a quest
+  app.delete("/api/campaigns/:campaignId/quests/:questId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const questId = parseInt(req.params.questId);
+      await storage.deleteCampaignQuest(questId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting quest:", error);
+      res.status(500).json({ message: "Failed to delete quest" });
     }
   });
 
