@@ -2114,7 +2114,10 @@ Return your response as a JSON object with these fields:
       if (characterId && abilityType) {
         const character = await storage.getCharacter(characterId);
         if (character) {
-          const getModifier = (score: number) => Math.floor((score - 10) / 2);
+          const getModifier = (score: number | undefined | null) => {
+            if (score === undefined || score === null || isNaN(score)) return 0;
+            return Math.floor((score - 10) / 2);
+          };
           switch (abilityType.toLowerCase()) {
             case 'strength': abilityModifier = getModifier(character.strength); break;
             case 'dexterity': abilityModifier = getModifier(character.dexterity); break;
@@ -2122,6 +2125,7 @@ Return your response as a JSON object with these fields:
             case 'intelligence': abilityModifier = getModifier(character.intelligence); break;
             case 'wisdom': abilityModifier = getModifier(character.wisdom); break;
             case 'charisma': abilityModifier = getModifier(character.charisma); break;
+            default: abilityModifier = 0; break;
           }
         }
       }
