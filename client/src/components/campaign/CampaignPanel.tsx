@@ -181,6 +181,30 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [selectedNpcId, setSelectedNpcId] = useState<number | null>(null);
   const [dungeonMapData, setDungeonMapData] = useState<DungeonMapData | null>(null);
   const [dungeonMapId, setDungeonMapId] = useState<number | null>(null);
+  const [monsterImages, setMonsterImages] = useState<Record<string, string>>({});
+  const [generatingMonsterImage, setGeneratingMonsterImage] = useState<string | null>(null);
+  
+  // Function to generate monster image on demand
+  const generateMonsterImage = async (monsterName: string, description?: string, type?: string) => {
+    if (monsterImages[monsterName] || generatingMonsterImage === monsterName) return;
+    
+    setGeneratingMonsterImage(monsterName);
+    try {
+      const response = await apiRequest('POST', '/api/generate-monster-image', {
+        monsterName,
+        description,
+        type
+      });
+      const data = await response.json();
+      if (data.success && data.imageUrl) {
+        setMonsterImages(prev => ({ ...prev, [monsterName]: data.imageUrl }));
+      }
+    } catch (error) {
+      console.error('Failed to generate monster image:', error);
+    } finally {
+      setGeneratingMonsterImage(null);
+    }
+  };
   
   // Find the user's participant record in this campaign
   const userParticipant = useMemo(() => {
@@ -1237,6 +1261,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   )}
                 </div>
                 
+                {/* Visual dice display */}
                 <div className="flex items-center justify-center space-x-2">
                   <div className="text-3xl font-bold bg-primary/20 p-3 rounded-lg w-16 h-16 flex items-center justify-center">
                     {diceRollResult.rolls[0]}
@@ -1261,6 +1286,49 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   <div className="text-3xl font-bold bg-accent/20 p-3 rounded-lg w-16 h-16 flex items-center justify-center">
                     {diceRollResult.total}
                   </div>
+                </div>
+                
+                {/* Detailed roll breakdown for learning */}
+                <div className="mt-4 p-4 bg-stone-100 dark:bg-stone-800 rounded-lg text-left">
+                  <h4 className="font-semibold text-sm mb-2 text-primary">Roll Breakdown (D&D 5e):</h4>
+                  <div className="space-y-1 text-sm font-mono">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{currentDiceRoll?.diceType} roll:</span>
+                      <span className="font-bold">{diceRollResult.rolls[0]}</span>
+                    </div>
+                    {diceRollResult.rolls.length > 1 && (
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>(Advantage/Disadvantage roll: {diceRollResult.rolls[1]})</span>
+                      </div>
+                    )}
+                    {currentDiceRoll?.rollModifier !== 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">
+                          {currentDiceRoll?.rollPurpose?.toLowerCase().includes('attack') 
+                            ? 'Attack Bonus (Ability + Proficiency):' 
+                            : currentDiceRoll?.rollPurpose?.toLowerCase().includes('save')
+                            ? 'Saving Throw Modifier:'
+                            : 'Skill Modifier (Ability + Proficiency + Skill):'}
+                        </span>
+                        <span className="font-bold text-blue-600 dark:text-blue-400">
+                          {currentDiceRoll?.rollModifier >= 0 ? '+' : ''}{currentDiceRoll?.rollModifier}
+                        </span>
+                      </div>
+                    )}
+                    <div className="border-t border-stone-300 dark:border-stone-600 pt-1 mt-1 flex justify-between">
+                      <span className="font-semibold">Total:</span>
+                      <span className="font-bold text-lg">{diceRollResult.total}</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>vs. Difficulty Class (DC):</span>
+                      <span className="font-bold">{currentDiceRoll?.rollDC}</span>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-xs text-muted-foreground italic">
+                    {diceRollResult.total >= (currentDiceRoll?.rollDC || 0) 
+                      ? `Your roll of ${diceRollResult.total} meets or exceeds the DC of ${currentDiceRoll?.rollDC}, so you succeed!`
+                      : `Your roll of ${diceRollResult.total} is below the DC of ${currentDiceRoll?.rollDC}, so you fail.`}
+                  </p>
                 </div>
               </div>
             ) : (
@@ -1656,47 +1724,116 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             <h5 className="font-semibold text-red-700 dark:text-red-300 mb-2 flex items-center">
                               👹 Enemies
                             </h5>
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                               {(parsedStoryState.combatants as any[] || []).filter((c: any) => c.status !== 'defeated').map((enemy: any, index: number) => (
                                 <div 
                                   key={enemy.name || index}
-                                  className="bg-red-100 dark:bg-red-900/30 p-2 rounded border border-red-300 dark:border-red-700"
+                                  className="bg-red-100 dark:bg-red-900/30 p-3 rounded-lg border border-red-300 dark:border-red-700"
+                                  data-testid={`enemy-card-${index}`}
                                 >
-                                  <div className="flex justify-between items-center mb-1">
-                                    <span className="font-bold text-sm text-red-800 dark:text-red-200">💀 {enemy.name}</span>
-                                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-                                      enemy.status === 'bloodied' 
-                                        ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' 
-                                        : enemy.status === 'wounded'
-                                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                        : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                    }`}>
-                                      {enemy.status || 'healthy'}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-gray-600 dark:text-gray-400">HP:</span>
-                                    <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-                                      <div 
-                                        className={`h-full rounded-full transition-all ${
-                                          (enemy.currentHp / enemy.maxHp) <= 0.25 
-                                            ? 'bg-red-500' 
-                                            : (enemy.currentHp / enemy.maxHp) <= 0.5 
-                                            ? 'bg-orange-500' 
-                                            : 'bg-green-500'
-                                        }`}
-                                        style={{ width: `${Math.max(0, (enemy.currentHp / enemy.maxHp) * 100)}%` }}
-                                      />
+                                  <div className="flex gap-3">
+                                    {/* Monster Portrait */}
+                                    <div 
+                                      className="w-20 h-20 rounded-lg bg-red-200 dark:bg-red-800/50 flex items-center justify-center overflow-hidden border-2 border-red-400 dark:border-red-600 shrink-0 cursor-pointer relative group"
+                                      onClick={() => !monsterImages[enemy.name] && !generatingMonsterImage && generateMonsterImage(enemy.name, enemy.description, enemy.type)}
+                                      title={monsterImages[enemy.name] ? enemy.name : "Click to generate monster illustration"}
+                                    >
+                                      {monsterImages[enemy.name] || enemy.imageUrl ? (
+                                        <img 
+                                          src={monsterImages[enemy.name] || enemy.imageUrl} 
+                                          alt={enemy.name} 
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : generatingMonsterImage === enemy.name ? (
+                                        <div className="animate-pulse text-red-600 dark:text-red-400 text-xs text-center">
+                                          <div className="animate-spin text-2xl">⏳</div>
+                                          <span>Creating...</span>
+                                        </div>
+                                      ) : (
+                                        <div className="flex flex-col items-center">
+                                          <div className="text-3xl">
+                                            {enemy.type === 'boss' ? '👹' : 
+                                             enemy.name?.toLowerCase().includes('dragon') ? '🐉' :
+                                             enemy.name?.toLowerCase().includes('skeleton') ? '💀' :
+                                             enemy.name?.toLowerCase().includes('zombie') ? '🧟' :
+                                             enemy.name?.toLowerCase().includes('goblin') ? '👺' :
+                                             enemy.name?.toLowerCase().includes('orc') ? '👹' :
+                                             enemy.name?.toLowerCase().includes('wolf') ? '🐺' :
+                                             enemy.name?.toLowerCase().includes('spider') ? '🕷️' :
+                                             enemy.name?.toLowerCase().includes('rat') ? '🐀' :
+                                             enemy.name?.toLowerCase().includes('snake') ? '🐍' :
+                                             enemy.name?.toLowerCase().includes('troll') ? '🧌' :
+                                             enemy.name?.toLowerCase().includes('ghost') || enemy.name?.toLowerCase().includes('specter') ? '👻' :
+                                             enemy.name?.toLowerCase().includes('demon') || enemy.name?.toLowerCase().includes('devil') ? '😈' :
+                                             '⚔️'}
+                                          </div>
+                                          <span className="text-[8px] text-red-600 dark:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            Click for art
+                                          </span>
+                                        </div>
+                                      )}
                                     </div>
-                                    <span className="text-xs font-mono text-gray-700 dark:text-gray-300 min-w-[45px] text-right">
-                                      {enemy.currentHp}/{enemy.maxHp}
-                                    </span>
-                                  </div>
-                                  {enemy.ac && (
-                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                      AC: {enemy.ac}
+                                    
+                                    {/* Monster Stats */}
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex justify-between items-center mb-1">
+                                        <span className="font-bold text-sm text-red-800 dark:text-red-200 truncate">{enemy.name}</span>
+                                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded shrink-0 ${
+                                          enemy.status === 'bloodied' 
+                                            ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' 
+                                            : enemy.status === 'wounded'
+                                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                            : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                        }`}>
+                                          {enemy.status || 'healthy'}
+                                        </span>
+                                      </div>
+                                      
+                                      {/* HP Bar */}
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-xs text-gray-600 dark:text-gray-400">HP:</span>
+                                        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                                          <div 
+                                            className={`h-full rounded-full transition-all ${
+                                              (enemy.currentHp / enemy.maxHp) <= 0.25 
+                                                ? 'bg-red-500' 
+                                                : (enemy.currentHp / enemy.maxHp) <= 0.5 
+                                                ? 'bg-orange-500' 
+                                                : 'bg-green-500'
+                                            }`}
+                                            style={{ width: `${Math.max(0, (enemy.currentHp / enemy.maxHp) * 100)}%` }}
+                                          />
+                                        </div>
+                                        <span className="text-xs font-mono text-gray-700 dark:text-gray-300 min-w-[45px] text-right">
+                                          {enemy.currentHp}/{enemy.maxHp}
+                                        </span>
+                                      </div>
+                                      
+                                      {/* D&D Stats */}
+                                      <div className="flex flex-wrap gap-2 text-xs">
+                                        {enemy.ac && (
+                                          <span className="bg-stone-200 dark:bg-stone-700 px-1.5 py-0.5 rounded" title="Armor Class - higher means harder to hit">
+                                            AC: {enemy.ac}
+                                          </span>
+                                        )}
+                                        {enemy.cr && (
+                                          <span className="bg-purple-200 dark:bg-purple-800 px-1.5 py-0.5 rounded" title="Challenge Rating - indicates difficulty">
+                                            CR: {enemy.cr}
+                                          </span>
+                                        )}
+                                        {enemy.attackBonus && (
+                                          <span className="bg-red-200 dark:bg-red-800 px-1.5 py-0.5 rounded" title="Attack Bonus - added to d20 attack rolls">
+                                            ATK: +{enemy.attackBonus}
+                                          </span>
+                                        )}
+                                        {enemy.damage && (
+                                          <span className="bg-orange-200 dark:bg-orange-800 px-1.5 py-0.5 rounded" title="Damage dice rolled on hit">
+                                            DMG: {enemy.damage}
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
-                                  )}
+                                  </div>
                                 </div>
                               ))}
                             </div>

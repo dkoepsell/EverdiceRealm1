@@ -303,6 +303,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Monster Image Generation endpoint
+  app.post("/api/generate-monster-image", async (req, res) => {
+    try {
+      const { monsterName, description, type } = req.body;
+      
+      if (!monsterName) {
+        return res.status(400).json({ message: "Monster name is required" });
+      }
+      
+      const isBoss = type === 'boss';
+      const prompt = `Create a dramatic D&D fantasy illustration of a ${monsterName}. ${description || ''} 
+      Style: Dark fantasy, dramatic lighting, detailed monster portrait suitable for a D&D bestiary.
+      ${isBoss ? 'Make it look powerful and menacing as a boss creature.' : 'Standard monster encounter creature.'}
+      No text or labels. High detail, fantasy art style similar to official D&D Monster Manual illustrations.`;
+      
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const response = await openai.images.generate({
+        model: "dall-e-3",
+        prompt: prompt,
+        n: 1,
+        size: "1024x1024",
+        quality: "standard",
+        style: "vivid",
+      });
+      
+      const imageData = response.data?.[0];
+      if (!imageData || !imageData.url) {
+        throw new Error("No image data returned from OpenAI");
+      }
+      
+      res.json({ 
+        success: true,
+        imageUrl: imageData.url,
+        monsterName 
+      });
+    } catch (error: any) {
+      console.error("Error generating monster image:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to generate monster image", 
+        error: error.message 
+      });
+    }
+  });
+
   // Character Rest Routes - HP Recovery
   app.post("/api/characters/:id/short-rest", async (req, res) => {
     try {
@@ -6236,7 +6281,7 @@ Respond with JSON:
     ],
     "inCombat": true/false,
     "combatants": [
-      {"name": "Enemy Name", "type": "enemy", "cr": "1/4", "maxHp": 30, "currentHp": 30, "ac": 13, "status": "healthy/wounded/bloodied/defeated"}
+      {"name": "Enemy Name", "type": "enemy/boss", "cr": "1/4", "maxHp": 30, "currentHp": 30, "ac": 13, "attackBonus": 4, "damage": "1d6+2", "status": "healthy/wounded/bloodied/defeated", "description": "Brief visual description for illustration"}
     ],
     "partyMembers": [
       {"name": "Player Name", "type": "player", "maxHp": 25, "currentHp": 25, "ac": 14, "status": "healthy/wounded/bloodied/unconscious"},
