@@ -251,6 +251,58 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
   }, [persistedDungeonMap, dungeonMapData, dungeonMapId]);
   
+  // Sync combat entities (enemies and party) to dungeon map
+  useEffect(() => {
+    if (!dungeonMapData || !parsedStoryState) return;
+    
+    const combatEntities: MapEntity[] = [];
+    
+    // Add enemies from combat
+    if (parsedStoryState.combatants && Array.isArray(parsedStoryState.combatants)) {
+      (parsedStoryState.combatants as any[]).forEach((enemy: any, index: number) => {
+        if (enemy.status !== 'defeated') {
+          combatEntities.push({
+            id: `enemy-${index}`,
+            type: enemy.type === 'boss' ? 'boss' : 'enemy',
+            name: enemy.name,
+            x: dungeonMapData.playerPosition.x + (index % 3) - 1,
+            y: dungeonMapData.playerPosition.y + Math.floor(index / 3) + 2,
+            hp: enemy.currentHp,
+            maxHp: enemy.maxHp,
+          });
+        }
+      });
+    }
+    
+    // Add party members (allies/companions) from combat
+    if (parsedStoryState.partyMembers && Array.isArray(parsedStoryState.partyMembers)) {
+      (parsedStoryState.partyMembers as any[]).forEach((member: any, index: number) => {
+        if (member.type !== 'player') {
+          combatEntities.push({
+            id: `ally-${index}`,
+            type: 'ally',
+            name: member.name,
+            x: dungeonMapData.playerPosition.x + (index % 2) - 1,
+            y: dungeonMapData.playerPosition.y - 1,
+            hp: member.currentHp,
+            maxHp: member.maxHp,
+          });
+        }
+      });
+    }
+    
+    // Update map data with combat entities if they've changed
+    const existingEntityIds = dungeonMapData.entities.map(e => e.id).sort().join(',');
+    const newEntityIds = combatEntities.map(e => e.id).sort().join(',');
+    
+    if (existingEntityIds !== newEntityIds && combatEntities.length > 0) {
+      setDungeonMapData({
+        ...dungeonMapData,
+        entities: combatEntities,
+      });
+    }
+  }, [parsedStoryState?.combatants, parsedStoryState?.partyMembers, dungeonMapData?.playerPosition]);
+  
   // Handler to save dungeon map changes with debounce
   const handleDungeonMapChange = (newMapData: DungeonMapData | null) => {
     setDungeonMapData(newMapData);
@@ -1916,24 +1968,29 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       <div className="flex flex-col gap-2">
                         <Button
                           onClick={() => shortRestMutation.mutate(activeCharacter.id)}
-                          disabled={shortRestMutation.isPending || activeCharacter.hitPoints >= activeCharacter.maxHitPoints || activeCharacter.status === "unconscious" || activeCharacter.status === "dead"}
+                          disabled={shortRestMutation.isPending || activeCharacter.hitPoints >= activeCharacter.maxHitPoints || activeCharacter.status === "unconscious" || activeCharacter.status === "dead" || parsedStoryState?.inCombat}
                           variant="outline"
                           className="flex items-center gap-2"
                           data-testid="button-short-rest"
+                          title={parsedStoryState?.inCombat ? "Cannot rest during combat" : ""}
                         >
                           {shortRestMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sun className="h-4 w-4" />}
                           Short Rest (+25% HP)
                         </Button>
                         <Button
                           onClick={() => longRestMutation.mutate(activeCharacter.id)}
-                          disabled={longRestMutation.isPending || activeCharacter.hitPoints >= activeCharacter.maxHitPoints || activeCharacter.status === "dead"}
+                          disabled={longRestMutation.isPending || activeCharacter.hitPoints >= activeCharacter.maxHitPoints || activeCharacter.status === "dead" || parsedStoryState?.inCombat}
                           variant="outline"
                           className="flex items-center gap-2"
                           data-testid="button-long-rest"
+                          title={parsedStoryState?.inCombat ? "Cannot rest during combat" : ""}
                         >
                           {longRestMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Moon className="h-4 w-4" />}
                           Long Rest (Full HP)
                         </Button>
+                        {parsedStoryState?.inCombat && (
+                          <p className="text-xs text-red-400 mt-1">Cannot rest during combat!</p>
+                        )}
                       </div>
                     </div>
                   </div>
