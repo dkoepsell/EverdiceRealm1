@@ -344,54 +344,101 @@ export default function DiceRoller() {
           </div>
           
           {diceResult && (
-            <div className="mb-4 text-center">
-              <p className="text-white font-medium mb-1">
-                {diceResult.rolls.length > 1 ? (
-                  <>
-                    {diceResult.count}{diceResult.diceType} + {diceResult.modifier} = {diceResult.total}
-                  </>
-                ) : (
-                  <>
-                    {diceResult.diceType} + {diceResult.modifier} = {diceResult.total}
-                  </>
+            <div className="mb-4 bg-secondary rounded-lg p-3">
+              <div className="text-center mb-3">
+                <p className={`text-2xl font-bold ${diceResult.isCritical ? 'text-gold' : diceResult.isFumble ? 'text-red-500' : 'text-white'}`}>
+                  Total: {diceResult.total}
+                </p>
+                {diceResult.purpose && (
+                  <p className="text-gray-300 text-sm mt-1">{diceResult.purpose}</p>
                 )}
-              </p>
-              {diceResult.rolls.length > 1 && (
-                <p className="text-gray-400 text-sm">
-                  Rolls: [{diceResult.rolls.join(', ')}]
-                </p>
-              )}
-              {diceResult.purpose && (
-                <p className="text-gray-300 mt-1">
-                  {diceResult.purpose}
-                </p>
-              )}
+              </div>
+              
+              <div className="bg-secondary-light rounded p-2 text-sm space-y-1" data-testid="roll-breakdown">
+                <p className="text-gold font-medium mb-2 text-xs uppercase tracking-wide">Roll Breakdown</p>
+                
+                <div className="flex justify-between text-gray-300">
+                  <span className="flex items-center gap-1">
+                    <span className="text-amber-400">🎲</span>
+                    {diceResult.rolls.length > 1 ? `${diceResult.rolls.length}${diceResult.diceType}` : diceResult.diceType}
+                  </span>
+                  <span className="font-mono text-white">[{diceResult.rolls.join(', ')}]</span>
+                </div>
+                
+                <div className="flex justify-between text-gray-300">
+                  <span>Base Roll</span>
+                  <span className="font-mono text-white">{diceResult.rolls.reduce((a, b) => a + b, 0)}</span>
+                </div>
+                
+                {diceResult.modifier !== 0 && (
+                  <div className="flex justify-between text-gray-300">
+                    <span className="flex items-center gap-1">
+                      <span className="text-blue-400">+</span>
+                      Modifier
+                      <span className="text-xs text-gray-500">(ability/proficiency)</span>
+                    </span>
+                    <span className={`font-mono ${diceResult.modifier >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {diceResult.modifier >= 0 ? '+' : ''}{diceResult.modifier}
+                    </span>
+                  </div>
+                )}
+                
+                <div className="border-t border-gray-600 my-2"></div>
+                
+                <div className="flex justify-between font-bold">
+                  <span className="text-white">Final Result</span>
+                  <span className={`font-mono ${diceResult.isCritical ? 'text-gold' : diceResult.isFumble ? 'text-red-500' : 'text-white'}`}>
+                    = {diceResult.total}
+                  </span>
+                </div>
+                
+                {diceResult.isCritical && (
+                  <div className="bg-gold/20 text-gold p-2 rounded text-xs mt-2">
+                    <strong>Natural 20!</strong> Critical success - attacks deal double dice damage!
+                  </div>
+                )}
+                
+                {diceResult.isFumble && (
+                  <div className="bg-red-900/30 text-red-400 p-2 rounded text-xs mt-2">
+                    <strong>Natural 1!</strong> Critical failure - automatic miss on attacks.
+                  </div>
+                )}
+                
+                <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-700">
+                  <p className="font-medium text-gray-400 mb-1">D&D Mechanics:</p>
+                  <p>• Roll {diceResult.diceType} = random 1 to {parseInt(diceResult.diceType.substring(1))}</p>
+                  {diceResult.modifier !== 0 && <p>• Modifier adds bonuses from abilities and proficiency</p>}
+                  {diceResult.diceType === 'd20' && <p>• d20 rolls determine success vs Difficulty Class (DC)</p>}
+                </div>
+              </div>
             </div>
           )}
           
           {/* Roll History */}
-          <div className="bg-secondary rounded-lg p-3 max-h-40 overflow-y-auto scroll-container">
+          <div className="bg-secondary rounded-lg p-3 max-h-48 overflow-y-auto scroll-container">
             <h4 className="text-white font-medium mb-2">Roll History</h4>
             {rollHistory.length > 0 ? (
               <div className="space-y-2">
                 {rollHistory.map((roll, index) => (
-                  <div key={index} className="flex justify-between items-center border-b border-gray-700 pb-1 text-sm">
-                    <div>
-                      <span className="text-gold">
-                        {roll.count > 1 ? `${roll.count}${roll.diceType}` : roll.diceType}
-                        {roll.modifier !== 0 && (
-                          roll.modifier > 0 ? `+${roll.modifier}` : roll.modifier
+                  <div key={index} className="border-b border-gray-700 pb-2 text-sm" data-testid={`roll-history-${index}`}>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <span className="text-gold font-medium">
+                          {roll.rolls?.length > 1 ? `${roll.rolls.length}${roll.diceType}` : roll.diceType}
+                        </span>
+                        {roll.purpose && (
+                          <span className="text-gray-400 text-xs">({roll.purpose})</span>
                         )}
+                      </div>
+                      <span className={`font-bold ${roll.isCritical ? "text-gold" : roll.isFumble ? "text-red-500" : "text-white"}`}>
+                        {roll.total}
+                        {roll.isCritical && " ⭐"}
+                        {roll.isFumble && " ❌"}
                       </span>
-                      {roll.purpose && (
-                        <span className="text-gray-400 ml-2">{roll.purpose}</span>
-                      )}
                     </div>
-                    <span className={`font-bold ${roll.isCritical ? "text-gold" : "text-white"}`}>
-                      {roll.total}
-                      {roll.isCritical && " (Critical!)"}
-                      {roll.isFumble && " (Fumble!)"}
-                    </span>
+                    <div className="text-xs text-gray-500 mt-1 font-mono">
+                      [{roll.rolls?.join(', ') || '?'}]{roll.modifier !== 0 && ` ${roll.modifier >= 0 ? '+' : ''}${roll.modifier}`} = {roll.total}
+                    </div>
                   </div>
                 ))}
               </div>

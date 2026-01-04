@@ -10,6 +10,12 @@ export interface DiceRoll {
   characterId?: number;
 }
 
+export interface RollBreakdown {
+  label: string;
+  value: number;
+  description?: string;
+}
+
 export interface DiceRollResult {
   diceType: DiceType;
   rolls: number[];
@@ -18,6 +24,12 @@ export interface DiceRollResult {
   purpose?: string;
   isCritical: boolean;
   isFumble: boolean;
+  breakdown?: RollBreakdown[];
+  advantageState?: 'normal' | 'advantage' | 'disadvantage';
+  keptRoll?: number;
+  droppedRoll?: number;
+  dc?: number;
+  success?: boolean;
 }
 
 export const rollDice = async (diceRoll: DiceRoll): Promise<DiceRollResult> => {
