@@ -29,7 +29,6 @@ export default function Navbar() {
     { name: "Dashboard", path: "/dashboard" },
     { name: "Characters", path: "/characters" },
     { name: "Campaigns", path: "/campaigns" },
-    { name: "Dice", path: "/dice-roller" },
     { name: "Learn", path: "/learn" },
     { name: "DM Tools", path: "/dm-toolkit" },
     { name: "LFG", path: "/bulletin" },
