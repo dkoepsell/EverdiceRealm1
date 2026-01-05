@@ -38,6 +38,7 @@ export default function Navbar() {
   // This link doesn't require authentication
   const publicLinks = [
     { name: "World Map", path: "/world-map" },
+    { name: "Bulletin Board", path: "/bulletin" },
     { name: "How It Works", path: "/how-it-works" },
   ];
 

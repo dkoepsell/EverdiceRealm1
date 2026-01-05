@@ -20,6 +20,7 @@ import DMToolkit from "@/pages/dm-toolkit";
 import LearnPage from "@/pages/learn";
 import WorldMapPage from "@/pages/world-map";
 import CAMLPage from "@/pages/CAMLPage";
+import BulletinBoardPage from "@/pages/bulletin-board";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 
@@ -36,6 +37,7 @@ function Router() {
           <ProtectedRoute path="/dm-toolkit" component={DMToolkit} />
           <ProtectedRoute path="/learn" component={LearnPage} />
           <Route path="/world-map" component={WorldMapPage} />
+          <Route path="/bulletin" component={BulletinBoardPage} />
           <ProtectedRoute path="/caml" component={CAMLPage} />
           <ProtectedRoute path="/test" component={TestPage} />
           <Route path="/how-it-works" component={HowItWorks} />
