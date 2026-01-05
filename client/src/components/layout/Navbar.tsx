@@ -29,17 +29,17 @@ export default function Navbar() {
     { name: "Dashboard", path: "/dashboard" },
     { name: "Characters", path: "/characters" },
     { name: "Campaigns", path: "/campaigns" },
-    { name: "Dice Roller", path: "/dice-roller" },
-    { name: "Learn D&D", path: "/learn" },
-    { name: "DM Toolkit", path: "/dm-toolkit" },
-    { name: "Bulletin Board", path: "/bulletin" },
+    { name: "Dice", path: "/dice-roller" },
+    { name: "Learn", path: "/learn" },
+    { name: "DM Tools", path: "/dm-toolkit" },
+    { name: "LFG", path: "/bulletin" },
     { name: "CAML", path: "/caml" },
   ];
   
   // These links don't require authentication
   const publicLinks = [
-    { name: "World Map", path: "/" },
-    { name: "How It Works", path: "/how-it-works" },
+    { name: "World", path: "/" },
+    { name: "About", path: "/how-it-works" },
   ];
 
   return (
@@ -73,17 +73,17 @@ export default function Navbar() {
           </div>
           
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-6">
+          <nav className="hidden lg:flex space-x-4 items-center">
             {user && navLinks.map((link) => (
               <Link key={link.path} href={link.path}>
-                <span className={`${location === link.path ? 'text-gold' : 'text-white hover:text-gold'} transition font-medium cursor-pointer`}>
+                <span className={`${location === link.path ? 'text-gold' : 'text-white hover:text-gold'} transition font-medium cursor-pointer whitespace-nowrap text-sm`}>
                   {link.name}
                 </span>
               </Link>
             ))}
             {publicLinks.map((link) => (
               <Link key={link.path} href={link.path}>
-                <span className={`${location === link.path ? 'text-gold' : 'text-white hover:text-gold'} transition font-medium cursor-pointer`}>
+                <span className={`${location === link.path ? 'text-gold' : 'text-white hover:text-gold'} transition font-medium cursor-pointer whitespace-nowrap text-sm`}>
                   {link.name}
                 </span>
               </Link>
@@ -92,7 +92,7 @@ export default function Navbar() {
           
           {/* Mobile Menu Button */}
           <button 
-            className="md:hidden text-white focus:outline-none" 
+            className="lg:hidden text-white focus:outline-none" 
             onClick={toggleMobileMenu}
             aria-label="Toggle mobile menu"
           >
@@ -113,7 +113,7 @@ export default function Navbar() {
           </button>
           
           {/* User Profile */}
-          <div className="hidden md:flex items-center space-x-3">
+          <div className="hidden lg:flex items-center space-x-3">
             {isLoading ? (
               <Loader2 className="w-8 h-8 text-gold animate-spin" />
             ) : user ? (
