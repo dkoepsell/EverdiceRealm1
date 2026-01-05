@@ -3078,10 +3078,10 @@ Return your response as a JSON object with these fields:
         return res.status(404).json({ message: "Character not found" });
       }
       
-      // Check if participant already exists
-      const existingParticipant = await storage.getCampaignParticipant(campaignId, validatedData.userId);
+      // Check if this specific character is already in the campaign
+      const existingParticipant = await storage.getCampaignParticipantByCharacter(campaignId, validatedData.characterId);
       if (existingParticipant) {
-        return res.status(400).json({ message: "User is already a participant in this campaign" });
+        return res.status(400).json({ message: "This character is already in this campaign" });
       }
       
       const participant = await storage.addCampaignParticipant(validatedData);

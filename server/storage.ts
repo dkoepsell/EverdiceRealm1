@@ -74,6 +74,7 @@ export interface IStorage {
   // Campaign Participant operations
   getCampaignParticipants(campaignId: number): Promise<CampaignParticipant[]>;
   getCampaignParticipant(campaignId: number, userId: number): Promise<CampaignParticipant | undefined>;
+  getCampaignParticipantByCharacter(campaignId: number, characterId: number): Promise<CampaignParticipant | undefined>;
   addCampaignParticipant(participant: InsertCampaignParticipant): Promise<CampaignParticipant>;
   updateCampaignParticipant(id: number, updates: Partial<CampaignParticipant>): Promise<CampaignParticipant | undefined>;
   removeCampaignParticipant(campaignId: number, userId: number): Promise<boolean>;
@@ -963,6 +964,17 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(campaignParticipants.campaignId, campaignId),
         eq(campaignParticipants.userId, userId)
+      ));
+    return participant || undefined;
+  }
+  
+  async getCampaignParticipantByCharacter(campaignId: number, characterId: number): Promise<CampaignParticipant | undefined> {
+    const [participant] = await db
+      .select()
+      .from(campaignParticipants)
+      .where(and(
+        eq(campaignParticipants.campaignId, campaignId),
+        eq(campaignParticipants.characterId, characterId)
       ));
     return participant || undefined;
   }
