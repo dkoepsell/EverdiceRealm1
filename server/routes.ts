@@ -6357,6 +6357,60 @@ Ensure all elements are interconnected and form a cohesive narrative. Include 3-
       const campaignId = parseInt(req.params.campaignId);
       const { choice, rollResult } = req.body;
       
+      // Detect movement from choice text directly
+      const detectMovementFromChoice = (choiceText: string): { isMovement: boolean; direction: string | null } => {
+        const lowerChoice = choiceText.toLowerCase();
+        
+        // Movement patterns to detect
+        const movementPatterns = [
+          { pattern: /move\s+(north|up|forward|ahead)/i, direction: 'up' },
+          { pattern: /move\s+(south|down|back|backward)/i, direction: 'down' },
+          { pattern: /move\s+(east|right)/i, direction: 'right' },
+          { pattern: /move\s+(west|left)/i, direction: 'left' },
+          { pattern: /go\s+(north|up|forward|ahead)/i, direction: 'up' },
+          { pattern: /go\s+(south|down|back|backward)/i, direction: 'down' },
+          { pattern: /go\s+(east|right)/i, direction: 'right' },
+          { pattern: /go\s+(west|left)/i, direction: 'left' },
+          { pattern: /head\s+(north|up|forward|ahead)/i, direction: 'up' },
+          { pattern: /head\s+(south|down|back|backward)/i, direction: 'down' },
+          { pattern: /head\s+(east|right)/i, direction: 'right' },
+          { pattern: /head\s+(west|left)/i, direction: 'left' },
+          { pattern: /explore\s+(north|up|forward|ahead)/i, direction: 'up' },
+          { pattern: /explore\s+(south|down|back|backward)/i, direction: 'down' },
+          { pattern: /explore\s+(east|right)/i, direction: 'right' },
+          { pattern: /explore\s+(west|left)/i, direction: 'left' },
+          { pattern: /travel\s+(north|up|forward|ahead)/i, direction: 'up' },
+          { pattern: /travel\s+(south|down|back|backward)/i, direction: 'down' },
+          { pattern: /travel\s+(east|right)/i, direction: 'right' },
+          { pattern: /travel\s+(west|left)/i, direction: 'left' },
+        ];
+        
+        for (const mp of movementPatterns) {
+          if (mp.pattern.test(lowerChoice)) {
+            return { isMovement: true, direction: mp.direction };
+          }
+        }
+        
+        // Simple keyword detection
+        if (lowerChoice.includes('north') || (lowerChoice.includes('move') && lowerChoice.includes('up'))) {
+          return { isMovement: true, direction: 'up' };
+        }
+        if (lowerChoice.includes('south') || (lowerChoice.includes('move') && lowerChoice.includes('down'))) {
+          return { isMovement: true, direction: 'down' };
+        }
+        if (lowerChoice.includes('east') || (lowerChoice.includes('move') && lowerChoice.includes('right'))) {
+          return { isMovement: true, direction: 'right' };
+        }
+        if (lowerChoice.includes('west') || (lowerChoice.includes('move') && lowerChoice.includes('left'))) {
+          return { isMovement: true, direction: 'left' };
+        }
+        
+        return { isMovement: false, direction: null };
+      };
+      
+      const detectedMovement = detectMovementFromChoice(choice || '');
+      console.log(`Choice movement detection: "${choice}" => isMovement=${detectedMovement.isMovement}, direction=${detectedMovement.direction}`);
+      
       const currentSession = await storage.getCurrentSession(campaignId);
       if (!currentSession) {
         return res.status(404).json({ message: "No active session found" });
@@ -6514,6 +6568,13 @@ ${currentSession.narrative}
 ${playerCharacterInfo}
 
 Player Choice Made: ${choice}
+${detectedMovement.isMovement ? `
+MOVEMENT DETECTED: This is a movement action!
+- Direction: ${detectedMovement.direction} (${detectedMovement.direction === 'up' ? 'North' : detectedMovement.direction === 'down' ? 'South' : detectedMovement.direction === 'right' ? 'East' : 'West'})
+- IMPORTANT: Set movement.occurred = true and movement.direction = "${detectedMovement.direction}" in your response
+- The narrative MUST describe the party moving in this direction
+- Describe what they find as they move (new corridor, room, obstacle, etc.)
+` : ''}
 ${skillCheckInfo}
 
 ${skillCheckContinuation}
@@ -6794,9 +6855,18 @@ Respond with JSON:
       const newExplorationLimit = currentExplorationLimit + 2; // Expand by 2 tiles per story advancement
       
       // Handle movement from narrative choices - update dungeon map position
+      // Use EITHER the AI's movement data OR our detected movement from choice text
       let updatedMapData = null;
       const movement = storyAdvancement.movement;
-      if (movement && movement.occurred && movement.direction) {
+      const hasAIMovement = movement && movement.occurred && movement.direction;
+      const hasDetectedMovement = detectedMovement.isMovement && detectedMovement.direction;
+      
+      // Use detected movement if AI didn't provide it
+      const effectiveDirection = hasAIMovement ? movement.direction : 
+                                  (hasDetectedMovement ? detectedMovement.direction : null);
+      
+      if (effectiveDirection) {
+        console.log(`Processing movement - AI movement: ${hasAIMovement}, Detected movement: ${hasDetectedMovement}, Direction: ${effectiveDirection}`);
         try {
           // Get the current dungeon map for this campaign
           const dungeonMap = await storage.getCampaignDungeonMap(campaignId);
@@ -6821,7 +6891,7 @@ Respond with JSON:
               return null;
             };
             
-            const canonicalDirection = normalizeDirection(movement.direction);
+            const canonicalDirection = normalizeDirection(effectiveDirection);
             
             // Calculate new position based on direction
             const directionOffsets: Record<string, {x: number, y: number}> = {
@@ -7537,15 +7607,18 @@ Respond with JSON:
         progression: characterProgression
       });
 
+      // Build movement response - include both AI movement and detected movement
+      const movementResponse = (movement?.occurred || hasDetectedMovement) ? {
+        occurred: true,
+        direction: effectiveDirection,
+        description: movement?.description || `Moved ${effectiveDirection === 'up' ? 'north' : effectiveDirection === 'down' ? 'south' : effectiveDirection === 'right' ? 'east' : 'west'}`
+      } : null;
+      
       res.json({
         ...(sessionAdvanced && newSessionData ? newSessionData : updatedSession),
         progression: characterProgression,
         dungeonMapData: updatedMapData,
-        movement: movement?.occurred ? {
-          occurred: true,
-          direction: movement.direction,
-          description: movement.description
-        } : null,
+        movement: movementResponse,
         sessionAdvanced,
         newSessionNumber: sessionAdvanced ? newSessionData?.sessionNumber : null
       });
