@@ -30,14 +30,15 @@ function Router() {
       <Navbar />
       <main className="flex-grow">
         <Switch>
-          <ProtectedRoute path="/" component={Dashboard} />
+          <Route path="/" component={WorldMapPage} />
+          <ProtectedRoute path="/dashboard" component={Dashboard} />
           <ProtectedRoute path="/characters" component={Characters} />
           <ProtectedRoute path="/campaigns" component={Campaigns} />
           <ProtectedRoute path="/dice-roller" component={DiceRoller} />
           <ProtectedRoute path="/dm-toolkit" component={DMToolkit} />
           <ProtectedRoute path="/learn" component={LearnPage} />
           <Route path="/world-map" component={WorldMapPage} />
-          <Route path="/bulletin" component={BulletinBoardPage} />
+          <ProtectedRoute path="/bulletin" component={BulletinBoardPage} />
           <ProtectedRoute path="/caml" component={CAMLPage} />
           <ProtectedRoute path="/test" component={TestPage} />
           <Route path="/how-it-works" component={HowItWorks} />

@@ -26,19 +26,19 @@ export default function Navbar() {
   };
   
   const navLinks = [
-    { name: "Dashboard", path: "/" },
+    { name: "Dashboard", path: "/dashboard" },
     { name: "Characters", path: "/characters" },
     { name: "Campaigns", path: "/campaigns" },
     { name: "Dice Roller", path: "/dice-roller" },
     { name: "Learn D&D", path: "/learn" },
     { name: "DM Toolkit", path: "/dm-toolkit" },
+    { name: "Bulletin Board", path: "/bulletin" },
     { name: "CAML", path: "/caml" },
   ];
   
-  // This link doesn't require authentication
+  // These links don't require authentication
   const publicLinks = [
-    { name: "World Map", path: "/world-map" },
-    { name: "Bulletin Board", path: "/bulletin" },
+    { name: "World Map", path: "/" },
     { name: "How It Works", path: "/how-it-works" },
   ];
 
