@@ -72,7 +72,7 @@ export default function Navbar() {
           </div>
           
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex space-x-4 items-center">
+          <nav className="hidden lg:flex space-x-4 items-center ml-8">
             {user && navLinks.map((link) => (
               <Link key={link.path} href={link.path}>
                 <span className={`${location === link.path ? 'text-gold' : 'text-white hover:text-gold'} transition font-medium cursor-pointer whitespace-nowrap text-sm`}>
