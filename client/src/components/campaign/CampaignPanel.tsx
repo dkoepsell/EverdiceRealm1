@@ -1556,22 +1556,6 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             <span className="hidden sm:inline">{currentSession.location}</span>
                           </Button>
                         )}
-                        {/* Advance Session button - only show for campaign owner */}
-                        {campaign.userId === user?.id && (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="flex items-center gap-1 text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
-                            onClick={() => advanceSessionMutation.mutate()}
-                            disabled={advanceSessionMutation.isPending}
-                            data-testid="button-advance-session"
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                            <span className="hidden sm:inline">
-                              {advanceSessionMutation.isPending ? "Advancing..." : "Next Chapter"}
-                            </span>
-                          </Button>
-                        )}
                       </div>
                     </div>
                     
