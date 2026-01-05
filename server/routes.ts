@@ -8011,13 +8011,120 @@ Respond with JSON:
           createdAt: new Date().toISOString()
         });
         
+        // Generate initial story content using AI based on CAML adventure data
+        let initialNarrative = `Welcome to ${campaignData.title}. ${campaignData.description}`;
+        let initialChoices: any[] = [];
+        let sessionTitle = `Session 1: ${campaignData.title}`;
+        let initialLocation = campaignData.locations[0]?.name || 'Unknown Location';
+        
+        // Try to generate AI-powered initial story if OpenAI is available
+        if (process.env.OPENAI_API_KEY) {
+          try {
+            // Build context from CAML adventure data
+            const locationContext = campaignData.locations.length > 0 
+              ? `Locations: ${campaignData.locations.map(l => `${l.name} - ${l.description}`).slice(0, 3).join('; ')}`
+              : '';
+            const npcContext = campaignData.npcs.length > 0
+              ? `Key NPCs: ${campaignData.npcs.map(n => `${n.name} (${n.class || 'unknown role'})`).slice(0, 3).join(', ')}`
+              : '';
+            const questContext = campaignData.quests.length > 0
+              ? `Main Quests: ${campaignData.quests.map(q => `${q.name}: ${q.description}`).slice(0, 2).join('; ')}`
+              : '';
+            const encounterContext = campaignData.encounters.length > 0
+              ? `Possible Encounters: ${campaignData.encounters.map(e => e.name).slice(0, 3).join(', ')}`
+              : '';
+            
+            const adventurePrompt = `
+You are an expert Dungeon Master starting a new D&D adventure.
+
+ADVENTURE: ${campaignData.title}
+SETTING: ${campaignData.setting || 'Fantasy'}
+DESCRIPTION: ${campaignData.description}
+${locationContext}
+${npcContext}
+${questContext}
+${encounterContext}
+
+Generate an engaging opening scene for this adventure that sets the stage and gives players clear direction options.
+
+Return your response as a JSON object with these fields:
+- narrative: An evocative 2-3 paragraph opening that describes the scene, atmosphere, and hints at the adventure ahead
+- sessionTitle: A short, engaging title for this opening scene
+- location: The starting location name
+- choices: An array of 4 objects, each with:
+  - action: A short description of a possible action
+  - description: A brief explanation of what this action entails
+  - icon: A simple icon identifier (use: "search", "door", "talk", "sword", "treasure", "key", "running", "hand-sparkles")
+  - requiresDiceRoll: Boolean (false for most opening choices)
+`;
+
+            const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+            const response = await openaiClient.chat.completions.create({
+              model: "gpt-4o",
+              messages: [{ role: "user", content: adventurePrompt }],
+              response_format: { type: "json_object" },
+              max_tokens: 1200,
+            });
+            
+            const generatedContent = JSON.parse(response.choices[0].message.content || '{}');
+            if (generatedContent.narrative && typeof generatedContent.narrative === 'string' && generatedContent.narrative.length > 10) {
+              initialNarrative = generatedContent.narrative;
+            }
+            if (generatedContent.choices && Array.isArray(generatedContent.choices) && generatedContent.choices.length >= 2) {
+              initialChoices = generatedContent.choices;
+            }
+            if (generatedContent.sessionTitle && typeof generatedContent.sessionTitle === 'string') {
+              sessionTitle = `Session 1: ${generatedContent.sessionTitle}`;
+            }
+            if (generatedContent.location && typeof generatedContent.location === 'string') {
+              initialLocation = generatedContent.location;
+            }
+            
+            // Ensure we always have choices - fall back to defaults if AI didn't provide valid ones
+            if (initialChoices.length === 0) {
+              console.warn("AI did not provide valid choices for CAML import, using defaults");
+              initialChoices = [
+                { action: "Explore the area", description: "Look around and get your bearings", icon: "search", requiresDiceRoll: false },
+                { action: "Talk to locals", description: "Seek information from nearby people", icon: "talk", requiresDiceRoll: false },
+                { action: "Examine your quest", description: "Review your objectives", icon: "scroll", requiresDiceRoll: false },
+                { action: "Prepare for adventure", description: "Check your equipment and ready yourself", icon: "sword", requiresDiceRoll: false }
+              ];
+            }
+            console.log("Generated initial story for CAML import:", campaignData.title);
+          } catch (aiError) {
+            console.error("Failed to generate AI story for CAML import, using defaults:", aiError);
+            // Fallback to basic choices if AI generation fails
+            initialChoices = [
+              { action: "Explore the area", description: "Look around and get your bearings", icon: "search", requiresDiceRoll: false },
+              { action: "Talk to locals", description: "Seek information from nearby people", icon: "talk", requiresDiceRoll: false },
+              { action: "Examine your quest", description: "Review your objectives", icon: "scroll", requiresDiceRoll: false },
+              { action: "Prepare for adventure", description: "Check your equipment and ready yourself", icon: "sword", requiresDiceRoll: false }
+            ];
+          }
+        } else {
+          // No OpenAI key - use basic fallback choices
+          initialChoices = [
+            { action: "Explore the area", description: "Look around and get your bearings", icon: "search", requiresDiceRoll: false },
+            { action: "Talk to locals", description: "Seek information from nearby people", icon: "talk", requiresDiceRoll: false },
+            { action: "Examine your quest", description: "Review your objectives", icon: "scroll", requiresDiceRoll: false },
+            { action: "Prepare for adventure", description: "Check your equipment and ready yourself", icon: "sword", requiresDiceRoll: false }
+          ];
+        }
+        
+        // Update story state with location
+        const enrichedStoryState = {
+          ...campaignData.initialStoryState,
+          currentLocation: initialLocation,
+          adventureTitle: campaignData.title
+        };
+        
         const session = await storage.createCampaignSession({
           campaignId: campaign.id,
           sessionNumber: 1,
-          title: `Session 1: ${campaignData.title}`,
-          narrative: `Welcome to ${campaignData.title}. Imported from CAML adventure.`,
-          choices: [],
-          storyState: campaignData.initialStoryState,
+          title: sessionTitle,
+          narrative: initialNarrative,
+          choices: initialChoices,
+          storyState: enrichedStoryState,
           createdAt: new Date().toISOString()
         });
         
