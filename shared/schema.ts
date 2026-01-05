@@ -748,3 +748,59 @@ export const insertUserWorldProgressSchema = createInsertSchema(userWorldProgres
 
 export type InsertUserWorldProgress = z.infer<typeof insertUserWorldProgressSchema>;
 export type UserWorldProgress = typeof userWorldProgress.$inferSelect;
+
+// Bulletin Board - LFG (Looking For Group) posts
+export const bulletinPosts = pgTable("bulletin_posts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  // Post type: lfg (looking for group), lfp (looking for players/DM), discussion, announcement
+  postType: text("post_type").notNull().default("lfg"),
+  // Game details
+  gameSystem: text("game_system").default("D&D 5e"), // D&D 5e, Pathfinder, etc.
+  playersNeeded: integer("players_needed").default(1),
+  experienceLevel: text("experience_level").default("any"), // beginner, intermediate, experienced, any
+  playStyle: text("play_style").default("mixed"), // roleplay, combat, exploration, mixed
+  // Scheduling
+  preferredTime: text("preferred_time"), // e.g. "Weekends", "Evenings EST"
+  sessionDuration: text("session_duration"), // e.g. "2-3 hours"
+  isOngoing: boolean("is_ongoing").default(false), // One-shot vs campaign
+  // Status
+  isActive: boolean("is_active").default(true),
+  responseCount: integer("response_count").default(0),
+  // Timestamps
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  updatedAt: text("updated_at"),
+  expiresAt: text("expires_at"), // Auto-expire old posts
+});
+
+export const insertBulletinPostSchema = createInsertSchema(bulletinPosts).omit({
+  id: true,
+  responseCount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertBulletinPost = z.infer<typeof insertBulletinPostSchema>;
+export type BulletinPost = typeof bulletinPosts.$inferSelect;
+
+// Bulletin Responses - Replies to bulletin posts
+export const bulletinResponses = pgTable("bulletin_responses", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull(),
+  userId: integer("user_id").notNull(),
+  message: text("message").notNull(),
+  // Contact preferences
+  contactMethod: text("contact_method"), // in-app, discord, etc.
+  contactInfo: text("contact_info"), // Optional contact details
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertBulletinResponseSchema = createInsertSchema(bulletinResponses).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertBulletinResponse = z.infer<typeof insertBulletinResponseSchema>;
+export type BulletinResponse = typeof bulletinResponses.$inferSelect;
