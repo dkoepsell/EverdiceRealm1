@@ -180,6 +180,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [newItemName, setNewItemName] = useState("");
   const [selectedPartyMemberType, setSelectedPartyMemberType] = useState<"character" | "npc">("character");
   const [selectedNpcId, setSelectedNpcId] = useState<number | null>(null);
+  const [managedCharacterId, setManagedCharacterId] = useState<number | null>(null);
   const [dungeonMapData, setDungeonMapData] = useState<DungeonMapData | null>(null);
   const [dungeonMapId, setDungeonMapId] = useState<number | null>(null);
   const [monsterImages, setMonsterImages] = useState<Record<string, string>>({});
@@ -207,24 +208,43 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
   };
   
-  // Find the user's participant record in this campaign
-  const userParticipant = useMemo(() => {
-    if (!participants || !user) return null;
-    return participants.find((p: any) => p.userId === user.id);
+  // Find ALL of the user's participant records in this campaign (may have multiple characters)
+  const myParticipants = useMemo(() => {
+    if (!participants || !user) return [];
+    return participants.filter((p: any) => p.userId === user.id);
   }, [participants, user]);
+  
+  // Legacy single participant for backward compatibility
+  const userParticipant = useMemo(() => {
+    return myParticipants.length > 0 ? myParticipants[0] : null;
+  }, [myParticipants]);
+  
+  // Initialize managedCharacterId when participants load
+  useEffect(() => {
+    if (myParticipants.length > 0 && !managedCharacterId) {
+      setManagedCharacterId(myParticipants[0].characterId);
+    }
+  }, [myParticipants, managedCharacterId]);
 
-  // Get the active character for the current user (from participant or user's first character)
+  // Get the active character for the current user (from selected managed character)
   const activeCharacter = useMemo(() => {
-    // First try to get character from participant record
-    if (userParticipant?.character) {
-      return userParticipant.character;
+    // If user has multiple characters, use the selected one
+    if (myParticipants.length > 0) {
+      const selectedParticipant = myParticipants.find((p: any) => p.characterId === managedCharacterId);
+      if (selectedParticipant?.character) {
+        return selectedParticipant.character;
+      }
+      // Default to first participant's character
+      if (myParticipants[0]?.character) {
+        return myParticipants[0].character;
+      }
     }
     // Fallback to user's first character (for DMs who may not be participants)
     if (userCharacters && userCharacters.length > 0) {
       return userCharacters[0];
     }
     return null;
-  }, [userParticipant, userCharacters]);
+  }, [myParticipants, managedCharacterId, userCharacters]);
   
   // Get the selected NPC for management
   const selectedNpc = useMemo(() => {
@@ -2193,22 +2213,24 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     Manage Party Member
                   </h3>
                   <div className="flex flex-wrap gap-2">
-                    {/* Character button */}
-                    {activeCharacter && (
+                    {/* Character buttons - show ALL user's characters in the party */}
+                    {myParticipants.map((participant: any) => (
                       <Button
-                        variant={selectedPartyMemberType === "character" ? "default" : "outline"}
+                        key={`char-${participant.characterId}`}
+                        variant={selectedPartyMemberType === "character" && managedCharacterId === participant.characterId ? "default" : "outline"}
                         size="sm"
                         onClick={() => {
                           setSelectedPartyMemberType("character");
+                          setManagedCharacterId(participant.characterId);
                           setSelectedNpcId(null);
                         }}
                         className="flex items-center gap-2"
-                        data-testid="button-select-character"
+                        data-testid={`button-select-character-${participant.characterId}`}
                       >
                         <User className="h-4 w-4" />
-                        {activeCharacter.name} (You)
+                        {participant.character?.name || 'Unknown'} (You)
                       </Button>
-                    )}
+                    ))}
                     {/* NPC buttons */}
                     {partyNpcs.map((npc: any) => (
                       <Button
@@ -2226,7 +2248,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         {npc.name} (Companion)
                       </Button>
                     ))}
-                    {!activeCharacter && partyNpcs.length === 0 && (
+                    {myParticipants.length === 0 && partyNpcs.length === 0 && (
                       <p className="text-sm text-slate-600 dark:text-slate-400">No party members to manage</p>
                     )}
                   </div>
