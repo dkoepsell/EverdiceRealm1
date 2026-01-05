@@ -6865,6 +6865,189 @@ Respond with JSON:
         }
       }
       
+      // Auto-generate dungeon map when entering dungeon-like locations
+      const dungeonKeywords = ['dungeon', 'cave', 'cavern', 'crypt', 'tomb', 'catacomb', 'lair', 'underground', 'mine', 'sewers', 'vault', 'ruins', 'temple interior', 'dark passage', 'maze', 'labyrinth'];
+      const narrativeLower = (storyAdvancement.narrative || '').toLowerCase();
+      
+      // Safely extract location string - handle both string and object locations
+      const rawLocation = storyAdvancement.storyState?.location || storyAdvancement.storyState?.currentLocation || '';
+      const locationLower = typeof rawLocation === 'string' ? rawLocation.toLowerCase() : 
+                           (rawLocation?.name ? String(rawLocation.name).toLowerCase() : '');
+      
+      const enterKeywords = ['enter', 'descend', 'step into', 'venture into', 'explore', 'delve', 'go inside', 'walk into', 'head into'];
+      
+      const isEnteringDungeon = dungeonKeywords.some(keyword => {
+        const inNarrative = narrativeLower.includes(keyword);
+        const inLocation = locationLower.includes(keyword);
+        const hasEnterVerb = enterKeywords.some(verb => narrativeLower.includes(verb));
+        return (inNarrative && hasEnterVerb) || inLocation;
+      });
+      
+      if (isEnteringDungeon && !updatedMapData) {
+        try {
+          // Check if a dungeon map already exists for this campaign
+          const existingMap = await storage.getCampaignDungeonMap(campaignId);
+          
+          if (!existingMap) {
+            // Generate a new dungeon map
+            console.log(`Auto-generating dungeon map for campaign ${campaignId} - detected dungeon entry`);
+            
+            // Get campaign info for naming - safely extract string from location
+            const campaign = await storage.getCampaign(campaignId);
+            const rawLocationName = storyAdvancement.storyState?.location || storyAdvancement.storyState?.currentLocation;
+            const locationName = typeof rawLocationName === 'string' ? rawLocationName : 
+                                (rawLocationName?.name ? String(rawLocationName.name) : null);
+            const dungeonName = locationName || `${campaign?.title || 'Adventure'} Dungeon`;
+            
+            // Generate dungeon using procedural generation
+            const generateDungeonMap = () => {
+              const width = 25;
+              const height = 18;
+              const tiles: any[][] = [];
+              
+              // Initialize with walls
+              for (let y = 0; y < height; y++) {
+                const row: any[] = [];
+                for (let x = 0; x < width; x++) {
+                  row.push({ type: "wall", explored: false, visible: false });
+                }
+                tiles.push(row);
+              }
+              
+              // Generate rooms
+              const rooms: { x: number; y: number; w: number; h: number; centerX: number; centerY: number }[] = [];
+              const numRooms = 5 + Math.floor(Math.random() * 3);
+              
+              for (let attempt = 0; attempt < numRooms * 5; attempt++) {
+                if (rooms.length >= numRooms) break;
+                
+                const roomW = 4 + Math.floor(Math.random() * 4);
+                const roomH = 4 + Math.floor(Math.random() * 4);
+                const roomX = 1 + Math.floor(Math.random() * (width - roomW - 2));
+                const roomY = 1 + Math.floor(Math.random() * (height - roomH - 2));
+                
+                let overlaps = false;
+                for (const room of rooms) {
+                  if (roomX - 1 < room.x + room.w && roomX + roomW + 1 > room.x &&
+                      roomY - 1 < room.y + room.h && roomY + roomH + 1 > room.y) {
+                    overlaps = true;
+                    break;
+                  }
+                }
+                
+                if (!overlaps) {
+                  const centerX = Math.floor(roomX + roomW / 2);
+                  const centerY = Math.floor(roomY + roomH / 2);
+                  rooms.push({ x: roomX, y: roomY, w: roomW, h: roomH, centerX, centerY });
+                  
+                  // Carve room
+                  for (let ry = roomY; ry < roomY + roomH; ry++) {
+                    for (let rx = roomX; rx < roomX + roomW; rx++) {
+                      tiles[ry][rx] = { type: "floor", explored: false, visible: false };
+                    }
+                  }
+                }
+              }
+              
+              // Connect rooms with corridors
+              for (let i = 1; i < rooms.length; i++) {
+                const prev = rooms[i - 1];
+                const curr = rooms[i];
+                
+                if (Math.random() < 0.5) {
+                  // Horizontal then vertical
+                  for (let x = Math.min(prev.centerX, curr.centerX); x <= Math.max(prev.centerX, curr.centerX); x++) {
+                    if (tiles[prev.centerY][x].type === "wall") {
+                      tiles[prev.centerY][x] = { type: "floor", explored: false, visible: false };
+                    }
+                  }
+                  for (let y = Math.min(prev.centerY, curr.centerY); y <= Math.max(prev.centerY, curr.centerY); y++) {
+                    if (tiles[y][curr.centerX].type === "wall") {
+                      tiles[y][curr.centerX] = { type: "floor", explored: false, visible: false };
+                    }
+                  }
+                } else {
+                  // Vertical then horizontal
+                  for (let y = Math.min(prev.centerY, curr.centerY); y <= Math.max(prev.centerY, curr.centerY); y++) {
+                    if (tiles[y][prev.centerX].type === "wall") {
+                      tiles[y][prev.centerX] = { type: "floor", explored: false, visible: false };
+                    }
+                  }
+                  for (let x = Math.min(prev.centerX, curr.centerX); x <= Math.max(prev.centerX, curr.centerX); x++) {
+                    if (tiles[curr.centerY][x].type === "wall") {
+                      tiles[curr.centerY][x] = { type: "floor", explored: false, visible: false };
+                    }
+                  }
+                }
+              }
+              
+              // Add doors, treasures, and traps
+              if (rooms.length > 1) {
+                const lastRoom = rooms[rooms.length - 1];
+                tiles[lastRoom.centerY][lastRoom.centerX] = { type: "treasure", explored: false, visible: false };
+              }
+              
+              // Add enemies
+              const entities: any[] = [];
+              const enemyNames = ["Goblin", "Orc", "Skeleton", "Zombie", "Kobold"];
+              for (let i = 1; i < rooms.length - 1; i++) {
+                if (Math.random() < 0.5) {
+                  const room = rooms[i];
+                  entities.push({
+                    id: `enemy-${i}`,
+                    type: "enemy",
+                    name: enemyNames[Math.floor(Math.random() * enemyNames.length)],
+                    x: room.centerX,
+                    y: room.centerY,
+                    hp: 10 + Math.floor(Math.random() * 15),
+                    maxHp: 25,
+                  });
+                }
+              }
+              
+              // Player starts in first room
+              const startRoom = rooms[0];
+              const playerPos = { x: startRoom.centerX, y: startRoom.centerY };
+              
+              // Reveal starting area
+              for (let y = Math.max(0, playerPos.y - 2); y <= Math.min(height - 1, playerPos.y + 2); y++) {
+                for (let x = Math.max(0, playerPos.x - 2); x <= Math.min(width - 1, playerPos.x + 2); x++) {
+                  tiles[y][x].explored = true;
+                  tiles[y][x].visible = true;
+                }
+              }
+              
+              return {
+                width,
+                height,
+                tiles,
+                entities,
+                playerPosition: playerPos,
+                name: dungeonName,
+                level: 1,
+              };
+            };
+            
+            const newMapData = generateDungeonMap();
+            
+            // Save to database
+            await storage.createCampaignDungeonMap({
+              campaignId,
+              mapName: dungeonName,
+              mapData: newMapData,
+              playerPosition: newMapData.playerPosition,
+              fogOfWar: {},
+              exploredTiles: [],
+            });
+            
+            updatedMapData = newMapData;
+            console.log(`Dungeon map auto-generated for campaign ${campaignId}: ${dungeonName}`);
+          }
+        } catch (dungeonGenError) {
+          console.error("Failed to auto-generate dungeon map:", dungeonGenError);
+        }
+      }
+      
       // Add narrative event to journey log
       const existingJourneyLog = (currentStoryState.journeyLog as any[]) || [];
       const narrativeSummary = storyAdvancement.narrative?.slice(0, 150) || choice;
