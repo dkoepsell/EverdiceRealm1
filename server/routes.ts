@@ -8025,11 +8025,12 @@ Respond with JSON:
           try {
             const createdNpc = await storage.createNpc({
               name: npc.name,
-              description: npc.description || '',
               race: npc.race || 'Unknown',
-              class: npc.class,
-              alignment: npc.alignment,
-              statblock: npc.statblock
+              occupation: npc.class || 'Adventurer',
+              personality: npc.description || 'A mysterious figure.',
+              appearance: npc.description || 'Unremarkable appearance.',
+              motivation: 'Unknown motives.',
+              createdBy: userId
             });
             await storage.addNpcToCampaign({ campaignId: campaign.id, npcId: createdNpc.id });
           } catch (e) {
