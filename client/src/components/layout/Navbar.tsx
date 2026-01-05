@@ -87,6 +87,13 @@ export default function Navbar() {
                 </span>
               </Link>
             ))}
+            {user?.isAdmin && (
+              <Link href="/admin">
+                <span className={`${location === '/admin' ? 'text-gold' : 'text-amber-400 hover:text-gold'} transition font-medium cursor-pointer whitespace-nowrap text-sm`}>
+                  Admin
+                </span>
+              </Link>
+            )}
           </nav>
           
           {/* Mobile Menu Button */}

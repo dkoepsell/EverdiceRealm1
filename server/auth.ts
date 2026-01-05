@@ -141,3 +141,11 @@ export function isAuthenticated(req: any, res: any, next: any) {
   }
   res.status(401).json({ message: "Authentication required" });
 }
+
+// Admin middleware - must be used after isAuthenticated
+export function requireAdmin(req: any, res: any, next: any) {
+  if (req.user?.isAdmin) {
+    return next();
+  }
+  res.status(403).json({ message: "Admin access required" });
+}

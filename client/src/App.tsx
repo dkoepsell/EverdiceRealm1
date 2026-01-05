@@ -21,6 +21,7 @@ import LearnPage from "@/pages/learn";
 import WorldMapPage from "@/pages/world-map";
 import CAMLPage from "@/pages/CAMLPage";
 import BulletinBoardPage from "@/pages/bulletin-board";
+import AdminPage from "@/pages/admin";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 
@@ -41,6 +42,7 @@ function Router() {
           <ProtectedRoute path="/bulletin" component={BulletinBoardPage} />
           <ProtectedRoute path="/caml" component={CAMLPage} />
           <ProtectedRoute path="/test" component={TestPage} />
+          <ProtectedRoute path="/admin" component={AdminPage} />
           <Route path="/how-it-works" component={HowItWorks} />
           <Route path="/auth" component={AuthPage} />
           <Route component={NotFound} />

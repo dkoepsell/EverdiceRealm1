@@ -32,7 +32,7 @@ import {
   chatMessages,
   onlineUsers
 } from "@shared/schema";
-import { setupAuth, isAuthenticated } from "./auth";
+import { setupAuth, isAuthenticated, requireAdmin } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";
 import { generateCharacterPortrait, generateCharacterBackground } from "./lib/characterImageGenerator";
 import { registerCampaignDeploymentRoutes } from "./lib/campaignDeploy";
@@ -113,10 +113,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }
   // API Routes
-  app.get("/api/characters", async (req, res) => {
+  app.get("/api/characters", isAuthenticated, async (req: any, res) => {
     try {
-      const characters = await storage.getAllCharacters();
-      res.json(characters);
+      const userId = req.user.id;
+      const userCharacters = await storage.getCharactersByUserId(userId);
+      res.json(userCharacters);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch characters" });
     }
@@ -8594,6 +8595,74 @@ IMPORTANT: Replace all placeholders with creative, detailed D&D content. Every a
     } catch (error) {
       console.error("Failed to delete bulletin response:", error);
       res.status(500).json({ message: "Failed to delete response" });
+    }
+  });
+
+  // ========== ADMIN ROUTES ==========
+  
+  // Get all users with stats (admin only)
+  app.get("/api/admin/users", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const usersWithStats = await storage.getAllUsersWithCharacterCounts();
+      // Remove passwords from response
+      const sanitizedUsers = usersWithStats.map(({ password, ...user }) => user);
+      res.json(sanitizedUsers);
+    } catch (error) {
+      console.error("Admin: Failed to fetch users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+  
+  // Get characters for a specific user (admin only)
+  app.get("/api/admin/users/:userId/characters", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const userCharacters = await storage.getCharactersByUserId(userId);
+      res.json(userCharacters);
+    } catch (error) {
+      console.error("Admin: Failed to fetch user characters:", error);
+      res.status(500).json({ message: "Failed to fetch user characters" });
+    }
+  });
+  
+  // Get all campaigns (admin only)
+  app.get("/api/admin/campaigns", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const allCampaigns = await storage.getAllCampaigns();
+      res.json(allCampaigns);
+    } catch (error) {
+      console.error("Admin: Failed to fetch campaigns:", error);
+      res.status(500).json({ message: "Failed to fetch campaigns" });
+    }
+  });
+  
+  // Toggle user admin status (admin only)
+  app.patch("/api/admin/users/:userId/toggle-admin", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const targetUserId = parseInt(req.params.userId);
+      const currentUserId = req.user.id;
+      
+      // Prevent admin from removing their own admin status
+      if (targetUserId === currentUserId) {
+        return res.status(400).json({ message: "Cannot modify your own admin status" });
+      }
+      
+      const [user] = await db.select().from(users).where(eq(users.id, targetUserId));
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const [updated] = await db
+        .update(users)
+        .set({ isAdmin: !user.isAdmin })
+        .where(eq(users.id, targetUserId))
+        .returning();
+      
+      const { password, ...sanitizedUser } = updated;
+      res.json(sanitizedUser);
+    } catch (error) {
+      console.error("Admin: Failed to toggle admin status:", error);
+      res.status(500).json({ message: "Failed to update user" });
     }
   });
 

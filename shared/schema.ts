@@ -10,6 +10,7 @@ export const users = pgTable("users", {
   email: text("email"),
   displayName: text("display_name"),
   lastLogin: text("last_login"),
+  isAdmin: boolean("is_admin").notNull().default(false),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
 });
 

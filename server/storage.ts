@@ -55,10 +55,15 @@ export interface IStorage {
   
   // Character operations
   getAllCharacters(): Promise<Character[]>;
+  getCharactersByUserId(userId: number): Promise<Character[]>;
   getCharacter(id: number): Promise<Character | undefined>;
   createCharacter(character: InsertCharacter): Promise<Character>;
   updateCharacter(id: number, character: Partial<Character>): Promise<Character | undefined>;
   deleteCharacter(id: number): Promise<boolean>;
+  
+  // Admin operations
+  getAllUsers(): Promise<User[]>;
+  getAllUsersWithCharacterCounts(): Promise<Array<User & { characterCount: number; campaignCount: number }>>;
   
   // Campaign operations
   getAllCampaigns(): Promise<Campaign[]>;
@@ -846,9 +851,36 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(characters);
   }
   
+  async getCharactersByUserId(userId: number): Promise<Character[]> {
+    return db.select().from(characters).where(eq(characters.userId, userId));
+  }
+  
   async getCharacter(id: number): Promise<Character | undefined> {
     const [character] = await db.select().from(characters).where(eq(characters.id, id));
     return character || undefined;
+  }
+  
+  // Admin operations
+  async getAllUsers(): Promise<User[]> {
+    return db.select().from(users);
+  }
+  
+  async getAllUsersWithCharacterCounts(): Promise<Array<User & { characterCount: number; campaignCount: number }>> {
+    const allUsers = await db.select().from(users);
+    const result = [];
+    
+    for (const user of allUsers) {
+      const userChars = await db.select().from(characters).where(eq(characters.userId, user.id));
+      const userCamps = await db.select().from(campaigns).where(eq(campaigns.userId, user.id));
+      
+      result.push({
+        ...user,
+        characterCount: userChars.length,
+        campaignCount: userCamps.length
+      });
+    }
+    
+    return result;
   }
   
   async createCharacter(insertCharacter: InsertCharacter): Promise<Character> {
