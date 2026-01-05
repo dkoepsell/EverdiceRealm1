@@ -134,6 +134,34 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
     }
   });
 
+  const useAdventureMutation = useMutation({
+    mutationFn: async (adventureJson: string) => {
+      const response = await apiRequest('POST', '/api/caml/import', {
+        content: adventureJson,
+        format: 'json',
+        createCampaign: true
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Campaign Created!',
+        description: `Your adventure is now available in Campaigns with ${data.imported?.npcs || 0} NPCs and ${data.imported?.quests || 0} quests`
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
+      if (data.campaignId && onImportComplete) {
+        onImportComplete(data.campaignId);
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to Create Campaign',
+        description: error.message || 'Failed to create campaign from adventure',
+        variant: 'destructive'
+      });
+    }
+  });
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -464,14 +492,18 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => {
-                        setImportContent(generatedAdventure.json);
-                        setImportFormat('json');
-                        setActiveTab('import');
-                      }}
+                      onClick={() => useAdventureMutation.mutate(generatedAdventure.json)}
+                      disabled={useAdventureMutation.isPending}
                       data-testid="button-use-adventure"
                     >
-                      Use This Adventure
+                      {useAdventureMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Creating Campaign...
+                        </>
+                      ) : (
+                        'Use This Adventure'
+                      )}
                     </Button>
                   </div>
                 </CardContent>
