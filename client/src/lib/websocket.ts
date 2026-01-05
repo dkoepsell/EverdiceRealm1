@@ -78,6 +78,26 @@ export function createWSConnection(force = false) {
           window.dispatchEvent(new CustomEvent('campaign_update', {
             detail: data.payload
           }));
+        } else if (data.type === 'chat_message') {
+          // Dispatch event for chat messages
+          window.dispatchEvent(new CustomEvent('chat_message', {
+            detail: data.payload
+          }));
+        } else if (data.type === 'typing_indicator') {
+          // Dispatch event for typing indicators
+          window.dispatchEvent(new CustomEvent('typing_indicator', {
+            detail: data.payload
+          }));
+        } else if (data.type === 'player_action') {
+          // Dispatch event for player actions
+          window.dispatchEvent(new CustomEvent('player_action', {
+            detail: data.payload
+          }));
+        } else if (data.type === 'story_advanced') {
+          // Dispatch event for story advancement
+          window.dispatchEvent(new CustomEvent('story_advanced', {
+            detail: data.payload
+          }));
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);

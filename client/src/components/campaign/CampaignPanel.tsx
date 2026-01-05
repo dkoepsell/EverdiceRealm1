@@ -29,7 +29,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -185,6 +185,117 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [dungeonMapId, setDungeonMapId] = useState<number | null>(null);
   const [monsterImages, setMonsterImages] = useState<Record<string, string>>({});
   const [generatingMonsterImage, setGeneratingMonsterImage] = useState<string | null>(null);
+  
+  // Chat state for cooperative play
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [isSendingChat, setIsSendingChat] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  
+  // Fetch chat messages for this campaign
+  const { data: fetchedChatMessages = [], refetch: refetchChat } = useQuery<any[]>({
+    queryKey: [`/api/chat/messages/campaign-${campaign.id}`],
+    enabled: !!campaign.id,
+    refetchInterval: 10000, // Refresh every 10 seconds as fallback
+  });
+  
+  // Sync fetched messages to state
+  useEffect(() => {
+    if (fetchedChatMessages.length > 0) {
+      setChatMessages(fetchedChatMessages);
+    }
+  }, [fetchedChatMessages]);
+  
+  // Subscribe to campaign-specific events via shared WebSocket connection
+  useEffect(() => {
+    // Handle chat message events
+    const handleChatMessage = (event: CustomEvent) => {
+      const data = event.detail;
+      if (data.campaignId === campaign.id) {
+        setChatMessages(prev => {
+          if (prev.some(m => m.id === data.id)) return prev;
+          return [...prev, data];
+        });
+      }
+    };
+    
+    // Handle typing indicator events
+    const handleTypingIndicator = (event: CustomEvent) => {
+      const data = event.detail;
+      if (data.campaignId === campaign.id) {
+        if (data.isTyping) {
+          setTypingUsers(prev => prev.includes(data.username) ? prev : [...prev, data.username]);
+        } else {
+          setTypingUsers(prev => prev.filter(u => u !== data.username));
+        }
+      }
+    };
+    
+    // Handle player action events
+    const handlePlayerAction = (event: CustomEvent) => {
+      const data = event.detail;
+      if (data.campaignId === campaign.id && data.userId !== user?.id) {
+        toast({
+          title: `${data.username} made a choice`,
+          description: data.action,
+          duration: 3000,
+        });
+      }
+    };
+    
+    // Handle story advanced events
+    const handleStoryAdvanced = (event: CustomEvent) => {
+      const data = event.detail;
+      if (data.campaignId === campaign.id) {
+        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
+      }
+    };
+    
+    // Add event listeners
+    window.addEventListener('chat_message' as any, handleChatMessage);
+    window.addEventListener('typing_indicator' as any, handleTypingIndicator);
+    window.addEventListener('player_action' as any, handlePlayerAction);
+    window.addEventListener('story_advanced' as any, handleStoryAdvanced);
+    
+    return () => {
+      window.removeEventListener('chat_message' as any, handleChatMessage);
+      window.removeEventListener('typing_indicator' as any, handleTypingIndicator);
+      window.removeEventListener('player_action' as any, handlePlayerAction);
+      window.removeEventListener('story_advanced' as any, handleStoryAdvanced);
+    };
+  }, [campaign.id, user?.id, toast]);
+  
+  // Send chat message - accepts optional message parameter for quick actions
+  const sendChatMessage = async (directMessage?: string) => {
+    const messageToSend = directMessage || chatInput.trim();
+    if (!messageToSend || !user) return;
+    
+    setIsSendingChat(true);
+    try {
+      await apiRequest('POST', '/api/chat/messages', {
+        userId: user.id,
+        username: user.username,
+        displayName: user.displayName || user.username,
+        message: messageToSend,
+        messageType: 'text',
+        channelType: 'campaign',
+        campaignId: campaign.id,
+      });
+      if (!directMessage) {
+        setChatInput("");
+      }
+      refetchChat();
+    } catch (error) {
+      console.error('Failed to send chat message:', error);
+      toast({
+        title: "Failed to send message",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingChat(false);
+    }
+  };
   
   // Function to generate monster image on demand
   const generateMonsterImage = async (monsterName: string, description?: string, type?: string) => {
@@ -1461,10 +1572,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       <Card className="border-2 border-accent-light bg-parchment drop-shadow-lg">
         <CardContent className="p-0">
           <Tabs defaultValue="narrative" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 bg-secondary-light rounded-none">
+            <TabsList className="grid w-full grid-cols-6 bg-secondary-light rounded-none">
               <TabsTrigger value="narrative" className="text-xs sm:text-sm md:text-base">Narrative</TabsTrigger>
-              <TabsTrigger value="journey-log" className="text-xs sm:text-sm md:text-base">Journey Log</TabsTrigger>
+              <TabsTrigger value="journey-log" className="text-xs sm:text-sm md:text-base">Log</TabsTrigger>
               <TabsTrigger value="party" className="text-xs sm:text-sm md:text-base">Party</TabsTrigger>
+              <TabsTrigger value="chat" className="text-xs sm:text-sm md:text-base" data-testid="tab-chat">
+                <span className="flex items-center">
+                  <MessageCircle className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
+                  <span>Chat</span>
+                </span>
+              </TabsTrigger>
               <TabsTrigger value="settings" className="text-xs sm:text-sm md:text-base">Settings</TabsTrigger>
               <TabsTrigger value="deploy" className="text-xs sm:text-sm md:text-base">
                 <span className="flex items-center">
@@ -2977,6 +3094,148 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     />
                   </div>
                 )}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="chat" className="p-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold font-fantasy flex items-center" style={{ color: '#0f172a' }}>
+                    <MessageCircle className="h-5 w-5 mr-2 text-indigo-600" />
+                    Party Chat
+                  </h2>
+                  <Badge variant="outline" className="text-slate-700 dark:text-slate-300">
+                    <Users className="h-3 w-3 mr-1" />
+                    {participants.length} party members
+                  </Badge>
+                </div>
+                
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Coordinate with your party members in real-time. Messages are visible to all players in this campaign.
+                </p>
+                
+                {/* Chat messages container */}
+                <div 
+                  className="h-[400px] overflow-y-auto border-2 border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 p-4 space-y-3"
+                  data-testid="chat-messages-container"
+                >
+                  {chatMessages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-slate-500">
+                      <MessageCircle className="h-12 w-12 mb-2 opacity-50" />
+                      <p className="text-center">No messages yet. Start a conversation with your party!</p>
+                    </div>
+                  ) : (
+                    chatMessages.map((msg, index) => (
+                      <div 
+                        key={msg.id || index}
+                        className={`flex flex-col ${msg.userId === user?.id ? 'items-end' : 'items-start'}`}
+                        data-testid={`chat-message-${msg.id || index}`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                            {msg.displayName || msg.username}
+                          </span>
+                          <span className="text-xs text-slate-400 dark:text-slate-500">
+                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <div 
+                          className={`max-w-[80%] px-4 py-2 rounded-lg ${
+                            msg.userId === user?.id 
+                              ? 'bg-indigo-600 text-white' 
+                              : 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100'
+                          }`}
+                        >
+                          <p className="text-sm">{msg.message}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  
+                  {/* Typing indicator */}
+                  {typingUsers.length > 0 && (
+                    <div className="flex items-center gap-2 text-slate-500 text-sm">
+                      <div className="flex gap-1">
+                        <span className="animate-bounce">.</span>
+                        <span className="animate-bounce" style={{ animationDelay: '0.1s' }}>.</span>
+                        <span className="animate-bounce" style={{ animationDelay: '0.2s' }}>.</span>
+                      </div>
+                      <span>{typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...</span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Chat input */}
+                <div className="flex gap-2">
+                  <Input
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && sendChatMessage()}
+                    placeholder="Type a message to your party..."
+                    className="flex-1 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                    disabled={isSendingChat}
+                    data-testid="input-chat-message"
+                  />
+                  <Button
+                    onClick={() => sendChatMessage()}
+                    disabled={!chatInput.trim() || isSendingChat}
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                    data-testid="button-send-chat"
+                  >
+                    {isSendingChat ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                
+                {/* Quick action buttons for coordination */}
+                <div className="border-t border-slate-200 dark:border-slate-700 pt-4 mt-4">
+                  <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Quick Actions</h4>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => sendChatMessage("Ready to continue!")}
+                      disabled={isSendingChat}
+                      className="text-xs"
+                      data-testid="button-quick-ready"
+                    >
+                      Ready!
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => sendChatMessage("Need a short break")}
+                      disabled={isSendingChat}
+                      className="text-xs"
+                      data-testid="button-quick-break"
+                    >
+                      Need Break
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => sendChatMessage("Let's discuss this choice")}
+                      disabled={isSendingChat}
+                      className="text-xs"
+                      data-testid="button-quick-discuss"
+                    >
+                      Discuss
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => sendChatMessage("I vote we go with that option!")}
+                      disabled={isSendingChat}
+                      className="text-xs"
+                      data-testid="button-quick-vote"
+                    >
+                      Vote Yes
+                    </Button>
+                  </div>
+                </div>
               </div>
             </TabsContent>
             

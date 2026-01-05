@@ -86,6 +86,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (data.type === 'dice_roll') {
           // Broadcast dice roll to all connected clients
           broadcastMessage(data.type, data.payload);
+        } else if (data.type === 'chat_message') {
+          // Broadcast chat message to all connected clients
+          broadcastMessage('chat_message', data.payload);
+        } else if (data.type === 'player_action') {
+          // Broadcast player action for cooperative play
+          broadcastMessage('player_action', data.payload);
+        } else if (data.type === 'typing_indicator') {
+          // Broadcast typing indicator for chat
+          broadcastMessage('typing_indicator', data.payload);
+        } else if (data.type === 'player_ready') {
+          // Broadcast player ready status for coordinated actions
+          broadcastMessage('player_ready', data.payload);
         }
       } catch (error) {
         console.error('Error processing WebSocket message:', error);
@@ -1631,6 +1643,107 @@ Return your response as a JSON object with these fields:
         
         // Update the campaign with the session number to establish the link
         await storage.updateCampaignSession(campaign.id, 1);
+        
+        // Generate initial dungeon map for the campaign
+        try {
+          const generateInitialDungeonMap = () => {
+            const width = 25;
+            const height = 18;
+            const tiles: any[][] = [];
+            
+            for (let y = 0; y < height; y++) {
+              const row: any[] = [];
+              for (let x = 0; x < width; x++) {
+                row.push({ type: "wall", explored: false, visible: false });
+              }
+              tiles.push(row);
+            }
+            
+            const rooms: { x: number; y: number; w: number; h: number }[] = [];
+            const numRooms = 5 + Math.floor(Math.random() * 4);
+            
+            for (let i = 0; i < numRooms; i++) {
+              const roomW = 3 + Math.floor(Math.random() * 4);
+              const roomH = 3 + Math.floor(Math.random() * 3);
+              const roomX = 1 + Math.floor(Math.random() * (width - roomW - 2));
+              const roomY = 1 + Math.floor(Math.random() * (height - roomH - 2));
+              
+              let overlaps = false;
+              for (const room of rooms) {
+                if (roomX < room.x + room.w + 1 && roomX + roomW + 1 > room.x &&
+                    roomY < room.y + room.h + 1 && roomY + roomH + 1 > room.y) {
+                  overlaps = true;
+                  break;
+                }
+              }
+              
+              if (!overlaps) {
+                rooms.push({ x: roomX, y: roomY, w: roomW, h: roomH });
+                for (let ry = roomY; ry < roomY + roomH; ry++) {
+                  for (let rx = roomX; rx < roomX + roomW; rx++) {
+                    tiles[ry][rx] = { type: "floor", explored: false, visible: false };
+                  }
+                }
+              }
+            }
+            
+            for (let i = 1; i < rooms.length; i++) {
+              const prev = rooms[i - 1];
+              const curr = rooms[i];
+              const prevCenterX = Math.floor(prev.x + prev.w / 2);
+              const prevCenterY = Math.floor(prev.y + prev.h / 2);
+              const currCenterX = Math.floor(curr.x + curr.w / 2);
+              const currCenterY = Math.floor(curr.y + curr.h / 2);
+              
+              let x = prevCenterX;
+              while (x !== currCenterX) {
+                if (tiles[prevCenterY] && tiles[prevCenterY][x]) {
+                  tiles[prevCenterY][x] = { type: "corridor", explored: false, visible: false };
+                }
+                x += x < currCenterX ? 1 : -1;
+              }
+              let y = prevCenterY;
+              while (y !== currCenterY) {
+                if (tiles[y] && tiles[y][currCenterX]) {
+                  tiles[y][currCenterX] = { type: "corridor", explored: false, visible: false };
+                }
+                y += y < currCenterY ? 1 : -1;
+              }
+            }
+            
+            const entities: any[] = [];
+            const playerPos = rooms.length > 0 
+              ? { x: Math.floor(rooms[0].x + rooms[0].w / 2), y: Math.floor(rooms[0].y + rooms[0].h / 2) }
+              : { x: 4, y: 4 };
+            
+            entities.push({ id: "player", type: "player", x: playerPos.x, y: playerPos.y, name: "Player" });
+            
+            for (let ry = Math.max(0, playerPos.y - 2); ry <= Math.min(height - 1, playerPos.y + 2); ry++) {
+              for (let rx = Math.max(0, playerPos.x - 2); rx <= Math.min(width - 1, playerPos.x + 2); rx++) {
+                const dist = Math.sqrt(Math.pow(rx - playerPos.x, 2) + Math.pow(ry - playerPos.y, 2));
+                if (tiles[ry] && tiles[ry][rx] && dist <= 2) {
+                  tiles[ry][rx].explored = true;
+                  tiles[ry][rx].visible = dist <= 1.5;
+                }
+              }
+            }
+            
+            return { width, height, tiles, entities, playerPosition: playerPos, name: campaign.title + " Dungeon", level: 1 };
+          };
+          
+          const initialMapData = generateInitialDungeonMap();
+          await storage.createCampaignDungeonMap({
+            campaignId: campaign.id,
+            mapName: campaign.title + " Dungeon",
+            mapData: initialMapData,
+            playerPosition: initialMapData.playerPosition,
+            fogOfWar: {},
+            exploredTiles: [],
+          });
+          console.log(`Created initial dungeon map for campaign ${campaign.id}`);
+        } catch (mapError) {
+          console.error("Failed to create initial dungeon map:", mapError);
+        }
         
       } catch (sessionError) {
         console.error("Error creating initial session:", sessionError);
@@ -7902,6 +8015,14 @@ Respond with JSON:
     try {
       const messageData = insertChatMessageSchema.parse(req.body);
       const message = await storage.createChatMessage(messageData);
+      
+      // Broadcast the new message to all connected clients via WebSocket
+      broadcastMessage('chat_message', {
+        ...message,
+        channelType: messageData.channelType || 'global',
+        campaignId: messageData.campaignId
+      });
+      
       res.status(201).json(message);
     } catch (error) {
       if (error instanceof z.ZodError) {
