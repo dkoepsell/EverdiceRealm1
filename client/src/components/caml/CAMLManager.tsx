@@ -484,10 +484,37 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
               <CampaignAdventureGraph campaignId={campaignId} />
             ) : parsedPreview?.graph ? (
               <AdventureGraph graph={parsedPreview.graph} />
+            ) : generatedAdventure ? (
+              <div className="space-y-4">
+                <p style={{ color: '#0f172a' }}>
+                  Generated adventure graph:
+                </p>
+                <AdventureGraph graph={{
+                  nodes: [
+                    { id: 'adventure', type: 'AdventureModule', name: generatedAdventure.adventure?.title || 'Generated Adventure' },
+                    ...(generatedAdventure.adventure?.locations || []).map((loc: any) => ({ id: loc.id, type: 'Location', name: loc.name })),
+                    ...(generatedAdventure.adventure?.npcs || []).map((npc: any) => ({ id: npc.id, type: 'NPC', name: npc.name })),
+                    ...(generatedAdventure.adventure?.encounters || []).map((enc: any) => ({ id: enc.id, type: 'Encounter', name: enc.name })),
+                    ...(generatedAdventure.adventure?.quests || []).map((q: any) => ({ id: q.id, type: 'Quest', name: q.name })),
+                    ...(generatedAdventure.adventure?.items || []).map((item: any) => ({ id: item.id, type: 'Item', name: item.name })),
+                  ],
+                  edges: []
+                }} />
+              </div>
             ) : (
-              <p className="text-muted-foreground">
-                Import an adventure or select a campaign to view its graph.
-              </p>
+              <div className="text-center py-8 space-y-4">
+                <p className="text-muted-foreground">
+                  No adventure graph available.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  To view an adventure graph, either:
+                </p>
+                <ul className="text-sm text-muted-foreground list-disc list-inside">
+                  <li>Import a CAML adventure file and click "Preview"</li>
+                  <li>Generate an adventure using the "Generate" tab</li>
+                  <li>Access this page from a specific campaign</li>
+                </ul>
+              </div>
             )}
           </TabsContent>
         </Tabs>
@@ -497,10 +524,12 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
 }
 
 function CampaignAdventureGraph({ campaignId }: { campaignId: number }) {
-  const { data: graph, isLoading } = useQuery({
-    queryKey: ['/api/campaigns', campaignId, 'adventure-graph'],
+  const { data: graph, isLoading, error } = useQuery({
+    queryKey: [`/api/campaigns/${campaignId}/adventure-graph`],
     enabled: !!campaignId
   });
+
+  console.log('Adventure graph query:', { campaignId, isLoading, error, graph });
 
   if (isLoading) {
     return (
@@ -510,9 +539,14 @@ function CampaignAdventureGraph({ campaignId }: { campaignId: number }) {
     );
   }
 
-  if (!graph) {
+  if (!graph || (graph.nodes?.length === 0)) {
     return (
-      <p className="text-muted-foreground">No adventure graph available for this campaign.</p>
+      <div className="text-center py-8 space-y-2">
+        <p className="text-muted-foreground">No adventure graph available for this campaign.</p>
+        <p className="text-sm text-muted-foreground">
+          The graph is built from campaign NPCs, quests, locations, and encounters.
+        </p>
+      </div>
     );
   }
 

@@ -7996,21 +7996,25 @@ Respond with JSON:
         entities: {} as Record<string, any>
       };
       
-      pack.entities[camlAdventure.id] = camlAdventure;
+      pack.entities[camlAdventure.id] = { ...camlAdventure, type: 'AdventureModule' };
       for (const loc of camlAdventure.locations || []) {
-        pack.entities[loc.id] = loc;
+        pack.entities[loc.id] = { ...loc, type: 'Location' };
       }
       for (const npc of camlAdventure.npcs || []) {
-        pack.entities[npc.id] = npc;
+        pack.entities[npc.id] = { ...npc, type: 'NPC' };
       }
       for (const quest of camlAdventure.quests || []) {
-        pack.entities[quest.id] = quest;
+        pack.entities[quest.id] = { ...quest, type: 'Quest' };
       }
       for (const enc of camlAdventure.encounters || []) {
-        pack.entities[enc.id] = enc;
+        pack.entities[enc.id] = { ...enc, type: 'Encounter' };
+      }
+      for (const item of camlAdventure.items || []) {
+        pack.entities[item.id] = { ...item, type: 'Item' };
       }
       
       const graph = buildAdventureGraph(pack);
+      console.log('Adventure graph built:', { nodes: graph.nodes.length, edges: graph.edges.length });
       res.json(graph);
     } catch (error) {
       console.error("Failed to build adventure graph:", error);
