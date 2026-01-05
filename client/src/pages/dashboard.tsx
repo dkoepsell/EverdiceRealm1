@@ -402,16 +402,7 @@ export default function Dashboard() {
                 </Card>
               ) : activeCampaign && characters && characters.length > 0 ? (
                 <CharacterSheet 
-                  character={
-                    // Find the character being used in the active campaign
-                    characters.find(c => {
-                      // Check if any participant in active campaign is using this character
-                      const participant = activeCampaign.participants?.find(p => 
-                        p.characterId === c.id && p.userId === user?.id
-                      );
-                      return !!participant;
-                    }) || characters[0] // Fallback to first character if campaign character not found
-                  } 
+                  character={characters[0]}
                 />
               ) : (
                 <Card className="bg-secondary-light rounded-lg shadow-xl overflow-hidden">
