@@ -7830,19 +7830,28 @@ Respond with JSON:
       const { content, format, createCampaign: shouldCreateCampaign } = req.body;
       const userId = req.user!.id;
       
+      console.log("CAML import request:", { format, shouldCreateCampaign, contentLength: content?.length });
+      
       if (!content) {
         return res.status(400).json({ message: "No content provided" });
       }
       
       let pack;
-      if (format === 'yaml' || format === 'yml') {
-        pack = parseCAMLYaml(content);
-      } else {
-        pack = parseCAMLJson(content);
+      try {
+        if (format === 'yaml' || format === 'yml') {
+          pack = parseCAMLYaml(content);
+        } else {
+          pack = parseCAMLJson(content);
+        }
+      } catch (parseError) {
+        console.error("CAML parse error:", parseError);
+        return res.status(400).json({ message: `Parse error: ${parseError}` });
       }
       
+      console.log("CAML pack parsed:", pack ? "success" : "null", pack?.adventure?.title);
+      
       if (!pack) {
-        return res.status(400).json({ message: "Failed to parse CAML content" });
+        return res.status(400).json({ message: "Failed to parse CAML content - invalid format" });
       }
       
       const campaignData = convertCAMLToCampaign(pack);

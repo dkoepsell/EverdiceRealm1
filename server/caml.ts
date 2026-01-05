@@ -15,15 +15,18 @@ import type {
 export function parseCAMLYaml(content: string): CAMLAdventurePack | null {
   try {
     const parsed = yaml.load(content) as any;
+    console.log('YAML parsed:', parsed ? 'success' : 'null', parsed?.type, parsed?.id);
     if (!parsed) return null;
     
-    if (parsed.type === 'AdventureModule') {
+    // Check if it's a direct adventure module by type or id pattern
+    if (parsed.type === 'AdventureModule' || parsed.id?.startsWith('adventure.')) {
       return {
-        adventure: parsed as CAMLAdventureModule,
-        entities: buildEntityIndex(parsed)
+        adventure: { ...parsed, type: 'AdventureModule' } as CAMLAdventureModule,
+        entities: buildEntityIndex({ ...parsed, type: 'AdventureModule' })
       };
     }
     
+    // Check if it's wrapped in an adventure key
     if (parsed.adventure) {
       return {
         adventure: parsed.adventure as CAMLAdventureModule,
@@ -31,6 +34,16 @@ export function parseCAMLYaml(content: string): CAMLAdventurePack | null {
       };
     }
     
+    // Fallback: treat as adventure if it has title and some content
+    if (parsed.title && (parsed.locations || parsed.npcs || parsed.encounters || parsed.quests)) {
+      const adventure = { ...parsed, type: 'AdventureModule', id: parsed.id || `adventure.${Date.now()}` };
+      return {
+        adventure: adventure as CAMLAdventureModule,
+        entities: buildEntityIndex(adventure)
+      };
+    }
+    
+    console.log('YAML parsing failed - no matching structure, keys:', Object.keys(parsed));
     return null;
   } catch (error) {
     console.error('Failed to parse CAML YAML:', error);
@@ -41,15 +54,18 @@ export function parseCAMLYaml(content: string): CAMLAdventurePack | null {
 export function parseCAMLJson(content: string): CAMLAdventurePack | null {
   try {
     const parsed = JSON.parse(content);
+    console.log('JSON parsed:', parsed ? 'success' : 'null', parsed?.type, parsed?.id);
     if (!parsed) return null;
     
-    if (parsed.type === 'AdventureModule') {
+    // Check if it's a direct adventure module by type or id pattern
+    if (parsed.type === 'AdventureModule' || parsed.id?.startsWith('adventure.')) {
       return {
-        adventure: parsed as CAMLAdventureModule,
-        entities: buildEntityIndex(parsed)
+        adventure: { ...parsed, type: 'AdventureModule' } as CAMLAdventureModule,
+        entities: buildEntityIndex({ ...parsed, type: 'AdventureModule' })
       };
     }
     
+    // Check if it's wrapped in an adventure key
     if (parsed.adventure) {
       return {
         adventure: parsed.adventure as CAMLAdventureModule,
@@ -57,6 +73,16 @@ export function parseCAMLJson(content: string): CAMLAdventurePack | null {
       };
     }
     
+    // Fallback: treat as adventure if it has title and some content
+    if (parsed.title && (parsed.locations || parsed.npcs || parsed.encounters || parsed.quests)) {
+      const adventure = { ...parsed, type: 'AdventureModule', id: parsed.id || `adventure.${Date.now()}` };
+      return {
+        adventure: adventure as CAMLAdventureModule,
+        entities: buildEntityIndex(adventure)
+      };
+    }
+    
+    console.log('JSON parsing failed - no matching structure, keys:', Object.keys(parsed));
     return null;
   } catch (error) {
     console.error('Failed to parse CAML JSON:', error);
