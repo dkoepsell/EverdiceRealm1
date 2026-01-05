@@ -371,8 +371,8 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
       </div>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {allParticipants?.map((participant: ExtendedParticipant) => (
-          <Card key={participant.isNpc ? `npc-${participant.id}` : `player-${participant.id}`} className={participant.isActive ? "" : "opacity-60"}>
+        {allParticipants?.map((participant: ExtendedParticipant, index: number) => (
+          <Card key={participant.isNpc ? `npc-${participant.npc?.id}-${index}` : `player-${participant.id}-${index}`} className={participant.isActive ? "" : "opacity-60"}>
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">
                 <div className="flex items-center space-x-2">
