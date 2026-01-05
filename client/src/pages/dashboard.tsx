@@ -15,7 +15,8 @@ import { Character, Campaign } from "@shared/schema";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
 import { getQueryFn, queryClient } from "@/lib/queryClient";
-import { Bookmark, Calendar, Dice5Icon, History, User, Users, Activity } from "lucide-react";
+import { Bookmark, Calendar, Dice5Icon, History, User, Users, Activity, Star, Play } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -27,8 +28,18 @@ export default function Dashboard() {
     onlineUsers: 0
   });
 
-  // For campaign selection
-  const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
+  // For campaign selection - persist in localStorage
+  const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(() => {
+    const saved = localStorage.getItem('activeCampaignId');
+    return saved ? parseInt(saved) : null;
+  });
+  
+  // Persist active campaign selection to localStorage
+  useEffect(() => {
+    if (selectedCampaignId) {
+      localStorage.setItem('activeCampaignId', selectedCampaignId.toString());
+    }
+  }, [selectedCampaignId]);
 
   const { data: characters = [], isLoading: charactersLoading } = useQuery<Character[]>({
     queryKey: ['/api/characters'],
@@ -138,18 +149,28 @@ export default function Dashboard() {
   // Get available campaigns (non-archived, non-completed)
   const availableCampaigns = campaigns?.filter(campaign => !campaign.isArchived && !campaign.isCompleted) || [];
   
-  // Auto-select first campaign if none selected and campaigns are available
+  // Auto-select first campaign if none selected (or saved one doesn't exist) and campaigns are available
   useEffect(() => {
-    if (!selectedCampaignId && availableCampaigns.length > 0) {
-      // Auto-select the most recently created campaign
-      const mostRecent = availableCampaigns.sort((a, b) => {
-        const dateA = new Date(a.createdAt);
-        const dateB = new Date(b.createdAt);
-        return dateB.getTime() - dateA.getTime();
-      })[0];
-      setSelectedCampaignId(mostRecent.id);
+    if (availableCampaigns.length > 0) {
+      // Check if saved campaign still exists in available campaigns
+      const savedExists = selectedCampaignId && availableCampaigns.some(c => c.id === selectedCampaignId);
+      
+      if (!savedExists) {
+        // Auto-select the most recently created campaign
+        const mostRecent = [...availableCampaigns].sort((a, b) => {
+          const dateA = new Date(a.createdAt);
+          const dateB = new Date(b.createdAt);
+          return dateB.getTime() - dateA.getTime();
+        })[0];
+        setSelectedCampaignId(mostRecent.id);
+      }
     }
   }, [selectedCampaignId, availableCampaigns]);
+  
+  // Helper function to set a campaign as active
+  const setAsActiveAdventure = (campaignId: number) => {
+    setSelectedCampaignId(campaignId);
+  };
 
   // Get active campaign based on selection
   const activeCampaign = selectedCampaignId ? campaigns?.find(c => c.id === selectedCampaignId) : null;
@@ -257,15 +278,22 @@ export default function Dashboard() {
                 </Card>
               ) : activeCampaign ? (
                 <div className="space-y-4">
-                  {availableCampaigns.length > 1 && (
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-lg">Select Active Campaign</CardTitle>
-                      </CardHeader>
-                      <CardContent>
+                  {/* Mobile Active Adventure Header */}
+                  <Card className="border-2 border-amber-500/50">
+                    <CardHeader className="pb-2 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30">
+                      <div className="flex items-center gap-2">
+                        <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                        <CardTitle className="text-base font-fantasy">Active Adventure</CardTitle>
+                        <Badge variant="outline" className="text-xs bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/50 dark:text-amber-200 dark:border-amber-700">
+                          <Play className="h-2 w-2 mr-1" /> Playing
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-3 pb-3">
+                      {availableCampaigns.length > 1 ? (
                         <Select 
                           value={selectedCampaignId?.toString() || ""} 
-                          onValueChange={(value) => setSelectedCampaignId(parseInt(value))}
+                          onValueChange={(value) => setAsActiveAdventure(parseInt(value))}
                         >
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select a campaign" />
@@ -273,14 +301,22 @@ export default function Dashboard() {
                           <SelectContent>
                             {availableCampaigns.map((campaign) => (
                               <SelectItem key={campaign.id} value={campaign.id.toString()}>
-                                {campaign.title}
+                                <div className="flex items-center gap-2">
+                                  {selectedCampaignId === campaign.id && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
+                                  {campaign.title} (Session {campaign.currentSession})
+                                </div>
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                      </CardContent>
-                    </Card>
-                  )}
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm">{activeCampaign.title}</span>
+                          <Badge variant="secondary" className="text-xs">Session {activeCampaign.currentSession}</Badge>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                   <CampaignPanel campaign={activeCampaign} />
                 </div>
               ) : (
@@ -430,30 +466,52 @@ export default function Dashboard() {
                 </Card>
               ) : activeCampaign ? (
                 <div className="space-y-6">
-                  {availableCampaigns.length > 1 && (
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-lg">Select Active Campaign</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <Select 
-                          value={selectedCampaignId?.toString() || ""} 
-                          onValueChange={(value) => setSelectedCampaignId(parseInt(value))}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select a campaign" />
-                          </SelectTrigger>
-                          <SelectContent>
+                  {/* Active Adventure Header */}
+                  <Card className="border-2 border-amber-500/50">
+                    <CardHeader className="pb-3 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
+                          <CardTitle className="text-lg font-fantasy">Active Adventure</CardTitle>
+                          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/50 dark:text-amber-200 dark:border-amber-700">
+                            <Play className="h-3 w-3 mr-1" /> Playing
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      {availableCampaigns.length > 1 ? (
+                        <div className="space-y-3">
+                          <p className="text-sm text-muted-foreground">Choose which campaign to play:</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {availableCampaigns.map((campaign) => (
-                              <SelectItem key={campaign.id} value={campaign.id.toString()}>
-                                {campaign.title}
-                              </SelectItem>
+                              <Button
+                                key={campaign.id}
+                                variant={selectedCampaignId === campaign.id ? "default" : "outline"}
+                                className={`justify-start h-auto py-3 px-4 ${selectedCampaignId === campaign.id ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''}`}
+                                onClick={() => setAsActiveAdventure(campaign.id)}
+                                data-testid={`button-set-active-${campaign.id}`}
+                              >
+                                <div className="flex items-center gap-2 w-full">
+                                  {selectedCampaignId === campaign.id && <Star className="h-4 w-4 fill-current" />}
+                                  <div className="text-left">
+                                    <div className="font-medium">{campaign.title}</div>
+                                    <div className="text-xs opacity-80">Session {campaign.currentSession}</div>
+                                  </div>
+                                </div>
+                              </Button>
                             ))}
-                          </SelectContent>
-                        </Select>
-                      </CardContent>
-                    </Card>
-                  )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                          <span className="font-medium">{activeCampaign.title}</span>
+                          <Badge variant="secondary">Session {activeCampaign.currentSession}</Badge>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                   <CampaignPanel campaign={activeCampaign} />
                 </div>
               ) : (

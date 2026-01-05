@@ -28,7 +28,8 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CampaignPanel from "@/components/campaign/CampaignPanel";
-import { AlertCircle, Book, MapPin, Plus, Scroll, Wand2 } from "lucide-react";
+import { AlertCircle, Book, MapPin, Plus, Scroll, Wand2, Star, Play } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 
 // Extended schema with validation rules
@@ -69,6 +70,22 @@ export default function Campaigns() {
   const [useAIGeneration, setUseAIGeneration] = useState(false);
   const [generatingCampaign, setGeneratingCampaign] = useState(false);
   const [campaignTheme, setCampaignTheme] = useState("");
+  
+  // Active campaign from localStorage
+  const [activeCampaignId, setActiveCampaignId] = useState<number | null>(() => {
+    const saved = localStorage.getItem('activeCampaignId');
+    return saved ? parseInt(saved) : null;
+  });
+  
+  const setAsActiveAdventure = (campaignId: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setActiveCampaignId(campaignId);
+    localStorage.setItem('activeCampaignId', campaignId.toString());
+    toast({
+      title: "Active Adventure Set",
+      description: "This campaign is now your active adventure on the Dashboard.",
+    });
+  };
   
   const { toast } = useToast();
   
@@ -237,33 +254,57 @@ export default function Campaigns() {
           ) : campaigns && campaigns.length > 0 ? (
             <div>
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
-                {campaigns.map((campaign) => (
-                  <Card 
-                    key={campaign.id} 
-                    className="cursor-pointer hover:shadow-lg transition-shadow"
-                    onClick={() => setSelectedCampaign(campaign)}
-                  >
-                    <CardHeader className="bg-primary text-white pb-2">
-                      <div className="flex justify-between items-center">
-                        <CardTitle className="font-fantasy">{campaign.title}</CardTitle>
-                        <span className="bg-primary-light text-white text-sm px-3 py-1 rounded-full">
-                          Ch. {campaign.currentSession}
-                        </span>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-4 bg-parchment character-sheet">
-                      <p className="text-secondary mb-4">{campaign.description}</p>
-                      
-                      <div className="flex justify-between text-sm text-gray-600">
-                        <div className="flex items-center">
-                          <Scroll size={16} className="text-primary-light mr-1" />
-                          <span>{campaign.narrativeStyle}</span>
+                {campaigns.map((campaign) => {
+                  const isActive = activeCampaignId === campaign.id;
+                  return (
+                    <Card 
+                      key={campaign.id} 
+                      className={`cursor-pointer hover:shadow-lg transition-shadow ${isActive ? 'ring-2 ring-amber-500 ring-offset-2' : ''}`}
+                      onClick={() => setSelectedCampaign(campaign)}
+                    >
+                      <CardHeader className="bg-primary text-white pb-2">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            {isActive && <Star className="h-4 w-4 text-amber-400 fill-amber-400" />}
+                            <CardTitle className="font-fantasy">{campaign.title}</CardTitle>
+                          </div>
+                          <span className="bg-primary-light text-white text-sm px-3 py-1 rounded-full">
+                            Ch. {campaign.currentSession}
+                          </span>
                         </div>
-                        <span>{campaign.difficulty}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        {isActive && (
+                          <Badge className="mt-2 bg-amber-500 text-white w-fit">
+                            <Play className="h-3 w-3 mr-1" /> Active Adventure
+                          </Badge>
+                        )}
+                      </CardHeader>
+                      <CardContent className="pt-4 bg-parchment character-sheet">
+                        <p className="text-secondary mb-4 line-clamp-2">{campaign.description}</p>
+                        
+                        <div className="flex justify-between text-sm text-gray-600 mb-3">
+                          <div className="flex items-center">
+                            <Scroll size={16} className="text-primary-light mr-1" />
+                            <span>{campaign.narrativeStyle}</span>
+                          </div>
+                          <span>{campaign.difficulty}</span>
+                        </div>
+                        
+                        {!isActive && !campaign.isArchived && !campaign.isCompleted && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full border-amber-500 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950"
+                            onClick={(e) => setAsActiveAdventure(campaign.id, e)}
+                            data-testid={`button-set-active-campaign-${campaign.id}`}
+                          >
+                            <Star className="h-4 w-4 mr-2" />
+                            Set as Active Adventure
+                          </Button>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
               
               {selectedCampaign && (
