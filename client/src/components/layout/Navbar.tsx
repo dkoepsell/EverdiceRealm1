@@ -112,7 +112,7 @@ export default function Navbar() {
           </button>
           
           {/* User Profile */}
-          <div className="hidden lg:flex items-center space-x-3">
+          <div className="hidden lg:flex items-center space-x-3 flex-shrink-0 ml-4">
             {isLoading ? (
               <Loader2 className="w-8 h-8 text-gold animate-spin" />
             ) : user ? (
