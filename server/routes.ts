@@ -8004,30 +8004,34 @@ Respond with JSON:
         const campaign = await storage.createCampaign({
           userId,
           title: campaignData.title,
-          description: campaignData.description,
-          setting: campaignData.setting,
-          isActive: true,
-          currentSessionNumber: 1
+          description: campaignData.description + (campaignData.setting ? `\n\nSetting: ${campaignData.setting}` : ''),
+          difficulty: 'normal',
+          narrativeStyle: 'balanced',
+          currentSession: 1,
+          createdAt: new Date().toISOString()
         });
         
         const session = await storage.createCampaignSession({
           campaignId: campaign.id,
           sessionNumber: 1,
-          summary: `Imported from CAML: ${campaignData.title}`,
-          storyState: campaignData.initialStoryState
+          title: `Session 1: ${campaignData.title}`,
+          narrative: `Welcome to ${campaignData.title}. Imported from CAML adventure.`,
+          choices: [],
+          storyState: campaignData.initialStoryState,
+          createdAt: new Date().toISOString()
         });
         
         for (const npc of campaignData.npcs) {
           try {
             const createdNpc = await storage.createNpc({
               name: npc.name,
-              description: npc.description,
-              race: npc.race,
+              description: npc.description || '',
+              race: npc.race || 'Unknown',
               class: npc.class,
               alignment: npc.alignment,
               statblock: npc.statblock
             });
-            await storage.addNpcToCampaign(campaign.id, createdNpc.id);
+            await storage.addNpcToCampaign({ campaignId: campaign.id, npcId: createdNpc.id });
           } catch (e) {
             console.error("Failed to create NPC:", e);
           }
@@ -8035,10 +8039,10 @@ Respond with JSON:
         
         for (const quest of campaignData.quests) {
           try {
-            await storage.createQuest({
+            await storage.createCampaignQuest({
               campaignId: campaign.id,
               title: quest.name,
-              description: quest.description,
+              description: quest.description || '',
               status: 'active',
               xpReward: quest.rewards?.xp || 100,
               goldReward: quest.rewards?.gold || 0
