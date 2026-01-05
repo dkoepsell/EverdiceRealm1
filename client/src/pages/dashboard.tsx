@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -174,6 +174,25 @@ export default function Dashboard() {
 
   // Get active campaign based on selection
   const activeCampaign = selectedCampaignId ? campaigns?.find(c => c.id === selectedCampaignId) : null;
+
+  // Fetch participants for active campaign to get the user's character
+  const { data: participants = [], isLoading: participantsLoading } = useQuery<any[]>({
+    queryKey: [`/api/campaigns/${activeCampaign?.id}/participants`],
+    enabled: !!activeCampaign?.id,
+  });
+
+  // Find the current user's character from participants
+  const participantCharacter = useMemo(() => {
+    if (!participants || !user) return null;
+    const myParticipant = participants.find((p: any) => p.userId === user.id);
+    if (myParticipant?.character) {
+      return myParticipant.character;
+    }
+    return null;
+  }, [participants, user]);
+
+  // Use participant character if available, otherwise fallback to owned characters
+  const activeCharacter = participantCharacter || (characters.length > 0 ? characters[0] : null);
 
   return (
     <div className="pb-16">
@@ -351,9 +370,9 @@ export default function Dashboard() {
                     </div>
                   </CardContent>
                 </Card>
-              ) : characters && characters.length > 0 ? (
+              ) : activeCharacter ? (
                 <div className="space-y-4">
-                  <CharacterSheet character={characters[0]} />
+                  <CharacterSheet character={activeCharacter} />
                 </div>
               ) : (
                 <Card className="bg-secondary-light rounded-lg shadow-xl overflow-hidden">
@@ -400,9 +419,9 @@ export default function Dashboard() {
                     </div>
                   </CardContent>
                 </Card>
-              ) : activeCampaign && characters && characters.length > 0 ? (
+              ) : activeCharacter ? (
                 <CharacterSheet 
-                  character={characters[0]}
+                  character={activeCharacter}
                 />
               ) : (
                 <Card className="bg-secondary-light rounded-lg shadow-xl overflow-hidden">
