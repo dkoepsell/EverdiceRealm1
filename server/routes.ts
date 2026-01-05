@@ -8036,30 +8036,68 @@ Respond with JSON:
         includePuzzles
       } = req.body;
       
-      const prompt = `${CAML_AI_PROMPT}
+      const prompt = `You are a D&D adventure designer. Generate a COMPLETE adventure module in JSON format.
 
-Generate a D&D 5e adventure with these parameters:
+CRITICAL: You MUST populate ALL arrays with actual content. Empty arrays are NOT acceptable.
+
+Generate an adventure with these specifications:
 - Title: ${title || 'The Lost Temple'}
 - Theme: ${theme || 'exploration and mystery'}
 - Setting: ${setting || 'fantasy dungeon'}
 - Level range: ${minLevel || 1} to ${maxLevel || 5}
-- Include ${encounterCount || 5} encounters (mix of combat, social, and exploration)
-${includeQuests ? '- Include 2-3 quests with clear objectives' : ''}
-${includePuzzles ? '- Include 1-2 puzzle encounters' : ''}
+- Number of encounters: ${encounterCount || 5}
+${includeQuests ? '- Include 2-3 quests with clear objectives and rewards' : ''}
+${includePuzzles ? '- Include 1-2 puzzle/trap encounters' : ''}
 
-Make it interesting, varied, and playable. Include at least:
-- 4-6 locations with connections
-- 3-5 NPCs (friendly and hostile)
-- 3-5 items/treasures
-- Clear adventure hooks
+YOU MUST INCLUDE:
+1. EXACTLY 5 locations with connections between them
+2. EXACTLY 4 NPCs (mix of friendly and hostile)
+3. EXACTLY ${encounterCount || 5} encounters (combat, social, exploration mix)
+4. EXACTLY 3 items/treasures
+5. EXACTLY 2 quests with objectives
 
-Respond with valid JSON only.`;
+Return this exact JSON structure with ALL arrays populated:
+
+{
+  "id": "adventure.${Date.now()}",
+  "type": "AdventureModule",
+  "title": "${title || 'The Lost Temple'}",
+  "synopsis": "Adventure synopsis here",
+  "minLevel": ${minLevel || 1},
+  "maxLevel": ${maxLevel || 5},
+  "setting": "${setting || 'fantasy dungeon'}",
+  "hooks": ["Hook 1", "Hook 2"],
+  "locations": [
+    {"id": "location.area1", "type": "Location", "name": "Name", "description": "Description", "connections": [{"direction": "north", "target": "location.area2"}], "encounters": [], "npcs": []}
+  ],
+  "npcs": [
+    {"id": "npc.character1", "type": "NPC", "name": "Name", "description": "Description", "race": "Race", "class": "Class", "alignment": "Alignment", "attitude": "friendly", "statblock": {"ac": 14, "hp": 30, "cr": "1"}}
+  ],
+  "encounters": [
+    {"id": "encounter.event1", "type": "Encounter", "name": "Name", "description": "Description", "encounterType": "combat", "difficulty": "medium", "enemies": [], "rewards": {"xp": 100, "gold": 25}}
+  ],
+  "quests": [
+    {"id": "quest.main1", "type": "Quest", "name": "Name", "description": "Description", "objectives": [{"id": "obj1", "description": "Objective"}], "rewards": {"xp": 200, "gold": 50}}
+  ],
+  "items": [
+    {"id": "item.treasure1", "type": "Item", "name": "Name", "description": "Description", "itemType": "wondrous", "rarity": "uncommon"}
+  ]
+}
+
+IMPORTANT: Replace all placeholders with creative, detailed D&D content. Every array must have multiple entries!`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
+        messages: [
+          { 
+            role: "system", 
+            content: "You are a creative D&D adventure designer. Always generate complete, detailed adventures with all arrays fully populated. Never return empty arrays."
+          },
+          { role: "user", content: prompt }
+        ],
         response_format: { type: "json_object" },
-        max_tokens: 4000
+        max_tokens: 8000,
+        temperature: 0.8
       });
       
       const generatedAdventure = JSON.parse(response.choices[0].message.content || '{}');
