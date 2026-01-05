@@ -8014,7 +8014,7 @@ Respond with JSON:
         // Generate initial story content using AI based on CAML adventure data
         let initialNarrative = `Welcome to ${campaignData.title}. ${campaignData.description}`;
         let initialChoices: any[] = [];
-        let sessionTitle = `Session 1: ${campaignData.title}`;
+        let sessionTitle = `Chapter 1: ${campaignData.title}`;
         let initialLocation = campaignData.locations[0]?.name || 'Unknown Location';
         
         // Try to generate AI-powered initial story if OpenAI is available
@@ -8074,7 +8074,7 @@ Return your response as a JSON object with these fields:
               initialChoices = generatedContent.choices;
             }
             if (generatedContent.sessionTitle && typeof generatedContent.sessionTitle === 'string') {
-              sessionTitle = `Session 1: ${generatedContent.sessionTitle}`;
+              sessionTitle = `Chapter 1: ${generatedContent.sessionTitle}`;
             }
             if (generatedContent.location && typeof generatedContent.location === 'string') {
               initialLocation = generatedContent.location;
