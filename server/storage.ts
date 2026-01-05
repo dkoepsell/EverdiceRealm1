@@ -86,6 +86,7 @@ export interface IStorage {
   createCampaignSession(session: InsertCampaignSession): Promise<CampaignSession>;
   getCurrentSession(campaignId: number): Promise<CampaignSession | undefined>;
   advanceSessionStory(campaignId: number, storyData: any): Promise<CampaignSession>;
+  advanceToNextSession(campaignId: number, summary?: string): Promise<CampaignSession>;
   addQuickContentToSession(campaignId: number, content: any): Promise<void>;
   startCombat(campaignId: number, combatState: any): Promise<void>;
   updateCombatState(campaignId: number, combatState: any): Promise<void>;
@@ -1546,6 +1547,56 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     return updatedSession;
+  }
+
+  async advanceToNextSession(campaignId: number, summary?: string): Promise<CampaignSession> {
+    const currentSession = await this.getCurrentSession(campaignId);
+    if (!currentSession) {
+      throw new Error("No active session found");
+    }
+    
+    // Mark current session as completed (preserve original title)
+    await db
+      .update(campaignSessions)
+      .set({
+        isCompleted: true,
+        completedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(campaignSessions.id, currentSession.id));
+    
+    // Get the campaign to update currentSession
+    const campaign = await this.getCampaign(campaignId);
+    if (!campaign) {
+      throw new Error("Campaign not found");
+    }
+    
+    const nextSessionNumber = (campaign.currentSession || 1) + 1;
+    
+    // Update campaign's current session number
+    await db
+      .update(campaigns)
+      .set({
+        currentSession: nextSessionNumber
+      })
+      .where(eq(campaigns.id, campaignId));
+    
+    // Create new session with story state carried over
+    const newSession = await this.createCampaignSession({
+      campaignId,
+      sessionNumber: nextSessionNumber,
+      title: `Chapter ${nextSessionNumber}`,
+      narrative: summary || `The adventure continues...\n\nAs a new chapter begins, your party reflects on the events that have passed. The path ahead remains uncertain, but your courage is unwavering.`,
+      choices: [
+        { action: "Continue exploring", requiresRoll: false },
+        { action: "Rest and plan your next move", requiresRoll: false },
+        { action: "Seek information from locals", requiresRoll: false }
+      ],
+      createdAt: new Date().toISOString(),
+      storyState: currentSession.storyState as any // Carry over story state
+    });
+    
+    return newSession;
   }
 
   async addQuickContentToSession(campaignId: number, content: any): Promise<void> {

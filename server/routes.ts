@@ -1986,6 +1986,41 @@ Return your response as a JSON object with these fields:
     }
   });
 
+  // Advance to next session (end current chapter/session and start new one)
+  app.post("/api/campaigns/:campaignId/sessions/advance", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const { summary } = req.body;
+      
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      // Only campaign owner can advance sessions
+      if (campaign.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Only the campaign owner can advance sessions" });
+      }
+      
+      const newSession = await storage.advanceToNextSession(campaignId, summary);
+      
+      // Broadcast session advancement via WebSocket
+      broadcastMessage('session_advanced', { 
+        campaignId, 
+        newSessionNumber: newSession.sessionNumber 
+      });
+      
+      res.json({ 
+        success: true, 
+        session: newSession,
+        message: `Advanced to Session ${newSession.sessionNumber}`
+      });
+    } catch (error) {
+      console.error("Error advancing session:", error);
+      res.status(500).json({ message: "Failed to advance to next session" });
+    }
+  });
+
   // Items database routes
   app.get("/api/items", async (req, res) => {
     try {

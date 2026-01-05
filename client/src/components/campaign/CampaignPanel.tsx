@@ -29,7 +29,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, ChevronRight, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -644,6 +644,31 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     onError: (error: Error) => {
       toast({
         title: "Rest Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Advance to next session mutation
+  const advanceSessionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/sessions/advance`, {
+        summary: currentSession?.narrative?.slice(0, 200) || 'Session completed'
+      });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
+      toast({
+        title: "Session Advanced!",
+        description: data.message || `Now on Session ${data.session?.sessionNumber}`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to advance session",
         description: error.message,
         variant: "destructive"
       });
@@ -1529,6 +1554,22 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           <Button variant="outline" size="sm" className="flex items-center gap-1">
                             <MapPin className="h-4 w-4" />
                             <span className="hidden sm:inline">{currentSession.location}</span>
+                          </Button>
+                        )}
+                        {/* Advance Session button - only show for campaign owner */}
+                        {campaign.userId === user?.id && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex items-center gap-1 text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
+                            onClick={() => advanceSessionMutation.mutate()}
+                            disabled={advanceSessionMutation.isPending}
+                            data-testid="button-advance-session"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                            <span className="hidden sm:inline">
+                              {advanceSessionMutation.isPending ? "Advancing..." : "Next Chapter"}
+                            </span>
                           </Button>
                         )}
                       </div>
