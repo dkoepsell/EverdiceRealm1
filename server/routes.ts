@@ -8111,11 +8111,42 @@ Return your response as a JSON object with these fields:
           ];
         }
         
-        // Update story state with location
+        // Build activeQuests from CAML quests for Adventure Objectives display
+        const activeQuests = campaignData.quests.map((quest, index) => ({
+          id: `quest-${index}`,
+          title: quest.name,
+          description: quest.description || '',
+          status: 'active',
+          xpReward: quest.rewards?.xp || 100,
+          goldReward: quest.rewards?.gold || 0
+        }));
+        
+        // Calculate adventure requirements based on CAML data
+        const combatEncounters = campaignData.encounters.filter(e => e.type === 'combat').length || 2;
+        const trapEncounters = campaignData.encounters.filter(e => e.type === 'trap' || e.type === 'hazard').length || 1;
+        const treasureEncounters = campaignData.encounters.filter(e => e.type === 'treasure' || e.type === 'loot').length || 2;
+        const puzzleCount = campaignData.encounters.filter(e => e.type === 'puzzle').length || 1;
+        const discoveryCount = campaignData.locations.length || 3;
+        const subquestCount = Math.max(1, campaignData.quests.length);
+        
+        // Update story state with location, active quests, and progress tracking
         const enrichedStoryState = {
           ...campaignData.initialStoryState,
           currentLocation: initialLocation,
-          adventureTitle: campaignData.title
+          adventureTitle: campaignData.title,
+          activeQuests: activeQuests,
+          adventureProgress: {
+            encounters: { combat: 0, trap: 0, treasure: 0 },
+            puzzles: 0,
+            discoveries: 0,
+            subquestsCompleted: 0
+          },
+          adventureRequirements: {
+            encounters: { combat: combatEncounters, trap: trapEncounters, treasure: treasureEncounters },
+            puzzles: puzzleCount,
+            discoveries: discoveryCount,
+            subquests: subquestCount
+          }
         };
         
         const session = await storage.createCampaignSession({
