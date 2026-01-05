@@ -8625,10 +8625,12 @@ IMPORTANT: Replace all placeholders with creative, detailed D&D content. Every a
     }
   });
   
-  // Get all campaigns (admin only)
+  // Get all campaigns (admin only) - including archived
   app.get("/api/admin/campaigns", isAuthenticated, requireAdmin, async (req, res) => {
     try {
-      const allCampaigns = await storage.getAllCampaigns();
+      const activeCampaigns = await storage.getAllCampaigns();
+      const archivedCampaigns = await storage.getArchivedCampaigns();
+      const allCampaigns = [...activeCampaigns, ...archivedCampaigns];
       res.json(allCampaigns);
     } catch (error) {
       console.error("Admin: Failed to fetch campaigns:", error);
