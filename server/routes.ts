@@ -8159,9 +8159,12 @@ Return your response as a JSON object with these fields:
           createdAt: new Date().toISOString()
         });
         
-        for (const npc of campaignData.npcs) {
+        // Only create key NPCs (limit to 3 max) and don't auto-add as companions
+        // NPCs are story characters, not party members - they'll appear in narrative
+        const keyNpcs = campaignData.npcs.slice(0, 3);
+        for (const npc of keyNpcs) {
           try {
-            const createdNpc = await storage.createNpc({
+            await storage.createNpc({
               name: npc.name,
               race: npc.race || 'Unknown',
               occupation: npc.class || 'Adventurer',
@@ -8170,7 +8173,8 @@ Return your response as a JSON object with these fields:
               motivation: 'Unknown motives.',
               createdBy: userId
             });
-            await storage.addNpcToCampaign({ campaignId: campaign.id, npcId: createdNpc.id });
+            // Note: NPCs are NOT added to campaign as companions - they're story NPCs
+            // Players can manually add them as companions later if desired
           } catch (e) {
             console.error("Failed to create NPC:", e);
           }
