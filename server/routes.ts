@@ -7199,6 +7199,113 @@ Respond with JSON:
         }
       }
 
+      // Check for automatic session advancement based on story progress
+      let sessionAdvanced = false;
+      let newSessionData = null;
+      
+      // Calculate adventure completion from progress
+      const adventureProgress = mergedStoryState.adventureProgress || {};
+      const adventureRequirements = mergedStoryState.adventureRequirements || {};
+      
+      // Check completion conditions - evaluate FULL campaign state, not just this turn
+      const shouldAdvanceSession = (() => {
+        // Get ALL active quests from story state (the full list, not just this turn's updates)
+        const allQuests = mergedStoryState.activeQuests || [];
+        
+        // Condition 1: All required quests in story state are completed
+        const allQuestsCompleted = allQuests.length > 0 && 
+          allQuests.every((q: any) => q.status === 'completed');
+        
+        // Condition 2: Adventure progress at 100%
+        const progressMetrics = adventureProgress.encounters || {};
+        const requirementMetrics = adventureRequirements.encounters || {};
+        
+        let totalRequired = 0;
+        let totalDone = 0;
+        
+        // Combat encounters
+        const combatRequired = requirementMetrics.combat || 0;
+        const combatDone = Math.min(progressMetrics.combat || 0, combatRequired);
+        totalRequired += combatRequired;
+        totalDone += combatDone;
+        
+        // Trap encounters
+        const trapRequired = requirementMetrics.trap || 0;
+        const trapDone = Math.min(progressMetrics.trap || 0, trapRequired);
+        totalRequired += trapRequired;
+        totalDone += trapDone;
+        
+        // Treasure encounters
+        const treasureRequired = requirementMetrics.treasure || 0;
+        const treasureDone = Math.min(progressMetrics.treasure || 0, treasureRequired);
+        totalRequired += treasureRequired;
+        totalDone += treasureDone;
+        
+        // Puzzles
+        const puzzlesRequired = adventureRequirements.puzzles || 0;
+        const puzzlesDone = Math.min(adventureProgress.puzzles || 0, puzzlesRequired);
+        totalRequired += puzzlesRequired;
+        totalDone += puzzlesDone;
+        
+        // Discoveries
+        const discoveriesRequired = adventureRequirements.discoveries || 0;
+        const discoveriesDone = Math.min(adventureProgress.discoveries || 0, discoveriesRequired);
+        totalRequired += discoveriesRequired;
+        totalDone += discoveriesDone;
+        
+        const progressPercent = totalRequired > 0 ? Math.floor((totalDone / totalRequired) * 100) : 0;
+        const adventureComplete = progressPercent >= 100 && totalRequired > 0;
+        
+        // Condition 3: Check if a major quest was JUST completed this turn AND adventure progress is high enough (75%+)
+        // This prevents premature session advancement
+        const majorQuestJustCompleted = completedQuests.some((q: any) => 
+          q.title?.toLowerCase().includes('main') || 
+          q.title?.toLowerCase().includes('boss') ||
+          q.title?.toLowerCase().includes('final')
+        );
+        const progressThresholdMet = progressPercent >= 75;
+        const majorMilestone = majorQuestJustCompleted && progressThresholdMet;
+        
+        // Only advance if: adventure is 100% complete OR all quests done OR (major milestone + high progress)
+        return adventureComplete || allQuestsCompleted || majorMilestone;
+      })();
+      
+      if (shouldAdvanceSession) {
+        try {
+          // Get all completed quests from story state for the summary
+          const allCompletedQuests = (mergedStoryState.activeQuests || [])
+            .filter((q: any) => q.status === 'completed')
+            .map((q: any) => q.title);
+          
+          // Generate a summary narrative for the completed chapter
+          const chapterSummary = `Chapter ${currentSession.sessionNumber} concluded. ${
+            allCompletedQuests.length > 0 
+              ? `Quests completed: ${allCompletedQuests.join(', ')}.` 
+              : ''
+          } The adventure continues...`;
+          
+          // Advance to next session/chapter
+          newSessionData = await storage.advanceToNextSession(campaignId, chapterSummary);
+          
+          // Only mark as advanced if we got valid session data
+          if (newSessionData && newSessionData.id) {
+            sessionAdvanced = true;
+            
+            // Broadcast session advancement
+            broadcastMessage('session_advanced', {
+              campaignId,
+              newSessionNumber: newSessionData.sessionNumber,
+              previousSessionSummary: chapterSummary
+            });
+            
+            console.log(`Auto-advanced campaign ${campaignId} to session ${newSessionData.sessionNumber}`);
+          }
+        } catch (advanceError) {
+          console.error("Failed to auto-advance session:", advanceError);
+          // Don't set sessionAdvanced to true, continue with original session data
+        }
+      }
+
       // Update user world progress if campaign is linked to a world location
       const campaignForWorld = await storage.getCampaign(campaignId);
       if (campaignForWorld && participants && participants.length > 0) {
@@ -7247,14 +7354,16 @@ Respond with JSON:
       });
 
       res.json({
-        ...updatedSession,
+        ...(sessionAdvanced && newSessionData ? newSessionData : updatedSession),
         progression: characterProgression,
         dungeonMapData: updatedMapData,
         movement: movement?.occurred ? {
           occurred: true,
           direction: movement.direction,
           description: movement.description
-        } : null
+        } : null,
+        sessionAdvanced,
+        newSessionNumber: sessionAdvanced ? newSessionData?.sessionNumber : null
       });
     } catch (error) {
       console.error("Failed to advance story:", error);

@@ -29,7 +29,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, ChevronRight, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -572,6 +572,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         }
       }
       
+      // Handle automatic session advancement
+      if (data.sessionAdvanced && data.newSessionNumber) {
+        toast({
+          title: "New Chapter Begins!",
+          description: `The adventure advances to Chapter ${data.newSessionNumber}. New challenges await!`,
+        });
+        // Refresh the current session to show the new chapter
+        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
+      }
+      
       // Close dialogs
       setShowChoiceDialog(false);
     },
@@ -644,31 +654,6 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     onError: (error: Error) => {
       toast({
         title: "Rest Failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  });
-
-  // Advance to next session mutation
-  const advanceSessionMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/sessions/advance`, {
-        summary: currentSession?.narrative?.slice(0, 200) || 'Session completed'
-      });
-      return await response.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
-      queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
-      toast({
-        title: "Session Advanced!",
-        description: data.message || `Now on Session ${data.session?.sessionNumber}`,
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Failed to advance session",
         description: error.message,
         variant: "destructive"
       });
