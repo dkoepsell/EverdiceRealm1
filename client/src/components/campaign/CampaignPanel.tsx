@@ -2540,7 +2540,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                     </SelectTrigger>
                                     <SelectContent>
                                       {participants
-                                        .filter((p: any) => p.characterId !== activeCharacter.id)
+                                        .filter((p: any) => p.characterId && p.characterId !== activeCharacter.id)
                                         .map((p: any) => (
                                           <SelectItem key={p.characterId} value={p.characterId.toString()}>
                                             {p.character?.name || `Character ${p.characterId}`}
