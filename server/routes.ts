@@ -8301,5 +8301,154 @@ IMPORTANT: Replace all placeholders with creative, detailed D&D content. Every a
     }
   });
 
+  // =====================================================
+  // BULLETIN BOARD (LFG) ROUTES
+  // =====================================================
+  
+  // Get all bulletin posts (with filters)
+  app.get("/api/bulletin", async (req, res) => {
+    try {
+      const { postType, limit } = req.query;
+      const posts = await storage.getBulletinPosts({
+        postType: postType as string | undefined,
+        isActive: true,
+        limit: limit ? parseInt(limit as string) : 50
+      });
+      res.json(posts);
+    } catch (error) {
+      console.error("Failed to get bulletin posts:", error);
+      res.status(500).json({ message: "Failed to get bulletin posts" });
+    }
+  });
+  
+  // Get current user's bulletin posts
+  app.get("/api/bulletin/my-posts", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const posts = await storage.getUserBulletinPosts(userId);
+      res.json(posts);
+    } catch (error) {
+      console.error("Failed to get user bulletin posts:", error);
+      res.status(500).json({ message: "Failed to get your posts" });
+    }
+  });
+  
+  // Get a single bulletin post with responses
+  app.get("/api/bulletin/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const post = await storage.getBulletinPost(id);
+      
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+      
+      const responses = await storage.getBulletinResponses(id);
+      res.json({ ...post, responses });
+    } catch (error) {
+      console.error("Failed to get bulletin post:", error);
+      res.status(500).json({ message: "Failed to get post" });
+    }
+  });
+  
+  // Create a new bulletin post
+  app.post("/api/bulletin", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const post = await storage.createBulletinPost({
+        ...req.body,
+        userId
+      });
+      res.status(201).json(post);
+    } catch (error) {
+      console.error("Failed to create bulletin post:", error);
+      res.status(500).json({ message: "Failed to create post" });
+    }
+  });
+  
+  // Update a bulletin post
+  app.patch("/api/bulletin/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any).id;
+      
+      // Verify ownership
+      const existing = await storage.getBulletinPost(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+      if (existing.userId !== userId) {
+        return res.status(403).json({ message: "Not authorized to edit this post" });
+      }
+      
+      const updated = await storage.updateBulletinPost(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to update bulletin post:", error);
+      res.status(500).json({ message: "Failed to update post" });
+    }
+  });
+  
+  // Delete a bulletin post
+  app.delete("/api/bulletin/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any).id;
+      
+      // Verify ownership
+      const existing = await storage.getBulletinPost(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+      if (existing.userId !== userId) {
+        return res.status(403).json({ message: "Not authorized to delete this post" });
+      }
+      
+      await storage.deleteBulletinPost(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete bulletin post:", error);
+      res.status(500).json({ message: "Failed to delete post" });
+    }
+  });
+  
+  // Respond to a bulletin post
+  app.post("/api/bulletin/:id/respond", isAuthenticated, async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      const userId = (req.user as any).id;
+      
+      // Verify post exists
+      const post = await storage.getBulletinPost(postId);
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+      
+      const response = await storage.createBulletinResponse({
+        postId,
+        userId,
+        message: req.body.message,
+        contactMethod: req.body.contactMethod,
+        contactInfo: req.body.contactInfo
+      });
+      res.status(201).json(response);
+    } catch (error) {
+      console.error("Failed to create bulletin response:", error);
+      res.status(500).json({ message: "Failed to respond to post" });
+    }
+  });
+  
+  // Delete a response (owner only)
+  app.delete("/api/bulletin/response/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteBulletinResponse(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete bulletin response:", error);
+      res.status(500).json({ message: "Failed to delete response" });
+    }
+  });
+
   return httpServer;
 }

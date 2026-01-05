@@ -29,7 +29,10 @@ import {
   // World map system
   worldRegions, type WorldRegion, type InsertWorldRegion,
   worldLocations, type WorldLocation, type InsertWorldLocation,
-  userWorldProgress, type UserWorldProgress, type InsertUserWorldProgress
+  userWorldProgress, type UserWorldProgress, type InsertUserWorldProgress,
+  // Bulletin board
+  bulletinPosts, type BulletinPost, type InsertBulletinPost,
+  bulletinResponses, type BulletinResponse, type InsertBulletinResponse
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or } from "drizzle-orm";
@@ -228,6 +231,19 @@ export interface IStorage {
   discoverLocation(userId: number, locationId: number, campaignId?: number, sessionId?: number): Promise<UserWorldProgress>;
   completeRegion(userId: number, regionId: number): Promise<UserWorldProgress | undefined>;
   completeLocation(userId: number, locationId: number): Promise<UserWorldProgress | undefined>;
+  
+  // Bulletin Board operations
+  getBulletinPosts(options?: { postType?: string; isActive?: boolean; limit?: number }): Promise<BulletinPost[]>;
+  getUserBulletinPosts(userId: number): Promise<BulletinPost[]>;
+  getBulletinPost(id: number): Promise<BulletinPost | undefined>;
+  createBulletinPost(post: InsertBulletinPost): Promise<BulletinPost>;
+  updateBulletinPost(id: number, updates: Partial<BulletinPost>): Promise<BulletinPost | undefined>;
+  deleteBulletinPost(id: number): Promise<boolean>;
+  
+  // Bulletin Response operations
+  getBulletinResponses(postId: number): Promise<BulletinResponse[]>;
+  createBulletinResponse(response: InsertBulletinResponse): Promise<BulletinResponse>;
+  deleteBulletinResponse(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -2064,6 +2080,121 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userWorldProgress.id, existing.id))
       .returning();
     return updated || undefined;
+  }
+  
+  // Bulletin Board operations
+  async getBulletinPosts(options?: { postType?: string; isActive?: boolean; limit?: number }): Promise<BulletinPost[]> {
+    let query = db.select().from(bulletinPosts);
+    
+    const conditions = [];
+    if (options?.postType) {
+      conditions.push(eq(bulletinPosts.postType, options.postType));
+    }
+    if (options?.isActive !== undefined) {
+      conditions.push(eq(bulletinPosts.isActive, options.isActive));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    query = query.orderBy(desc(bulletinPosts.createdAt)) as any;
+    
+    if (options?.limit) {
+      query = query.limit(options.limit) as any;
+    }
+    
+    return query;
+  }
+  
+  async getUserBulletinPosts(userId: number): Promise<BulletinPost[]> {
+    return db.select()
+      .from(bulletinPosts)
+      .where(eq(bulletinPosts.userId, userId))
+      .orderBy(desc(bulletinPosts.createdAt));
+  }
+  
+  async getBulletinPost(id: number): Promise<BulletinPost | undefined> {
+    const [post] = await db.select()
+      .from(bulletinPosts)
+      .where(eq(bulletinPosts.id, id));
+    return post || undefined;
+  }
+  
+  async createBulletinPost(post: InsertBulletinPost): Promise<BulletinPost> {
+    const [created] = await db.insert(bulletinPosts)
+      .values({
+        ...post,
+        createdAt: new Date().toISOString()
+      })
+      .returning();
+    return created;
+  }
+  
+  async updateBulletinPost(id: number, updates: Partial<BulletinPost>): Promise<BulletinPost | undefined> {
+    const [updated] = await db.update(bulletinPosts)
+      .set({
+        ...updates,
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(bulletinPosts.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async deleteBulletinPost(id: number): Promise<boolean> {
+    // Also delete all responses to this post
+    await db.delete(bulletinResponses)
+      .where(eq(bulletinResponses.postId, id));
+    const result = await db.delete(bulletinPosts)
+      .where(eq(bulletinPosts.id, id));
+    return true;
+  }
+  
+  // Bulletin Response operations
+  async getBulletinResponses(postId: number): Promise<BulletinResponse[]> {
+    return db.select()
+      .from(bulletinResponses)
+      .where(eq(bulletinResponses.postId, postId))
+      .orderBy(asc(bulletinResponses.createdAt));
+  }
+  
+  async createBulletinResponse(response: InsertBulletinResponse): Promise<BulletinResponse> {
+    const [created] = await db.insert(bulletinResponses)
+      .values({
+        ...response,
+        createdAt: new Date().toISOString()
+      })
+      .returning();
+    
+    // Increment response count on the post
+    await db.update(bulletinPosts)
+      .set({
+        responseCount: sql`${bulletinPosts.responseCount} + 1`
+      })
+      .where(eq(bulletinPosts.id, response.postId));
+    
+    return created;
+  }
+  
+  async deleteBulletinResponse(id: number): Promise<boolean> {
+    // Get the response to find the post ID
+    const [response] = await db.select()
+      .from(bulletinResponses)
+      .where(eq(bulletinResponses.id, id));
+    
+    if (response) {
+      await db.delete(bulletinResponses)
+        .where(eq(bulletinResponses.id, id));
+      
+      // Decrement response count
+      await db.update(bulletinPosts)
+        .set({
+          responseCount: sql`GREATEST(${bulletinPosts.responseCount} - 1, 0)`
+        })
+        .where(eq(bulletinPosts.id, response.postId));
+    }
+    return true;
   }
 }
 
