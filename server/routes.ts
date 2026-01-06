@@ -7934,6 +7934,7 @@ Respond with JSON:
         progression: characterProgression,
         dungeonMapData: updatedMapData,
         dungeonMapId: updatedMapId,
+        dungeonState: storyAdvancement.dungeonState || null,
         movement: movementResponse,
         sessionAdvanced,
         newSessionNumber: sessionAdvanced ? newSessionData?.sessionNumber : null

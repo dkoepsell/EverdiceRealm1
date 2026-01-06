@@ -25,6 +25,8 @@ export type TileType =
   | "floor" 
   | "wall" 
   | "door" 
+  | "door_locked"
+  | "corridor"
   | "secret_door"
   | "trap" 
   | "treasure" 
@@ -60,6 +62,21 @@ export interface MapTile {
   content?: string;
 }
 
+export interface DungeonRoomInfo {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+}
+
+export interface DungeonExit {
+  direction: string;
+  description: string;
+  visible: boolean;
+  locked: boolean;
+  leadsTo?: string;
+}
+
 export interface DungeonMapData {
   width: number;
   height: number;
@@ -68,6 +85,10 @@ export interface DungeonMapData {
   playerPosition: { x: number; y: number };
   name?: string;
   level?: number;
+  currentRoom?: DungeonRoomInfo;
+  exits?: DungeonExit[];
+  lighting?: string;
+  dangerLevel?: string;
 }
 
 // High contrast tile colors for better visibility - with dark mode support
@@ -75,6 +96,8 @@ const TILE_COLORS: Record<TileType, { bg: string; border: string }> = {
   floor: { bg: "bg-amber-200 dark:bg-amber-700", border: "border-amber-400 dark:border-amber-500" },
   wall: { bg: "bg-stone-700 dark:bg-stone-900", border: "border-stone-500 dark:border-stone-700" },
   door: { bg: "bg-amber-500 dark:bg-amber-600", border: "border-amber-600 dark:border-amber-400" },
+  door_locked: { bg: "bg-red-600 dark:bg-red-800", border: "border-red-700 dark:border-red-600" },
+  corridor: { bg: "bg-amber-300 dark:bg-amber-800", border: "border-amber-400 dark:border-amber-600" },
   secret_door: { bg: "bg-stone-400 dark:bg-stone-600", border: "border-stone-500 dark:border-stone-500" },
   trap: { bg: "bg-red-400 dark:bg-red-600", border: "border-red-500 dark:border-red-400" },
   treasure: { bg: "bg-yellow-400 dark:bg-yellow-500", border: "border-yellow-500 dark:border-yellow-400" },
@@ -246,6 +269,43 @@ export function DungeonMap({
             </div>
           )}
         </div>
+        
+        {/* Room Info from AI - synchronized with narrative */}
+        {mapData.currentRoom && (
+          <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-semibold text-amber-700 dark:text-amber-400">
+                {mapData.currentRoom.name}
+              </span>
+              <Badge variant="outline" className="text-xs">
+                {mapData.currentRoom.type}
+              </Badge>
+              {mapData.lighting && (
+                <Badge variant="secondary" className="text-xs">
+                  {mapData.lighting} light
+                </Badge>
+              )}
+              {mapData.dangerLevel && mapData.dangerLevel !== 'safe' && (
+                <Badge variant={mapData.dangerLevel === 'deadly' ? 'destructive' : 'outline'} className="text-xs">
+                  {mapData.dangerLevel} danger
+                </Badge>
+              )}
+            </div>
+            {mapData.currentRoom.description && (
+              <p className="text-xs text-muted-foreground mt-1">{mapData.currentRoom.description}</p>
+            )}
+            {mapData.exits && mapData.exits.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                <span className="text-xs text-muted-foreground">Exits:</span>
+                {mapData.exits.map((exit, i) => (
+                  <Badge key={i} variant={exit.locked ? "destructive" : "outline"} className="text-xs">
+                    {exit.direction}{exit.locked && ' (locked)'}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <div className="flex gap-4">
