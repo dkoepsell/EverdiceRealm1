@@ -7696,6 +7696,75 @@ Respond with JSON:
         console.log("Combat completed - incrementing counter:", updatedAdventureProgress.encounters);
       }
       
+      // Detect and track traps, puzzles, and discoveries from the narrative and choice
+      const narrativeLowerForProgress = (storyAdvancement.narrative || '').toLowerCase();
+      const choiceLowerForProgress = (choice || '').toLowerCase();
+      const combinedTextForProgress = narrativeLowerForProgress + ' ' + choiceLowerForProgress;
+      
+      // Track trap encounters - detect trap resolution
+      const trapKeywords = ['trap', 'triggered', 'disarm', 'pressure plate', 'snare', 'pitfall', 'spring'];
+      const trapResolutionKeywords = ['avoid', 'disarmed', 'dodged', 'escaped', 'survived', 'triggered', 'sprung', 'activated'];
+      const hasTrapEvent = trapKeywords.some(k => combinedTextForProgress.includes(k)) && 
+                           trapResolutionKeywords.some(k => combinedTextForProgress.includes(k));
+      
+      if (hasTrapEvent && !combatCompleted) {
+        updatedAdventureProgress = {
+          ...updatedAdventureProgress,
+          encounters: {
+            ...updatedAdventureProgress.encounters,
+            trap: (updatedAdventureProgress.encounters?.trap || 0) + 1,
+            total: (updatedAdventureProgress.encounters?.total || 0) + 1
+          }
+        };
+        console.log("Trap encounter resolved - incrementing counter:", updatedAdventureProgress.encounters);
+      }
+      
+      // Track puzzle encounters - detect puzzle solving
+      const puzzleKeywords = ['puzzle', 'riddle', 'mechanism', 'combination', 'sequence', 'cipher', 'code'];
+      const puzzleResolutionKeywords = ['solved', 'figured out', 'unlocked', 'deciphered', 'cracked', 'completed', 'answer'];
+      const hasPuzzleEvent = puzzleKeywords.some(k => combinedTextForProgress.includes(k)) && 
+                             puzzleResolutionKeywords.some(k => combinedTextForProgress.includes(k));
+      
+      if (hasPuzzleEvent && !combatCompleted && !hasTrapEvent) {
+        updatedAdventureProgress = {
+          ...updatedAdventureProgress,
+          puzzles: (updatedAdventureProgress.puzzles || 0) + 1
+        };
+        console.log("Puzzle solved - incrementing counter. Puzzles:", updatedAdventureProgress.puzzles);
+      }
+      
+      // Track discovery encounters - detect exploration discoveries
+      const discoveryKeywords = ['discover', 'found', 'uncover', 'reveal', 'secret', 'hidden', 'ancient', 'lore', 'clue'];
+      const discoveryContextKeywords = ['chamber', 'passage', 'room', 'treasure', 'artifact', 'inscription', 'tome', 'scroll', 'map'];
+      const hasDiscoveryEvent = discoveryKeywords.some(k => combinedTextForProgress.includes(k)) && 
+                                discoveryContextKeywords.some(k => combinedTextForProgress.includes(k));
+      
+      if (hasDiscoveryEvent && !combatCompleted && !hasTrapEvent && !hasPuzzleEvent) {
+        updatedAdventureProgress = {
+          ...updatedAdventureProgress,
+          discoveries: (updatedAdventureProgress.discoveries || 0) + 1
+        };
+        console.log("Discovery made - incrementing counter. Discoveries:", updatedAdventureProgress.discoveries);
+      }
+      
+      // Track treasure encounters
+      const treasureKeywords = ['treasure', 'chest', 'loot', 'gold coins', 'valuable', 'gems', 'jewels'];
+      const treasureResolutionKeywords = ['open', 'collect', 'take', 'gather', 'claim', 'found'];
+      const hasTreasureEvent = treasureKeywords.some(k => combinedTextForProgress.includes(k)) && 
+                               treasureResolutionKeywords.some(k => combinedTextForProgress.includes(k));
+      
+      if (hasTreasureEvent && !combatCompleted && !hasTrapEvent && !hasPuzzleEvent && !hasDiscoveryEvent) {
+        updatedAdventureProgress = {
+          ...updatedAdventureProgress,
+          encounters: {
+            ...updatedAdventureProgress.encounters,
+            treasure: (updatedAdventureProgress.encounters?.treasure || 0) + 1,
+            total: (updatedAdventureProgress.encounters?.total || 0) + 1
+          }
+        };
+        console.log("Treasure collected - incrementing counter:", updatedAdventureProgress.encounters);
+      }
+      
       // Merge the new exploration limit with the AI-generated story state
       const mergedStoryState = {
         ...storyAdvancement.storyState,
