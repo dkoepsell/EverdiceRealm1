@@ -1,0 +1,266 @@
+I’ve reviewed **Clockwork_Dominion.caml.json** against the **CAML specs as you’ve published and been using them**. I’ll be precise and pragmatic.
+
+**Bottom line first:**
+👉 **Yes, this is largely well-formed CAML**, and it is *clearly* the product of a consistent exporter.
+👉 **However, it currently conforms to a *CAML-inspired JSON export*, not the strict “canonical CAML” structural model you’ve been advocating.**
+That’s not a failure, but it *is* an important distinction.
+
+I’ll break this down into **(A) what is valid**, **(B) what is spec-drift**, and **(C) concrete fixes if you want strict compliance**.
+
+---
+
+## A. What *is* well-formed and correct
+
+### 1. Top-level module structure ✅
+
+This is solid and consistent:
+
+```json
+{
+  "id": "adventure.clockwork_dominion",
+  "type": "AdventureModule",
+  "name": "Clockwork Dominion",
+  "description": "...",
+  "ruleset": "dnd5e"
+}
+```
+
+This aligns with CAML’s notion of a **canonical module root** with a globally unique ID and declared ruleset .
+
+Minor note:
+
+* `title` and `name` are redundant but not invalid.
+* `author`, `version`, `minLevel`, `maxLevel` are acceptable metadata extensions.
+
+✅ **No problem here.**
+
+---
+
+### 2. Entity typing is consistent ✅
+
+All major entities correctly include:
+
+* `id`
+* `type`
+* a coherent internal schema
+
+Examples:
+
+* `Location`
+* `NPC`
+* `Encounter`
+* `Quest`
+* `Item`
+
+This is **very good discipline** and matches CAML’s core ontology idea: *everything is an addressable object*.
+
+---
+
+### 3. Referential integrity mostly holds ✅
+
+References such as:
+
+```json
+"startingLocation": "location.verdisfall"
+```
+
+and
+
+```json
+"questGiver": "npc.alden_voss"
+```
+
+correctly point to defined IDs .
+
+There are **no dangling references** in the file as written. That’s excellent.
+
+---
+
+## B. Where this diverges from *canonical CAML*
+
+This is the important part.
+
+### 1. Encounters lack **gates and outcomes** ❌ (major)
+
+In CAML as you’ve specified it elsewhere, **an Encounter is defined by**:
+
+* `gates` (availability conditions)
+* `outcomes` (state transitions)
+
+Example from spec usage:
+
+```yaml
+gates:
+  all:
+    - party.has(item.key)
+
+outcomes:
+  success:
+    - addTag: area.cleared
+```
+
+In **Clockwork Dominion**, encounters look like this instead:
+
+```json
+{
+  "id": "encounter.factory_riot",
+  "type": "Encounter",
+  "encounterType": "social",
+  "challengeRating": "12",
+  "setup": "...",
+  "tactics": "...",
+  "treasure": "..."
+}
+```
+
+This is:
+
+* ❌ **structurally incomplete CAML**
+* ✅ **perfectly fine as a narrative / DM-facing export**
+
+But per your own framing, these are **Encounter Descriptions**, not **CAML Encounters** in the strict sense.
+
+👉 Right now, *nothing in this file constrains when encounters occur or what they change*.
+
+---
+
+### 2. Locations embed encounters ❌ (soft violation)
+
+Example:
+
+```json
+"encounters": [
+  "encounter.factory_riot"
+]
+```
+
+In canonical CAML:
+
+* Locations exist independently
+* Encounters *reference* locations via `occursAt`
+
+Embedding encounters inside locations is:
+
+* ❌ against the clean separation model
+* ✅ understandable for a UI-oriented export
+
+This is a **denormalization**, not a fatal flaw.
+
+---
+
+### 3. Quests contain mutable state ❌
+
+Example:
+
+```json
+"objectives": [
+  {
+    "id": "objective.0",
+    "completed": false
+  }
+]
+```
+
+Canonical CAML treats quests as **normative structures**, not runtime state containers.
+
+This means:
+
+* `completed: false` is **runtime state**
+* CAML specs assume state lives *outside* the artifact
+
+👉 This is correct for Everdice runtime
+👉 But **not canonical CAML archival form**
+
+---
+
+### 4. Items and NPCs include rule-specific mechanics ⚠️
+
+Fields like:
+
+```json
+"mechanics": "Grants +2 to Strength..."
+```
+
+are:
+
+* allowed as annotations
+* but not machine-interpretable CAML semantics
+
+This is acceptable, but should be clearly marked as **ruleset extensions**, not core CAML meaning.
+
+---
+
+## C. Verdict: How compliant is this?
+
+### Compliance score (honest)
+
+* **CAML spirit:** ★★★★★ (very strong)
+* **CAML data hygiene:** ★★★★☆
+* **Strict CAML semantics:** ★★☆☆☆
+
+### What this file *is*
+
+> A **CAML-derived, UI-friendly adventure export**, suitable for play, display, and runtime use.
+
+### What it is *not yet*
+
+> A **canonical CAML archival artifact** that supports:
+
+* graph derivation
+* satisfiability checking
+* safe remixing
+* formal reasoning
+
+---
+
+## D. How to make it fully CAML-compliant (concrete steps)
+
+You do **not** need to rewrite everything.
+
+Minimal changes:
+
+1. **Add `gates` and `outcomes` to encounters**
+2. **Move runtime fields (`completed`) out of quests**
+3. **Use `occursAt` instead of embedding encounters in locations**
+4. Optionally:
+
+   * Split this into multiple files (module / locations / encounters)
+
+Example fix:
+
+```json
+{
+  "id": "encounter.factory_riot",
+  "type": "Encounter",
+  "occursAt": "location.verdisfall",
+  "gates": {
+    "all": ["city.unrest"]
+  },
+  "outcomes": {
+    "success": [{ "addTag": "workers.appeased" }],
+    "failure": [{ "addTag": "city.escalation" }]
+  }
+}
+```
+
+---
+
+## E. Strategic note (important)
+
+This file is **exactly what you want Everdice to emit today**.
+
+What you’re really converging on is:
+
+* **CAML-Core** (strict, archival, remixable)
+* **CAML-Runtime / CAML-UI** (denormalized, stateful, ergonomic)
+
+That’s not a bug. That’s an architecture.
+
+If you want, next I can:
+
+* draft a **CAML-Core vs CAML-Runtime spec split**
+* write a **validator checklist**
+* annotate this file inline with compliance notes
+* propose a **lossless transform** between the two
+
+Just tell me how far you want to formalize this.

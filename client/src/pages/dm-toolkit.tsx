@@ -3644,10 +3644,25 @@ function CampaignBuilderTab() {
     const minLevel = parseInt(levelParts[0]) || 1;
     const maxLevel = parseInt(levelParts[1]) || 5;
     
+    const toId = (prefix: string, name: string) => 
+      `${prefix}.${name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+    
+    const locations = generatedCampaign.locations || [];
+    const npcs = generatedCampaign.npcs || [];
+    const encounters = generatedCampaign.encounters || [];
+    const quests = generatedCampaign.quests || [];
+    const rewards = generatedCampaign.rewards || [];
+    
+    const findLocationForEncounter = (enc: any) => {
+      const match = locations.find((loc: any) => 
+        enc.description?.toLowerCase().includes(loc.name.toLowerCase())
+      );
+      return match ? toId('location', match.name) : locations[0] ? toId('location', locations[0].name) : undefined;
+    };
+    
     const camlAdventure = {
-      id: `adventure.${generatedCampaign.title.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+      id: toId('adventure', generatedCampaign.title),
       type: 'AdventureModule',
-      title: generatedCampaign.title,
       name: generatedCampaign.title,
       description: generatedCampaign.description,
       synopsis: generatedCampaign.mainStoryArc || generatedCampaign.description,
@@ -3657,29 +3672,23 @@ function CampaignBuilderTab() {
       minLevel,
       maxLevel,
       setting: campaignTheme,
-      startingLocation: generatedCampaign.locations?.[0] 
-        ? `location.${generatedCampaign.locations[0].name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`
-        : undefined,
-      locations: (generatedCampaign.locations || []).map((loc: any, i: number) => ({
-        id: `location.${loc.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+      startingLocation: locations[0] ? toId('location', locations[0].name) : undefined,
+      
+      locations: locations.map((loc: any, i: number) => ({
+        id: toId('location', loc.name),
         type: 'Location',
         name: loc.name,
         description: loc.description,
         tags: [loc.type || 'location'],
         features: loc.features,
-        connections: i < (generatedCampaign.locations?.length || 0) - 1 ? [{
+        connections: i < locations.length - 1 ? [{
           direction: 'forward',
-          target: `location.${generatedCampaign.locations[i + 1]?.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`
-        }] : [],
-        npcs: generatedCampaign.npcs?.filter((npc: any) => 
-          npc.questConnections?.toLowerCase().includes(loc.name.toLowerCase())
-        ).map((npc: any) => `npc.${npc.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`) || [],
-        encounters: generatedCampaign.encounters?.filter((enc: any) => 
-          enc.description?.toLowerCase().includes(loc.name.toLowerCase())
-        ).map((enc: any) => `encounter.${enc.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`) || []
+          target: toId('location', locations[i + 1]?.name)
+        }] : []
       })),
-      npcs: (generatedCampaign.npcs || []).map((npc: any) => ({
-        id: `npc.${npc.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+      
+      npcs: npcs.map((npc: any, i: number) => ({
+        id: toId('npc', npc.name),
         type: 'NPC',
         name: npc.name,
         description: npc.description,
@@ -3689,56 +3698,86 @@ function CampaignBuilderTab() {
         personality: npc.personality,
         motivations: npc.motivations,
         attitude: 'neutral',
+        startsAt: locations[i % locations.length] ? toId('location', locations[i % locations.length].name) : undefined,
         ruleset: 'dnd5e'
       })),
-      encounters: (generatedCampaign.encounters || []).map((enc: any) => ({
-        id: `encounter.${enc.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
-        type: 'Encounter',
-        name: enc.name,
-        description: enc.description,
-        encounterType: enc.type || 'combat',
-        challengeRating: enc.challengeRating,
-        setup: enc.setup,
-        tactics: enc.tactics,
-        treasure: enc.treasure
-      })),
-      quests: (generatedCampaign.quests || []).map((quest: any, i: number) => ({
-        id: `quest.${quest.title.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+      
+      encounters: encounters.map((enc: any) => {
+        const encType = enc.type || 'combat';
+        const occursAt = findLocationForEncounter(enc);
+        
+        const gateConditions: string[] = [];
+        if (occursAt) gateConditions.push(`party.at(${occursAt})`);
+        
+        const successOutcomes: any[] = [];
+        const failureOutcomes: any[] = [];
+        
+        if (encType === 'combat') {
+          successOutcomes.push({ addTag: `${toId('encounter', enc.name)}.defeated` });
+          if (enc.treasure) successOutcomes.push({ grantItem: enc.treasure });
+          failureOutcomes.push({ addTag: `${toId('encounter', enc.name)}.fled` });
+        } else if (encType === 'social') {
+          successOutcomes.push({ addTag: `${toId('encounter', enc.name)}.resolved` });
+          successOutcomes.push({ modifyAttitude: { target: 'involved_npcs', change: '+1' } });
+          failureOutcomes.push({ addTag: `${toId('encounter', enc.name)}.failed` });
+          failureOutcomes.push({ modifyAttitude: { target: 'involved_npcs', change: '-1' } });
+        } else {
+          successOutcomes.push({ addTag: `${toId('encounter', enc.name)}.completed` });
+          failureOutcomes.push({ addTag: `${toId('encounter', enc.name)}.failed` });
+        }
+        
+        return {
+          id: toId('encounter', enc.name),
+          type: 'Encounter',
+          name: enc.name,
+          description: enc.description,
+          encounterType: encType,
+          challengeRating: enc.challengeRating,
+          occursAt,
+          gates: gateConditions.length > 0 ? { all: gateConditions } : undefined,
+          outcomes: {
+            success: successOutcomes,
+            failure: failureOutcomes
+          },
+          setup: enc.setup,
+          tactics: enc.tactics,
+          treasure: enc.treasure
+        };
+      }),
+      
+      quests: quests.map((quest: any, i: number) => ({
+        id: toId('quest', quest.title),
         type: 'Quest',
         name: quest.title,
         description: quest.description,
         tags: [quest.type || 'main'],
-        questGiver: generatedCampaign.npcs?.[i % (generatedCampaign.npcs?.length || 1)]
-          ? `npc.${generatedCampaign.npcs[i % generatedCampaign.npcs.length].name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`
-          : undefined,
+        questGiver: npcs[i % npcs.length] ? toId('npc', npcs[i % npcs.length].name) : undefined,
         objectives: (quest.objectives || []).map((obj: string, j: number) => ({
           id: `objective.${j}`,
-          description: obj,
-          completed: false
+          description: obj
         })),
         rewards: {
           description: quest.rewards
         }
       })),
-      items: (generatedCampaign.rewards || []).map((reward: any) => ({
-        id: `item.${reward.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+      
+      items: rewards.map((reward: any) => ({
+        id: toId('item', reward.name),
         type: 'Item',
         name: reward.name,
         description: reward.description,
         itemType: reward.type || 'wondrous',
         rarity: reward.rarity || 'common',
-        mechanics: reward.mechanics
+        rulesetExtension: reward.mechanics ? { dnd5e: { mechanics: reward.mechanics } } : undefined
       })),
+      
       factions: [],
       handouts: []
     };
     
-    const yamlContent = `# CAML Adventure Export from Everdice DM Toolkit
-# Generated: ${new Date().toISOString()}
-
-${JSON.stringify(camlAdventure, null, 2)}`;
+    const jsonContent = JSON.stringify(camlAdventure, null, 2);
     
-    const blob = new Blob([yamlContent], { type: 'application/json' });
+    const blob = new Blob([jsonContent], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -3750,7 +3789,7 @@ ${JSON.stringify(camlAdventure, null, 2)}`;
     
     toast({
       title: "CAML Export Downloaded",
-      description: "Your adventure has been exported in CAML format.",
+      description: "Your adventure has been exported in canonical CAML format.",
     });
   };
 
