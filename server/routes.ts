@@ -7123,6 +7123,21 @@ Respond with JSON:
       const effectiveDirection = hasAIMovement ? movement.direction : 
                                   (hasDetectedMovement ? detectedMovement.direction : null);
       
+      // ALWAYS try to fetch the current map to return it (even without movement)
+      try {
+        const allMapsForReturn = await storage.getCampaignDungeonMaps(campaignId);
+        const activeMapForReturn = allMapsForReturn.find((m: any) => m.isActive) || allMapsForReturn[0];
+        if (activeMapForReturn && activeMapForReturn.mapData) {
+          const returnMapData = typeof activeMapForReturn.mapData === 'string' 
+            ? JSON.parse(activeMapForReturn.mapData) 
+            : activeMapForReturn.mapData;
+          updatedMapData = returnMapData;
+          updatedMapId = activeMapForReturn.id;
+        }
+      } catch (e) {
+        console.error("Failed to fetch map for return:", e);
+      }
+      
       if (effectiveDirection) {
         console.log(`Processing movement - AI movement: ${hasAIMovement}, Detected movement: ${hasDetectedMovement}, Direction: ${effectiveDirection}`);
         try {
