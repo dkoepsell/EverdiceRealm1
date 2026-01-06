@@ -6511,32 +6511,46 @@ Ensure all elements are interconnected and form a cohesive narrative. Include 3-
       const detectMovementFromChoice = (choiceText: string): { isMovement: boolean; direction: string | null } => {
         const lowerChoice = choiceText.toLowerCase();
         
-        // Movement patterns to detect
+        // Movement patterns to detect - allow words after the direction
         const movementPatterns = [
-          { pattern: /move\s+(north|up|forward|ahead)/i, direction: 'up' },
-          { pattern: /move\s+(south|down|back|backward)/i, direction: 'down' },
-          { pattern: /move\s+(east|right)/i, direction: 'right' },
-          { pattern: /move\s+(west|left)/i, direction: 'left' },
-          { pattern: /go\s+(north|up|forward|ahead)/i, direction: 'up' },
-          { pattern: /go\s+(south|down|back|backward)/i, direction: 'down' },
-          { pattern: /go\s+(east|right)/i, direction: 'right' },
-          { pattern: /go\s+(west|left)/i, direction: 'left' },
-          { pattern: /head\s+(north|up|forward|ahead)/i, direction: 'up' },
-          { pattern: /head\s+(south|down|back|backward)/i, direction: 'down' },
-          { pattern: /head\s+(east|right)/i, direction: 'right' },
-          { pattern: /head\s+(west|left)/i, direction: 'left' },
-          { pattern: /explore\s+(north|up|forward|ahead)/i, direction: 'up' },
-          { pattern: /explore\s+(south|down|back|backward)/i, direction: 'down' },
-          { pattern: /explore\s+(east|right)/i, direction: 'right' },
-          { pattern: /explore\s+(west|left)/i, direction: 'left' },
-          { pattern: /travel\s+(north|up|forward|ahead)/i, direction: 'up' },
-          { pattern: /travel\s+(south|down|back|backward)/i, direction: 'down' },
-          { pattern: /travel\s+(east|right)/i, direction: 'right' },
-          { pattern: /travel\s+(west|left)/i, direction: 'left' },
+          // Verb + direction patterns (allow anything after)
+          { pattern: /\b(move|go|head|travel|walk|run|proceed|continue|venture|advance|push)\s+(north|northward)/i, direction: 'up' },
+          { pattern: /\b(move|go|head|travel|walk|run|proceed|continue|venture|advance|push)\s+(south|southward)/i, direction: 'down' },
+          { pattern: /\b(move|go|head|travel|walk|run|proceed|continue|venture|advance|push)\s+(east|eastward)/i, direction: 'right' },
+          { pattern: /\b(move|go|head|travel|walk|run|proceed|continue|venture|advance|push)\s+(west|westward)/i, direction: 'left' },
+          { pattern: /\b(move|go|head|travel|walk|run|proceed|continue|venture|advance|push)\s+(up|forward|ahead|forwards|deeper|further)/i, direction: 'up' },
+          { pattern: /\b(move|go|head|travel|walk|run|proceed|continue|venture|advance|push)\s+(down|back|backward|backwards)/i, direction: 'down' },
+          { pattern: /\b(move|go|head|travel|walk|run|proceed|continue|venture|advance|push)\s+(right)/i, direction: 'right' },
+          { pattern: /\b(move|go|head|travel|walk|run|proceed|continue|venture|advance|push)\s+(left)/i, direction: 'left' },
+          // Direction at start of choice
+          { pattern: /^(north|northward)\b/i, direction: 'up' },
+          { pattern: /^(south|southward)\b/i, direction: 'down' },
+          { pattern: /^(east|eastward)\b/i, direction: 'right' },
+          { pattern: /^(west|westward)\b/i, direction: 'left' },
+          // "Enter/explore the X" patterns
+          { pattern: /\benter\s+(the\s+)?(north|northern)/i, direction: 'up' },
+          { pattern: /\benter\s+(the\s+)?(south|southern)/i, direction: 'down' },
+          { pattern: /\benter\s+(the\s+)?(east|eastern)/i, direction: 'right' },
+          { pattern: /\benter\s+(the\s+)?(west|western)/i, direction: 'left' },
+          { pattern: /\bexplore\s+(the\s+)?(north|northern)/i, direction: 'up' },
+          { pattern: /\bexplore\s+(the\s+)?(south|southern)/i, direction: 'down' },
+          { pattern: /\bexplore\s+(the\s+)?(east|eastern)/i, direction: 'right' },
+          { pattern: /\bexplore\s+(the\s+)?(west|western)/i, direction: 'left' },
+          // "to the X" patterns
+          { pattern: /\bto\s+the\s+(north)/i, direction: 'up' },
+          { pattern: /\bto\s+the\s+(south)/i, direction: 'down' },
+          { pattern: /\bto\s+the\s+(east)/i, direction: 'right' },
+          { pattern: /\bto\s+the\s+(west)/i, direction: 'left' },
+          // Simple directional words anywhere
+          { pattern: /\bnorth\s+(passage|corridor|door|path|tunnel|room|exit|entrance|way)/i, direction: 'up' },
+          { pattern: /\bsouth\s+(passage|corridor|door|path|tunnel|room|exit|entrance|way)/i, direction: 'down' },
+          { pattern: /\beast\s+(passage|corridor|door|path|tunnel|room|exit|entrance|way)/i, direction: 'right' },
+          { pattern: /\bwest\s+(passage|corridor|door|path|tunnel|room|exit|entrance|way)/i, direction: 'left' },
         ];
         
         for (const mp of movementPatterns) {
           if (mp.pattern.test(lowerChoice)) {
+            console.log(`Movement detected: pattern ${mp.pattern} matched "${lowerChoice}", direction=${mp.direction}`);
             return { isMovement: true, direction: mp.direction };
           }
         }
@@ -7093,6 +7107,7 @@ Respond with JSON:
             const targetTile = mapData.tiles?.[newPosition.y]?.[newPosition.x];
             if (targetTile && targetTile.type !== "wall") {
               // Update player position and mark tiles as explored
+              const oldPosition = { ...mapData.playerPosition };
               mapData.playerPosition = newPosition;
               mapData.tiles = mapData.tiles.map((row: any[], y: number) =>
                 row.map((tile: any, x: number) => {
@@ -7108,10 +7123,16 @@ Respond with JSON:
               );
               
               // Save updated map
+              console.log(`Map movement: ${oldPosition.x},${oldPosition.y} -> ${newPosition.x},${newPosition.y} (direction: ${effectiveDirection})`);
               await storage.updateCampaignDungeonMap(dungeonMap.id, { mapData });
               updatedMapData = mapData;
               updatedMapId = dungeonMap.id;
+              console.log(`Map ${dungeonMap.id} updated with new position, returning in response`);
+            } else {
+              console.log(`Movement blocked: target tile at ${newPosition.x},${newPosition.y} is ${targetTile?.type || 'undefined'}`);
             }
+          } else {
+            console.log(`No dungeon map found for campaign ${campaignId}`);
           }
         } catch (mapError) {
           console.error("Failed to update dungeon map from story movement:", mapError);
