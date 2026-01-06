@@ -1,101 +1,122 @@
+# Everdice Realm
 
-# Everdice 🎲
+Repository for the Everdice Realm web app (Replit project: `@DavidKoepsell/EverdiceRealm`).
 
-*A lightweight engine for simulating tabletop RPG dice rolls and rulesets*
-
-## Overview
-
-**Everdice** is a modular, Python-based dice-rolling and rules-processing engine designed for tabletop role-playing games (TTRPGs). Inspired by classic fantasy RPG mechanics, it allows developers, dungeon masters, and players to simulate dice rolls, define custom rulesets, and build flexible game logic on top of a clean and extensible core.
-
-Whether you're building a new TTRPG, automating a campaign, or just want to explore probability and gameplay mechanics, Everdice offers a streamlined backend to get rolling fast.
+**Live app:** https://everdice-realm-davidkoepsell.replit.app/
 
 ---
 
-## Features
+## What this is
 
-* 🎲 **Standard and custom dice mechanics** (`d4`, `d6`, `d20`, etc.)
-* 📜 **Rule parsing engine** for modifiers, rerolls, and complex outcomes
-* 🧠 **Character and stats models** (e.g., for ability checks, saving throws)
-* 🔧 **Extensible design** for integrating with GUI apps or Discord bots
-* 🧪 **Testable architecture** with clean separation of logic
-* 💻 **Python-native** and easy to integrate into other projects
+Everdice Realm is a lightweight web app for tabletop RPG support: a campaign companion with a modern web UI and a TypeScript backend. This repository contains the full stack (client + server), shared types, database migrations, and helper scripts.
+
+> Note: This codebase is a TypeScript full‑stack application. Earlier references to a Python dice engine do not apply to this repository.
 
 ---
 
-## Installation
+## Tech stack
 
-Clone the repo and install locally:
+- **TypeScript**
+- **Vite**
+- **Tailwind CSS**
+- **Drizzle ORM**
+- **Node.js**
+- Component tooling (via `components.json`, typical of shadcn/ui setups)
+
+---
+
+## Repository structure
+
+```
+.
+├─ client/                 # Frontend application
+├─ server/                 # Backend API / server
+├─ shared/                 # Shared types and utilities
+├─ migrations/             # Database migrations (Drizzle)
+├─ attached_assets/        # Images and static assets
+├─ drizzle.config.ts       # Drizzle configuration
+├─ vite.config.ts          # Vite configuration
+├─ tailwind.config.ts      # Tailwind configuration
+├─ postcss.config.js       # PostCSS configuration
+├─ tsconfig.json           # TypeScript configuration
+├─ components.json         # UI/component tooling configuration
+├─ apply-migrations.js     # Migration helper
+├─ migrate.js / migrate.cjs
+├─ migrate-campaigns.js    # Campaign data migration
+├─ migrate-npcs.js         # NPC data migration
+├─ package.json
+└─ package-lock.json
+```
+
+---
+
+## Getting started
+
+### Install dependencies
 
 ```bash
-git clone https://github.com/dkoepsell/Everdice.git
-cd Everdice
-pip install -r requirements.txt
+npm install
 ```
 
-> ⚠️ Currently under development — expect frequent changes.
+### Environment variables
+
+You will need a database connection string for Drizzle. Typically:
+
+```bash
+DATABASE_URL=postgres://USER:PASSWORD@HOST:PORT/DBNAME
+```
+
+Additional environment variables may be required depending on enabled features (authentication, AI integrations, etc.). See the server code for details.
+
+### Run in development
+
+```bash
+npm run dev
+```
+
+If separate client/server scripts are defined in `package.json`, run those as needed.
 
 ---
 
-## Basic Usage
+## Database & migrations
 
-```python
-from everdice import DiceRoller
+This repository uses Drizzle for schema management.
 
-roller = DiceRoller()
-result = roller.roll("2d6 + 3")
+Included helpers:
+- `apply-migrations.js`
+- `migrate.js` / `migrate.cjs`
+- `migrate-campaigns.js`
+- `migrate-npcs.js`
 
-print(f"Result: {result.total} (Details: {result.breakdown})")
+Example:
+
+```bash
+node apply-migrations.js
 ```
 
-Supports:
-
-* Simple rolls (`d20`, `2d8+1`)
-* Advantage/disadvantage mechanics
-* Critical hit rules
-* Conditional effects and outcomes (via modifiers)
+Always review migration scripts before running them against production data.
 
 ---
 
-## Project Structure
+## Replit deployment
 
-```
-everdice/
-├── core/               # Core dice and rules logic
-├── models/             # Game models like characters, stats, conditions
-├── rulesets/           # Modular rule definitions (e.g., D&D 5e)
-├── tests/              # Unit tests
-└── examples/           # Example scripts and usage
-```
+This project is designed to run on Replit:
 
----
+https://replit.com/@DavidKoepsell/EverdiceRealm
 
-## Roadmap
-
-* [x] Basic dice parsing and rolling
-* [x] Roll modifiers and arithmetic logic
-* [ ] Full support for D\&D 5e mechanics
-* [ ] Integration with game UIs and web apps
-* [ ] Campaign manager support
-* [ ] Multiplayer log and state management
+Replit configuration files:
+- `.replit`
+- `replit.md`
 
 ---
 
 ## Contributing
 
-Contributions are welcome! Please fork the repo and submit a pull request. For significant changes, open an issue to discuss ideas and proposed features.
+Issues and pull requests are welcome. Please include clear reproduction steps and relevant logs where applicable.
 
 ---
 
 ## License
 
-MIT License © 2025 David Koepsell
+No license file is currently included. Add one if you intend this project to be reused or redistributed.
 
----
-
-## Acknowledgments
-
-Thanks to the open-source RPG and tabletop community for ongoing inspiration and the design of intuitive, rule-based systems that make engines like this possible.
-
----
-
-Let me know if you’d like to tailor this more to a particular game system or integrate visuals/mockups.
