@@ -805,3 +805,24 @@ export const insertBulletinResponseSchema = createInsertSchema(bulletinResponses
 
 export type InsertBulletinResponse = z.infer<typeof insertBulletinResponseSchema>;
 export type BulletinResponse = typeof bulletinResponses.$inferSelect;
+
+export const campaignTraceEvents = pgTable("campaign_trace_events", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  sessionId: text("session_id"),
+  eid: text("eid").notNull(),
+  kind: text("kind").notNull(),
+  payload: jsonb("payload").notNull(),
+  ts: text("ts").notNull(),
+  who: text("who"),
+  locationRef: text("location_ref"),
+  note: text("note"),
+  meta: jsonb("meta"),
+});
+
+export const insertCampaignTraceEventSchema = createInsertSchema(campaignTraceEvents).omit({
+  id: true,
+});
+
+export type InsertCampaignTraceEvent = z.infer<typeof insertCampaignTraceEventSchema>;
+export type CampaignTraceEvent = typeof campaignTraceEvents.$inferSelect;
