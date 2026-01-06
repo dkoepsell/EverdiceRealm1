@@ -18,7 +18,8 @@ import {
   ZoomOut,
   RotateCcw,
   Compass,
-  Navigation
+  Navigation,
+  Lock
 } from "lucide-react";
 
 export type TileType = 
@@ -355,8 +356,8 @@ export function DungeonMap({
                       key={`${x}-${y}`}
                       className={`
                         relative flex items-center justify-center
-                        ${!isExplored ? 'bg-slate-800 dark:bg-slate-950' : tileColor.bg} ${tileColor.border} border
-                        ${!isExplored ? "opacity-50" : isVisible ? "opacity-100" : "opacity-80"}
+                        ${!isExplored ? 'bg-indigo-900/40 dark:bg-indigo-950/60' : tileColor.bg} ${!isExplored ? 'border-indigo-700/50 dark:border-indigo-800/50' : tileColor.border} border
+                        ${!isExplored ? "opacity-70" : isVisible ? "opacity-100" : "opacity-80"}
                         ${interactive && tile.type !== "wall" ? "cursor-pointer hover:ring-2 hover:ring-primary/50" : ""}
                         ${isSelected ? "ring-2 ring-yellow-400" : ""}
                         transition-all duration-200
@@ -392,92 +393,106 @@ export function DungeonMap({
             </div>
           </div>
 
-          {showControls && interactive && onPlayerMove && (
-            <div className="flex flex-col gap-2">
-              <div className="text-sm font-medium text-muted-foreground mb-1">Movement</div>
-              <div className="grid grid-cols-3 gap-1">
-                <div />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => onPlayerMove("up")}
-                  data-testid="button-move-up"
-                >
-                  <ChevronUp className="w-4 h-4" />
-                </Button>
-                <div />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => onPlayerMove("left")}
-                  data-testid="button-move-left"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <div className="w-9 h-9 flex items-center justify-center text-xs text-muted-foreground">
-                  WASD
+          <div className="flex flex-col gap-2">
+            {showControls && interactive && onPlayerMove && (
+              <>
+                <div className="text-sm font-medium text-muted-foreground mb-1">Movement</div>
+                <div className="grid grid-cols-3 gap-1">
+                  <div />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => onPlayerMove("up")}
+                    data-testid="button-move-up"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                  </Button>
+                  <div />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => onPlayerMove("left")}
+                    data-testid="button-move-left"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <div className="w-9 h-9 flex items-center justify-center text-xs text-muted-foreground">
+                    WASD
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => onPlayerMove("right")}
+                    data-testid="button-move-right"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                  <div />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => onPlayerMove("down")}
+                    data-testid="button-move-down"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                  <div />
                 </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => onPlayerMove("right")}
-                  data-testid="button-move-right"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-                <div />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => onPlayerMove("down")}
-                  data-testid="button-move-down"
-                >
-                  <ChevronDown className="w-4 h-4" />
-                </Button>
-                <div />
+              </>
+            )}
+            
+            {/* Map Legend - Always visible */}
+            <div className="space-y-1.5 bg-stone-100 dark:bg-stone-900 p-2 rounded-lg border border-stone-300 dark:border-stone-700">
+              <div className="text-sm font-bold text-stone-800 dark:text-stone-200">Map Legend</div>
+              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center ring-2 ring-white shadow">
+                  <Navigation className="w-3 h-3 text-white" />
+                </div>
+                <span className="font-medium">You (Party)</span>
               </div>
-              
-              <div className="mt-4 space-y-1.5 bg-stone-100 dark:bg-stone-900 p-2 rounded-lg border border-stone-300 dark:border-stone-700">
-                <div className="text-sm font-bold text-stone-800 dark:text-stone-200">Map Legend</div>
-                <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                  <div className="w-4 h-4 bg-amber-200 dark:bg-amber-700 border-2 border-amber-400 dark:border-amber-500 rounded-sm" />
-                  <span className="font-medium">Floor (explored)</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                  <div className="w-4 h-4 bg-stone-700 dark:bg-stone-900 border-2 border-stone-500 dark:border-stone-700 rounded-sm" />
-                  <span className="font-medium">Wall</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                  <div className="w-4 h-4 bg-amber-500 dark:bg-amber-600 border-2 border-amber-600 dark:border-amber-400 rounded-sm flex items-center justify-center">
-                    <DoorOpen className="w-3 h-3 text-white" />
-                  </div>
-                  <span className="font-medium">Door</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                  <div className="w-4 h-4 bg-yellow-400 dark:bg-yellow-500 border-2 border-yellow-500 dark:border-yellow-400 rounded-sm flex items-center justify-center">
-                    <Gem className="w-3 h-3 text-amber-800 dark:text-amber-900" />
-                  </div>
-                  <span className="font-medium">Treasure</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                  <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center ring-2 ring-white shadow">
-                    <Navigation className="w-3 h-3 text-white" />
-                  </div>
-                  <span className="font-medium">You (Party)</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                  <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                    <Skull className="w-3 h-3 text-white" />
-                  </div>
-                  <span className="font-medium">Enemy</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                  <div className="w-4 h-4 bg-slate-800 dark:bg-slate-950 opacity-50 border border-slate-600 dark:border-slate-700 rounded-sm" />
-                  <span className="font-medium">Unexplored</span>
-                </div>
+              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                <div className="w-4 h-4 bg-amber-200 dark:bg-amber-700 border-2 border-amber-400 dark:border-amber-500 rounded-sm" />
+                <span className="font-medium">Floor</span>
               </div>
+              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                <div className="w-4 h-4 bg-amber-300 dark:bg-amber-800 border-2 border-amber-400 dark:border-amber-600 rounded-sm" />
+                <span className="font-medium">Corridor</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                <div className="w-4 h-4 bg-stone-700 dark:bg-stone-900 border-2 border-stone-500 dark:border-stone-700 rounded-sm" />
+                <span className="font-medium">Wall (blocked)</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                <div className="w-4 h-4 bg-amber-500 dark:bg-amber-600 border-2 border-amber-600 dark:border-amber-400 rounded-sm flex items-center justify-center">
+                  <DoorOpen className="w-3 h-3 text-white" />
+                </div>
+                <span className="font-medium">Door (open)</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                <div className="w-4 h-4 bg-red-600 dark:bg-red-800 border-2 border-red-700 dark:border-red-600 rounded-sm flex items-center justify-center">
+                  <Lock className="w-3 h-3 text-white" />
+                </div>
+                <span className="font-medium">Locked Door</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                <div className="w-4 h-4 bg-yellow-400 dark:bg-yellow-500 border-2 border-yellow-500 dark:border-yellow-400 rounded-sm flex items-center justify-center">
+                  <Gem className="w-3 h-3 text-amber-800 dark:text-amber-900" />
+                </div>
+                <span className="font-medium">Treasure</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                  <Skull className="w-3 h-3 text-white" />
+                </div>
+                <span className="font-medium">Enemy</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                <div className="w-4 h-4 bg-indigo-400 dark:bg-indigo-600 opacity-60 border-2 border-indigo-300 dark:border-indigo-500 rounded-sm" style={{ background: 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(99,102,241,0.3) 2px, rgba(99,102,241,0.3) 4px)' }} />
+                <span className="font-medium">Unexplored (fog)</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2 italic">Movement is driven by your story choices above</p>
             </div>
-          )}
+          </div>
         </div>
       </CardContent>
     </Card>
