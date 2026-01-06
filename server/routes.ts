@@ -7282,9 +7282,12 @@ Respond with JSON:
                 })
               );
               
-              // Save updated map
+              // Save updated map - update BOTH mapData AND the separate playerPosition column
               console.log(`Map movement: ${oldPosition.x},${oldPosition.y} -> ${newPosition.x},${newPosition.y} (direction: ${effectiveDirection})`);
-              await storage.updateCampaignDungeonMap(dungeonMap.id, { mapData });
+              await storage.updateCampaignDungeonMap(dungeonMap.id, { 
+                mapData, 
+                playerPosition: newPosition // Update the separate playerPosition column too!
+              });
               updatedMapData = mapData;
               updatedMapId = dungeonMap.id;
               console.log(`Map ${dungeonMap.id} updated with new position, returning in response`);
@@ -7454,7 +7457,11 @@ Respond with JSON:
               }
             }
             
-            await storage.updateCampaignDungeonMap(dungeonMap.id, { mapData });
+            // Update BOTH mapData AND the separate playerPosition column
+            await storage.updateCampaignDungeonMap(dungeonMap.id, { 
+              mapData,
+              playerPosition: mapData.playerPosition // Sync the separate column with mapData
+            });
             updatedMapData = mapData;
             updatedMapId = dungeonMap.id;
             console.log(`Map updated from dungeonState: room=${dungeonState.currentRoom.name}, exits=${dungeonState.exits?.length || 0}, playerPos=${mapData.playerPosition?.x},${mapData.playerPosition?.y}`);
