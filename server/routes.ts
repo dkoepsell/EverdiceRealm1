@@ -50,6 +50,19 @@ import {
   buildAdventureGraph,
   CAML_AI_PROMPT
 } from "./caml";
+import {
+  type TraceEventKind,
+  type TraceEvent,
+  type CAMLTrace,
+  type TraceCampaign,
+  type TraceSession,
+  type TraceActor,
+  generateEventId,
+  generateTraceId,
+  generateModuleId,
+  CAML_TRACE_VERSION
+} from "@shared/caml-trace";
+import yaml from "js-yaml";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -9288,6 +9301,182 @@ Return your response as a JSON object with these fields:
     } catch (error) {
       console.error("Failed to build adventure graph:", error);
       res.status(500).json({ message: "Failed to build adventure graph" });
+    }
+  });
+  
+  // CAML-Trace API endpoints
+  
+  // Record a trace event
+  app.post("/api/campaigns/:campaignId/trace/event", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = req.user!.id;
+      
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      const { kind, payload, sessionId, who, where, note, meta } = req.body;
+      
+      if (!kind || !payload) {
+        return res.status(400).json({ message: "Missing required fields: kind, payload" });
+      }
+      
+      const eventCount = await storage.getTraceEventCount(campaignId);
+      const eid = generateEventId(eventCount + 1);
+      
+      const traceEvent = await storage.recordTraceEvent({
+        campaignId,
+        sessionId: sessionId || `session.${campaign.currentSession}`,
+        eid,
+        kind,
+        payload,
+        ts: new Date().toISOString(),
+        who,
+        locationRef: where,
+        note,
+        meta
+      });
+      
+      res.json(traceEvent);
+    } catch (error) {
+      console.error("Failed to record trace event:", error);
+      res.status(500).json({ message: "Failed to record trace event" });
+    }
+  });
+  
+  // Get trace events for a campaign
+  app.get("/api/campaigns/:campaignId/trace/events", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const sessionId = req.query.sessionId as string | undefined;
+      const userId = req.user!.id;
+      
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      const events = await storage.getTraceEvents(campaignId, sessionId);
+      res.json(events);
+    } catch (error) {
+      console.error("Failed to get trace events:", error);
+      res.status(500).json({ message: "Failed to get trace events" });
+    }
+  });
+  
+  // Export complete CAML-Trace document
+  app.get("/api/campaigns/:campaignId/export/trace", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const format = req.query.format as string || 'json';
+      const userId = req.user!.id;
+      
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      const participants = await storage.getCampaignParticipants(campaignId);
+      const sessions = await storage.getCampaignSessions(campaignId);
+      const traceEvents = await storage.getTraceEvents(campaignId);
+      
+      const actors: TraceActor[] = [
+        { id: "party.main", type: "Party", name: "Main Party" },
+        { id: "system.dm", type: "System", name: "Dungeon Master AI" }
+      ];
+      
+      for (const p of participants) {
+        if (p.characterId) {
+          const char = await storage.getCharacter(p.characterId);
+          if (char) {
+            actors.push({
+              id: `pc.${char.id}`,
+              type: "PC",
+              name: char.name
+            });
+          }
+        }
+      }
+      
+      const npcs = await storage.getCampaignNpcs(campaignId);
+      for (const npc of npcs) {
+        actors.push({
+          id: `npc.${npc.id}`,
+          type: "NPC",
+          name: npc.name
+        });
+      }
+      
+      const traceSessions: TraceSession[] = sessions.map(s => ({
+        id: `session.${s.sessionNumber}`,
+        title: s.title || `Session ${s.sessionNumber}`,
+        startedAt: s.createdAt,
+        endedAt: s.completedAt || undefined
+      }));
+      
+      const traceCampaign: TraceCampaign = {
+        id: `campaign.${campaign.id}`,
+        name: campaign.title,
+        gm: "Everdice AI DM",
+        ruleset: "dnd5e"
+      };
+      
+      const events: TraceEvent[] = traceEvents.map(e => ({
+        eid: e.eid,
+        kind: e.kind as TraceEventKind,
+        payload: e.payload as any,
+        ts: e.ts,
+        sessionId: e.sessionId || undefined,
+        who: e.who || undefined,
+        where: e.locationRef || undefined,
+        note: e.note || undefined,
+        meta: e.meta as Record<string, unknown> | undefined
+      }));
+      
+      const trace: CAMLTrace = {
+        type: "CAMLTrace",
+        id: generateTraceId(campaignId),
+        moduleId: generateModuleId(campaignId, campaign.title),
+        camlVersion: "0.1",
+        traceVersion: CAML_TRACE_VERSION,
+        campaign: traceCampaign,
+        sessions: traceSessions,
+        actors,
+        events
+      };
+      
+      if (format === 'yaml') {
+        const yamlContent = yaml.dump(trace, {
+          indent: 2,
+          lineWidth: 120,
+          noRefs: true,
+          sortKeys: false
+        });
+        res.setHeader('Content-Type', 'text/yaml');
+        res.setHeader('Content-Disposition', `attachment; filename="${campaign.title.replace(/[^a-z0-9]/gi, '_')}_trace.yaml"`);
+        return res.send(yamlContent);
+      }
+      
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="${campaign.title.replace(/[^a-z0-9]/gi, '_')}_trace.json"`);
+      res.json(trace);
+    } catch (error) {
+      console.error("Failed to export CAML trace:", error);
+      res.status(500).json({ message: "Failed to export CAML trace" });
+    }
+  });
+  
+  // Get trace event count
+  app.get("/api/campaigns/:campaignId/trace/count", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const count = await storage.getTraceEventCount(campaignId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Failed to get trace event count:", error);
+      res.status(500).json({ message: "Failed to get trace event count" });
     }
   });
   
