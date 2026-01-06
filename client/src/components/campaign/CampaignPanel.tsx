@@ -1329,9 +1329,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       
       setShowDiceRollDialog(true);
     } else {
-      // Just advance the story with this action
+      // Just advance the story with this action - use fallback if action is undefined
       setIsAdvancingStory(true);
-      advanceStory.mutate({ choice: choice.action }, {
+      advanceStory.mutate({ choice: choice.action || choice.text || String(choice) }, {
         onSettled: () => {
           setIsAdvancingStory(false);
         }
@@ -1350,7 +1350,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     };
     
     setIsAdvancingStory(true);
-    advanceStory.mutate({ choice: customChoice.action }, {
+    advanceStory.mutate({ choice: customChoice.action || customAction.trim() }, {
       onSettled: () => {
         setIsAdvancingStory(false);
         setCustomAction(""); // Clear the input after submission
@@ -1431,7 +1431,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           };
           
           advanceStory.mutate({
-            choice: currentDiceRoll.action,
+            choice: currentDiceRoll.action || 'Take action',
             rollResult: rollResultData
           }, {
             onSettled: () => {
