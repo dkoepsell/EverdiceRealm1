@@ -7113,6 +7113,8 @@ Respond with JSON:
       // Use EITHER the AI's movement data OR our detected movement from choice text
       let updatedMapData = null;
       let updatedMapId: number | null = null;
+      let movementActuallyOccurred = false;  // Track if movement was allowed by map
+      let movementBlockedReason: string | null = null;
       const movement = storyAdvancement.movement;
       const hasAIMovement = movement && movement.occurred && movement.direction;
       const hasDetectedMovement = detectedMovement.isMovement && detectedMovement.direction;
@@ -7205,6 +7207,7 @@ Respond with JSON:
             if (tileType === 'wall') {
               console.log(`Movement blocked: wall at ${newPosition.x},${newPosition.y}`);
               canMove = false;
+              movementBlockedReason = 'wall';
             } else if (tileType === 'door_locked') {
               // Check if player has key or passed lockpicking check in the roll result
               const hasKey = storyAdvancement.narrative?.toLowerCase().includes('unlock') ||
@@ -7222,6 +7225,7 @@ Respond with JSON:
               } else {
                 console.log(`Movement blocked: locked door at ${newPosition.x},${newPosition.y} - need key or lockpicking`);
                 canMove = false;
+                movementBlockedReason = 'locked_door';
               }
             } else if (tileType === 'secret_door') {
               // Secret door revealed and entered
@@ -7243,6 +7247,8 @@ Respond with JSON:
                             newPosition.y === 0 || newPosition.y === mapData.height - 1;
             
             if (canMove) {
+              movementActuallyOccurred = true;  // Mark that movement was successful
+              
               // Update player position and mark tiles as explored (NEVER reset explored tiles)
               const oldPosition = { ...mapData.playerPosition };
               mapData.playerPosition = newPosition;
@@ -7268,8 +7274,8 @@ Respond with JSON:
               updatedMapId = dungeonMap.id;
               console.log(`Map ${dungeonMap.id} updated with new position, returning in response`);
               
-              // If at edge and secret door/transition, generate connected map
-              if (isAtEdge && tileTransition) {
+              // If at edge of map, generate connected map (for secret doors, exits, corridors at boundary)
+              if (isAtEdge && (tileTransition || tileType === 'corridor' || tileType === 'floor' || tileType === 'door')) {
                 console.log(`Edge transition detected at ${newPosition.x},${newPosition.y} - generating new connected area`);
                 
                 // Determine entry direction for new map (opposite of exit direction)
@@ -8107,11 +8113,15 @@ Respond with JSON:
         progression: characterProgression
       });
 
-      // Build movement response - include both AI movement and detected movement
-      const movementResponse = (movement?.occurred || hasDetectedMovement) ? {
-        occurred: true,
+      // Build movement response - use actual movement result, not just intent
+      const movementResponse = effectiveDirection ? {
+        occurred: movementActuallyOccurred,
         direction: effectiveDirection,
-        description: movement?.description || `Moved ${effectiveDirection === 'up' ? 'north' : effectiveDirection === 'down' ? 'south' : effectiveDirection === 'right' ? 'east' : 'west'}`
+        description: movementActuallyOccurred 
+          ? (movement?.description || `Moved ${effectiveDirection === 'up' ? 'north' : effectiveDirection === 'down' ? 'south' : effectiveDirection === 'right' ? 'east' : 'west'}`)
+          : `Movement blocked: ${movementBlockedReason || 'obstacle'}`,
+        blocked: !movementActuallyOccurred,
+        blockedReason: movementBlockedReason
       } : null;
       
       res.json({
