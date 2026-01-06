@@ -3637,6 +3637,123 @@ function CampaignBuilderTab() {
     generateCampaign.mutate();
   };
 
+  const downloadAsCAML = () => {
+    if (!generatedCampaign) return;
+    
+    const levelParts = campaignLevel.split('-');
+    const minLevel = parseInt(levelParts[0]) || 1;
+    const maxLevel = parseInt(levelParts[1]) || 5;
+    
+    const camlAdventure = {
+      id: `adventure.${generatedCampaign.title.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+      type: 'AdventureModule',
+      title: generatedCampaign.title,
+      name: generatedCampaign.title,
+      description: generatedCampaign.description,
+      synopsis: generatedCampaign.mainStoryArc || generatedCampaign.description,
+      author: 'Everdice DM Toolkit',
+      version: '1.0.0',
+      ruleset: 'dnd5e',
+      minLevel,
+      maxLevel,
+      setting: campaignTheme,
+      startingLocation: generatedCampaign.locations?.[0] 
+        ? `location.${generatedCampaign.locations[0].name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`
+        : undefined,
+      locations: (generatedCampaign.locations || []).map((loc: any, i: number) => ({
+        id: `location.${loc.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+        type: 'Location',
+        name: loc.name,
+        description: loc.description,
+        tags: [loc.type || 'location'],
+        features: loc.features,
+        connections: i < (generatedCampaign.locations?.length || 0) - 1 ? [{
+          direction: 'forward',
+          target: `location.${generatedCampaign.locations[i + 1]?.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`
+        }] : [],
+        npcs: generatedCampaign.npcs?.filter((npc: any) => 
+          npc.questConnections?.toLowerCase().includes(loc.name.toLowerCase())
+        ).map((npc: any) => `npc.${npc.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`) || [],
+        encounters: generatedCampaign.encounters?.filter((enc: any) => 
+          enc.description?.toLowerCase().includes(loc.name.toLowerCase())
+        ).map((enc: any) => `encounter.${enc.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`) || []
+      })),
+      npcs: (generatedCampaign.npcs || []).map((npc: any) => ({
+        id: `npc.${npc.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+        type: 'NPC',
+        name: npc.name,
+        description: npc.description,
+        race: npc.race,
+        class: npc.class,
+        role: npc.role,
+        personality: npc.personality,
+        motivations: npc.motivations,
+        attitude: 'neutral',
+        ruleset: 'dnd5e'
+      })),
+      encounters: (generatedCampaign.encounters || []).map((enc: any) => ({
+        id: `encounter.${enc.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+        type: 'Encounter',
+        name: enc.name,
+        description: enc.description,
+        encounterType: enc.type || 'combat',
+        challengeRating: enc.challengeRating,
+        setup: enc.setup,
+        tactics: enc.tactics,
+        treasure: enc.treasure
+      })),
+      quests: (generatedCampaign.quests || []).map((quest: any, i: number) => ({
+        id: `quest.${quest.title.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+        type: 'Quest',
+        name: quest.title,
+        description: quest.description,
+        tags: [quest.type || 'main'],
+        questGiver: generatedCampaign.npcs?.[i % (generatedCampaign.npcs?.length || 1)]
+          ? `npc.${generatedCampaign.npcs[i % generatedCampaign.npcs.length].name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`
+          : undefined,
+        objectives: (quest.objectives || []).map((obj: string, j: number) => ({
+          id: `objective.${j}`,
+          description: obj,
+          completed: false
+        })),
+        rewards: {
+          description: quest.rewards
+        }
+      })),
+      items: (generatedCampaign.rewards || []).map((reward: any) => ({
+        id: `item.${reward.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+        type: 'Item',
+        name: reward.name,
+        description: reward.description,
+        itemType: reward.type || 'wondrous',
+        rarity: reward.rarity || 'common',
+        mechanics: reward.mechanics
+      })),
+      factions: [],
+      handouts: []
+    };
+    
+    const yamlContent = `# CAML Adventure Export from Everdice DM Toolkit
+# Generated: ${new Date().toISOString()}
+
+${JSON.stringify(camlAdventure, null, 2)}`;
+    
+    const blob = new Blob([yamlContent], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${generatedCampaign.title.replace(/\s+/g, '_')}.caml.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "CAML Export Downloaded",
+      description: "Your adventure has been exported in CAML format.",
+    });
+  };
+
   if (generatedCampaign) {
     return (
       <div className="space-y-6">
@@ -3648,6 +3765,10 @@ function CampaignBuilderTab() {
           <div className="flex space-x-2">
             <Button variant="outline" onClick={() => setGeneratedCampaign(null)}>
               Generate New
+            </Button>
+            <Button variant="secondary" onClick={downloadAsCAML} data-testid="button-download-caml">
+              <Scroll className="h-4 w-4 mr-2" />
+              Download CAML
             </Button>
             <Button onClick={() => saveCampaign.mutate()} disabled={saveCampaign.isPending}>
               {saveCampaign.isPending ? (
