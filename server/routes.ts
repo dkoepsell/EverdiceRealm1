@@ -7371,6 +7371,9 @@ Respond with JSON:
       }
       
       // Process AI's dungeonState to update map dynamically based on narrative
+      // IMPORTANT: Preserve playerPosition from any movement that already occurred
+      const preservedPlayerPosition = updatedMapData?.playerPosition;
+      
       const dungeonState = storyAdvancement.dungeonState;
       if (dungeonState && dungeonState.currentRoom) {
         try {
@@ -7381,6 +7384,11 @@ Respond with JSON:
             const mapData = typeof dungeonMap.mapData === 'string' 
               ? JSON.parse(dungeonMap.mapData) 
               : dungeonMap.mapData;
+            
+            // Preserve playerPosition from movement if it occurred
+            if (preservedPlayerPosition) {
+              mapData.playerPosition = preservedPlayerPosition;
+            }
             
             // Update entities with room features from AI
             const newEntities: any[] = mapData.entities || [];
@@ -7449,7 +7457,7 @@ Respond with JSON:
             await storage.updateCampaignDungeonMap(dungeonMap.id, { mapData });
             updatedMapData = mapData;
             updatedMapId = dungeonMap.id;
-            console.log(`Map updated from dungeonState: room=${dungeonState.currentRoom.name}, exits=${dungeonState.exits?.length || 0}`);
+            console.log(`Map updated from dungeonState: room=${dungeonState.currentRoom.name}, exits=${dungeonState.exits?.length || 0}, playerPos=${mapData.playerPosition?.x},${mapData.playerPosition?.y}`);
           }
         } catch (dungeonStateError) {
           console.error("Failed to process dungeonState:", dungeonStateError);
