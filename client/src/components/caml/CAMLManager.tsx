@@ -555,8 +555,25 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
   );
 }
 
+interface GraphNode {
+  id: string;
+  type: string;
+  name: string;
+}
+
+interface GraphEdge {
+  source: string;
+  target: string;
+  label?: string;
+}
+
+interface GraphData {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
 function CampaignAdventureGraph({ campaignId }: { campaignId: number }) {
-  const { data: graph, isLoading, error } = useQuery({
+  const { data: graph, isLoading, error } = useQuery<GraphData>({
     queryKey: [`/api/campaigns/${campaignId}/adventure-graph`],
     enabled: !!campaignId
   });

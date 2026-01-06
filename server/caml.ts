@@ -358,7 +358,7 @@ export function convertCampaignToCAML(
     });
   }
   
-  // Build NPCs with proper IDs and link to starting location
+  // Build NPCs with proper IDs and startsAt reference
   const npcIds: string[] = [];
   const camlNpcs: CAMLNPC[] = npcs.map((npc, i) => {
     const npcId = `npc.${npc.name?.toLowerCase().replace(/[^a-z0-9]+/g, '_') || `npc_${i}`}`;
@@ -372,6 +372,7 @@ export function convertCampaignToCAML(
       class: npc.class,
       alignment: npc.alignment,
       attitude: (npc.attitude || 'neutral') as any,
+      startsAt: camlLocations[i % camlLocations.length]?.id || startLocId,
       ruleset: 'dnd5e',
       statblock: npc.statblock ? {
         ac: npc.statblock.ac,
@@ -386,26 +387,72 @@ export function convertCampaignToCAML(
     camlLocations[0].npcs = npcIds;
   }
   
-  // Build encounters with location references
+  // Build encounters with occursAt, gates, and outcomes (strict CAML compliance)
   const camlEncounters: CAMLEncounter[] = [];
   const encounterIds: string[] = [];
+  
+  const buildEncounter = (
+    id: string, 
+    name: string, 
+    description: string, 
+    encType: 'combat' | 'social' | 'exploration' | 'puzzle' | 'trap' | 'treasure',
+    occursAt: string,
+    enemies?: { id: string; count: number }[]
+  ): CAMLEncounter => {
+    const successOutcomes: any[] = [];
+    const failureOutcomes: any[] = [];
+    
+    if (encType === 'combat') {
+      successOutcomes.push({ addTag: `${id}.defeated` });
+      failureOutcomes.push({ addTag: `${id}.fled` });
+    } else if (encType === 'social') {
+      successOutcomes.push({ addTag: `${id}.resolved` });
+      successOutcomes.push({ modifyAttitude: { target: 'involved_npcs', change: '+1' } });
+      failureOutcomes.push({ addTag: `${id}.failed` });
+      failureOutcomes.push({ modifyAttitude: { target: 'involved_npcs', change: '-1' } });
+    } else if (encType === 'trap') {
+      successOutcomes.push({ addTag: `${id}.disarmed` });
+      failureOutcomes.push({ dealDamage: { target: 'party', amount: '2d6' } });
+    } else if (encType === 'puzzle') {
+      successOutcomes.push({ addTag: `${id}.solved` });
+      successOutcomes.push({ unlock: { target: 'next_area' } });
+      failureOutcomes.push({ addTag: `${id}.unsolved` });
+    } else {
+      successOutcomes.push({ addTag: `${id}.completed` });
+      failureOutcomes.push({ addTag: `${id}.missed` });
+    }
+    
+    return {
+      id,
+      type: 'Encounter',
+      name,
+      description,
+      encounterType: encType,
+      occursAt,
+      gates: { all: [`party.at(${occursAt})`] },
+      outcomes: {
+        success: successOutcomes,
+        failure: failureOutcomes
+      },
+      enemies
+    };
+  };
   
   // Add current combat as encounter
   if (storyState.combatants && storyState.combatants.length > 0) {
     const combatId = 'encounter.current_combat';
     encounterIds.push(combatId);
-    camlEncounters.push({
-      id: combatId,
-      type: 'Encounter',
-      name: 'Current Combat',
-      description: 'An ongoing battle',
-      encounterType: 'combat',
-      location: startLocId,
-      enemies: storyState.combatants.map((c: any, i: number) => ({
+    camlEncounters.push(buildEncounter(
+      combatId,
+      'Current Combat',
+      'An ongoing battle',
+      'combat',
+      startLocId,
+      storyState.combatants.map((c: any, i: number) => ({
         id: `enemy.${c.name?.toLowerCase().replace(/[^a-z0-9]+/g, '_') || i}`,
         count: 1
       }))
-    });
+    ));
   }
   
   // Extract encounters from adventure progress
@@ -414,50 +461,46 @@ export function convertCampaignToCAML(
     if (progress.encounters?.combat > 0) {
       const encId = 'encounter.past_combat';
       encounterIds.push(encId);
-      camlEncounters.push({
-        id: encId,
-        type: 'Encounter',
-        name: 'Previous Battles',
-        description: `${progress.encounters.combat} combat encounters completed`,
-        encounterType: 'combat',
-        location: startLocId
-      });
+      camlEncounters.push(buildEncounter(
+        encId,
+        'Previous Battles',
+        `${progress.encounters.combat} combat encounters completed`,
+        'combat',
+        startLocId
+      ));
     }
     if (progress.encounters?.trap > 0) {
       const encId = 'encounter.traps_overcome';
       encounterIds.push(encId);
-      camlEncounters.push({
-        id: encId,
-        type: 'Encounter',
-        name: 'Traps Overcome',
-        description: `${progress.encounters.trap} traps navigated`,
-        encounterType: 'trap',
-        location: camlLocations[1]?.id || startLocId
-      });
+      camlEncounters.push(buildEncounter(
+        encId,
+        'Traps Overcome',
+        `${progress.encounters.trap} traps navigated`,
+        'trap',
+        camlLocations[1]?.id || startLocId
+      ));
     }
     if (progress.puzzles > 0) {
       const encId = 'encounter.puzzles_solved';
       encounterIds.push(encId);
-      camlEncounters.push({
-        id: encId,
-        type: 'Encounter',
-        name: 'Puzzles Solved',
-        description: `${progress.puzzles} puzzles completed`,
-        encounterType: 'puzzle',
-        location: camlLocations[2]?.id || startLocId
-      });
+      camlEncounters.push(buildEncounter(
+        encId,
+        'Puzzles Solved',
+        `${progress.puzzles} puzzles completed`,
+        'puzzle',
+        camlLocations[2]?.id || startLocId
+      ));
     }
     if (progress.discoveries > 0) {
       const encId = 'encounter.discoveries';
       encounterIds.push(encId);
-      camlEncounters.push({
-        id: encId,
-        type: 'Encounter',
-        name: 'Discoveries Made',
-        description: `${progress.discoveries} secrets uncovered`,
-        encounterType: 'exploration',
-        location: camlLocations[Math.min(3, camlLocations.length - 1)]?.id || startLocId
-      });
+      camlEncounters.push(buildEncounter(
+        encId,
+        'Discoveries Made',
+        `${progress.discoveries} secrets uncovered`,
+        'exploration',
+        camlLocations[Math.min(3, camlLocations.length - 1)]?.id || startLocId
+      ));
     }
   }
   
@@ -469,7 +512,7 @@ export function convertCampaignToCAML(
     }
   }
   
-  // Build quests with quest givers
+  // Build quests with quest givers (no runtime state in objectives for strict CAML)
   const camlQuests: CAMLQuest[] = quests.map((quest, i) => {
     const questId = `quest.${quest.title?.toLowerCase().replace(/[^a-z0-9]+/g, '_') || `quest_${i}`}`;
     return {
@@ -478,13 +521,11 @@ export function convertCampaignToCAML(
       name: quest.title || `Quest ${i + 1}`,
       description: quest.description || 'A mysterious task',
       tags: [quest.status || 'active'],
-      questGiver: npcIds[i % npcIds.length], // Assign NPCs as quest givers
+      questGiver: npcIds[i % npcIds.length],
       objectives: quest.objectives?.map((obj: any, j: number) => ({
         id: `objective.${j}`,
-        description: obj.description || obj,
-        completed: obj.completed || false,
-        location: camlLocations[j % camlLocations.length]?.id
-      })) || [{ id: 'objective.main', description: quest.description, completed: false }],
+        description: obj.description || obj
+      })) || [{ id: 'objective.main', description: quest.description }],
       rewards: {
         xp: quest.xpReward || 100,
         gold: quest.goldReward || 50,
@@ -612,6 +653,24 @@ export function buildAdventureGraph(pack: CAMLAdventurePack): {
         source: (entity as CAMLQuest).questGiver!,
         target: id,
         label: 'gives'
+      });
+    }
+    
+    // Handle occursAt for encounters (strict CAML)
+    if (entity.type === 'Encounter' && (entity as CAMLEncounter).occursAt) {
+      edges.push({
+        source: (entity as CAMLEncounter).occursAt!,
+        target: id,
+        label: 'hosts'
+      });
+    }
+    
+    // Handle startsAt for NPCs (strict CAML)
+    if (entity.type === 'NPC' && (entity as CAMLNPC).startsAt) {
+      edges.push({
+        source: (entity as CAMLNPC).startsAt!,
+        target: id,
+        label: 'starts'
       });
     }
     

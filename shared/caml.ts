@@ -120,6 +120,7 @@ export interface CAMLNPC extends CAMLBaseEntity {
   resources?: Record<string, any>;
   faction?: string;
   attitude?: 'friendly' | 'neutral' | 'hostile';
+  startsAt?: string;
   dialogue?: {
     greeting?: string;
     topics?: Record<string, string>;
@@ -140,6 +141,13 @@ export interface CAMLEncounter extends CAMLBaseEntity {
   type: 'Encounter';
   encounterType?: 'combat' | 'social' | 'exploration' | 'puzzle' | 'trap' | 'treasure';
   difficulty?: 'easy' | 'medium' | 'hard' | 'deadly';
+  occursAt?: string;
+  gates?: CAMLGate;
+  outcomes?: {
+    success?: CAMLOutcomeStep[];
+    failure?: CAMLOutcomeStep[];
+    partial?: CAMLOutcomeStep[];
+  };
   enemies?: {
     id: string;
     count: number;
@@ -154,6 +162,9 @@ export interface CAMLEncounter extends CAMLBaseEntity {
     failure?: CAMLOutcomeStep[];
     partial?: CAMLOutcomeStep[];
   };
+  setup?: string;
+  tactics?: string;
+  treasure?: string;
 }
 
 export interface CAMLQuest extends CAMLBaseEntity {
