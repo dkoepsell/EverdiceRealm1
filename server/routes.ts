@@ -6799,6 +6799,15 @@ TACTICAL COMBAT OPTIONS (include these choices when in combat):
 - Use item/potion (consumes turn)
 - Cast a spell (if magic user)
 
+DUNGEON MAP SYNCHRONIZATION (CRITICAL):
+- The dungeonState MUST reflect what you describe in the narrative
+- If the narrative mentions "a corridor to the north and a door to the east", the exits array MUST include north and east
+- The currentRoom name MUST match the storyState.location
+- Keep room IDs consistent when the party revisits a room
+- When the party moves, update currentRoom to reflect the new location
+- Add features (chests, altars, etc) that you describe in the narrative to the features array
+- This ensures the dungeon map visually matches your storytelling
+
 WRITING STYLE REQUIREMENTS:
 - Apply the ${narrativeStyle} storytelling style consistently
 - Lead with what HAPPENS as a result of the player action
@@ -6872,6 +6881,22 @@ Respond with JSON:
     "occurred": true/false,
     "direction": "up/down/left/right/null (if movement occurred, which direction on the map grid)",
     "description": "Brief description of where the party moved (e.g. 'entered the eastern chamber', 'descended the stairs')"
+  },
+  "dungeonState": {
+    "currentRoom": {
+      "id": "room_1",
+      "name": "Room or area name matching the narrative location",
+      "type": "entrance/corridor/chamber/cavern/hall/throne_room/treasure_room/trap_room/puzzle_room",
+      "description": "Brief visual description for the map tooltip"
+    },
+    "exits": [
+      {"direction": "north/south/east/west", "description": "What lies in this direction", "visible": true, "locked": false, "leadsTo": "room_2 or null if unknown"}
+    ],
+    "features": [
+      {"type": "chest/statue/altar/pillar/fountain/trap/secret_door", "position": "center/corner/along_wall", "description": "Brief description"}
+    ],
+    "lighting": "bright/dim/dark",
+    "dangerLevel": "safe/low/medium/high/deadly"
   }
 }`;
 
@@ -7136,6 +7161,92 @@ Respond with JSON:
           }
         } catch (mapError) {
           console.error("Failed to update dungeon map from story movement:", mapError);
+        }
+      }
+      
+      // Process AI's dungeonState to update map dynamically based on narrative
+      const dungeonState = storyAdvancement.dungeonState;
+      if (dungeonState && dungeonState.currentRoom) {
+        try {
+          const allMaps = await storage.getCampaignDungeonMaps(campaignId);
+          let dungeonMap = allMaps.find(m => m.isActive) || allMaps[0];
+          
+          if (dungeonMap && dungeonMap.mapData) {
+            const mapData = typeof dungeonMap.mapData === 'string' 
+              ? JSON.parse(dungeonMap.mapData) 
+              : dungeonMap.mapData;
+            
+            // Update entities with room features from AI
+            const newEntities: any[] = mapData.entities || [];
+            
+            // Add features from dungeonState
+            if (dungeonState.features) {
+              for (const feature of dungeonState.features) {
+                const featureId = `feature_${feature.type}_${Date.now()}`;
+                // Only add if not already present
+                if (!newEntities.some(e => e.type === feature.type && e.description === feature.description)) {
+                  const playerPos = mapData.playerPosition || { x: 4, y: 4 };
+                  // Position features around the player
+                  const offsetX = feature.position === 'corner' ? 1 : 0;
+                  const offsetY = feature.position === 'along_wall' ? 1 : 0;
+                  newEntities.push({
+                    id: featureId,
+                    type: feature.type,
+                    name: feature.type.charAt(0).toUpperCase() + feature.type.slice(1).replace('_', ' '),
+                    description: feature.description,
+                    x: playerPos.x + offsetX,
+                    y: playerPos.y + offsetY
+                  });
+                }
+              }
+            }
+            
+            // Update room info in map metadata
+            mapData.entities = newEntities;
+            mapData.currentRoom = dungeonState.currentRoom;
+            mapData.exits = dungeonState.exits || [];
+            mapData.lighting = dungeonState.lighting || 'dim';
+            mapData.dangerLevel = dungeonState.dangerLevel || 'medium';
+            
+            // Mark tiles as passable in exit directions from current position
+            const playerPos = mapData.playerPosition || { x: 4, y: 4 };
+            const exitDirections: Record<string, {dx: number, dy: number}> = {
+              north: { dx: 0, dy: -1 },
+              south: { dx: 0, dy: 1 },
+              east: { dx: 1, dy: 0 },
+              west: { dx: -1, dy: 0 }
+            };
+            
+            if (dungeonState.exits && mapData.tiles) {
+              for (const exit of dungeonState.exits) {
+                if (exit.visible && exitDirections[exit.direction]) {
+                  const dir = exitDirections[exit.direction];
+                  // Clear a path of 3 tiles in the exit direction
+                  for (let i = 1; i <= 3; i++) {
+                    const tx = playerPos.x + (dir.dx * i);
+                    const ty = playerPos.y + (dir.dy * i);
+                    if (ty >= 0 && ty < mapData.height && tx >= 0 && tx < mapData.width) {
+                      if (mapData.tiles[ty][tx].type === 'wall') {
+                        mapData.tiles[ty][tx] = {
+                          type: exit.locked ? 'door_locked' : 'corridor',
+                          explored: false,
+                          visible: false,
+                          exitDescription: exit.description
+                        };
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            
+            await storage.updateCampaignDungeonMap(dungeonMap.id, { mapData });
+            updatedMapData = mapData;
+            updatedMapId = dungeonMap.id;
+            console.log(`Map updated from dungeonState: room=${dungeonState.currentRoom.name}, exits=${dungeonState.exits?.length || 0}`);
+          }
+        } catch (dungeonStateError) {
+          console.error("Failed to process dungeonState:", dungeonStateError);
         }
       }
       
