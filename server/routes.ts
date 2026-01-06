@@ -9204,13 +9204,16 @@ Return your response as a JSON object with these fields:
       const participants = await storage.getCampaignParticipants(campaignId);
       const npcs = await storage.getCampaignNpcs(campaignId);
       const quests = await storage.getCampaignQuests(campaignId);
+      const dungeonMaps = await storage.getCampaignDungeonMaps(campaignId);
+      const dungeonMap = dungeonMaps[0];
       
       const camlAdventure = convertCampaignToCAML(
         campaign,
         sessions,
         participants,
         npcs,
-        quests
+        quests,
+        dungeonMap
       );
       
       if (format === 'yaml' || format === 'yml') {
@@ -9245,13 +9248,16 @@ Return your response as a JSON object with these fields:
       const participants = await storage.getCampaignParticipants(campaignId);
       const npcs = await storage.getCampaignNpcs(campaignId);
       const quests = await storage.getCampaignQuests(campaignId);
+      const dungeonMaps = await storage.getCampaignDungeonMaps(campaignId);
+      const dungeonMap = dungeonMaps[0];
       
       const camlAdventure = convertCampaignToCAML(
         campaign,
         sessions,
         participants,
         npcs,
-        quests
+        quests,
+        dungeonMap
       );
       
       const pack = {

@@ -261,75 +261,266 @@ export function convertCampaignToCAML(
   sessions: any[],
   participants: any[],
   npcs: any[],
-  quests: any[]
+  quests: any[],
+  dungeonMap?: any,
+  items?: any[]
 ): CAMLAdventureModule {
   const latestSession = sessions[sessions.length - 1];
   const storyState = latestSession?.storyState || {};
   
+  // Build locations from multiple sources
   const camlLocations: CAMLLocation[] = [];
+  const locationIdMap = new Map<string, string>();
+  
+  // Add current location as starting point
+  const currentLocation = storyState.currentLocation || campaign.setting || 'Starting Area';
+  const startLocId = `location.${currentLocation.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+  camlLocations.push({
+    id: startLocId,
+    type: 'Location',
+    name: currentLocation,
+    description: storyState.currentNarrative?.slice(0, 200) || `The starting point of ${campaign.title}`,
+    tags: ['starting', 'explored'],
+    npcs: [],
+    encounters: []
+  });
+  locationIdMap.set(currentLocation, startLocId);
+  
+  // Extract locations from journey log
   if (storyState.journeyLog) {
     const uniqueLocations = new Set<string>();
+    uniqueLocations.add(currentLocation);
+    
     for (const entry of storyState.journeyLog) {
-      if (entry.description && !uniqueLocations.has(entry.description.slice(0, 50))) {
-        uniqueLocations.add(entry.description.slice(0, 50));
+      const locName = entry.location || entry.description?.slice(0, 40);
+      if (locName && !uniqueLocations.has(locName)) {
+        uniqueLocations.add(locName);
+        const locId = `location.${locName.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
         camlLocations.push({
-          id: `location.${camlLocations.length + 1}`,
+          id: locId,
           type: 'Location',
-          name: `Location ${camlLocations.length + 1}`,
-          description: entry.description,
-          tags: [entry.type || 'explored']
+          name: locName,
+          description: entry.description || `A location in ${campaign.title}`,
+          tags: [entry.type || 'explored'],
+          npcs: [],
+          encounters: []
         });
+        locationIdMap.set(locName, locId);
       }
     }
   }
   
-  const camlNpcs: CAMLNPC[] = npcs.map((npc, i) => ({
-    id: `npc.${npc.name?.toLowerCase().replace(/\s+/g, '_') || i}`,
-    type: 'NPC' as const,
-    name: npc.name,
-    description: npc.description,
-    race: npc.race,
-    class: npc.class,
-    alignment: npc.alignment,
-    attitude: npc.attitude as any,
-    ruleset: 'dnd5e',
-    statblock: npc.statblock ? {
-      ac: npc.statblock.ac,
-      hp: npc.statblock.hp,
-      cr: npc.statblock.cr
-    } : undefined
-  }));
-  
-  const camlQuests: CAMLQuest[] = quests.map((quest, i) => ({
-    id: `quest.${quest.title?.toLowerCase().replace(/\s+/g, '_') || i}`,
-    type: 'Quest' as const,
-    name: quest.title,
-    description: quest.description,
-    tags: [quest.status || 'active'],
-    objectives: quest.objectives?.map((obj: any, j: number) => ({
-      id: `objective.${j}`,
-      description: obj.description || obj,
-      completed: obj.completed || false
-    })),
-    rewards: {
-      xp: quest.xpReward,
-      gold: quest.goldReward,
-      items: quest.itemRewards
+  // Extract rooms from dungeon map if available
+  if (dungeonMap?.mapData?.rooms) {
+    for (const room of dungeonMap.mapData.rooms) {
+      const roomName = room.name || room.description?.slice(0, 30) || `Room ${room.id}`;
+      if (!locationIdMap.has(roomName)) {
+        const roomId = `location.dungeon_${room.id || camlLocations.length}`;
+        const roomLoc: CAMLLocation = {
+          id: roomId,
+          type: 'Location',
+          name: roomName,
+          description: room.description || `A room in the dungeon`,
+          tags: ['dungeon', room.type || 'room'],
+          npcs: [],
+          encounters: [],
+          connections: []
+        };
+        
+        // Add connections based on exits
+        if (room.exits) {
+          roomLoc.connections = Object.entries(room.exits)
+            .filter(([_, exit]: [string, any]) => exit && !exit.blocked)
+            .map(([dir, _]: [string, any]) => ({
+              direction: dir,
+              target: `location.dungeon_adjacent_${dir}`
+            }));
+        }
+        
+        camlLocations.push(roomLoc);
+        locationIdMap.set(roomName, roomId);
+      }
     }
-  }));
+  }
   
+  // Create connections between sequential locations
+  for (let i = 0; i < camlLocations.length - 1; i++) {
+    if (!camlLocations[i].connections) camlLocations[i].connections = [];
+    camlLocations[i].connections!.push({
+      direction: 'forward',
+      target: camlLocations[i + 1].id
+    });
+    
+    if (!camlLocations[i + 1].connections) camlLocations[i + 1].connections = [];
+    camlLocations[i + 1].connections!.push({
+      direction: 'back',
+      target: camlLocations[i].id
+    });
+  }
+  
+  // Build NPCs with proper IDs and link to starting location
+  const npcIds: string[] = [];
+  const camlNpcs: CAMLNPC[] = npcs.map((npc, i) => {
+    const npcId = `npc.${npc.name?.toLowerCase().replace(/[^a-z0-9]+/g, '_') || `npc_${i}`}`;
+    npcIds.push(npcId);
+    return {
+      id: npcId,
+      type: 'NPC' as const,
+      name: npc.name || `NPC ${i + 1}`,
+      description: npc.description || 'A mysterious figure',
+      race: npc.race,
+      class: npc.class,
+      alignment: npc.alignment,
+      attitude: (npc.attitude || 'neutral') as any,
+      ruleset: 'dnd5e',
+      statblock: npc.statblock ? {
+        ac: npc.statblock.ac,
+        hp: npc.statblock.hp,
+        cr: npc.statblock.cr
+      } : undefined
+    };
+  });
+  
+  // Link NPCs to the starting location
+  if (camlLocations.length > 0 && npcIds.length > 0) {
+    camlLocations[0].npcs = npcIds;
+  }
+  
+  // Build encounters with location references
   const camlEncounters: CAMLEncounter[] = [];
+  const encounterIds: string[] = [];
+  
+  // Add current combat as encounter
   if (storyState.combatants && storyState.combatants.length > 0) {
+    const combatId = 'encounter.current_combat';
+    encounterIds.push(combatId);
     camlEncounters.push({
-      id: 'encounter.current_combat',
+      id: combatId,
       type: 'Encounter',
       name: 'Current Combat',
+      description: 'An ongoing battle',
       encounterType: 'combat',
+      location: startLocId,
       enemies: storyState.combatants.map((c: any, i: number) => ({
-        id: `enemy.${i}`,
+        id: `enemy.${c.name?.toLowerCase().replace(/[^a-z0-9]+/g, '_') || i}`,
         count: 1
       }))
     });
+  }
+  
+  // Extract encounters from adventure progress
+  if (storyState.adventureProgress) {
+    const progress = storyState.adventureProgress;
+    if (progress.encounters?.combat > 0) {
+      const encId = 'encounter.past_combat';
+      encounterIds.push(encId);
+      camlEncounters.push({
+        id: encId,
+        type: 'Encounter',
+        name: 'Previous Battles',
+        description: `${progress.encounters.combat} combat encounters completed`,
+        encounterType: 'combat',
+        location: startLocId
+      });
+    }
+    if (progress.encounters?.trap > 0) {
+      const encId = 'encounter.traps_overcome';
+      encounterIds.push(encId);
+      camlEncounters.push({
+        id: encId,
+        type: 'Encounter',
+        name: 'Traps Overcome',
+        description: `${progress.encounters.trap} traps navigated`,
+        encounterType: 'trap',
+        location: camlLocations[1]?.id || startLocId
+      });
+    }
+    if (progress.puzzles > 0) {
+      const encId = 'encounter.puzzles_solved';
+      encounterIds.push(encId);
+      camlEncounters.push({
+        id: encId,
+        type: 'Encounter',
+        name: 'Puzzles Solved',
+        description: `${progress.puzzles} puzzles completed`,
+        encounterType: 'puzzle',
+        location: camlLocations[2]?.id || startLocId
+      });
+    }
+    if (progress.discoveries > 0) {
+      const encId = 'encounter.discoveries';
+      encounterIds.push(encId);
+      camlEncounters.push({
+        id: encId,
+        type: 'Encounter',
+        name: 'Discoveries Made',
+        description: `${progress.discoveries} secrets uncovered`,
+        encounterType: 'exploration',
+        location: camlLocations[Math.min(3, camlLocations.length - 1)]?.id || startLocId
+      });
+    }
+  }
+  
+  // Link encounters to locations
+  if (camlLocations.length > 0 && encounterIds.length > 0) {
+    camlLocations[0].encounters = encounterIds.slice(0, 2);
+    if (camlLocations.length > 1) {
+      camlLocations[1].encounters = encounterIds.slice(2);
+    }
+  }
+  
+  // Build quests with quest givers
+  const camlQuests: CAMLQuest[] = quests.map((quest, i) => {
+    const questId = `quest.${quest.title?.toLowerCase().replace(/[^a-z0-9]+/g, '_') || `quest_${i}`}`;
+    return {
+      id: questId,
+      type: 'Quest' as const,
+      name: quest.title || `Quest ${i + 1}`,
+      description: quest.description || 'A mysterious task',
+      tags: [quest.status || 'active'],
+      questGiver: npcIds[i % npcIds.length], // Assign NPCs as quest givers
+      objectives: quest.objectives?.map((obj: any, j: number) => ({
+        id: `objective.${j}`,
+        description: obj.description || obj,
+        completed: obj.completed || false,
+        location: camlLocations[j % camlLocations.length]?.id
+      })) || [{ id: 'objective.main', description: quest.description, completed: false }],
+      rewards: {
+        xp: quest.xpReward || 100,
+        gold: quest.goldReward || 50,
+        items: quest.itemRewards
+      }
+    };
+  });
+  
+  // Build items from various sources
+  const camlItems: CAMLItem[] = (items || []).map((item, i) => ({
+    id: `item.${item.name?.toLowerCase().replace(/[^a-z0-9]+/g, '_') || `item_${i}`}`,
+    type: 'Item',
+    name: item.name || `Item ${i + 1}`,
+    description: item.description || 'A mysterious item',
+    itemType: item.type || 'wondrous',
+    rarity: item.rarity || 'common',
+    properties: item.properties
+  }));
+  
+  // Add items from character inventories
+  for (const participant of participants) {
+    if (participant.character?.inventory) {
+      for (const invItem of participant.character.inventory) {
+        const itemId = `item.${invItem.name?.toLowerCase().replace(/[^a-z0-9]+/g, '_') || `inv_${camlItems.length}`}`;
+        if (!camlItems.find(i => i.name === invItem.name)) {
+          camlItems.push({
+            id: itemId,
+            type: 'Item',
+            name: invItem.name,
+            description: invItem.description || `${invItem.name} - carried by ${participant.character.name}`,
+            itemType: invItem.type || 'gear',
+            rarity: invItem.rarity || 'common'
+          });
+        }
+      }
+    }
   }
   
   return {
@@ -344,11 +535,11 @@ export function convertCampaignToCAML(
     ruleset: 'dnd5e',
     minLevel: 1,
     maxLevel: 20,
-    setting: storyState.setting || 'Fantasy Realm',
-    startingLocation: camlLocations[0]?.id,
+    setting: storyState.setting || campaign.setting || 'Fantasy Realm',
+    startingLocation: startLocId,
     locations: camlLocations,
     npcs: camlNpcs,
-    items: [],
+    items: camlItems,
     encounters: camlEncounters,
     quests: camlQuests,
     factions: [],
