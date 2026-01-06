@@ -29,7 +29,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -194,6 +194,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   } | null>(null);
   const [monsterImages, setMonsterImages] = useState<Record<string, string>>({});
   const [generatingMonsterImage, setGeneratingMonsterImage] = useState<string | null>(null);
+  const [isDownloadingTrace, setIsDownloadingTrace] = useState(false);
   
   // Chat state for cooperative play
   const [chatMessages, setChatMessages] = useState<any[]>([]);
@@ -627,6 +628,41 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       worldRegionId,
       worldLocationId
     });
+  };
+  
+  // Download trace log handler
+  const handleDownloadTrace = async (format: 'json' | 'yaml') => {
+    try {
+      setIsDownloadingTrace(true);
+      const response = await fetch(`/api/campaigns/${campaign.id}/export/trace?format=${format}`);
+      if (!response.ok) {
+        throw new Error('Failed to download trace');
+      }
+      
+      const data = await response.text();
+      const blob = new Blob([data], { type: format === 'yaml' ? 'text/yaml' : 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${campaign.title.replace(/\s+/g, '_')}_trace.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Trace Downloaded",
+        description: `Your adventure log has been downloaded as ${format.toUpperCase()}.`
+      });
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "Could not download the trace log. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDownloadingTrace(false);
+    }
   };
   
   // Toggle journey log entry expansion
@@ -3505,6 +3541,51 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         This adventure will appear on the world map!
                       </div>
                     )}
+                  </div>
+                  
+                  {/* Adventure Log Export */}
+                  <div className="p-4 bg-white dark:bg-slate-800 rounded-lg border-2 border-slate-300 dark:border-slate-600 mt-4 shadow-sm">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Download className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      <h3 className="font-bold text-slate-900 dark:text-slate-100">Download Adventure Log</h3>
+                    </div>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+                      Export a complete record of everything that happened in this adventure - all movement, combat, items, and story events in CAML-trace format.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadTrace('yaml')}
+                        disabled={isDownloadingTrace}
+                        className="flex items-center gap-2"
+                        data-testid="button-download-trace-yaml"
+                        aria-label="Download adventure log in YAML format"
+                      >
+                        {isDownloadingTrace ? (
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <FileText className="h-4 w-4" aria-hidden="true" />
+                        )}
+                        Download YAML
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadTrace('json')}
+                        disabled={isDownloadingTrace}
+                        className="flex items-center gap-2"
+                        data-testid="button-download-trace-json"
+                        aria-label="Download adventure log in JSON format"
+                      >
+                        {isDownloadingTrace ? (
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <FileJson className="h-4 w-4" aria-hidden="true" />
+                        )}
+                        Download JSON
+                      </Button>
+                    </div>
                   </div>
                   
                   <div className="flex justify-end mt-4">
