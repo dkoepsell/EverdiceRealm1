@@ -32,7 +32,9 @@ import {
   userWorldProgress, type UserWorldProgress, type InsertUserWorldProgress,
   // Bulletin board
   bulletinPosts, type BulletinPost, type InsertBulletinPost,
-  bulletinResponses, type BulletinResponse, type InsertBulletinResponse
+  bulletinResponses, type BulletinResponse, type InsertBulletinResponse,
+  // CAML trace events
+  campaignTraceEvents, type CampaignTraceEvent, type InsertCampaignTraceEvent
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or } from "drizzle-orm";
@@ -250,6 +252,12 @@ export interface IStorage {
   getBulletinResponses(postId: number): Promise<BulletinResponse[]>;
   createBulletinResponse(response: InsertBulletinResponse): Promise<BulletinResponse>;
   deleteBulletinResponse(id: number): Promise<boolean>;
+  
+  // CAML Trace Event operations
+  recordTraceEvent(event: InsertCampaignTraceEvent): Promise<CampaignTraceEvent>;
+  getTraceEvents(campaignId: number, sessionId?: string): Promise<CampaignTraceEvent[]>;
+  getTraceEventCount(campaignId: number): Promise<number>;
+  clearTraceEvents(campaignId: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -2238,6 +2246,43 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(bulletinPosts.id, response.postId));
     }
+    return true;
+  }
+  
+  // CAML Trace Event operations
+  async recordTraceEvent(event: InsertCampaignTraceEvent): Promise<CampaignTraceEvent> {
+    const [created] = await db.insert(campaignTraceEvents)
+      .values(event)
+      .returning();
+    return created;
+  }
+  
+  async getTraceEvents(campaignId: number, sessionId?: string): Promise<CampaignTraceEvent[]> {
+    if (sessionId) {
+      return db.select()
+        .from(campaignTraceEvents)
+        .where(and(
+          eq(campaignTraceEvents.campaignId, campaignId),
+          eq(campaignTraceEvents.sessionId, sessionId)
+        ))
+        .orderBy(asc(campaignTraceEvents.id));
+    }
+    return db.select()
+      .from(campaignTraceEvents)
+      .where(eq(campaignTraceEvents.campaignId, campaignId))
+      .orderBy(asc(campaignTraceEvents.id));
+  }
+  
+  async getTraceEventCount(campaignId: number): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(campaignTraceEvents)
+      .where(eq(campaignTraceEvents.campaignId, campaignId));
+    return Number(result[0]?.count || 0);
+  }
+  
+  async clearTraceEvents(campaignId: number): Promise<boolean> {
+    await db.delete(campaignTraceEvents)
+      .where(eq(campaignTraceEvents.campaignId, campaignId));
     return true;
   }
 }
