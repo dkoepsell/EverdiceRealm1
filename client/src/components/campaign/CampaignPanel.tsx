@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Campaign, CampaignSession, Character, Npc, WorldRegion, WorldLocation } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -47,6 +47,7 @@ import TurnManager from "./TurnManager";
 import CampaignDeploymentTab from "./CampaignDeploymentTab";
 import { DungeonMapModal } from "../dungeon/DungeonMapModal";
 import type { DungeonMapData, MapEntity } from "../dungeon/DungeonMap";
+import { generateDungeon } from "../dungeon/DungeonGenerator";
 
 interface CampaignPanelProps {
   campaign: Campaign;
@@ -82,12 +83,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     enabled: !!campaign.id,
   });
   
-  // Campaign dungeon map (persistent)
-  const { data: persistedDungeonMap, isLoading: dungeonMapLoading } = useQuery<any>({
-    queryKey: [`/api/campaigns/${campaign.id}/dungeon-map`],
-    enabled: !!campaign.id,
-    retry: false,
-  });
+  // We use a ref to track previous location to detect changes
+  const prevLocationRef = useRef<string | null>(null);
   
   // Campaign quests (from database)
   const { data: campaignQuests = [], isLoading: questsLoading } = useQuery<any[]>({
@@ -117,7 +114,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       return await response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/dungeon-map`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/dungeon-map`, { location: dungeonMapLocation || '' }] });
     },
   });
   
@@ -183,6 +180,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [managedCharacterId, setManagedCharacterId] = useState<number | null>(null);
   const [dungeonMapData, setDungeonMapData] = useState<DungeonMapData | null>(null);
   const [dungeonMapId, setDungeonMapId] = useState<number | null>(null);
+  const [dungeonMapLocation, setDungeonMapLocation] = useState<string | null>(null);
+  const [isGeneratingMap, setIsGeneratingMap] = useState(false);
   const [monsterImages, setMonsterImages] = useState<Record<string, string>>({});
   const [generatingMonsterImage, setGeneratingMonsterImage] = useState<string | null>(null);
   
@@ -411,6 +410,47 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
   }, [sessions, campaign]);
   
+  // Get current location from story state
+  const currentLocation = useMemo(() => {
+    if (parsedStoryState?.currentLocation) {
+      const loc = parsedStoryState.currentLocation;
+      return typeof loc === 'string' ? loc : (loc as any)?.name || 'Unknown Location';
+    }
+    if (currentSession?.location) {
+      return currentSession.location;
+    }
+    return campaign.title || 'Adventure';
+  }, [parsedStoryState?.currentLocation, currentSession?.location, campaign.title]);
+  
+  // Campaign dungeon map (persistent) - fetched by location
+  // Track if map definitely doesn't exist (404) vs just not loaded yet
+  const [mapNotFound, setMapNotFound] = useState(false);
+  
+  const { data: persistedDungeonMap, isLoading: dungeonMapLoading, isError: dungeonMapError } = useQuery<any>({
+    queryKey: [`/api/campaigns/${campaign.id}/dungeon-map`, { location: currentLocation }],
+    queryFn: async () => {
+      const response = await fetch(`/api/campaigns/${campaign.id}/dungeon-map?location=${encodeURIComponent(currentLocation)}`, {
+        credentials: 'include',
+      });
+      if (response.status === 404) {
+        setMapNotFound(true);
+        return null; // No map for this location
+      }
+      if (!response.ok) {
+        throw new Error('Failed to fetch dungeon map');
+      }
+      setMapNotFound(false);
+      return response.json();
+    },
+    enabled: !!campaign.id && !!currentLocation,
+    retry: false,
+  });
+  
+  // Reset mapNotFound when location changes
+  useEffect(() => {
+    setMapNotFound(false);
+  }, [currentLocation]);
+  
   // Load persisted dungeon map from database
   useEffect(() => {
     if (persistedDungeonMap && persistedDungeonMap.mapData) {
@@ -418,15 +458,80 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       if (persistedDungeonMap.id && persistedDungeonMap.id !== dungeonMapId) {
         setDungeonMapId(persistedDungeonMap.id);
       }
-      // Only set map data if we don't have it yet
-      if (!dungeonMapData) {
-        setDungeonMapData({
-          ...persistedDungeonMap.mapData,
-          playerPosition: persistedDungeonMap.playerPosition || { x: 0, y: 0 },
-        });
+      // Track the location this map was generated for
+      if (persistedDungeonMap.mapName && persistedDungeonMap.mapName !== dungeonMapLocation) {
+        setDungeonMapLocation(persistedDungeonMap.mapName);
       }
+      // Set map data
+      setDungeonMapData({
+        ...persistedDungeonMap.mapData,
+        playerPosition: persistedDungeonMap.playerPosition || { x: 0, y: 0 },
+      });
     }
-  }, [persistedDungeonMap, dungeonMapData, dungeonMapId]);
+  }, [persistedDungeonMap, dungeonMapId, dungeonMapLocation]);
+  
+  // Check if map matches current location
+  const mapMatchesLocation = useMemo(() => {
+    if (!dungeonMapLocation || !currentLocation) return true;
+    return dungeonMapLocation.toLowerCase().includes(currentLocation.toLowerCase()) ||
+           currentLocation.toLowerCase().includes(dungeonMapLocation.toLowerCase());
+  }, [dungeonMapLocation, currentLocation]);
+  
+  // Clear map state when location changes
+  useEffect(() => {
+    if (prevLocationRef.current && prevLocationRef.current !== currentLocation) {
+      // Location changed - clear current map data
+      setDungeonMapData(null);
+      setDungeonMapId(null);
+      setDungeonMapLocation(null);
+    }
+    prevLocationRef.current = currentLocation;
+  }, [currentLocation]);
+  
+  // Function to generate a new map for the current location
+  const handleGenerateMap = async () => {
+    setIsGeneratingMap(true);
+    try {
+      const newMap = generateDungeon({
+        width: 25,
+        height: 18,
+        maxRooms: 7,
+        dungeonName: currentLocation,
+        dungeonLevel: currentSession?.sessionNumber || 1,
+      });
+      
+      // Save the new map to the database
+      const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/dungeon-map`, {
+        mapName: currentLocation,
+        mapData: newMap,
+        playerPosition: newMap.playerPosition || { x: 0, y: 0 },
+        exploredTiles: [],
+        entityPositions: [],
+      });
+      
+      const savedMap = await response.json();
+      
+      setDungeonMapData(newMap);
+      setDungeonMapId(savedMap.id);
+      setDungeonMapLocation(currentLocation);
+      
+      toast({
+        title: "Map Generated",
+        description: `Created map for ${currentLocation}`,
+      });
+      
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/dungeon-map`, { location: currentLocation }] });
+    } catch (error) {
+      console.error('Failed to generate map:', error);
+      toast({
+        title: "Failed to generate map",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingMap(false);
+    }
+  };
   
   // Sync combat entities (enemies and party) to dungeon map
   useEffect(() => {
@@ -692,7 +797,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       // Update dungeon map if movement occurred from narrative
       if (data.dungeonMapData) {
         setDungeonMapData(data.dungeonMapData);
-        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/dungeon-map`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/dungeon-map`, { location: currentLocation }] });
         
         // Show movement notification if there was movement
         if (data.movement?.occurred) {
@@ -1637,47 +1742,80 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         Session {currentSession.sessionNumber}: {currentSession.title}
                       </h3>
                       
-                      {/* Map and location controls */}
+                      {/* Map and location controls - map is location-specific */}
                       <div className="flex items-center gap-2">
-                        <DungeonMapModal
-                          campaignId={campaign.id}
-                          campaignName={campaign.title}
-                          dungeonLevel={currentSession.sessionNumber}
-                          mapId={dungeonMapId}
-                          initialMapData={dungeonMapData}
-                          onMapDataChange={handleDungeonMapChange}
-                          pendingEncounter={parsedStoryState?.pendingEncounter}
-                          readOnly={true}
-                          onTileInteraction={(x, y, tileType) => {
-                            if (tileType === "treasure") {
-                              toast({
-                                title: "Treasure!",
-                                description: "You found treasure! Roll Investigation to search.",
-                              });
-                            } else if (tileType === "trap") {
-                              toast({
-                                title: "Trap triggered!",
-                                description: "Make a Dexterity save to avoid damage.",
-                                variant: "destructive",
-                              });
-                            }
-                          }}
-                          onEntityInteraction={(entity) => {
-                            if (entity.type === "enemy" || entity.type === "boss") {
-                              toast({
-                                title: `${entity.name} encountered!`,
-                                description: `HP: ${entity.hp}/${entity.maxHp}`,
-                                variant: "destructive",
-                              });
-                            }
-                          }}
-                        />
-                        {currentSession.location && (
-                          <Button variant="outline" size="sm" className="flex items-center gap-1">
-                            <MapPin className="h-4 w-4" />
-                            <span className="hidden sm:inline">{currentSession.location}</span>
+                        {dungeonMapLoading ? (
+                          <Button variant="outline" size="sm" disabled className="flex items-center gap-1">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span>Loading Map...</span>
                           </Button>
-                        )}
+                        ) : dungeonMapError ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="outline" size="sm" className="flex items-center gap-1 text-amber-600 border-amber-400">
+                                <Map className="h-4 w-4" />
+                                <span>Map Error</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Could not load map. Try refreshing.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : dungeonMapData && mapMatchesLocation ? (
+                          <DungeonMapModal
+                            campaignId={campaign.id}
+                            campaignName={campaign.title}
+                            dungeonLevel={currentSession.sessionNumber}
+                            mapId={dungeonMapId}
+                            initialMapData={dungeonMapData}
+                            onMapDataChange={handleDungeonMapChange}
+                            pendingEncounter={parsedStoryState?.pendingEncounter}
+                            readOnly={true}
+                            onTileInteraction={(x, y, tileType) => {
+                              if (tileType === "treasure") {
+                                toast({
+                                  title: "Treasure!",
+                                  description: "You found treasure! Roll Investigation to search.",
+                                });
+                              } else if (tileType === "trap") {
+                                toast({
+                                  title: "Trap triggered!",
+                                  description: "Make a Dexterity save to avoid damage.",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                            onEntityInteraction={(entity) => {
+                              if (entity.type === "enemy" || entity.type === "boss") {
+                                toast({
+                                  title: `${entity.name} encountered!`,
+                                  description: `HP: ${entity.hp}/${entity.maxHp}`,
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                          />
+                        ) : mapNotFound ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleGenerateMap}
+                            disabled={isGeneratingMap}
+                            className="flex items-center gap-1"
+                            data-testid="button-generate-map"
+                          >
+                            {isGeneratingMap ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Map className="h-4 w-4" />
+                            )}
+                            <span>Generate Map</span>
+                          </Button>
+                        ) : null}
+                        <Button variant="outline" size="sm" className="flex items-center gap-1">
+                          <MapPin className="h-4 w-4" />
+                          <span className="hidden sm:inline">{currentLocation}</span>
+                        </Button>
                       </div>
                     </div>
                     

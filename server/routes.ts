@@ -4013,10 +4013,26 @@ Return your response as a JSON object with these fields:
 
   // ==================== Campaign Dungeon Map Routes ====================
   
-  // Get active dungeon map for a campaign
+  // Get dungeon map for a campaign, optionally filtered by location
   app.get("/api/campaigns/:campaignId/dungeon-map", async (req, res) => {
     try {
       const campaignId = parseInt(req.params.campaignId);
+      const location = req.query.location as string | undefined;
+      
+      if (location) {
+        // Find map for specific location
+        const maps = await storage.getCampaignDungeonMaps(campaignId);
+        const locationMap = maps.find(m => 
+          m.mapName.toLowerCase().includes(location.toLowerCase()) ||
+          location.toLowerCase().includes(m.mapName.toLowerCase())
+        );
+        if (!locationMap) {
+          return res.status(404).json({ message: "No dungeon map found for this location" });
+        }
+        return res.json(locationMap);
+      }
+      
+      // Default: return active map
       const map = await storage.getCampaignDungeonMap(campaignId);
       if (!map) {
         return res.status(404).json({ message: "No active dungeon map found" });
