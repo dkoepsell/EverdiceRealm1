@@ -460,78 +460,123 @@ function extractGateReferences(gates: any): string[] {
   return refs;
 }
 
-export const CAML_AI_PROMPT = `You are generating a structured D&D 5e adventure in CAML (Canonical Adventure Markup Language) format.
+export const CAML_AI_PROMPT = `You are generating a RICH, DETAILED D&D 5e adventure in CAML (Canonical Adventure Markup Language) format.
 
-Generate a complete adventure module with the following structure:
+IMPORTANT: Generate a COMPLETE adventure with MANY interconnected elements:
+- At least 6-8 unique LOCATIONS connected in a logical map
+- At least 5-8 distinct NPCs with personalities and motivations
+- At least 8-12 varied ENCOUNTERS (mix of combat, social, puzzle, trap, exploration, treasure)
+- At least 2-3 QUESTS with multiple objectives each
+- At least 4-6 interesting ITEMS as rewards
+
+Create rich CONNECTIONS between elements:
+- NPCs should be present in specific locations
+- Encounters should reference NPCs involved
+- Quests should span multiple locations
+- Items should be rewards for specific encounters
+
+Generate JSON with this structure:
 
 {
   "id": "adventure.unique_id",
-  "type": "AdventureModule",
+  "type": "AdventureModule", 
   "title": "Adventure Title",
-  "synopsis": "Brief adventure summary",
+  "synopsis": "2-3 sentence adventure summary with stakes and hook",
   "minLevel": 1,
   "maxLevel": 5,
-  "setting": "Setting description",
-  "startingLocation": "location.start",
-  "hooks": ["Adventure hook 1", "Adventure hook 2"],
+  "setting": "Vivid setting description with atmosphere and history",
+  "startingLocation": "location.starting_area",
+  "hooks": ["Compelling hook 1 with urgency", "Alternative hook 2 for different motivations", "Mystery hook 3"],
   "locations": [
     {
       "id": "location.unique_id",
       "type": "Location",
-      "name": "Location Name",
-      "description": "Detailed description",
-      "connections": [{"direction": "north", "target": "location.other"}],
-      "encounters": ["encounter.id"],
-      "npcs": ["npc.id"]
+      "name": "Evocative Location Name",
+      "description": "Rich 2-3 sentence description with sensory details, atmosphere, and notable features",
+      "connections": [{"direction": "north", "target": "location.other"}, {"direction": "east", "target": "location.another"}],
+      "encounters": ["encounter.id1", "encounter.id2"],
+      "npcs": ["npc.id1"],
+      "features": ["Notable feature 1", "Interactive element 2"]
     }
   ],
   "npcs": [
     {
       "id": "npc.unique_id",
       "type": "NPC",
-      "name": "NPC Name",
-      "description": "NPC description",
-      "race": "Human",
-      "class": "Warrior",
-      "alignment": "Neutral",
-      "attitude": "friendly",
-      "statblock": {"ac": 15, "hp": 45, "cr": "2"}
+      "name": "Memorable NPC Name",
+      "description": "Personality, appearance, motivations, and secret or goal",
+      "race": "Race",
+      "class": "Class/Role",
+      "level": 3,
+      "alignment": "Alignment",
+      "attitude": "friendly|neutral|hostile|secretive",
+      "statblock": {"ac": 15, "hp": 45, "cr": "2", "speed": "30 ft"},
+      "traits": ["Personality trait", "Quirk or habit"],
+      "bonds": ["What they care about"],
+      "secrets": ["Hidden knowledge or agenda"]
     }
   ],
   "encounters": [
     {
       "id": "encounter.unique_id",
       "type": "Encounter",
-      "name": "Encounter Name",
-      "description": "What happens",
+      "name": "Dramatic Encounter Name",
+      "description": "What happens, why, and stakes involved",
       "encounterType": "combat|social|exploration|puzzle|trap|treasure",
       "difficulty": "easy|medium|hard|deadly",
+      "trigger": "What causes this encounter",
+      "location": "location.where_it_happens",
       "enemies": [{"id": "npc.enemy_id", "count": 2}],
-      "rewards": {"xp": 100, "gold": 50, "items": ["item.id"]}
+      "rewards": {"xp": 100, "gold": 50, "items": ["item.id"]},
+      "outcomes": {"success": "What happens on success", "failure": "Consequence of failure"}
     }
   ],
   "quests": [
     {
       "id": "quest.unique_id",
       "type": "Quest",
-      "name": "Quest Name",
-      "description": "Quest description",
-      "objectives": [{"id": "obj1", "description": "Complete objective"}],
-      "rewards": {"xp": 200, "gold": 100}
+      "name": "Compelling Quest Name",
+      "description": "Quest background, stakes, and why it matters",
+      "questGiver": "npc.who_gives_quest",
+      "objectives": [
+        {"id": "obj1", "description": "First objective", "location": "location.where"},
+        {"id": "obj2", "description": "Second objective", "location": "location.elsewhere"},
+        {"id": "obj3", "description": "Final objective"}
+      ],
+      "rewards": {"xp": 200, "gold": 100, "items": ["item.reward"]},
+      "complications": ["Twist or obstacle", "Moral dilemma"]
     }
   ],
   "items": [
     {
       "id": "item.unique_id",
       "type": "Item",
-      "name": "Item Name",
-      "description": "Item description",
-      "itemType": "weapon|armor|wondrous|consumable",
-      "rarity": "common|uncommon|rare",
-      "properties": "Mechanical properties"
+      "name": "Flavorful Item Name",
+      "description": "Appearance, origin story, and any lore",
+      "itemType": "weapon|armor|wondrous|consumable|treasure",
+      "rarity": "common|uncommon|rare|very_rare",
+      "properties": "Mechanical properties and effects",
+      "value": "50 gp"
+    }
+  ],
+  "factions": [
+    {
+      "id": "faction.unique_id",
+      "type": "Faction",
+      "name": "Faction Name",
+      "description": "Goals, methods, and role in adventure",
+      "members": ["npc.member1", "npc.member2"],
+      "attitude": "allied|neutral|hostile"
     }
   ]
 }
 
-Use stable IDs like "location.ruined_tower", "npc.bandit_captain", "encounter.night_ambush".
-Include gates for conditional content and outcomes for state changes when appropriate.`;
+CRITICAL REQUIREMENTS:
+1. Every location MUST connect to at least 2 other locations (create a navigable map)
+2. Every NPC MUST be referenced by at least one encounter or quest
+3. Every encounter MUST specify a location
+4. Quests should have 2-4 objectives spanning multiple locations
+5. Create meaningful relationships - NPCs belong to factions, items are quest rewards, encounters guard treasures
+6. Use stable IDs like "location.ruined_tower", "npc.bandit_captain", "encounter.night_ambush"
+7. Include variety: combat, roleplay, puzzles, traps, and exploration encounters
+8. Add at least one major villain NPC with clear motivations`;
