@@ -16,7 +16,9 @@ import {
   ChevronRight,
   ZoomIn,
   ZoomOut,
-  RotateCcw
+  RotateCcw,
+  Compass,
+  Navigation
 } from "lucide-react";
 
 export type TileType = 
@@ -68,19 +70,20 @@ export interface DungeonMapData {
   level?: number;
 }
 
+// High contrast tile colors for better visibility - with dark mode support
 const TILE_COLORS: Record<TileType, { bg: string; border: string }> = {
-  floor: { bg: "bg-stone-700", border: "border-stone-600" },
-  wall: { bg: "bg-stone-900", border: "border-stone-800" },
-  door: { bg: "bg-amber-800", border: "border-amber-700" },
-  secret_door: { bg: "bg-stone-800", border: "border-stone-700" },
-  trap: { bg: "bg-red-900/50", border: "border-red-800" },
-  treasure: { bg: "bg-yellow-900/50", border: "border-yellow-700" },
-  stairs_up: { bg: "bg-blue-900/50", border: "border-blue-700" },
-  stairs_down: { bg: "bg-purple-900/50", border: "border-purple-700" },
-  water: { bg: "bg-blue-800/70", border: "border-blue-600" },
-  lava: { bg: "bg-orange-700", border: "border-orange-500" },
-  pit: { bg: "bg-black", border: "border-gray-900" },
-  fog: { bg: "bg-gray-600/50", border: "border-gray-500" },
+  floor: { bg: "bg-amber-200 dark:bg-amber-700", border: "border-amber-400 dark:border-amber-500" },
+  wall: { bg: "bg-stone-700 dark:bg-stone-900", border: "border-stone-500 dark:border-stone-700" },
+  door: { bg: "bg-amber-500 dark:bg-amber-600", border: "border-amber-600 dark:border-amber-400" },
+  secret_door: { bg: "bg-stone-400 dark:bg-stone-600", border: "border-stone-500 dark:border-stone-500" },
+  trap: { bg: "bg-red-400 dark:bg-red-600", border: "border-red-500 dark:border-red-400" },
+  treasure: { bg: "bg-yellow-400 dark:bg-yellow-500", border: "border-yellow-500 dark:border-yellow-400" },
+  stairs_up: { bg: "bg-cyan-400 dark:bg-cyan-600", border: "border-cyan-500 dark:border-cyan-400" },
+  stairs_down: { bg: "bg-purple-400 dark:bg-purple-600", border: "border-purple-500 dark:border-purple-400" },
+  water: { bg: "bg-blue-400 dark:bg-blue-600", border: "border-blue-500 dark:border-blue-400" },
+  lava: { bg: "bg-orange-500 dark:bg-orange-600", border: "border-orange-600 dark:border-orange-400" },
+  pit: { bg: "bg-gray-800 dark:bg-black", border: "border-gray-600 dark:border-gray-800" },
+  fog: { bg: "bg-slate-300 dark:bg-slate-600", border: "border-slate-400 dark:border-slate-500" },
 };
 
 const ENTITY_COLORS: Record<EntityType, string> = {
@@ -247,12 +250,32 @@ export function DungeonMap({
       <CardContent>
         <div className="flex gap-4">
           <div 
-            className="relative overflow-auto border border-border rounded-lg bg-black/50 p-2"
-            style={{ maxHeight: "400px", maxWidth: "100%" }}
+            className="relative overflow-auto border-2 border-amber-500 dark:border-amber-700 rounded-lg bg-stone-200 dark:bg-stone-950 p-3"
+            style={{ maxHeight: "450px", maxWidth: "100%" }}
             data-testid="dungeon-map-grid"
           >
+            {/* Compass Rose Overlay */}
+            <div className="absolute top-2 right-2 z-20 bg-white/90 dark:bg-stone-900/90 rounded-lg p-2 border border-amber-500 dark:border-amber-600 shadow-md">
+              <div className="flex flex-col items-center text-xs font-bold">
+                <span className="text-amber-600 dark:text-amber-400">N</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-amber-600 dark:text-amber-400">W</span>
+                  <Compass className="w-6 h-6 text-amber-600 dark:text-amber-500" />
+                  <span className="text-amber-600 dark:text-amber-400">E</span>
+                </div>
+                <span className="text-amber-600 dark:text-amber-400">S</span>
+              </div>
+            </div>
+            
+            {/* Player Position Indicator */}
+            <div className="absolute top-2 left-2 z-20 bg-white/90 dark:bg-stone-900/90 rounded-lg px-2 py-1 border border-emerald-500 dark:border-emerald-600 text-xs shadow-md">
+              <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                Position: ({mapData.playerPosition.x}, {mapData.playerPosition.y})
+              </span>
+            </div>
+            
             <div
-              className="grid gap-0.5"
+              className="grid gap-0.5 mt-8"
               style={{
                 gridTemplateColumns: `repeat(${mapData.width}, ${tileSize}px)`,
                 gridTemplateRows: `repeat(${mapData.height}, ${tileSize}px)`,
@@ -272,11 +295,11 @@ export function DungeonMap({
                       key={`${x}-${y}`}
                       className={`
                         relative flex items-center justify-center
-                        ${tileColor.bg} ${tileColor.border} border
-                        ${!isExplored ? "opacity-20" : isVisible ? "opacity-100" : "opacity-60"}
+                        ${!isExplored ? 'bg-slate-800 dark:bg-slate-950' : tileColor.bg} ${tileColor.border} border
+                        ${!isExplored ? "opacity-50" : isVisible ? "opacity-100" : "opacity-80"}
                         ${interactive && tile.type !== "wall" ? "cursor-pointer hover:ring-2 hover:ring-primary/50" : ""}
                         ${isSelected ? "ring-2 ring-yellow-400" : ""}
-                        transition-all duration-150
+                        transition-all duration-200
                       `}
                       style={{ width: tileSize, height: tileSize }}
                       onClick={() => {
@@ -296,9 +319,9 @@ export function DungeonMap({
                         </div>
                       )}
                       {isPlayerHere && (
-                        <div className="absolute inset-0 flex items-center justify-center animate-pulse">
-                          <div className="w-6 h-6 rounded-full bg-green-500/80 flex items-center justify-center">
-                            <User className="w-4 h-4 text-white" />
+                        <div className="absolute inset-0 flex items-center justify-center z-10">
+                          <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/50 ring-2 ring-white animate-pulse">
+                            <Navigation className="w-4 h-4 text-white" />
                           </div>
                         </div>
                       )}
@@ -354,31 +377,43 @@ export function DungeonMap({
                 <div />
               </div>
               
-              <div className="mt-4 space-y-1">
-                <div className="text-sm font-medium text-muted-foreground">Legend</div>
-                <div className="flex items-center gap-2 text-xs">
-                  <div className="w-4 h-4 bg-stone-700 border border-stone-600 rounded-sm" />
-                  <span>Floor</span>
+              <div className="mt-4 space-y-1.5 bg-stone-100 dark:bg-stone-900 p-2 rounded-lg border border-stone-300 dark:border-stone-700">
+                <div className="text-sm font-bold text-stone-800 dark:text-stone-200">Map Legend</div>
+                <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                  <div className="w-4 h-4 bg-amber-200 dark:bg-amber-700 border-2 border-amber-400 dark:border-amber-500 rounded-sm" />
+                  <span className="font-medium">Floor (explored)</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <div className="w-4 h-4 bg-stone-900 border border-stone-800 rounded-sm" />
-                  <span>Wall</span>
+                <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                  <div className="w-4 h-4 bg-stone-700 dark:bg-stone-900 border-2 border-stone-500 dark:border-stone-700 rounded-sm" />
+                  <span className="font-medium">Wall</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <DoorOpen className="w-4 h-4 text-amber-400" />
-                  <span>Door</span>
+                <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                  <div className="w-4 h-4 bg-amber-500 dark:bg-amber-600 border-2 border-amber-600 dark:border-amber-400 rounded-sm flex items-center justify-center">
+                    <DoorOpen className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="font-medium">Door</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <Gem className="w-4 h-4 text-yellow-400" />
-                  <span>Treasure</span>
+                <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                  <div className="w-4 h-4 bg-yellow-400 dark:bg-yellow-500 border-2 border-yellow-500 dark:border-yellow-400 rounded-sm flex items-center justify-center">
+                    <Gem className="w-3 h-3 text-amber-800 dark:text-amber-900" />
+                  </div>
+                  <span className="font-medium">Treasure</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <User className="w-4 h-4 text-green-400" />
-                  <span>Player</span>
+                <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                  <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center ring-2 ring-white shadow">
+                    <Navigation className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="font-medium">You (Party)</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <Skull className="w-4 h-4 text-red-400" />
-                  <span>Enemy</span>
+                <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                  <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                    <Skull className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="font-medium">Enemy</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                  <div className="w-4 h-4 bg-slate-800 dark:bg-slate-950 opacity-50 border border-slate-600 dark:border-slate-700 rounded-sm" />
+                  <span className="font-medium">Unexplored</span>
                 </div>
               </div>
             </div>
