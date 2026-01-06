@@ -182,6 +182,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [dungeonMapId, setDungeonMapId] = useState<number | null>(null);
   const [dungeonMapLocation, setDungeonMapLocation] = useState<string | null>(null);
   const [isGeneratingMap, setIsGeneratingMap] = useState(false);
+  const [chapterProgress, setChapterProgress] = useState<{
+    combat: { done: number; required: number; complete: boolean };
+    traps: { done: number; required: number; complete: boolean };
+    treasure: { done: number; required: number; complete: boolean };
+    puzzles: { done: number; required: number; complete: boolean };
+    discoveries: { done: number; required: number; complete: boolean };
+    totalPercent: number;
+    totalDone: number;
+    totalRequired: number;
+  } | null>(null);
   const [monsterImages, setMonsterImages] = useState<Record<string, string>>({});
   const [generatingMonsterImage, setGeneratingMonsterImage] = useState<string | null>(null);
   
@@ -813,14 +823,24 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         }
       }
       
-      // Handle automatic session advancement
+      // Handle automatic session advancement with detailed summary
       if (data.sessionAdvanced && data.newSessionNumber) {
+        const summary = data.chapterSummary;
+        const summaryText = summary 
+          ? `Encounters: ${summary.encountersDefeated}, Puzzles: ${summary.puzzlesSolved}, Treasures: ${summary.treasuresFound}, Discoveries: ${summary.discoveriesMade}`
+          : "New challenges await!";
+        
         toast({
-          title: "New Chapter Begins!",
-          description: `The adventure advances to Chapter ${data.newSessionNumber}. New challenges await!`,
+          title: `🎉 Chapter ${data.newSessionNumber - 1} Complete!`,
+          description: `${summaryText}. Beginning Chapter ${data.newSessionNumber}...`,
         });
         // Refresh the current session to show the new chapter
         queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
+      }
+      
+      // Update chapter progress state if available
+      if (data.chapterProgress) {
+        setChapterProgress(data.chapterProgress);
       }
       
       // Close dialogs

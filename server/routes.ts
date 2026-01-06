@@ -6583,6 +6583,7 @@ Ensure all elements are interconnected and form a cohesive narrative. Include 3-
       if (activeMap && activeMap.mapData) {
         const mapData = typeof activeMap.mapData === 'string' ? JSON.parse(activeMap.mapData) : activeMap.mapData;
         const playerPos = mapData.playerPosition || { x: 4, y: 4 };
+        const currentTile = mapData.tiles?.[playerPos.y]?.[playerPos.x];
         
         // Analyze passable directions from current position
         const directions: Record<string, { dx: number, dy: number, name: string }> = {
@@ -6594,6 +6595,7 @@ Ensure all elements are interconnected and form a cohesive narrative. Include 3-
         
         const passableExits: string[] = [];
         const blockedDirections: string[] = [];
+        const exitDetails: string[] = [];
         
         for (const [dir, delta] of Object.entries(directions)) {
           const nx = playerPos.x + delta.dx;
@@ -6605,16 +6607,30 @@ Ensure all elements are interconnected and form a cohesive narrative. Include 3-
             
             if (tileType !== 'wall') {
               if (tileType === 'door_locked') {
-                passableExits.push(`${dir} (locked door - requires key or lockpicking)`);
+                passableExits.push(`${dir} (locked door)`);
+                exitDetails.push(`${dir.toUpperCase()}: A heavy locked door blocks the way. Requires a key or lockpicking (DC 15).`);
               } else if (tileType === 'secret_door') {
-                // Don't reveal secret doors unless explored
                 if (tile?.explored) {
                   passableExits.push(`${dir} (secret passage)`);
+                  exitDetails.push(`${dir.toUpperCase()}: A hidden passage you discovered, leading deeper into darkness.`);
                 } else {
                   blockedDirections.push(dir);
                 }
+              } else if (tileType === 'door') {
+                passableExits.push(`${dir} (door)`);
+                exitDetails.push(`${dir.toUpperCase()}: An open doorway leading to another chamber.`);
+              } else if (tileType === 'corridor') {
+                passableExits.push(`${dir} (corridor)`);
+                exitDetails.push(`${dir.toUpperCase()}: A narrow corridor stretches into shadow.`);
+              } else if (tileType === 'trap') {
+                passableExits.push(`${dir} (trap visible)`);
+                exitDetails.push(`${dir.toUpperCase()}: A suspicious section of floor - possible trap!`);
+              } else if (tileType === 'treasure') {
+                passableExits.push(`${dir} (treasure)`);
+                exitDetails.push(`${dir.toUpperCase()}: Something glints in the darkness - treasure ahead!`);
               } else {
                 passableExits.push(dir);
+                exitDetails.push(`${dir.toUpperCase()}: Open passage.`);
               }
             } else {
               blockedDirections.push(dir);
@@ -6624,18 +6640,69 @@ Ensure all elements are interconnected and form a cohesive narrative. Include 3-
           }
         }
         
+        // Describe the current room/tile
+        const tileTypeDescriptions: Record<string, string> = {
+          'floor': 'an open chamber with stone floors',
+          'corridor': 'a narrow corridor',
+          'door': 'a doorway',
+          'treasure': 'a room with a treasure chest',
+          'trap': 'a room with suspicious floor tiles',
+          'stairs_up': 'a room with stairs leading up',
+          'stairs_down': 'a room with stairs leading down',
+          'water': 'a flooded area with water on the floor',
+          'lava': 'a dangerous area near molten lava',
+          'pit': 'an area with a deep pit'
+        };
+        
+        const currentRoomDesc = mapData.currentRoom?.description || 
+          tileTypeDescriptions[currentTile?.type || 'floor'] || 
+          'a stone chamber';
+        
+        // Get nearby entities (enemies, NPCs)
+        const nearbyEntities: string[] = [];
+        if (mapData.entities && mapData.entities.length > 0) {
+          for (const entity of mapData.entities) {
+            const dist = Math.abs(entity.x - playerPos.x) + Math.abs(entity.y - playerPos.y);
+            if (dist <= 3) {
+              nearbyEntities.push(`${entity.name} (${entity.type}) - ${dist === 0 ? 'in this room' : dist + ' tiles away'}`);
+            }
+          }
+        }
+        
+        // Get room features from current room data
+        const roomFeatures = mapData.currentRoom?.features || [];
+        const featuresList = roomFeatures.length > 0 ? roomFeatures.join(', ') : 'stone walls, dusty floor';
+        
+        // Get lighting conditions
+        const lighting = mapData.currentRoom?.lighting || 'dim torchlight';
+        
         currentMapState = `
-DUNGEON MAP STATE (CRITICAL - Movement MUST respect these constraints!):
-- Current Position: (${playerPos.x}, ${playerPos.y})
-- Current Room: ${mapData.currentRoom?.name || 'Unknown Location'}
-- PASSABLE EXITS: ${passableExits.length > 0 ? passableExits.join(', ') : 'NONE - party is trapped!'}
-- BLOCKED DIRECTIONS: ${blockedDirections.length > 0 ? blockedDirections.join(', ') + ' (walls)' : 'None'}
+DUNGEON MAP STATE (CRITICAL - Your narrative MUST accurately describe this environment!):
+═══════════════════════════════════════════════════════════════════════════════
 
-MOVEMENT CONSTRAINT RULES:
-- You can ONLY offer movement choices in directions that have passable exits
-- DO NOT offer choices to move in blocked directions (they hit walls)
-- If a direction has a locked door, player needs a key or must pick the lock first
-- If all exits are blocked, the party must find another way (secret door, break wall, etc.)
+CURRENT LOCATION:
+- Position: (${playerPos.x}, ${playerPos.y})
+- Room Name: ${mapData.currentRoom?.name || 'Unknown Chamber'}
+- Room Description: ${currentRoomDesc}
+- Lighting: ${lighting}
+- Visible Features: ${featuresList}
+
+EXITS (You MUST only reference these exits in your narrative):
+${exitDetails.length > 0 ? exitDetails.join('\n') : 'No visible exits - the party is trapped!'}
+
+BLOCKED DIRECTIONS (DO NOT mention these as options): ${blockedDirections.length > 0 ? blockedDirections.join(', ') : 'None'}
+
+${nearbyEntities.length > 0 ? `NEARBY CREATURES:\n${nearbyEntities.join('\n')}` : ''}
+
+═══════════════════════════════════════════════════════════════════════════════
+NARRATIVE RULES (MANDATORY):
+1. Your description MUST match the room description and features above
+2. Only mention exits that exist in the EXITS list - DO NOT invent new passages
+3. If describing movement options, only offer directions from PASSABLE EXITS
+4. Blocked directions have solid walls - never suggest the party can go that way
+5. Match the lighting description in your narrative (${lighting})
+6. If enemies are listed above, acknowledge their presence
+═══════════════════════════════════════════════════════════════════════════════
 `;
       }
       
@@ -8067,6 +8134,52 @@ Respond with JSON:
       const adventureRequirements = mergedStoryState.adventureRequirements || {};
       
       // Check completion conditions - evaluate FULL campaign state, not just this turn
+      // Calculate detailed progress breakdown for frontend display
+      const progressMetrics = adventureProgress.encounters || {};
+      const requirementMetrics = adventureRequirements.encounters || {};
+      
+      // Combat encounters
+      const combatRequired = requirementMetrics.combat || 3; // Default 3 combat encounters
+      const combatDone = progressMetrics.combat || 0;
+      
+      // Trap encounters  
+      const trapRequired = requirementMetrics.trap || 2; // Default 2 trap encounters
+      const trapDone = progressMetrics.trap || 0;
+      
+      // Treasure encounters
+      const treasureRequired = requirementMetrics.treasure || 2; // Default 2 treasures
+      const treasureDone = progressMetrics.treasure || 0;
+      
+      // Puzzles
+      const puzzlesRequired = adventureRequirements.puzzles || 1; // Default 1 puzzle
+      const puzzlesDone = adventureProgress.puzzles || 0;
+      
+      // Discoveries
+      const discoveriesRequired = adventureRequirements.discoveries || 2; // Default 2 discoveries
+      const discoveriesDone = adventureProgress.discoveries || 0;
+      
+      // Calculate totals (capped at required for percentage)
+      const totalRequired = combatRequired + trapRequired + treasureRequired + puzzlesRequired + discoveriesRequired;
+      const totalDone = Math.min(combatDone, combatRequired) + 
+                        Math.min(trapDone, trapRequired) + 
+                        Math.min(treasureDone, treasureRequired) + 
+                        Math.min(puzzlesDone, puzzlesRequired) + 
+                        Math.min(discoveriesDone, discoveriesRequired);
+      
+      const progressPercent = totalRequired > 0 ? Math.floor((totalDone / totalRequired) * 100) : 0;
+      
+      // Build chapter progress breakdown for frontend
+      const chapterProgressBreakdown = {
+        combat: { done: combatDone, required: combatRequired, complete: combatDone >= combatRequired },
+        traps: { done: trapDone, required: trapRequired, complete: trapDone >= trapRequired },
+        treasure: { done: treasureDone, required: treasureRequired, complete: treasureDone >= treasureRequired },
+        puzzles: { done: puzzlesDone, required: puzzlesRequired, complete: puzzlesDone >= puzzlesRequired },
+        discoveries: { done: discoveriesDone, required: discoveriesRequired, complete: discoveriesDone >= discoveriesRequired },
+        totalPercent: progressPercent,
+        totalDone,
+        totalRequired
+      };
+      
       const shouldAdvanceSession = (() => {
         // Get ALL active quests from story state (the full list, not just this turn's updates)
         const allQuests = mergedStoryState.activeQuests || [];
@@ -8076,43 +8189,6 @@ Respond with JSON:
           allQuests.every((q: any) => q.status === 'completed');
         
         // Condition 2: Adventure progress at 100%
-        const progressMetrics = adventureProgress.encounters || {};
-        const requirementMetrics = adventureRequirements.encounters || {};
-        
-        let totalRequired = 0;
-        let totalDone = 0;
-        
-        // Combat encounters
-        const combatRequired = requirementMetrics.combat || 0;
-        const combatDone = Math.min(progressMetrics.combat || 0, combatRequired);
-        totalRequired += combatRequired;
-        totalDone += combatDone;
-        
-        // Trap encounters
-        const trapRequired = requirementMetrics.trap || 0;
-        const trapDone = Math.min(progressMetrics.trap || 0, trapRequired);
-        totalRequired += trapRequired;
-        totalDone += trapDone;
-        
-        // Treasure encounters
-        const treasureRequired = requirementMetrics.treasure || 0;
-        const treasureDone = Math.min(progressMetrics.treasure || 0, treasureRequired);
-        totalRequired += treasureRequired;
-        totalDone += treasureDone;
-        
-        // Puzzles
-        const puzzlesRequired = adventureRequirements.puzzles || 0;
-        const puzzlesDone = Math.min(adventureProgress.puzzles || 0, puzzlesRequired);
-        totalRequired += puzzlesRequired;
-        totalDone += puzzlesDone;
-        
-        // Discoveries
-        const discoveriesRequired = adventureRequirements.discoveries || 0;
-        const discoveriesDone = Math.min(adventureProgress.discoveries || 0, discoveriesRequired);
-        totalRequired += discoveriesRequired;
-        totalDone += discoveriesDone;
-        
-        const progressPercent = totalRequired > 0 ? Math.floor((totalDone / totalRequired) * 100) : 0;
         const adventureComplete = progressPercent >= 100 && totalRequired > 0;
         
         // Condition 3: Check if a major quest was JUST completed this turn AND adventure progress is high enough (75%+)
@@ -8231,7 +8307,18 @@ Respond with JSON:
         dungeonState: storyAdvancement.dungeonState || null,
         movement: movementResponse,
         sessionAdvanced,
-        newSessionNumber: sessionAdvanced ? newSessionData?.sessionNumber : null
+        newSessionNumber: sessionAdvanced ? newSessionData?.sessionNumber : null,
+        chapterProgress: chapterProgressBreakdown,
+        chapterComplete: sessionAdvanced,
+        chapterSummary: sessionAdvanced ? {
+          chaptersCompleted: currentSession.sessionNumber,
+          questsCompleted: (mergedStoryState.activeQuests || []).filter((q: any) => q.status === 'completed').length,
+          encountersDefeated: combatDone,
+          puzzlesSolved: puzzlesDone,
+          treasuresFound: treasureDone,
+          discoveriesMade: discoveriesDone,
+          trapsOvercome: trapDone
+        } : null
       });
     } catch (error) {
       console.error("Failed to advance story:", error);
