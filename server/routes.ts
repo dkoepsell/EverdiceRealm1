@@ -6998,16 +6998,39 @@ Respond with JSON:
       if (effectiveDirection) {
         console.log(`Processing movement - AI movement: ${hasAIMovement}, Detected movement: ${hasDetectedMovement}, Direction: ${effectiveDirection}`);
         try {
-          // Get the current dungeon map for this campaign - use location-aware lookup
+          // Get the current dungeon map for this campaign - use flexible location matching
           const allMaps = await storage.getCampaignDungeonMaps(campaignId);
           
-          // Find map matching the current location - ONLY update if exact match exists
-          const locationToMatch = currentLocation || '';
-          const dungeonMap = allMaps.find(m => 
-            m.mapName?.toLowerCase() === locationToMatch.toLowerCase()
+          // Find map matching the current location with flexible matching
+          const locationToMatch = (currentLocation || '').toLowerCase().trim();
+          
+          // Try exact match first
+          let dungeonMap = allMaps.find(m => 
+            m.mapName?.toLowerCase().trim() === locationToMatch
           );
           
-          // Only update if we found an exact location match - don't mutate other location's maps
+          // If no exact match, try partial match (location contains map name or vice versa)
+          if (!dungeonMap && locationToMatch) {
+            dungeonMap = allMaps.find(m => {
+              const mapNameLower = (m.mapName || '').toLowerCase().trim();
+              return locationToMatch.includes(mapNameLower) || mapNameLower.includes(locationToMatch);
+            });
+          }
+          
+          // If still no match but campaign has only one map, use that
+          if (!dungeonMap && allMaps.length === 1) {
+            dungeonMap = allMaps[0];
+            console.log(`Using only available map for campaign ${campaignId}: ${dungeonMap.mapName}`);
+          }
+          
+          // If still no match, use the active map
+          if (!dungeonMap) {
+            dungeonMap = allMaps.find(m => m.isActive);
+          }
+          
+          console.log(`Map lookup: location="${currentLocation}", found=${dungeonMap ? dungeonMap.mapName : 'none'}`);
+          
+          // Update map if found
           if (dungeonMap && dungeonMap.mapData) {
             const mapData = typeof dungeonMap.mapData === 'string' 
               ? JSON.parse(dungeonMap.mapData) 
