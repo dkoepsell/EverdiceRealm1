@@ -68,6 +68,32 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 
+async function recordTrace(
+  campaignId: number,
+  kind: TraceEventKind,
+  payload: any,
+  options?: { sessionId?: string; who?: string; where?: string; note?: string }
+): Promise<void> {
+  try {
+    const eventCount = await storage.getTraceEventCount(campaignId);
+    const eid = generateEventId(eventCount + 1);
+    
+    await storage.recordTraceEvent({
+      campaignId,
+      sessionId: options?.sessionId,
+      eid,
+      kind,
+      payload,
+      ts: new Date().toISOString(),
+      who: options?.who,
+      locationRef: options?.where,
+      note: options?.note
+    });
+  } catch (error) {
+    console.error("Failed to record trace event:", error);
+  }
+}
+
 // Active WebSocket connections
 type ClientWebSocket = WebSocket;
 const activeConnections = new Set<ClientWebSocket>();
@@ -7372,6 +7398,18 @@ Respond with JSON:
               updatedMapId = dungeonMap.id;
               console.log(`Map ${dungeonMap.id} updated with new position, returning in response`);
               
+              // Record movement trace event
+              await recordTrace(campaignId, "everdice.movement", {
+                actorId: "party.main",
+                from: oldPosition,
+                to: newPosition,
+                locationId: dungeonMap.mapName
+              }, {
+                sessionId: `session.${campaign.currentSession}`,
+                who: "party.main",
+                where: dungeonMap.mapName
+              });
+              
               // If at edge of map, generate connected map (for secret doors, exits, corridors at boundary)
               if (isAtEdge && (tileTransition || tileType === 'corridor' || tileType === 'floor' || tileType === 'door')) {
                 console.log(`Edge transition detected at ${newPosition.x},${newPosition.y} - generating new connected area`);
@@ -8109,6 +8147,61 @@ Respond with JSON:
             updatedAt: new Date().toISOString()
           });
           
+          // Record trace events for character progression
+          if (xpAwarded > 0) {
+            await recordTrace(campaignId, "state.set", {
+              path: `character.${characterId}.experience`,
+              value: newXP
+            }, {
+              sessionId: `session.${campaign.currentSession}`,
+              who: `pc.${characterId}`,
+              note: `Awarded ${xpAwarded} XP`
+            });
+          }
+          
+          if (leveledUp) {
+            await recordTrace(campaignId, "dnd5e.levelUp", {
+              actorId: `pc.${characterId}`,
+              newLevel,
+              class: character.class,
+              hpGained: hpGainFromLevelUp
+            }, {
+              sessionId: `session.${campaign.currentSession}`,
+              who: `pc.${characterId}`
+            });
+          }
+          
+          for (const item of itemsFound) {
+            await recordTrace(campaignId, "item.gained", {
+              itemId: item.name?.toLowerCase().replace(/\s+/g, '_') || 'unknown_item',
+              by: `pc.${characterId}`,
+              quantity: 1
+            }, {
+              sessionId: `session.${campaign.currentSession}`,
+              who: `pc.${characterId}`
+            });
+          }
+          
+          if (statusChange) {
+            if (statusChange === "dead") {
+              await recordTrace(campaignId, "dnd5e.death", {
+                actorId: `pc.${characterId}`,
+                cause: "damage"
+              }, {
+                sessionId: `session.${campaign.currentSession}`,
+                who: `pc.${characterId}`
+              });
+            } else if (statusChange === "stabilized") {
+              await recordTrace(campaignId, "dnd5e.stabilized", {
+                actorId: `pc.${characterId}`,
+                method: "natural"
+              }, {
+                sessionId: `session.${campaign.currentSession}`,
+                who: `pc.${characterId}`
+              });
+            }
+          }
+          
           characterProgression = {
             xpAwarded,
             newXP,
@@ -8238,6 +8331,33 @@ Respond with JSON:
           // Only mark as advanced if we got valid session data
           if (newSessionData && newSessionData.id) {
             sessionAdvanced = true;
+            
+            // Record chapter advancement trace event
+            await recordTrace(campaignId, "everdice.chapterAdvanced", {
+              fromChapter: currentSession.sessionNumber,
+              toChapter: newSessionData.sessionNumber,
+              chapterTitle: newSessionData.title
+            }, {
+              sessionId: `session.${currentSession.sessionNumber}`,
+              who: "system.dm"
+            });
+            
+            // Record session ended event
+            await recordTrace(campaignId, "session.ended", {
+              sessionId: `session.${currentSession.sessionNumber}`
+            }, {
+              sessionId: `session.${currentSession.sessionNumber}`,
+              who: "system.dm"
+            });
+            
+            // Record session started event for new session
+            await recordTrace(campaignId, "session.started", {
+              sessionId: `session.${newSessionData.sessionNumber}`,
+              title: newSessionData.title
+            }, {
+              sessionId: `session.${newSessionData.sessionNumber}`,
+              who: "system.dm"
+            });
             
             // Broadcast session advancement
             broadcastMessage('session_advanced', {
@@ -8468,6 +8588,17 @@ Respond with JSON: {"type": "npc", "name": "", "appearance": "", "personality": 
 
       // Update session to combat mode
       await storage.startCombat(campaignId, combatState);
+      
+      // Record encounter triggered trace event
+      await recordTrace(campaignId, "encounter.triggered", {
+        encounterId: `encounter.combat_${Date.now()}`,
+        occursAt: environment?.location || undefined,
+        participants: combatState.participants.map((p: any) => `pc.${p.characterId || p.userId}`)
+          .concat(combatState.enemies.map((e: any) => `npc.${e.name?.toLowerCase().replace(/\s+/g, '_')}`))
+      }, {
+        sessionId: `session.${campaign.currentSession}`,
+        who: "system.dm"
+      });
 
       // Broadcast combat start
       broadcastMessage('combat_started', {
