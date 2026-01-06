@@ -1739,7 +1739,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     <div className="flex justify-between items-start">
                       <h3 className="text-xl font-bold flex items-center" style={{ color: '#0f172a' }}>
                         <Scroll className="h-5 w-5 mr-2 text-indigo-600 dark:text-indigo-400" />
-                        Session {currentSession.sessionNumber}: {currentSession.title}
+                        Chapter {currentSession.sessionNumber}: {currentSession.title.replace(/^Session\s*\d+:\s*/i, '')}
                       </h3>
                       
                       {/* Map and location controls - map is location-specific */}
