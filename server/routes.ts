@@ -6484,7 +6484,7 @@ Ensure all elements are interconnected and form a cohesive narrative. Include 3-
       }
       
       const campaignId = parseInt(req.params.campaignId);
-      const { choice, rollResult } = req.body;
+      const { choice, rollResult, currentLocation } = req.body;
       
       // Detect movement from choice text directly
       const detectMovementFromChoice = (choiceText: string): { isMovement: boolean; direction: string | null } => {
@@ -6986,6 +6986,7 @@ Respond with JSON:
       // Handle movement from narrative choices - update dungeon map position
       // Use EITHER the AI's movement data OR our detected movement from choice text
       let updatedMapData = null;
+      let updatedMapId: number | null = null;
       const movement = storyAdvancement.movement;
       const hasAIMovement = movement && movement.occurred && movement.direction;
       const hasDetectedMovement = detectedMovement.isMovement && detectedMovement.direction;
@@ -6997,8 +6998,16 @@ Respond with JSON:
       if (effectiveDirection) {
         console.log(`Processing movement - AI movement: ${hasAIMovement}, Detected movement: ${hasDetectedMovement}, Direction: ${effectiveDirection}`);
         try {
-          // Get the current dungeon map for this campaign
-          const dungeonMap = await storage.getCampaignDungeonMap(campaignId);
+          // Get the current dungeon map for this campaign - use location-aware lookup
+          const allMaps = await storage.getCampaignDungeonMaps(campaignId);
+          
+          // Find map matching the current location - ONLY update if exact match exists
+          const locationToMatch = currentLocation || '';
+          const dungeonMap = allMaps.find(m => 
+            m.mapName?.toLowerCase() === locationToMatch.toLowerCase()
+          );
+          
+          // Only update if we found an exact location match - don't mutate other location's maps
           if (dungeonMap && dungeonMap.mapData) {
             const mapData = typeof dungeonMap.mapData === 'string' 
               ? JSON.parse(dungeonMap.mapData) 
@@ -7057,6 +7066,7 @@ Respond with JSON:
               // Save updated map
               await storage.updateCampaignDungeonMap(dungeonMap.id, { mapData });
               updatedMapData = mapData;
+              updatedMapId = dungeonMap.id;
             }
           }
         } catch (mapError) {
@@ -7747,6 +7757,7 @@ Respond with JSON:
         ...(sessionAdvanced && newSessionData ? newSessionData : updatedSession),
         progression: characterProgression,
         dungeonMapData: updatedMapData,
+        dungeonMapId: updatedMapId,
         movement: movementResponse,
         sessionAdvanced,
         newSessionNumber: sessionAdvanced ? newSessionData?.sessionNumber : null

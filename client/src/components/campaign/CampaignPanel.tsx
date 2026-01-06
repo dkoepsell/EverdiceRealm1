@@ -694,7 +694,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     mutationFn: async ({ choice, rollResult }: { choice: string; rollResult?: any }) => {
       const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/advance-story`, {
         choice,
-        rollResult
+        rollResult,
+        currentLocation
       });
       return await response.json();
     },
@@ -797,6 +798,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       // Update dungeon map if movement occurred from narrative
       if (data.dungeonMapData) {
         setDungeonMapData(data.dungeonMapData);
+        if (data.dungeonMapId) {
+          setDungeonMapId(data.dungeonMapId);
+        }
+        setDungeonMapLocation(currentLocation);
         queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/dungeon-map`, { location: currentLocation }] });
         
         // Show movement notification if there was movement
