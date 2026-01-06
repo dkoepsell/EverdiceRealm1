@@ -7268,10 +7268,75 @@ Respond with JSON:
               updatedMapId = dungeonMap.id;
               console.log(`Map ${dungeonMap.id} updated with new position, returning in response`);
               
-              // If at edge and secret door/transition, consider generating connected map
+              // If at edge and secret door/transition, generate connected map
               if (isAtEdge && tileTransition) {
-                console.log(`Edge transition detected at ${newPosition.x},${newPosition.y} - new area may be generated`);
-                // New map generation will be handled by dungeonState processing below
+                console.log(`Edge transition detected at ${newPosition.x},${newPosition.y} - generating new connected area`);
+                
+                // Determine entry direction for new map (opposite of exit direction)
+                const entryDirection = canonicalDirection === 'up' ? 'south' :
+                                      canonicalDirection === 'down' ? 'north' :
+                                      canonicalDirection === 'left' ? 'east' : 'west';
+                
+                // Generate a new connected map
+                const connectedMapData = {
+                  name: `${mapData.name || 'Dungeon'} - Area ${Date.now() % 1000}`,
+                  width: 9,
+                  height: 9,
+                  tiles: Array(9).fill(null).map(() =>
+                    Array(9).fill(null).map(() => ({ type: 'wall', explored: false, visible: false }))
+                  ),
+                  entities: [],
+                  playerPosition: { 
+                    x: entryDirection === 'east' ? 1 : entryDirection === 'west' ? 7 : 4,
+                    y: entryDirection === 'south' ? 1 : entryDirection === 'north' ? 7 : 4
+                  },
+                  level: (mapData.level || 1) + 1,
+                  parentMapId: dungeonMap.id,
+                  entryPoint: { direction: entryDirection, x: newPosition.x, y: newPosition.y }
+                };
+                
+                // Carve out initial room at entry point
+                const entryPos = connectedMapData.playerPosition;
+                for (let dy = -1; dy <= 1; dy++) {
+                  for (let dx = -1; dx <= 1; dx++) {
+                    const nx = entryPos.x + dx;
+                    const ny = entryPos.y + dy;
+                    if (nx >= 0 && nx < 9 && ny >= 0 && ny < 9) {
+                      connectedMapData.tiles[ny][nx] = { type: 'floor', explored: true, visible: true };
+                    }
+                  }
+                }
+                
+                // Create new connected map
+                try {
+                  const newConnectedMap = await storage.createCampaignDungeonMap({
+                    campaignId,
+                    mapName: connectedMapData.name,
+                    mapData: connectedMapData,
+                    playerPosition: connectedMapData.playerPosition,
+                    fogOfWar: {},
+                    exploredTiles: [],
+                    isActive: true  // Make the new map active
+                  });
+                  
+                  // Deactivate the old map
+                  await storage.updateCampaignDungeonMap(dungeonMap.id, { isActive: false });
+                  
+                  // Store connection info in current map's metadata
+                  mapData.connections = mapData.connections || [];
+                  mapData.connections.push({
+                    toMapId: newConnectedMap.id,
+                    exitPosition: { x: newPosition.x, y: newPosition.y },
+                    direction: canonicalDirection
+                  });
+                  await storage.updateCampaignDungeonMap(dungeonMap.id, { mapData });
+                  
+                  updatedMapData = connectedMapData;
+                  updatedMapId = newConnectedMap.id;
+                  console.log(`Created connected map ${newConnectedMap.id} from map ${dungeonMap.id}`);
+                } catch (connectedMapError) {
+                  console.error("Failed to create connected map:", connectedMapError);
+                }
               }
             } else {
               console.log(`Movement blocked: target tile at ${newPosition.x},${newPosition.y} is ${tileType}`);
