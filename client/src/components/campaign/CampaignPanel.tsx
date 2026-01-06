@@ -1845,10 +1845,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     </div>
                     
                     {/* Adventure Progress Display */}
-                    {parsedStoryState?.adventureProgress && parsedStoryState?.adventureRequirements && (() => {
+                    {parsedStoryState?.adventureProgress && (() => {
                       // Calculate progress percentage locally for reliability
                       const progress = parsedStoryState.adventureProgress as any;
-                      const requirements = parsedStoryState.adventureRequirements as any;
+                      // Use default requirements if not set
+                      const requirements = parsedStoryState.adventureRequirements as any || {
+                        encounters: { combat: 3, trap: 2, treasure: 2 },
+                        puzzles: 2,
+                        discoveries: 3,
+                        subquests: 1
+                      };
                       
                       const combatDone = Math.min(progress.encounters?.combat || 0, requirements.encounters?.combat || 1);
                       const trapDone = Math.min(progress.encounters?.trap || 0, requirements.encounters?.trap || 1);
