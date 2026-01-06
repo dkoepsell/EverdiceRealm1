@@ -2885,13 +2885,27 @@ Return your response as a JSON object with these fields:
       }
       
       const { prompt } = req.body;
+      
+      // Get existing character names to ensure uniqueness
+      const existingCharacters = await storage.getCharactersByUserId(req.user.id);
+      const existingNames = existingCharacters.map(c => c.name);
+      
+      // Also get all character names in the database for global uniqueness
+      const allCharacters = await storage.getAllCharacters();
+      const allUsedNames = allCharacters.map(c => c.name);
 
       const characterPrompt = `
 Generate a unique and compelling character concept for a Dungeons & Dragons 5th Edition game. 
 ${prompt ? `Additional requirements: ${prompt}` : ""}
 
+IMPORTANT - Name Uniqueness Requirements:
+- The name MUST be completely unique and NOT match any of these already-used names: ${allUsedNames.length > 0 ? allUsedNames.join(', ') : 'none yet'}
+- Create an original, creative fantasy name that has never been used before
+- Do NOT use common fantasy names like "Aric", "Thorin", "Elara", "Lyra" unless very distinctive
+- Combine unusual syllables or draw from obscure mythologies for truly unique names
+
 Return your response as a JSON object with these fields:
-- name: A fantasy-appropriate name for the character
+- name: A fantasy-appropriate UNIQUE name for the character (must not match any existing names listed above)
 - race: A D&D race (Human, Elf, Dwarf, Halfling, etc.)
 - class: A D&D class (Fighter, Wizard, Rogue, etc.)
 - background: A D&D background (Soldier, Sage, Criminal, etc.)
@@ -2906,13 +2920,20 @@ Return your response as a JSON object with these fields:
       });
       
       const response = await openaiClient.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+        model: "gpt-4o",
         messages: [{ role: "user", content: characterPrompt }],
         response_format: { type: "json_object" },
         max_tokens: 1000,
       });
 
       const characterData = JSON.parse(response.choices[0].message.content);
+      
+      // Double-check uniqueness - if name already exists, append a unique suffix
+      if (allUsedNames.some(n => n.toLowerCase() === characterData.name.toLowerCase())) {
+        const suffix = Math.random().toString(36).substring(2, 5);
+        characterData.name = `${characterData.name} ${suffix.charAt(0).toUpperCase() + suffix.slice(1)}`;
+      }
+      
       res.json(characterData);
     } catch (error) {
       console.error("OpenAI API error:", error);
