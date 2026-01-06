@@ -6575,6 +6575,70 @@ Ensure all elements are interconnected and form a cohesive narrative. Include 3-
       const detectedMovement = detectMovementFromChoice(choice || '');
       console.log(`Choice movement detection: "${choice}" => isMovement=${detectedMovement.isMovement}, direction=${detectedMovement.direction}`);
       
+      // Fetch current dungeon map state to inform AI of map constraints
+      let currentMapState = "";
+      let dungeonMaps = await storage.getCampaignDungeonMaps(campaignId);
+      const activeMap = dungeonMaps.find((m: any) => m.isActive) || dungeonMaps[0];
+      
+      if (activeMap && activeMap.mapData) {
+        const mapData = typeof activeMap.mapData === 'string' ? JSON.parse(activeMap.mapData) : activeMap.mapData;
+        const playerPos = mapData.playerPosition || { x: 4, y: 4 };
+        
+        // Analyze passable directions from current position
+        const directions: Record<string, { dx: number, dy: number, name: string }> = {
+          north: { dx: 0, dy: -1, name: 'north' },
+          south: { dx: 0, dy: 1, name: 'south' },
+          east: { dx: 1, dy: 0, name: 'east' },
+          west: { dx: -1, dy: 0, name: 'west' }
+        };
+        
+        const passableExits: string[] = [];
+        const blockedDirections: string[] = [];
+        
+        for (const [dir, delta] of Object.entries(directions)) {
+          const nx = playerPos.x + delta.dx;
+          const ny = playerPos.y + delta.dy;
+          
+          if (ny >= 0 && ny < mapData.height && nx >= 0 && nx < mapData.width) {
+            const tile = mapData.tiles[ny][nx];
+            const tileType = tile?.type || 'wall';
+            
+            if (tileType !== 'wall') {
+              if (tileType === 'door_locked') {
+                passableExits.push(`${dir} (locked door - requires key or lockpicking)`);
+              } else if (tileType === 'secret_door') {
+                // Don't reveal secret doors unless explored
+                if (tile?.explored) {
+                  passableExits.push(`${dir} (secret passage)`);
+                } else {
+                  blockedDirections.push(dir);
+                }
+              } else {
+                passableExits.push(dir);
+              }
+            } else {
+              blockedDirections.push(dir);
+            }
+          } else {
+            blockedDirections.push(dir);
+          }
+        }
+        
+        currentMapState = `
+DUNGEON MAP STATE (CRITICAL - Movement MUST respect these constraints!):
+- Current Position: (${playerPos.x}, ${playerPos.y})
+- Current Room: ${mapData.currentRoom?.name || 'Unknown Location'}
+- PASSABLE EXITS: ${passableExits.length > 0 ? passableExits.join(', ') : 'NONE - party is trapped!'}
+- BLOCKED DIRECTIONS: ${blockedDirections.length > 0 ? blockedDirections.join(', ') + ' (walls)' : 'None'}
+
+MOVEMENT CONSTRAINT RULES:
+- You can ONLY offer movement choices in directions that have passable exits
+- DO NOT offer choices to move in blocked directions (they hit walls)
+- If a direction has a locked door, player needs a key or must pick the lock first
+- If all exits are blocked, the party must find another way (secret door, break wall, etc.)
+`;
+      }
+      
       const currentSession = await storage.getCurrentSession(campaignId);
       if (!currentSession) {
         return res.status(404).json({ message: "No active session found" });
@@ -6732,12 +6796,14 @@ ${currentSession.narrative}
 ${playerCharacterInfo}
 
 Player Choice Made: ${choice}
+${currentMapState}
 ${detectedMovement.isMovement ? `
 MOVEMENT DETECTED: This is a movement action!
 - Direction: ${detectedMovement.direction} (${detectedMovement.direction === 'up' ? 'North' : detectedMovement.direction === 'down' ? 'South' : detectedMovement.direction === 'right' ? 'East' : 'West'})
 - IMPORTANT: Set movement.occurred = true and movement.direction = "${detectedMovement.direction}" in your response
 - The narrative MUST describe the party moving in this direction
 - Describe what they find as they move (new corridor, room, obstacle, etc.)
+- CRITICAL: Before allowing this movement, verify the direction is in PASSABLE EXITS above!
 ` : ''}
 ${skillCheckInfo}
 
@@ -7128,10 +7194,56 @@ Respond with JSON:
               y: Math.max(0, Math.min(mapData.height - 1, currentPos.y + offset.y)),
             };
             
-            // Check that the new position is not a wall
+            // Check that the new position is not a wall and handle special tile types
             const targetTile = mapData.tiles?.[newPosition.y]?.[newPosition.x];
-            if (targetTile && targetTile.type !== "wall") {
-              // Update player position and mark tiles as explored
+            const tileType = targetTile?.type || 'wall';
+            
+            // Track if movement is allowed
+            let canMove = false;
+            let tileTransition = false;
+            
+            if (tileType === 'wall') {
+              console.log(`Movement blocked: wall at ${newPosition.x},${newPosition.y}`);
+              canMove = false;
+            } else if (tileType === 'door_locked') {
+              // Check if player has key or passed lockpicking check in the roll result
+              const hasKey = storyAdvancement.narrative?.toLowerCase().includes('unlock') ||
+                             storyAdvancement.narrative?.toLowerCase().includes('key') ||
+                             (rollResult && rollResult.success && rollResult.purpose?.toLowerCase().includes('lock'));
+              if (hasKey) {
+                // Unlock the door
+                mapData.tiles[newPosition.y][newPosition.x] = { 
+                  ...targetTile, 
+                  type: 'door',
+                  explored: true 
+                };
+                canMove = true;
+                console.log(`Locked door unlocked at ${newPosition.x},${newPosition.y}`);
+              } else {
+                console.log(`Movement blocked: locked door at ${newPosition.x},${newPosition.y} - need key or lockpicking`);
+                canMove = false;
+              }
+            } else if (tileType === 'secret_door') {
+              // Secret door revealed and entered
+              mapData.tiles[newPosition.y][newPosition.x] = { 
+                ...targetTile, 
+                type: 'door',
+                explored: true,
+                visible: true 
+              };
+              canMove = true;
+              tileTransition = true;
+              console.log(`Secret door discovered and entered at ${newPosition.x},${newPosition.y}`);
+            } else {
+              canMove = true;
+            }
+            
+            // Check if moving to edge of map - might trigger new area generation
+            const isAtEdge = newPosition.x === 0 || newPosition.x === mapData.width - 1 ||
+                            newPosition.y === 0 || newPosition.y === mapData.height - 1;
+            
+            if (canMove) {
+              // Update player position and mark tiles as explored (NEVER reset explored tiles)
               const oldPosition = { ...mapData.playerPosition };
               mapData.playerPosition = newPosition;
               mapData.tiles = mapData.tiles.map((row: any[], y: number) =>
@@ -7140,10 +7252,12 @@ Respond with JSON:
                     Math.pow(x - newPosition.x, 2) + 
                     Math.pow(y - newPosition.y, 2)
                   );
-                  if (dist <= 2) {
-                    return { ...tile, explored: true, visible: dist <= 1.5 };
-                  }
-                  return { ...tile, visible: false };
+                  // IMPORTANT: explored flag is NEVER reset - only set to true
+                  const wasExplored = tile.explored || false;
+                  const nowExplored = wasExplored || dist <= 2;
+                  const nowVisible = dist <= 1.5;
+                  
+                  return { ...tile, explored: nowExplored, visible: nowVisible };
                 })
               );
               
@@ -7153,8 +7267,14 @@ Respond with JSON:
               updatedMapData = mapData;
               updatedMapId = dungeonMap.id;
               console.log(`Map ${dungeonMap.id} updated with new position, returning in response`);
+              
+              // If at edge and secret door/transition, consider generating connected map
+              if (isAtEdge && tileTransition) {
+                console.log(`Edge transition detected at ${newPosition.x},${newPosition.y} - new area may be generated`);
+                // New map generation will be handled by dungeonState processing below
+              }
             } else {
-              console.log(`Movement blocked: target tile at ${newPosition.x},${newPosition.y} is ${targetTile?.type || 'undefined'}`);
+              console.log(`Movement blocked: target tile at ${newPosition.x},${newPosition.y} is ${tileType}`);
             }
           } else {
             console.log(`No dungeon map found for campaign ${campaignId}`);
