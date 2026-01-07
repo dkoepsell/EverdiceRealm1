@@ -95,6 +95,56 @@ async function recordTrace(
   }
 }
 
+// Validate player choice against game rules and campaign constraints
+function validatePlayerChoice(
+  choice: string,
+  user: any,
+  campaign: any,
+  participants: any[]
+): { valid: boolean; reason?: string; suggestion?: string } {
+  if (!choice || typeof choice !== 'string') {
+    return { valid: true }; // Empty choices are handled elsewhere
+  }
+  
+  const lowerChoice = choice.toLowerCase().trim();
+  
+  // Check for rule-breaking actions
+  const forbiddenPatterns = [
+    { pattern: /\b(kill|murder|attack)\s+(myself|my\s+character)/i, reason: "You cannot intentionally kill your own character through narrative choice. Use the death saving throws system.", suggestion: "Try an action that your character would actually take in the situation." },
+    { pattern: /\b(i\s+win|we\s+win|instant\s+victory|automatically\s+succeed)/i, reason: "Actions must be resolved through proper game mechanics, not declared outcomes.", suggestion: "Describe what your character attempts to do, then let the dice and DM determine the outcome." },
+    { pattern: /\b(spawn|summon|create)\s+\d+\s+(gold|coins|items|weapons)/i, reason: "You cannot create items or currency out of nothing.", suggestion: "Look for treasure through exploration or earn gold through quests." },
+    { pattern: /\b(teleport|fly|cast)\b.*\b(without|no\s+spell)/i, reason: "Magical abilities require proper spells, class features, or items.", suggestion: "Use abilities your character actually possesses based on their class and level." },
+    { pattern: /\b(i\s+am\s+now\s+level\s*\d+|level\s+up\s+instantly)/i, reason: "Character progression happens through XP earned in gameplay.", suggestion: "Continue adventuring to earn experience points." },
+  ];
+  
+  for (const fp of forbiddenPatterns) {
+    if (fp.pattern.test(lowerChoice)) {
+      return { valid: false, reason: fp.reason, suggestion: fp.suggestion };
+    }
+  }
+  
+  // Check for metagaming (using out-of-character knowledge)
+  const metagamingPatterns = [
+    { pattern: /\b(according\s+to\s+the\s+rules|by\s+the\s+book|RAW|rules\s+as\s+written)/i, reason: "Describe your character's actions in-character, not rules references.", suggestion: "Describe what your character does or says, not rule mechanics." },
+    { pattern: /\b(i\s+read\s+ahead|i\s+know\s+this\s+module|spoiler)/i, reason: "Please avoid using out-of-character knowledge.", suggestion: "React to the story as your character would, based on what they know." },
+  ];
+  
+  for (const mp of metagamingPatterns) {
+    if (mp.pattern.test(lowerChoice)) {
+      return { valid: false, reason: mp.reason, suggestion: mp.suggestion };
+    }
+  }
+  
+  // Check character status constraints
+  const currentParticipant = participants.find(p => p.userId === user.id);
+  if (currentParticipant) {
+    // Additional character-specific validation could go here
+    // For example, checking if a dead character is trying to act
+  }
+  
+  return { valid: true };
+}
+
 // Active WebSocket connections
 type ClientWebSocket = WebSocket;
 const activeConnections = new Set<ClientWebSocket>();
@@ -2114,6 +2164,104 @@ Return your response as a JSON object with these fields:
     } catch (error) {
       console.error("Error ending turn:", error);
       res.status(500).json({ message: "Failed to end turn" });
+    }
+  });
+  
+  // Roll initiative for all participants to determine turn order
+  app.post("/api/campaigns/:campaignId/initiative/roll", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      
+      // Verify the campaign exists
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      // Only the DM can roll initiative for the session
+      if (campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can roll initiative" });
+      }
+      
+      // Roll initiative for all participants
+      const initiativeResults = await storage.rollInitiativeForSession(campaignId);
+      
+      // Record trace event for initiative roll
+      await recordTrace(campaignId, "everdice.initiativeRolled", {
+        results: initiativeResults.map(r => ({
+          characterName: r.characterName,
+          roll: r.roll,
+          modifier: r.modifier,
+          total: r.initiative
+        }))
+      }, {
+        who: "system.dm"
+      });
+      
+      // Broadcast initiative results via WebSocket
+      broadcastMessage('initiative_rolled', {
+        campaignId,
+        results: initiativeResults,
+        currentTurnUserId: initiativeResults[0]?.userId
+      });
+      
+      res.json({
+        success: true,
+        results: initiativeResults,
+        currentTurnUserId: initiativeResults[0]?.userId
+      });
+    } catch (error) {
+      console.error("Error rolling initiative:", error);
+      res.status(500).json({ message: "Failed to roll initiative" });
+    }
+  });
+  
+  // Get current initiative order
+  app.get("/api/campaigns/:campaignId/initiative", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      
+      // Get participants ordered by turn order
+      const participants = await storage.getCampaignParticipants(campaignId);
+      const orderedParticipants = participants
+        .filter(p => p.isActive && p.turnOrder !== null)
+        .sort((a, b) => (a.turnOrder || 0) - (b.turnOrder || 0));
+      
+      // Get character details for each participant
+      const initiativeOrder = await Promise.all(
+        orderedParticipants.map(async (p) => {
+          const character = await storage.getCharacter(p.characterId);
+          const user = await storage.getUser(p.userId);
+          return {
+            participantId: p.id,
+            userId: p.userId,
+            characterId: p.characterId,
+            characterName: character?.name || 'Unknown',
+            username: user?.username || 'Unknown',
+            turnOrder: p.turnOrder
+          };
+        })
+      );
+      
+      // Get current turn info
+      const campaign = await storage.getCampaign(campaignId);
+      
+      res.json({
+        initiativeOrder,
+        currentTurnUserId: campaign?.currentTurnUserId,
+        isTurnBased: campaign?.isTurnBased || false
+      });
+    } catch (error) {
+      console.error("Error getting initiative order:", error);
+      res.status(500).json({ message: "Failed to get initiative order" });
     }
   });
 
@@ -6548,7 +6696,59 @@ Ensure all elements are interconnected and form a cohesive narrative. Include 3-
       }
       
       const campaignId = parseInt(req.params.campaignId);
-      const { choice, rollResult, currentLocation } = req.body;
+      const { choice, rollResult, currentLocation, skipTurnCheck } = req.body;
+      
+      // Get campaign to check turn-based settings
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      // Enforce turn order in multiplayer campaigns (unless DM or skipTurnCheck is true)
+      const isDM = campaign.userId === req.user.id;
+      const participants = await storage.getCampaignParticipants(campaignId);
+      const isMultiplayer = participants.length > 1;
+      
+      if (campaign.isTurnBased && isMultiplayer && !isDM && !skipTurnCheck) {
+        // Check if it's this player's turn
+        if (campaign.currentTurnUserId && campaign.currentTurnUserId !== req.user.id) {
+          // Record the turn enforcement event
+          await recordTrace(campaignId, "everdice.turnEnforced", {
+            attemptedByUserId: req.user.id,
+            currentTurnUserId: campaign.currentTurnUserId,
+            blocked: true
+          }, { who: `player.${req.user.id}` });
+          
+          return res.status(403).json({ 
+            message: "It's not your turn. Please wait for other players to finish their turns.",
+            currentTurnUserId: campaign.currentTurnUserId,
+            isTurnBased: true
+          });
+        }
+      }
+      
+      // Validate the player's choice against game rules
+      const validationResult = validatePlayerChoice(choice, req.user, campaign, participants);
+      if (!validationResult.valid) {
+        await recordTrace(campaignId, "everdice.actionValidated", {
+          choice,
+          valid: false,
+          reason: validationResult.reason
+        }, { who: `player.${req.user.id}` });
+        
+        return res.status(400).json({
+          message: validationResult.reason,
+          suggestion: validationResult.suggestion
+        });
+      }
+      
+      // Record successful validation (only for non-empty choices)
+      if (choice && choice.trim()) {
+        await recordTrace(campaignId, "everdice.actionValidated", {
+          choice,
+          valid: true
+        }, { who: `player.${req.user.id}` });
+      }
       
       // Detect movement from choice text directly
       const detectMovementFromChoice = (choiceText: string): { isMovement: boolean; direction: string | null } => {
@@ -6782,8 +6982,7 @@ Do not ignore this result. Build the entire next scene around this outcome.`;
       // Get current quests from story state
       const currentQuests = (currentSession.storyState as any)?.activeQuests || [];
       
-      // Get player character info for combat tracking
-      const participants = await storage.getCampaignParticipants(campaignId);
+      // Use participants already fetched above for turn enforcement
       let playerCharacterInfo = "";
       let playerCharacter: any = null;
       let isSoloAdventure = participants && participants.length === 1;
@@ -6867,8 +7066,7 @@ You may create a new character or start a new adventure to continue playing.`;
         });
       }
       
-      // Get campaign for narrative style and difficulty
-      const campaign = await storage.getCampaign(campaignId);
+      // Use campaign already fetched above for turn enforcement
       const narrativeStyle = campaign?.narrativeStyle || "Descriptive";
       const difficulty = campaign?.difficulty || "Normal - Balanced Challenge";
       

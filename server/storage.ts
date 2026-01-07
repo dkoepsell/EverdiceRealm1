@@ -90,6 +90,7 @@ export interface IStorage {
   getCurrentTurn(campaignId: number): Promise<{ userId: number; startedAt: string } | undefined>;
   startNextTurn(campaignId: number): Promise<{ userId: number; startedAt: string } | undefined>;
   endCurrentTurn(campaignId: number): Promise<boolean>;
+  rollInitiativeForSession(campaignId: number): Promise<Array<{ participantId: number; characterId: number; userId: number; characterName: string; initiative: number; roll: number; modifier: number }>>;
   
   // Campaign Session operations
   getCampaignSession(campaignId: number, sessionNumber: number): Promise<CampaignSession | undefined>;
@@ -1154,6 +1155,97 @@ export class DatabaseStorage implements IStorage {
       .where(eq(campaigns.id, campaignId));
       
     return true; // If no error occurs, consider it successful
+  }
+  
+  async rollInitiativeForSession(campaignId: number): Promise<Array<{ participantId: number; characterId: number; userId: number; characterName: string; initiative: number; roll: number; modifier: number }>> {
+    // First, clear all existing turn order and reset campaign turn state
+    // This ensures clean state when rolling new initiative
+    await db
+      .update(campaignParticipants)
+      .set({ turnOrder: null })
+      .where(eq(campaignParticipants.campaignId, campaignId));
+    
+    await db
+      .update(campaigns)
+      .set({
+        currentTurnUserId: null,
+        turnStartedAt: null
+      })
+      .where(eq(campaigns.id, campaignId));
+    
+    // Get all active participants
+    const participants = await db
+      .select()
+      .from(campaignParticipants)
+      .where(and(
+        eq(campaignParticipants.campaignId, campaignId),
+        eq(campaignParticipants.isActive, true)
+      ));
+    
+    if (participants.length === 0) {
+      return [];
+    }
+    
+    // Roll initiative for each participant based on their character's DEX modifier
+    const initiativeResults = await Promise.all(
+      participants.map(async (participant) => {
+        const character = await this.getCharacter(participant.characterId);
+        
+        // Calculate DEX modifier (standard D&D formula: (stat - 10) / 2)
+        const dexScore = character?.stats?.dexterity || 10;
+        const dexModifier = Math.floor((dexScore - 10) / 2);
+        
+        // Roll d20 + DEX modifier
+        const roll = Math.floor(Math.random() * 20) + 1;
+        const initiative = roll + dexModifier;
+        
+        return {
+          participantId: participant.id,
+          characterId: participant.characterId,
+          userId: participant.userId,
+          characterName: character?.name || 'Unknown',
+          initiative,
+          roll,
+          modifier: dexModifier
+        };
+      })
+    );
+    
+    // Sort by initiative (highest first), with ties broken by DEX modifier, then random
+    initiativeResults.sort((a, b) => {
+      if (b.initiative !== a.initiative) {
+        return b.initiative - a.initiative;
+      }
+      if (b.modifier !== a.modifier) {
+        return b.modifier - a.modifier;
+      }
+      return Math.random() - 0.5;
+    });
+    
+    // Update turnOrder for each participant based on initiative
+    await Promise.all(
+      initiativeResults.map(async (result, index) => {
+        await db
+          .update(campaignParticipants)
+          .set({ turnOrder: index + 1 })
+          .where(eq(campaignParticipants.id, result.participantId));
+      })
+    );
+    
+    // Set the first player's turn
+    if (initiativeResults.length > 0) {
+      const now = new Date().toISOString();
+      await db
+        .update(campaigns)
+        .set({
+          currentTurnUserId: initiativeResults[0].userId,
+          turnStartedAt: now,
+          isTurnBased: true
+        })
+        .where(eq(campaigns.id, campaignId));
+    }
+    
+    return initiativeResults;
   }
   
   // Campaign Session operations

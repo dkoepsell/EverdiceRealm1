@@ -26,7 +26,10 @@ export type TraceEventKind =
   | "everdice.narrativeAdvanced"
   | "everdice.questAccepted"
   | "everdice.questCompleted"
-  | "everdice.chapterAdvanced";
+  | "everdice.chapterAdvanced"
+  | "everdice.initiativeRolled"
+  | "everdice.turnEnforced"
+  | "everdice.actionValidated";
 
 export interface SessionStartedPayload {
   sessionId: string;
