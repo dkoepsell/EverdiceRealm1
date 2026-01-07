@@ -8364,6 +8364,9 @@ Respond with JSON:
           if (newSessionData && newSessionData.id) {
             sessionAdvanced = true;
             
+            // Reset turnsInChapter for the new chapter
+            mergedStoryState.turnsInChapter = 0;
+            
             // Record chapter advancement trace event
             await recordTrace(campaignId, "everdice.chapterAdvanced", {
               fromChapter: currentSession.sessionNumber,
