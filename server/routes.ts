@@ -228,9 +228,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/characters", async (req, res) => {
+  app.post("/api/characters", isAuthenticated, async (req: any, res) => {
     try {
-      const characterData = insertCharacterSchema.parse(req.body);
+      const rawData = req.body;
+      const characterData = insertCharacterSchema.parse({
+        ...rawData,
+        userId: req.user.id
+      });
       
       // Add starter consumables including resurrection scrolls
       const starterConsumables = [

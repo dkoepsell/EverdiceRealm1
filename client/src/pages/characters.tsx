@@ -33,8 +33,8 @@ import { Separator } from "@/components/ui/separator";
 import CharacterSheet from "@/components/character/CharacterSheet";
 import { AlertCircle, Plus, User, Dice6, Swords } from "lucide-react";
 
-// Extended schema with validation rules
-const createCharacterSchema = insertCharacterSchema.extend({
+// Extended schema with validation rules - userId is handled by backend from auth
+const createCharacterSchema = insertCharacterSchema.omit({ userId: true }).extend({
   name: z.string().min(2, "Name must be at least 2 characters"),
   race: z.string().min(1, "Please select a race"),
   class: z.string().min(1, "Please select a class"),
@@ -83,7 +83,6 @@ export default function Characters() {
   const form = useForm<FormValues>({
     resolver: zodResolver(createCharacterSchema),
     defaultValues: {
-      userId: 1, // Default to first user for demo
       name: "",
       race: "",
       class: "",
@@ -408,7 +407,7 @@ export default function Characters() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Background</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} defaultValue={field.value ?? undefined}>
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select background" />
@@ -431,7 +430,7 @@ export default function Characters() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Alignment</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} defaultValue={field.value ?? undefined}>
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select alignment" />
