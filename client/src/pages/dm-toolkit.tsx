@@ -3042,9 +3042,9 @@ function DMWorkflowAndGuidance() {
               text: "What kind of setting interests you?",
               type: "radio",
               options: [
-                { value: "published", label: "Published setting (Forgotten Realms, etc.)" },
+                { value: "published", label: "Published fantasy setting (use with appropriate license)" },
                 { value: "homebrew", label: "Original homebrew world" },
-                { value: "modified", label: "Modified published setting" },
+                { value: "modified", label: "Modified or inspired setting" },
                 { value: "real-world", label: "Real world with fantasy elements" }
               ]
             },

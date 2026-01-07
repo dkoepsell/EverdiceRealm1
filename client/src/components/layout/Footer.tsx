@@ -68,7 +68,34 @@ export default function Footer() {
               </a>
             </div>
             <p className="text-gray-400 text-sm">© 2025 Everdice. All rights reserved.</p>
+            <Link href="/legal" className="text-gray-400 hover:text-gold text-sm transition">Legal & Licenses</Link>
           </div>
+        </div>
+        
+        {/* Legal Disclaimer */}
+        <div className="mt-6 pt-6 border-t border-gray-700">
+          <p className="text-gray-400 text-xs text-center max-w-4xl mx-auto">
+            Everdice is an unofficial fan project and is not affiliated with, endorsed by, or sponsored by Wizards of the Coast LLC. 
+            This work includes material taken from the System Reference Document 5.1 ("SRD 5.1") by Wizards of the Coast LLC, 
+            available at{" "}
+            <a 
+              href="https://dnd.wizards.com/resources/systems-reference-document" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-gold hover:underline"
+            >
+              dnd.wizards.com
+            </a>. 
+            The SRD 5.1 is licensed under the{" "}
+            <a 
+              href="https://creativecommons.org/licenses/by/4.0/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-gold hover:underline"
+            >
+              Creative Commons Attribution 4.0 International License
+            </a>.
+          </p>
         </div>
       </div>
     </footer>

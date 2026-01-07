@@ -303,8 +303,10 @@ function placeTreasure(tiles: MapTile[][], rooms: Room[]): void {
 
 function generateEntities(rooms: Room[], cfg: DungeonConfig): MapEntity[] {
   const entities: MapEntity[] = [];
+  // SRD 5.1 compatible creature names (Creative Commons Attribution 4.0)
+  // All creatures listed here are from the SRD 5.1 or are generic fantasy terms
   const enemyNames = ["Goblin", "Orc", "Skeleton", "Zombie", "Kobold", "Hobgoblin", "Bugbear", "Gnoll"];
-  const bossNames = ["Ogre Chief", "Vampire Lord", "Necromancer", "Beholder", "Mind Flayer", "Dragon Wyrmling"];
+  const bossNames = ["Ogre", "Vampire", "Lich", "Mummy Lord", "Wight Lord", "Young Dragon"];
   
   for (const room of rooms) {
     if (room.type === "entrance") continue;

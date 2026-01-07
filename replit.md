@@ -1,7 +1,14 @@
 # Everdice - Fantasy RPG Companion
 
 ## Overview
-Everdice is a full-stack web application designed as an AI-enhanced companion for tabletop RPGs, primarily Dungeons & Dragons. It integrates a React frontend with an Express.js backend to offer character creation, campaign management, dice rolling, and AI-powered storytelling tools. The platform aims to make D&D more accessible to new players while providing advanced features for experienced players and Dungeon Masters, bridging traditional gaming with digital assistance.
+Everdice is a full-stack web application designed as an AI-enhanced companion for tabletop RPGs. It uses open rules from the D&D 5th Edition System Reference Document (SRD 5.1) under the Creative Commons Attribution 4.0 International License. The platform integrates a React frontend with an Express.js backend to offer character creation, campaign management, dice rolling, and AI-powered storytelling tools. It aims to make tabletop RPGs more accessible to new players while providing advanced features for experienced players and Game Masters.
+
+## Legal & Licensing
+- **Fan Content Policy**: Everdice is unofficial fan content permitted under the Wizards of the Coast Fan Content Policy.
+- **SRD 5.1 License**: Game mechanics and content from the SRD 5.1 are used under Creative Commons Attribution 4.0.
+- **Disclaimer**: Not approved/endorsed by Wizards of the Coast. ©Wizards of the Coast LLC.
+- **IP Compliance**: Proprietary content (Beholder, Mind Flayer, Forgotten Realms, etc.) is avoided; only SRD-compatible content is used.
+- See `/legal` page in the app for full license information.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
