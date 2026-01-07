@@ -7883,6 +7883,10 @@ Respond with JSON:
         console.log("Treasure collected - incrementing counter:", updatedAdventureProgress.encounters);
       }
       
+      // Track turns in chapter for time-based progression
+      const previousTurnsInChapter = currentStoryState.turnsInChapter || 0;
+      const turnsInChapter = previousTurnsInChapter + 1;
+      
       // Merge the new exploration limit with the AI-generated story state
       const mergedStoryState = {
         ...storyAdvancement.storyState,
@@ -7892,6 +7896,7 @@ Respond with JSON:
         adventureProgress: updatedAdventureProgress,
         adventureRequirements: currentStoryState.adventureRequirements,
         movesWithoutStory: 0, // Reset moves counter after story advancement
+        turnsInChapter, // Track turns for time-based chapter advancement
         lastMovement: movement?.occurred ? {
           direction: movement.direction,
           description: movement.description,
@@ -8244,16 +8249,16 @@ Respond with JSON:
       const progressMetrics = adventureProgress.encounters || {};
       const requirementMetrics = adventureRequirements.encounters || {};
       
-      // Combat encounters
-      const combatRequired = requirementMetrics.combat || 3; // Default 3 combat encounters
+      // Combat encounters - lowered defaults for faster progression
+      const combatRequired = requirementMetrics.combat || 2; // Default 2 combat encounters (was 3)
       const combatDone = progressMetrics.combat || 0;
       
-      // Trap encounters  
-      const trapRequired = requirementMetrics.trap || 2; // Default 2 trap encounters
+      // Trap encounters - lowered for faster progression
+      const trapRequired = requirementMetrics.trap || 1; // Default 1 trap encounter (was 2)
       const trapDone = progressMetrics.trap || 0;
       
       // Treasure encounters
-      const treasureRequired = requirementMetrics.treasure || 2; // Default 2 treasures
+      const treasureRequired = requirementMetrics.treasure || 1; // Default 1 treasure (was 2)
       const treasureDone = progressMetrics.treasure || 0;
       
       // Puzzles
@@ -8261,7 +8266,7 @@ Respond with JSON:
       const puzzlesDone = adventureProgress.puzzles || 0;
       
       // Discoveries
-      const discoveriesRequired = adventureRequirements.discoveries || 2; // Default 2 discoveries
+      const discoveriesRequired = adventureRequirements.discoveries || 1; // Default 1 discovery (was 2)
       const discoveriesDone = adventureProgress.discoveries || 0;
       
       // Calculate totals (capped at required for percentage)
@@ -8272,7 +8277,23 @@ Respond with JSON:
                         Math.min(puzzlesDone, puzzlesRequired) + 
                         Math.min(discoveriesDone, discoveriesRequired);
       
-      const progressPercent = totalRequired > 0 ? Math.floor((totalDone / totalRequired) * 100) : 0;
+      // Calculate base goal progress percentage
+      const baseProgressPercent = totalRequired > 0 ? Math.floor((totalDone / totalRequired) * 100) : 0;
+      
+      // Add turn-based progression bonus to make chapters advance faster
+      // Soft caps: +10% at 10 turns, +20% at 20 turns, +35% at 30 turns, +50% at 40 turns
+      const turnsThisChapter = mergedStoryState.turnsInChapter || 0;
+      let turnBonus = 0;
+      if (turnsThisChapter >= 40) turnBonus = 50;
+      else if (turnsThisChapter >= 30) turnBonus = 35;
+      else if (turnsThisChapter >= 20) turnBonus = 20;
+      else if (turnsThisChapter >= 10) turnBonus = 10;
+      else if (turnsThisChapter >= 5) turnBonus = 5;
+      
+      // Combined progress = goal progress + turn bonus (capped at 100%)
+      const progressPercent = Math.min(100, baseProgressPercent + turnBonus);
+      
+      console.log(`Chapter progress: base=${baseProgressPercent}% + turnBonus=${turnBonus}% (${turnsThisChapter} turns) = ${progressPercent}%`);
       
       // Build chapter progress breakdown for frontend
       const chapterProgressBreakdown = {
@@ -8283,7 +8304,9 @@ Respond with JSON:
         discoveries: { done: discoveriesDone, required: discoveriesRequired, complete: discoveriesDone >= discoveriesRequired },
         totalPercent: progressPercent,
         totalDone,
-        totalRequired
+        totalRequired,
+        turnsInChapter: turnsThisChapter,
+        turnBonus
       };
       
       const shouldAdvanceSession = (() => {
@@ -8294,21 +8317,30 @@ Respond with JSON:
         const allQuestsCompleted = allQuests.length > 0 && 
           allQuests.every((q: any) => q.status === 'completed');
         
-        // Condition 2: Adventure progress at 100%
-        const adventureComplete = progressPercent >= 100 && totalRequired > 0;
+        // Condition 2: Adventure progress at 100% (including turn bonus)
+        const adventureComplete = progressPercent >= 100;
         
-        // Condition 3: Check if a major quest was JUST completed this turn AND adventure progress is high enough (75%+)
-        // This prevents premature session advancement
+        // Condition 3: Major quest completed with decent progress (50%+)
         const majorQuestJustCompleted = completedQuests.some((q: any) => 
           q.title?.toLowerCase().includes('main') || 
           q.title?.toLowerCase().includes('boss') ||
           q.title?.toLowerCase().includes('final')
         );
-        const progressThresholdMet = progressPercent >= 75;
+        const progressThresholdMet = progressPercent >= 50; // Lowered from 75%
         const majorMilestone = majorQuestJustCompleted && progressThresholdMet;
         
-        // Only advance if: adventure is 100% complete OR all quests done OR (major milestone + high progress)
-        return adventureComplete || allQuestsCompleted || majorMilestone;
+        // Condition 4: Hard cap - after 50 turns, force chapter advancement if ANY progress made
+        const hardCapReached = turnsThisChapter >= 50 && baseProgressPercent >= 20;
+        
+        // Condition 5: Soft cap - after 35 turns with 60%+ progress, advance
+        const softCapReached = turnsThisChapter >= 35 && progressPercent >= 60;
+        
+        // Condition 6: Any quest completed with high turn count (30+ turns)
+        const anyQuestWithHighTurns = completedQuests.length > 0 && turnsThisChapter >= 30;
+        
+        console.log(`Session advance check: adventureComplete=${adventureComplete}, allQuestsCompleted=${allQuestsCompleted}, majorMilestone=${majorMilestone}, hardCap=${hardCapReached}, softCap=${softCapReached}, anyQuestHighTurns=${anyQuestWithHighTurns}`);
+        
+        return adventureComplete || allQuestsCompleted || majorMilestone || hardCapReached || softCapReached || anyQuestWithHighTurns;
       })();
       
       if (shouldAdvanceSession) {
