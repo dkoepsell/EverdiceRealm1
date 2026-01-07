@@ -36,6 +36,7 @@ import { setupAuth, isAuthenticated, requireAdmin } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";
 import { generateCharacterPortrait, generateCharacterBackground } from "./lib/characterImageGenerator";
 import { registerCampaignDeploymentRoutes } from "./lib/campaignDeploy";
+import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { db } from "./db";
 import { eq, sql, desc } from "drizzle-orm";
 import OpenAI from "openai";
@@ -104,6 +105,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register campaign deployment routes
   registerCampaignDeploymentRoutes(app);
+  
+  // Register object storage routes for persistent file storage
+  registerObjectStorageRoutes(app);
   
   // Create HTTP server
   const httpServer = createServer(app);

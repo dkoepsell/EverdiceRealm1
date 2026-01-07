@@ -1,7 +1,9 @@
 import OpenAI from "openai";
 import { ImagesResponse } from "openai/resources";
+import { objectStorageClient } from "../replit_integrations/object_storage";
+import { randomUUID } from "crypto";
 
-// This function generates character portraits using OpenAI's DALL-E
+// This function generates character portraits using OpenAI's DALL-E and stores them permanently
 export async function generateCharacterPortrait(characterDescription: {
   name: string;
   race: string;
@@ -32,14 +34,60 @@ export async function generateCharacterPortrait(characterDescription: {
       style: "vivid",
     });
 
-    const imageData = response.data[0];
+    const imageData = response.data?.[0];
     if (!imageData || !imageData.url) {
       throw new Error("No image data returned from OpenAI");
     }
-    return { url: imageData.url };
+    
+    // Download the image and upload to object storage for persistence
+    const persistentUrl = await saveImageToObjectStorage(imageData.url, `portraits/${randomUUID()}.png`);
+    
+    return { url: persistentUrl };
   } catch (error: any) {
     console.error("Error generating character portrait:", error.message);
     throw new Error(`Failed to generate character portrait: ${error.message}`);
+  }
+}
+
+// Download image from URL and upload to object storage
+async function saveImageToObjectStorage(imageUrl: string, objectPath: string): Promise<string> {
+  try {
+    // Download the image from OpenAI
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download image: ${response.statusText}`);
+    }
+    
+    const imageBuffer = Buffer.from(await response.arrayBuffer());
+    
+    // Get the bucket ID directly from environment variable
+    const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+    
+    if (!bucketId) {
+      console.warn("No DEFAULT_OBJECT_STORAGE_BUCKET_ID configured, using temporary URL");
+      return imageUrl; // Fallback to temporary URL if storage not configured
+    }
+    
+    // Upload to object storage using the bucket ID
+    const bucket = objectStorageClient.bucket(bucketId);
+    const fullObjectPath = `public/${objectPath}`;
+    const file = bucket.file(fullObjectPath);
+    
+    await file.save(imageBuffer, {
+      contentType: "image/png",
+      metadata: {
+        cacheControl: "public, max-age=31536000", // Cache for 1 year
+      },
+    });
+    
+    // Return the path that can be served via our /objects route
+    console.log(`Portrait saved to object storage: /objects/${objectPath}`);
+    return `/objects/${objectPath}`;
+  } catch (error: any) {
+    console.error("Error saving image to object storage:", error.message);
+    // Fallback to temporary URL if upload fails
+    console.warn("Falling back to temporary DALL-E URL");
+    return imageUrl;
   }
 }
 
