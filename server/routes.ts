@@ -8556,15 +8556,233 @@ Respond with JSON:
             .filter((q: any) => q.status === 'completed')
             .map((q: any) => q.title);
           
-          // Generate a summary narrative for the completed chapter
+          // Get campaign details for AI-powered chapter generation
+          const campaignForChapter = await storage.getCampaign(campaignId);
+          if (!campaignForChapter) {
+            throw new Error("Campaign not found for chapter generation");
+          }
+          
+          // Get all previous sessions to understand the story arc so far
+          const previousSessions = await storage.getCampaignSessions(campaignId);
+          const completedSessions = previousSessions.filter(s => s.isCompleted);
+          
+          // Build detailed story summaries including narrative content for AI context
+          const previousChapterSummaries = completedSessions.map(s => ({
+            chapter: s.sessionNumber,
+            title: s.title,
+            narrative: s.narrative?.slice(0, 400) || "Events unfolded...",
+            location: (s.storyState as any)?.location || s.location || "Unknown"
+          }));
+          
+          // Get the current chapter's narrative to provide full context
+          const currentChapterNarrative = currentSession.narrative?.slice(0, 500) || "The adventure continues...";
+          const currentLocation = (currentSession.storyState as any)?.location || currentSession.location || "Unknown";
+          
+          const nextChapterNumber = currentSession.sessionNumber + 1;
+          
+          // Estimate total chapters based on difficulty, but ensure we don't trigger final chapter too early
+          // Minimum 3 chapters regardless of difficulty, and can't be final until chapter 3+
+          const baseEstimate = campaignForChapter.difficulty === 'Heroic' ? 6 : 
+                               campaignForChapter.difficulty === 'Challenging' ? 5 : 4;
+          // Ensure final chapter doesn't trigger until at least chapter 3, and give buffer based on sessions played
+          const minimumChapters = Math.max(3, completedSessions.length + 2);
+          const estimatedTotalChapters = Math.max(baseEstimate, minimumChapters);
+          
+          // Only mark as climax/final if we've had enough story progression
+          const isClimaxChapter = nextChapterNumber === estimatedTotalChapters - 1 && nextChapterNumber >= 3;
+          const isFinalChapter = nextChapterNumber >= estimatedTotalChapters && nextChapterNumber >= 4;
+          
+          // Generate chapter content using AI
+          const openaiClientForChapter = new OpenAI({ 
+            apiKey: process.env.OPENAI_API_KEY
+          });
+          
+          const chapterPrompt = `
+You are an expert Dungeon Master. Generate the next chapter for this D&D campaign.
+
+CAMPAIGN CONTEXT:
+- Title: ${campaignForChapter.title}
+- Description: ${campaignForChapter.description || "An epic adventure"}
+- Narrative Style: ${campaignForChapter.narrativeStyle || "descriptive"}
+- Difficulty: ${campaignForChapter.difficulty || "Normal"}
+
+STORY SO FAR:
+${previousChapterSummaries.length > 0 
+  ? previousChapterSummaries.map(s => `
+Chapter ${s.chapter} - "${s.title}" (Location: ${s.location}):
+${s.narrative}
+`).join('\n')
+  : 'This is the start of the campaign.'}
+
+CURRENT CHAPTER (just ending):
+- Chapter ${currentSession.sessionNumber}: "${currentSession.title}"
+- Location: ${currentLocation}
+- Summary: ${currentChapterNarrative}
+- Quests completed: ${allCompletedQuests.length > 0 ? allCompletedQuests.join(', ') : 'Various challenges overcome'}
+
+NEXT CHAPTER:
+- This will be Chapter ${nextChapterNumber} of approximately ${estimatedTotalChapters} chapters
+${isClimaxChapter ? '- THIS IS THE CLIMAX CHAPTER - tension should build toward the final confrontation' : ''}
+${isFinalChapter ? '- THIS IS THE FINAL CHAPTER - the campaign should reach its epic conclusion' : ''}
+
+CHAPTER REQUIREMENTS:
+${isFinalChapter ? `
+- Generate the FINAL CHAPTER leading to campaign conclusion
+- Title should reflect the climactic nature (e.g., "The Final Reckoning", "The Last Stand")
+- Narrative should set up the ultimate confrontation or resolution
+- Objectives should focus on defeating the main threat or achieving the ultimate goal
+- Choices should lead to meaningful resolutions
+` : isClimaxChapter ? `
+- Generate a CLIMAX CHAPTER that raises stakes dramatically
+- Title should reflect increasing danger (e.g., "Into the Heart of Darkness", "The Gathering Storm")
+- Narrative should reveal major plot developments
+- Objectives should directly challenge the main antagonist or threat
+- Choices should have high stakes and consequences
+` : `
+- Generate a chapter that advances the main story arc
+- Title should be evocative and unique (NOT just "Chapter X")
+- Narrative should build on previous events and introduce new challenges
+- Objectives should be concrete goals tied to the overarching campaign goal
+- Choices should provide meaningful story progression
+`}
+
+Generate a JSON response with these fields:
+{
+  "chapterTitle": "A unique, evocative chapter title (NOT just 'Chapter X')",
+  "narrative": "2-3 paragraphs setting up this chapter's situation and challenges (150-200 words)",
+  "chapterObjectives": [
+    { "id": "obj_1", "text": "Primary objective for this chapter", "isMain": true },
+    { "id": "obj_2", "text": "Secondary objective", "isMain": false }
+  ],
+  "choices": [
+    {
+      "action": "Descriptive action text",
+      "description": "What this choice leads to",
+      "requiresDiceRoll": true/false,
+      "diceType": "d20",
+      "rollDC": 12-18,
+      "rollModifier": 0,
+      "rollPurpose": "Skill check type"
+    }
+  ],
+  "activeQuests": [
+    {
+      "id": "quest_ch${nextChapterNumber}_main",
+      "title": "Main quest for this chapter",
+      "description": "What the player needs to accomplish",
+      "status": "active",
+      "xpReward": 200-500
+    }
+  ],
+  "newLocation": "The primary location for this chapter's events",
+  "storyHooks": ["Plot hook 1", "Plot hook 2"]
+}
+
+IMPORTANT: The chapterTitle MUST be a creative, evocative name - NEVER just "Chapter X" or generic titles.
+Choices should include 4 options with at least 2 requiring dice rolls.
+`;
+          
+          const chapterResponse = await openaiClientForChapter.chat.completions.create({
+            model: "gpt-4o",
+            messages: [{ role: "user", content: chapterPrompt }],
+            response_format: { type: "json_object" },
+            max_tokens: 1500,
+          });
+          
+          let generatedChapter;
+          try {
+            generatedChapter = JSON.parse(chapterResponse.choices[0].message.content || '{}');
+            
+            // Validate the response has required fields
+            if (!generatedChapter.chapterTitle || generatedChapter.chapterTitle.toLowerCase().includes('chapter ' + nextChapterNumber)) {
+              // AI failed to generate a unique title, create a better one
+              const titleOptions = isFinalChapter 
+                ? ["The Final Reckoning", "The Last Stand", "Dawn of Resolution", "The Ultimate Challenge"]
+                : isClimaxChapter
+                ? ["The Gathering Storm", "Into the Abyss", "The Darkest Hour", "Shadows Rising"]
+                : ["A New Path", "Echoes of Fate", "The Hidden Truth", "Crossing Thresholds"];
+              generatedChapter.chapterTitle = titleOptions[Math.floor(Math.random() * titleOptions.length)];
+            }
+          } catch (parseErr) {
+            console.error("Failed to parse chapter generation response:", parseErr);
+            // Create meaningful fallback content that's still better than generic
+            const fallbackTitles = ["The Path Forward", "Uncharted Territory", "Rising Challenges", "The Next Step"];
+            generatedChapter = {
+              chapterTitle: fallbackTitles[Math.floor(Math.random() * fallbackTitles.length)],
+              narrative: `The echoes of your recent accomplishments still linger as new challenges emerge. The path ahead remains shrouded in mystery, but your party's resolve is unwavering. What trials await in this next phase of your adventure?`,
+              choices: [
+                { action: "Scout the area ahead", description: "Survey your surroundings for threats or opportunities", requiresDiceRoll: true, diceType: "d20", rollDC: 12, rollModifier: 0, rollPurpose: "Perception Check" },
+                { action: "Seek local information", description: "Find someone who knows about recent events", requiresDiceRoll: false },
+                { action: "Press forward boldly", description: "Continue your mission without delay", requiresDiceRoll: false },
+                { action: "Take a moment to strategize", description: "Plan your next moves carefully", requiresDiceRoll: false }
+              ],
+              activeQuests: [
+                { id: `quest_ch${nextChapterNumber}_main`, title: "Continue the Quest", description: "Advance toward your ultimate goal", status: "active", xpReward: 200 }
+              ],
+              newLocation: currentLocation || "Unknown Territory",
+              chapterObjectives: [
+                { id: "obj_1", text: "Continue progressing through the story", isMain: true }
+              ]
+            };
+          }
+          
+          // Validate we have valid chapter content before proceeding
+          if (!generatedChapter || !generatedChapter.chapterTitle || !generatedChapter.narrative) {
+            console.error("Failed to generate valid chapter content, not advancing");
+            throw new Error("Failed to generate valid chapter content");
+          }
+          
+          // Prepare the enhanced story state BEFORE creating the session
+          const enhancedStoryState = {
+            ...(currentSession.storyState as any || {}),
+            location: generatedChapter.newLocation || currentLocation,
+            activeQuests: generatedChapter.activeQuests || [],
+            chapterObjectives: generatedChapter.chapterObjectives || [],
+            storyHooks: generatedChapter.storyHooks || [],
+            turnsInChapter: 0,
+            // Reset adventure progress for new chapter
+            adventureProgress: {
+              encounters: { combat: 0, trap: 0, treasure: 0, total: 0 },
+              puzzles: 0,
+              discoveries: 0
+            }
+          };
+          
           const chapterSummary = `Chapter ${currentSession.sessionNumber} concluded. ${
             allCompletedQuests.length > 0 
               ? `Quests completed: ${allCompletedQuests.join(', ')}.` 
               : ''
-          } The adventure continues...`;
+          }`;
           
-          // Advance to next session/chapter
+          // NOW advance to next session - we have valid content ready
           newSessionData = await storage.advanceToNextSession(campaignId, chapterSummary);
+          
+          // Immediately update with AI-generated content
+          if (newSessionData && newSessionData.id) {
+            // Update the session with proper content
+            await storage.advanceSessionStory(campaignId, {
+              narrative: generatedChapter.narrative,
+              dmNarrative: `Chapter ${nextChapterNumber}: ${generatedChapter.chapterTitle}`,
+              choices: generatedChapter.choices,
+              storyState: enhancedStoryState,
+              npcInteractions: [],
+              playerChoicesMade: []
+            });
+            
+            // Update the session title separately
+            await db
+              .update(campaignSessions)
+              .set({
+                title: generatedChapter.chapterTitle,
+                location: generatedChapter.newLocation || currentLocation
+              })
+              .where(eq(campaignSessions.id, newSessionData.id));
+            
+            // Refresh the session data with updated content
+            newSessionData = await storage.getCurrentSession(campaignId);
+            
+            console.log(`Generated AI chapter: "${generatedChapter.chapterTitle}" for campaign ${campaignId}`);
+          }
           
           // Only mark as advanced if we got valid session data
           if (newSessionData && newSessionData.id) {
