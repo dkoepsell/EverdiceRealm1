@@ -442,19 +442,25 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     return campaign.title || 'Adventure';
   }, [parsedStoryState?.currentLocation, currentSession?.location, campaign.title]);
   
-  // Campaign dungeon map (persistent) - fetched by location
+  // Map location key includes session number so each chapter/level gets its own map
+  const mapLocationKey = useMemo(() => {
+    const sessionNum = currentSession?.sessionNumber || campaign.currentSession || 1;
+    return `${currentLocation} - Level ${sessionNum}`;
+  }, [currentLocation, currentSession?.sessionNumber, campaign.currentSession]);
+  
+  // Campaign dungeon map (persistent) - fetched by location AND level
   // Track if map definitely doesn't exist (404) vs just not loaded yet
   const [mapNotFound, setMapNotFound] = useState(false);
   
   const { data: persistedDungeonMap, isLoading: dungeonMapLoading, isError: dungeonMapError } = useQuery<any>({
-    queryKey: [`/api/campaigns/${campaign.id}/dungeon-map`, { location: currentLocation }],
+    queryKey: [`/api/campaigns/${campaign.id}/dungeon-map`, { location: mapLocationKey }],
     queryFn: async () => {
-      const response = await fetch(`/api/campaigns/${campaign.id}/dungeon-map?location=${encodeURIComponent(currentLocation)}`, {
+      const response = await fetch(`/api/campaigns/${campaign.id}/dungeon-map?location=${encodeURIComponent(mapLocationKey)}`, {
         credentials: 'include',
       });
       if (response.status === 404) {
         setMapNotFound(true);
-        return null; // No map for this location
+        return null; // No map for this location/level
       }
       if (!response.ok) {
         throw new Error('Failed to fetch dungeon map');
@@ -462,14 +468,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       setMapNotFound(false);
       return response.json();
     },
-    enabled: !!campaign.id && !!currentLocation,
+    enabled: !!campaign.id && !!mapLocationKey,
     retry: false,
   });
   
-  // Reset mapNotFound when location changes
+  // Reset mapNotFound when location/level changes
   useEffect(() => {
     setMapNotFound(false);
-  }, [currentLocation]);
+  }, [mapLocationKey]);
   
   // Load persisted dungeon map from database
   useEffect(() => {
@@ -490,25 +496,24 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
   }, [persistedDungeonMap, dungeonMapId, dungeonMapLocation]);
   
-  // Check if map matches current location
+  // Check if map matches current location/level
   const mapMatchesLocation = useMemo(() => {
-    if (!dungeonMapLocation || !currentLocation) return true;
-    return dungeonMapLocation.toLowerCase().includes(currentLocation.toLowerCase()) ||
-           currentLocation.toLowerCase().includes(dungeonMapLocation.toLowerCase());
-  }, [dungeonMapLocation, currentLocation]);
+    if (!dungeonMapLocation || !mapLocationKey) return true;
+    return dungeonMapLocation.toLowerCase() === mapLocationKey.toLowerCase();
+  }, [dungeonMapLocation, mapLocationKey]);
   
-  // Clear map state when location changes
+  // Clear map state when location/level changes
   useEffect(() => {
-    if (prevLocationRef.current && prevLocationRef.current !== currentLocation) {
-      // Location changed - clear current map data
+    if (prevLocationRef.current && prevLocationRef.current !== mapLocationKey) {
+      // Location or level changed - clear current map data
       setDungeonMapData(null);
       setDungeonMapId(null);
       setDungeonMapLocation(null);
     }
-    prevLocationRef.current = currentLocation;
-  }, [currentLocation]);
+    prevLocationRef.current = mapLocationKey;
+  }, [mapLocationKey]);
   
-  // Function to generate a new map for the current location
+  // Function to generate a new map for the current location/level
   const handleGenerateMap = async () => {
     setIsGeneratingMap(true);
     try {
@@ -520,9 +525,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         dungeonLevel: currentSession?.sessionNumber || 1,
       });
       
-      // Save the new map to the database
+      // Save the new map to the database using mapLocationKey (includes level)
       const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/dungeon-map`, {
-        mapName: currentLocation,
+        mapName: mapLocationKey,
         mapData: newMap,
         playerPosition: newMap.playerPosition || { x: 0, y: 0 },
         exploredTiles: [],
@@ -533,14 +538,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       
       setDungeonMapData(newMap);
       setDungeonMapId(savedMap.id);
-      setDungeonMapLocation(currentLocation);
+      setDungeonMapLocation(mapLocationKey);
       
       toast({
         title: "Map Generated",
-        description: `Created map for ${currentLocation}`,
+        description: `Created map for ${mapLocationKey}`,
       });
       
-      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/dungeon-map`, { location: currentLocation }] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/dungeon-map`, { location: mapLocationKey }] });
     } catch (error) {
       console.error('Failed to generate map:', error);
       toast({
@@ -552,6 +557,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       setIsGeneratingMap(false);
     }
   };
+  
+  // Auto-generate map when entering a new level with no existing map
+  useEffect(() => {
+    if (mapNotFound && !dungeonMapLoading && !isGeneratingMap && !dungeonMapData && mapLocationKey) {
+      // No map found for this level - auto-generate one
+      handleGenerateMap();
+    }
+  }, [mapNotFound, dungeonMapLoading, isGeneratingMap, dungeonMapData, mapLocationKey]);
   
   // Sync combat entities (enemies and party) to dungeon map
   useEffect(() => {
@@ -856,8 +869,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         if (data.dungeonMapId) {
           setDungeonMapId(data.dungeonMapId);
         }
-        setDungeonMapLocation(currentLocation);
-        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/dungeon-map`, { location: currentLocation }] });
+        setDungeonMapLocation(mapLocationKey);
+        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/dungeon-map`, { location: mapLocationKey }] });
         
         // Show movement notification if there was movement
         if (data.movement?.occurred) {
