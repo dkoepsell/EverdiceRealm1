@@ -29,7 +29,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -1833,6 +1833,29 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 {/* Current Session */}
                 {currentSession && !parsedStoryState?.adventureEnded ? (
                   <div className="mt-6 space-y-4">
+                    {/* Campaign Chapter Progress Bar */}
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 p-3 rounded-lg border border-indigo-200 dark:border-indigo-800 mb-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-semibold text-indigo-900 dark:text-indigo-100 flex items-center">
+                          <BookOpen className="h-4 w-4 mr-2" />
+                          Campaign Progress
+                        </span>
+                        <span className="text-sm font-bold text-indigo-700 dark:text-indigo-300">
+                          Chapter {currentSession.sessionNumber} of {campaign.totalChapters || 5}
+                        </span>
+                      </div>
+                      <Progress 
+                        value={(currentSession.sessionNumber / (campaign.totalChapters || 5)) * 100} 
+                        className="h-3 bg-indigo-200 dark:bg-indigo-900"
+                        data-testid="progress-campaign-chapters"
+                      />
+                      <div className="flex justify-between text-xs mt-1 text-indigo-600 dark:text-indigo-400">
+                        <span>Start</span>
+                        <span>{currentSession.sessionNumber === (campaign.totalChapters || 5) ? '🏆 Final Chapter!' : `${(campaign.totalChapters || 5) - currentSession.sessionNumber} chapters remaining`}</span>
+                        <span>End</span>
+                      </div>
+                    </div>
+                    
                     <div className="flex justify-between items-start">
                       <h3 className="text-xl font-bold flex items-center" style={{ color: '#0f172a' }}>
                         <Scroll className="h-5 w-5 mr-2 text-indigo-600 dark:text-indigo-400" />

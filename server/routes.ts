@@ -1590,11 +1590,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
+      // Calculate total chapters based on difficulty
+      const difficulty = req.body.difficulty || 'Normal';
+      const totalChapters = difficulty === 'Heroic' ? 6 : 
+                            difficulty === 'Challenging' ? 5 : 4;
+      
       const campaignData = insertCampaignSchema.parse({
         ...req.body,
         userId: req.user.id,
         createdAt: new Date().toISOString(),
         currentSession: 1,
+        totalChapters,
         isPublished: false,
         isPrivate: true,
         maxPlayers: 6
