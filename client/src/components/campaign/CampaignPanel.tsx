@@ -83,6 +83,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     enabled: !!campaign.id,
   });
   
+  // Stock companions available to add - fetch on demand when dialog is opened
+  const [stockCompanionsEnabled, setStockCompanionsEnabled] = useState(false);
+  const { data: stockCompanions = [], isLoading: stockCompanionsLoading } = useQuery<any[]>({
+    queryKey: ['/api/npcs/stock-companions'],
+    enabled: stockCompanionsEnabled,
+  });
+  
   // We use a ref to track previous location to detect changes
   const prevLocationRef = useRef<string | null>(null);
   
@@ -201,6 +208,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [chatInput, setChatInput] = useState("");
   const [isSendingChat, setIsSendingChat] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [showAddCompanionDialog, setShowAddCompanionDialog] = useState(false);
+  const [selectedStockCompanionId, setSelectedStockCompanionId] = useState<number | null>(null);
   
   // Fetch chat messages for this campaign
   const { data: fetchedChatMessages = [], refetch: refetchChat } = useQuery<any[]>({
@@ -1246,6 +1255,33 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     onError: (error: Error) => {
       toast({
         title: "Failed to Add Item",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Add stock companion to campaign
+  const addCompanionToCampaignMutation = useMutation({
+    mutationFn: async (npcId: number) => {
+      const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/npcs`, {
+        npcId,
+        role: 'companion'
+      });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
+      toast({
+        title: "Companion Added",
+        description: `${data.npc?.name || 'Companion'} has joined your party!`,
+      });
+      setShowAddCompanionDialog(false);
+      setSelectedStockCompanionId(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Add Companion",
         description: error.message,
         variant: "destructive"
       });
@@ -2530,10 +2566,25 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
                 {/* Party Member Selection */}
                 <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
-                    <Users className="h-5 w-5 text-slate-700 dark:text-slate-300" />
-                    Manage Party Member
-                  </h3>
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <Users className="h-5 w-5 text-slate-700 dark:text-slate-300" />
+                      Manage Party Member
+                    </h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setStockCompanionsEnabled(true);
+                        setShowAddCompanionDialog(true);
+                      }}
+                      className="flex items-center gap-2"
+                      data-testid="button-add-companion"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Companion
+                    </Button>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {/* Character buttons - show ALL user's characters in the party */}
                     {myParticipants.map((participant: any) => (
@@ -2575,6 +2626,79 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     )}
                   </div>
                 </div>
+                
+                {/* Add Stock Companion Dialog */}
+                <Dialog open={showAddCompanionDialog} onOpenChange={setShowAddCompanionDialog}>
+                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Add Companion to Party</DialogTitle>
+                      <DialogDescription>
+                        Choose a ready-made companion to join your adventure. These companions have unique abilities and personalities.
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    {stockCompanionsLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : stockCompanions.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        No companions available
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {stockCompanions
+                          .filter((companion: any) => !partyNpcs.some((pn: any) => pn.id === companion.id))
+                          .map((companion: any) => (
+                          <div
+                            key={companion.id}
+                            className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                              selectedStockCompanionId === companion.id
+                                ? 'border-primary bg-primary/10'
+                                : 'border-slate-200 dark:border-slate-700 hover:border-primary/50'
+                            }`}
+                            onClick={() => setSelectedStockCompanionId(companion.id)}
+                            data-testid={`companion-card-${companion.id}`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg">
+                                {companion.name?.charAt(0) || '?'}
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-bold text-slate-900 dark:text-slate-100">{companion.name}</h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                  {companion.race} - {companion.occupation || companion.companionType}
+                                </p>
+                                <p className="text-xs text-slate-500 dark:text-slate-500 mt-1 line-clamp-2">
+                                  {companion.personality}
+                                </p>
+                                <div className="flex gap-2 mt-2">
+                                  <Badge variant="secondary" className="text-xs">Lvl {companion.level}</Badge>
+                                  <Badge variant="outline" className="text-xs">HP {companion.hitPoints}</Badge>
+                                  <Badge variant="outline" className="text-xs">AC {companion.armorClass}</Badge>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowAddCompanionDialog(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() => selectedStockCompanionId && addCompanionToCampaignMutation.mutate(selectedStockCompanionId)}
+                        disabled={!selectedStockCompanionId || addCompanionToCampaignMutation.isPending}
+                        data-testid="button-confirm-add-companion"
+                      >
+                        {addCompanionToCampaignMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                        Add to Party
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
 
                 {/* Rest & Recovery Section - Character Only */}
                 {selectedPartyMemberType === "character" && activeCharacter && (
