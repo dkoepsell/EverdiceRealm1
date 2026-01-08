@@ -30,7 +30,8 @@ import {
   magicItems,
   monsters,
   chatMessages,
-  onlineUsers
+  onlineUsers,
+  campaignSessions
 } from "@shared/schema";
 import { setupAuth, isAuthenticated, requireAdmin } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";
