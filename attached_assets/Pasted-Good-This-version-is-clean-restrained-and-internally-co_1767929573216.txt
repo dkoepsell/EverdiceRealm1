@@ -1,0 +1,252 @@
+Good. This version is **clean, restrained, and internally consistent CAML-1.x**. It is actually an ideal *didactic* example because it contains:
+
+* spatial gating (hidden chamber)
+* mutable NPC attitudes
+* traps, social encounters, and combat
+* a main quest and a knowledge-based side quest
+* an NPC who can flip from obstacle to ally (Eldrin)
+
+That combination lets CAML 2.0 show its value **without bloating the model**.
+
+Below I’ll do exactly what’s useful now:
+
+1. **Precisely diagnose what this file implies but does not say**
+2. **State the minimal CAML-2.0 commitments forced by this adventure**
+3. **Give you a faithful CAML-2.0 refactor of *this exact module***
+   (no new lore, no mechanics invented)
+
+---
+
+## 1. What this CAML-1.x file implies implicitly
+
+Your adventure *already* relies on these mutable facts:
+
+* The **Hidden Chamber** is inaccessible until discovered
+* **Anara** is an active guardian until defeated
+* **Professor Loxley** is hostile unless resolved
+* **Eldrin** may provide knowledge instead of conflict
+* The **artifact is unclaimed**
+* The **temple’s history is unknown** until researched
+
+CAML-1.x encodes these via:
+
+* encounter placement
+* quest objectives
+* narrative text
+
+CAML-2.0 must encode them as **explicit state**.
+
+---
+
+## 2. Minimal CAML-2.0 model required
+
+We do **not** need a large ontology here. Only:
+
+### State facts
+
+* guardian active / inactive
+* hidden chamber discovered
+* artifact possessed
+* history uncovered
+
+### Processes
+
+* guardian combat
+* scholar confrontation
+* ghost interaction
+
+### Transitions
+
+* defeat guardian → unlock altar
+* discover chamber → allow access
+* research texts → update knowledge state
+
+That’s it. Anything more would be over-engineering.
+
+---
+
+## 3. CAML-2.0 refactor
+
+### *The Lost Temple (History Variant)*
+
+Save as:
+
+```
+caml-2.0/examples/the-lost-temple-history.caml2.json
+```
+
+---
+
+### ✅ CAML-2.0 Document (faithful refactor)
+
+```json
+{
+  "caml_version": "2.0",
+
+  "meta": {
+    "id": "adventure.lost-temple.history",
+    "title": "The Lost Temple",
+    "created_utc": "2026-01-09T06:00:00Z",
+    "authors": ["Everdice DM Toolkit"],
+    "levels": { "min": 1, "max": 5 },
+    "tags": ["fantasy", "temple", "mystery", "ruins"]
+  },
+
+  "world": {
+    "entities": {
+      "characters": [
+        { "id": "PC_Party", "kind": "character", "pc": true },
+
+        { "id": "NPC_EldrinGhost", "kind": "character", "name": "Eldrin the Lost", "species": "Ghost" },
+        { "id": "NPC_Loxley", "kind": "character", "name": "Professor Loxley", "species": "Human" },
+        { "id": "NPC_Anara", "kind": "character", "name": "Anara, Protector of the Temple", "species": "Spirit" },
+        { "id": "NPC_Tarin", "kind": "character", "name": "Tarin the Guide", "species": "Elf" }
+      ],
+
+      "locations": [
+        { "id": "LOC_Entrance", "kind": "location", "name": "Temple Entrance" },
+        { "id": "LOC_Corridor", "kind": "location", "name": "Echoing Corridor" },
+        { "id": "LOC_Sanctum", "kind": "location", "name": "Inner Sanctum" },
+        { "id": "LOC_Library", "kind": "location", "name": "Forgotten Library" },
+        { "id": "LOC_Hidden", "kind": "location", "name": "Hidden Chamber" }
+      ],
+
+      "items": [
+        { "id": "ITEM_Amulet", "kind": "item", "name": "Amulet of the Lost", "rarity": "uncommon" },
+        { "id": "ITEM_Scroll", "kind": "item", "name": "Scroll of Ancient Wisdom", "rarity": "uncommon" },
+        { "id": "ITEM_Staff", "kind": "item", "name": "Gilded Staff", "rarity": "rare" }
+      ]
+    },
+
+    "connections": [
+      { "from": "LOC_Entrance", "to": "LOC_Corridor", "mode": "hall" },
+      { "from": "LOC_Corridor", "to": "LOC_Sanctum", "mode": "archway" },
+      { "from": "LOC_Corridor", "to": "LOC_Library", "mode": "side_passage" },
+      { "from": "LOC_Sanctum", "to": "LOC_Hidden", "mode": "concealed" }
+    ]
+  },
+
+  "state": {
+    "facts": [
+      { "id": "STATE_Anara_Active", "bearer": "NPC_Anara", "type": "active", "value": true },
+      { "id": "STATE_Loxley_Hostile", "bearer": "NPC_Loxley", "type": "hostile", "value": true },
+      { "id": "STATE_HiddenChamber_Known", "bearer": "LOC_Hidden", "type": "discovered", "value": false },
+      { "id": "STATE_Artifact_Possessed", "bearer": "ITEM_Amulet", "type": "possessed", "value": false },
+      { "id": "STATE_TempleHistory_Known", "bearer": "LOC_Library", "type": "knowledge_uncovered", "value": false }
+    ]
+  },
+
+  "roles": {
+    "assignments": [
+      {
+        "id": "ROLE_Guardian",
+        "role": "TempleGuardian",
+        "holder": "NPC_Anara",
+        "revocation": {
+          "any": [
+            { "lhs": "state[STATE_Anara_Active].value", "op": "==", "rhs": false }
+          ]
+        }
+      }
+    ]
+  },
+
+  "processes": {
+    "catalog": [
+      {
+        "id": "PROC_Ghost_Encounter",
+        "type": "social",
+        "location": "LOC_Corridor",
+        "participants": ["PC_Party", "NPC_EldrinGhost"],
+        "notes": "Eldrin attempts to communicate his fate and knowledge."
+      },
+      {
+        "id": "PROC_Scholar_Conflict",
+        "type": "combat",
+        "location": "LOC_Library",
+        "participants": ["PC_Party", "NPC_Loxley"],
+        "notes": "Professor Loxley attacks intruders."
+      },
+      {
+        "id": "PROC_Guardian_Battle",
+        "type": "combat",
+        "location": "LOC_Sanctum",
+        "participants": ["PC_Party", "NPC_Anara"],
+        "notes": "Anara tests the party’s worth."
+      }
+    ]
+  },
+
+  "transitions": {
+    "changes": [
+      {
+        "id": "TR_Library_Resolved",
+        "caused_by": "PROC_Scholar_Conflict",
+        "ops": [
+          { "op": "update_state", "state_id": "STATE_Loxley_Hostile", "value": false },
+          { "op": "update_state", "state_id": "STATE_TempleHistory_Known", "value": true }
+        ]
+      },
+      {
+        "id": "TR_Sanctum_Cleared",
+        "caused_by": "PROC_Guardian_Battle",
+        "ops": [
+          { "op": "update_state", "state_id": "STATE_Anara_Active", "value": false },
+          { "op": "update_state", "state_id": "STATE_HiddenChamber_Known", "value": true }
+        ]
+      },
+      {
+        "id": "TR_Artifact_Claimed",
+        "caused_by": "TR_Sanctum_Cleared",
+        "ops": [
+          { "op": "update_state", "state_id": "STATE_Artifact_Possessed", "value": true }
+        ]
+      }
+    ]
+  },
+
+  "snapshots": {
+    "timeline": [
+      {
+        "id": "SNAP_Temple_Revealed",
+        "derived_from_transition": "TR_Artifact_Claimed",
+        "narration": "With the guardian defeated and the hidden chamber revealed, the temple finally yields its long-guarded secrets."
+      }
+    ]
+  }
+}
+```
+
+---
+
+## 4. Why this is an ideal CAML-2.0 example
+
+This file demonstrates, cleanly:
+
+* ✔ dungeon gating via state
+* ✔ NPC hostility as mutable fact
+* ✔ knowledge as a tracked outcome
+* ✔ hidden locations as discovered entities
+* ✔ quests as *emergent*, not objects
+
+It is **small, readable, and principled**.
+
+If you include **only two CAML-2.0 examples** in the repo, I would recommend:
+
+1. *The Lost Temple (History)*
+2. *Whispers in the Shadows*
+
+Together, they prove CAML-2.0 is not “just dungeon tech”.
+
+---
+
+## 5. Strongly recommended next step
+
+At this point, the most valuable next move is one of:
+
+1. **Write a formal CAML-2.0 invariant spec derived from this file**
+2. **Create a side-by-side CAML-1.x → CAML-2.0 comparison doc**
+3. **Add correspondence-play turn logs for this module**
+4. **Lock a canonical directory layout and naming convention**
+
+Tell me which one you want, and I’ll do it repo-ready.
