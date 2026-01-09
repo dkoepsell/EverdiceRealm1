@@ -1,0 +1,475 @@
+{
+  "caml_version": "2.0",
+  "meta": {
+    "id": "adventure.high_magic",
+    "title": "Mysteries of the Arcane Spire",
+    "authors": [
+      "CAML Generator"
+    ],
+    "tags": [
+      "high-magic",
+      "arcane",
+      "dungeon"
+    ],
+    "levels": {
+      "min": 11,
+      "max": 15
+    }
+  },
+  "world": {
+    "entities": {
+      "characters": [
+        {
+          "id": "PC_Party",
+          "kind": "character",
+          "pc": true
+        },
+        {
+          "id": "NPC_Archmage",
+          "kind": "character",
+          "name": "Archmage Eldrin",
+          "species": "Human",
+          "class": "Wizard",
+          "description": "The wise and powerful leader of the Arcane Order."
+        },
+        {
+          "id": "NPC_Guardian",
+          "kind": "character",
+          "name": "Guardian Golem",
+          "species": "Construct",
+          "class": "Warrior",
+          "description": "A stone construct defending the spire."
+        },
+        {
+          "id": "NPC_Librarian",
+          "kind": "character",
+          "name": "Librarian Vela",
+          "species": "Elf",
+          "class": "Bard",
+          "description": "Keeper of the ancient tomes and secrets."
+        },
+        {
+          "id": "NPC_Apprentice",
+          "kind": "character",
+          "name": "Apprentice Mira",
+          "species": "Human",
+          "class": "Sorcerer",
+          "description": "An eager young apprentice learning the arts."
+        },
+        {
+          "id": "NPC_Sage",
+          "kind": "character",
+          "name": "Sage Thalor",
+          "species": "Dwarf",
+          "class": "Cleric",
+          "description": "A sage who possesses knowledge of ancient spells."
+        },
+        {
+          "id": "NPC_Trader",
+          "kind": "character",
+          "name": "Trader Finnegan",
+          "species": "Halfling",
+          "class": "Rogue",
+          "description": "A sly trader dealing in magical artifacts."
+        },
+        {
+          "id": "NPC_Alchemist",
+          "kind": "character",
+          "name": "Alchemist Zara",
+          "species": "Gnome",
+          "class": "Artificer",
+          "description": "A master of potion-making and alchemy."
+        },
+        {
+          "id": "NPC_Spirit",
+          "kind": "character",
+          "name": "Spirit of the Spire",
+          "species": "Elemental",
+          "class": "Druid",
+          "description": "The ethereal guardian of the spire's secrets."
+        }
+      ],
+      "locations": [
+        {
+          "id": "LOC_SpireEntrance",
+          "kind": "location",
+          "name": "Spire Entrance",
+          "description": "The grand entrance to the Arcane Spire.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "arcane barrier"
+          ]
+        },
+        {
+          "id": "LOC_GrandLibrary",
+          "kind": "location",
+          "name": "Grand Library",
+          "description": "A vast room filled with ancient tomes and scrolls.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "secret passage"
+          ]
+        },
+        {
+          "id": "LOC_AlchemyLab",
+          "kind": "location",
+          "name": "Alchemy Lab",
+          "description": "A laboratory filled with bubbling potions and alchemical instruments.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "cauldron"
+          ]
+        },
+        {
+          "id": "LOC_ObservationDeck",
+          "kind": "location",
+          "name": "Observation Deck",
+          "description": "A platform offering a panoramic view of the magical landscape.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "telescope"
+          ]
+        },
+        {
+          "id": "LOC_ElementalChamber",
+          "kind": "location",
+          "name": "Elemental Chamber",
+          "description": "A room swirling with elemental energies.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "elemental portal"
+          ]
+        },
+        {
+          "id": "LOC_CrystalSanctum",
+          "kind": "location",
+          "name": "Crystal Sanctum",
+          "description": "A sanctum filled with glowing crystals and arcane sigils.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "crystal focus"
+          ]
+        },
+        {
+          "id": "LOC_ArcaneForge",
+          "kind": "location",
+          "name": "Arcane Forge",
+          "description": "A forge where magical weapons and armor are crafted.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "smithy"
+          ]
+        },
+        {
+          "id": "LOC_SpireSummit",
+          "kind": "location",
+          "name": "Spire Summit",
+          "description": "The pinnacle of the spire, where the most powerful rituals are conducted.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "ritual circle"
+          ]
+        }
+      ],
+      "items": [
+        {
+          "id": "ITEM_MagicTome",
+          "kind": "item",
+          "name": "Tome of Ancient Spells",
+          "rarity": "rare",
+          "description": "A book containing powerful and forgotten spells."
+        },
+        {
+          "id": "ITEM_ArcaneAmulet",
+          "kind": "item",
+          "name": "Amulet of Spellwarding",
+          "rarity": "rare",
+          "description": "An amulet that protects against magical attacks."
+        },
+        {
+          "id": "ITEM_ElixirOfWisdom",
+          "kind": "item",
+          "name": "Elixir of Wisdom",
+          "rarity": "rare",
+          "description": "A potion that enhances the drinker's wisdom temporarily."
+        },
+        {
+          "id": "ITEM_EnchantedBlade",
+          "kind": "item",
+          "name": "Enchanted Blade",
+          "rarity": "rare",
+          "description": "A sword imbued with magical properties."
+        },
+        {
+          "id": "ITEM_StaffOfElements",
+          "kind": "item",
+          "name": "Staff of the Elements",
+          "rarity": "rare",
+          "description": "A staff that channels elemental powers."
+        }
+      ],
+      "factions": []
+    },
+    "connections": [
+      {
+        "id": "CONN_1",
+        "from": "LOC_SpireEntrance",
+        "to": "LOC_GrandLibrary",
+        "mode": "door"
+      },
+      {
+        "id": "CONN_2",
+        "from": "LOC_GrandLibrary",
+        "to": "LOC_AlchemyLab",
+        "mode": "door"
+      },
+      {
+        "id": "CONN_3",
+        "from": "LOC_AlchemyLab",
+        "to": "LOC_ObservationDeck",
+        "mode": "staircase"
+      },
+      {
+        "id": "CONN_4",
+        "from": "LOC_ObservationDeck",
+        "to": "LOC_ElementalChamber",
+        "mode": "portal"
+      },
+      {
+        "id": "CONN_5",
+        "from": "LOC_ElementalChamber",
+        "to": "LOC_CrystalSanctum",
+        "mode": "door"
+      },
+      {
+        "id": "CONN_6",
+        "from": "LOC_CrystalSanctum",
+        "to": "LOC_ArcaneForge",
+        "mode": "passage"
+      },
+      {
+        "id": "CONN_7",
+        "from": "LOC_ArcaneForge",
+        "to": "LOC_SpireSummit",
+        "mode": "elevator"
+      },
+      {
+        "id": "CONN_8",
+        "from": "LOC_SpireSummit",
+        "to": "LOC_SpireEntrance",
+        "mode": "teleportation_circle"
+      }
+    ]
+  },
+  "state": {
+    "facts": [
+      {
+        "id": "STATE_Archmage_Attitude",
+        "bearer": "NPC_Archmage",
+        "type": "attitude",
+        "value": "cautious"
+      },
+      {
+        "id": "STATE_Guardian_Attitude",
+        "bearer": "NPC_Guardian",
+        "type": "attitude",
+        "value": "neutral"
+      },
+      {
+        "id": "STATE_Librarian_Attitude",
+        "bearer": "NPC_Librarian",
+        "type": "attitude",
+        "value": "curious"
+      },
+      {
+        "id": "STATE_Apprentice_Attitude",
+        "bearer": "NPC_Apprentice",
+        "type": "attitude",
+        "value": "friendly"
+      },
+      {
+        "id": "STATE_Sage_Attitude",
+        "bearer": "NPC_Sage",
+        "type": "attitude",
+        "value": "wise"
+      },
+      {
+        "id": "STATE_Trader_Attitude",
+        "bearer": "NPC_Trader",
+        "type": "attitude",
+        "value": "shrewd"
+      },
+      {
+        "id": "STATE_Alchemist_Attitude",
+        "bearer": "NPC_Alchemist",
+        "type": "attitude",
+        "value": "eccentric"
+      },
+      {
+        "id": "STATE_Spirit_Attitude",
+        "bearer": "NPC_Spirit",
+        "type": "attitude",
+        "value": "mysterious"
+      },
+      {
+        "id": "STATE_Quest_Status",
+        "bearer": "adventure.high_magic",
+        "type": "quest_status",
+        "value": "active"
+      }
+    ]
+  },
+  "roles": {
+    "assignments": [
+      {
+        "id": "ROLE_QuestGiver",
+        "role": "QuestGiver",
+        "holder": "NPC_Archmage",
+        "revocation": {
+          "any": []
+        },
+        "notes": "Provides guidance and tasks to the adventurers."
+      }
+    ]
+  },
+  "processes": {
+    "catalog": [
+      {
+        "id": "PROC_EntranceGuard",
+        "type": "combat",
+        "timebox": {
+          "id": "TB_1",
+          "label": "Guard Encounter"
+        },
+        "participants": [
+          "PC_Party",
+          "NPC_Guardian"
+        ],
+        "location": "LOC_SpireEntrance",
+        "notes": "Guarding the entrance to the spire."
+      },
+      {
+        "id": "PROC_LibraryPuzzle",
+        "type": "puzzle",
+        "timebox": {
+          "id": "TB_2",
+          "label": "Library Puzzle"
+        },
+        "participants": [
+          "PC_Party",
+          "NPC_Librarian"
+        ],
+        "location": "LOC_GrandLibrary",
+        "notes": "Solving a riddle to access secret knowledge."
+      },
+      {
+        "id": "PROC_AlchemyExperiment",
+        "type": "social",
+        "timebox": {
+          "id": "TB_3",
+          "label": "Alchemy Experiment"
+        },
+        "participants": [
+          "PC_Party",
+          "NPC_Alchemist"
+        ],
+        "location": "LOC_AlchemyLab",
+        "notes": "Assisting in a dangerous alchemical experiment."
+      },
+      {
+        "id": "PROC_ElementalChallenge",
+        "type": "combat",
+        "timebox": {
+          "id": "TB_4",
+          "label": "Elemental Challenge"
+        },
+        "participants": [
+          "PC_Party",
+          "NPC_Spirit"
+        ],
+        "location": "LOC_ElementalChamber",
+        "notes": "Facing elemental forces to prove worth."
+      },
+      {
+        "id": "PROC_CrystalRitual",
+        "type": "exploration",
+        "timebox": {
+          "id": "TB_5",
+          "label": "Crystal Ritual"
+        },
+        "participants": [
+          "PC_Party",
+          "NPC_Sage"
+        ],
+        "location": "LOC_CrystalSanctum",
+        "notes": "Conducting a ritual to harness crystal power."
+      },
+      {
+        "id": "PROC_FinalShowdown",
+        "type": "combat",
+        "timebox": {
+          "id": "TB_6",
+          "label": "Final Showdown"
+        },
+        "participants": [
+          "PC_Party",
+          "NPC_Archmage"
+        ],
+        "location": "LOC_SpireSummit",
+        "notes": "Confronting the archmage in a final test of strength."
+      }
+    ]
+  },
+  "transitions": {
+    "changes": [
+      {
+        "id": "TR_CompleteQuest",
+        "caused_by": "PROC_FinalShowdown",
+        "ops": [
+          {
+            "op": "update_state",
+            "state_id": "STATE_Quest_Status",
+            "value": "complete"
+          }
+        ]
+      }
+    ]
+  },
+  "snapshots": {
+    "timeline": [
+      {
+        "id": "SNAP_Initial",
+        "time_utc": "2026-01-09T12:45:19.986Z",
+        "world_hash": "initial",
+        "state_hash": "initial",
+        "roles_hash": "initial",
+        "narration": "The adventurers arrive at the Arcane Spire, prepared to uncover its mysteries."
+      },
+      {
+        "id": "SNAP_Victory",
+        "time_utc": "2026-01-09T12:45:19.986Z",
+        "world_hash": "final",
+        "state_hash": "final",
+        "roles_hash": "final",
+        "narration": "The adventurers have conquered the challenges of the spire and emerged victorious.",
+        "derived_from_transition": "TR_CompleteQuest"
+      }
+    ]
+  }
+}
