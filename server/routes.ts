@@ -6542,7 +6542,7 @@ Create a unique monster with balanced stats appropriate for its challenge rating
     }
   });
 
-  // Complete Campaign Generation endpoint - generates CAML 2.0 format
+  // Complete Campaign Generation endpoint - generates CAML 2.0 format with retry
   app.post("/api/campaigns/generate-complete", isAuthenticated, async (req: any, res) => {
     try {
       const { type, level, length, theme, customPrompt } = req.body;
@@ -6555,162 +6555,172 @@ Create a unique monster with balanced stats appropriate for its challenge rating
       const timestamp = new Date().toISOString();
       const minLevel = parseInt(level.split('-')[0]) || 1;
       const maxLevel = parseInt(level.split('-')[1]) || minLevel + 4;
+      
+      // Content requirements based on length
+      const contentReqs = length === 'Short (1-3 sessions)' 
+        ? { locations: 3, npcs: 3, processes: 2, items: 2 }
+        : length === 'Medium (4-8 sessions)'
+        ? { locations: 5, npcs: 5, processes: 4, items: 3 }
+        : { locations: 8, npcs: 8, processes: 6, items: 5 };
 
-      // Build CAML 2.0 generation prompt
-      const campaignPrompt = `Generate a complete CAML 2.0 D&D campaign with ORIGINAL content.
+      // CAML 2.0 generation with retry logic
+      const maxRetries = 2;
+      let lastError = '';
+      
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        const systemPrompt = `You generate CAML 2.0 format adventures. CAML 2.0 uses ontological layers, NOT arrays.
 
-ADVENTURE TO CREATE:
-- ID: ${adventureId}
-- Title: ${theme} Adventure
-- Type: ${type}
-- Level Range: ${level}
-- Length: ${length}
-- Theme: ${theme}
-${customPrompt ? `- Additional: ${customPrompt}` : ''}
-- Timestamp: ${timestamp}
-
-REQUIREMENTS based on length "${length}":
-${length === 'Short (1-3 sessions)' ? '- 3 locations, 3 NPCs, 2 processes, 2 items' : ''}
-${length === 'Medium (4-8 sessions)' ? '- 5 locations, 5 NPCs, 4 processes, 3 items' : ''}
-${length === 'Long (9+ sessions)' ? '- 8 locations, 8 NPCs, 6 processes, 5 items' : ''}
-
-CAML 2.0 JSON STRUCTURE (generate with your unique content):
-
+CAML 2.0 STRUCTURE (you MUST follow this exactly):
 {
-  "caml_version": "2.0",
-  "meta": { "id": "${adventureId}", "title": "Your Creative Title for ${theme}", "created_utc": "${timestamp}", "authors": ["Everdice DM Toolkit"], "tags": ["fantasy", "${type.toLowerCase()}"], "levels": {"min": ${minLevel}, "max": ${maxLevel}} },
+  "caml_version": "2.0",                    // REQUIRED - must be exactly "2.0"
+  "meta": { "id", "title", "authors", "tags", "levels": {"min", "max"} },
   "world": {
     "entities": {
-      "characters": [
-        {"id": "PC_Party", "kind": "character", "pc": true},
-        {"id": "NPC_<UniqueName>", "kind": "character", "name": "<FullName>", "species": "<Species>", "class": "<Class>", "description": "<Description>"}
-      ],
-      "locations": [
-        {"id": "LOC_<Name>", "kind": "location", "name": "<FullName>", "description": "<Description>", "tags": ["dungeon"], "features": ["<Feature>"]}
-      ],
-      "items": [
-        {"id": "ITEM_<Name>", "kind": "item", "name": "<FullName>", "rarity": "<uncommon|rare|legendary>", "description": "<Description>"}
-      ],
+      "characters": [...],                  // NPCs here - NO attitude property
+      "locations": [...],
+      "items": [...],
       "factions": []
     },
-    "connections": [
-      {"id": "CONN_1", "from": "LOC_<Loc1>", "to": "LOC_<Loc2>", "mode": "<door|hall|stairs|concealed>"}
-    ]
+    "connections": [...]                    // Location connections
   },
   "state": {
-    "facts": [
-      {"id": "STATE_<NPCName>_Attitude", "bearer": "NPC_<NPCName>", "type": "attitude", "value": "<friendly|neutral|hostile>"},
-      {"id": "STATE_<EnemyName>_Active", "bearer": "NPC_<EnemyName>", "type": "active", "value": true},
-      {"id": "STATE_Quest_Main_Status", "bearer": "${adventureId}", "type": "quest_status", "value": "active"}
-    ]
+    "facts": [...]                          // Attitudes go HERE as {bearer, type: "attitude", value}
   },
   "roles": {
-    "assignments": [
-      {"id": "ROLE_QuestGiver_Main", "role": "QuestGiver", "holder": "NPC_<QuestGiver>", "revocation": {"any": []}, "notes": "<QuestDescription>"}
-    ]
+    "assignments": [...]                    // QuestGiver roles go here
   },
   "processes": {
-    "catalog": [
-      {"id": "PROC_<Type>_<Loc>", "type": "<combat|social|puzzle|exploration>", "timebox": {"id": "TB_1", "label": "<Title>"}, "participants": ["PC_Party", "NPC_<NPC>"], "location": "LOC_<Loc>", "notes": "<Description>"}
-    ]
+    "catalog": [...]                        // Encounters as processes with timeboxes
   },
-  "transitions": {
-    "changes": [
-      {"id": "TR_<Desc>", "caused_by": "PROC_<Process>", "ops": [{"op": "update_state", "state_id": "STATE_<State>", "value": false}]}
-    ]
-  },
-  "snapshots": {
-    "timeline": [
-      {"id": "SNAP_Initial", "time_utc": "${timestamp}", "world_hash": "initial", "state_hash": "initial", "roles_hash": "initial", "narration": "<OpeningScene>"},
-      {"id": "SNAP_Victory", "time_utc": "${timestamp}", "world_hash": "final", "state_hash": "final", "roles_hash": "final", "narration": "<VictoryScene>", "derived_from_transition": "TR_<FinalTransition>"}
-    ]
-  }
+  "transitions": { "changes": [...] },
+  "snapshots": { "timeline": [...] }
 }
 
-CRITICAL RULES:
-1. Replace ALL <Placeholders> with ORIGINAL creative content for "${theme}"
-2. NO "attitude" property on NPCs - attitude is ONLY in state.facts
-3. All IDs must cross-reference correctly
-4. Use only SRD 5.1 content`;
+FORBIDDEN - these are CAML 1.x patterns:
+- "type": "AdventureModule" at root
+- "encounters": [...] array at root level
+- "quests": [...] array at root level
+- "npcs": [...] array at root level
+- "attitude": "..." property on character objects
+- Any property named "encounterType", "questGiver", "gates", "outcomes"
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: `You are a CAML 2.0 adventure designer. CAML 2.0 is NOT CAML 1.x.
+${attempt > 0 ? `PREVIOUS ATTEMPT FAILED: ${lastError}. Fix these issues.` : ''}`;
 
-CAML 2.0 MANDATORY STRUCTURE:
-- Root must have "caml_version": "2.0" (NOT "type": "AdventureModule")
-- NPCs go in world.entities.characters WITHOUT attitude property
-- Attitudes are in state.facts as {bearer, type: "attitude", value}
-- Encounters are in processes.catalog as processes with timeboxes
-- Quests are expressed via roles.assignments (QuestGiver) + state.facts (quest_status)
+        const userPrompt = `Create a ${theme} adventure for D&D levels ${level}.
 
-NEVER generate:
-- "type": "AdventureModule"
-- "encounters": [...] array at root
-- "quests": [...] array at root
-- "attitude": "..." on NPC objects`
-          },
-          {
-            role: "user",
-            content: campaignPrompt
-          }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.8,
-        max_tokens: 6000
-      });
+REQUIREMENTS:
+- Adventure ID: "${adventureId}"
+- ${contentReqs.locations} locations in world.entities.locations
+- ${contentReqs.npcs} NPCs in world.entities.characters (plus PC_Party)
+- ${contentReqs.processes} processes in processes.catalog
+- ${contentReqs.items} items in world.entities.items
+- All NPC attitudes in state.facts (NOT on character objects)
+- Use SRD 5.1 content only
 
-      const generatedContent = JSON.parse(completion.choices[0].message.content || '{}');
+${customPrompt ? `THEME NOTES: ${customPrompt}` : ''}
 
-      // Validate CAML 2.0 structure
-      const hasCAML2Structure = generatedContent.caml_version === '2.0' && 
-                      generatedContent.world?.entities && 
-                      generatedContent.state?.facts &&
-                      generatedContent.processes?.catalog;
-      
-      const hasCAML1Artifacts = generatedContent.encounters || 
-                                generatedContent.quests || 
-                                generatedContent.type === 'AdventureModule';
-      
-      const jsonStr = JSON.stringify(generatedContent);
-      const placeholderMatches = jsonStr.match(/<[^>]+>/g);
-      const hasPlaceholders = placeholderMatches && placeholderMatches.length > 0;
-      
-      const characters = generatedContent.world?.entities?.characters || [];
-      const npcsWithAttitude = characters.filter((c: any) => c.attitude !== undefined);
-      const attitudesInState = npcsWithAttitude.length === 0;
-      
-      const isCAML2 = hasCAML2Structure && !hasCAML1Artifacts && !hasPlaceholders && attitudesInState;
-      
-      if (!isCAML2) {
-        const warnings: string[] = [];
-        if (!hasCAML2Structure) warnings.push("Missing CAML 2.0 structure");
-        if (hasCAML1Artifacts) warnings.push("Contains CAML 1.x artifacts");
-        if (hasPlaceholders) warnings.push(`Contains placeholders: ${placeholderMatches?.slice(0, 3).join(', ')}`);
-        if (!attitudesInState) warnings.push("NPCs have attitude property instead of state facts");
-        
-        console.warn("CAML 2.0 generation issues:", warnings);
-        return res.status(422).json({
-          success: false,
-          message: "Generated campaign failed CAML 2.0 validation",
-          warnings,
-          adventure: generatedContent
+Generate a complete CAML 2.0 JSON adventure.`;
+
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          response_format: { type: "json_object" },
+          temperature: attempt === 0 ? 0.7 : 0.5, // Lower temp on retry
+          max_tokens: 6000
         });
+
+        const generatedContent = JSON.parse(completion.choices[0].message.content || '{}');
+
+        // Validate CAML 2.0 structure
+        const validationErrors: string[] = [];
+        
+        if (generatedContent.caml_version !== '2.0') {
+          validationErrors.push('Missing caml_version: "2.0"');
+        }
+        if (!generatedContent.world?.entities) {
+          validationErrors.push('Missing world.entities');
+        }
+        if (!generatedContent.state?.facts) {
+          validationErrors.push('Missing state.facts');
+        }
+        if (!generatedContent.processes?.catalog) {
+          validationErrors.push('Missing processes.catalog');
+        }
+        if (generatedContent.encounters) {
+          validationErrors.push('Contains forbidden "encounters" array (CAML 1.x)');
+        }
+        if (generatedContent.quests) {
+          validationErrors.push('Contains forbidden "quests" array (CAML 1.x)');
+        }
+        if (generatedContent.npcs) {
+          validationErrors.push('Contains forbidden "npcs" array (CAML 1.x)');
+        }
+        if (generatedContent.type === 'AdventureModule') {
+          validationErrors.push('Contains forbidden "type": "AdventureModule" (CAML 1.x)');
+        }
+        
+        // Check for attitude on NPCs
+        const characters = generatedContent.world?.entities?.characters || [];
+        const npcsWithAttitude = characters.filter((c: any) => c.attitude !== undefined);
+        if (npcsWithAttitude.length > 0) {
+          validationErrors.push(`${npcsWithAttitude.length} NPCs have attitude property (must be in state.facts)`);
+        }
+        
+        // Recursive check for forbidden CAML 1.x keys anywhere in the structure
+        const forbiddenKeys = ['encounterType', 'questGiver', 'gates', 'outcomes', 'startsAt', 'occursAt'];
+        const foundForbiddenKeys: string[] = [];
+        
+        function findForbiddenKeys(obj: any, path: string = '') {
+          if (obj === null || obj === undefined || typeof obj !== 'object') return;
+          
+          for (const key of Object.keys(obj)) {
+            if (forbiddenKeys.includes(key)) {
+              foundForbiddenKeys.push(`${path}${key}`);
+            }
+            if (typeof obj[key] === 'object') {
+              findForbiddenKeys(obj[key], `${path}${key}.`);
+            }
+          }
+        }
+        
+        findForbiddenKeys(generatedContent);
+        if (foundForbiddenKeys.length > 0) {
+          validationErrors.push(`Contains forbidden CAML 1.x properties: ${foundForbiddenKeys.slice(0, 5).join(', ')}`);
+        }
+        
+        // Check for placeholders
+        const jsonStr = JSON.stringify(generatedContent);
+        const placeholderMatches = jsonStr.match(/<[A-Z][^>]*>/g);
+        if (placeholderMatches && placeholderMatches.length > 0) {
+          validationErrors.push(`Contains placeholders: ${placeholderMatches.slice(0, 3).join(', ')}`);
+        }
+        
+        if (validationErrors.length === 0) {
+          // Success! Convert and return
+          console.log(`Generated CAML 2.0 campaign: "${generatedContent.meta?.title}" (attempt ${attempt + 1})`);
+          const legacyFormat = convertCAML2ToLegacyFormat(generatedContent);
+          return res.json({
+            ...legacyFormat,
+            caml2: generatedContent,
+            isCAML2: true
+          });
+        }
+        
+        // Failed validation, prepare for retry
+        lastError = validationErrors.join('; ');
+        console.warn(`CAML 2.0 validation failed (attempt ${attempt + 1}):`, validationErrors);
       }
-
-      console.log(`Generated CAML 2.0 campaign: "${generatedContent.meta?.title}"`);
-
-      // Convert to legacy format for frontend compatibility while also returning CAML 2.0
-      const legacyFormat = convertCAML2ToLegacyFormat(generatedContent);
-
-      res.json({
-        ...legacyFormat,
-        caml2: generatedContent,
-        isCAML2: true
+      
+      // All retries exhausted
+      return res.status(422).json({
+        success: false,
+        message: "Failed to generate valid CAML 2.0 after multiple attempts",
+        errors: lastError.split('; ')
       });
+      
     } catch (error) {
       console.error("Failed to generate complete campaign:", error);
       res.status(500).json({ 
