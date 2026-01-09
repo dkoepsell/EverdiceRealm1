@@ -199,38 +199,43 @@ export default function Dashboard() {
   const [showQuickStart, setShowQuickStart] = useState(false);
 
   return (
-    <div className="pb-16">
-      {/* Hero Section - Cleaner gradient design */}
-      <section className="relative bg-gradient-to-br from-primary via-primary-dark to-slate-900 py-12 md:py-16">
-        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent"></div>
+    <div className="pb-16 min-h-screen bg-gradient-to-b from-background to-muted/20">
+      {/* Hero Section - Warm amber gradient design */}
+      <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-10 md:py-14 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent"></div>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl"></div>
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm mb-4">
+              <Activity className="h-3 w-3" />
+              <span>{userStats.onlineUsers} adventurers online</span>
+            </div>
             <h1 className="text-3xl md:text-4xl font-fantasy font-bold text-white mb-3">
-              {user ? `Welcome back, ${user.username}` : 'Begin Your Adventure'}
+              {user ? `Welcome back, ${user.username}!` : 'Begin Your Adventure'}
             </h1>
-            <p className="text-lg text-white/80 mb-6">
+            <p className="text-lg text-white/70 mb-6">
               {activeCampaign 
-                ? `Continue your quest: "${activeCampaign.title}"`
-                : "Create stories, roll dice, and embark on epic quests with AI."}
+                ? `Your quest awaits in "${activeCampaign.title}"`
+                : "Create stories, roll dice, and embark on epic quests."}
             </p>
             <div className="flex flex-wrap gap-3">
               {activeCampaign ? (
-                <Button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold px-6 py-3 rounded-lg shadow-lg shadow-amber-500/20">
+                <Button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold px-6 py-2.5 rounded-lg shadow-lg shadow-amber-500/25 transition-all hover:shadow-amber-500/40">
                   <Play className="mr-2 h-4 w-4" />
                   Continue Adventure
                 </Button>
               ) : (
                 <Button 
                   onClick={() => setShowQuickStart(true)}
-                  className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold px-6 py-3 rounded-lg shadow-lg shadow-amber-500/20"
+                  className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold px-6 py-2.5 rounded-lg shadow-lg shadow-amber-500/25 transition-all hover:shadow-amber-500/40"
                 >
                   <Sparkles className="mr-2 h-4 w-4" />
                   Quick Start
                 </Button>
               )}
               <Link href="/campaigns">
-                <Button variant="outline" className="border-white/30 text-white hover:bg-white/10">
-                  {activeCampaign ? 'View All Campaigns' : 'Browse Campaigns'}
+                <Button variant="outline" className="border-white/20 text-white/90 hover:bg-white/10 hover:border-white/30">
+                  {activeCampaign ? 'All Adventures' : 'Browse Adventures'}
                 </Button>
               </Link>
             </div>
@@ -240,40 +245,13 @@ export default function Dashboard() {
       
       {/* Quick Start Modal for new users */}
       {(showQuickStart || isNewUser) && !activeCampaign && (
-        <section className="container mx-auto px-4 py-8 -mt-6">
+        <section className="container mx-auto px-4 py-8 -mt-4">
           <QuickStart 
             existingCharacters={characters} 
             onComplete={() => setShowQuickStart(false)} 
           />
         </section>
       )}
-      
-      {/* User Stats and Dashboard Info */}
-      <div className="bg-muted/20 py-4 border-b border-border/40">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-8 mb-4 md:mb-0">
-              <div className="flex items-center">
-                <Users className="h-5 w-5 mr-2 text-primary" />
-                <div>
-                  <span className="text-sm text-muted-foreground">Registered Users:</span>
-                  <span className="ml-2 font-semibold">{userStats.totalRegistered}</span>
-                </div>
-              </div>
-              <div className="flex items-center">
-                <Activity className="h-5 w-5 mr-2 text-green-500" />
-                <div>
-                  <span className="text-sm text-muted-foreground">Online Now:</span>
-                  <span className="ml-2 font-semibold">{userStats.onlineUsers}</span>
-                </div>
-              </div>
-            </div>
-            <div className="text-sm text-muted-foreground md:text-right">
-              <p>The Dashboard is the best way to access all Realm of the Everdice features on any device.</p>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Mobile Dashboard Tabs */}
       {isMobile && (

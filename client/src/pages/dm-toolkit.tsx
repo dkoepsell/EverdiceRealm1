@@ -129,210 +129,179 @@ export default function DMToolkit() {
   }
 
   return (
-    <div className="container px-4 py-6 md:py-8">
-      <div className="space-y-2 mb-6 md:mb-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-fantasy font-bold">Dungeon Master Toolkit</h1>
-            <p className="text-sm md:text-base text-muted-foreground">Create and manage your campaigns with these powerful tools</p>
-          </div>
-          <div className="flex space-x-2">
-            {campaigns.length > 0 && (
-              <Select value={selectedCampaignId?.toString() || ""} onValueChange={(value) => setSelectedCampaignId(parseInt(value))}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Select Campaign" />
-                </SelectTrigger>
-                <SelectContent>
-                  {campaigns.map((campaign) => (
-                    <SelectItem key={campaign.id} value={campaign.id.toString()}>
-                      {campaign.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <Button
-              variant="default"
-              onClick={() => setShowAIGuide(true)}
-              className="text-sm bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-              disabled={!selectedCampaignId}
-            >
-              <Sparkles className="h-4 w-4 mr-2" />
-              AI DM Assistant
-            </Button>
-          </div>
-        </div>
-      </div>
-      
-      <div className="space-y-6">
-        {/* Primary Tools */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground">Essential Tools</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card 
-              className={`cursor-pointer transition-all hover:shadow-lg border-2 ${
-                activeTab === 'training' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50'
-              }`}
-              onClick={() => setActiveTab('training')}
-            >
-              <CardContent className="p-4 text-center">
-                <BookOpen className="h-8 w-8 mx-auto mb-2 text-primary" />
-                <h4 className="font-medium">DM Training</h4>
-                <p className="text-xs text-muted-foreground mt-1">Learn essential skills</p>
-              </CardContent>
-            </Card>
-
-            <Card 
-              className={`cursor-pointer transition-all hover:shadow-lg border-2 ${
-                activeTab === 'campaign-builder' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50'
-              }`}
-              onClick={() => setActiveTab('campaign-builder')}
-            >
-              <CardContent className="p-4 text-center">
-                <Sparkles className="h-8 w-8 mx-auto mb-2 text-primary" />
-                <h4 className="font-medium">Campaign Builder</h4>
-                <p className="text-xs text-muted-foreground mt-1">Generate complete campaigns</p>
-              </CardContent>
-            </Card>
-
-            <Card 
-              className={`cursor-pointer transition-all hover:shadow-lg border-2 ${
-                activeTab === 'live-manager' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50'
-              }`}
-              onClick={() => setActiveTab('live-manager')}
-            >
-              <CardContent className="p-4 text-center">
-                <PlayIcon className="h-8 w-8 mx-auto mb-2 text-primary" />
-                <h4 className="font-medium">Live Manager</h4>
-                <p className="text-xs text-muted-foreground mt-1">Run active sessions</p>
-              </CardContent>
-            </Card>
-
-            <Card 
-              className={`cursor-pointer transition-all hover:shadow-lg border-2 ${
-                activeTab === 'generators' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50'
-              }`}
-              onClick={() => setActiveTab('generators')}
-            >
-              <CardContent className="p-4 text-center">
-                <Zap className="h-8 w-8 mx-auto mb-2 text-primary" />
-                <h4 className="font-medium">Generators</h4>
-                <p className="text-xs text-muted-foreground mt-1">Quick content creation</p>
-              </CardContent>
-            </Card>
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      {/* Hero Section */}
+      <section className="relative bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 py-8 md:py-12 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-blue-500/5 to-transparent"></div>
+        <div className="absolute top-0 right-0 w-80 h-80 bg-purple-500/5 rounded-full blur-3xl"></div>
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm mb-3">
+                <Sparkles className="h-3 w-3" />
+                <span>AI-Powered Tools</span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-fantasy font-bold text-white mb-2">Dungeon Master Toolkit</h1>
+              <p className="text-white/60">Everything you need to create epic adventures</p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {campaigns.length > 0 && (
+                <Select value={selectedCampaignId?.toString() || ""} onValueChange={(value) => setSelectedCampaignId(parseInt(value))}>
+                  <SelectTrigger className="w-48 bg-white/10 border-white/20 text-white">
+                    <SelectValue placeholder="Select Campaign" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {campaigns.map((campaign) => (
+                      <SelectItem key={campaign.id} value={campaign.id.toString()}>
+                        {campaign.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <Button
+                onClick={() => setShowAIGuide(true)}
+                className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white shadow-lg shadow-purple-500/25"
+                disabled={!selectedCampaignId}
+              >
+                <Brain className="h-4 w-4 mr-2" />
+                AI Assistant
+              </Button>
+            </div>
           </div>
         </div>
+      </section>
 
-        {/* Content Creation */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground">Content Creation</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            <Card 
-              className={`cursor-pointer transition-all hover:shadow-md border ${
-                activeTab === 'companions' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-              }`}
-              onClick={() => setActiveTab('companions')}
-            >
-              <CardContent className="p-3 text-center">
-                <Users className="h-6 w-6 mx-auto mb-1 text-primary" />
-                <h5 className="text-sm font-medium">NPCs</h5>
-              </CardContent>
-            </Card>
+      <div className="container mx-auto px-4 py-6 md:py-8">
+        <div className="space-y-8">
+          {/* Essential Tools - Large cards with colored icons */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Star className="h-5 w-5 text-amber-500" />
+              Essential Tools
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card 
+                className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${
+                  activeTab === 'training' ? 'ring-2 ring-blue-500 bg-blue-500/5' : 'hover:bg-muted/50'
+                }`}
+                onClick={() => setActiveTab('training')}
+              >
+                <CardContent className="p-5 text-center">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
+                    <BookOpen className="h-6 w-6 text-white" />
+                  </div>
+                  <h4 className="font-semibold text-sm">DM Training</h4>
+                  <p className="text-xs text-muted-foreground mt-1">Learn the basics</p>
+                </CardContent>
+              </Card>
 
-            <Card 
-              className={`cursor-pointer transition-all hover:shadow-md border ${
-                activeTab === 'locations' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-              }`}
-              onClick={() => setActiveTab('locations')}
-            >
-              <CardContent className="p-3 text-center">
-                <MapPin className="h-6 w-6 mx-auto mb-1 text-primary" />
-                <h5 className="text-sm font-medium">Locations</h5>
-              </CardContent>
-            </Card>
+              <Card 
+                className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${
+                  activeTab === 'campaign-builder' ? 'ring-2 ring-purple-500 bg-purple-500/5' : 'hover:bg-muted/50'
+                }`}
+                onClick={() => setActiveTab('campaign-builder')}
+              >
+                <CardContent className="p-5 text-center">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/25">
+                    <Sparkles className="h-6 w-6 text-white" />
+                  </div>
+                  <h4 className="font-semibold text-sm">Campaign Builder</h4>
+                  <p className="text-xs text-muted-foreground mt-1">AI-generated stories</p>
+                </CardContent>
+              </Card>
 
-            <Card 
-              className={`cursor-pointer transition-all hover:shadow-md border ${
-                activeTab === 'quests' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-              }`}
-              onClick={() => setActiveTab('quests')}
-            >
-              <CardContent className="p-3 text-center">
-                <Scroll className="h-6 w-6 mx-auto mb-1 text-primary" />
-                <h5 className="text-sm font-medium">Quests</h5>
-              </CardContent>
-            </Card>
+              <Card 
+                className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${
+                  activeTab === 'live-manager' ? 'ring-2 ring-green-500 bg-green-500/5' : 'hover:bg-muted/50'
+                }`}
+                onClick={() => setActiveTab('live-manager')}
+              >
+                <CardContent className="p-5 text-center">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg shadow-green-500/25">
+                    <PlayIcon className="h-6 w-6 text-white" />
+                  </div>
+                  <h4 className="font-semibold text-sm">Live Manager</h4>
+                  <p className="text-xs text-muted-foreground mt-1">Run sessions</p>
+                </CardContent>
+              </Card>
 
-            <Card 
-              className={`cursor-pointer transition-all hover:shadow-md border ${
-                activeTab === 'items' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-              }`}
-              onClick={() => setActiveTab('items')}
-            >
-              <CardContent className="p-3 text-center">
-                <Package className="h-6 w-6 mx-auto mb-1 text-primary" />
-                <h5 className="text-sm font-medium">Items</h5>
-              </CardContent>
-            </Card>
+              <Card 
+                className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${
+                  activeTab === 'generators' ? 'ring-2 ring-amber-500 bg-amber-500/5' : 'hover:bg-muted/50'
+                }`}
+                onClick={() => setActiveTab('generators')}
+              >
+                <CardContent className="p-5 text-center">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                    <Zap className="h-6 w-6 text-white" />
+                  </div>
+                  <h4 className="font-semibold text-sm">Quick Generate</h4>
+                  <p className="text-xs text-muted-foreground mt-1">Instant content</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
 
-            <Card 
-              className={`cursor-pointer transition-all hover:shadow-md border ${
-                activeTab === 'monsters' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-              }`}
-              onClick={() => setActiveTab('monsters')}
-            >
-              <CardContent className="p-3 text-center">
-                <Swords className="h-6 w-6 mx-auto mb-1 text-primary" />
-                <h5 className="text-sm font-medium">Monsters</h5>
-              </CardContent>
-            </Card>
+          {/* Content Creation - Compact grid */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Lightbulb className="h-5 w-5 text-purple-500" />
+              Create Content
+            </h3>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+              {[
+                { id: 'companions', icon: Users, label: 'NPCs', color: 'text-rose-500' },
+                { id: 'locations', icon: MapPin, label: 'Locations', color: 'text-emerald-500' },
+                { id: 'quests', icon: Scroll, label: 'Quests', color: 'text-amber-500' },
+                { id: 'items', icon: Package, label: 'Items', color: 'text-cyan-500' },
+                { id: 'monsters', icon: Swords, label: 'Monsters', color: 'text-red-500' },
+                { id: 'deploy', icon: Globe, label: 'Deploy', color: 'text-indigo-500' },
+              ].map(({ id, icon: Icon, label, color }) => (
+                <Card 
+                  key={id}
+                  className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+                    activeTab === id ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'
+                  }`}
+                  onClick={() => setActiveTab(id)}
+                >
+                  <CardContent className="p-3 text-center">
+                    <Icon className={`h-6 w-6 mx-auto mb-1.5 ${color}`} />
+                    <h5 className="text-xs font-medium">{label}</h5>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
 
-            <Card 
-              className={`cursor-pointer transition-all hover:shadow-md border ${
-                activeTab === 'deploy' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-              }`}
-              onClick={() => setActiveTab('deploy')}
-            >
-              <CardContent className="p-3 text-center">
-                <Globe className="h-6 w-6 mx-auto mb-1 text-primary" />
-                <h5 className="text-sm font-medium">Deploy</h5>
-              </CardContent>
-            </Card>
+          {/* Utilities - Simple row */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Circle className="h-5 w-5 text-slate-500" />
+              Utilities
+            </h3>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                variant={activeTab === 'invitations' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('invitations')}
+                className="gap-2"
+              >
+                <Mail className="h-4 w-4" />
+                Invitations
+              </Button>
+              <Button
+                variant={activeTab === 'notes' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('notes')}
+                className="gap-2"
+              >
+                <StickyNote className="h-4 w-4" />
+                Notes
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Utilities */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground">Utilities</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Card 
-              className={`cursor-pointer transition-all hover:shadow-md border ${
-                activeTab === 'invitations' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-              }`}
-              onClick={() => setActiveTab('invitations')}
-            >
-              <CardContent className="p-3 text-center">
-                <Mail className="h-6 w-6 mx-auto mb-1 text-primary" />
-                <h5 className="text-sm font-medium">Invitations</h5>
-              </CardContent>
-            </Card>
-
-            <Card 
-              className={`cursor-pointer transition-all hover:shadow-md border ${
-                activeTab === 'notes' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-              }`}
-              onClick={() => setActiveTab('notes')}
-            >
-              <CardContent className="p-3 text-center">
-                <StickyNote className="h-6 w-6 mx-auto mb-1 text-primary" />
-                <h5 className="text-sm font-medium">Notes</h5>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="hidden">
           <TabsList>
             <TabsTrigger value="training">Training</TabsTrigger>
@@ -545,7 +514,8 @@ export default function DMToolkit() {
             </CardContent>
           </Card>
         </TabsContent>
-      </Tabs>
+        </Tabs>
+      </div>
       
       {/* AI-Assisted DM Guide */}
       {showAIGuide && selectedCampaignId && (
