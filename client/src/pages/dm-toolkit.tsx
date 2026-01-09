@@ -4073,6 +4073,12 @@ function CampaignBuilderTab() {
           Generate a fully integrated campaign with interconnected quests, NPCs, locations, encounters, and rewards. 
           Perfect for DMs who want to jump right into running a cohesive adventure.
         </p>
+        <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 max-w-2xl mx-auto mt-3">
+          <p className="text-sm text-primary">
+            <strong>Powered by CAML 2.0</strong> — Campaigns are generated using the Canonical Adventure Markup Language 2.0 format with ontological layers (world, state, roles, processes, transitions). 
+            This enables rich entity relationships, dynamic state tracking, and export compatibility with virtual tabletop tools like Foundry VTT.
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
