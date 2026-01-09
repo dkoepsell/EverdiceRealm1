@@ -2,11 +2,13 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
 import { randomUUID } from "crypto";
+import pg from "pg";
 
 declare global {
   namespace Express {
@@ -30,8 +32,19 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
+  const PgStore = connectPgSimple(session);
+  
+  const pgPool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+  });
+  
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || randomUUID(), // Use consistent secret or fallback to random
+    store: new PgStore({
+      pool: pgPool,
+      tableName: 'session',
+      createTableIfMissing: true,
+    }),
+    secret: process.env.SESSION_SECRET || randomUUID(),
     resave: false,
     saveUninitialized: false,
     cookie: {
