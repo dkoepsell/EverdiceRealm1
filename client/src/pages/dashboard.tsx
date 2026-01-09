@@ -234,7 +234,7 @@ export default function Dashboard() {
             <p className="text-lg text-white/70 mb-6">
               {activeCampaign 
                 ? `Your quest awaits in "${activeCampaign.title}"`
-                : "Create stories, roll dice, and embark on epic quests."}
+                : "Learn to play, create adventures, and join a community of storytellers."}
             </p>
             <div className="flex flex-wrap gap-3">
               {activeCampaign ? (

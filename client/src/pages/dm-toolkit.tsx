@@ -159,12 +159,12 @@ export default function DMToolkit() {
                   <span className="text-white font-fantasy font-bold text-sm">DM</span>
                 </div>
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm">
-                  <Sparkles className="h-3 w-3" />
-                  <span>AI-Powered Tools</span>
+                  <Users className="h-3 w-3" />
+                  <span>Create & Share Adventures</span>
                 </div>
               </div>
               <h1 className="text-2xl md:text-3xl font-fantasy font-bold text-white mb-2">Dungeon Master Toolkit</h1>
-              <p className="text-white/60">Everything you need to create epic adventures</p>
+              <p className="text-white/60">Craft worlds, tell stories, and bring adventures to life</p>
             </div>
             <div className="flex flex-wrap gap-3">
               {campaigns.length > 0 && (
@@ -186,8 +186,8 @@ export default function DMToolkit() {
                 className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white shadow-lg shadow-purple-500/25"
                 disabled={!selectedCampaignId}
               >
-                <Brain className="h-4 w-4 mr-2" />
-                AI Assistant
+                <Lightbulb className="h-4 w-4 mr-2" />
+                Story Helper
               </Button>
             </div>
           </div>
@@ -229,7 +229,7 @@ export default function DMToolkit() {
                     <Sparkles className="h-6 w-6 text-white" />
                   </div>
                   <h4 className="font-semibold text-sm">Campaign Builder</h4>
-                  <p className="text-xs text-muted-foreground mt-1">AI-generated stories</p>
+                  <p className="text-xs text-muted-foreground mt-1">Create your story</p>
                 </CardContent>
               </Card>
 
