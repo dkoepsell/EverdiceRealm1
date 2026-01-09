@@ -1,0 +1,559 @@
+{
+  "id": "adventure.shadows_of_the_forgotten_keep",
+  "type": "AdventureModule",
+  "name": "Shadows of the Forgotten Keep",
+  "description": "A D&D adventure awaits brave heroes",
+  "synopsis": "An epic adventure awaits!",
+  "author": "Everdice DM Toolkit",
+  "version": "1.0.0",
+  "ruleset": "dnd5e",
+  "minLevel": 11,
+  "maxLevel": 15,
+  "setting": "dark",
+  "startingLocation": "location.forgotten_keep",
+  "locations": [
+    {
+      "id": "location.forgotten_keep",
+      "type": "Location",
+      "name": "Forgotten Keep",
+      "description": "An ancient, crumbling fortress shrouded in mystery.",
+      "tags": [
+        "dungeon"
+      ],
+      "features": [],
+      "connections": [
+        {
+          "direction": "forward",
+          "target": "location.shadow_forest"
+        }
+      ]
+    },
+    {
+      "id": "location.shadow_forest",
+      "type": "Location",
+      "name": "Shadow Forest",
+      "description": "A dense forest where shadows seem to come alive.",
+      "tags": [
+        "dungeon"
+      ],
+      "features": [],
+      "connections": [
+        {
+          "direction": "forward",
+          "target": "location.cursed_chapel"
+        }
+      ]
+    },
+    {
+      "id": "location.cursed_chapel",
+      "type": "Location",
+      "name": "Cursed Chapel",
+      "description": "A ruined chapel where dark rituals were performed.",
+      "tags": [
+        "dungeon"
+      ],
+      "features": [],
+      "connections": [
+        {
+          "direction": "forward",
+          "target": "location.alchemist_s_lab"
+        }
+      ]
+    },
+    {
+      "id": "location.alchemist_s_lab",
+      "type": "Location",
+      "name": "Alchemist's Lab",
+      "description": "A chaotic laboratory filled with strange concoctions.",
+      "tags": [
+        "dungeon"
+      ],
+      "features": [],
+      "connections": [
+        {
+          "direction": "forward",
+          "target": "location.guard_tower"
+        }
+      ]
+    },
+    {
+      "id": "location.guard_tower",
+      "type": "Location",
+      "name": "Guard Tower",
+      "description": "A tall tower offering a view over the entire keep.",
+      "tags": [
+        "dungeon"
+      ],
+      "features": [],
+      "connections": [
+        {
+          "direction": "forward",
+          "target": "location.vampire_throne_room"
+        }
+      ]
+    },
+    {
+      "id": "location.vampire_throne_room",
+      "type": "Location",
+      "name": "Vampire Throne Room",
+      "description": "An opulent chamber where the vampire noble resides.",
+      "tags": [
+        "dungeon"
+      ],
+      "features": [],
+      "connections": [
+        {
+          "direction": "forward",
+          "target": "location.catacombs"
+        }
+      ]
+    },
+    {
+      "id": "location.catacombs",
+      "type": "Location",
+      "name": "Catacombs",
+      "description": "Underground tunnels filled with the bones of the long dead.",
+      "tags": [
+        "dungeon"
+      ],
+      "features": [],
+      "connections": [
+        {
+          "direction": "forward",
+          "target": "location.banshee_s_lair"
+        }
+      ]
+    },
+    {
+      "id": "location.banshee_s_lair",
+      "type": "Location",
+      "name": "Banshee's Lair",
+      "description": "A dark, echoing cave where the wailing banshee dwells.",
+      "tags": [
+        "dungeon"
+      ],
+      "features": [],
+      "connections": []
+    }
+  ],
+  "npcs": [
+    {
+      "id": "npc.shadow_sorcerer",
+      "type": "NPC",
+      "name": "Shadow Sorcerer",
+      "description": "A mysterious figure cloaked in darkness, wielding powerful magic.",
+      "race": "Human",
+      "class": "Commoner",
+      "role": "enemy",
+      "personality": "hostile disposition",
+      "motivations": "Opposes the party",
+      "attitude": "neutral",
+      "startsAt": "location.forgotten_keep",
+      "ruleset": "dnd5e"
+    },
+    {
+      "id": "npc.cursed_knight",
+      "type": "NPC",
+      "name": "Cursed Knight",
+      "description": "Once a noble warrior, now bound by a dark curse.",
+      "race": "Human",
+      "class": "Commoner",
+      "role": "enemy",
+      "personality": "hostile disposition",
+      "motivations": "Opposes the party",
+      "attitude": "neutral",
+      "startsAt": "location.shadow_forest",
+      "ruleset": "dnd5e"
+    },
+    {
+      "id": "npc.fallen_priest",
+      "type": "NPC",
+      "name": "Fallen Priest",
+      "description": "A priest who lost their faith and turned to forbidden rituals.",
+      "race": "Human",
+      "class": "Commoner",
+      "role": "neutral",
+      "personality": "neutral disposition",
+      "motivations": "Has their own agenda",
+      "attitude": "neutral",
+      "startsAt": "location.cursed_chapel",
+      "ruleset": "dnd5e"
+    },
+    {
+      "id": "npc.mad_alchemist",
+      "type": "NPC",
+      "name": "Mad Alchemist",
+      "description": "A scientist driven insane by his own experiments.",
+      "race": "Human",
+      "class": "Commoner",
+      "role": "neutral",
+      "personality": "neutral disposition",
+      "motivations": "Has their own agenda",
+      "attitude": "neutral",
+      "startsAt": "location.alchemist_s_lab",
+      "ruleset": "dnd5e"
+    },
+    {
+      "id": "npc.ghostly_guard",
+      "type": "NPC",
+      "name": "Ghostly Guard",
+      "description": "The spectral remains of a loyal castle guard.",
+      "race": "Human",
+      "class": "Commoner",
+      "role": "enemy",
+      "personality": "hostile disposition",
+      "motivations": "Opposes the party",
+      "attitude": "neutral",
+      "startsAt": "location.guard_tower",
+      "ruleset": "dnd5e"
+    },
+    {
+      "id": "npc.treacherous_guide",
+      "type": "NPC",
+      "name": "Treacherous Guide",
+      "description": "A local guide with questionable loyalties.",
+      "race": "Human",
+      "class": "Commoner",
+      "role": "neutral",
+      "personality": "deceptive disposition",
+      "motivations": "Has their own agenda",
+      "attitude": "neutral",
+      "startsAt": "location.vampire_throne_room",
+      "ruleset": "dnd5e"
+    },
+    {
+      "id": "npc.vampire_noble",
+      "type": "NPC",
+      "name": "Vampire Noble",
+      "description": "A noble vampire with a thirst for power and blood.",
+      "race": "Human",
+      "class": "Commoner",
+      "role": "enemy",
+      "personality": "hostile disposition",
+      "motivations": "Opposes the party",
+      "attitude": "neutral",
+      "startsAt": "location.catacombs",
+      "ruleset": "dnd5e"
+    },
+    {
+      "id": "npc.wailing_banshee",
+      "type": "NPC",
+      "name": "Wailing Banshee",
+      "description": "A tormented spirit whose cries foretell doom.",
+      "race": "Human",
+      "class": "Commoner",
+      "role": "enemy",
+      "personality": "hostile disposition",
+      "motivations": "Opposes the party",
+      "attitude": "neutral",
+      "startsAt": "location.banshee_s_lair",
+      "ruleset": "dnd5e"
+    },
+    {
+      "id": "npc.pc_party",
+      "type": "NPC",
+      "name": "PC Party",
+      "description": "The group of adventurers exploring the Forgotten Keep.",
+      "race": "Human",
+      "class": "Commoner",
+      "role": "neutral",
+      "personality": "neutral disposition",
+      "motivations": "Has their own agenda",
+      "attitude": "neutral",
+      "startsAt": "location.forgotten_keep",
+      "ruleset": "dnd5e"
+    }
+  ],
+  "encounters": [
+    {
+      "id": "encounter.proc_encounter_shadow_sorcerer",
+      "type": "Encounter",
+      "name": "proc.encounter shadow sorcerer",
+      "description": "A standard encounter",
+      "encounterType": "combat",
+      "challengeRating": "Appropriate for level 11-15",
+      "occursAt": "location.forgotten_keep",
+      "gates": {
+        "all": [
+          "party.at(location.forgotten_keep)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.proc_encounter_shadow_sorcerer.defeated"
+          },
+          {
+            "grantItem": "Standard resolution"
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.proc_encounter_shadow_sorcerer.fled"
+          }
+        ]
+      },
+      "setup": "Set up as described",
+      "tactics": "Standard approach",
+      "treasure": "Standard resolution"
+    },
+    {
+      "id": "encounter.proc_encounter_cursed_knight",
+      "type": "Encounter",
+      "name": "proc.encounter cursed knight",
+      "description": "A standard encounter",
+      "encounterType": "combat",
+      "challengeRating": "Appropriate for level 11-15",
+      "occursAt": "location.forgotten_keep",
+      "gates": {
+        "all": [
+          "party.at(location.forgotten_keep)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.proc_encounter_cursed_knight.defeated"
+          },
+          {
+            "grantItem": "Standard resolution"
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.proc_encounter_cursed_knight.fled"
+          }
+        ]
+      },
+      "setup": "Set up as described",
+      "tactics": "Standard approach",
+      "treasure": "Standard resolution"
+    },
+    {
+      "id": "encounter.proc_encounter_fallen_priest",
+      "type": "Encounter",
+      "name": "proc.encounter fallen priest",
+      "description": "A standard encounter",
+      "encounterType": "combat",
+      "challengeRating": "Appropriate for level 11-15",
+      "occursAt": "location.forgotten_keep",
+      "gates": {
+        "all": [
+          "party.at(location.forgotten_keep)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.proc_encounter_fallen_priest.defeated"
+          },
+          {
+            "grantItem": "Standard resolution"
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.proc_encounter_fallen_priest.fled"
+          }
+        ]
+      },
+      "setup": "Set up as described",
+      "tactics": "Standard approach",
+      "treasure": "Standard resolution"
+    },
+    {
+      "id": "encounter.proc_encounter_mad_alchemist",
+      "type": "Encounter",
+      "name": "proc.encounter mad alchemist",
+      "description": "A standard encounter",
+      "encounterType": "combat",
+      "challengeRating": "Appropriate for level 11-15",
+      "occursAt": "location.forgotten_keep",
+      "gates": {
+        "all": [
+          "party.at(location.forgotten_keep)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.proc_encounter_mad_alchemist.defeated"
+          },
+          {
+            "grantItem": "Standard resolution"
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.proc_encounter_mad_alchemist.fled"
+          }
+        ]
+      },
+      "setup": "Set up as described",
+      "tactics": "Standard approach",
+      "treasure": "Standard resolution"
+    },
+    {
+      "id": "encounter.proc_encounter_vampire_noble",
+      "type": "Encounter",
+      "name": "proc.encounter vampire noble",
+      "description": "A standard encounter",
+      "encounterType": "combat",
+      "challengeRating": "Appropriate for level 11-15",
+      "occursAt": "location.forgotten_keep",
+      "gates": {
+        "all": [
+          "party.at(location.forgotten_keep)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.proc_encounter_vampire_noble.defeated"
+          },
+          {
+            "grantItem": "Standard resolution"
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.proc_encounter_vampire_noble.fled"
+          }
+        ]
+      },
+      "setup": "Set up as described",
+      "tactics": "Standard approach",
+      "treasure": "Standard resolution"
+    },
+    {
+      "id": "encounter.proc_encounter_wailing_banshee",
+      "type": "Encounter",
+      "name": "proc.encounter wailing banshee",
+      "description": "A standard encounter",
+      "encounterType": "combat",
+      "challengeRating": "Appropriate for level 11-15",
+      "occursAt": "location.forgotten_keep",
+      "gates": {
+        "all": [
+          "party.at(location.forgotten_keep)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.proc_encounter_wailing_banshee.defeated"
+          },
+          {
+            "grantItem": "Standard resolution"
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.proc_encounter_wailing_banshee.fled"
+          }
+        ]
+      },
+      "setup": "Set up as described",
+      "tactics": "Standard approach",
+      "treasure": "Standard resolution"
+    }
+  ],
+  "quests": [
+    {
+      "id": "quest.main_quest",
+      "type": "Quest",
+      "name": "Main Quest",
+      "description": "Complete the adventure objectives",
+      "tags": [
+        "main"
+      ],
+      "questGiver": "npc.shadow_sorcerer",
+      "objectives": [
+        {
+          "id": "objective.0",
+          "description": "Complete objective"
+        },
+        {
+          "id": "objective.1",
+          "description": "Complete objective"
+        },
+        {
+          "id": "objective.2",
+          "description": "Complete objective"
+        }
+      ],
+      "rewards": {
+        "description": "Experience and treasure"
+      }
+    }
+  ],
+  "items": [
+    {
+      "id": "item.dark_spellbook",
+      "type": "Item",
+      "name": "Dark Spellbook",
+      "description": "A tome of forbidden spells, bound in black leather.",
+      "itemType": "magic_item",
+      "rarity": "uncommon",
+      "rulesetExtension": {
+        "dnd5e": {
+          "mechanics": "Useful magical properties"
+        }
+      }
+    },
+    {
+      "id": "item.cursed_blade",
+      "type": "Item",
+      "name": "Cursed Blade",
+      "description": "A sword that whispers dark promises to its wielder.",
+      "itemType": "magic_item",
+      "rarity": "uncommon",
+      "rulesetExtension": {
+        "dnd5e": {
+          "mechanics": "Useful magical properties"
+        }
+      }
+    },
+    {
+      "id": "item.phantom_armor",
+      "type": "Item",
+      "name": "Phantom Armor",
+      "description": "Armor that shifts between the physical and ethereal planes.",
+      "itemType": "magic_item",
+      "rarity": "uncommon",
+      "rulesetExtension": {
+        "dnd5e": {
+          "mechanics": "Useful magical properties"
+        }
+      }
+    },
+    {
+      "id": "item.vampire_reliquary",
+      "type": "Item",
+      "name": "Vampire Reliquary",
+      "description": "A small, ornate box containing a vampire's heart.",
+      "itemType": "magic_item",
+      "rarity": "uncommon",
+      "rulesetExtension": {
+        "dnd5e": {
+          "mechanics": "Useful magical properties"
+        }
+      }
+    },
+    {
+      "id": "item.shadow_amulet",
+      "type": "Item",
+      "name": "Shadow Amulet",
+      "description": "An amulet that allows the wearer to meld with shadows.",
+      "itemType": "magic_item",
+      "rarity": "uncommon",
+      "rulesetExtension": {
+        "dnd5e": {
+          "mechanics": "Useful magical properties"
+        }
+      }
+    }
+  ],
+  "factions": [],
+  "handouts": []
+}

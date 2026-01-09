@@ -3640,6 +3640,29 @@ function CampaignBuilderTab() {
   const downloadAsCAML = () => {
     if (!generatedCampaign) return;
     
+    // Use the CAML 2.0 data if available (returned by server in caml2 property)
+    // This is the proper CAML 2.0 format with world, state, roles, processes, transitions layers
+    if (generatedCampaign.caml2 && generatedCampaign.isCAML2) {
+      const jsonContent = JSON.stringify(generatedCampaign.caml2, null, 2);
+      
+      const blob = new Blob([jsonContent], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${generatedCampaign.title.replace(/\s+/g, '_')}.caml2.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "CAML 2.0 Export Downloaded",
+        description: "Your adventure has been exported in CAML 2.0 format with full ontological layers.",
+      });
+      return;
+    }
+    
+    // Fallback for legacy campaigns without caml2 data
     const levelParts = campaignLevel.split('-');
     const minLevel = parseInt(levelParts[0]) || 1;
     const maxLevel = parseInt(levelParts[1]) || 5;
@@ -3653,143 +3676,137 @@ function CampaignBuilderTab() {
     const quests = generatedCampaign.quests || [];
     const rewards = generatedCampaign.rewards || [];
     
-    const findLocationForEncounter = (enc: any) => {
-      const match = locations.find((loc: any) => 
-        enc.description?.toLowerCase().includes(loc.name.toLowerCase())
-      );
-      return match ? toId('location', match.name) : locations[0] ? toId('location', locations[0].name) : undefined;
-    };
+    const timestamp = new Date().toISOString();
+    const adventureId = toId('adventure', generatedCampaign.title);
     
-    const camlAdventure = {
-      id: toId('adventure', generatedCampaign.title),
-      type: 'AdventureModule',
-      name: generatedCampaign.title,
-      description: generatedCampaign.description,
-      synopsis: generatedCampaign.mainStoryArc || generatedCampaign.description,
-      author: 'Everdice DM Toolkit',
-      version: '1.0.0',
-      ruleset: 'dnd5e',
-      minLevel,
-      maxLevel,
-      setting: campaignTheme,
-      startingLocation: locations[0] ? toId('location', locations[0].name) : undefined,
-      
-      locations: locations.map((loc: any, i: number) => ({
-        id: toId('location', loc.name),
-        type: 'Location',
-        name: loc.name,
-        description: loc.description,
-        tags: [loc.type || 'location'],
-        features: loc.features,
-        connections: i < locations.length - 1 ? [{
-          direction: 'forward',
-          target: toId('location', locations[i + 1]?.name)
+    // Generate CAML 2.0 format from legacy data
+    const caml2Adventure = {
+      caml_version: "2.0",
+      meta: {
+        id: adventureId,
+        title: generatedCampaign.title,
+        created_utc: timestamp,
+        authors: ["Everdice DM Toolkit"],
+        tags: [campaignTheme || "fantasy"],
+        levels: { min: minLevel, max: maxLevel }
+      },
+      world: {
+        entities: {
+          characters: [
+            { id: "PC_Party", kind: "character", pc: true },
+            ...npcs.map((npc: any, i: number) => ({
+              id: `NPC_${npc.name.replace(/\s+/g, '_')}`,
+              kind: "character",
+              name: npc.name,
+              description: npc.description,
+              species: npc.race || "Human",
+              class: npc.class || "Commoner"
+            }))
+          ],
+          locations: locations.map((loc: any) => ({
+            id: `LOC_${loc.name.replace(/\s+/g, '_')}`,
+            kind: "location",
+            name: loc.name,
+            description: loc.description,
+            tags: [loc.type || "dungeon"],
+            features: loc.features || []
+          })),
+          items: rewards.map((reward: any) => ({
+            id: `ITEM_${reward.name.replace(/\s+/g, '_')}`,
+            kind: "item",
+            name: reward.name,
+            rarity: reward.rarity || "uncommon",
+            description: reward.description
+          })),
+          factions: []
+        },
+        connections: locations.slice(0, -1).map((loc: any, i: number) => ({
+          id: `CONN_${i + 1}`,
+          from: `LOC_${loc.name.replace(/\s+/g, '_')}`,
+          to: `LOC_${locations[i + 1]?.name.replace(/\s+/g, '_')}`,
+          mode: "door"
+        }))
+      },
+      state: {
+        facts: [
+          ...npcs.map((npc: any) => ({
+            id: `STATE_${npc.name.replace(/\s+/g, '_')}_Attitude`,
+            bearer: `NPC_${npc.name.replace(/\s+/g, '_')}`,
+            type: "attitude",
+            value: npc.role === "enemy" ? "hostile" : npc.role === "ally" ? "friendly" : "neutral"
+          })),
+          {
+            id: "STATE_Quest_Main_Status",
+            bearer: adventureId,
+            type: "quest_status",
+            value: "active"
+          }
+        ]
+      },
+      roles: {
+        assignments: quests.length > 0 && npcs.length > 0 ? [{
+          id: "ROLE_QuestGiver_Main",
+          role: "QuestGiver",
+          holder: `NPC_${npcs[0]?.name.replace(/\s+/g, '_')}`,
+          revocation: { any: [] },
+          notes: quests[0]?.description || "Main quest"
         }] : []
-      })),
-      
-      npcs: npcs.map((npc: any, i: number) => ({
-        id: toId('npc', npc.name),
-        type: 'NPC',
-        name: npc.name,
-        description: npc.description,
-        race: npc.race,
-        class: npc.class,
-        role: npc.role,
-        personality: npc.personality,
-        motivations: npc.motivations,
-        attitude: 'neutral',
-        startsAt: locations[i % locations.length] ? toId('location', locations[i % locations.length].name) : undefined,
-        ruleset: 'dnd5e'
-      })),
-      
-      encounters: encounters.map((enc: any) => {
-        const encType = enc.type || 'combat';
-        const occursAt = findLocationForEncounter(enc);
-        
-        const gateConditions: string[] = [];
-        if (occursAt) gateConditions.push(`party.at(${occursAt})`);
-        
-        const successOutcomes: any[] = [];
-        const failureOutcomes: any[] = [];
-        
-        if (encType === 'combat') {
-          successOutcomes.push({ addTag: `${toId('encounter', enc.name)}.defeated` });
-          if (enc.treasure) successOutcomes.push({ grantItem: enc.treasure });
-          failureOutcomes.push({ addTag: `${toId('encounter', enc.name)}.fled` });
-        } else if (encType === 'social') {
-          successOutcomes.push({ addTag: `${toId('encounter', enc.name)}.resolved` });
-          successOutcomes.push({ modifyAttitude: { target: 'involved_npcs', change: '+1' } });
-          failureOutcomes.push({ addTag: `${toId('encounter', enc.name)}.failed` });
-          failureOutcomes.push({ modifyAttitude: { target: 'involved_npcs', change: '-1' } });
-        } else {
-          successOutcomes.push({ addTag: `${toId('encounter', enc.name)}.completed` });
-          failureOutcomes.push({ addTag: `${toId('encounter', enc.name)}.failed` });
-        }
-        
-        return {
-          id: toId('encounter', enc.name),
-          type: 'Encounter',
-          name: enc.name,
-          description: enc.description,
-          encounterType: encType,
-          challengeRating: enc.challengeRating,
-          occursAt,
-          gates: gateConditions.length > 0 ? { all: gateConditions } : undefined,
-          outcomes: {
-            success: successOutcomes,
-            failure: failureOutcomes
+      },
+      processes: {
+        catalog: encounters.map((enc: any, i: number) => ({
+          id: `PROC_${enc.name.replace(/\s+/g, '_')}`,
+          type: enc.type || "combat",
+          timebox: { id: `TB_${i + 1}`, label: enc.name },
+          participants: ["PC_Party"],
+          location: locations[i % locations.length] ? `LOC_${locations[i % locations.length].name.replace(/\s+/g, '_')}` : undefined,
+          notes: enc.description
+        }))
+      },
+      transitions: {
+        changes: [{
+          id: "TR_Quest_Complete",
+          caused_by: encounters.length > 0 ? `PROC_${encounters[encounters.length - 1]?.name.replace(/\s+/g, '_')}` : "PROC_Main",
+          ops: [{ op: "update_state", state_id: "STATE_Quest_Main_Status", value: "complete" }]
+        }]
+      },
+      snapshots: {
+        timeline: [
+          {
+            id: "SNAP_Initial",
+            time_utc: timestamp,
+            world_hash: "initial",
+            state_hash: "initial",
+            roles_hash: "initial",
+            narration: generatedCampaign.description || "The adventure begins."
           },
-          setup: enc.setup,
-          tactics: enc.tactics,
-          treasure: enc.treasure
-        };
-      }),
-      
-      quests: quests.map((quest: any, i: number) => ({
-        id: toId('quest', quest.title),
-        type: 'Quest',
-        name: quest.title,
-        description: quest.description,
-        tags: [quest.type || 'main'],
-        questGiver: npcs[i % npcs.length] ? toId('npc', npcs[i % npcs.length].name) : undefined,
-        objectives: (quest.objectives || []).map((obj: string, j: number) => ({
-          id: `objective.${j}`,
-          description: obj
-        })),
-        rewards: {
-          description: quest.rewards
-        }
-      })),
-      
-      items: rewards.map((reward: any) => ({
-        id: toId('item', reward.name),
-        type: 'Item',
-        name: reward.name,
-        description: reward.description,
-        itemType: reward.type || 'wondrous',
-        rarity: reward.rarity || 'common',
-        rulesetExtension: reward.mechanics ? { dnd5e: { mechanics: reward.mechanics } } : undefined
-      })),
-      
-      factions: [],
-      handouts: []
+          {
+            id: "SNAP_Victory",
+            time_utc: timestamp,
+            world_hash: "final",
+            state_hash: "final",
+            roles_hash: "final",
+            narration: generatedCampaign.mainStoryArc || "The adventure concludes victoriously.",
+            derived_from_transition: "TR_Quest_Complete"
+          }
+        ]
+      }
     };
     
-    const jsonContent = JSON.stringify(camlAdventure, null, 2);
+    const jsonContent = JSON.stringify(caml2Adventure, null, 2);
     
     const blob = new Blob([jsonContent], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${generatedCampaign.title.replace(/\s+/g, '_')}.caml.json`;
+    a.download = `${generatedCampaign.title.replace(/\s+/g, '_')}.caml2.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
     toast({
-      title: "CAML Export Downloaded",
-      description: "Your adventure has been exported in canonical CAML format.",
+      title: "CAML 2.0 Export Downloaded",
+      description: "Your adventure has been exported in CAML 2.0 format.",
     });
   };
 
