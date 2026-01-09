@@ -1,0 +1,458 @@
+{
+  "id": "adventure.shadows_of_the_silent_court",
+  "type": "AdventureModule",
+  "name": "Shadows of the Silent Court",
+  "description": "The kingdom stands on a knife's edge. As whispers of betrayal echo through the corridors of power, the Silent Court convenes in secrecy. The party is summoned to navigate the web of intrigue and restore balance.",
+  "synopsis": "The kingdom stands on a knife's edge. As whispers of betrayal echo through the corridors of power, the Silent Court convenes in secrecy. The party is summoned to navigate the web of intrigue and restore balance. The adventure culminates in With the plot revealed and alliances secured, the party emerges as champions of the court, ensuring the kingdom's future is one of peace and stability..",
+  "author": "Everdice DM Toolkit",
+  "version": "1.0.0",
+  "ruleset": "dnd5e",
+  "minLevel": 6,
+  "maxLevel": 10,
+  "setting": "low-magic",
+  "startingLocation": "location.the_silent_court",
+  "locations": [
+    {
+      "id": "location.the_silent_court",
+      "type": "Location",
+      "name": "The Silent Court",
+      "description": "A grand yet somber hall where the kingdom's elite gather to discuss matters of state behind closed doors.",
+      "tags": [
+        "political"
+      ],
+      "features": [
+        "hidden passages",
+        "ornate decor"
+      ],
+      "connections": [
+        {
+          "direction": "forward",
+          "target": "location.the_secret_chamber"
+        }
+      ]
+    },
+    {
+      "id": "location.the_secret_chamber",
+      "type": "Location",
+      "name": "The Secret Chamber",
+      "description": "A concealed room beneath the Silent Court, used for clandestine meetings and secret liaisons.",
+      "tags": [
+        "hidden"
+      ],
+      "features": [
+        "concealed entrance",
+        "whispering walls"
+      ],
+      "connections": []
+    }
+  ],
+  "npcs": [
+    {
+      "id": "npc.elwyn_thorne",
+      "type": "NPC",
+      "name": "Elwyn Thorne",
+      "description": "A shrewd and calculating lord, known for his diplomatic prowess and shadowy dealings.",
+      "race": "Human",
+      "class": "Noble",
+      "role": "neutral",
+      "personality": "Serves as QuestGiver",
+      "motivations": "Has their own agenda",
+      "attitude": "neutral",
+      "startsAt": "location.the_silent_court",
+      "ruleset": "dnd5e"
+    },
+    {
+      "id": "npc.aria_moonshadow",
+      "type": "NPC",
+      "name": "Aria Moonshadow",
+      "description": "A skilled spy and information broker, working for the highest bidder within the court.",
+      "race": "Elf",
+      "class": "Rogue",
+      "role": "ally",
+      "personality": "friendly disposition",
+      "motivations": "Helps the party",
+      "attitude": "neutral",
+      "startsAt": "location.the_secret_chamber",
+      "ruleset": "dnd5e"
+    }
+  ],
+  "encounters": [
+    {
+      "id": "encounter.the_gathering_of_shadows",
+      "type": "Encounter",
+      "name": "The Gathering of Shadows",
+      "description": "The party must navigate the intricacies of court politics, gathering allies and uncovering plots during a formal gathering.",
+      "encounterType": "social",
+      "challengeRating": "Appropriate for level 6-10",
+      "occursAt": "location.the_silent_court",
+      "gates": {
+        "all": [
+          "party.at(location.the_silent_court)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.the_gathering_of_shadows.resolved"
+          },
+          {
+            "modifyAttitude": {
+              "target": "involved_npcs",
+              "change": "+1"
+            }
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.the_gathering_of_shadows.failed"
+          },
+          {
+            "modifyAttitude": {
+              "target": "involved_npcs",
+              "change": "-1"
+            }
+          }
+        ]
+      },
+      "setup": "Takes place at The Silent Court",
+      "tactics": "Use diplomacy, persuasion, or intimidation. Role-play the interaction.",
+      "treasure": "Level-appropriate rewards"
+    },
+    {
+      "id": "encounter.secrets_unveiled",
+      "type": "Encounter",
+      "name": "Secrets Unveiled",
+      "description": "The party discovers hidden truths and potential allies in the Secret Chamber, revealing who can be trusted.",
+      "encounterType": "exploration",
+      "challengeRating": "Appropriate for level 6-10",
+      "occursAt": "location.the_secret_chamber",
+      "gates": {
+        "all": [
+          "party.at(location.the_secret_chamber)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.secrets_unveiled.completed"
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.secrets_unveiled.failed"
+          }
+        ]
+      },
+      "setup": "Takes place at The Secret Chamber",
+      "tactics": "Investigate the area, search for clues, and discover secrets.",
+      "treasure": "Standard resolution"
+    }
+  ],
+  "quests": [
+    {
+      "id": "quest.lord_elwyn_tasks_the_party_with_uncovering_the_source_of_dissent_within_the_silent_court_and_ensuring_the_kingdom_s_stability_",
+      "type": "Quest",
+      "name": "Lord Elwyn tasks the party with uncovering the source of dissent within the Silent Court and ensuring the kingdom's stability.",
+      "description": "Lord Elwyn tasks the party with uncovering the source of dissent within the Silent Court and ensuring the kingdom's stability.",
+      "tags": [
+        "main"
+      ],
+      "questGiver": "npc.elwyn_thorne",
+      "objectives": [
+        {
+          "id": "objective.0",
+          "description": "The Gathering of Shadows"
+        }
+      ],
+      "rewards": {
+        "description": "Experience points and treasure"
+      }
+    }
+  ],
+  "items": [
+    {
+      "id": "item.sigil_of_the_court",
+      "type": "Item",
+      "name": "Sigil of the Court",
+      "description": "An emblem that grants the bearer the authority to speak on behalf of the Silent Court.",
+      "itemType": "magic_item",
+      "rarity": "rare",
+      "rulesetExtension": {
+        "dnd5e": {
+          "mechanics": "Notable magical properties"
+        }
+      }
+    }
+  ],
+  "factions": [],
+  "handouts": []
+}
+
+This is a useful contrast case to The Lost Temple, because Shadows of the Silent Court is primarily political and social, not spatial or combat-driven. That makes it an excellent test of whether CAML 2.0 is truly general — and it mostly passes, with some clear lessons.
+
+I’ll proceed in the same disciplined way as before:
+
+What this file does well
+
+Where it still reflects CAML-1.x assumptions
+
+How to refactor it cleanly into idiomatic CAML 2.0
+
+What this tells us about CAML’s scope and maturity
+
+1. What this file already does well
+A. Correct genre modeling
+
+You did not try to force dungeon logic onto court intrigue. That matters.
+
+Two locations only
+
+Heavy emphasis on social encounters
+
+Low-magic, high-politics framing
+
+Power flows through information and attitude, not loot
+
+That is exactly the right instinct.
+
+B. NPCs are clearly agents, not monsters
+
+Elwyn and Aria are not “encounter content”. They are:
+
+strategic actors
+
+information holders
+
+alliance pivots
+
+This is the correct use of NPCs in CAML 2.0.
+
+C. Encounters already hint at process logic
+
+For example:
+
+"modifyAttitude": {
+  "target": "involved_npcs",
+  "change": "+1"
+}
+
+
+This is almost CAML 2.0 state transition thinking. You are already modeling:
+
+effects
+
+consequences
+
+non-binary outcomes
+
+2. Where CAML-1.x assumptions are still leaking in
+
+These are not mistakes — they are exactly the pressure points CAML 2.0 is meant to resolve.
+
+Issue 1: Encounters are still acting as both processes and state changers
+
+Example:
+
+"encounterType": "social",
+"outcomes": {
+  "success": [
+    { "addTag": "encounter.the_gathering_of_shadows.resolved" },
+    { "modifyAttitude": { ... } }
+  ]
+}
+
+
+This bundles:
+
+the activity
+
+the resolution logic
+
+the state mutation
+
+the memory
+
+all into one object.
+
+That is precisely what CAML 2.0 separates.
+
+Issue 2: Tags are still doing narrative memory’s job
+
+Tags like:
+
+"encounter.secrets_unveiled.completed"
+
+
+are again acting as:
+
+historical facts
+
+progression gates
+
+success indicators
+
+Tags should never be required for reasoning.
+
+Issue 3: Quest is treated as an entity again
+
+This quest:
+
+"type": "Quest"
+
+
+still exists in the world as an object.
+
+But “the party has been tasked” is not an entity — it is a social state.
+
+3. Clean CAML 2.0 refactor (political edition)
+
+I’ll show how to refactor this exact adventure without adding complexity.
+
+A. Introduce explicit political state
+
+Add to state.facts:
+
+{
+  "id": "STATE_Court_Stability",
+  "bearer": "adventure.shadows_of_the_silent_court",
+  "type": "political_stability",
+  "value": "unstable"
+},
+{
+  "id": "STATE_Elwyn_Attitude",
+  "bearer": "npc.elwyn_thorne",
+  "type": "attitude",
+  "value": "neutral"
+},
+{
+  "id": "STATE_Aria_Loyalty",
+  "bearer": "npc.aria_moonshadow",
+  "type": "loyalty",
+  "value": "unknown"
+}
+
+
+Now the adventure has something real to resolve.
+
+B. Refactor encounters into processes
+Replace encounter.the_gathering_of_shadows with:
+{
+  "id": "PROC_Court_Gathering",
+  "type": "social",
+  "location": "location.the_silent_court",
+  "participants": ["PC_Party", "npc.elwyn_thorne"],
+  "preconditions": [],
+  "effects": [
+    {
+      "op": "modify_state",
+      "state": "STATE_Elwyn_Attitude",
+      "delta": "+1"
+    }
+  ],
+  "notes": "A formal political gathering where alliances can be strengthened or weakened."
+}
+
+
+Failure simply applies a negative delta.
+
+No tags. No encounter memory objects.
+
+C. Refactor “Secrets Unveiled” into discovery logic
+{
+  "id": "PROC_Secrets_Uncovered",
+  "type": "exploration",
+  "location": "location.the_secret_chamber",
+  "participants": ["PC_Party", "npc.aria_moonshadow"],
+  "effects": [
+    {
+      "op": "set_state",
+      "state": "STATE_Aria_Loyalty",
+      "value": "ally"
+    }
+  ],
+  "notes": "Investigation reveals who within the court can be trusted."
+}
+
+
+Now trust is explicit and persistent.
+
+D. Replace the Quest with a quest view
+
+Remove the quests array entirely and add:
+
+"quest_views": [
+  {
+    "id": "QUEST_Stabilize_The_Court",
+    "visible_if": [
+      { "state": "STATE_Court_Stability", "equals": "unstable" }
+    ],
+    "completed_if": [
+      { "state": "STATE_Court_Stability", "equals": "stable" }
+    ],
+    "narration": "Uncover dissent within the Silent Court and restore political stability."
+  }
+]
+
+E. Define the political resolution transition
+{
+  "id": "TR_Court_Stabilized",
+  "caused_by": ["PROC_Court_Gathering", "PROC_Secrets_Uncovered"],
+  "ops": [
+    {
+      "op": "set_state",
+      "state": "STATE_Court_Stability",
+      "value": "stable"
+    }
+  ]
+}
+
+
+Now the adventure has a win condition that is not combat.
+
+4. What this proves about CAML 2.0
+
+This example confirms something important:
+
+CAML 2.0 is not a dungeon format
+
+It is a relational-state narrative engine.
+
+It handles equally well:
+
+dungeon crawling
+
+investigation
+
+political intrigue
+
+correspondence play
+
+AI-mediated play
+
+Because everything reduces to:
+
+entities
+
+roles
+
+state
+
+processes
+
+transitions
+
+Final verdict
+
+This adventure is conceptually sound, but in CAML-1.x clothing.
+
+Once refactored:
+
+no tags are required
+
+quests disappear as entities
+
+intrigue becomes mechanically explicit
+
+outcomes are inspectable and replayable
+
+This is exactly the use case that justifies CAML’s existence.
