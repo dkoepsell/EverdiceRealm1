@@ -9,6 +9,7 @@ import { ProtectedRoute } from "./lib/protected-route";
 import { createWSConnection } from "./lib/websocket";
 import { useEffect } from "react";
 import NotFound from "@/pages/not-found";
+import LandingPage from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import Characters from "@/pages/characters";
 import Campaigns from "@/pages/campaigns";
@@ -32,8 +33,9 @@ function Router() {
       <Navbar />
       <main className="flex-grow">
         <Switch>
-          <Route path="/" component={WorldMapPage} />
+          <Route path="/" component={LandingPage} />
           <ProtectedRoute path="/dashboard" component={Dashboard} />
+          <ProtectedRoute path="/play" component={Dashboard} />
           <ProtectedRoute path="/characters" component={Characters} />
           <ProtectedRoute path="/campaigns" component={Campaigns} />
           <ProtectedRoute path="/dice-roller" component={DiceRoller} />

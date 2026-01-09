@@ -11,11 +11,12 @@ import CharacterProgress from "@/components/character/CharacterProgress";
 import DiceRoller from "@/components/dice/DiceRoller";
 import CampaignArchiveList from "@/components/campaign/CampaignArchiveList";
 import AdventureHistory from "@/components/adventure/AdventureHistory";
+import QuickStart from "@/components/onboarding/QuickStart";
 import { Character, Campaign } from "@shared/schema";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
 import { getQueryFn, queryClient } from "@/lib/queryClient";
-import { Bookmark, Calendar, Dice5Icon, History, User, Users, Activity, Star, Play } from "lucide-react";
+import { Bookmark, Calendar, Dice5Icon, History, User, Users, Activity, Star, Play, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function Dashboard() {
@@ -194,28 +195,58 @@ export default function Dashboard() {
   // Use participant character if available, otherwise fallback to owned characters
   const activeCharacter = participantCharacter || (characters.length > 0 ? characters[0] : null);
 
+  const isNewUser = characters.length === 0 && availableCampaigns.length === 0;
+  const [showQuickStart, setShowQuickStart] = useState(false);
+
   return (
     <div className="pb-16">
-      {/* Hero Section - Narrower height */}
-      <section className="relative bg-cover bg-center h-48 md:h-72" 
-        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&h=1080')" }}>
-        <div className="absolute inset-0 bg-black bg-opacity-50"></div>
-        <div className="container mx-auto px-4 h-full flex items-center relative z-10">
+      {/* Hero Section - Cleaner gradient design */}
+      <section className="relative bg-gradient-to-br from-primary via-primary-dark to-slate-900 py-12 md:py-16">
+        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent"></div>
+        <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-2xl">
-            <h1 className="text-3xl md:text-4xl font-fantasy font-bold text-white mb-2">
-              {user ? `Welcome, ${user.username}` : 'Begin Your Adventure'}
+            <h1 className="text-3xl md:text-4xl font-fantasy font-bold text-white mb-3">
+              {user ? `Welcome back, ${user.username}` : 'Begin Your Adventure'}
             </h1>
-            <p className="text-lg text-gray-200 mb-4">Create stories, roll dice, and embark on epic quests with our AI-powered D&D companion.</p>
-            <div className="flex flex-wrap gap-4">
+            <p className="text-lg text-white/80 mb-6">
+              {activeCampaign 
+                ? `Continue your quest: "${activeCampaign.title}"`
+                : "Create stories, roll dice, and embark on epic quests with AI."}
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {activeCampaign ? (
+                <Button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold px-6 py-3 rounded-lg shadow-lg shadow-amber-500/20">
+                  <Play className="mr-2 h-4 w-4" />
+                  Continue Adventure
+                </Button>
+              ) : (
+                <Button 
+                  onClick={() => setShowQuickStart(true)}
+                  className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold px-6 py-3 rounded-lg shadow-lg shadow-amber-500/20"
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Quick Start
+                </Button>
+              )}
               <Link href="/campaigns">
-                <Button className="bg-gold hover:bg-gold-dark text-primary font-bold px-6 py-3 rounded-lg transition transform hover:scale-105">
-                  {activeCampaign ? 'Continue Adventure' : 'Start New Campaign'}
+                <Button variant="outline" className="border-white/30 text-white hover:bg-white/10">
+                  {activeCampaign ? 'View All Campaigns' : 'Browse Campaigns'}
                 </Button>
               </Link>
             </div>
           </div>
         </div>
       </section>
+      
+      {/* Quick Start Modal for new users */}
+      {(showQuickStart || isNewUser) && !activeCampaign && (
+        <section className="container mx-auto px-4 py-8 -mt-6">
+          <QuickStart 
+            existingCharacters={characters} 
+            onComplete={() => setShowQuickStart(false)} 
+          />
+        </section>
+      )}
       
       {/* User Stats and Dashboard Info */}
       <div className="bg-muted/20 py-4 border-b border-border/40">

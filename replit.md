@@ -13,6 +13,14 @@ Everdice is a full-stack web application designed as an AI-enhanced companion fo
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent UX Improvements (January 2026)
+- **Landing Page**: New welcoming hero section with gradient styling, feature showcase, and clear CTAs
+- **Navigation**: Simplified to 3 main items (Play, Characters, Learn) with icons and "More" dropdown for advanced features
+- **Quick Start Wizard**: 3-step onboarding flow for new users - choose hero template, select character, pick adventure theme
+- **Character Templates**: Pre-built hero templates (Warrior, Wizard, Paladin, Rogue, Cleric, Sorcerer) for quick character creation
+- **Visual Polish**: Warmer amber/orange accent colors, gradient headers, improved card designs, better whitespace
+- **Page Headers**: Consistent gradient text styling across pages for visual hierarchy
+
 ## System Architecture
 
 ### Frontend

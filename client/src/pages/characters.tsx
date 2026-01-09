@@ -31,7 +31,71 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import CharacterSheet from "@/components/character/CharacterSheet";
-import { AlertCircle, Plus, User, Dice6, Swords } from "lucide-react";
+import { AlertCircle, Plus, User, Dice6, Swords, Sparkles, Sword, Wand2, Shield, Heart, Flame, Moon, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+const characterTemplates = [
+  {
+    id: "warrior",
+    name: "Brave Warrior",
+    class: "Fighter",
+    race: "Human",
+    icon: Sword,
+    color: "from-red-500 to-orange-500",
+    description: "A courageous fighter skilled in combat",
+    stats: { strength: 16, dexterity: 12, constitution: 14, intelligence: 10, wisdom: 11, charisma: 10 }
+  },
+  {
+    id: "wizard",
+    name: "Wise Wizard",
+    class: "Wizard",
+    race: "Elf",
+    icon: Wand2,
+    color: "from-purple-500 to-indigo-500",
+    description: "A master of arcane magic and ancient lore",
+    stats: { strength: 8, dexterity: 12, constitution: 12, intelligence: 16, wisdom: 14, charisma: 10 }
+  },
+  {
+    id: "paladin",
+    name: "Holy Paladin",
+    class: "Paladin",
+    race: "Human",
+    icon: Shield,
+    color: "from-yellow-500 to-amber-500",
+    description: "A divine warrior guided by righteousness",
+    stats: { strength: 15, dexterity: 10, constitution: 13, intelligence: 10, wisdom: 12, charisma: 14 }
+  },
+  {
+    id: "rogue",
+    name: "Cunning Rogue",
+    class: "Rogue",
+    race: "Halfling",
+    icon: Moon,
+    color: "from-slate-500 to-zinc-600",
+    description: "A stealthy trickster with quick reflexes",
+    stats: { strength: 10, dexterity: 16, constitution: 12, intelligence: 13, wisdom: 11, charisma: 12 }
+  },
+  {
+    id: "cleric",
+    name: "Divine Cleric",
+    class: "Cleric",
+    race: "Dwarf",
+    icon: Heart,
+    color: "from-cyan-500 to-blue-500",
+    description: "A healer blessed with divine power",
+    stats: { strength: 13, dexterity: 10, constitution: 14, intelligence: 11, wisdom: 16, charisma: 10 }
+  },
+  {
+    id: "sorcerer",
+    name: "Wild Sorcerer",
+    class: "Sorcerer",
+    race: "Tiefling",
+    icon: Flame,
+    color: "from-pink-500 to-rose-600",
+    description: "Born with innate magical abilities",
+    stats: { strength: 8, dexterity: 12, constitution: 13, intelligence: 11, wisdom: 10, charisma: 16 }
+  }
+];
 
 // Extended schema with validation rules - userId is handled by backend from auth
 const createCharacterSchema = insertCharacterSchema.omit({ userId: true }).extend({
@@ -73,6 +137,8 @@ const backgrounds = [
 export default function Characters() {
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [isCreatingFromTemplate, setIsCreatingFromTemplate] = useState(false);
   
   const { toast } = useToast();
   
@@ -125,6 +191,57 @@ export default function Characters() {
       });
     },
   });
+
+  const createFromTemplate = async (templateId: string) => {
+    const template = characterTemplates.find(t => t.id === templateId);
+    if (!template) return;
+    
+    setIsCreatingFromTemplate(true);
+    try {
+      const hp = 10 + Math.floor((template.stats.constitution - 10) / 2);
+      const ac = 10 + Math.floor((template.stats.dexterity - 10) / 2);
+      
+      const characterData = {
+        name: `${template.name.split(" ")[0]} the ${template.class}`,
+        race: template.race,
+        class: template.class,
+        level: 1,
+        background: "Folk Hero",
+        alignment: "Neutral Good",
+        strength: template.stats.strength,
+        dexterity: template.stats.dexterity,
+        constitution: template.stats.constitution,
+        intelligence: template.stats.intelligence,
+        wisdom: template.stats.wisdom,
+        charisma: template.stats.charisma,
+        hitPoints: hp,
+        maxHitPoints: hp,
+        armorClass: ac,
+        skills: [],
+        equipment: [],
+        createdAt: new Date().toISOString(),
+      };
+      
+      const response = await apiRequest("POST", "/api/characters", characterData);
+      const character = await response.json();
+      
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      setSelectedCharacter(character);
+      toast({
+        title: "Hero Created!",
+        description: `${character.name} is ready for adventure.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create character. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingFromTemplate(false);
+      setSelectedTemplate(null);
+    }
+  };
 
   const handleGenerateCharacter = async () => {
     try {
@@ -202,7 +319,12 @@ export default function Characters() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-fantasy font-bold mb-6">Character Management</h1>
+      <div className="mb-8">
+        <h1 className="text-3xl font-fantasy font-bold mb-2 bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
+          Your Heroes
+        </h1>
+        <p className="text-muted-foreground">Create and manage your adventurers</p>
+      </div>
       
       <Tabs defaultValue="list">
         <TabsList className="mb-6">
@@ -210,9 +332,13 @@ export default function Characters() {
             <User size={16} />
             My Characters
           </TabsTrigger>
+          <TabsTrigger value="quick" className="flex items-center gap-2">
+            <Sparkles size={16} />
+            Quick Create
+          </TabsTrigger>
           <TabsTrigger value="create" className="flex items-center gap-2">
             <Plus size={16} />
-            Create New
+            Advanced
           </TabsTrigger>
         </TabsList>
         
@@ -286,15 +412,107 @@ export default function Characters() {
               )}
             </div>
           ) : (
-            <div className="text-center py-12 bg-secondary-light rounded-lg">
-              <AlertCircle className="h-12 w-12 text-primary-light mx-auto mb-4" />
-              <h3 className="text-xl font-fantasy font-bold mb-2">No Characters Found</h3>
-              <p className="text-muted-foreground mb-6">You haven't created any characters yet.</p>
-              <Button onClick={() => document.querySelector('[value="create"]')?.dispatchEvent(new Event('click'))}>
-                Create Your First Character
-              </Button>
+            <div className="text-center py-12 bg-muted/30 rounded-xl border border-dashed border-border">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <User className="h-8 w-8 text-primary" />
+              </div>
+              <h3 className="text-xl font-fantasy font-bold mb-2">No Characters Yet</h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                Create your first hero to begin adventuring. Choose from ready-made templates or build a custom character.
+              </p>
+              <div className="flex gap-3 justify-center">
+                <Button 
+                  onClick={() => {
+                    const quickTab = document.querySelector('[value="quick"]') as HTMLElement;
+                    quickTab?.click();
+                  }}
+                  className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Quick Create
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    const createTab = document.querySelector('[value="create"]') as HTMLElement;
+                    createTab?.click();
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Advanced
+                </Button>
+              </div>
             </div>
           )}
+        </TabsContent>
+        
+        <TabsContent value="quick">
+          <Card className="mb-6">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl font-fantasy bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
+                Choose Your Hero
+              </CardTitle>
+              <p className="text-muted-foreground mt-2">
+                Select a pre-built character to get started quickly
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {characterTemplates.map((template) => {
+                  const Icon = template.icon;
+                  const isSelected = selectedTemplate === template.id;
+                  return (
+                    <button
+                      key={template.id}
+                      onClick={() => setSelectedTemplate(template.id)}
+                      className={`p-5 rounded-xl border-2 text-left transition-all hover:scale-105 ${
+                        isSelected 
+                          ? "border-primary bg-primary/10 shadow-lg ring-2 ring-primary/50" 
+                          : "border-border hover:border-primary/50 hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${template.color} flex items-center justify-center mb-3 shadow-lg`}>
+                        <Icon className="h-6 w-6 text-white" />
+                      </div>
+                      <h4 className="font-bold text-base">{template.name}</h4>
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                        {template.description}
+                      </p>
+                      <div className="flex gap-2 mt-3">
+                        <Badge variant="secondary" className="text-xs">
+                          {template.race}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {template.class}
+                        </Badge>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              
+              <div className="flex justify-center mt-8">
+                <Button 
+                  size="lg"
+                  onClick={() => selectedTemplate && createFromTemplate(selectedTemplate)}
+                  disabled={!selectedTemplate || isCreatingFromTemplate}
+                  className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 px-8 py-6 text-lg shadow-lg"
+                >
+                  {isCreatingFromTemplate ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Creating Hero...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-5 w-5" />
+                      Create This Hero
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
         
         <TabsContent value="create">
