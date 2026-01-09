@@ -20,8 +20,9 @@ Preferred communication style: Simple, everyday language.
 - **Character Templates**: Pre-built hero templates (Warrior, Wizard, Paladin, Rogue, Cleric, Sorcerer) for quick character creation
 - **Visual Polish**: Warmer amber/orange accent colors, gradient headers, improved card designs, better whitespace
 - **Page Headers**: Consistent gradient text styling across pages for visual hierarchy
-- **Dashboard**: Redesigned hero with warm amber gradients, live "adventurers online" badge, streamlined layout
-- **DM Toolkit**: New purple/blue gradient hero section, "AI-Powered Tools" badge, reorganized tool grid into 3 categories (Essential Tools, Create Content, Utilities) with color-coded icons
+- **Dashboard (Play page)**: Redesigned hero with warm amber gradients, D&D-inspired decorative icons (sword, shield, scroll), Everdice brand mark, live "adventurers online" badge, streamlined narrative-first layout with compact character stats bar
+- **DM Toolkit**: New purple/blue gradient hero section with fantasy icons (book, wand, map), "DM" brand mark, "AI-Powered Tools" badge, reorganized tool grid into 3 categories (Essential Tools, Create Content, Utilities) with color-coded icons
+- **Simplified UX**: Removed dice roller from Play page, replaced tabbed character sheet with compact stats display, adventure narrative now central focus
 
 ## System Architecture
 
