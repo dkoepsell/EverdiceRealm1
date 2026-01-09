@@ -1,0 +1,308 @@
+{
+  "caml_version": "2.0",
+
+  "meta": {
+    "id": "adventure.whispers_in_the_shadows",
+    "title": "Whispers in the Shadows",
+    "created_utc": "2026-01-09T03:00:00Z",
+    "authors": ["Everdice DM Toolkit"],
+    "tags": ["dark", "investigation", "cult", "town", "mystery"],
+    "system": {
+      "name": "dnd5e",
+      "version": "1.0.0"
+    },
+    "levels": { "min": 6, "max": 10 }
+  },
+
+  "world": {
+    "entities": {
+      "characters": [
+        { "id": "PC_Party", "kind": "character", "name": "Adventuring Party", "pc": true },
+
+        { "id": "NPC_Elara", "kind": "character", "name": "Mayor Elara Faelivrin", "species": "Half-Elf", "class": "Politician", "description": "A poised and determined half-elf with sharp features and a commanding presence." },
+        { "id": "NPC_Aelric", "kind": "character", "name": "Aelric the Sage", "species": "Human", "class": "Wizard", "description": "An elderly wizard with a long white beard and spectacles perched on his nose." },
+        { "id": "NPC_Cedric", "kind": "character", "name": "Sir Cedric Blackwood", "species": "Human", "class": "Knight", "description": "A burly knight with a stern face and a suit of gleaming armor." },
+        { "id": "NPC_Vanya", "kind": "character", "name": "Vanya Darkwood", "species": "Tiefling", "class": "Warlock", "description": "A mysterious tiefling with red skin, curled horns, and piercing yellow eyes." },
+        { "id": "NPC_Garrick", "kind": "character", "name": "Garrick the Merchant", "species": "Dwarf", "class": "Trader", "description": "A stout dwarf with a braided beard and a quick smile." },
+        { "id": "NPC_Cultists", "kind": "character", "name": "Cult Minions", "species": "Human", "description": "Fanatical cultists devoted to awakening the dark entity." }
+      ],
+
+      "locations": [
+        { "id": "LOC_ShadowEnd", "kind": "location", "name": "Shadow's End", "description": "A small, fog-shrouded town nestled in a secluded valley, known for its old stone buildings and eerie atmosphere.", "tags": ["city"], "features": ["Town Square", "Ancient Church"] },
+        { "id": "LOC_Woods", "kind": "location", "name": "Whispering Woods", "description": "A dense forest surrounding Shadow's End, where whispers seem to echo through the trees.", "tags": ["wilderness"], "features": ["Hidden Paths", "Dark Glades"] },
+        { "id": "LOC_Manor", "kind": "location", "name": "Abandoned Manor", "description": "A crumbling, vine-covered mansion on the edge of town, rumored to be haunted by its former owners.", "tags": ["building"], "features": ["Grand Hall", "Secret Library"] },
+        { "id": "LOC_Lair", "kind": "location", "name": "Cultist Lair", "description": "An underground network of chambers where the cult conducts its dark rituals.", "tags": ["dungeon"], "features": ["Altar Room", "Prison Cells"] },
+        { "id": "LOC_Faelivrin", "kind": "location", "name": "Faelivrin Manor", "description": "The stately home of Mayor Elara Faelivrin, filled with books and artifacts.", "tags": ["building"], "features": ["Study Room", "Vault"] }
+      ],
+
+      "items": [
+        { "id": "ITEM_AmuletShadows", "kind": "item", "name": "Amulet of Shadows", "rarity": "uncommon", "description": "An amulet that allows the wearer to blend with the shadows." },
+        { "id": "ITEM_Tome", "kind": "item", "name": "Tome of Forgotten Spells", "rarity": "rare", "description": "A dusty tome containing spells lost to time." },
+        { "id": "ITEM_Sword", "kind": "item", "name": "Sword of the Ancients", "rarity": "legendary", "description": "A legendary sword said to be forged by ancient deities." },
+        { "id": "ITEM_Heirloom", "kind": "item", "name": "Family Heirloom", "rarity": "uncommon", "description": "A beautifully crafted locket passed down through generations." },
+        { "id": "ITEM_PotionClarity", "kind": "item", "name": "Potion of Clarity", "rarity": "common", "description": "A potion that clears the mind and enhances focus." },
+        { "id": "ITEM_CultMap", "kind": "item", "name": "Cult Location Map", "rarity": "common", "description": "A map showing the locations of cult hideouts." },
+        { "id": "ITEM_LibraryKey", "kind": "item", "name": "Secret Library Key", "rarity": "common", "description": "A key to the secret library in the Abandoned Manor." },
+        { "id": "ITEM_AmuletProtection", "kind": "item", "name": "Amulet of Protection", "rarity": "uncommon", "description": "An amulet that provides magical protection." },
+        { "id": "ITEM_RitualNotes", "kind": "item", "name": "Ritual Notes", "rarity": "uncommon", "description": "Notes detailing the cult's dark rituals." }
+      ],
+
+      "factions": [
+        { "id": "FACTION_Cult", "kind": "faction", "name": "The Shadow Cult", "description": "A secret cult working to awaken an ancient dark entity." },
+        { "id": "FACTION_Town", "kind": "faction", "name": "Shadow's End Townsfolk", "description": "The common people of Shadow's End, fearful of the darkness." }
+      ]
+    },
+
+    "connections": [
+      { "id": "CONN_Town_Woods", "from": "LOC_ShadowEnd", "to": "LOC_Woods", "mode": "path" },
+      { "id": "CONN_Woods_Manor", "from": "LOC_Woods", "to": "LOC_Manor", "mode": "trail" },
+      { "id": "CONN_Manor_Lair", "from": "LOC_Manor", "to": "LOC_Lair", "mode": "hidden" },
+      { "id": "CONN_Town_Faelivrin", "from": "LOC_ShadowEnd", "to": "LOC_Faelivrin", "mode": "street" }
+    ]
+  },
+
+  "state": {
+    "facts": [
+      { "id": "STATE_Elara_Attitude", "bearer": "NPC_Elara", "type": "attitude", "value": "neutral" },
+      { "id": "STATE_Aelric_Attitude", "bearer": "NPC_Aelric", "type": "attitude", "value": "neutral" },
+      { "id": "STATE_Cedric_Attitude", "bearer": "NPC_Cedric", "type": "attitude", "value": "neutral" },
+      { "id": "STATE_Vanya_Attitude", "bearer": "NPC_Vanya", "type": "attitude", "value": "hostile" },
+      { "id": "STATE_Garrick_Attitude", "bearer": "NPC_Garrick", "type": "attitude", "value": "neutral" },
+
+      { "id": "STATE_Vanya_Active", "bearer": "NPC_Vanya", "type": "active", "value": true },
+      { "id": "STATE_Manor_Secret_Unlocked", "bearer": "LOC_Manor", "type": "secret_unlocked", "value": false },
+      { "id": "STATE_Lair_Accessible", "bearer": "LOC_Lair", "type": "accessible", "value": false },
+      { "id": "STATE_DarkEntity_Sealed", "bearer": "LOC_Lair", "type": "entity_sealed", "value": false },
+
+      { "id": "STATE_Quest_FirstBlood", "bearer": "adventure.whispers_in_the_shadows", "type": "quest_status", "value": "available" },
+      { "id": "STATE_Quest_RitualWoods", "bearer": "adventure.whispers_in_the_shadows", "type": "quest_status", "value": "available" },
+      { "id": "STATE_Quest_EchoesPast", "bearer": "adventure.whispers_in_the_shadows", "type": "quest_status", "value": "available" },
+      { "id": "STATE_Quest_FinalConfrontation", "bearer": "adventure.whispers_in_the_shadows", "type": "quest_status", "value": "locked" },
+      { "id": "STATE_Quest_FamilySecret", "bearer": "adventure.whispers_in_the_shadows", "type": "quest_status", "value": "available" },
+      { "id": "STATE_Quest_MerchantDilemma", "bearer": "adventure.whispers_in_the_shadows", "type": "quest_status", "value": "available" },
+
+      { "id": "STATE_FoggyAmbush_Completed", "bearer": "PROC_FoggyAmbush", "type": "completed", "value": false },
+      { "id": "STATE_HauntedLibrary_Completed", "bearer": "PROC_HauntedLibrary", "type": "completed", "value": false },
+      { "id": "STATE_DarkRitual_Completed", "bearer": "PROC_DarkRitual", "type": "completed", "value": false },
+      { "id": "STATE_CultTrial_Completed", "bearer": "PROC_CultTrial", "type": "completed", "value": false },
+      { "id": "STATE_GhostlyGuardian_Completed", "bearer": "PROC_GhostlyGuardian", "type": "completed", "value": false }
+    ]
+  },
+
+  "roles": {
+    "assignments": [
+      {
+        "id": "ROLE_QuestGiver_FirstBlood",
+        "role": "QuestGiver",
+        "holder": "NPC_Elara",
+        "revocation": { "any": [] },
+        "notes": "Quest: The First Blood - Investigate the first murder"
+      },
+      {
+        "id": "ROLE_QuestGiver_RitualWoods",
+        "role": "QuestGiver",
+        "holder": "NPC_Aelric",
+        "revocation": { "any": [] },
+        "notes": "Quest: The Ritual in the Woods - Disrupt the dark ritual"
+      },
+      {
+        "id": "ROLE_QuestGiver_EchoesPast",
+        "role": "QuestGiver",
+        "holder": "NPC_Cedric",
+        "revocation": { "any": [] },
+        "notes": "Quest: Echoes of the Past - Explore the abandoned manor"
+      },
+      {
+        "id": "ROLE_QuestGiver_FamilySecret",
+        "role": "QuestGiver",
+        "holder": "NPC_Garrick",
+        "revocation": { "any": [] },
+        "notes": "Quest: A Family's Secret - Uncover ancestral secrets"
+      },
+      {
+        "id": "ROLE_QuestGiver_MerchantDilemma",
+        "role": "QuestGiver",
+        "holder": "NPC_Elara",
+        "revocation": { "any": [] },
+        "notes": "Quest: The Merchant's Dilemma - Stop the blackmailers"
+      },
+      {
+        "id": "ROLE_CultLeader",
+        "role": "CultLeader",
+        "holder": "NPC_Vanya",
+        "revocation": {
+          "any": [
+            { "lhs": "state[STATE_Vanya_Active].value", "op": "==", "rhs": false }
+          ]
+        }
+      }
+    ]
+  },
+
+  "processes": {
+    "catalog": [
+      {
+        "id": "PROC_FoggyAmbush",
+        "type": "combat",
+        "timebox": {
+          "id": "TB_FoggyAmbush",
+          "label": "The Foggy Ambush"
+        },
+        "participants": ["PC_Party", "NPC_Cultists"],
+        "location": "LOC_Woods",
+        "notes": "Cultists ambush the party in the dense fog of the Whispering Woods. CR 7.",
+        "preconditions": ["party.at(LOC_Woods)"]
+      },
+      {
+        "id": "PROC_HauntedLibrary",
+        "type": "puzzle",
+        "timebox": {
+          "id": "TB_HauntedLibrary",
+          "label": "The Haunted Library"
+        },
+        "participants": ["PC_Party"],
+        "location": "LOC_Manor",
+        "notes": "Solve ancient riddles to unlock the secrets of the Abandoned Manor's library. CR 8.",
+        "preconditions": ["party.at(LOC_Manor)"]
+      },
+      {
+        "id": "PROC_DarkRitual",
+        "type": "combat",
+        "timebox": {
+          "id": "TB_DarkRitual",
+          "label": "Dark Forest Ritual"
+        },
+        "participants": ["PC_Party", "NPC_Cultists", "NPC_Vanya"],
+        "location": "LOC_ShadowEnd",
+        "notes": "Interrupt a sinister ritual being conducted under the full moon. CR 9.",
+        "preconditions": ["party.at(LOC_ShadowEnd)"]
+      },
+      {
+        "id": "PROC_CultTrial",
+        "type": "social",
+        "timebox": {
+          "id": "TB_CultTrial",
+          "label": "The Cult Leader's Trial"
+        },
+        "participants": ["PC_Party", "NPC_Elara", "NPC_Vanya"],
+        "location": "LOC_ShadowEnd",
+        "notes": "Convince the townsfolk to turn against the cult leader during a public trial. CR 9.",
+        "preconditions": ["state[STATE_DarkRitual_Completed].value == true"]
+      },
+      {
+        "id": "PROC_GhostlyGuardian",
+        "type": "exploration",
+        "timebox": {
+          "id": "TB_GhostlyGuardian",
+          "label": "The Ghostly Guardian"
+        },
+        "participants": ["PC_Party"],
+        "location": "LOC_Manor",
+        "notes": "Navigate the halls of the Abandoned Manor, avoiding or confronting its ghostly guardian. CR 8.",
+        "preconditions": ["party.at(LOC_Manor)"]
+      },
+      {
+        "id": "PROC_FinalConfrontation",
+        "type": "combat",
+        "timebox": {
+          "id": "TB_FinalConfrontation",
+          "label": "The Final Confrontation"
+        },
+        "participants": ["PC_Party", "NPC_Vanya"],
+        "location": "LOC_Lair",
+        "notes": "Confront Vanya Darkwood to prevent the awakening of the dark entity.",
+        "preconditions": ["state[STATE_Lair_Accessible].value == true", "state[STATE_Vanya_Active].value == true"]
+      }
+    ]
+  },
+
+  "transitions": {
+    "changes": [
+      {
+        "id": "TR_FoggyAmbush_Victory",
+        "caused_by": "PROC_FoggyAmbush",
+        "ops": [
+          { "op": "update_state", "state_id": "STATE_FoggyAmbush_Completed", "value": true },
+          { "op": "grant_item", "item_id": "ITEM_CultMap", "recipient": "PC_Party" }
+        ]
+      },
+      {
+        "id": "TR_HauntedLibrary_Solved",
+        "caused_by": "PROC_HauntedLibrary",
+        "ops": [
+          { "op": "update_state", "state_id": "STATE_HauntedLibrary_Completed", "value": true },
+          { "op": "update_state", "state_id": "STATE_Manor_Secret_Unlocked", "value": true },
+          { "op": "grant_item", "item_id": "ITEM_LibraryKey", "recipient": "PC_Party" }
+        ]
+      },
+      {
+        "id": "TR_DarkRitual_Interrupted",
+        "caused_by": "PROC_DarkRitual",
+        "ops": [
+          { "op": "update_state", "state_id": "STATE_DarkRitual_Completed", "value": true },
+          { "op": "grant_item", "item_id": "ITEM_AmuletProtection", "recipient": "PC_Party" },
+          { "op": "grant_item", "item_id": "ITEM_RitualNotes", "recipient": "PC_Party" }
+        ]
+      },
+      {
+        "id": "TR_CultTrial_Success",
+        "caused_by": "PROC_CultTrial",
+        "ops": [
+          { "op": "update_state", "state_id": "STATE_CultTrial_Completed", "value": true },
+          { "op": "update_state", "state_id": "STATE_Elara_Attitude", "value": "friendly" },
+          { "op": "update_state", "state_id": "STATE_Aelric_Attitude", "value": "friendly" },
+          { "op": "update_state", "state_id": "STATE_Cedric_Attitude", "value": "friendly" }
+        ]
+      },
+      {
+        "id": "TR_GhostlyGuardian_Passed",
+        "caused_by": "PROC_GhostlyGuardian",
+        "ops": [
+          { "op": "update_state", "state_id": "STATE_GhostlyGuardian_Completed", "value": true },
+          { "op": "update_state", "state_id": "STATE_Lair_Accessible", "value": true },
+          { "op": "update_state", "state_id": "STATE_Quest_FinalConfrontation", "value": "available" }
+        ]
+      },
+      {
+        "id": "TR_Vanya_Defeated",
+        "caused_by": "PROC_FinalConfrontation",
+        "ops": [
+          { "op": "update_state", "state_id": "STATE_Vanya_Active", "value": false },
+          { "op": "update_state", "state_id": "STATE_DarkEntity_Sealed", "value": true },
+          { "op": "grant_item", "item_id": "ITEM_Sword", "recipient": "PC_Party" }
+        ]
+      }
+    ]
+  },
+
+  "snapshots": {
+    "timeline": [
+      {
+        "id": "SNAP_Initial",
+        "time_utc": "2026-01-09T03:00:00Z",
+        "world_hash": "placeholder",
+        "state_hash": "placeholder",
+        "roles_hash": "placeholder",
+        "narration": "In the secluded town of Shadow's End, a chilling mystery unfolds as a series of grisly murders plague the townsfolk. The adventurers arrive to uncover the sinister truth lurking beneath the surface."
+      },
+      {
+        "id": "SNAP_CultExposed",
+        "time_utc": "2026-01-09T05:00:00Z",
+        "world_hash": "placeholder",
+        "state_hash": "placeholder",
+        "roles_hash": "placeholder",
+        "narration": "The cult's activities have been exposed. The townsfolk now know the truth, and the path to the cultist lair is open.",
+        "derived_from_transition": "TR_GhostlyGuardian_Passed"
+      },
+      {
+        "id": "SNAP_DarknessSealed",
+        "time_utc": "2026-01-09T07:00:00Z",
+        "world_hash": "placeholder",
+        "state_hash": "placeholder",
+        "roles_hash": "placeholder",
+        "narration": "With Vanya Darkwood defeated and the dark entity sealed away, Shadow's End can finally breathe easy. The adventurers are hailed as heroes.",
+        "derived_from_transition": "TR_Vanya_Defeated"
+      }
+    ]
+  }
+}
