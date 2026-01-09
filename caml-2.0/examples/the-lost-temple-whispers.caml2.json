@@ -1,0 +1,142 @@
+{
+  "caml_version": "2.0",
+
+  "meta": {
+    "id": "adventure.lost-temple.whispers",
+    "title": "The Lost Temple",
+    "created_utc": "2026-01-09T02:30:00Z",
+    "authors": ["David R. Koepsell"],
+    "tags": ["fantasy", "temple", "labyrinth", "undead"]
+  },
+
+  "world": {
+    "entities": {
+      "characters": [
+        { "id": "PC_Party", "kind": "character", "name": "Adventuring Party", "pc": true },
+
+        { "id": "NPC_Eldrin", "kind": "character", "name": "Eldrin the Seeker", "species": "Elf" },
+        { "id": "NPC_Zara", "kind": "character", "name": "Zara the Whisperer", "species": "Spirit" },
+        { "id": "NPC_Goruk", "kind": "character", "name": "Goruk the Guardian", "species": "Construct" },
+        { "id": "NPC_HighPriest", "kind": "character", "name": "The High Priest", "species": "Undead" }
+      ],
+
+      "locations": [
+        { "id": "LOC_Entrance", "kind": "location", "name": "Temple Entrance" },
+        { "id": "LOC_Echoes", "kind": "location", "name": "Hall of Echoes" },
+        { "id": "LOC_Whispers", "kind": "location", "name": "Chamber of Whispers" },
+        { "id": "LOC_Labyrinth", "kind": "location", "name": "The Labyrinth" },
+        { "id": "LOC_Sanctum", "kind": "location", "name": "Sanctum of the Lost" }
+      ],
+
+      "items": [
+        { "id": "ITEM_Amulet", "kind": "item", "name": "Amulet of the Ancients", "rarity": "uncommon" },
+        { "id": "ITEM_Staff", "kind": "item", "name": "Staff of Whispers", "rarity": "rare" },
+        { "id": "ITEM_Key", "kind": "item", "name": "Temple Key", "rarity": "common" }
+      ],
+
+      "factions": []
+    },
+
+    "connections": [
+      { "id": "CONN_Entrance_Echoes", "from": "LOC_Entrance", "to": "LOC_Echoes", "mode": "hall" },
+      { "id": "CONN_Echoes_Whispers", "from": "LOC_Echoes", "to": "LOC_Whispers", "mode": "archway" },
+      { "id": "CONN_Whispers_Labyrinth", "from": "LOC_Whispers", "to": "LOC_Labyrinth", "mode": "hidden" },
+      { "id": "CONN_Labyrinth_Sanctum", "from": "LOC_Labyrinth", "to": "LOC_Sanctum", "mode": "sealed" }
+    ]
+  },
+
+  "state": {
+    "facts": [
+      { "id": "STATE_Labyrinth_Secured", "bearer": "LOC_Labyrinth", "type": "secured", "value": true },
+      { "id": "STATE_Goruk_Active", "bearer": "NPC_Goruk", "type": "active", "value": true },
+      { "id": "STATE_HighPriest_Active", "bearer": "NPC_HighPriest", "type": "active", "value": true },
+      { "id": "STATE_Zara_Cooperative", "bearer": "NPC_Zara", "type": "cooperative", "value": false },
+      { "id": "STATE_Artifact_Retrieved", "bearer": "ITEM_Staff", "type": "possessed", "value": false }
+    ]
+  },
+
+  "roles": {
+    "assignments": [
+      {
+        "id": "ROLE_Whisperer",
+        "role": "BoundSpirit",
+        "holder": "NPC_Zara",
+        "revocation": { "any": [] }
+      },
+      {
+        "id": "ROLE_Guardian",
+        "role": "TempleGuardian",
+        "holder": "NPC_Goruk",
+        "revocation": {
+          "any": [
+            { "lhs": "state[STATE_Goruk_Active].value", "op": "==", "rhs": false }
+          ]
+        }
+      }
+    ]
+  },
+
+  "processes": {
+    "catalog": [
+      {
+        "id": "PROC_Labyrinth_Combat",
+        "type": "combat",
+        "timebox": {
+          "id": "TB_Labyrinth",
+          "start_utc": "2026-01-09T03:00:00Z",
+          "end_utc": "2026-01-09T03:45:00Z"
+        },
+        "participants": ["PC_Party", "NPC_Goruk"],
+        "location": "LOC_Labyrinth",
+        "notes": "Goruk and the mechanical guardians confront intruders."
+      },
+      {
+        "id": "PROC_Sanctum_Battle",
+        "type": "combat",
+        "timebox": {
+          "id": "TB_Sanctum",
+          "start_utc": "2026-01-09T04:00:00Z",
+          "end_utc": "2026-01-09T04:40:00Z"
+        },
+        "participants": ["PC_Party", "NPC_HighPriest"],
+        "location": "LOC_Sanctum",
+        "notes": "Final confrontation with the Undead High Priest."
+      }
+    ]
+  },
+
+  "transitions": {
+    "changes": [
+      {
+        "id": "TR_Goruk_Defeated",
+        "caused_by": "PROC_Labyrinth_Combat",
+        "ops": [
+          { "op": "update_state", "state_id": "STATE_Goruk_Active", "value": false },
+          { "op": "update_state", "state_id": "STATE_Labyrinth_Secured", "value": false }
+        ]
+      },
+      {
+        "id": "TR_Artifact_Claimed",
+        "caused_by": "PROC_Sanctum_Battle",
+        "ops": [
+          { "op": "update_state", "state_id": "STATE_HighPriest_Active", "value": false },
+          { "op": "update_state", "state_id": "STATE_Artifact_Retrieved", "value": true }
+        ]
+      }
+    ]
+  },
+
+  "snapshots": {
+    "timeline": [
+      {
+        "id": "SNAP_Temple_Silent",
+        "time_utc": "2026-01-09T04:45:00Z",
+        "world_hash": "placeholder",
+        "state_hash": "placeholder",
+        "roles_hash": "placeholder",
+        "narration": "With the High Priest defeated, the whispers fade and the temple falls silent once more.",
+        "derived_from_transition": "TR_Artifact_Claimed"
+      }
+    ]
+  }
+}

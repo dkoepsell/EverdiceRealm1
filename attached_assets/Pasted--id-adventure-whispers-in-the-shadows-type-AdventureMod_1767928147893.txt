@@ -1,0 +1,857 @@
+{
+  "id": "adventure.whispers_in_the_shadows",
+  "type": "AdventureModule",
+  "name": "Whispers in the Shadows",
+  "description": "In the secluded town of Shadow's End, a chilling mystery unfolds as a series of grisly murders plague the townsfolk. The adventurers must navigate a web of secrets, dark rituals, and hidden alliances to uncover the sinister truth lurking beneath the surface.",
+  "synopsis": "The campaign follows the adventurers as they unravel the mystery of the gruesome murders in Shadow's End, leading them to confront an ancient cult trying to awaken a dormant dark entity. Their success depends on understanding the complex ties between the town's residents and the forbidden secrets of the past.",
+  "author": "Everdice DM Toolkit",
+  "version": "1.0.0",
+  "ruleset": "dnd5e",
+  "minLevel": 6,
+  "maxLevel": 10,
+  "setting": "dark",
+  "startingLocation": "location.shadow_s_end",
+  "locations": [
+    {
+      "id": "location.shadow_s_end",
+      "type": "Location",
+      "name": "Shadow's End",
+      "description": "A small, fog-shrouded town nestled in a secluded valley, known for its old stone buildings and eerie atmosphere.",
+      "tags": [
+        "city"
+      ],
+      "features": [
+        "Town Square",
+        "Ancient Church"
+      ],
+      "connections": [
+        {
+          "direction": "forward",
+          "target": "location.whispering_woods"
+        }
+      ]
+    },
+    {
+      "id": "location.whispering_woods",
+      "type": "Location",
+      "name": "Whispering Woods",
+      "description": "A dense forest surrounding Shadow's End, where whispers seem to echo through the trees.",
+      "tags": [
+        "wilderness"
+      ],
+      "features": [
+        "Hidden Paths",
+        "Dark Glades"
+      ],
+      "connections": [
+        {
+          "direction": "forward",
+          "target": "location.abandoned_manor"
+        }
+      ]
+    },
+    {
+      "id": "location.abandoned_manor",
+      "type": "Location",
+      "name": "Abandoned Manor",
+      "description": "A crumbling, vine-covered mansion on the edge of town, rumored to be haunted by its former owners.",
+      "tags": [
+        "building"
+      ],
+      "features": [
+        "Grand Hall",
+        "Secret Library"
+      ],
+      "connections": [
+        {
+          "direction": "forward",
+          "target": "location.cultist_lair"
+        }
+      ]
+    },
+    {
+      "id": "location.cultist_lair",
+      "type": "Location",
+      "name": "Cultist Lair",
+      "description": "An underground network of chambers where the cult conducts its dark rituals.",
+      "tags": [
+        "dungeon"
+      ],
+      "features": [
+        "Altar Room",
+        "Prison Cells"
+      ],
+      "connections": [
+        {
+          "direction": "forward",
+          "target": "location.faelivrin_manor"
+        }
+      ]
+    },
+    {
+      "id": "location.faelivrin_manor",
+      "type": "Location",
+      "name": "Faelivrin Manor",
+      "description": "The stately home of Mayor Elara Faelivrin, filled with books and artifacts.",
+      "tags": [
+        "building"
+      ],
+      "features": [
+        "Study Room",
+        "Vault"
+      ],
+      "connections": []
+    }
+  ],
+  "npcs": [
+    {
+      "id": "npc.mayor_elara_faelivrin",
+      "type": "NPC",
+      "name": "Mayor Elara Faelivrin",
+      "description": "A poised and determined half-elf with sharp features and a commanding presence.",
+      "race": "Half-Elf",
+      "class": "Politician",
+      "role": "questgiver",
+      "personality": "Pragmatic, resourceful, and protective of her town.",
+      "motivations": "Determined to save Shadow's End from the dark forces at play.",
+      "attitude": "neutral",
+      "startsAt": "location.shadow_s_end",
+      "ruleset": "dnd5e"
+    },
+    {
+      "id": "npc.aelric_the_sage",
+      "type": "NPC",
+      "name": "Aelric the Sage",
+      "description": "An elderly wizard with a long white beard and spectacles perched on his nose.",
+      "race": "Human",
+      "class": "Wizard",
+      "role": "ally",
+      "personality": "Wise, patient, and slightly eccentric.",
+      "motivations": "Seeks to uncover ancient knowledge and prevent its misuse.",
+      "attitude": "neutral",
+      "startsAt": "location.whispering_woods",
+      "ruleset": "dnd5e"
+    },
+    {
+      "id": "npc.sir_cedric_blackwood",
+      "type": "NPC",
+      "name": "Sir Cedric Blackwood",
+      "description": "A burly knight with a stern face and a suit of gleaming armor.",
+      "race": "Human",
+      "class": "Knight",
+      "role": "ally",
+      "personality": "Honorable, brave, and somewhat old-fashioned.",
+      "motivations": "Driven by a sense of duty to protect the innocent.",
+      "attitude": "neutral",
+      "startsAt": "location.abandoned_manor",
+      "ruleset": "dnd5e"
+    },
+    {
+      "id": "npc.vanya_darkwood",
+      "type": "NPC",
+      "name": "Vanya Darkwood",
+      "description": "A mysterious tiefling with red skin, curled horns, and piercing yellow eyes.",
+      "race": "Tiefling",
+      "class": "Warlock",
+      "role": "enemy",
+      "personality": "Cunning, manipulative, and power-hungry.",
+      "motivations": "Desires to summon the dark entity for personal gain.",
+      "attitude": "neutral",
+      "startsAt": "location.cultist_lair",
+      "ruleset": "dnd5e"
+    },
+    {
+      "id": "npc.garrick_the_merchant",
+      "type": "NPC",
+      "name": "Garrick the Merchant",
+      "description": "A stout dwarf with a braided beard and a quick smile.",
+      "race": "Dwarf",
+      "class": "Trader",
+      "role": "neutral",
+      "personality": "Shrewd, friendly, and a bit greedy.",
+      "motivations": "Wants to protect his business and family from threats.",
+      "attitude": "neutral",
+      "startsAt": "location.faelivrin_manor",
+      "ruleset": "dnd5e"
+    }
+  ],
+  "encounters": [
+    {
+      "id": "encounter.the_foggy_ambush",
+      "type": "Encounter",
+      "name": "The Foggy Ambush",
+      "description": "Cultists ambush the party in the dense fog of the Whispering Woods.",
+      "encounterType": "combat",
+      "challengeRating": "CR 7",
+      "occursAt": "location.whispering_woods",
+      "gates": {
+        "all": [
+          "party.at(location.whispering_woods)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.the_foggy_ambush.defeated"
+          },
+          {
+            "grantItem": "Gold coins and a map with cult locations."
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.the_foggy_ambush.fled"
+          }
+        ]
+      },
+      "setup": "The fog is thick, limiting visibility and making the cultists' movements hard to track.",
+      "tactics": "Cultists use hit-and-run tactics and utilize the fog for cover.",
+      "treasure": "Gold coins and a map with cult locations."
+    },
+    {
+      "id": "encounter.the_haunted_library",
+      "type": "Encounter",
+      "name": "The Haunted Library",
+      "description": "Solve ancient riddles to unlock the secrets of the Abandoned Manor's library.",
+      "encounterType": "puzzle",
+      "challengeRating": "CR 8",
+      "occursAt": "location.abandoned_manor",
+      "gates": {
+        "all": [
+          "party.at(location.abandoned_manor)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.the_haunted_library.completed"
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.the_haunted_library.failed"
+          }
+        ]
+      },
+      "setup": "The room is filled with old books and ghostly whispers guide the players.",
+      "tactics": "Riddles challenge the players’ wit and knowledge of the town’s history.",
+      "treasure": "Spell scrolls and a key to the Secret Library."
+    },
+    {
+      "id": "encounter.dark_forest_ritual",
+      "type": "Encounter",
+      "name": "Dark Forest Ritual",
+      "description": "Interrupt a sinister ritual being conducted under the full moon.",
+      "encounterType": "combat",
+      "challengeRating": "CR 9",
+      "occursAt": "location.shadow_s_end",
+      "gates": {
+        "all": [
+          "party.at(location.shadow_s_end)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.dark_forest_ritual.defeated"
+          },
+          {
+            "grantItem": "Amulet of Protection and ritual notes."
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.dark_forest_ritual.fled"
+          }
+        ]
+      },
+      "setup": "The cultists chant around a glowing sigil, preparing to summon a dark entity.",
+      "tactics": "The cult leader uses powerful spells while minions hold off the intruders.",
+      "treasure": "Amulet of Protection and ritual notes."
+    },
+    {
+      "id": "encounter.the_cult_leader_s_trial",
+      "type": "Encounter",
+      "name": "The Cult Leader's Trial",
+      "description": "Convince the townsfolk to turn against the cult leader during a public trial.",
+      "encounterType": "social",
+      "challengeRating": "CR 9",
+      "occursAt": "location.shadow_s_end",
+      "gates": {
+        "all": [
+          "party.at(location.shadow_s_end)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.the_cult_leader_s_trial.resolved"
+          },
+          {
+            "modifyAttitude": {
+              "target": "involved_npcs",
+              "change": "+1"
+            }
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.the_cult_leader_s_trial.failed"
+          },
+          {
+            "modifyAttitude": {
+              "target": "involved_npcs",
+              "change": "-1"
+            }
+          }
+        ]
+      },
+      "setup": "The trial takes place in the town square, with townsfolk gathered to hear the evidence.",
+      "tactics": "Use charisma and evidence gathered to sway public opinion.",
+      "treasure": "Public support and an ally in the town."
+    },
+    {
+      "id": "encounter.the_ghostly_guardian",
+      "type": "Encounter",
+      "name": "The Ghostly Guardian",
+      "description": "Navigate the halls of the Abandoned Manor, avoiding or confronting its ghostly guardian.",
+      "encounterType": "exploration",
+      "challengeRating": "CR 8",
+      "occursAt": "location.abandoned_manor",
+      "gates": {
+        "all": [
+          "party.at(location.abandoned_manor)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.the_ghostly_guardian.completed"
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.the_ghostly_guardian.failed"
+          }
+        ]
+      },
+      "setup": "The ghost appears randomly, testing the party's resolve and knowledge of the manor.",
+      "tactics": "The ghost tests the party's knowledge of the family’s history.",
+      "treasure": "Clues to the manor's hidden treasures."
+    }
+  ],
+  "quests": [
+    {
+      "id": "quest.the_first_blood",
+      "type": "Quest",
+      "name": "The First Blood",
+      "description": "Investigate the scene of the first murder to gather clues about the mysterious killer.",
+      "tags": [
+        "main"
+      ],
+      "questGiver": "npc.mayor_elara_faelivrin",
+      "objectives": [
+        {
+          "id": "objective.0",
+          "description": "Examine the crime scene"
+        },
+        {
+          "id": "objective.1",
+          "description": "Interview witnesses"
+        },
+        {
+          "id": "objective.2",
+          "description": "Find the murder weapon"
+        }
+      ],
+      "rewards": {
+        "description": "Access to town records and a magical amulet"
+      }
+    },
+    {
+      "id": "quest.the_ritual_in_the_woods",
+      "type": "Quest",
+      "name": "The Ritual in the Woods",
+      "description": "Disrupt a dark ritual being conducted by cultists in the nearby forest.",
+      "tags": [
+        "main"
+      ],
+      "questGiver": "npc.aelric_the_sage",
+      "objectives": [
+        {
+          "id": "objective.0",
+          "description": "Track the cultists"
+        },
+        {
+          "id": "objective.1",
+          "description": "Stop the ritual"
+        },
+        {
+          "id": "objective.2",
+          "description": "Capture a cult leader for questioning"
+        }
+      ],
+      "rewards": {
+        "description": "Key information about the cult's hierarchy"
+      }
+    },
+    {
+      "id": "quest.echoes_of_the_past",
+      "type": "Quest",
+      "name": "Echoes of the Past",
+      "description": "Explore the abandoned manor rumored to be the cult's former headquarters.",
+      "tags": [
+        "main"
+      ],
+      "questGiver": "npc.sir_cedric_blackwood",
+      "objectives": [
+        {
+          "id": "objective.0",
+          "description": "Navigate the haunted manor"
+        },
+        {
+          "id": "objective.1",
+          "description": "Find the cult's archives"
+        },
+        {
+          "id": "objective.2",
+          "description": "Discover the cult's origins"
+        }
+      ],
+      "rewards": {
+        "description": "Ancient tome with spells and a rare artifact"
+      }
+    },
+    {
+      "id": "quest.the_final_confrontation",
+      "type": "Quest",
+      "name": "The Final Confrontation",
+      "description": "Confront the cult’s leader to prevent the awakening of the dark entity.",
+      "tags": [
+        "main"
+      ],
+      "questGiver": "npc.vanya_darkwood",
+      "objectives": [
+        {
+          "id": "objective.0",
+          "description": "Infiltrate the cult's lair"
+        },
+        {
+          "id": "objective.1",
+          "description": "Defeat the cult leader"
+        },
+        {
+          "id": "objective.2",
+          "description": "Seal the dark portal"
+        }
+      ],
+      "rewards": {
+        "description": "Legendary sword and the gratitude of Shadow's End"
+      }
+    },
+    {
+      "id": "quest.a_family_s_secret",
+      "type": "Quest",
+      "name": "A Family's Secret",
+      "description": "Help a local family uncover a secret hidden within their ancestral home.",
+      "tags": [
+        "side"
+      ],
+      "questGiver": "npc.garrick_the_merchant",
+      "objectives": [
+        {
+          "id": "objective.0",
+          "description": "Investigate the family home"
+        },
+        {
+          "id": "objective.1",
+          "description": "Solve the puzzle in the basement"
+        },
+        {
+          "id": "objective.2",
+          "description": "Reveal the family's hidden history"
+        }
+      ],
+      "rewards": {
+        "description": "Family heirloom with magical properties"
+      }
+    },
+    {
+      "id": "quest.the_merchant_s_dilemma",
+      "type": "Quest",
+      "name": "The Merchant's Dilemma",
+      "description": "Assist a troubled merchant who is being blackmailed by unknown assailants.",
+      "tags": [
+        "side"
+      ],
+      "questGiver": "npc.mayor_elara_faelivrin",
+      "objectives": [
+        {
+          "id": "objective.0",
+          "description": "Identify the blackmailers"
+        },
+        {
+          "id": "objective.1",
+          "description": "Gather evidence"
+        },
+        {
+          "id": "objective.2",
+          "description": "Resolve the merchant's plight"
+        }
+      ],
+      "rewards": {
+        "description": "Discounts on goods and a rare potion"
+      }
+    }
+  ],
+  "items": [
+    {
+      "id": "item.amulet_of_shadows",
+      "type": "Item",
+      "name": "Amulet of Shadows",
+      "description": "An amulet that allows the wearer to blend with the shadows.",
+      "itemType": "magic_item",
+      "rarity": "uncommon",
+      "rulesetExtension": {
+        "dnd5e": {
+          "mechanics": "Grants advantage on Stealth checks."
+        }
+      }
+    },
+    {
+      "id": "item.tome_of_forgotten_spells",
+      "type": "Item",
+      "name": "Tome of Forgotten Spells",
+      "description": "A dusty tome containing spells lost to time.",
+      "itemType": "magic_item",
+      "rarity": "rare",
+      "rulesetExtension": {
+        "dnd5e": {
+          "mechanics": "Contains several unique spells from the school of necromancy."
+        }
+      }
+    },
+    {
+      "id": "item.sword_of_the_ancients",
+      "type": "Item",
+      "name": "Sword of the Ancients",
+      "description": "A legendary sword said to be forged by ancient deities.",
+      "itemType": "magic_item",
+      "rarity": "legendary",
+      "rulesetExtension": {
+        "dnd5e": {
+          "mechanics": "Grants a +3 bonus to attack and damage rolls."
+        }
+      }
+    },
+    {
+      "id": "item.family_heirloom",
+      "type": "Item",
+      "name": "Family Heirloom",
+      "description": "A beautifully crafted locket passed down through generations.",
+      "itemType": "treasure",
+      "rarity": "uncommon",
+      "rulesetExtension": {
+        "dnd5e": {
+          "mechanics": "Grants the wearer resistance to charm effects."
+        }
+      }
+    },
+    {
+      "id": "item.potion_of_clarity",
+      "type": "Item",
+      "name": "Potion of Clarity",
+      "description": "A potion that clears the mind and enhances focus.",
+      "itemType": "magic_item",
+      "rarity": "common",
+      "rulesetExtension": {
+        "dnd5e": {
+          "mechanics": "Grants advantage on Intelligence checks for 1 hour."
+        }
+      }
+    }
+  ],
+  "factions": [],
+  "handouts": []
+}
+
+This is an excellent stress-test example. It is the first one you’ve posted that really shows both the strengths of CAML 1.x and the pressure points that CAML 2.0 is meant to resolve.
+
+I will do four things, cleanly and decisively:
+
+Diagnose this file precisely (what it already does well)
+
+Explain exactly where CAML 1.x breaks down here
+
+Lay out the CAML 2.0 refactor strategy for this adventure
+
+Give you a CAML-2.0 canonical skeleton for “Whispers in the Shadows” (so you can decide whether to fully expand it)
+
+No repetition, no fluff.
+
+1. What this file already does very well
+
+This is high-quality CAML 1.x, especially compared to generic homebrew JSON.
+
+You already have:
+
+Strong points
+
+Clear spatial progression (town → woods → manor → lair → manor again)
+
+NPCs with:
+
+motivations
+
+personalities
+
+starting locations
+
+Encounters with:
+
+gates (preconditions)
+
+outcomes
+
+narrative setup and tactics
+
+Multiple quest threads (main + side)
+
+Ruleset extensions cleanly isolated (rulesetExtension.dnd5e)
+
+This is exactly what CAML 1.x was designed to support.
+
+2. Where CAML 1.x breaks under this load
+
+This adventure exposes all the reasons CAML 2.0 is necessary.
+
+A. Tags are doing too much work
+
+You rely on tags like:
+
+"addTag": "encounter.the_foggy_ambush.defeated"
+
+
+Problems:
+
+Tags are untyped
+
+Tags are irreversible unless manually cleared
+
+Tags hide why something changed
+
+CAML 2.0 replaces tags with typed state facts + transitions.
+
+B. Attitudes and alliances are mutable but implicit
+
+Example:
+
+"modifyAttitude": {
+  "target": "involved_npcs",
+  "change": "+1"
+}
+
+
+Questions CAML 1.x cannot answer:
+
+Which NPCs exactly?
+
+For how long?
+
+Can it decay?
+
+Does it gate future encounters?
+
+CAML 2.0 makes attitude a first-class state property.
+
+C. Encounters encode causality informally
+
+Your encounters already want to be processes:
+
+they occur at locations
+
+they have gates
+
+they produce outcomes
+
+But CAML 1.x treats them as static objects with side effects.
+
+CAML 2.0 formalizes this.
+
+D. Quests overlap and interlock
+
+You have:
+
+quests that unlock encounters
+
+encounters that unlock quests
+
+social outcomes that affect later trials
+
+CAML 1.x can describe this.
+CAML 2.0 can model it.
+
+3. CAML 2.0 refactor strategy for this adventure
+
+This is not a rewrite. It’s a structural lift.
+
+Mapping rules (deterministic)
+CAML 1.x concept	CAML 2.0 representation
+Locations	world.entities.locations
+NPCs	world.entities.characters
+Encounters	processes.catalog
+Gates	process.preconditions
+Outcomes	transitions
+Tags	state.facts
+Attitude	state (typed, scoped)
+Quests	Derived from state + roles
+QuestGiver	Role assignment
+CR	Metadata only
+4. CAML 2.0 canonical skeleton
+Whispers in the Shadows
+
+This is a correct, minimal CAML-2.0 form of your adventure.
+It is intentionally not fully expanded yet; this is the architectural truth.
+
+Save as:
+
+caml-2.0/examples/whispers-in-the-shadows.caml2.json
+
+✅ CAML-2.0 Skeleton (authoritative)
+{
+  "caml_version": "2.0",
+
+  "meta": {
+    "id": "adventure.whispers_in_the_shadows",
+    "title": "Whispers in the Shadows",
+    "authors": ["Everdice DM Toolkit"],
+    "ruleset": "dnd5e",
+    "levels": { "min": 6, "max": 10 },
+    "tags": ["dark", "investigation", "cult", "town"]
+  },
+
+  "world": {
+    "entities": {
+      "locations": [
+        { "id": "LOC_ShadowEnd", "kind": "location", "name": "Shadow's End" },
+        { "id": "LOC_Woods", "kind": "location", "name": "Whispering Woods" },
+        { "id": "LOC_Manor", "kind": "location", "name": "Abandoned Manor" },
+        { "id": "LOC_Lair", "kind": "location", "name": "Cultist Lair" },
+        { "id": "LOC_Faelivrin", "kind": "location", "name": "Faelivrin Manor" }
+      ],
+
+      "characters": [
+        { "id": "PC_Party", "kind": "character", "pc": true },
+
+        { "id": "NPC_Elara", "kind": "character", "name": "Mayor Elara Faelivrin" },
+        { "id": "NPC_Aelric", "kind": "character", "name": "Aelric the Sage" },
+        { "id": "NPC_Cedric", "kind": "character", "name": "Sir Cedric Blackwood" },
+        { "id": "NPC_Vanya", "kind": "character", "name": "Vanya Darkwood" },
+        { "id": "NPC_Garrick", "kind": "character", "name": "Garrick the Merchant" }
+      ],
+
+      "items": [
+        { "id": "ITEM_AmuletShadows", "kind": "item", "name": "Amulet of Shadows" },
+        { "id": "ITEM_Tome", "kind": "item", "name": "Tome of Forgotten Spells" },
+        { "id": "ITEM_Sword", "kind": "item", "name": "Sword of the Ancients" }
+      ]
+    },
+
+    "connections": [
+      { "from": "LOC_ShadowEnd", "to": "LOC_Woods", "mode": "road" },
+      { "from": "LOC_Woods", "to": "LOC_Manor", "mode": "trail" },
+      { "from": "LOC_Manor", "to": "LOC_Lair", "mode": "hidden" },
+      { "from": "LOC_Lair", "to": "LOC_Faelivrin", "mode": "secret" }
+    ]
+  },
+
+  "state": {
+    "facts": [
+      { "id": "STATE_Cult_Active", "type": "boolean", "value": true },
+      { "id": "STATE_Town_Fear", "type": "level", "value": 3 },
+      { "id": "STATE_Ritual_Interrupted", "type": "boolean", "value": false },
+      { "id": "STATE_Vanya_Exposed", "type": "boolean", "value": false }
+    ]
+  },
+
+  "roles": {
+    "assignments": [
+      { "role": "QuestGiver", "holder": "NPC_Elara" },
+      { "role": "CultLeader", "holder": "NPC_Vanya" },
+      { "role": "TownProtector", "holder": "NPC_Cedric" }
+    ]
+  },
+
+  "processes": {
+    "catalog": [
+      {
+        "id": "PROC_FoggyAmbush",
+        "type": "combat",
+        "location": "LOC_Woods",
+        "participants": ["PC_Party"],
+        "preconditions": [
+          "state[STATE_Cult_Active] == true"
+        ]
+      },
+      {
+        "id": "PROC_DarkRitual",
+        "type": "combat",
+        "location": "LOC_ShadowEnd",
+        "participants": ["PC_Party", "NPC_Vanya"]
+      },
+      {
+        "id": "PROC_PublicTrial",
+        "type": "social",
+        "location": "LOC_ShadowEnd",
+        "participants": ["PC_Party", "NPC_Elara"]
+      }
+    ]
+  },
+
+  "transitions": {
+    "changes": [
+      {
+        "id": "TR_RitualStopped",
+        "caused_by": "PROC_DarkRitual",
+        "ops": [
+          { "op": "update_state", "state_id": "STATE_Ritual_Interrupted", "value": true },
+          { "op": "update_state", "state_id": "STATE_Cult_Active", "value": false }
+        ]
+      },
+      {
+        "id": "TR_Vanya_Exposed",
+        "caused_by": "PROC_PublicTrial",
+        "ops": [
+          { "op": "update_state", "state_id": "STATE_Vanya_Exposed", "value": true }
+        ]
+      }
+    ]
+  },
+
+  "snapshots": {
+    "timeline": [
+      {
+        "id": "SNAP_Town_Saved",
+        "derived_from_transition": "TR_Vanya_Exposed",
+        "narration": "With the cult revealed and the ritual stopped, Shadow's End begins to heal."
+      }
+    ]
+  }
+}
+
+5. Why this adventure proves CAML 2.0 is necessary
+
+This single module demonstrates that CAML 2.0:
+
+scales beyond dungeons
+
+supports investigation and politics
+
+makes social change explicit
+
+supports correspondence play
+
+allows post-hoc analysis of player impact
+
+This is not just a dungeon format.
+It is a story-state engine.

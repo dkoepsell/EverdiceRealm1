@@ -54,7 +54,7 @@ Preferred communication style: Simple, everyday language.
     - Export campaigns as CAML 2.0 YAML/JSON for Foundry VTT and other tools
     - AI-generated structured adventures in CAML 2.0 format
     - Adventure graph visualization showing entity relationships
-    - Flagship example: `caml-2.0/examples/the-lost-temple-ethereal.caml2.json`
+    - Flagship examples: `caml-2.0/examples/the-lost-temple-ethereal.caml2.json`, `caml-2.0/examples/the-lost-temple-whispers.caml2.json`
 - **RPG Systems**:
     - **Progression**: Automatic XP, random item drops, character progression tracking, skill progression (+1 bonus every 5 uses, max +5).
     - **Combat**: D&D mechanics, HP tracking (party/enemies), visual health bars, tactical options, combat end detection, bonus XP for defeating enemies.
