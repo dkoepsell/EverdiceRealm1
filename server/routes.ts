@@ -46,11 +46,12 @@ import {
   parseCAMLYaml, 
   parseCAMLJson, 
   convertCAMLToCampaign, 
-  convertCampaignToCAML, 
+  convertCampaignToCAML2, 
   exportToYAML, 
   exportToJSON, 
   buildAdventureGraph,
-  CAML_AI_PROMPT
+  CAML_AI_PROMPT,
+  migrateCAML1xTo2
 } from "./caml";
 import {
   type TraceEventKind,
@@ -9781,11 +9782,12 @@ Return your response as a JSON object with these fields:
           }
         });
       } else {
+        const caml2Doc = migrateCAML1xTo2(pack);
         res.json({
           success: true,
           adventure: pack.adventure,
           campaignData,
-          graph: buildAdventureGraph(pack)
+          graph: buildAdventureGraph(caml2Doc)
         });
       }
     } catch (error) {
@@ -9817,7 +9819,7 @@ Return your response as a JSON object with these fields:
       const dungeonMaps = await storage.getCampaignDungeonMaps(campaignId);
       const dungeonMap = dungeonMaps[0];
       
-      const camlAdventure = convertCampaignToCAML(
+      const camlAdventure = convertCampaignToCAML2(
         campaign,
         sessions,
         participants,
@@ -9861,7 +9863,7 @@ Return your response as a JSON object with these fields:
       const dungeonMaps = await storage.getCampaignDungeonMaps(campaignId);
       const dungeonMap = dungeonMaps[0];
       
-      const camlAdventure = convertCampaignToCAML(
+      const camlDoc = convertCampaignToCAML2(
         campaign,
         sessions,
         participants,
@@ -9870,29 +9872,7 @@ Return your response as a JSON object with these fields:
         dungeonMap
       );
       
-      const pack = {
-        adventure: camlAdventure,
-        entities: {} as Record<string, any>
-      };
-      
-      pack.entities[camlAdventure.id] = { ...camlAdventure, type: 'AdventureModule' };
-      for (const loc of camlAdventure.locations || []) {
-        pack.entities[loc.id] = { ...loc, type: 'Location' };
-      }
-      for (const npc of camlAdventure.npcs || []) {
-        pack.entities[npc.id] = { ...npc, type: 'NPC' };
-      }
-      for (const quest of camlAdventure.quests || []) {
-        pack.entities[quest.id] = { ...quest, type: 'Quest' };
-      }
-      for (const enc of camlAdventure.encounters || []) {
-        pack.entities[enc.id] = { ...enc, type: 'Encounter' };
-      }
-      for (const item of camlAdventure.items || []) {
-        pack.entities[item.id] = { ...item, type: 'Item' };
-      }
-      
-      const graph = buildAdventureGraph(pack);
+      const graph = buildAdventureGraph(camlDoc);
       console.log('Adventure graph built:', { nodes: graph.nodes.length, edges: graph.edges.length });
       res.json(graph);
     } catch (error) {
@@ -10189,12 +10169,14 @@ IMPORTANT: Replace all placeholders with creative, detailed D&D content. Every a
         return res.status(400).json({ message: "Failed to parse CAML content" });
       }
       
-      const graph = buildAdventureGraph(pack);
+      const caml2Doc = migrateCAML1xTo2(pack);
+      const graph = buildAdventureGraph(caml2Doc);
       
       res.json({
         success: true,
         adventure: pack.adventure,
         entityCount: Object.keys(pack.entities).length,
+        camlVersion: "2.0",
         graph
       });
     } catch (error) {

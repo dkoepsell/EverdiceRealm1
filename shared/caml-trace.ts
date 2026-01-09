@@ -1,19 +1,43 @@
-export const CAML_TRACE_VERSION = "0.1";
+// CAML 2.0 Trace Format
+// Records gameplay events as processes and transitions for audit/replay
+// Aligned with CAML 2.0 ontological layers
+
+import type { 
+  CAMLId, 
+  CAMLRef, 
+  CAMLTimebox, 
+  CAMLTransitionOp,
+  CAMLProcessInput 
+} from './caml';
+
+export const CAML_TRACE_VERSION = "2.0";
+
+// ============================================================================
+// Trace Event Kinds (aligned with CAML 2.0 layers)
+// ============================================================================
 
 export type TraceEventKind =
+  // Session events
   | "session.started"
   | "session.ended"
-  | "encounter.available"
-  | "encounter.triggered"
-  | "encounter.resolved"
-  | "state.set"
-  | "state.unset"
-  | "state.addTag"
-  | "state.removeTag"
-  | "item.gained"
-  | "item.lost"
-  | "item.transferred"
-  | "actor.declared"
+  // Process events (occurrents)
+  | "process.started"
+  | "process.completed"
+  | "process.aborted"
+  // Transition events (state changes)
+  | "transition.applied"
+  // World events
+  | "entity.created"
+  | "entity.moved"
+  | "entity.retired"
+  // State events
+  | "state.added"
+  | "state.updated"
+  | "state.removed"
+  // Role events
+  | "role.granted"
+  | "role.revoked"
+  // D&D 5e specific events
   | "dnd5e.roll"
   | "dnd5e.damage"
   | "dnd5e.heal"
@@ -21,88 +45,76 @@ export type TraceEventKind =
   | "dnd5e.levelUp"
   | "dnd5e.death"
   | "dnd5e.stabilized"
+  | "dnd5e.initiative"
+  // Everdice-specific events
   | "everdice.movement"
   | "everdice.mapGenerated"
   | "everdice.narrativeAdvanced"
   | "everdice.questAccepted"
   | "everdice.questCompleted"
   | "everdice.chapterAdvanced"
-  | "everdice.initiativeRolled"
   | "everdice.turnEnforced"
-  | "everdice.actionValidated";
+  | "everdice.actionValidated"
+  | "everdice.encounterTriggered"
+  | "everdice.encounterResolved"
+  | "everdice.initiativeRolled"
+  // Legacy compatibility aliases
+  | "state.set"
+  | "item.gained"
+  | "encounter.triggered";
 
-export interface SessionStartedPayload {
+// ============================================================================
+// Event Payloads
+// ============================================================================
+
+export interface SessionPayload {
   sessionId: string;
   title?: string;
+  startedAt?: string;
+  endedAt?: string;
 }
 
-export interface SessionEndedPayload {
-  sessionId: string;
+export interface ProcessPayload {
+  processId: CAMLId;
+  processType: string;
+  timebox?: CAMLTimebox;
+  participants?: CAMLRef[];
+  location?: CAMLRef;
+  inputs?: CAMLProcessInput[];
+  outcomes?: string[];
 }
 
-export interface EncounterAvailablePayload {
-  encounterId: string;
-  because?: string[];
+export interface TransitionPayload {
+  transitionId: CAMLId;
+  causedBy: CAMLRef;
+  ops: CAMLTransitionOp[];
 }
 
-export interface EncounterTriggeredPayload {
-  encounterId: string;
-  occursAt?: string;
-  participants?: string[];
+export interface EntityPayload {
+  entityId: CAMLRef;
+  entityKind: string;
+  name?: string;
+  reason?: string;
+  toLocation?: CAMLRef;
 }
 
-export interface EncounterResolvedPayload {
-  encounterId: string;
-  resolution: "success" | "failure" | "partial" | "abandoned";
-  outcomeRefs?: string[];
+export interface StatePayload {
+  stateId: CAMLId;
+  bearer: CAMLRef;
+  type: string;
+  value?: unknown;
+  units?: string;
 }
 
-export interface StateSetPayload {
-  path: string;
-  value: unknown;
-}
-
-export interface StateUnsetPayload {
-  path: string;
-}
-
-export interface StateAddTagPayload {
-  tag: string;
-  scope?: string;
-}
-
-export interface StateRemoveTagPayload {
-  tag: string;
-  scope?: string;
-}
-
-export interface ItemGainedPayload {
-  itemId: string;
-  by?: string;
-  quantity?: number;
-}
-
-export interface ItemLostPayload {
-  itemId: string;
-  by?: string;
-  quantity?: number;
-}
-
-export interface ItemTransferredPayload {
-  itemId: string;
-  from: string;
-  to: string;
-  quantity?: number;
-}
-
-export interface ActorDeclaredPayload {
-  actorId: string;
-  intent: string;
-  targetId?: string;
+export interface RolePayload {
+  roleId: CAMLId;
+  role: string;
+  holder: CAMLRef;
+  grantedBy?: CAMLRef;
 }
 
 export interface DnD5eRollPayload {
-  actorId: string;
+  actorId: CAMLRef;
   rollType: string;
   dice: string;
   result: number;
@@ -111,75 +123,88 @@ export interface DnD5eRollPayload {
   disadvantage?: boolean;
   critical?: boolean;
   criticalFail?: boolean;
+  target?: number;
+  success?: boolean;
 }
 
 export interface DnD5eDamagePayload {
-  targetId: string;
+  targetId: CAMLRef;
   amount: number;
   damageType?: string;
-  source?: string;
+  source?: CAMLRef;
 }
 
 export interface DnD5eHealPayload {
-  targetId: string;
+  targetId: CAMLRef;
   amount: number;
-  source?: string;
+  source?: CAMLRef;
 }
 
 export interface DnD5eRestPayload {
-  actorId: string;
+  actorId: CAMLRef;
   restType: "short" | "long";
   hpRestored?: number;
   hitDiceUsed?: number;
+  resourcesRecovered?: string[];
 }
 
 export interface DnD5eLevelUpPayload {
-  actorId: string;
+  actorId: CAMLRef;
   newLevel: number;
   class?: string;
   hpGained?: number;
+  featuresGained?: string[];
 }
 
 export interface DnD5eDeathPayload {
-  actorId: string;
+  actorId: CAMLRef;
   cause?: string;
+  savesSucceeded?: number;
+  savesFailed?: number;
 }
 
 export interface DnD5eStabilizedPayload {
-  actorId: string;
+  actorId: CAMLRef;
   method?: string;
+  stabilizedBy?: CAMLRef;
+}
+
+export interface DnD5eInitiativePayload {
+  actorId: CAMLRef;
+  roll: number;
+  modifier?: number;
+  total: number;
 }
 
 export interface EverdiceMovementPayload {
-  actorId: string;
+  actorId: CAMLRef;
   from: { x: number; y: number };
   to: { x: number; y: number };
-  locationId?: string;
+  locationId?: CAMLRef;
+  movementType?: "walk" | "teleport" | "forced";
 }
 
 export interface EverdiceMapGeneratedPayload {
+  mapId: CAMLId;
   mapType: string;
   dimensions: { width: number; height: number };
   seed?: string;
-  locationId?: string;
+  locationId?: CAMLRef;
+  roomCount?: number;
 }
 
 export interface EverdiceNarrativeAdvancedPayload {
   content: string;
   choiceMade?: string;
   chapterId?: string;
+  locationId?: CAMLRef;
 }
 
-export interface EverdiceQuestAcceptedPayload {
-  questId: string;
+export interface EverdiceQuestPayload {
+  questId: CAMLId;
   questName: string;
-  givenBy?: string;
-}
-
-export interface EverdiceQuestCompletedPayload {
-  questId: string;
-  questName: string;
-  outcome: "success" | "failure" | "abandoned";
+  givenBy?: CAMLRef;
+  outcome?: "success" | "failure" | "abandoned";
   rewards?: {
     xp?: number;
     gold?: number;
@@ -191,22 +216,24 @@ export interface EverdiceChapterAdvancedPayload {
   fromChapter: number;
   toChapter: number;
   chapterTitle?: string;
+  totalChapters?: number;
+}
+
+export interface EverdiceEncounterPayload {
+  encounterId: CAMLId;
+  encounterType?: string;
+  occursAt?: CAMLRef;
+  participants?: CAMLRef[];
+  resolution?: "success" | "failure" | "partial" | "abandoned";
 }
 
 export type TraceEventPayload =
-  | SessionStartedPayload
-  | SessionEndedPayload
-  | EncounterAvailablePayload
-  | EncounterTriggeredPayload
-  | EncounterResolvedPayload
-  | StateSetPayload
-  | StateUnsetPayload
-  | StateAddTagPayload
-  | StateRemoveTagPayload
-  | ItemGainedPayload
-  | ItemLostPayload
-  | ItemTransferredPayload
-  | ActorDeclaredPayload
+  | SessionPayload
+  | ProcessPayload
+  | TransitionPayload
+  | EntityPayload
+  | StatePayload
+  | RolePayload
   | DnD5eRollPayload
   | DnD5eDamagePayload
   | DnD5eHealPayload
@@ -214,64 +241,86 @@ export type TraceEventPayload =
   | DnD5eLevelUpPayload
   | DnD5eDeathPayload
   | DnD5eStabilizedPayload
+  | DnD5eInitiativePayload
   | EverdiceMovementPayload
   | EverdiceMapGeneratedPayload
   | EverdiceNarrativeAdvancedPayload
-  | EverdiceQuestAcceptedPayload
-  | EverdiceQuestCompletedPayload
-  | EverdiceChapterAdvancedPayload;
+  | EverdiceQuestPayload
+  | EverdiceChapterAdvancedPayload
+  | EverdiceEncounterPayload;
+
+// ============================================================================
+// Trace Event Structure
+// ============================================================================
 
 export interface TraceEvent {
-  eid: string;
+  eid: CAMLId;
   kind: TraceEventKind;
   payload: TraceEventPayload;
-  ts?: string;
+  ts: string; // ISO timestamp
   sessionId?: string;
-  who?: string;
-  where?: string;
+  who?: CAMLRef; // Actor reference
+  where?: CAMLRef; // Location reference
   note?: string;
   meta?: Record<string, unknown>;
 }
 
+// ============================================================================
+// Trace Session and Actor
+// ============================================================================
+
 export interface TraceSession {
-  id: string;
+  id: CAMLId;
   title?: string;
-  startedAt?: string;
+  startedAt: string;
   endedAt?: string;
+  chapterNumber?: number;
 }
 
 export interface TraceActor {
-  id: string;
-  type: "PC" | "NPC" | "Party" | "System";
-  name?: string;
+  id: CAMLId;
+  type: "PC" | "NPC" | "Party" | "System" | "DM";
+  name: string;
+  characterId?: CAMLRef;
 }
 
 export interface TraceCampaign {
-  id: string;
+  id: CAMLId;
   name: string;
   gm?: string;
-  ruleset?: string;
+  ruleset: string;
+  setting?: string;
 }
+
+// ============================================================================
+// Root Trace Document (CAML 2.0 aligned)
+// ============================================================================
 
 export interface CAMLTrace {
   type: "CAMLTrace";
-  id: string;
-  moduleId: string;
-  camlVersion?: string;
+  id: CAMLId;
+  moduleId: CAMLId;
+  camlVersion: string;
   traceVersion: string;
-  campaign?: TraceCampaign;
-  sessions?: TraceSession[];
-  actors?: TraceActor[];
+  campaign: TraceCampaign;
+  sessions: TraceSession[];
+  actors: TraceActor[];
   events: TraceEvent[];
+  created_utc: string;
+  updated_utc?: string;
 }
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
 
 export function createTraceEvent(
   kind: TraceEventKind,
   payload: TraceEventPayload,
   options?: {
     sessionId?: string;
-    who?: string;
-    where?: string;
+    who?: CAMLRef;
+    where?: CAMLRef;
     note?: string;
     meta?: Record<string, unknown>;
   }
@@ -280,19 +329,118 @@ export function createTraceEvent(
     kind,
     payload,
     ts: new Date().toISOString(),
-    ...options,
+    ...options
   };
 }
 
-export function generateEventId(eventIndex: number): string {
-  return `evt.${String(eventIndex).padStart(6, "0")}`;
+export function generateEventId(eventIndex: number): CAMLId {
+  return `EVT_${String(eventIndex).padStart(6, "0")}`;
 }
 
-export function generateTraceId(campaignId: number | string): string {
-  return `trace.everdice.campaign_${campaignId}`;
+export function generateTraceId(campaignId: number | string): CAMLId {
+  return `TRACE_everdice_${campaignId}`;
 }
 
-export function generateModuleId(campaignId: number | string, campaignName: string): string {
+export function generateModuleId(campaignId: number | string, campaignName: string): CAMLId {
   const slug = campaignName.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 30);
-  return `adventure.everdice.${slug}_${campaignId}`;
+  return `ADV_everdice_${slug}_${campaignId}`;
+}
+
+export function createEmptyTrace(
+  campaignId: number | string,
+  campaignName: string,
+  gmName?: string
+): CAMLTrace {
+  const now = new Date().toISOString();
+  return {
+    type: "CAMLTrace",
+    id: generateTraceId(campaignId),
+    moduleId: generateModuleId(campaignId, campaignName),
+    camlVersion: "2.0",
+    traceVersion: CAML_TRACE_VERSION,
+    campaign: {
+      id: `CAMP_${campaignId}`,
+      name: campaignName,
+      gm: gmName,
+      ruleset: "dnd5e"
+    },
+    sessions: [],
+    actors: [],
+    events: [],
+    created_utc: now
+  };
+}
+
+export function addTraceEvent(
+  trace: CAMLTrace,
+  kind: TraceEventKind,
+  payload: TraceEventPayload,
+  options?: {
+    sessionId?: string;
+    who?: CAMLRef;
+    where?: CAMLRef;
+    note?: string;
+    meta?: Record<string, unknown>;
+  }
+): TraceEvent {
+  const eventId = generateEventId(trace.events.length);
+  const event: TraceEvent = {
+    eid: eventId,
+    kind,
+    payload,
+    ts: new Date().toISOString(),
+    ...options
+  };
+  trace.events.push(event);
+  trace.updated_utc = event.ts;
+  return event;
+}
+
+export function startTraceSession(
+  trace: CAMLTrace,
+  sessionId: string,
+  title?: string,
+  chapterNumber?: number
+): TraceSession {
+  const session: TraceSession = {
+    id: sessionId,
+    title,
+    startedAt: new Date().toISOString(),
+    chapterNumber
+  };
+  trace.sessions.push(session);
+  
+  addTraceEvent(trace, "session.started", {
+    sessionId,
+    title,
+    startedAt: session.startedAt
+  } as SessionPayload, { sessionId });
+  
+  return session;
+}
+
+export function endTraceSession(trace: CAMLTrace, sessionId: string): void {
+  const session = trace.sessions.find(s => s.id === sessionId);
+  if (session) {
+    session.endedAt = new Date().toISOString();
+    addTraceEvent(trace, "session.ended", {
+      sessionId,
+      endedAt: session.endedAt
+    } as SessionPayload, { sessionId });
+  }
+}
+
+export function registerTraceActor(
+  trace: CAMLTrace,
+  id: string,
+  type: TraceActor["type"],
+  name: string,
+  characterId?: string
+): TraceActor {
+  let actor = trace.actors.find(a => a.id === id);
+  if (!actor) {
+    actor = { id, type, name, characterId };
+    trace.actors.push(actor);
+  }
+  return actor;
 }

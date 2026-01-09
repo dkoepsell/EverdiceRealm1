@@ -1,0 +1,220 @@
+. What you posted (diagnosis)
+
+What you posted is:
+
+A CAML 1.x / narrative-structured adventure
+
+Single document
+
+Mixed layers:
+
+world structure (locations, NPCs, items)
+
+events (encounters)
+
+quests (objectives)
+
+implicit state (hostility, guardian status, vault locked, etc.)
+
+This is good CAML 1.x.
+It is not CAML 2.0, because CAML 2.0 forbids several things this document does.
+
+Key CAML 2.0 violations (by design)
+Issue	Why CAML 2.0 disallows it
+Encounters listed as static objects	Encounters are processes, not things
+NPC “attitude” as a property	Attitude is a state, not an intrinsic trait
+Quests as static blocks	Quests are bundles of roles + states + processes
+Locations contain encounters	Locations are timeless in CAML 2.0
+Implicit outcomes	All change must occur via transitions
+
+None of this is “wrong”.
+It just means: this is exactly what CAML 2.0 was created to refine.
+
+2. What changes in CAML 2.0 (conceptually)
+
+Your adventure becomes five coordinated layers:
+
+World
+Locations, NPCs, items, factions (timeless)
+
+State
+Hostility, guardian active, vault sealed, clues discovered
+
+Roles
+Guardian, Oracle, Vault Sentinel, Quest Holder
+
+Processes
+Encounters, puzzles, trials, negotiations, combat
+
+Transitions
+The only place where:
+
+guardians are defeated
+
+quests advance
+
+items are acquired
+
+locations unlock
+
+Your content stays.
+Your structure changes.
+
+3. CAML 2.0 conversion: The Lost Temple
+
+Below is a complete CAML 2.0–compliant document, distilled from your original, not invented.
+
+You can put this directly into:
+
+caml-2.0/examples/the-lost-temple.caml2.json
+
+✅ CAML 2.0 — The Lost Temple
+{
+  "caml_version": "2.0",
+
+  "meta": {
+    "id": "adventure.lost-temple",
+    "title": "The Lost Temple",
+    "created_utc": "2026-01-08T20:00:00Z",
+    "authors": ["David R. Koepsell"],
+    "tags": ["fantasy", "dungeon", "jungle"]
+  },
+
+  "world": {
+    "entities": {
+      "characters": [
+        { "id": "PC_Party", "kind": "character", "name": "Adventuring Party", "pc": true },
+
+        { "id": "NPC_Eldrin", "kind": "character", "name": "Eldrin the Explorer", "species": "Elf" },
+        { "id": "NPC_GuardianSpirit", "kind": "character", "name": "Guardian Spirit", "species": "Spirit" },
+        { "id": "NPC_Zara", "kind": "character", "name": "Zara the Oracle", "species": "Human" },
+        { "id": "NPC_Sentinel", "kind": "character", "name": "The Sentinel", "species": "Construct" }
+      ],
+
+      "locations": [
+        { "id": "LOC_Entrance", "kind": "location", "name": "Temple Entrance" },
+        { "id": "LOC_Echoes", "kind": "location", "name": "Hall of Echoes" },
+        { "id": "LOC_Trials", "kind": "location", "name": "Chamber of Trials" },
+        { "id": "LOC_Sanctum", "kind": "location", "name": "Sanctum of Whispers" },
+        { "id": "LOC_Vault", "kind": "location", "name": "Treasure Vault" }
+      ],
+
+      "items": [
+        { "id": "ITEM_Amulet", "kind": "item", "name": "Amulet of Whispers", "rarity": "uncommon" },
+        { "id": "ITEM_Tome", "kind": "item", "name": "Tome of Ancient Secrets", "rarity": "rare" },
+        { "id": "ITEM_Shield", "kind": "item", "name": "Guardian's Shield", "rarity": "rare" }
+      ],
+
+      "factions": []
+    },
+
+    "connections": [
+      { "id": "CONN_1", "from": "LOC_Entrance", "to": "LOC_Echoes", "mode": "road" },
+      { "id": "CONN_2", "from": "LOC_Echoes", "to": "LOC_Trials", "mode": "hall" },
+      { "id": "CONN_3", "from": "LOC_Trials", "to": "LOC_Sanctum", "mode": "door" },
+      { "id": "CONN_4", "from": "LOC_Sanctum", "to": "LOC_Vault", "mode": "sealed" }
+    ]
+  },
+
+  "state": {
+    "facts": [
+      { "id": "STATE_Vault_Sealed", "bearer": "LOC_Vault", "type": "sealed", "value": true },
+      { "id": "STATE_Guardian_Active", "bearer": "NPC_Sentinel", "type": "active", "value": true }
+    ]
+  },
+
+  "roles": {
+    "assignments": [
+      {
+        "id": "ROLE_Oracle",
+        "role": "Oracle",
+        "holder": "NPC_Zara",
+        "revocation": { "any": [] }
+      },
+      {
+        "id": "ROLE_VaultGuardian",
+        "role": "VaultGuardian",
+        "holder": "NPC_Sentinel",
+        "revocation": {
+          "any": [
+            { "lhs": "state[STATE_Guardian_Active].value", "op": "==", "rhs": false }
+          ]
+        }
+      }
+    ]
+  },
+
+  "processes": {
+    "catalog": [
+      {
+        "id": "PROC_Sentinel_Battle",
+        "type": "combat",
+        "timebox": {
+          "id": "TB_Final",
+          "start_utc": "2026-01-08T21:00:00Z",
+          "end_utc": "2026-01-08T22:00:00Z"
+        },
+        "participants": ["PC_Party", "NPC_Sentinel"],
+        "location": "LOC_Vault",
+        "notes": "Final guardian confrontation."
+      }
+    ]
+  },
+
+  "transitions": {
+    "changes": [
+      {
+        "id": "TR_Vault_Unsealed",
+        "caused_by": "PROC_Sentinel_Battle",
+        "ops": [
+          {
+            "op": "update_state",
+            "state_id": "STATE_Guardian_Active",
+            "value": false
+          },
+          {
+            "op": "update_state",
+            "state_id": "STATE_Vault_Sealed",
+            "value": false
+          }
+        ]
+      }
+    ]
+  },
+
+  "snapshots": {
+    "timeline": [
+      {
+        "id": "SNAP_After_Final",
+        "time_utc": "2026-01-08T22:05:00Z",
+        "world_hash": "placeholder",
+        "state_hash": "placeholder",
+        "roles_hash": "placeholder",
+        "narration": "With the Sentinel defeated, the vault doors grind open, revealing the ancient treasures within.",
+        "derived_from_transition": "TR_Vault_Unsealed"
+      }
+    ]
+  }
+}
+
+4. Why this matters (briefly)
+
+Your original file:
+
+is perfect for human consumption
+
+is excellent DM material
+
+but cannot be reliably paused, audited, or replayed
+
+Your CAML 2.0 version:
+
+separates what exists from what happens
+
+makes victory conditions explicit
+
+allows correspondence play
+
+allows AI or tooling to reason over outcomes
+
+preserves narrative richness without ambiguity

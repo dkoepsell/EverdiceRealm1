@@ -1,138 +1,342 @@
 import * as yaml from 'js-yaml';
 import type {
-  CAMLAdventureModule,
-  CAMLAdventurePack,
+  CAML2Document,
+  CAMLMeta,
+  CAMLWorld,
+  CAMLState,
+  CAMLRoles,
+  CAMLProcesses,
+  CAMLTransitions,
+  CAMLSnapshots,
+  CAMLCharacter,
   CAMLLocation,
-  CAMLNPC,
   CAMLItem,
-  CAMLEncounter,
-  CAMLQuest,
-  CAMLEntity,
+  CAMLFaction,
+  CAMLConnection,
+  CAMLStateFact,
+  CAMLRoleAssignment,
+  CAMLProcessInstance,
+  CAMLTransition,
+  CAMLSnapshot,
+  CAMLTimebox,
+  CAMLId,
+  CAMLRef,
   CAMLStatblock,
-  CAMLAbilities
+  CAMLAbilities,
+  CAML1xAdventureModule,
+  CAML1xAdventurePack,
+  CAML1xLocation,
+  CAML1xNPC,
+  CAML1xItem,
+  CAML1xEncounter,
+  CAML1xQuest,
+  CAML1xBaseEntity
+} from '../shared/caml';
+import {
+  CAML_VERSION,
+  createEmptyCAML2Document,
+  generateCAMLId,
+  validateCAMLId
 } from '../shared/caml';
 
-export function parseCAMLYaml(content: string): CAMLAdventurePack | null {
+// ============================================================================
+// Parse CAML 2.0 Documents
+// ============================================================================
+
+export function parseCAML2Yaml(content: string): CAML2Document | null {
   try {
     const parsed = yaml.load(content) as any;
-    console.log('YAML parsed:', parsed ? 'success' : 'null', parsed?.type, parsed?.id);
     if (!parsed) return null;
     
-    // Check if it's a direct adventure module by type or id pattern
-    if (parsed.type === 'AdventureModule' || parsed.id?.startsWith('adventure.')) {
-      return {
-        adventure: { ...parsed, type: 'AdventureModule' } as CAMLAdventureModule,
-        entities: buildEntityIndex({ ...parsed, type: 'AdventureModule' })
-      };
+    if (parsed.caml_version === "2.0") {
+      return validateCAML2Document(parsed);
     }
     
-    // Check if it's wrapped in an adventure key
-    if (parsed.adventure) {
-      return {
-        adventure: parsed.adventure as CAMLAdventureModule,
-        entities: parsed.entities || buildEntityIndex(parsed.adventure)
-      };
+    // Try to migrate from 1.x format
+    const legacy = parseLegacyCAML(parsed);
+    if (legacy) {
+      return migrateCAML1xTo2(legacy);
     }
     
-    // Fallback: treat as adventure if it has title and some content
-    if (parsed.title && (parsed.locations || parsed.npcs || parsed.encounters || parsed.quests)) {
-      const adventure = { ...parsed, type: 'AdventureModule', id: parsed.id || `adventure.${Date.now()}` };
-      return {
-        adventure: adventure as CAMLAdventureModule,
-        entities: buildEntityIndex(adventure)
-      };
-    }
-    
-    console.log('YAML parsing failed - no matching structure, keys:', Object.keys(parsed));
     return null;
   } catch (error) {
-    console.error('Failed to parse CAML YAML:', error);
+    console.error('Failed to parse CAML 2.0 YAML:', error);
     return null;
   }
 }
 
-export function parseCAMLJson(content: string): CAMLAdventurePack | null {
+export function parseCAML2Json(content: string): CAML2Document | null {
   try {
     const parsed = JSON.parse(content);
-    console.log('JSON parsed:', parsed ? 'success' : 'null', parsed?.type, parsed?.id);
     if (!parsed) return null;
     
-    // Check if it's a direct adventure module by type or id pattern
-    if (parsed.type === 'AdventureModule' || parsed.id?.startsWith('adventure.')) {
-      return {
-        adventure: { ...parsed, type: 'AdventureModule' } as CAMLAdventureModule,
-        entities: buildEntityIndex({ ...parsed, type: 'AdventureModule' })
-      };
+    if (parsed.caml_version === "2.0") {
+      return validateCAML2Document(parsed);
     }
     
-    // Check if it's wrapped in an adventure key
-    if (parsed.adventure) {
-      return {
-        adventure: parsed.adventure as CAMLAdventureModule,
-        entities: parsed.entities || buildEntityIndex(parsed.adventure)
-      };
+    // Try to migrate from 1.x format
+    const legacy = parseLegacyCAML(parsed);
+    if (legacy) {
+      return migrateCAML1xTo2(legacy);
     }
     
-    // Fallback: treat as adventure if it has title and some content
-    if (parsed.title && (parsed.locations || parsed.npcs || parsed.encounters || parsed.quests)) {
-      const adventure = { ...parsed, type: 'AdventureModule', id: parsed.id || `adventure.${Date.now()}` };
-      return {
-        adventure: adventure as CAMLAdventureModule,
-        entities: buildEntityIndex(adventure)
-      };
-    }
-    
-    console.log('JSON parsing failed - no matching structure, keys:', Object.keys(parsed));
     return null;
   } catch (error) {
-    console.error('Failed to parse CAML JSON:', error);
+    console.error('Failed to parse CAML 2.0 JSON:', error);
     return null;
   }
 }
 
-function buildEntityIndex(adventure: CAMLAdventureModule): Record<string, CAMLEntity> {
-  const index: Record<string, CAMLEntity> = {};
+function validateCAML2Document(doc: any): CAML2Document | null {
+  if (!doc.meta?.id || !doc.meta?.title) return null;
+  if (!doc.world?.entities) return null;
+  if (!doc.state?.facts) return null;
+  if (!doc.roles?.assignments) return null;
+  if (!doc.processes?.catalog) return null;
+  if (!doc.transitions?.changes) return null;
+  if (!doc.snapshots?.timeline || doc.snapshots.timeline.length === 0) return null;
+  
+  return doc as CAML2Document;
+}
+
+// ============================================================================
+// Legacy CAML 1.x Parsing (for backwards compatibility)
+// ============================================================================
+
+function parseLegacyCAML(parsed: any): CAML1xAdventurePack | null {
+  // Check for 1.x AdventureModule format
+  if (parsed.type === 'AdventureModule' || parsed.id?.startsWith('adventure.')) {
+    const adventure = { ...parsed, type: 'AdventureModule' } as CAML1xAdventureModule;
+    return {
+      adventure,
+      entities: buildLegacyEntityIndex(adventure)
+    };
+  }
+  
+  // Check wrapped format
+  if (parsed.adventure) {
+    return {
+      adventure: parsed.adventure as CAML1xAdventureModule,
+      entities: parsed.entities || buildLegacyEntityIndex(parsed.adventure)
+    };
+  }
+  
+  // Fallback
+  if (parsed.title && (parsed.locations || parsed.npcs || parsed.encounters)) {
+    const adventure = { 
+      ...parsed, 
+      type: 'AdventureModule', 
+      id: parsed.id || `adventure.${Date.now()}` 
+    } as CAML1xAdventureModule;
+    return {
+      adventure,
+      entities: buildLegacyEntityIndex(adventure)
+    };
+  }
+  
+  return null;
+}
+
+function buildLegacyEntityIndex(adventure: CAML1xAdventureModule): Record<string, CAML1xBaseEntity> {
+  const index: Record<string, CAML1xBaseEntity> = {};
   
   index[adventure.id] = adventure;
   
-  if (adventure.locations) {
-    for (const loc of adventure.locations) {
-      index[loc.id] = loc;
-    }
-  }
-  
-  if (adventure.npcs) {
-    for (const npc of adventure.npcs) {
-      index[npc.id] = npc;
-    }
-  }
-  
-  if (adventure.items) {
-    for (const item of adventure.items) {
-      index[item.id] = item;
-    }
-  }
-  
-  if (adventure.encounters) {
-    for (const enc of adventure.encounters) {
-      index[enc.id] = enc;
-    }
-  }
-  
-  if (adventure.quests) {
-    for (const quest of adventure.quests) {
-      index[quest.id] = quest;
-    }
-  }
-  
-  if (adventure.factions) {
-    for (const faction of adventure.factions) {
-      index[faction.id] = faction;
-    }
-  }
+  for (const loc of adventure.locations || []) index[loc.id] = loc;
+  for (const npc of adventure.npcs || []) index[npc.id] = npc;
+  for (const item of adventure.items || []) index[item.id] = item;
+  for (const enc of adventure.encounters || []) index[enc.id] = enc;
+  for (const quest of adventure.quests || []) index[quest.id] = quest;
+  for (const faction of adventure.factions || []) index[faction.id] = faction;
   
   return index;
 }
+
+// ============================================================================
+// Migration from CAML 1.x to CAML 2.0
+// ============================================================================
+
+export function migrateCAML1xTo2(pack: CAML1xAdventurePack): CAML2Document {
+  const adventure = pack.adventure;
+  const now = new Date().toISOString();
+  
+  // Create meta
+  const meta: CAMLMeta = {
+    id: sanitizeId(adventure.id) || `ADV_${Date.now()}`,
+    title: adventure.title || adventure.name || 'Imported Adventure',
+    created_utc: now,
+    authors: [adventure.author || 'Everdice Import'],
+    tags: adventure.tags || [],
+    system: {
+      name: 'dnd5e',
+      version: adventure.version || '1.0',
+      license: 'CC BY 4.0'
+    }
+  };
+  
+  // Convert world entities
+  const characters: CAMLCharacter[] = (adventure.npcs || []).map((npc, i) => ({
+    id: sanitizeId(npc.id) || `NPC_${i}`,
+    kind: 'character' as const,
+    name: npc.name || `NPC ${i + 1}`,
+    description: npc.description,
+    tags: npc.tags,
+    pc: false,
+    species: npc.race,
+    class: npc.class,
+    level: npc.level,
+    alignment: npc.alignment,
+    statblock: npc.statblock,
+    abilities: npc.abilities
+  }));
+  
+  const locations: CAMLLocation[] = (adventure.locations || []).map((loc, i) => ({
+    id: sanitizeId(loc.id) || `LOC_${i}`,
+    kind: 'location' as const,
+    name: loc.name || `Location ${i + 1}`,
+    description: loc.description,
+    tags: loc.tags,
+    features: loc.features
+  }));
+  
+  const items: CAMLItem[] = (adventure.items || []).map((item, i) => ({
+    id: sanitizeId(item.id) || `ITEM_${i}`,
+    kind: 'item' as const,
+    name: item.name || `Item ${i + 1}`,
+    description: item.description,
+    tags: item.tags,
+    rarity: item.rarity as any,
+    itemType: item.itemType as any,
+    properties: item.properties
+  }));
+  
+  const factions: CAMLFaction[] = (adventure.factions || []).map((fac, i) => ({
+    id: sanitizeId(fac.id) || `FAC_${i}`,
+    kind: 'faction' as const,
+    name: fac.name || `Faction ${i + 1}`,
+    description: fac.description,
+    tags: fac.tags
+  }));
+  
+  // Build connections from location data
+  const connections: CAMLConnection[] = [];
+  for (const loc of adventure.locations || []) {
+    if (loc.connections) {
+      for (const conn of loc.connections) {
+        connections.push({
+          id: `CONN_${connections.length}`,
+          from: sanitizeId(loc.id),
+          to: sanitizeId(conn.target),
+          mode: 'road',
+          bidirectional: true
+        });
+      }
+    }
+  }
+  
+  const world: CAMLWorld = {
+    entities: { characters, locations, items, factions },
+    connections
+  };
+  
+  // Convert state from initialState
+  const facts: CAMLStateFact[] = [];
+  if (adventure.initialState) {
+    for (const [key, value] of Object.entries(adventure.initialState)) {
+      facts.push({
+        id: `STATE_${key}`,
+        bearer: meta.id,
+        type: 'initialState',
+        value
+      });
+    }
+  }
+  
+  // Add NPC attitudes as state facts
+  for (const npc of adventure.npcs || []) {
+    if (npc.attitude) {
+      facts.push({
+        id: `STATE_${sanitizeId(npc.id)}_attitude`,
+        bearer: sanitizeId(npc.id),
+        type: 'attitude',
+        value: npc.attitude
+      });
+    }
+  }
+  
+  const state: CAMLState = { facts };
+  
+  // Convert quest givers to role assignments
+  const assignments: CAMLRoleAssignment[] = [];
+  for (const quest of adventure.quests || []) {
+    if (quest.questGiver) {
+      assignments.push({
+        id: `ROLE_questgiver_${sanitizeId(quest.id)}`,
+        role: 'QuestGiver',
+        holder: sanitizeId(quest.questGiver),
+        notes: `Gives quest: ${quest.name}`
+      });
+    }
+  }
+  
+  const roles: CAMLRoles = { assignments };
+  
+  // Create placeholder processes from encounters
+  const catalog: CAMLProcessInstance[] = [];
+  for (const enc of adventure.encounters || []) {
+    catalog.push({
+      id: `PROC_${sanitizeId(enc.id)}`,
+      type: enc.encounterType || 'encounter',
+      timebox: {
+        id: `TB_${sanitizeId(enc.id)}`,
+        start_utc: now,
+        end_utc: now,
+        label: enc.name || 'Encounter'
+      },
+      participants: [],
+      location: enc.occursAt ? sanitizeId(enc.occursAt) : undefined,
+      notes: enc.description
+    });
+  }
+  
+  const processes: CAMLProcesses = { catalog };
+  
+  // Empty transitions (no changes yet)
+  const transitions: CAMLTransitions = { changes: [] };
+  
+  // Initial snapshot
+  const snapshots: CAMLSnapshots = {
+    timeline: [{
+      id: 'SNAP_0',
+      time_utc: now,
+      world_hash: 'migrated',
+      state_hash: 'migrated',
+      roles_hash: 'migrated',
+      narration: adventure.synopsis || 'Adventure begins.'
+    }]
+  };
+  
+  return {
+    caml_version: '2.0',
+    meta,
+    world,
+    state,
+    roles,
+    processes,
+    transitions,
+    snapshots
+  };
+}
+
+function sanitizeId(id: string | undefined): CAMLId {
+  if (!id) return `ID_${Date.now()}`;
+  // Convert 1.x dot notation to 2.0 underscore notation
+  return id.replace(/\./g, '_').replace(/[^A-Za-z0-9_\-:]/g, '_');
+}
+
+// ============================================================================
+// Convert Campaign Data to CAML 2.0
+// ============================================================================
 
 export interface ConvertedCampaignData {
   title: string;
@@ -181,7 +385,684 @@ export interface ConvertedCampaignData {
   initialStoryState: any;
 }
 
-export function convertCAMLToCampaign(pack: CAMLAdventurePack): ConvertedCampaignData {
+export function convertCAML2ToCampaign(doc: CAML2Document): ConvertedCampaignData {
+  const { meta, world, state } = doc;
+  
+  const npcs = world.entities.characters
+    .filter(c => !c.pc)
+    .map(c => {
+      const attitudeFact = state.facts.find(
+        f => f.bearer === c.id && f.type === 'attitude'
+      );
+      return {
+        name: c.name,
+        description: c.description || '',
+        race: c.species,
+        class: c.class,
+        level: c.level,
+        alignment: c.alignment,
+        attitude: attitudeFact?.value as string,
+        statblock: c.statblock
+      };
+    });
+  
+  const locations = world.entities.locations.map(l => ({
+    name: l.name,
+    description: l.description || '',
+    features: l.features,
+    connections: world.connections
+      ?.filter(c => c.from === l.id)
+      .map(c => ({
+        direction: c.mode,
+        target: c.to
+      }))
+  }));
+  
+  const items = world.entities.items.map(i => ({
+    name: i.name,
+    description: i.description || '',
+    type: i.itemType,
+    rarity: i.rarity,
+    properties: i.properties
+  }));
+  
+  // Extract encounters from processes
+  const encounters = doc.processes.catalog
+    .filter(p => p.type.includes('encounter') || p.type.includes('combat'))
+    .map(p => ({
+      name: p.timebox.label || p.id,
+      description: p.notes || '',
+      type: p.type,
+      difficulty: undefined,
+      enemies: undefined,
+      rewards: undefined
+    }));
+  
+  // No direct quest mapping in 2.0 - would need to parse roles/processes
+  const quests: ConvertedCampaignData['quests'] = [];
+  
+  return {
+    title: meta.title,
+    description: doc.snapshots.timeline[0]?.narration || '',
+    setting: meta.system?.name || 'Fantasy',
+    minLevel: 1,
+    maxLevel: 20,
+    npcs,
+    locations,
+    encounters,
+    quests,
+    items,
+    initialStoryState: {
+      camlVersion: '2.0',
+      metaId: meta.id,
+      snapshotCount: doc.snapshots.timeline.length,
+      processCount: doc.processes.catalog.length
+    }
+  };
+}
+
+export function convertCampaignToCAML2(
+  campaign: any,
+  sessions: any[],
+  participants: any[],
+  npcs: any[],
+  quests: any[],
+  dungeonMap?: any,
+  items?: any[]
+): CAML2Document {
+  const now = new Date().toISOString();
+  
+  // Create document
+  const doc = createEmptyCAML2Document(
+    `ADV_everdice_${campaign.id}`,
+    campaign.title,
+    'Everdice'
+  );
+  
+  const latestSession = sessions[sessions.length - 1];
+  const storyState = latestSession?.storyState || {};
+  
+  // Build characters (PCs and NPCs)
+  const characters: CAMLCharacter[] = [];
+  
+  // Add player characters
+  for (const participant of participants) {
+    if (participant.character) {
+      const char = participant.character;
+      characters.push({
+        id: generateCAMLId('PC', char.name || `Player${participant.id}`),
+        kind: 'character',
+        name: char.name || 'Unknown Hero',
+        description: char.background || char.description,
+        pc: true,
+        species: char.race,
+        class: char.class,
+        level: char.level || 1,
+        alignment: char.alignment,
+        abilities: char.abilities,
+        statblock: char.statblock
+      });
+    }
+  }
+  
+  // Add NPCs
+  for (const npc of npcs) {
+    characters.push({
+      id: generateCAMLId('NPC', npc.name),
+      kind: 'character',
+      name: npc.name,
+      description: npc.description,
+      pc: false,
+      species: npc.race,
+      class: npc.class,
+      level: npc.level,
+      alignment: npc.alignment,
+      statblock: npc.statblock
+    });
+  }
+  
+  doc.world.entities.characters = characters;
+  
+  // Build locations
+  const locations: CAMLLocation[] = [];
+  const locationIdMap = new Map<string, CAMLId>();
+  
+  // Current location
+  const currentLocation = storyState.currentLocation || campaign.setting || 'Starting Area';
+  const startLocId = generateCAMLId('LOC', currentLocation);
+  locations.push({
+    id: startLocId,
+    kind: 'location',
+    name: currentLocation,
+    description: storyState.currentNarrative?.slice(0, 200) || `Starting point of ${campaign.title}`,
+    tags: ['starting', 'explored']
+  });
+  locationIdMap.set(currentLocation, startLocId);
+  
+  // Extract from journey log
+  if (storyState.journeyLog) {
+    const uniqueLocations = new Set([currentLocation]);
+    for (const entry of storyState.journeyLog) {
+      const locName = entry.location || entry.description?.slice(0, 40);
+      if (locName && !uniqueLocations.has(locName)) {
+        uniqueLocations.add(locName);
+        const locId = generateCAMLId('LOC', locName);
+        locations.push({
+          id: locId,
+          kind: 'location',
+          name: locName,
+          description: entry.description || `A location in ${campaign.title}`,
+          tags: [entry.type || 'explored']
+        });
+        locationIdMap.set(locName, locId);
+      }
+    }
+  }
+  
+  // Extract from dungeon map
+  if (dungeonMap?.mapData?.rooms) {
+    for (const room of dungeonMap.mapData.rooms) {
+      const roomName = room.name || `Room ${room.id}`;
+      if (!locationIdMap.has(roomName)) {
+        const roomId = generateCAMLId('LOC', `dungeon_${room.id || locations.length}`);
+        locations.push({
+          id: roomId,
+          kind: 'location',
+          name: roomName,
+          description: room.description || 'A dungeon room',
+          tags: ['dungeon', room.type || 'room']
+        });
+        locationIdMap.set(roomName, roomId);
+      }
+    }
+  }
+  
+  doc.world.entities.locations = locations;
+  
+  // Build connections
+  const connections: CAMLConnection[] = [];
+  for (let i = 0; i < locations.length - 1; i++) {
+    connections.push({
+      id: `CONN_${i}`,
+      from: locations[i].id,
+      to: locations[i + 1].id,
+      mode: 'road',
+      bidirectional: true
+    });
+  }
+  doc.world.connections = connections;
+  
+  // Build items
+  const itemList: CAMLItem[] = (items || []).map((item, i) => ({
+    id: generateCAMLId('ITEM', item.name || `item_${i}`),
+    kind: 'item' as const,
+    name: item.name || `Item ${i + 1}`,
+    description: item.description || 'A mysterious item',
+    itemType: item.type as any,
+    rarity: item.rarity as any,
+    properties: item.properties
+  }));
+  
+  // Add items from inventories
+  for (const participant of participants) {
+    if (participant.character?.inventory) {
+      for (const invItem of participant.character.inventory) {
+        if (!itemList.find(i => i.name === invItem.name)) {
+          itemList.push({
+            id: generateCAMLId('ITEM', invItem.name),
+            kind: 'item',
+            name: invItem.name,
+            description: invItem.description || `Carried by ${participant.character.name}`,
+            itemType: invItem.type as any,
+            rarity: invItem.rarity as any
+          });
+        }
+      }
+    }
+  }
+  doc.world.entities.items = itemList;
+  
+  // Build state facts
+  const facts: CAMLStateFact[] = [];
+  
+  // Character HP states
+  for (const participant of participants) {
+    if (participant.character) {
+      const charId = generateCAMLId('PC', participant.character.name);
+      facts.push({
+        id: `STATE_${charId}_hp`,
+        bearer: charId,
+        type: 'hp',
+        value: participant.character.currentHp || participant.character.maxHp || 10,
+        units: 'hp'
+      });
+      facts.push({
+        id: `STATE_${charId}_xp`,
+        bearer: charId,
+        type: 'xp',
+        value: participant.character.xp || 0,
+        units: 'xp'
+      });
+    }
+  }
+  
+  // NPC attitude states
+  for (const npc of npcs) {
+    const npcId = generateCAMLId('NPC', npc.name);
+    if (npc.attitude) {
+      facts.push({
+        id: `STATE_${npcId}_attitude`,
+        bearer: npcId,
+        type: 'attitude',
+        value: npc.attitude
+      });
+    }
+  }
+  
+  // Adventure progress states
+  if (storyState.adventureProgress) {
+    facts.push({
+      id: 'STATE_adventure_progress',
+      bearer: doc.meta.id,
+      type: 'progress',
+      value: storyState.adventureProgress
+    });
+  }
+  
+  doc.state.facts = facts;
+  
+  // Build role assignments for quest givers
+  const assignments: CAMLRoleAssignment[] = [];
+  for (const quest of quests) {
+    if (quest.givenBy || quest.questGiver) {
+      const npc = npcs.find(n => n.name === quest.givenBy || n.id === quest.questGiver);
+      if (npc) {
+        assignments.push({
+          id: generateCAMLId('ROLE', `questgiver_${quest.title}`),
+          role: 'QuestGiver',
+          holder: generateCAMLId('NPC', npc.name),
+          notes: `Gives quest: ${quest.title}`
+        });
+      }
+    }
+  }
+  doc.roles.assignments = assignments;
+  
+  // Build processes from sessions
+  const catalog: CAMLProcessInstance[] = [];
+  for (const session of sessions) {
+    const timebox: CAMLTimebox = {
+      id: `TB_session_${session.id}`,
+      start_utc: session.createdAt || now,
+      end_utc: session.endedAt || now,
+      label: session.title || `Session ${session.sessionNumber}`
+    };
+    
+    const participants_refs = participants.map(p => 
+      generateCAMLId('PC', p.character?.name || `Player${p.id}`)
+    );
+    
+    catalog.push({
+      id: `PROC_session_${session.id}`,
+      type: 'gameplay_session',
+      timebox,
+      participants: participants_refs,
+      location: startLocId,
+      outcomes: session.storyState?.currentNarrative 
+        ? [session.storyState.currentNarrative.slice(0, 200)]
+        : undefined,
+      notes: `Chapter ${session.sessionNumber}: ${session.title || 'Untitled'}`
+    });
+  }
+  
+  // Add combat processes
+  if (storyState.combatants && storyState.combatants.length > 0) {
+    catalog.push({
+      id: 'PROC_current_combat',
+      type: 'combat',
+      timebox: {
+        id: 'TB_combat',
+        start_utc: now,
+        end_utc: now,
+        label: 'Current Combat'
+      },
+      participants: storyState.combatants.map((c: any, i: number) => 
+        generateCAMLId('NPC', c.name || `Enemy${i}`)
+      ),
+      location: startLocId,
+      notes: 'Ongoing combat encounter'
+    });
+  }
+  
+  doc.processes.catalog = catalog;
+  
+  // Build transitions (one per session for state changes)
+  const changes: CAMLTransition[] = [];
+  for (let i = 1; i < sessions.length; i++) {
+    const prevSession = sessions[i - 1];
+    const currSession = sessions[i];
+    
+    changes.push({
+      id: `TR_session_${currSession.id}`,
+      caused_by: `PROC_session_${currSession.id}`,
+      ops: [{
+        op: 'update_state',
+        state_id: 'STATE_adventure_progress',
+        value: currSession.storyState?.adventureProgress || {}
+      }],
+      notes: `State changes from session ${i}`
+    });
+  }
+  doc.transitions.changes = changes;
+  
+  // Build snapshots timeline
+  const timeline: CAMLSnapshot[] = [];
+  for (const session of sessions) {
+    timeline.push({
+      id: `SNAP_session_${session.id}`,
+      time_utc: session.createdAt || now,
+      world_hash: 'computed',
+      state_hash: 'computed',
+      roles_hash: 'computed',
+      narration: session.storyState?.currentNarrative?.slice(0, 500) || `Chapter ${session.sessionNumber}`,
+      derived_from_transition: session.id > 1 ? `TR_session_${session.id}` : undefined
+    });
+  }
+  
+  if (timeline.length === 0) {
+    timeline.push({
+      id: 'SNAP_0',
+      time_utc: now,
+      world_hash: 'initial',
+      state_hash: 'initial',
+      roles_hash: 'initial',
+      narration: campaign.description || 'Campaign begins.'
+    });
+  }
+  
+  doc.snapshots.timeline = timeline;
+  
+  return doc;
+}
+
+// ============================================================================
+// Export Functions
+// ============================================================================
+
+export function exportToYAML(doc: CAML2Document): string {
+  return yaml.dump(doc, {
+    indent: 2,
+    lineWidth: 120,
+    noRefs: true,
+    sortKeys: false
+  });
+}
+
+export function exportToJSON(doc: CAML2Document): string {
+  return JSON.stringify(doc, null, 2);
+}
+
+// ============================================================================
+// Graph Building
+// ============================================================================
+
+export function buildAdventureGraph(doc: CAML2Document): {
+  nodes: Array<{ id: string; type: string; name: string }>;
+  edges: Array<{ source: string; target: string; label?: string }>;
+} {
+  const nodes: Array<{ id: string; type: string; name: string }> = [];
+  const edges: Array<{ source: string; target: string; label?: string }> = [];
+  
+  // Add world entities as nodes
+  for (const char of doc.world.entities.characters) {
+    nodes.push({ id: char.id, type: char.pc ? 'PC' : 'NPC', name: char.name });
+  }
+  for (const loc of doc.world.entities.locations) {
+    nodes.push({ id: loc.id, type: 'Location', name: loc.name });
+  }
+  for (const item of doc.world.entities.items) {
+    nodes.push({ id: item.id, type: 'Item', name: item.name });
+  }
+  for (const faction of doc.world.entities.factions) {
+    nodes.push({ id: faction.id, type: 'Faction', name: faction.name });
+  }
+  
+  // Add connections as edges
+  for (const conn of doc.world.connections || []) {
+    edges.push({
+      source: conn.from,
+      target: conn.to,
+      label: conn.mode
+    });
+    if (conn.bidirectional) {
+      edges.push({
+        source: conn.to,
+        target: conn.from,
+        label: conn.mode
+      });
+    }
+  }
+  
+  // Add state fact relationships
+  for (const fact of doc.state.facts) {
+    if (typeof fact.value === 'string' && nodes.find(n => n.id === fact.value)) {
+      edges.push({
+        source: fact.bearer,
+        target: fact.value as string,
+        label: fact.type
+      });
+    }
+  }
+  
+  // Add role relationships
+  for (const role of doc.roles.assignments) {
+    nodes.push({ id: role.id, type: 'Role', name: role.role });
+    edges.push({
+      source: role.holder,
+      target: role.id,
+      label: 'holds'
+    });
+  }
+  
+  // Add process relationships
+  for (const proc of doc.processes.catalog) {
+    nodes.push({ id: proc.id, type: 'Process', name: proc.timebox.label || proc.type });
+    for (const participant of proc.participants) {
+      edges.push({
+        source: participant,
+        target: proc.id,
+        label: 'participates'
+      });
+    }
+    if (proc.location) {
+      edges.push({
+        source: proc.id,
+        target: proc.location,
+        label: 'occurs_at'
+      });
+    }
+  }
+  
+  return { nodes, edges };
+}
+
+// ============================================================================
+// AI Generation Prompt
+// ============================================================================
+
+export const CAML_AI_PROMPT = `You are generating a CAML 2.0 (Canonical Adventure Markup Language) D&D 5e adventure document.
+
+CAML 2.0 uses ontological layers to separate different aspects of the adventure:
+- world: Characters, locations, items, factions and their static connections
+- state: Status facts that depend on bearers (HP, conditions, attitudes)
+- roles: Revocable role assignments (quest givers, leaders, etc.)
+- processes: Things that happen in time (encounters, conversations, combat)
+- transitions: State changes caused by processes
+- snapshots: Timeline of campaign states
+
+Generate a complete CAML 2.0 JSON document with:
+1. meta: Adventure metadata (id, title, authors, system)
+2. world.entities: At least 5 characters (mix of PCs and NPCs), 6 locations, 8 items, 2 factions
+3. world.connections: Location connections with modes (road, door, portal, etc.)
+4. state.facts: Initial state facts for characters (HP, attitudes, conditions)
+5. roles.assignments: Quest givers, faction leaders, etc.
+6. processes.catalog: Planned encounters and events
+7. transitions.changes: (can be empty for initial adventure)
+8. snapshots.timeline: Initial snapshot with narration
+
+Use ID patterns like:
+- Characters: PC_Name or NPC_Name
+- Locations: LOC_Name
+- Items: ITEM_Name
+- Factions: FAC_Name
+- Connections: CONN_#
+- State facts: STATE_bearer_type
+- Roles: ROLE_type_holder
+- Processes: PROC_type_#
+- Snapshots: SNAP_#
+
+Ensure all IDs match the pattern: ^[A-Za-z][A-Za-z0-9_\\-:.]{0,127}$
+
+The document must be valid JSON with caml_version: "2.0".
+Use only SRD 5.1 content (no proprietary D&D content).
+Include rich descriptions and interconnected elements.`;
+
+// ============================================================================
+// Legacy Compatibility Exports
+// ============================================================================
+
+// These functions provide backward compatibility with existing code
+// that expects CAML 1.x format
+
+export function parseCAMLYaml(content: string): CAML1xAdventurePack | null {
+  try {
+    const parsed = yaml.load(content) as any;
+    if (!parsed) return null;
+    
+    // Try 2.0 first, convert back to 1.x format for compatibility
+    if (parsed.caml_version === '2.0') {
+      const doc = validateCAML2Document(parsed);
+      if (doc) {
+        return convertCAML2ToLegacyPack(doc);
+      }
+    }
+    
+    return parseLegacyCAML(parsed);
+  } catch (error) {
+    console.error('Failed to parse CAML YAML:', error);
+    return null;
+  }
+}
+
+export function parseCAMLJson(content: string): CAML1xAdventurePack | null {
+  try {
+    const parsed = JSON.parse(content);
+    if (!parsed) return null;
+    
+    // Try 2.0 first, convert back to 1.x format for compatibility
+    if (parsed.caml_version === '2.0') {
+      const doc = validateCAML2Document(parsed);
+      if (doc) {
+        return convertCAML2ToLegacyPack(doc);
+      }
+    }
+    
+    return parseLegacyCAML(parsed);
+  } catch (error) {
+    console.error('Failed to parse CAML JSON:', error);
+    return null;
+  }
+}
+
+function convertCAML2ToLegacyPack(doc: CAML2Document): CAML1xAdventurePack {
+  const adventure: CAML1xAdventureModule = {
+    id: doc.meta.id,
+    type: 'AdventureModule',
+    title: doc.meta.title,
+    name: doc.meta.title,
+    author: doc.meta.authors[0],
+    version: doc.meta.system?.version,
+    description: doc.snapshots.timeline[0]?.narration,
+    synopsis: doc.snapshots.timeline[0]?.narration,
+    tags: doc.meta.tags,
+    ruleset: doc.meta.system?.name,
+    locations: doc.world.entities.locations.map(l => ({
+      id: l.id,
+      type: 'Location' as const,
+      name: l.name,
+      description: l.description,
+      tags: l.tags,
+      features: l.features,
+      connections: doc.world.connections
+        ?.filter(c => c.from === l.id)
+        .map(c => ({
+          direction: c.mode,
+          target: c.to
+        }))
+    })),
+    npcs: doc.world.entities.characters.filter(c => !c.pc).map(c => ({
+      id: c.id,
+      type: 'NPC' as const,
+      name: c.name,
+      description: c.description,
+      tags: c.tags,
+      race: c.species,
+      class: c.class,
+      level: c.level,
+      alignment: c.alignment,
+      abilities: c.abilities,
+      statblock: c.statblock
+    })),
+    items: doc.world.entities.items.map(i => ({
+      id: i.id,
+      type: 'Item' as const,
+      name: i.name,
+      description: i.description,
+      tags: i.tags,
+      itemType: i.itemType,
+      rarity: i.rarity,
+      properties: i.properties
+    })),
+    encounters: doc.processes.catalog
+      .filter(p => p.type.includes('combat') || p.type.includes('encounter'))
+      .map(p => ({
+        id: p.id,
+        type: 'Encounter' as const,
+        name: p.timebox.label || p.id,
+        description: p.notes,
+        encounterType: p.type as any,
+        occursAt: p.location
+      })),
+    quests: doc.processes.catalog
+      .filter(p => p.type.includes('quest') || p.type.includes('objective') || p.type.includes('task'))
+      .map(p => ({
+        id: p.id,
+        type: 'Quest' as const,
+        name: p.timebox.label || p.id,
+        description: p.notes,
+        objectives: p.inputs?.map(i => i.note || i.ref) || [],
+        rewards: { xp: 100 }
+      })),
+    factions: doc.world.entities.factions.map(f => ({
+      id: f.id,
+      type: 'Faction' as const,
+      name: f.name,
+      description: f.description,
+      tags: f.tags
+    })),
+    initialState: Object.fromEntries(
+      doc.state.facts
+        .filter(f => f.bearer === doc.meta.id)
+        .map(f => [f.type, f.value])
+    )
+  };
+  
+  const entities = buildLegacyEntityIndex(adventure);
+  
+  return { adventure, entities };
+}
+
+export function convertCAMLToCampaign(pack: CAML1xAdventurePack): ConvertedCampaignData {
   const adventure = pack.adventure;
   
   const npcs = (adventure.npcs || []).map(npc => ({
@@ -192,14 +1073,7 @@ export function convertCAMLToCampaign(pack: CAMLAdventurePack): ConvertedCampaig
     level: npc.level,
     alignment: npc.alignment,
     attitude: npc.attitude,
-    statblock: npc.statblock ? {
-      ac: npc.statblock.ac,
-      hp: npc.statblock.hp,
-      hitDice: npc.statblock.hitDice,
-      speed: npc.statblock.speed,
-      abilities: npc.abilities || npc.statblock.abilities,
-      cr: npc.statblock.cr
-    } : undefined
+    statblock: npc.statblock
   }));
   
   const locations = (adventure.locations || []).map(loc => ({
@@ -255,578 +1129,3 @@ export function convertCAMLToCampaign(pack: CAMLAdventurePack): ConvertedCampaig
     }
   };
 }
-
-export function convertCampaignToCAML(
-  campaign: any,
-  sessions: any[],
-  participants: any[],
-  npcs: any[],
-  quests: any[],
-  dungeonMap?: any,
-  items?: any[]
-): CAMLAdventureModule {
-  const latestSession = sessions[sessions.length - 1];
-  const storyState = latestSession?.storyState || {};
-  
-  // Build locations from multiple sources
-  const camlLocations: CAMLLocation[] = [];
-  const locationIdMap = new Map<string, string>();
-  
-  // Add current location as starting point
-  const currentLocation = storyState.currentLocation || campaign.setting || 'Starting Area';
-  const startLocId = `location.${currentLocation.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
-  camlLocations.push({
-    id: startLocId,
-    type: 'Location',
-    name: currentLocation,
-    description: storyState.currentNarrative?.slice(0, 200) || `The starting point of ${campaign.title}`,
-    tags: ['starting', 'explored'],
-    npcs: [],
-    encounters: []
-  });
-  locationIdMap.set(currentLocation, startLocId);
-  
-  // Extract locations from journey log
-  if (storyState.journeyLog) {
-    const uniqueLocations = new Set<string>();
-    uniqueLocations.add(currentLocation);
-    
-    for (const entry of storyState.journeyLog) {
-      const locName = entry.location || entry.description?.slice(0, 40);
-      if (locName && !uniqueLocations.has(locName)) {
-        uniqueLocations.add(locName);
-        const locId = `location.${locName.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
-        camlLocations.push({
-          id: locId,
-          type: 'Location',
-          name: locName,
-          description: entry.description || `A location in ${campaign.title}`,
-          tags: [entry.type || 'explored'],
-          npcs: [],
-          encounters: []
-        });
-        locationIdMap.set(locName, locId);
-      }
-    }
-  }
-  
-  // Extract rooms from dungeon map if available
-  if (dungeonMap?.mapData?.rooms) {
-    for (const room of dungeonMap.mapData.rooms) {
-      const roomName = room.name || room.description?.slice(0, 30) || `Room ${room.id}`;
-      if (!locationIdMap.has(roomName)) {
-        const roomId = `location.dungeon_${room.id || camlLocations.length}`;
-        const roomLoc: CAMLLocation = {
-          id: roomId,
-          type: 'Location',
-          name: roomName,
-          description: room.description || `A room in the dungeon`,
-          tags: ['dungeon', room.type || 'room'],
-          npcs: [],
-          encounters: [],
-          connections: []
-        };
-        
-        // Add connections based on exits
-        if (room.exits) {
-          roomLoc.connections = Object.entries(room.exits)
-            .filter(([_, exit]: [string, any]) => exit && !exit.blocked)
-            .map(([dir, _]: [string, any]) => ({
-              direction: dir,
-              target: `location.dungeon_adjacent_${dir}`
-            }));
-        }
-        
-        camlLocations.push(roomLoc);
-        locationIdMap.set(roomName, roomId);
-      }
-    }
-  }
-  
-  // Create connections between sequential locations
-  for (let i = 0; i < camlLocations.length - 1; i++) {
-    if (!camlLocations[i].connections) camlLocations[i].connections = [];
-    camlLocations[i].connections!.push({
-      direction: 'forward',
-      target: camlLocations[i + 1].id
-    });
-    
-    if (!camlLocations[i + 1].connections) camlLocations[i + 1].connections = [];
-    camlLocations[i + 1].connections!.push({
-      direction: 'back',
-      target: camlLocations[i].id
-    });
-  }
-  
-  // Build NPCs with proper IDs and startsAt reference
-  const npcIds: string[] = [];
-  const camlNpcs: CAMLNPC[] = npcs.map((npc, i) => {
-    const npcId = `npc.${npc.name?.toLowerCase().replace(/[^a-z0-9]+/g, '_') || `npc_${i}`}`;
-    npcIds.push(npcId);
-    return {
-      id: npcId,
-      type: 'NPC' as const,
-      name: npc.name || `NPC ${i + 1}`,
-      description: npc.description || 'A mysterious figure',
-      race: npc.race,
-      class: npc.class,
-      alignment: npc.alignment,
-      attitude: (npc.attitude || 'neutral') as any,
-      startsAt: camlLocations[i % camlLocations.length]?.id || startLocId,
-      ruleset: 'dnd5e',
-      statblock: npc.statblock ? {
-        ac: npc.statblock.ac,
-        hp: npc.statblock.hp,
-        cr: npc.statblock.cr
-      } : undefined
-    };
-  });
-  
-  // Link NPCs to the starting location
-  if (camlLocations.length > 0 && npcIds.length > 0) {
-    camlLocations[0].npcs = npcIds;
-  }
-  
-  // Build encounters with occursAt, gates, and outcomes (strict CAML compliance)
-  const camlEncounters: CAMLEncounter[] = [];
-  const encounterIds: string[] = [];
-  
-  const buildEncounter = (
-    id: string, 
-    name: string, 
-    description: string, 
-    encType: 'combat' | 'social' | 'exploration' | 'puzzle' | 'trap' | 'treasure',
-    occursAt: string,
-    enemies?: { id: string; count: number }[]
-  ): CAMLEncounter => {
-    const successOutcomes: any[] = [];
-    const failureOutcomes: any[] = [];
-    
-    if (encType === 'combat') {
-      successOutcomes.push({ addTag: `${id}.defeated` });
-      failureOutcomes.push({ addTag: `${id}.fled` });
-    } else if (encType === 'social') {
-      successOutcomes.push({ addTag: `${id}.resolved` });
-      successOutcomes.push({ modifyAttitude: { target: 'involved_npcs', change: '+1' } });
-      failureOutcomes.push({ addTag: `${id}.failed` });
-      failureOutcomes.push({ modifyAttitude: { target: 'involved_npcs', change: '-1' } });
-    } else if (encType === 'trap') {
-      successOutcomes.push({ addTag: `${id}.disarmed` });
-      failureOutcomes.push({ dealDamage: { target: 'party', amount: '2d6' } });
-    } else if (encType === 'puzzle') {
-      successOutcomes.push({ addTag: `${id}.solved` });
-      successOutcomes.push({ unlock: { target: 'next_area' } });
-      failureOutcomes.push({ addTag: `${id}.unsolved` });
-    } else {
-      successOutcomes.push({ addTag: `${id}.completed` });
-      failureOutcomes.push({ addTag: `${id}.missed` });
-    }
-    
-    return {
-      id,
-      type: 'Encounter',
-      name,
-      description,
-      encounterType: encType,
-      occursAt,
-      gates: { all: [`party.at(${occursAt})`] },
-      outcomes: {
-        success: successOutcomes,
-        failure: failureOutcomes
-      },
-      enemies
-    };
-  };
-  
-  // Add current combat as encounter
-  if (storyState.combatants && storyState.combatants.length > 0) {
-    const combatId = 'encounter.current_combat';
-    encounterIds.push(combatId);
-    camlEncounters.push(buildEncounter(
-      combatId,
-      'Current Combat',
-      'An ongoing battle',
-      'combat',
-      startLocId,
-      storyState.combatants.map((c: any, i: number) => ({
-        id: `enemy.${c.name?.toLowerCase().replace(/[^a-z0-9]+/g, '_') || i}`,
-        count: 1
-      }))
-    ));
-  }
-  
-  // Extract encounters from adventure progress
-  if (storyState.adventureProgress) {
-    const progress = storyState.adventureProgress;
-    if (progress.encounters?.combat > 0) {
-      const encId = 'encounter.past_combat';
-      encounterIds.push(encId);
-      camlEncounters.push(buildEncounter(
-        encId,
-        'Previous Battles',
-        `${progress.encounters.combat} combat encounters completed`,
-        'combat',
-        startLocId
-      ));
-    }
-    if (progress.encounters?.trap > 0) {
-      const encId = 'encounter.traps_overcome';
-      encounterIds.push(encId);
-      camlEncounters.push(buildEncounter(
-        encId,
-        'Traps Overcome',
-        `${progress.encounters.trap} traps navigated`,
-        'trap',
-        camlLocations[1]?.id || startLocId
-      ));
-    }
-    if (progress.puzzles > 0) {
-      const encId = 'encounter.puzzles_solved';
-      encounterIds.push(encId);
-      camlEncounters.push(buildEncounter(
-        encId,
-        'Puzzles Solved',
-        `${progress.puzzles} puzzles completed`,
-        'puzzle',
-        camlLocations[2]?.id || startLocId
-      ));
-    }
-    if (progress.discoveries > 0) {
-      const encId = 'encounter.discoveries';
-      encounterIds.push(encId);
-      camlEncounters.push(buildEncounter(
-        encId,
-        'Discoveries Made',
-        `${progress.discoveries} secrets uncovered`,
-        'exploration',
-        camlLocations[Math.min(3, camlLocations.length - 1)]?.id || startLocId
-      ));
-    }
-  }
-  
-  // Link encounters to locations
-  if (camlLocations.length > 0 && encounterIds.length > 0) {
-    camlLocations[0].encounters = encounterIds.slice(0, 2);
-    if (camlLocations.length > 1) {
-      camlLocations[1].encounters = encounterIds.slice(2);
-    }
-  }
-  
-  // Build quests with quest givers (no runtime state in objectives for strict CAML)
-  const camlQuests: CAMLQuest[] = quests.map((quest, i) => {
-    const questId = `quest.${quest.title?.toLowerCase().replace(/[^a-z0-9]+/g, '_') || `quest_${i}`}`;
-    return {
-      id: questId,
-      type: 'Quest' as const,
-      name: quest.title || `Quest ${i + 1}`,
-      description: quest.description || 'A mysterious task',
-      tags: [quest.status || 'active'],
-      questGiver: npcIds[i % npcIds.length],
-      objectives: quest.objectives?.map((obj: any, j: number) => ({
-        id: `objective.${j}`,
-        description: obj.description || obj
-      })) || [{ id: 'objective.main', description: quest.description }],
-      rewards: {
-        xp: quest.xpReward || 100,
-        gold: quest.goldReward || 50,
-        items: quest.itemRewards
-      }
-    };
-  });
-  
-  // Build items from various sources
-  const camlItems: CAMLItem[] = (items || []).map((item, i) => ({
-    id: `item.${item.name?.toLowerCase().replace(/[^a-z0-9]+/g, '_') || `item_${i}`}`,
-    type: 'Item',
-    name: item.name || `Item ${i + 1}`,
-    description: item.description || 'A mysterious item',
-    itemType: item.type || 'wondrous',
-    rarity: item.rarity || 'common',
-    properties: item.properties
-  }));
-  
-  // Add items from character inventories
-  for (const participant of participants) {
-    if (participant.character?.inventory) {
-      for (const invItem of participant.character.inventory) {
-        const itemId = `item.${invItem.name?.toLowerCase().replace(/[^a-z0-9]+/g, '_') || `inv_${camlItems.length}`}`;
-        if (!camlItems.find(i => i.name === invItem.name)) {
-          camlItems.push({
-            id: itemId,
-            type: 'Item',
-            name: invItem.name,
-            description: invItem.description || `${invItem.name} - carried by ${participant.character.name}`,
-            itemType: invItem.type || 'gear',
-            rarity: invItem.rarity || 'common'
-          });
-        }
-      }
-    }
-  }
-  
-  return {
-    id: `adventure.${campaign.id}`,
-    type: 'AdventureModule',
-    title: campaign.title,
-    name: campaign.title,
-    description: campaign.description,
-    synopsis: campaign.description,
-    author: 'Everdice Export',
-    version: '1.0.0',
-    ruleset: 'dnd5e',
-    minLevel: 1,
-    maxLevel: 20,
-    setting: storyState.setting || campaign.setting || 'Fantasy Realm',
-    startingLocation: startLocId,
-    locations: camlLocations,
-    npcs: camlNpcs,
-    items: camlItems,
-    encounters: camlEncounters,
-    quests: camlQuests,
-    factions: [],
-    handouts: [],
-    initialState: {
-      adventureProgress: storyState.adventureProgress,
-      exploredTiles: storyState.exploredTiles,
-      playerPosition: storyState.playerPosition
-    }
-  };
-}
-
-export function exportToYAML(adventure: CAMLAdventureModule): string {
-  return yaml.dump(adventure, {
-    indent: 2,
-    lineWidth: 120,
-    noRefs: true,
-    sortKeys: false
-  });
-}
-
-export function exportToJSON(adventure: CAMLAdventureModule): string {
-  return JSON.stringify(adventure, null, 2);
-}
-
-export function buildAdventureGraph(pack: CAMLAdventurePack): {
-  nodes: Array<{ id: string; type: string; name: string; }>;
-  edges: Array<{ source: string; target: string; label?: string; }>;
-} {
-  const nodes: Array<{ id: string; type: string; name: string; }> = [];
-  const edges: Array<{ source: string; target: string; label?: string; }> = [];
-  
-  for (const [id, entity] of Object.entries(pack.entities)) {
-    nodes.push({
-      id,
-      type: entity.type,
-      name: entity.name || id
-    });
-    
-    if (entity.links) {
-      for (const link of entity.links) {
-        edges.push({ source: id, target: link });
-      }
-    }
-    
-    if (entity.type === 'Location' && (entity as CAMLLocation).connections) {
-      for (const conn of (entity as CAMLLocation).connections!) {
-        edges.push({
-          source: id,
-          target: conn.target,
-          label: conn.direction
-        });
-      }
-    }
-    
-    if (entity.type === 'Location' && (entity as CAMLLocation).encounters) {
-      for (const enc of (entity as CAMLLocation).encounters!) {
-        edges.push({ source: id, target: enc, label: 'triggers' });
-      }
-    }
-    
-    if (entity.type === 'Location' && (entity as CAMLLocation).npcs) {
-      for (const npc of (entity as CAMLLocation).npcs!) {
-        edges.push({ source: id, target: npc, label: 'contains' });
-      }
-    }
-    
-    if (entity.type === 'Quest' && (entity as CAMLQuest).questGiver) {
-      edges.push({
-        source: (entity as CAMLQuest).questGiver!,
-        target: id,
-        label: 'gives'
-      });
-    }
-    
-    // Handle occursAt for encounters (strict CAML)
-    if (entity.type === 'Encounter' && (entity as CAMLEncounter).occursAt) {
-      edges.push({
-        source: (entity as CAMLEncounter).occursAt!,
-        target: id,
-        label: 'hosts'
-      });
-    }
-    
-    // Handle startsAt for NPCs (strict CAML)
-    if (entity.type === 'NPC' && (entity as CAMLNPC).startsAt) {
-      edges.push({
-        source: (entity as CAMLNPC).startsAt!,
-        target: id,
-        label: 'starts'
-      });
-    }
-    
-    if (entity.gates) {
-      const gateRefs = extractGateReferences(entity.gates);
-      for (const ref of gateRefs) {
-        edges.push({ source: ref, target: id, label: 'unlocks' });
-      }
-    }
-  }
-  
-  return { nodes, edges };
-}
-
-function extractGateReferences(gates: any): string[] {
-  const refs: string[] = [];
-  
-  if (gates.all) {
-    for (const g of gates.all) {
-      if (typeof g === 'string' && g.includes('.')) refs.push(g);
-      else if (g.fact && g.fact.includes('.')) refs.push(g.fact);
-    }
-  }
-  
-  if (gates.any) {
-    for (const g of gates.any) {
-      if (typeof g === 'string' && g.includes('.')) refs.push(g);
-      else if (g.fact && g.fact.includes('.')) refs.push(g.fact);
-    }
-  }
-  
-  if (gates.not) {
-    if (typeof gates.not === 'string' && gates.not.includes('.')) refs.push(gates.not);
-    else if (gates.not.fact && gates.not.fact.includes('.')) refs.push(gates.not.fact);
-  }
-  
-  return refs;
-}
-
-export const CAML_AI_PROMPT = `You are generating a RICH, DETAILED D&D 5e adventure in CAML (Canonical Adventure Markup Language) format.
-
-IMPORTANT: Generate a COMPLETE adventure with MANY interconnected elements:
-- At least 6-8 unique LOCATIONS connected in a logical map
-- At least 5-8 distinct NPCs with personalities and motivations
-- At least 8-12 varied ENCOUNTERS (mix of combat, social, puzzle, trap, exploration, treasure)
-- At least 2-3 QUESTS with multiple objectives each
-- At least 4-6 interesting ITEMS as rewards
-
-Create rich CONNECTIONS between elements:
-- NPCs should be present in specific locations
-- Encounters should reference NPCs involved
-- Quests should span multiple locations
-- Items should be rewards for specific encounters
-
-Generate JSON with this structure:
-
-{
-  "id": "adventure.unique_id",
-  "type": "AdventureModule", 
-  "title": "Adventure Title",
-  "synopsis": "2-3 sentence adventure summary with stakes and hook",
-  "minLevel": 1,
-  "maxLevel": 5,
-  "setting": "Vivid setting description with atmosphere and history",
-  "startingLocation": "location.starting_area",
-  "hooks": ["Compelling hook 1 with urgency", "Alternative hook 2 for different motivations", "Mystery hook 3"],
-  "locations": [
-    {
-      "id": "location.unique_id",
-      "type": "Location",
-      "name": "Evocative Location Name",
-      "description": "Rich 2-3 sentence description with sensory details, atmosphere, and notable features",
-      "connections": [{"direction": "north", "target": "location.other"}, {"direction": "east", "target": "location.another"}],
-      "encounters": ["encounter.id1", "encounter.id2"],
-      "npcs": ["npc.id1"],
-      "features": ["Notable feature 1", "Interactive element 2"]
-    }
-  ],
-  "npcs": [
-    {
-      "id": "npc.unique_id",
-      "type": "NPC",
-      "name": "Memorable NPC Name",
-      "description": "Personality, appearance, motivations, and secret or goal",
-      "race": "Race",
-      "class": "Class/Role",
-      "level": 3,
-      "alignment": "Alignment",
-      "attitude": "friendly|neutral|hostile|secretive",
-      "statblock": {"ac": 15, "hp": 45, "cr": "2", "speed": "30 ft"},
-      "traits": ["Personality trait", "Quirk or habit"],
-      "bonds": ["What they care about"],
-      "secrets": ["Hidden knowledge or agenda"]
-    }
-  ],
-  "encounters": [
-    {
-      "id": "encounter.unique_id",
-      "type": "Encounter",
-      "name": "Dramatic Encounter Name",
-      "description": "What happens, why, and stakes involved",
-      "encounterType": "combat|social|exploration|puzzle|trap|treasure",
-      "difficulty": "easy|medium|hard|deadly",
-      "trigger": "What causes this encounter",
-      "location": "location.where_it_happens",
-      "enemies": [{"id": "npc.enemy_id", "count": 2}],
-      "rewards": {"xp": 100, "gold": 50, "items": ["item.id"]},
-      "outcomes": {"success": "What happens on success", "failure": "Consequence of failure"}
-    }
-  ],
-  "quests": [
-    {
-      "id": "quest.unique_id",
-      "type": "Quest",
-      "name": "Compelling Quest Name",
-      "description": "Quest background, stakes, and why it matters",
-      "questGiver": "npc.who_gives_quest",
-      "objectives": [
-        {"id": "obj1", "description": "First objective", "location": "location.where"},
-        {"id": "obj2", "description": "Second objective", "location": "location.elsewhere"},
-        {"id": "obj3", "description": "Final objective"}
-      ],
-      "rewards": {"xp": 200, "gold": 100, "items": ["item.reward"]},
-      "complications": ["Twist or obstacle", "Moral dilemma"]
-    }
-  ],
-  "items": [
-    {
-      "id": "item.unique_id",
-      "type": "Item",
-      "name": "Flavorful Item Name",
-      "description": "Appearance, origin story, and any lore",
-      "itemType": "weapon|armor|wondrous|consumable|treasure",
-      "rarity": "common|uncommon|rare|very_rare",
-      "properties": "Mechanical properties and effects",
-      "value": "50 gp"
-    }
-  ],
-  "factions": [
-    {
-      "id": "faction.unique_id",
-      "type": "Faction",
-      "name": "Faction Name",
-      "description": "Goals, methods, and role in adventure",
-      "members": ["npc.member1", "npc.member2"],
-      "attitude": "allied|neutral|hostile"
-    }
-  ]
-}
-
-CRITICAL REQUIREMENTS:
-1. Every location MUST connect to at least 2 other locations (create a navigable map)
-2. Every NPC MUST be referenced by at least one encounter or quest
-3. Every encounter MUST specify a location
-4. Quests should have 2-4 objectives spanning multiple locations
-5. Create meaningful relationships - NPCs belong to factions, items are quest rewards, encounters guard treasures
-6. Use stable IDs like "location.ruined_tower", "npc.bandit_captain", "encounter.night_ambush"
-7. Include variety: combat, roleplay, puzzles, traps, and exploration encounters
-8. Add at least one major villain NPC with clear motivations`;

@@ -1,0 +1,237 @@
+Why this is not CAML 2.0 (by construction)
+
+CAML 2.0 forbids implicit state and mixed layers. Concretely:
+
+A. Locations cannot “contain encounters”
+
+In CAML 2.0:
+
+Locations are independent continuants
+
+Encounters are occurrents (processes)
+
+So this is illegal in CAML 2.0:
+
+"encounters": ["encounter.guardians"]
+
+
+Instead:
+
+the encounter becomes a process
+
+its possible location is referenced by the process
+
+B. NPC “attitude” is not intrinsic
+
+This is the biggest philosophical shift.
+
+"attitude": "hostile"
+
+
+In CAML 2.0 this must become a state fact, because:
+
+hostility can change
+
+friendliness can be earned or lost
+
+C. Quests are not objects
+
+In CAML 2.0:
+
+quests are patterns, not entities
+
+they are expressed via:
+
+roles (QuestGiver)
+
+states (quest_active, objective_complete)
+
+transitions (objective resolved)
+
+D. Traps, puzzles, combat are all processes
+
+Your encounterType field is a process classifier, not a type of thing.
+
+3. Faithful CAML 2.0 conversion: The Lost Temple
+
+Below is a valid CAML 2.0 document, preserving all your content, but making state and causality explicit.
+
+You can save this as:
+
+caml-2.0/examples/the-lost-temple-variant.caml2.json
+
+✅ CAML 2.0 — The Lost Temple (Variant)
+{
+  "caml_version": "2.0",
+
+  "meta": {
+    "id": "adventure.lost-temple.variant",
+    "title": "The Lost Temple",
+    "created_utc": "2026-01-08T22:30:00Z",
+    "authors": ["David R. Koepsell"],
+    "tags": ["fantasy", "dungeon", "temple"]
+  },
+
+  "world": {
+    "entities": {
+      "characters": [
+        { "id": "PC_Party", "kind": "character", "name": "Adventuring Party", "pc": true },
+
+        { "id": "NPC_TempleGuardian", "kind": "character", "name": "Ancient Guardian", "species": "Construct" },
+        { "id": "NPC_GhostKnight", "kind": "character", "name": "Warden of the Crypts", "species": "Undead" },
+        { "id": "NPC_TricksterSpirit", "kind": "character", "name": "Trickster Spirit", "species": "Fey" },
+        { "id": "NPC_ElderRevari", "kind": "character", "name": "Elder Revari", "species": "Elf" }
+      ],
+
+      "locations": [
+        { "id": "LOC_Entryway", "kind": "location", "name": "Temple Entryway" },
+        { "id": "LOC_Chamber", "kind": "location", "name": "Central Chamber" },
+        { "id": "LOC_Crypts", "kind": "location", "name": "Ancient Crypts" },
+        { "id": "LOC_Sanctum", "kind": "location", "name": "Sanctum of the Elders" },
+        { "id": "LOC_Vault", "kind": "location", "name": "Vault of Secrets" }
+      ],
+
+      "items": [
+        { "id": "ITEM_Amulet", "kind": "item", "name": "Amulet of the Ancients", "rarity": "uncommon" },
+        { "id": "ITEM_Scroll", "kind": "item", "name": "Scroll of Knowledge", "rarity": "rare" },
+        { "id": "ITEM_Ring", "kind": "item", "name": "Ring of Shadows", "rarity": "uncommon" }
+      ],
+
+      "factions": []
+    },
+
+    "connections": [
+      { "id": "CONN_Entry_Chamber", "from": "LOC_Entryway", "to": "LOC_Chamber", "mode": "hall" },
+      { "id": "CONN_Chamber_Crypts", "from": "LOC_Chamber", "to": "LOC_Crypts", "mode": "corridor" },
+      { "id": "CONN_Crypts_Sanctum", "from": "LOC_Crypts", "to": "LOC_Sanctum", "mode": "stairs" },
+      { "id": "CONN_Sanctum_Vault", "from": "LOC_Sanctum", "to": "LOC_Vault", "mode": "sealed" }
+    ]
+  },
+
+  "state": {
+    "facts": [
+      { "id": "STATE_Guardian_Hostile", "bearer": "NPC_TempleGuardian", "type": "attitude", "value": "hostile" },
+      { "id": "STATE_GhostKnight_Friendly", "bearer": "NPC_GhostKnight", "type": "attitude", "value": "friendly" },
+      { "id": "STATE_Vault_Sealed", "bearer": "LOC_Vault", "type": "sealed", "value": true },
+      { "id": "STATE_Spirits_Restless", "bearer": "LOC_Crypts", "type": "restless_spirits", "value": true }
+    ]
+  },
+
+  "roles": {
+    "assignments": [
+      {
+        "id": "ROLE_TempleGuardian",
+        "role": "TempleGuardian",
+        "holder": "NPC_TempleGuardian",
+        "revocation": {
+          "any": [
+            { "lhs": "state[STATE_Guardian_Hostile].value", "op": "!=", "rhs": "hostile" }
+          ]
+        }
+      },
+      {
+        "id": "ROLE_QuestGiver",
+        "role": "QuestGiver",
+        "holder": "NPC_ElderRevari",
+        "revocation": { "any": [] }
+      }
+    ]
+  },
+
+  "processes": {
+    "catalog": [
+      {
+        "id": "PROC_Guardian_Combat",
+        "type": "combat",
+        "timebox": {
+          "id": "TB_Guardian",
+          "start_utc": "2026-01-08T23:00:00Z",
+          "end_utc": "2026-01-08T23:30:00Z"
+        },
+        "participants": ["PC_Party", "NPC_TempleGuardian"],
+        "location": "LOC_Entryway",
+        "notes": "Guardian statues animate and attack."
+      },
+      {
+        "id": "PROC_Vault_Traps",
+        "type": "trap",
+        "timebox": {
+          "id": "TB_Vault",
+          "start_utc": "2026-01-09T00:00:00Z",
+          "end_utc": "2026-01-09T00:20:00Z"
+        },
+        "participants": ["PC_Party"],
+        "location": "LOC_Vault",
+        "notes": "Trap-laden vault challenges the party."
+      }
+    ]
+  },
+
+  "transitions": {
+    "changes": [
+      {
+        "id": "TR_Guardian_Defeated",
+        "caused_by": "PROC_Guardian_Combat",
+        "ops": [
+          {
+            "op": "update_state",
+            "state_id": "STATE_Guardian_Hostile",
+            "value": "defeated"
+          }
+        ]
+      },
+      {
+        "id": "TR_Vault_Unsealed",
+        "caused_by": "PROC_Vault_Traps",
+        "ops": [
+          {
+            "op": "update_state",
+            "state_id": "STATE_Vault_Sealed",
+            "value": false
+          }
+        ]
+      }
+    ]
+  },
+
+  "snapshots": {
+    "timeline": [
+      {
+        "id": "SNAP_Post_Guardian",
+        "time_utc": "2026-01-08T23:35:00Z",
+        "world_hash": "placeholder",
+        "state_hash": "placeholder",
+        "roles_hash": "placeholder",
+        "narration": "The ancient guardian lies defeated, its magic dissipating.",
+        "derived_from_transition": "TR_Guardian_Defeated"
+      }
+    ]
+  }
+}
+
+4. What survived the conversion (important)
+
+Nothing meaningful was lost:
+
+Original concept	CAML 2.0 representation
+Encounters	Processes
+NPC attitude	State facts
+Guardians	Roles + states
+Traps & puzzles	Processes
+Quests	Emergent from state + roles
+Story	Snapshot narration
+
+The DM experience is unchanged.
+The system semantics are now explicit.
+
+5. Why this is the right direction
+
+You now have:
+
+a human-authored CAML 1.x adventure
+
+a formally interpretable CAML 2.0 model of the same content
+
+a clean example for the repo showing why CAML 2.0 exists
+
+This is exactly the kind of example that makes CAML 2.0 defensible and useful.

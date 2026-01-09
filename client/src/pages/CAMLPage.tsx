@@ -7,7 +7,7 @@ import { ArrowLeft } from 'lucide-react';
 export default function CAMLPage() {
   const [, setLocation] = useLocation();
   
-  const { data: campaigns } = useQuery({
+  const { data: campaigns } = useQuery<Array<{ id: number }>>({
     queryKey: ['/api/campaigns']
   });
   
@@ -28,13 +28,14 @@ export default function CAMLPage() {
       </Button>
       
       <h1 className="text-3xl font-bold mb-6" style={{ color: '#0f172a' }}>
-        CAML Adventure Manager
+        CAML 2.0 Adventure Manager
       </h1>
       
       <p className="text-muted-foreground mb-6">
-        Import structured adventures from CAML files, export your campaigns for sharing, 
-        or generate new adventures using AI. CAML (Canonical Adventure Markup Language) 
-        is a standard format for D&D adventures that works with tools like Foundry VTT.
+        Import structured adventures from CAML 2.0 files, export your campaigns for sharing, 
+        or generate new adventures using AI. CAML 2.0 (Canonical Adventure Markup Language) 
+        uses ontological layers to separate world, state, roles, processes, and transitions
+        for full traceability and replay support.
       </p>
       
       <CAMLManager 
@@ -43,12 +44,12 @@ export default function CAMLPage() {
       />
       
       <div className="mt-8 p-4 bg-muted/50 rounded-lg">
-        <h2 className="font-semibold mb-2" style={{ color: '#0f172a' }}>About CAML</h2>
+        <h2 className="font-semibold mb-2" style={{ color: '#0f172a' }}>About CAML 2.0</h2>
         <p className="text-sm text-muted-foreground">
-          CAML-5e is the Canonical Adventure Markup Language for D&D 5e. It provides a 
-          structured way to describe adventures with locations, NPCs, encounters, quests, 
-          and items. Adventures in CAML format can be shared, version-controlled, and 
-          exported to other platforms.
+          CAML 2.0 separates adventure data into ontological layers: world (entities), 
+          state (facts), roles (assignments), processes (occurrents), transitions (changes), 
+          and snapshots (timeline). This enables full audit, replay, and correspondence play.
+          Both CAML 1.x and 2.0 formats are supported for import.
         </p>
         <a 
           href="https://github.com/dkoepsell/CAML5e" 

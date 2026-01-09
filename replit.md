@@ -43,7 +43,17 @@ Preferred communication style: Simple, everyday language.
 - **Dice Rolling Engine**: Standard RPG dice, real-time WebSocket rolls, history, critical hit/fumble detection, advantage/disadvantage mechanics.
 - **AI-Powered Features**: Campaign/story generation, dynamic narrative, character backgrounds/portraits, DM assistance (NPCs, locations, quests, monsters). AI focuses on exploration, discovery, mystery, and social encounters.
 - **DM Toolkit**: NPC/location/quest/monster generators, campaign notes, invitation system.
-- **CAML Integration**: Full support for Canonical Adventure Markup Language (CAML-5e). Import/export adventures in YAML/JSON format compatible with Foundry VTT and other tools. AI-generated structured adventures. Adventure graph visualization showing quest/encounter/NPC relationships.
+- **CAML 2.0 Integration**: Full support for CAML 2.0 (Canonical Adventure Markup Language) with ontological layers:
+    - **world**: Independent continuants (characters, locations, items, factions, connections)
+    - **state**: Dependent continuants (status facts with bearer, type, value)
+    - **roles**: Revocable role assignments (quest givers, faction leaders)
+    - **processes**: Occurrents (events, encounters, gameplay sessions with timeboxes)
+    - **transitions**: State changes caused by processes
+    - **snapshots**: Timestamped timeline for audit and replay
+    - Backward compatible with CAML 1.x import (auto-migration)
+    - Export campaigns as CAML 2.0 YAML/JSON for Foundry VTT and other tools
+    - AI-generated structured adventures in CAML 2.0 format
+    - Adventure graph visualization showing entity relationships
 - **RPG Systems**:
     - **Progression**: Automatic XP, random item drops, character progression tracking, skill progression (+1 bonus every 5 uses, max +5).
     - **Combat**: D&D mechanics, HP tracking (party/enemies), visual health bars, tactical options, combat end detection, bonus XP for defeating enemies.
