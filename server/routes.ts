@@ -6821,10 +6821,11 @@ Generate a complete CAML 2.0 JSON adventure.`;
     // Convert locations with connection details
     const locationConnectionMap: Record<string, string[]> = {};
     connections.forEach((c: any) => {
+      if (!c.from || !c.to) return;
       if (!locationConnectionMap[c.from]) locationConnectionMap[c.from] = [];
       if (!locationConnectionMap[c.to]) locationConnectionMap[c.to] = [];
-      locationConnectionMap[c.from].push(`${c.mode} to ${c.to.replace('LOC_', '')}`);
-      locationConnectionMap[c.to].push(`${c.mode} from ${c.from.replace('LOC_', '')}`);
+      locationConnectionMap[c.from].push(`${c.mode || 'path'} to ${String(c.to).replace('LOC_', '')}`);
+      locationConnectionMap[c.to].push(`${c.mode || 'path'} from ${String(c.from).replace('LOC_', '')}`);
     });
     
     const locations = (world.locations || []).map((l: any) => {
@@ -6836,9 +6837,9 @@ Generate a complete CAML 2.0 JSON adventure.`;
         : 'Exploration opportunities';
       
       return {
-        name: l.name || l.id.replace('LOC_', '').replace(/_/g, ' '),
+        name: l.name || (l.id ? String(l.id).replace('LOC_', '').replace(/_/g, ' ') : 'Location'),
         type: (l.tags || [])[0] || 'dungeon',
-        description: l.description + (isHidden ? ' (Hidden - requires discovery)' : ''),
+        description: (l.description || 'A mysterious location') + (isHidden ? ' (Hidden - requires discovery)' : ''),
         features: l.features || [],
         encounters: encounterDesc,
         connections: locationConnectionMap[l.id]?.join(', ') || 'Connected to other areas'
@@ -6849,10 +6850,10 @@ Generate a complete CAML 2.0 JSON adventure.`;
     const encounters = processes.map((p: any) => {
       const locationEntity = (world.locations || []).find((l: any) => l.id === p.location);
       const participantNPCs = (p.participants || [])
-        .filter((pid: string) => pid !== 'PC_Party')
+        .filter((pid: string) => pid && pid !== 'PC_Party')
         .map((pid: string) => {
           const npc = (world.characters || []).find((c: any) => c.id === pid);
-          return npc?.name || pid.replace('NPC_', '');
+          return npc?.name || String(pid).replace('NPC_', '');
         });
       
       const outcomes = processOutcomes[p.id] || ['Standard resolution'];
@@ -6872,10 +6873,10 @@ Generate a complete CAML 2.0 JSON adventure.`;
       }
       
       return {
-        name: p.timebox?.label || p.id.replace('PROC_', '').replace(/_/g, ' '),
+        name: p.timebox?.label || (p.id ? String(p.id).replace('PROC_', '').replace(/_/g, ' ') : 'Encounter'),
         type: p.type || 'combat',
         challengeRating: `Appropriate for level ${caml2.meta?.levels?.min || 1}-${caml2.meta?.levels?.max || 5}`,
-        description: p.notes || `A ${p.type} encounter`,
+        description: p.notes || `A ${p.type || 'standard'} encounter`,
         setup: locationEntity ? `Takes place at ${locationEntity.name}` : 'Set up as described',
         tactics,
         treasure: outcomes.join('; ') || 'Level-appropriate rewards',
@@ -6885,7 +6886,7 @@ Generate a complete CAML 2.0 JSON adventure.`;
     
     // Convert items to rewards with full details
     const rewards = (world.items || []).map((i: any) => ({
-      name: i.name || i.id.replace('ITEM_', '').replace(/_/g, ' '),
+      name: i.name || (i.id ? String(i.id).replace('ITEM_', '').replace(/_/g, ' ') : 'Magic Item'),
       type: 'magic_item',
       rarity: i.rarity || 'uncommon',
       description: i.description || `A ${i.rarity || 'mysterious'} item`,
