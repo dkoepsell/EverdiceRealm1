@@ -1,0 +1,452 @@
+{
+  "caml_version": "2.0",
+  "meta": {
+    "id": "adventure.adventure",
+    "title": "The Lost Temple",
+    "created_utc": "2026-01-09T12:31:38.029Z",
+    "authors": [
+      "Everdice DM Toolkit"
+    ],
+    "tags": [
+      "fantasy"
+    ],
+    "levels": {
+      "min": 1,
+      "max": 5
+    }
+  },
+  "world": {
+    "entities": {
+      "characters": [
+        {
+          "id": "PC_Party",
+          "kind": "character",
+          "pc": true
+        },
+        {
+          "id": "NPC_Arlen_Highwind",
+          "kind": "character",
+          "name": "Arlen Highwind",
+          "species": "Human",
+          "class": "Ranger",
+          "description": "A rugged explorer with a deep knowledge of ancient ruins."
+        },
+        {
+          "id": "NPC_Zara_Shadowhand",
+          "kind": "character",
+          "name": "Zara Shadowhand",
+          "species": "Elf",
+          "class": "Rogue",
+          "description": "A sly thief with a penchant for uncovering secrets."
+        },
+        {
+          "id": "NPC_Balgrum_Stoneaxe",
+          "kind": "character",
+          "name": "Balgrum Stoneaxe",
+          "species": "Dwarf",
+          "class": "Cleric",
+          "description": "A devout cleric seeking lost relics of his faith."
+        },
+        {
+          "id": "NPC_Lyra_Whisperwind",
+          "kind": "character",
+          "name": "Lyra Whisperwind",
+          "species": "Half-Elf",
+          "class": "Wizard",
+          "description": "A mysterious wizard guarding the temple's secrets."
+        },
+        {
+          "id": "NPC_Korvax_the_Cursed",
+          "kind": "character",
+          "name": "Korvax the Cursed",
+          "species": "Tiefling",
+          "class": "Warlock",
+          "description": "An enemy warlock seeking to harness the temple's power."
+        }
+      ],
+      "locations": [
+        {
+          "id": "LOC_Ancient_Entrance",
+          "kind": "location",
+          "name": "Ancient Entrance",
+          "description": "The worn archway marks the entrance to the lost temple, covered in vines.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "vines",
+            "stone steps"
+          ]
+        },
+        {
+          "id": "LOC_Hall_of_Whispers",
+          "kind": "location",
+          "name": "Hall of Whispers",
+          "description": "A long corridor echoing with the faint whispers of the past.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "whispering walls"
+          ]
+        },
+        {
+          "id": "LOC_Chamber_of_Visions",
+          "kind": "location",
+          "name": "Chamber of Visions",
+          "description": "A circular room where ethereal visions dance across the walls.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "visionary murals"
+          ]
+        },
+        {
+          "id": "LOC_Altar_of_Light",
+          "kind": "location",
+          "name": "Altar of Light",
+          "description": "A sacred chamber housing a glowing altar that radiates warmth.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "glowing altar"
+          ]
+        },
+        {
+          "id": "LOC_Secret_Sanctum",
+          "kind": "location",
+          "name": "Secret Sanctum",
+          "description": "A hidden room revealed only to those who solve the temple's puzzle.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "hidden door"
+          ]
+        }
+      ],
+      "items": [
+        {
+          "id": "ITEM_Amulet_of_Whispers",
+          "kind": "item",
+          "name": "Amulet of Whispers",
+          "rarity": "rare",
+          "description": "This amulet allows the wearer to understand any language spoken within the temple."
+        },
+        {
+          "id": "ITEM_Stone_of_Vision",
+          "kind": "item",
+          "name": "Stone of Vision",
+          "rarity": "uncommon",
+          "description": "A small crystal that reveals hidden paths when held up to light."
+        },
+        {
+          "id": "ITEM_Lightbringer_Talisman",
+          "kind": "item",
+          "name": "Lightbringer Talisman",
+          "rarity": "legendary",
+          "description": "This talisman grants divine protection to those who bear it in the temple."
+        }
+      ],
+      "factions": []
+    },
+    "connections": [
+      {
+        "id": "CONN_1_Entrance_to_Hall",
+        "from": "LOC_Ancient_Entrance",
+        "to": "LOC_Hall_of_Whispers",
+        "mode": "hall"
+      },
+      {
+        "id": "CONN_2_Hall_to_Chamber",
+        "from": "LOC_Hall_of_Whispers",
+        "to": "LOC_Chamber_of_Visions",
+        "mode": "door"
+      },
+      {
+        "id": "CONN_3_Chamber_to_Altar",
+        "from": "LOC_Chamber_of_Visions",
+        "to": "LOC_Altar_of_Light",
+        "mode": "stairs"
+      },
+      {
+        "id": "CONN_4_Altar_to_Sanctum",
+        "from": "LOC_Altar_of_Light",
+        "to": "LOC_Secret_Sanctum",
+        "mode": "concealed"
+      }
+    ]
+  },
+  "state": {
+    "facts": [
+      {
+        "id": "STATE_Arlen_Attitude",
+        "bearer": "NPC_Arlen_Highwind",
+        "type": "attitude",
+        "value": "friendly"
+      },
+      {
+        "id": "STATE_Zara_Attitude",
+        "bearer": "NPC_Zara_Shadowhand",
+        "type": "attitude",
+        "value": "neutral"
+      },
+      {
+        "id": "STATE_Balgrum_Attitude",
+        "bearer": "NPC_Balgrum_Stoneaxe",
+        "type": "attitude",
+        "value": "friendly"
+      },
+      {
+        "id": "STATE_Lyra_Attitude",
+        "bearer": "NPC_Lyra_Whisperwind",
+        "type": "attitude",
+        "value": "hostile"
+      },
+      {
+        "id": "STATE_Korvax_Active",
+        "bearer": "NPC_Korvax_the_Cursed",
+        "type": "active",
+        "value": true
+      },
+      {
+        "id": "STATE_Secret_Sanctum_Discovered",
+        "bearer": "LOC_Secret_Sanctum",
+        "type": "discovered",
+        "value": false
+      },
+      {
+        "id": "STATE_Quest_Main_Status",
+        "bearer": "adventure.adventure",
+        "type": "quest_status",
+        "value": "active"
+      }
+    ]
+  },
+  "roles": {
+    "assignments": [
+      {
+        "id": "ROLE_QuestGiver_Main",
+        "role": "QuestGiver",
+        "holder": "NPC_Arlen_Highwind",
+        "revocation": {
+          "any": []
+        },
+        "notes": "Find the lost temple and uncover its secrets."
+      },
+      {
+        "id": "ROLE_Guardian_Korvax",
+        "role": "Guardian",
+        "holder": "NPC_Korvax_the_Cursed",
+        "revocation": {
+          "any": [
+            {
+              "lhs": "state[STATE_Korvax_Active].value",
+              "op": "==",
+              "rhs": false
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "processes": {
+    "catalog": [
+      {
+        "id": "PROC_Exploration_Entrance",
+        "type": "exploration",
+        "timebox": {
+          "id": "TB_1",
+          "label": "Exploring the Entrance"
+        },
+        "participants": [
+          "PC_Party"
+        ],
+        "location": "LOC_Ancient_Entrance",
+        "notes": "The party explores the entrance, finding clues to the temple's history."
+      },
+      {
+        "id": "PROC_Social_Hall",
+        "type": "social",
+        "timebox": {
+          "id": "TB_2",
+          "label": "Whispering Walls"
+        },
+        "participants": [
+          "PC_Party",
+          "NPC_Zara_Shadowhand"
+        ],
+        "location": "LOC_Hall_of_Whispers",
+        "notes": "Zara offers cryptic guidance in exchange for a favor."
+      },
+      {
+        "id": "PROC_Puzzle_Chamber",
+        "type": "puzzle",
+        "timebox": {
+          "id": "TB_3",
+          "label": "Visions of the Past"
+        },
+        "participants": [
+          "PC_Party"
+        ],
+        "location": "LOC_Chamber_of_Visions",
+        "notes": "Solve the mural puzzle to reveal the path to the Altar of Light."
+      },
+      {
+        "id": "PROC_Combat_Altar",
+        "type": "combat",
+        "timebox": {
+          "id": "TB_4",
+          "label": "Defend the Altar"
+        },
+        "participants": [
+          "PC_Party",
+          "NPC_Korvax_the_Cursed"
+        ],
+        "location": "LOC_Altar_of_Light",
+        "notes": "Confront Korvax the Cursed at the Altar of Light."
+      },
+      {
+        "id": "PROC_Exploration_Sanctum",
+        "type": "exploration",
+        "timebox": {
+          "id": "TB_5",
+          "label": "Secret Discovery"
+        },
+        "participants": [
+          "PC_Party"
+        ],
+        "location": "LOC_Secret_Sanctum",
+        "notes": "Discover the Secret Sanctum after solving the temple's puzzle."
+      },
+      {
+        "id": "PROC_Social_Lyra",
+        "type": "social",
+        "timebox": {
+          "id": "TB_6",
+          "label": "Confronting Lyra"
+        },
+        "participants": [
+          "PC_Party",
+          "NPC_Lyra_Whisperwind"
+        ],
+        "location": "LOC_Altar_of_Light",
+        "notes": "Negotiate with Lyra Whisperwind to understand her motives."
+      },
+      {
+        "id": "PROC_Puzzle_Sanctum",
+        "type": "puzzle",
+        "timebox": {
+          "id": "TB_7",
+          "label": "Unlocking the Sanctum"
+        },
+        "participants": [
+          "PC_Party"
+        ],
+        "location": "LOC_Secret_Sanctum",
+        "notes": "Solve the final puzzle to unlock the temple's true secret."
+      },
+      {
+        "id": "PROC_Exploration_Hall",
+        "type": "exploration",
+        "timebox": {
+          "id": "TB_8",
+          "label": "Echoes of the Past"
+        },
+        "participants": [
+          "PC_Party"
+        ],
+        "location": "LOC_Hall_of_Whispers",
+        "notes": "Listen to the echoes to learn about the temple's history."
+      },
+      {
+        "id": "PROC_Combat_Korvax",
+        "type": "combat",
+        "timebox": {
+          "id": "TB_9",
+          "label": "Battle with Korvax"
+        },
+        "participants": [
+          "PC_Party",
+          "NPC_Korvax_the_Cursed"
+        ],
+        "location": "LOC_Chamber_of_Visions",
+        "notes": "Engage in a final battle with Korvax to end his threat."
+      },
+      {
+        "id": "PROC_Social_Balgrum",
+        "type": "social",
+        "timebox": {
+          "id": "TB_10",
+          "label": "Aid from Balgrum"
+        },
+        "participants": [
+          "PC_Party",
+          "NPC_Balgrum_Stoneaxe"
+        ],
+        "location": "LOC_Altar_of_Light",
+        "notes": "Balgrum offers divine aid to help solve the temple's mysteries."
+      }
+    ]
+  },
+  "transitions": {
+    "changes": [
+      {
+        "id": "TR_Discover_Sanctum",
+        "caused_by": "PROC_Puzzle_Sanctum",
+        "ops": [
+          {
+            "op": "update_state",
+            "state_id": "STATE_Secret_Sanctum_Discovered",
+            "value": true
+          }
+        ]
+      },
+      {
+        "id": "TR_Defeat_Korvax",
+        "caused_by": "PROC_Combat_Korvax",
+        "ops": [
+          {
+            "op": "update_state",
+            "state_id": "STATE_Korvax_Active",
+            "value": false
+          }
+        ]
+      },
+      {
+        "id": "TR_Quest_Complete",
+        "caused_by": "PROC_Exploration_Sanctum",
+        "ops": [
+          {
+            "op": "update_state",
+            "state_id": "STATE_Quest_Main_Status",
+            "value": "complete"
+          }
+        ]
+      }
+    ]
+  },
+  "snapshots": {
+    "timeline": [
+      {
+        "id": "SNAP_Initial",
+        "time_utc": "2026-01-09T12:31:38.029Z",
+        "world_hash": "initial",
+        "state_hash": "initial",
+        "roles_hash": "initial",
+        "narration": "The party stands before the overgrown entrance of the lost temple, ready to uncover its secrets."
+      },
+      {
+        "id": "SNAP_Victory",
+        "time_utc": "2026-01-09T12:31:38.029Z",
+        "world_hash": "final",
+        "state_hash": "final",
+        "roles_hash": "final",
+        "narration": "With Korvax defeated and the Secret Sanctum discovered, the party emerges victorious, the temple's mysteries laid bare.",
+        "derived_from_transition": "TR_Quest_Complete"
+      }
+    ]
+  }
+}
