@@ -44,16 +44,17 @@ Preferred communication style: Simple, everyday language.
 - **AI-Powered Features**: Campaign/story generation, dynamic narrative, character backgrounds/portraits, DM assistance (NPCs, locations, quests, monsters). AI focuses on exploration, discovery, mystery, and social encounters.
 - **DM Toolkit**: NPC/location/quest/monster generators, campaign notes, invitation system.
 - **CAML 2.0 Integration**: Full support for CAML 2.0 (Canonical Adventure Markup Language) with ontological layers:
-    - **world**: Independent continuants (characters, locations, items, factions, connections)
-    - **state**: Dependent continuants (status facts with bearer, type, value)
+    - **world**: Independent continuants (characters, locations, items, factions, connections) - includes intrinsic properties like statblock/abilities
+    - **state**: Dependent continuants (status facts with bearer, type, value) - includes mutable properties like NPC attitude, current HP, quest status
     - **roles**: Revocable role assignments (quest givers, faction leaders)
-    - **processes**: Occurrents (events, encounters, gameplay sessions with timeboxes)
+    - **processes**: Occurrents (events, encounters, gameplay sessions with timeboxes) - encounters are processes, not static objects
     - **transitions**: State changes caused by processes
     - **snapshots**: Timestamped timeline for audit and replay
     - Backward compatible with CAML 1.x import (auto-migration)
     - Export campaigns as CAML 2.0 YAML/JSON for Foundry VTT and other tools
     - AI-generated structured adventures in CAML 2.0 format
     - Adventure graph visualization showing entity relationships
+    - Flagship example: `caml-2.0/examples/the-lost-temple-ethereal.caml2.json`
 - **RPG Systems**:
     - **Progression**: Automatic XP, random item drops, character progression tracking, skill progression (+1 bonus every 5 uses, max +5).
     - **Combat**: D&D mechanics, HP tracking (party/enemies), visual health bars, tactical options, combat end detection, bonus XP for defeating enemies.
