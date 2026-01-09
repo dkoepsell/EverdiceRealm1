@@ -709,16 +709,36 @@ export default function LearnPage() {
   const [activeTab, setActiveTab] = useState("overview");
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-4 max-w-7xl">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold font-fantasy text-primary mb-3">
-            D&D Learning Center
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            Master the art of D&D through guided learning paths, comprehensive references, and practical tools
-          </p>
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      {/* Hero Section */}
+      <section className="relative bg-gradient-to-br from-slate-900 via-emerald-900/20 to-slate-900 py-8 md:py-12 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute top-6 right-8 md:right-16 opacity-15">
+          <BookOpen className="h-14 w-14 md:h-20 md:w-20 text-emerald-400" />
         </div>
+        <div className="absolute top-16 right-20 md:right-40 opacity-10">
+          <GraduationCap className="h-10 w-10 md:h-16 md:w-16 text-teal-300" />
+        </div>
+        <div className="absolute bottom-6 right-12 md:right-28 opacity-10">
+          <Dice6 className="h-12 w-12 md:h-16 md:w-16 text-emerald-300" />
+        </div>
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+              <span className="text-white font-fantasy font-bold text-sm">E</span>
+            </div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">
+              <Star className="h-3 w-3" />
+              <span>Start Your Journey</span>
+            </div>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-fantasy font-bold text-white mb-2">D&D Learning Center</h1>
+          <p className="text-white/60">Master the art of D&D through guided learning paths and practice</p>
+        </div>
+      </section>
+      
+      <div className="container mx-auto p-4 max-w-7xl">
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-5 mb-8">

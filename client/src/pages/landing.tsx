@@ -17,9 +17,9 @@ import { motion } from "framer-motion";
 
 const features = [
   {
-    icon: Sparkles,
-    title: "AI Dungeon Master",
-    description: "An intelligent AI guides your adventure, responding to your choices and creating dynamic stories."
+    icon: BookOpen,
+    title: "Learn to Play",
+    description: "Perfect for beginners - discover D&D rules through interactive tutorials and guided play."
   },
   {
     icon: Users,
@@ -32,9 +32,9 @@ const features = [
     description: "Experience authentic D&D mechanics with animated dice rolls and skill checks."
   },
   {
-    icon: BookOpen,
-    title: "Learn as You Play",
-    description: "Perfect for beginners - the app teaches you D&D rules as you adventure."
+    icon: Sparkles,
+    title: "Create Adventures",
+    description: "Design your own quests, build worlds, and share epic stories with your community."
   }
 ];
 
@@ -57,17 +57,17 @@ export default function LandingPage() {
             transition={{ duration: 0.6 }}
           >
             <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
-              <Sparkles className="h-4 w-4" />
-              AI-Powered Tabletop RPG
+              <Users className="h-4 w-4" />
+              Your Gateway to Tabletop RPG
             </div>
             
             <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent leading-tight">
-              Your AI Dungeon Master Awaits
+              Learn, Play & Create Adventures
             </h1>
             
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-              Embark on epic adventures with an intelligent AI guiding your story. 
-              No experience needed — just bring your imagination.
+              Discover the magic of tabletop RPGs. Create characters, embark on quests, 
+              and join a community of storytellers — no experience needed.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">

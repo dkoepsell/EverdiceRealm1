@@ -218,9 +218,33 @@ export default function Campaigns() {
   });
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-fantasy font-bold mb-6">Campaign Management</h1>
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      {/* Hero Section */}
+      <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-8 md:py-12 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute top-6 right-8 md:right-16 opacity-15">
+          <Scroll className="h-14 w-14 md:h-20 md:w-20 text-amber-400" />
+        </div>
+        <div className="absolute top-16 right-20 md:right-40 opacity-10">
+          <MapPin className="h-10 w-10 md:h-16 md:w-16 text-orange-300" />
+        </div>
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
+              <span className="text-white font-fantasy font-bold text-sm">E</span>
+            </div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
+              <Book className="h-3 w-3" />
+              <span>Your Adventures</span>
+            </div>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-fantasy font-bold text-white mb-2">Campaign Management</h1>
+          <p className="text-white/60">Create, join, and manage your epic quests</p>
+        </div>
+      </section>
       
+      <div className="container mx-auto px-4 py-8">
       <Tabs defaultValue="list">
         <TabsList className="mb-6">
           <TabsTrigger value="list" className="flex items-center gap-2">
@@ -632,6 +656,7 @@ export default function Campaigns() {
           </Card>
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }
