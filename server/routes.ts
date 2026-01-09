@@ -6542,7 +6542,7 @@ Create a unique monster with balanced stats appropriate for its challenge rating
     }
   });
 
-  // Complete Campaign Generation endpoint
+  // Complete Campaign Generation endpoint - generates CAML 2.0 format
   app.post("/api/campaigns/generate-complete", isAuthenticated, async (req: any, res) => {
     try {
       const { type, level, length, theme, customPrompt } = req.body;
@@ -6551,84 +6551,107 @@ Create a unique monster with balanced stats appropriate for its challenge rating
         return res.status(400).json({ message: "Missing required campaign parameters" });
       }
 
-      // Build comprehensive campaign generation prompt
-      const campaignPrompt = `Generate a complete D&D campaign package with the following specifications:
+      const adventureId = `adventure.${theme.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+      const timestamp = new Date().toISOString();
+      const minLevel = parseInt(level.split('-')[0]) || 1;
+      const maxLevel = parseInt(level.split('-')[1]) || minLevel + 4;
 
-Campaign Type: ${type}
-Player Level Range: ${level}
-Campaign Length: ${length}
-Theme/Tone: ${theme}
-${customPrompt ? `Additional Requirements: ${customPrompt}` : ''}
+      // Build CAML 2.0 generation prompt
+      const campaignPrompt = `Generate a complete CAML 2.0 D&D campaign with ORIGINAL content.
 
-Generate a fully integrated campaign with interconnected elements. Return a JSON object with this exact structure:
+ADVENTURE TO CREATE:
+- ID: ${adventureId}
+- Title: ${theme} Adventure
+- Type: ${type}
+- Level Range: ${level}
+- Length: ${length}
+- Theme: ${theme}
+${customPrompt ? `- Additional: ${customPrompt}` : ''}
+- Timestamp: ${timestamp}
+
+REQUIREMENTS based on length "${length}":
+${length === 'Short (1-3 sessions)' ? '- 3 locations, 3 NPCs, 2 processes, 2 items' : ''}
+${length === 'Medium (4-8 sessions)' ? '- 5 locations, 5 NPCs, 4 processes, 3 items' : ''}
+${length === 'Long (9+ sessions)' ? '- 8 locations, 8 NPCs, 6 processes, 5 items' : ''}
+
+CAML 2.0 JSON STRUCTURE (generate with your unique content):
 
 {
-  "title": "Campaign Title",
-  "description": "Detailed campaign description (2-3 sentences)",
-  "mainStoryArc": "Main story arc overview (2-3 sentences)",
-  "quests": [
-    {
-      "title": "Quest Name",
-      "type": "main|side|optional",
-      "description": "Quest description",
-      "objectives": ["Objective 1", "Objective 2"],
-      "rewards": "Quest rewards description",
-      "connections": "How this quest connects to others"
-    }
-  ],
-  "npcs": [
-    {
-      "name": "NPC Name",
-      "race": "Race",
-      "class": "Class/Profession",
-      "role": "ally|enemy|neutral|questgiver",
-      "description": "Physical and background description",
-      "personality": "Personality traits",
-      "motivations": "What drives this NPC",
-      "questConnections": "Which quests they're involved in"
-    }
-  ],
-  "locations": [
-    {
-      "name": "Location Name",
-      "type": "city|dungeon|wilderness|building",
-      "description": "Detailed location description",
-      "features": ["Feature 1", "Feature 2"],
-      "encounters": "Potential encounters or activities here"
-    }
-  ],
-  "encounters": [
-    {
-      "name": "Encounter Name",
-      "type": "combat|social|exploration|puzzle",
-      "challengeRating": "Appropriate CR",
-      "description": "Encounter description",
-      "setup": "How to set up this encounter",
-      "tactics": "Enemy tactics or challenge mechanics",
-      "treasure": "Rewards for success"
-    }
-  ],
-  "rewards": [
-    {
-      "name": "Item/Reward Name",
-      "type": "magic_item|treasure|experience|story",
-      "rarity": "common|uncommon|rare|very_rare|legendary",
-      "description": "Item description",
-      "mechanics": "Mechanical effects if applicable",
-      "questConnection": "Which quest provides this reward"
-    }
-  ]
+  "caml_version": "2.0",
+  "meta": { "id": "${adventureId}", "title": "Your Creative Title for ${theme}", "created_utc": "${timestamp}", "authors": ["Everdice DM Toolkit"], "tags": ["fantasy", "${type.toLowerCase()}"], "levels": {"min": ${minLevel}, "max": ${maxLevel}} },
+  "world": {
+    "entities": {
+      "characters": [
+        {"id": "PC_Party", "kind": "character", "pc": true},
+        {"id": "NPC_<UniqueName>", "kind": "character", "name": "<FullName>", "species": "<Species>", "class": "<Class>", "description": "<Description>"}
+      ],
+      "locations": [
+        {"id": "LOC_<Name>", "kind": "location", "name": "<FullName>", "description": "<Description>", "tags": ["dungeon"], "features": ["<Feature>"]}
+      ],
+      "items": [
+        {"id": "ITEM_<Name>", "kind": "item", "name": "<FullName>", "rarity": "<uncommon|rare|legendary>", "description": "<Description>"}
+      ],
+      "factions": []
+    },
+    "connections": [
+      {"id": "CONN_1", "from": "LOC_<Loc1>", "to": "LOC_<Loc2>", "mode": "<door|hall|stairs|concealed>"}
+    ]
+  },
+  "state": {
+    "facts": [
+      {"id": "STATE_<NPCName>_Attitude", "bearer": "NPC_<NPCName>", "type": "attitude", "value": "<friendly|neutral|hostile>"},
+      {"id": "STATE_<EnemyName>_Active", "bearer": "NPC_<EnemyName>", "type": "active", "value": true},
+      {"id": "STATE_Quest_Main_Status", "bearer": "${adventureId}", "type": "quest_status", "value": "active"}
+    ]
+  },
+  "roles": {
+    "assignments": [
+      {"id": "ROLE_QuestGiver_Main", "role": "QuestGiver", "holder": "NPC_<QuestGiver>", "revocation": {"any": []}, "notes": "<QuestDescription>"}
+    ]
+  },
+  "processes": {
+    "catalog": [
+      {"id": "PROC_<Type>_<Loc>", "type": "<combat|social|puzzle|exploration>", "timebox": {"id": "TB_1", "label": "<Title>"}, "participants": ["PC_Party", "NPC_<NPC>"], "location": "LOC_<Loc>", "notes": "<Description>"}
+    ]
+  },
+  "transitions": {
+    "changes": [
+      {"id": "TR_<Desc>", "caused_by": "PROC_<Process>", "ops": [{"op": "update_state", "state_id": "STATE_<State>", "value": false}]}
+    ]
+  },
+  "snapshots": {
+    "timeline": [
+      {"id": "SNAP_Initial", "time_utc": "${timestamp}", "world_hash": "initial", "state_hash": "initial", "roles_hash": "initial", "narration": "<OpeningScene>"},
+      {"id": "SNAP_Victory", "time_utc": "${timestamp}", "world_hash": "final", "state_hash": "final", "roles_hash": "final", "narration": "<VictoryScene>", "derived_from_transition": "TR_<FinalTransition>"}
+    ]
+  }
 }
 
-Ensure all elements are interconnected and form a cohesive narrative. Include 3-5 main quests, 2-4 side quests, 8-12 NPCs, 6-10 locations, 8-12 encounters, and 6-10 meaningful rewards. Make sure everything ties together thematically.`;
+CRITICAL RULES:
+1. Replace ALL <Placeholders> with ORIGINAL creative content for "${theme}"
+2. NO "attitude" property on NPCs - attitude is ONLY in state.facts
+3. All IDs must cross-reference correctly
+4. Use only SRD 5.1 content`;
 
-      // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
       const completion = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
             role: "system",
-            content: "You are an expert D&D campaign designer. Generate comprehensive, interconnected campaign content that forms a cohesive narrative. Always respond with valid JSON only."
+            content: `You are a CAML 2.0 adventure designer. CAML 2.0 is NOT CAML 1.x.
+
+CAML 2.0 MANDATORY STRUCTURE:
+- Root must have "caml_version": "2.0" (NOT "type": "AdventureModule")
+- NPCs go in world.entities.characters WITHOUT attitude property
+- Attitudes are in state.facts as {bearer, type: "attitude", value}
+- Encounters are in processes.catalog as processes with timeboxes
+- Quests are expressed via roles.assignments (QuestGiver) + state.facts (quest_status)
+
+NEVER generate:
+- "type": "AdventureModule"
+- "encounters": [...] array at root
+- "quests": [...] array at root
+- "attitude": "..." on NPC objects`
           },
           {
             role: "user",
@@ -6637,19 +6660,57 @@ Ensure all elements are interconnected and form a cohesive narrative. Include 3-
         ],
         response_format: { type: "json_object" },
         temperature: 0.8,
-        max_tokens: 4000
+        max_tokens: 6000
       });
 
       const generatedContent = JSON.parse(completion.choices[0].message.content || '{}');
 
-      // Validate the generated content has required structure
-      if (!generatedContent.title || !generatedContent.description) {
-        throw new Error("Generated content missing required fields");
+      // Validate CAML 2.0 structure
+      const hasCAML2Structure = generatedContent.caml_version === '2.0' && 
+                      generatedContent.world?.entities && 
+                      generatedContent.state?.facts &&
+                      generatedContent.processes?.catalog;
+      
+      const hasCAML1Artifacts = generatedContent.encounters || 
+                                generatedContent.quests || 
+                                generatedContent.type === 'AdventureModule';
+      
+      const jsonStr = JSON.stringify(generatedContent);
+      const placeholderMatches = jsonStr.match(/<[^>]+>/g);
+      const hasPlaceholders = placeholderMatches && placeholderMatches.length > 0;
+      
+      const characters = generatedContent.world?.entities?.characters || [];
+      const npcsWithAttitude = characters.filter((c: any) => c.attitude !== undefined);
+      const attitudesInState = npcsWithAttitude.length === 0;
+      
+      const isCAML2 = hasCAML2Structure && !hasCAML1Artifacts && !hasPlaceholders && attitudesInState;
+      
+      if (!isCAML2) {
+        const warnings: string[] = [];
+        if (!hasCAML2Structure) warnings.push("Missing CAML 2.0 structure");
+        if (hasCAML1Artifacts) warnings.push("Contains CAML 1.x artifacts");
+        if (hasPlaceholders) warnings.push(`Contains placeholders: ${placeholderMatches?.slice(0, 3).join(', ')}`);
+        if (!attitudesInState) warnings.push("NPCs have attitude property instead of state facts");
+        
+        console.warn("CAML 2.0 generation issues:", warnings);
+        return res.status(422).json({
+          success: false,
+          message: "Generated campaign failed CAML 2.0 validation",
+          warnings,
+          adventure: generatedContent
+        });
       }
 
-      console.log(`Generated complete campaign: "${generatedContent.title}"`);
+      console.log(`Generated CAML 2.0 campaign: "${generatedContent.meta?.title}"`);
 
-      res.json(generatedContent);
+      // Convert to legacy format for frontend compatibility while also returning CAML 2.0
+      const legacyFormat = convertCAML2ToLegacyFormat(generatedContent);
+
+      res.json({
+        ...legacyFormat,
+        caml2: generatedContent,
+        isCAML2: true
+      });
     } catch (error) {
       console.error("Failed to generate complete campaign:", error);
       res.status(500).json({ 
@@ -6658,6 +6719,196 @@ Ensure all elements are interconnected and form a cohesive narrative. Include 3-
       });
     }
   });
+  
+  // Helper function to convert CAML 2.0 to legacy format for frontend display
+  function convertCAML2ToLegacyFormat(caml2: any): any {
+    const world = caml2.world?.entities || {};
+    const state = caml2.state?.facts || [];
+    const roles = caml2.roles?.assignments || [];
+    const processes = caml2.processes?.catalog || [];
+    const transitions = caml2.transitions?.changes || [];
+    const connections = caml2.world?.connections || [];
+    
+    // Build a map of process outcomes from transitions
+    const processOutcomes: Record<string, string[]> = {};
+    transitions.forEach((t: any) => {
+      if (t.caused_by) {
+        if (!processOutcomes[t.caused_by]) processOutcomes[t.caused_by] = [];
+        t.ops?.forEach((op: any) => {
+          if (op.op === 'update_state') {
+            const stateId = op.state_id || '';
+            if (stateId.includes('Active') && op.value === false) {
+              processOutcomes[t.caused_by].push('Defeat enemy');
+            } else if (stateId.includes('Discovered') && op.value === true) {
+              processOutcomes[t.caused_by].push('Discover hidden area');
+            } else if (stateId.includes('quest_status') && op.value === 'completed') {
+              processOutcomes[t.caused_by].push('Complete quest');
+            } else if (stateId.includes('Attitude')) {
+              processOutcomes[t.caused_by].push(`Change NPC attitude to ${op.value}`);
+            }
+          }
+        });
+      }
+    });
+    
+    // Extract quests from QuestGiver roles with richer details
+    const quests = roles
+      .filter((r: any) => r.role === 'QuestGiver')
+      .map((r: any, i: number) => {
+        const questNotes = r.notes || '';
+        const holderNPC = (world.characters || []).find((c: any) => c.id === r.holder);
+        const questStatusFact = state.find((s: any) => s.type === 'quest_status');
+        
+        // Extract objectives from processes that involve this quest's NPCs
+        const relatedProcesses = processes.filter((p: any) => 
+          p.participants?.includes(r.holder) || questNotes.toLowerCase().includes(p.notes?.toLowerCase()?.slice(0, 20) || '')
+        );
+        
+        const objectives = relatedProcesses.length > 0 
+          ? relatedProcesses.map((p: any) => p.timebox?.label || p.notes?.slice(0, 50) || 'Complete objective')
+          : ['Speak with the quest giver', 'Complete the main objective', 'Return for rewards'];
+        
+        return {
+          title: questNotes.replace(/^Quest:\s*/i, '') || `Quest from ${holderNPC?.name || 'NPC'}`,
+          type: i === 0 ? 'main' : 'side',
+          description: questNotes || `A quest given by ${holderNPC?.name || 'an NPC'}`,
+          objectives,
+          rewards: questStatusFact ? 'Experience points and treasure' : 'Adventure rewards',
+          connections: holderNPC ? `Given by ${holderNPC.name}` : 'Connected to main storyline'
+        };
+      });
+    
+    // Convert NPCs from world layer + state facts for attitude with richer details
+    const npcs = (world.characters || [])
+      .filter((c: any) => !c.pc)
+      .map((c: any) => {
+        const attitudeFact = state.find((s: any) => s.bearer === c.id && s.type === 'attitude');
+        const activeFact = state.find((s: any) => s.bearer === c.id && s.type === 'active');
+        const attitude = attitudeFact?.value || 'neutral';
+        const isEnemy = attitude === 'hostile' || activeFact !== undefined;
+        const role = isEnemy ? 'enemy' : attitude === 'friendly' ? 'ally' : 'neutral';
+        
+        // Find which roles this NPC holds
+        const npcRoles = roles.filter((r: any) => r.holder === c.id);
+        const roleDescriptions = npcRoles.map((r: any) => r.role).join(', ');
+        
+        // Find which processes involve this NPC
+        const involvedProcesses = processes.filter((p: any) => p.participants?.includes(c.id));
+        const processConnections = involvedProcesses.map((p: any) => p.timebox?.label || p.type).join(', ');
+        
+        return {
+          name: c.name || c.id.replace('NPC_', '').replace(/_/g, ' '),
+          race: c.species || 'Human',
+          class: c.class || 'Commoner',
+          role,
+          description: c.description || `A ${c.species || 'mysterious'} ${c.class || 'figure'}`,
+          personality: roleDescriptions ? `Serves as ${roleDescriptions}` : `${attitude} disposition`,
+          motivations: isEnemy ? 'Opposes the party' : role === 'ally' ? 'Helps the party' : 'Has their own agenda',
+          questConnections: processConnections || 'Involved in the adventure'
+        };
+      });
+    
+    // Convert locations with connection details
+    const locationConnectionMap: Record<string, string[]> = {};
+    connections.forEach((c: any) => {
+      if (!locationConnectionMap[c.from]) locationConnectionMap[c.from] = [];
+      if (!locationConnectionMap[c.to]) locationConnectionMap[c.to] = [];
+      locationConnectionMap[c.from].push(`${c.mode} to ${c.to.replace('LOC_', '')}`);
+      locationConnectionMap[c.to].push(`${c.mode} from ${c.from.replace('LOC_', '')}`);
+    });
+    
+    const locations = (world.locations || []).map((l: any) => {
+      const discoveredFact = state.find((s: any) => s.bearer === l.id && s.type === 'discovered');
+      const isHidden = discoveredFact?.value === false;
+      const locationProcesses = processes.filter((p: any) => p.location === l.id);
+      const encounterDesc = locationProcesses.length > 0 
+        ? locationProcesses.map((p: any) => `${p.type}: ${p.timebox?.label || p.notes?.slice(0, 30)}`).join('; ')
+        : 'Exploration opportunities';
+      
+      return {
+        name: l.name || l.id.replace('LOC_', '').replace(/_/g, ' '),
+        type: (l.tags || [])[0] || 'dungeon',
+        description: l.description + (isHidden ? ' (Hidden - requires discovery)' : ''),
+        features: l.features || [],
+        encounters: encounterDesc,
+        connections: locationConnectionMap[l.id]?.join(', ') || 'Connected to other areas'
+      };
+    });
+    
+    // Convert processes to encounters with full details
+    const encounters = processes.map((p: any) => {
+      const locationEntity = (world.locations || []).find((l: any) => l.id === p.location);
+      const participantNPCs = (p.participants || [])
+        .filter((pid: string) => pid !== 'PC_Party')
+        .map((pid: string) => {
+          const npc = (world.characters || []).find((c: any) => c.id === pid);
+          return npc?.name || pid.replace('NPC_', '');
+        });
+      
+      const outcomes = processOutcomes[p.id] || ['Standard resolution'];
+      
+      // Determine tactics based on type
+      let tactics = 'Standard approach';
+      if (p.type === 'combat') {
+        tactics = participantNPCs.length > 0 
+          ? `${participantNPCs.join(', ')} will engage in combat. Use terrain and abilities strategically.`
+          : 'Enemies will use standard combat tactics.';
+      } else if (p.type === 'social') {
+        tactics = 'Use diplomacy, persuasion, or intimidation. Role-play the interaction.';
+      } else if (p.type === 'puzzle') {
+        tactics = 'Players must solve the puzzle using clues and logic.';
+      } else if (p.type === 'exploration') {
+        tactics = 'Investigate the area, search for clues, and discover secrets.';
+      }
+      
+      return {
+        name: p.timebox?.label || p.id.replace('PROC_', '').replace(/_/g, ' '),
+        type: p.type || 'combat',
+        challengeRating: `Appropriate for level ${caml2.meta?.levels?.min || 1}-${caml2.meta?.levels?.max || 5}`,
+        description: p.notes || `A ${p.type} encounter`,
+        setup: locationEntity ? `Takes place at ${locationEntity.name}` : 'Set up as described',
+        tactics,
+        treasure: outcomes.join('; ') || 'Level-appropriate rewards',
+        participants: participantNPCs
+      };
+    });
+    
+    // Convert items to rewards with full details
+    const rewards = (world.items || []).map((i: any) => ({
+      name: i.name || i.id.replace('ITEM_', '').replace(/_/g, ' '),
+      type: 'magic_item',
+      rarity: i.rarity || 'uncommon',
+      description: i.description || `A ${i.rarity || 'mysterious'} item`,
+      mechanics: i.rarity === 'legendary' ? 'Powerful magical properties' : 
+                 i.rarity === 'rare' ? 'Notable magical properties' : 'Useful magical properties',
+      questConnection: 'Obtained during the adventure'
+    }));
+    
+    // Build main story arc from snapshots
+    const initialNarration = caml2.snapshots?.timeline?.[0]?.narration || '';
+    const victoryNarration = caml2.snapshots?.timeline?.find((s: any) => s.id?.includes('Victory'))?.narration || '';
+    const mainStoryArc = initialNarration 
+      ? `${initialNarration} The adventure culminates in ${victoryNarration || 'a dramatic conclusion'}.`
+      : 'An epic adventure awaits!';
+    
+    return {
+      title: caml2.meta?.title || 'Adventure',
+      description: initialNarration || 'A D&D adventure awaits brave heroes',
+      mainStoryArc,
+      quests: quests.length > 0 ? quests : [{
+        title: 'Main Quest',
+        type: 'main',
+        description: 'Complete the adventure objectives',
+        objectives: processes.slice(0, 3).map((p: any) => p.timebox?.label || 'Complete objective'),
+        rewards: 'Experience and treasure',
+        connections: 'Main storyline'
+      }],
+      npcs,
+      locations,
+      encounters,
+      rewards
+    };
+  }
 
   // Enhanced Live Session Management APIs
 
