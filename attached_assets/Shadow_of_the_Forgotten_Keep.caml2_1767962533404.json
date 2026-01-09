@@ -1,0 +1,294 @@
+{
+  "caml_version": "2.0",
+  "meta": {
+    "id": "adventure.dark",
+    "title": "Shadow of the Forgotten Keep",
+    "authors": [
+      "Assistant"
+    ],
+    "tags": [
+      "dark",
+      "mystery",
+      "horror"
+    ],
+    "levels": {
+      "min": 1,
+      "max": 5
+    }
+  },
+  "world": {
+    "entities": {
+      "characters": [
+        {
+          "id": "npc_01",
+          "name": "Eldrin the Lost",
+          "description": "A once-great wizard now lost to madness."
+        },
+        {
+          "id": "npc_02",
+          "name": "Mara the Seeker",
+          "description": "A devoted cleric searching for lost relics."
+        },
+        {
+          "id": "npc_03",
+          "name": "Thorn the Shadow",
+          "description": "A rogue with mysterious intentions."
+        },
+        {
+          "id": "npc_04",
+          "name": "Syris the Brave",
+          "description": "A knight haunted by past failures."
+        },
+        {
+          "id": "npc_05",
+          "name": "Glimmer the Trickster",
+          "description": "A gnome bard known for his illusions."
+        },
+        {
+          "id": "npc_06",
+          "name": "Vespera the Enigmatic",
+          "description": "A sorceress shrouded in mystery."
+        },
+        {
+          "id": "npc_07",
+          "name": "Hargath the Silent",
+          "description": "A hulking barbarian who rarely speaks."
+        },
+        {
+          "id": "npc_08",
+          "name": "Fiona the Wise",
+          "description": "An old druid who knows the forest's secrets."
+        },
+        {
+          "id": "pc_party",
+          "name": "PC Party",
+          "description": "The player's party of adventurers."
+        }
+      ],
+      "locations": [
+        {
+          "id": "loc_01",
+          "name": "The Forgotten Keep",
+          "description": "An ancient and crumbling fortress."
+        },
+        {
+          "id": "loc_02",
+          "name": "The Cursed Forest",
+          "description": "A dark forest filled with twisted trees."
+        },
+        {
+          "id": "loc_03",
+          "name": "The Shadowy Crypts",
+          "description": "Underground crypts that echo with whispers."
+        },
+        {
+          "id": "loc_04",
+          "name": "The Abandoned Village",
+          "description": "A village long deserted by its inhabitants."
+        },
+        {
+          "id": "loc_05",
+          "name": "The Haunted Tower",
+          "description": "A tower said to be cursed by spirits."
+        },
+        {
+          "id": "loc_06",
+          "name": "The Black Lake",
+          "description": "A lake with waters as dark as night."
+        },
+        {
+          "id": "loc_07",
+          "name": "The Echoing Caves",
+          "description": "Caves where every sound is magnified."
+        },
+        {
+          "id": "loc_08",
+          "name": "The Hidden Glade",
+          "description": "A serene glade untouched by evil."
+        }
+      ],
+      "items": [
+        {
+          "id": "item_01",
+          "name": "Shadow Amulet",
+          "description": "An amulet that protects against necrotic energies."
+        },
+        {
+          "id": "item_02",
+          "name": "Blade of the Forgotten",
+          "description": "A sword once wielded by a legendary hero."
+        },
+        {
+          "id": "item_03",
+          "name": "Book of Lost Lore",
+          "description": "A tome containing ancient spells and secrets."
+        },
+        {
+          "id": "item_04",
+          "name": "Cloak of Shadows",
+          "description": "A cloak that allows the wearer to blend into darkness."
+        },
+        {
+          "id": "item_05",
+          "name": "Elixir of Clarity",
+          "description": "A potion that clears the mind of confusion."
+        }
+      ],
+      "factions": []
+    },
+    "connections": [
+      {
+        "from": "loc_01",
+        "to": "loc_02"
+      },
+      {
+        "from": "loc_02",
+        "to": "loc_03"
+      },
+      {
+        "from": "loc_03",
+        "to": "loc_04"
+      },
+      {
+        "from": "loc_04",
+        "to": "loc_05"
+      },
+      {
+        "from": "loc_05",
+        "to": "loc_06"
+      },
+      {
+        "from": "loc_06",
+        "to": "loc_07"
+      },
+      {
+        "from": "loc_07",
+        "to": "loc_08"
+      },
+      {
+        "from": "loc_08",
+        "to": "loc_01"
+      }
+    ]
+  },
+  "state": {
+    "facts": [
+      {
+        "bearer": "npc_01",
+        "type": "attitude",
+        "value": "hostile"
+      },
+      {
+        "bearer": "npc_02",
+        "type": "attitude",
+        "value": "friendly"
+      },
+      {
+        "bearer": "npc_03",
+        "type": "attitude",
+        "value": "neutral"
+      },
+      {
+        "bearer": "npc_04",
+        "type": "attitude",
+        "value": "friendly"
+      },
+      {
+        "bearer": "npc_05",
+        "type": "attitude",
+        "value": "neutral"
+      },
+      {
+        "bearer": "npc_06",
+        "type": "attitude",
+        "value": "hostile"
+      },
+      {
+        "bearer": "npc_07",
+        "type": "attitude",
+        "value": "neutral"
+      },
+      {
+        "bearer": "npc_08",
+        "type": "attitude",
+        "value": "friendly"
+      }
+    ]
+  },
+  "roles": {
+    "assignments": [
+      {
+        "character_id": "npc_02",
+        "role": "QuestGiver"
+      },
+      {
+        "character_id": "npc_08",
+        "role": "QuestGiver"
+      }
+    ]
+  },
+  "processes": {
+    "catalog": [
+      {
+        "id": "process_01",
+        "name": "The Shadows Awaken",
+        "description": "Strange shadows are seen moving in the Forgotten Keep.",
+        "timebox": {
+          "start": "dawn",
+          "end": "dusk"
+        }
+      },
+      {
+        "id": "process_02",
+        "name": "The Forest's Call",
+        "description": "Mysterious sounds echo through the Cursed Forest.",
+        "timebox": {
+          "start": "noon",
+          "end": "midnight"
+        }
+      },
+      {
+        "id": "process_03",
+        "name": "Whispers of the Dead",
+        "description": "The crypts whisper secrets of the past.",
+        "timebox": {
+          "start": "midnight",
+          "end": "dawn"
+        }
+      },
+      {
+        "id": "process_04",
+        "name": "The Village's Curse",
+        "description": "The abandoned village reveals its dark history.",
+        "timebox": {
+          "start": "dusk",
+          "end": "midnight"
+        }
+      },
+      {
+        "id": "process_05",
+        "name": "Spirits of the Tower",
+        "description": "Spirits haunt the Haunted Tower, seeking peace.",
+        "timebox": {
+          "start": "dusk",
+          "end": "dawn"
+        }
+      },
+      {
+        "id": "process_06",
+        "name": "Secrets of the Glade",
+        "description": "The Hidden Glade holds secrets of nature's magic.",
+        "timebox": {
+          "start": "dawn",
+          "end": "dusk"
+        }
+      }
+    ]
+  },
+  "transitions": {
+    "changes": []
+  },
+  "snapshots": {
+    "timeline": []
+  }
+}

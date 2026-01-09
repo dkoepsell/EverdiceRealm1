@@ -6568,41 +6568,73 @@ Create a unique monster with balanced stats appropriate for its challenge rating
       let lastError = '';
       
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        const systemPrompt = `You generate CAML 2.0 format adventures. CAML 2.0 uses ontological layers, NOT arrays.
+        const systemPrompt = `You generate CAML 2.0 format adventures. CAML 2.0 uses ontological layers, NOT flat arrays.
 
-CAML 2.0 STRUCTURE (you MUST follow this exactly):
+CAML 2.0 EXACT SCHEMA (every field shown is REQUIRED):
 {
-  "caml_version": "2.0",                    // REQUIRED - must be exactly "2.0"
-  "meta": { "id", "title", "authors", "tags", "levels": {"min", "max"} },
+  "caml_version": "2.0",
+  "meta": { "id": "adventure.xxx", "title": "...", "authors": ["..."], "tags": ["..."], "levels": {"min": 1, "max": 5} },
   "world": {
     "entities": {
-      "characters": [...],                  // NPCs here - NO attitude property
-      "locations": [...],
-      "items": [...],
+      "characters": [
+        {"id": "PC_Party", "kind": "character", "pc": true},
+        {"id": "NPC_Name", "kind": "character", "name": "...", "species": "...", "class": "...", "description": "..."}
+      ],
+      "locations": [
+        {"id": "LOC_Name", "kind": "location", "name": "...", "description": "...", "tags": ["dungeon"], "features": ["..."]}
+      ],
+      "items": [
+        {"id": "ITEM_Name", "kind": "item", "name": "...", "rarity": "rare", "description": "..."}
+      ],
       "factions": []
     },
-    "connections": [...]                    // Location connections
+    "connections": [
+      {"id": "CONN_1", "from": "LOC_A", "to": "LOC_B", "mode": "door"}
+    ]
   },
   "state": {
-    "facts": [...]                          // Attitudes go HERE as {bearer, type: "attitude", value}
+    "facts": [
+      {"id": "STATE_NPC_Attitude", "bearer": "NPC_Name", "type": "attitude", "value": "friendly"},
+      {"id": "STATE_Quest_Status", "bearer": "adventure.xxx", "type": "quest_status", "value": "active"}
+    ]
   },
   "roles": {
-    "assignments": [...]                    // QuestGiver roles go here
+    "assignments": [
+      {"id": "ROLE_QuestGiver", "role": "QuestGiver", "holder": "NPC_Name", "revocation": {"any": []}, "notes": "..."}
+    ]
   },
   "processes": {
-    "catalog": [...]                        // Encounters as processes with timeboxes
+    "catalog": [
+      {"id": "PROC_Name", "type": "combat", "timebox": {"id": "TB_1", "label": "..."}, "participants": ["PC_Party", "NPC_Name"], "location": "LOC_Name", "notes": "..."}
+    ]
   },
-  "transitions": { "changes": [...] },
-  "snapshots": { "timeline": [...] }
+  "transitions": {
+    "changes": [
+      {"id": "TR_Name", "caused_by": "PROC_Name", "ops": [{"op": "update_state", "state_id": "STATE_Quest_Status", "value": "complete"}]}
+    ]
+  },
+  "snapshots": {
+    "timeline": [
+      {"id": "SNAP_Initial", "time_utc": "${timestamp}", "world_hash": "initial", "state_hash": "initial", "roles_hash": "initial", "narration": "..."},
+      {"id": "SNAP_Victory", "time_utc": "${timestamp}", "world_hash": "final", "state_hash": "final", "roles_hash": "final", "narration": "...", "derived_from_transition": "TR_Name"}
+    ]
+  }
 }
 
-FORBIDDEN - these are CAML 1.x patterns:
-- "type": "AdventureModule" at root
-- "encounters": [...] array at root level
-- "quests": [...] array at root level
-- "npcs": [...] array at root level
-- "attitude": "..." property on character objects
-- Any property named "encounterType", "questGiver", "gates", "outcomes"
+REQUIRED FIELDS (validation will fail without these):
+- Every character/location/item MUST have "kind" field
+- Every connection MUST have "id" and "mode" fields
+- Every state fact MUST have "id" field  
+- Every role assignment MUST use "holder" (NOT "character_id") and have "id" field
+- Every process MUST have "type" (combat/social/puzzle/exploration), "participants", "location"
+- transitions.changes MUST NOT be empty
+- snapshots.timeline MUST NOT be empty
+
+FORBIDDEN (CAML 1.x patterns):
+- "type": "AdventureModule"
+- Root-level "encounters", "quests", "npcs" arrays
+- "attitude" property on characters
+- "encounterType", "questGiver", "gates", "outcomes", "startsAt", "occursAt"
 
 ${attempt > 0 ? `PREVIOUS ATTEMPT FAILED: ${lastError}. Fix these issues.` : ''}`;
 
@@ -6667,6 +6699,79 @@ Generate a complete CAML 2.0 JSON adventure.`;
         const npcsWithAttitude = characters.filter((c: any) => c.attitude !== undefined);
         if (npcsWithAttitude.length > 0) {
           validationErrors.push(`${npcsWithAttitude.length} NPCs have attitude property (must be in state.facts)`);
+        }
+        
+        // Check entities have required 'kind' field
+        const charsWithoutKind = characters.filter((c: any) => c.kind !== 'character');
+        if (charsWithoutKind.length > 0) {
+          validationErrors.push(`${charsWithoutKind.length} characters missing kind: "character"`);
+        }
+        
+        const locations = generatedContent.world?.entities?.locations || [];
+        const locsWithoutKind = locations.filter((l: any) => l.kind !== 'location');
+        if (locsWithoutKind.length > 0) {
+          validationErrors.push(`${locsWithoutKind.length} locations missing kind: "location"`);
+        }
+        
+        const items = generatedContent.world?.entities?.items || [];
+        const itemsWithoutKind = items.filter((i: any) => i.kind !== 'item');
+        if (itemsWithoutKind.length > 0) {
+          validationErrors.push(`${itemsWithoutKind.length} items missing kind: "item"`);
+        }
+        
+        // Check state facts have required 'id' field
+        const stateFacts = generatedContent.state?.facts || [];
+        const factsWithoutId = stateFacts.filter((f: any) => !f.id);
+        if (factsWithoutId.length > 0) {
+          validationErrors.push(`${factsWithoutId.length} state facts missing id field`);
+        }
+        
+        // Check roles have required structure (holder, not character_id)
+        const roleAssignments = generatedContent.roles?.assignments || [];
+        const rolesWithCharacterId = roleAssignments.filter((r: any) => r.character_id && !r.holder);
+        if (rolesWithCharacterId.length > 0) {
+          validationErrors.push(`${rolesWithCharacterId.length} role assignments use character_id instead of holder`);
+        }
+        const rolesWithoutId = roleAssignments.filter((r: any) => !r.id);
+        if (rolesWithoutId.length > 0) {
+          validationErrors.push(`${rolesWithoutId.length} role assignments missing id field`);
+        }
+        
+        // Check processes have required fields (type, participants, location)
+        const processes = generatedContent.processes?.catalog || [];
+        const processesWithoutType = processes.filter((p: any) => !p.type);
+        if (processesWithoutType.length > 0) {
+          validationErrors.push(`${processesWithoutType.length} processes missing type field (combat/social/puzzle/exploration)`);
+        }
+        const processesWithoutParticipants = processes.filter((p: any) => !p.participants || p.participants.length === 0);
+        if (processesWithoutParticipants.length > 0) {
+          validationErrors.push(`${processesWithoutParticipants.length} processes missing participants array`);
+        }
+        const processesWithoutLocation = processes.filter((p: any) => !p.location);
+        if (processesWithoutLocation.length > 0) {
+          validationErrors.push(`${processesWithoutLocation.length} processes missing location field`);
+        }
+        
+        // Check connections have required fields
+        const connections = generatedContent.world?.connections || [];
+        const connectionsWithoutId = connections.filter((c: any) => !c.id);
+        if (connectionsWithoutId.length > 0) {
+          validationErrors.push(`${connectionsWithoutId.length} connections missing id field`);
+        }
+        const connectionsWithoutMode = connections.filter((c: any) => !c.mode);
+        if (connectionsWithoutMode.length > 0) {
+          validationErrors.push(`${connectionsWithoutMode.length} connections missing mode field`);
+        }
+        
+        // Check transitions and snapshots are not empty
+        const transitions = generatedContent.transitions?.changes || [];
+        if (transitions.length === 0) {
+          validationErrors.push('transitions.changes is empty (need at least one state change)');
+        }
+        
+        const snapshots = generatedContent.snapshots?.timeline || [];
+        if (snapshots.length === 0) {
+          validationErrors.push('snapshots.timeline is empty (need initial and victory snapshots)');
         }
         
         // Recursive check for forbidden CAML 1.x keys anywhere in the structure
