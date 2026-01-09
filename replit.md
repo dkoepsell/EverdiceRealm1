@@ -20,6 +20,8 @@ Preferred communication style: Simple, everyday language.
 - **Character Templates**: Pre-built hero templates (Warrior, Wizard, Paladin, Rogue, Cleric, Sorcerer) for quick character creation
 - **Visual Polish**: Warmer amber/orange accent colors, gradient headers, improved card designs, better whitespace
 - **Page Headers**: Consistent gradient text styling across pages for visual hierarchy
+- **Dashboard**: Redesigned hero with warm amber gradients, live "adventurers online" badge, streamlined layout
+- **DM Toolkit**: New purple/blue gradient hero section, "AI-Powered Tools" badge, reorganized tool grid into 3 categories (Essential Tools, Create Content, Utilities) with color-coded icons
 
 ## System Architecture
 
