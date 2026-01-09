@@ -1,0 +1,842 @@
+{
+  "id": "adventure.the_lost_relics_of_eldoria",
+  "type": "AdventureModule",
+  "name": "The Lost Relics of Eldoria",
+  "description": "In the quaint village of Eldoria, ancient relics have gone missing, threatening the balance of magic in the realm. Players must uncover the secrets of the past, navigate treacherous dungeons, and confront mystical foes to restore harmony.",
+  "synopsis": "The players embark on a quest to retrieve lost relics that maintain the magical equilibrium of Eldoria. Along the way, they discover hidden truths about the village's ancient lineage and protect it from a rising malevolence.",
+  "author": "Everdice DM Toolkit",
+  "version": "1.0.0",
+  "ruleset": "dnd5e",
+  "minLevel": 1,
+  "maxLevel": 5,
+  "setting": "classic",
+  "startingLocation": "location.eldoria_village",
+  "locations": [
+    {
+      "id": "location.eldoria_village",
+      "type": "Location",
+      "name": "Eldoria Village",
+      "description": "A small, picturesque village known for its serene beauty and ancient temple.",
+      "tags": [
+        "city"
+      ],
+      "features": [
+        "Ancient temple",
+        "Market square"
+      ],
+      "connections": [
+        {
+          "direction": "forward",
+          "target": "location.temple_of_eldoria"
+        }
+      ]
+    },
+    {
+      "id": "location.temple_of_eldoria",
+      "type": "Location",
+      "name": "Temple of Eldoria",
+      "description": "An ancient temple that houses the magical relics, now a site of theft.",
+      "tags": [
+        "building"
+      ],
+      "features": [
+        "Intricate carvings",
+        "Vaults"
+      ],
+      "connections": [
+        {
+          "direction": "forward",
+          "target": "location.ancient_ruins"
+        }
+      ]
+    },
+    {
+      "id": "location.ancient_ruins",
+      "type": "Location",
+      "name": "Ancient Ruins",
+      "description": "Ruins hidden deep in the forest, rumored to be the last resting place of the relics.",
+      "tags": [
+        "dungeon"
+      ],
+      "features": [
+        "Moss-covered stones",
+        "Secret passages"
+      ],
+      "connections": [
+        {
+          "direction": "forward",
+          "target": "location.necromancer_s_lair"
+        }
+      ]
+    },
+    {
+      "id": "location.necromancer_s_lair",
+      "type": "Location",
+      "name": "Necromancer's Lair",
+      "description": "A dark, foreboding lair filled with dark magic and the necromancer's minions.",
+      "tags": [
+        "dungeon"
+      ],
+      "features": [
+        "Shadowy corridors",
+        "Altar"
+      ],
+      "connections": [
+        {
+          "direction": "forward",
+          "target": "location.eldoria_forest"
+        }
+      ]
+    },
+    {
+      "id": "location.eldoria_forest",
+      "type": "Location",
+      "name": "Eldoria Forest",
+      "description": "A dense forest surrounding Eldoria, filled with ancient secrets.",
+      "tags": [
+        "wilderness"
+      ],
+      "features": [
+        "Tall trees",
+        "Hidden trails"
+      ],
+      "connections": [
+        {
+          "direction": "forward",
+          "target": "location.hermit_s_hut"
+        }
+      ]
+    },
+    {
+      "id": "location.hermit_s_hut",
+      "type": "Location",
+      "name": "Hermit's Hut",
+      "description": "A secluded hut deep in the forest, home to Old Humphrey.",
+      "tags": [
+        "building"
+      ],
+      "features": [
+        "Rusted cauldron",
+        "Old tomes"
+      ],
+      "connections": []
+    }
+  ],
+  "npcs": [
+    {
+      "id": "npc.eldra_silverleaf",
+      "type": "NPC",
+      "name": "Eldra Silverleaf",
+      "description": "A wise, elderly elf with a deep connection to nature and a trusted advisor of Eldoria.",
+      "race": "Elf",
+      "class": "Druid",
+      "role": "questgiver",
+      "personality": "Calm and insightful, with an air of mystery",
+      "motivations": "Protecting the village and preserving its magical heritage",
+      "attitude": "neutral",
+      "startsAt": "location.eldoria_village",
+      "ruleset": "dnd5e"
+    },
+    {
+      "id": "npc.gorim_stonehammer",
+      "type": "NPC",
+      "name": "Gorim Stonehammer",
+      "description": "A stout and gruff dwarf, former guardian of the relics, now seeking redemption.",
+      "race": "Dwarf",
+      "class": "Warrior",
+      "role": "ally",
+      "personality": "Gruff and loyal, with a heart of gold",
+      "motivations": "Redeem himself by aiding the players",
+      "attitude": "neutral",
+      "startsAt": "location.temple_of_eldoria",
+      "ruleset": "dnd5e"
+    },
+    {
+      "id": "npc.malakar_the_dark",
+      "type": "NPC",
+      "name": "Malakar the Dark",
+      "description": "A sinister figure clad in shadowy robes, his eyes burning with dark intent.",
+      "race": "Human",
+      "class": "Necromancer",
+      "role": "enemy",
+      "personality": "Evil and ambitious, with a cunning mind",
+      "motivations": "Desire for power and control over the magical relics",
+      "attitude": "neutral",
+      "startsAt": "location.ancient_ruins",
+      "ruleset": "dnd5e"
+    },
+    {
+      "id": "npc.lira_moonshadow",
+      "type": "NPC",
+      "name": "Lira Moonshadow",
+      "description": "A charming half-elf minstrel known for her tales of ancient lore.",
+      "race": "Half-Elf",
+      "class": "Bard",
+      "role": "neutral",
+      "personality": "Witty and charismatic, with a knack for storytelling",
+      "motivations": "Collecting stories and discovering forgotten histories",
+      "attitude": "neutral",
+      "startsAt": "location.necromancer_s_lair",
+      "ruleset": "dnd5e"
+    },
+    {
+      "id": "npc.thalia_windrunner",
+      "type": "NPC",
+      "name": "Thalia Windrunner",
+      "description": "A skilled ranger with a keen eye and a deep bond with the forest.",
+      "race": "Human",
+      "class": "Ranger",
+      "role": "ally",
+      "personality": "Pragmatic and observant, with a protective nature",
+      "motivations": "Maintain the balance between civilization and the wild",
+      "attitude": "neutral",
+      "startsAt": "location.eldoria_forest",
+      "ruleset": "dnd5e"
+    },
+    {
+      "id": "npc.old_humphrey",
+      "type": "NPC",
+      "name": "Old Humphrey",
+      "description": "A reclusive old man living in seclusion, rumored to possess ancient knowledge.",
+      "race": "Human",
+      "class": "Hermit",
+      "role": "neutral",
+      "personality": "Eccentric and enigmatic, with moments of clarity",
+      "motivations": "Preserve ancient lore and wisdom",
+      "attitude": "neutral",
+      "startsAt": "location.hermit_s_hut",
+      "ruleset": "dnd5e"
+    }
+  ],
+  "encounters": [
+    {
+      "id": "encounter.temple_guardians",
+      "type": "Encounter",
+      "name": "Temple Guardians",
+      "description": "Animated stone statues guard the temple's inner sanctum.",
+      "encounterType": "combat",
+      "challengeRating": "1",
+      "occursAt": "location.eldoria_village",
+      "gates": {
+        "all": [
+          "party.at(location.eldoria_village)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.temple_guardians.defeated"
+          },
+          {
+            "grantItem": "Key to the inner vaults"
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.temple_guardians.fled"
+          }
+        ]
+      },
+      "setup": "Triggered when players attempt to enter the sanctum",
+      "tactics": "Statues block paths and use heavy attacks",
+      "treasure": "Key to the inner vaults"
+    },
+    {
+      "id": "encounter.forest_ambush",
+      "type": "Encounter",
+      "name": "Forest Ambush",
+      "description": "Bandits, seeking to capitalize on the chaos, ambush the party.",
+      "encounterType": "combat",
+      "challengeRating": "2",
+      "occursAt": "location.eldoria_village",
+      "gates": {
+        "all": [
+          "party.at(location.eldoria_village)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.forest_ambush.defeated"
+          },
+          {
+            "grantItem": "Coins and a map fragment"
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.forest_ambush.fled"
+          }
+        ]
+      },
+      "setup": "Occurs while traveling through Eldoria Forest",
+      "tactics": "Bandits use hit-and-run tactics",
+      "treasure": "Coins and a map fragment"
+    },
+    {
+      "id": "encounter.ruins_puzzle",
+      "type": "Encounter",
+      "name": "Ruins Puzzle",
+      "description": "A set of ancient glyphs must be deciphered to open a passage.",
+      "encounterType": "puzzle",
+      "challengeRating": "1",
+      "occursAt": "location.eldoria_village",
+      "gates": {
+        "all": [
+          "party.at(location.eldoria_village)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.ruins_puzzle.completed"
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.ruins_puzzle.failed"
+          }
+        ]
+      },
+      "setup": "Found in the depths of the Ancient Ruins",
+      "tactics": "Players must match glyphs with historical knowledge",
+      "treasure": "Passage to the relic chamber"
+    },
+    {
+      "id": "encounter.lair_of_shadows",
+      "type": "Encounter",
+      "name": "Lair of Shadows",
+      "description": "The necromancer's undead minions guard the lair.",
+      "encounterType": "combat",
+      "challengeRating": "3",
+      "occursAt": "location.eldoria_village",
+      "gates": {
+        "all": [
+          "party.at(location.eldoria_village)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.lair_of_shadows.defeated"
+          },
+          {
+            "grantItem": "Path to the final chamber"
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.lair_of_shadows.fled"
+          }
+        ]
+      },
+      "setup": "Final approach to the necromancer's chamber",
+      "tactics": "Undead swarm and flank the party",
+      "treasure": "Path to the final chamber"
+    },
+    {
+      "id": "encounter.village_gossip",
+      "type": "Encounter",
+      "name": "Village Gossip",
+      "description": "Gather information from villagers about the relics' history.",
+      "encounterType": "social",
+      "challengeRating": "0",
+      "occursAt": "location.eldoria_village",
+      "gates": {
+        "all": [
+          "party.at(location.eldoria_village)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.village_gossip.resolved"
+          },
+          {
+            "modifyAttitude": {
+              "target": "involved_npcs",
+              "change": "+1"
+            }
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.village_gossip.failed"
+          },
+          {
+            "modifyAttitude": {
+              "target": "involved_npcs",
+              "change": "-1"
+            }
+          }
+        ]
+      },
+      "setup": "Occurs in Eldoria Village's market",
+      "tactics": "Use persuasion to gather clues",
+      "treasure": "Information leading to the ruins"
+    },
+    {
+      "id": "encounter.hermit_s_riddle",
+      "type": "Encounter",
+      "name": "Hermit's Riddle",
+      "description": "Old Humphrey challenges the party with a riddle to test their worth.",
+      "encounterType": "puzzle",
+      "challengeRating": "1",
+      "occursAt": "location.eldoria_village",
+      "gates": {
+        "all": [
+          "party.at(location.eldoria_village)"
+        ]
+      },
+      "outcomes": {
+        "success": [
+          {
+            "addTag": "encounter.hermit_s_riddle.completed"
+          }
+        ],
+        "failure": [
+          {
+            "addTag": "encounter.hermit_s_riddle.failed"
+          }
+        ]
+      },
+      "setup": "Occurs upon meeting Old Humphrey",
+      "tactics": "Solve the riddle for his guidance",
+      "treasure": "Hermit's advice and directions"
+    }
+  ],
+  "quests": [
+    {
+      "id": "quest.the_missing_relics",
+      "type": "Quest",
+      "name": "The Missing Relics",
+      "description": "Investigate the disappearance of magical relics from the Eldoria temple.",
+      "tags": [
+        "main"
+      ],
+      "questGiver": "npc.eldra_silverleaf",
+      "objectives": [
+        {
+          "id": "objective.0",
+          "description": "Gather information in Eldoria"
+        },
+        {
+          "id": "objective.1",
+          "description": "Identify the thief"
+        }
+      ],
+      "rewards": {
+        "description": "Information leading to the ancient ruins"
+      }
+    },
+    {
+      "id": "quest.the_temple_of_shadows",
+      "type": "Quest",
+      "name": "The Temple of Shadows",
+      "description": "Explore the ancient ruins where the relics were last known to be hidden.",
+      "tags": [
+        "main"
+      ],
+      "questGiver": "npc.gorim_stonehammer",
+      "objectives": [
+        {
+          "id": "objective.0",
+          "description": "Navigate through the dungeon"
+        },
+        {
+          "id": "objective.1",
+          "description": "Defeat the guardian"
+        }
+      ],
+      "rewards": {
+        "description": "Ancient map to the necromancer's lair"
+      }
+    },
+    {
+      "id": "quest.confronting_the_necromancer",
+      "type": "Quest",
+      "name": "Confronting the Necromancer",
+      "description": "Defeat the necromancer who plans to use the relics for dark purposes.",
+      "tags": [
+        "main"
+      ],
+      "questGiver": "npc.malakar_the_dark",
+      "objectives": [
+        {
+          "id": "objective.0",
+          "description": "Reach the necromancer's lair"
+        },
+        {
+          "id": "objective.1",
+          "description": "Defeat the necromancer"
+        }
+      ],
+      "rewards": {
+        "description": "Restoration of the relics and magical balance"
+      }
+    },
+    {
+      "id": "quest.the_village_s_secret",
+      "type": "Quest",
+      "name": "The Village's Secret",
+      "description": "Uncover the hidden history of Eldoria that ties the village to the relics.",
+      "tags": [
+        "side"
+      ],
+      "questGiver": "npc.lira_moonshadow",
+      "objectives": [
+        {
+          "id": "objective.0",
+          "description": "Research village history"
+        },
+        {
+          "id": "objective.1",
+          "description": "Discover family's ancient role"
+        }
+      ],
+      "rewards": {
+        "description": "Insight into the relics' nature"
+      }
+    },
+    {
+      "id": "quest.the_hermit_s_wisdom",
+      "type": "Quest",
+      "name": "The Hermit's Wisdom",
+      "description": "Seek guidance from an old hermit who holds knowledge of the relics.",
+      "tags": [
+        "optional"
+      ],
+      "questGiver": "npc.thalia_windrunner",
+      "objectives": [
+        {
+          "id": "objective.0",
+          "description": "Find the hermit"
+        },
+        {
+          "id": "objective.1",
+          "description": "Gain his trust"
+        }
+      ],
+      "rewards": {
+        "description": "Hints to the relics' locations"
+      }
+    }
+  ],
+  "items": [
+    {
+      "id": "item.map_to_the_ruins",
+      "type": "Item",
+      "name": "Map to the Ruins",
+      "description": "A magically enchanted map that reveals hidden paths to the ruins.",
+      "itemType": "magic_item",
+      "rarity": "uncommon",
+      "rulesetExtension": {
+        "dnd5e": {
+          "mechanics": "Advantage on navigation checks in the forest"
+        }
+      }
+    },
+    {
+      "id": "item.ancient_amulet",
+      "type": "Item",
+      "name": "Ancient Amulet",
+      "description": "An amulet that enhances the wearer's magical abilities.",
+      "itemType": "magic_item",
+      "rarity": "rare",
+      "rulesetExtension": {
+        "dnd5e": {
+          "mechanics": "+1 to spell attack rolls"
+        }
+      }
+    },
+    {
+      "id": "item.scroll_of_secrets",
+      "type": "Item",
+      "name": "Scroll of Secrets",
+      "description": "A scroll containing hidden knowledge about the relics.",
+      "itemType": "treasure",
+      "rarity": "uncommon",
+      "rulesetExtension": {
+        "dnd5e": {
+          "mechanics": "Grants insight into the relics' magical properties"
+        }
+      }
+    },
+    {
+      "id": "item.ring_of_protection",
+      "type": "Item",
+      "name": "Ring of Protection",
+      "description": "A ring that offers protection to its wearer.",
+      "itemType": "magic_item",
+      "rarity": "rare",
+      "rulesetExtension": {
+        "dnd5e": {
+          "mechanics": "+1 to AC and saving throws"
+        }
+      }
+    },
+    {
+      "id": "item.forest_cloak",
+      "type": "Item",
+      "name": "Forest Cloak",
+      "description": "A cloak that allows the wearer to blend with the forest.",
+      "itemType": "magic_item",
+      "rarity": "uncommon",
+      "rulesetExtension": {
+        "dnd5e": {
+          "mechanics": "Advantage on stealth checks in wooded areas"
+        }
+      }
+    },
+    {
+      "id": "item.relic_of_eldoria",
+      "type": "Item",
+      "name": "Relic of Eldoria",
+      "description": "A powerful relic that restores balance to Eldoria.",
+      "itemType": "story",
+      "rarity": "legendary",
+      "rulesetExtension": {
+        "dnd5e": {
+          "mechanics": "Restores magical equilibrium"
+        }
+      }
+    }
+  ],
+  "factions": [],
+  "handouts": []
+}
+
+This is a very good stress-test file for CAML, because it exposes exactly where CAML-1.x bends and where CAML-2.0 must become explicit.
+
+I’ll do four things, cleanly and concretely:
+
+Diagnose what this file already does well
+
+Identify the structural problems CAML-2.0 must fix
+
+Show the minimal CAML-2.0 refactor pattern for this module
+
+Explain why this confirms CAML is genuinely innovative
+
+No fluff, no reinvention of lore.
+
+1. What this module already does well (and should preserve)
+
+You are already encoding several advanced adventure-design ideas:
+
+A. Multi-stage causal chain
+
+Village → Temple → Ruins → Lair → Forest → Hermit
+
+This is not a linear dungeon. It is a causal itinerary, which CAML supports better than prose.
+
+B. Multiple epistemic paths
+
+Village gossip
+
+Bard lore
+
+Hermit wisdom
+
+Temple history
+
+Ruins glyphs
+
+This is excellent design and exactly the sort of thing CAML should model explicitly.
+
+C. NPC role fluidity
+
+Gorim seeks redemption
+
+Lira is neutral knowledge broker
+
+Humphrey is a conditional gatekeeper
+
+Malakar is an antagonist and questgiver in one quest
+
+This already pushes beyond static NPCs.
+
+All of that should remain.
+
+2. Structural problems revealed (this is the important part)
+
+Your file reveals systematic CAML-1.x issues. These are not mistakes on your part.
+
+Problem 1: occursAt is wrong in multiple encounters
+
+Example:
+
+{
+  "id": "encounter.ruins_puzzle",
+  "occursAt": "location.eldoria_village",
+  "setup": "Found in the depths of the Ancient Ruins"
+}
+
+
+This creates a contradiction:
+
+Narrative location ≠ mechanical location
+
+Gates reference the wrong spatial state
+
+CAML-2.0 fix
+Encounters do not occur at locations.
+They occur during processes at locations.
+
+Problem 2: Tags are doing state’s job
+
+You are using:
+
+"addTag": "encounter.temple_guardians.defeated"
+
+
+Tags here are acting as:
+
+boolean state
+
+event memory
+
+progression gate
+
+This is semantically overloaded.
+
+CAML-2.0 fix
+Tags become annotations.
+State becomes explicit and queryable.
+
+Problem 3: Quests are first-class objects when they should be derived
+
+Right now:
+
+"type": "Quest"
+
+
+But quests are actually:
+
+bundles of conditions
+
+goal descriptions
+
+narrative overlays
+
+They do not exist in the world the way NPCs or locations do.
+
+CAML-2.0 fix
+Quests are views over state + processes, not entities.
+
+Problem 4: Items restore “magical equilibrium” without modeling equilibrium
+
+Example:
+
+"Relic of Eldoria": {
+  "mechanics": "Restores magical equilibrium"
+}
+
+
+But equilibrium is nowhere represented.
+
+CAML-2.0 fix
+Global conditions must be explicit state variables.
+
+3. Minimal CAML-2.0 refactor pattern
+
+(applied to this module, not abstractly)
+
+I will not rewrite the whole file. Instead, here is the exact pattern you should use throughout CAML-2.0.
+
+A. Global world state
+"state": {
+  "facts": [
+    { "id": "STATE_Relics_Missing", "type": "boolean", "value": true },
+    { "id": "STATE_Magical_Equilibrium", "type": "boolean", "value": false },
+    { "id": "STATE_Necromancer_Alive", "type": "boolean", "value": true }
+  ]
+}
+
+
+This alone fixes half the design ambiguity.
+
+B. Encounter → Process refactor
+
+Instead of:
+
+"type": "Encounter",
+"occursAt": "location.eldoria_village"
+
+
+Use:
+
+"processes": [
+  {
+    "id": "PROC_Ruins_Glyph_Puzzle",
+    "kind": "puzzle",
+    "location": "location.ancient_ruins",
+    "participants": ["PC_Party"],
+    "preconditions": [
+      { "state": "STATE_Relics_Missing", "equals": true }
+    ],
+    "effects": [
+      { "op": "reveal", "target": "Passage_Relic_Chamber" }
+    ]
+  }
+]
+
+C. Quests as projections (not entities)
+
+Instead of storing quests as objects, CAML-2.0 uses:
+
+"quest_views": [
+  {
+    "id": "QUEST_Missing_Relics",
+    "visible_if": [
+      { "state": "STATE_Relics_Missing", "equals": true }
+    ],
+    "satisfied_if": [
+      { "state": "STATE_Relics_Missing", "equals": false }
+    ],
+    "narration": "Investigate the disappearance of Eldoria’s relics."
+  }
+]
+
+
+This solves branching, failure, and alternate completion without rewriting quests.
+
+D. Final resolution (this is the payoff)
+"transitions": [
+  {
+    "id": "TR_Necromancer_Defeated",
+    "caused_by": "PROC_Final_Confrontation",
+    "ops": [
+      { "set": "STATE_Necromancer_Alive", "to": false },
+      { "set": "STATE_Relics_Missing", "to": false },
+      { "set": "STATE_Magical_Equilibrium", "to": true }
+    ]
+  }
+]
+
+
+Now the Relic of Eldoria actually means something.
+
+4. What this proves about CAML (important)
+
+This file demonstrates that:
+
+CAML is innovative because it:
+
+Separates world state from narrative presentation
+
+Treats adventures as state machines with human narration
+
+Allows correspondence play, replay, simulation, and verification
+
+Can be combined with BFO cleanly (roles, dispositions, processes)
+
+CAML adds something homebrew tools do not:
+
+Most tools are storage
+
+CAML is execution-aware
+
+CAML makes adventure logic inspectable, replayable, and portable
+
+Your examples are already strong. CAML-2.0 simply makes explicit what your design is already doing implicitly.

@@ -10057,7 +10057,7 @@ Return your response as a JSON object with these fields:
     }
   });
   
-  // Generate a CAML adventure using AI
+  // Generate a CAML 2.0 adventure using AI
   app.post("/api/caml/generate", isAuthenticated, async (req, res) => {
     try {
       const { 
@@ -10071,68 +10071,109 @@ Return your response as a JSON object with these fields:
         includePuzzles
       } = req.body;
       
-      const prompt = `You are a D&D adventure designer. Generate a COMPLETE adventure module in JSON format.
-
-CRITICAL: You MUST populate ALL arrays with actual content. Empty arrays are NOT acceptable.
-
-Generate an adventure with these specifications:
+      const adventureId = `adventure.${(title || 'adventure').toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+      const timestamp = new Date().toISOString();
+      
+      const prompt = `Generate a CAML 2.0 D&D 5e adventure with these specifications:
 - Title: ${title || 'The Lost Temple'}
 - Theme: ${theme || 'exploration and mystery'}
 - Setting: ${setting || 'fantasy dungeon'}
 - Level range: ${minLevel || 1} to ${maxLevel || 5}
-- Number of encounters: ${encounterCount || 5}
-${includeQuests ? '- Include 2-3 quests with clear objectives and rewards' : ''}
-${includePuzzles ? '- Include 1-2 puzzle/trap encounters' : ''}
 
-YOU MUST INCLUDE:
-1. EXACTLY 5 locations with connections between them
-2. EXACTLY 4 NPCs (mix of friendly and hostile)
-3. EXACTLY ${encounterCount || 5} encounters (combat, social, exploration mix)
-4. EXACTLY 3 items/treasures
-5. EXACTLY 2 quests with objectives
+CAML 2.0 ONTOLOGICAL RULES (you MUST follow these):
+1. NPC "attitude" is a STATE FACT in state.facts, NEVER a character property
+2. Encounters are PROCESSES in processes.catalog with timeboxes, NEVER static encounter objects
+3. Quests are expressed via QuestGiver ROLES + state facts, NEVER as quest objects
+4. All state changes happen through TRANSITIONS caused by PROCESSES
+5. world.entities.characters have ONLY intrinsic properties (species, class, statblock), NEVER mutable ones
 
-Return this exact JSON structure with ALL arrays populated:
+REQUIRED CONTENT:
+- 5 unique locations (LOC_Entrance, LOC_Hall, etc.) connected logically
+- 4 NPCs: 2 allies (neutral/friendly attitude), 2 enemies (hostile attitude, with active=true state)
+- 1 hidden location with discovered=false state
+- ${encounterCount || 3} processes: mix of combat, social, puzzle, exploration types
+- 3 items with rarity
+- At least 2 QuestGiver role assignments
+- At least 1 Guardian role with revocation condition
+- ${encounterCount || 3} transitions showing outcomes (defeat enemy -> active=false, etc.)
+- 2 snapshots: initial + victory
 
+OUTPUT FORMAT (expand with creative content):
 {
-  "id": "adventure.${Date.now()}",
-  "type": "AdventureModule",
-  "title": "${title || 'The Lost Temple'}",
-  "synopsis": "Adventure synopsis here",
-  "minLevel": ${minLevel || 1},
-  "maxLevel": ${maxLevel || 5},
-  "setting": "${setting || 'fantasy dungeon'}",
-  "hooks": ["Hook 1", "Hook 2"],
-  "locations": [
-    {"id": "location.area1", "type": "Location", "name": "Name", "description": "Description", "connections": [{"direction": "north", "target": "location.area2"}], "encounters": [], "npcs": []}
-  ],
-  "npcs": [
-    {"id": "npc.character1", "type": "NPC", "name": "Name", "description": "Description", "race": "Race", "class": "Class", "alignment": "Alignment", "attitude": "friendly", "statblock": {"ac": 14, "hp": 30, "cr": "1"}}
-  ],
-  "encounters": [
-    {"id": "encounter.event1", "type": "Encounter", "name": "Name", "description": "Description", "encounterType": "combat", "difficulty": "medium", "enemies": [], "rewards": {"xp": 100, "gold": 25}}
-  ],
-  "quests": [
-    {"id": "quest.main1", "type": "Quest", "name": "Name", "description": "Description", "objectives": [{"id": "obj1", "description": "Objective"}], "rewards": {"xp": 200, "gold": 50}}
-  ],
-  "items": [
-    {"id": "item.treasure1", "type": "Item", "name": "Name", "description": "Description", "itemType": "wondrous", "rarity": "uncommon"}
-  ]
+  "caml_version": "2.0",
+  "meta": {
+    "id": "${adventureId}",
+    "title": "${title || 'The Lost Temple'}",
+    "created_utc": "${timestamp}",
+    "authors": ["Everdice DM Toolkit"],
+    "tags": ["fantasy", "${theme || 'mystery'}"],
+    "levels": { "min": ${minLevel || 1}, "max": ${maxLevel || 5} }
+  },
+  "world": {
+    "entities": {
+      "characters": [
+        { "id": "PC_Party", "kind": "character", "pc": true },
+        // ADD 4 NPCs with unique IDs, names, species, class, description
+      ],
+      "locations": [
+        // ADD 5 locations with unique IDs, names, descriptions, tags, features
+      ],
+      "items": [
+        // ADD 3 items with unique IDs, names, rarity, description
+      ],
+      "factions": []
+    },
+    "connections": [
+      // ADD connections between YOUR locations using their actual IDs
+    ]
+  },
+  "state": {
+    "facts": [
+      // ADD attitude facts for EACH NPC (bearer=NPC ID, type="attitude", value="neutral"|"friendly"|"hostile")
+      // ADD active facts for enemy NPCs (type="active", value=true)
+      // ADD discovered fact for hidden location (type="discovered", value=false)
+    ]
+  },
+  "roles": {
+    "assignments": [
+      // ADD 2 QuestGiver roles with holder=NPC ID and notes describing the quest
+      // ADD 1 Guardian role with revocation condition referencing active state
+    ]
+  },
+  "processes": {
+    "catalog": [
+      // ADD ${encounterCount || 3} processes with type (combat/social/puzzle/exploration)
+      // Each needs: id, type, timebox with label, participants array, location, notes
+    ]
+  },
+  "transitions": {
+    "changes": [
+      // ADD transitions for each process outcome
+      // Each transition updates state facts (e.g., defeat enemy -> active=false)
+    ]
+  },
+  "snapshots": {
+    "timeline": [
+      { "id": "SNAP_Initial", "time_utc": "${timestamp}", "world_hash": "initial", "state_hash": "initial", "roles_hash": "initial", "narration": "Opening scene description" },
+      { "id": "SNAP_Victory", "time_utc": "${timestamp}", "world_hash": "final", "state_hash": "final", "roles_hash": "final", "narration": "Victory description", "derived_from_transition": "TR_your_final_transition" }
+    ]
+  }
 }
 
-IMPORTANT: Replace all placeholders with creative, detailed D&D content. Every array must have multiple entries!`;
+IMPORTANT: All IDs must be consistent - if you create NPC_Guardian, reference NPC_Guardian in state facts, roles, and processes. Use only SRD 5.1 content.`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
           { 
             role: "system", 
-            content: "You are a creative D&D adventure designer. Always generate complete, detailed adventures with all arrays fully populated. Never return empty arrays."
+            content: "You are a CAML 2.0 adventure designer. Generate clean, minimal CAML 2.0 documents with proper ontological separation. Attitude is ALWAYS a state fact, never a character property. Encounters are ALWAYS processes, never static objects. Quests are expressed via QuestGiver roles and state facts, not as quest objects."
           },
           { role: "user", content: prompt }
         ],
         response_format: { type: "json_object" },
         max_tokens: 8000,
-        temperature: 0.8
+        temperature: 0.7
       });
       
       const generatedAdventure = JSON.parse(response.choices[0].message.content || '{}');
@@ -10144,7 +10185,7 @@ IMPORTANT: Replace all placeholders with creative, detailed D&D content. Every a
         json: exportToJSON(generatedAdventure)
       });
     } catch (error) {
-      console.error("Failed to generate CAML adventure:", error);
+      console.error("Failed to generate CAML 2.0 adventure:", error);
       res.status(500).json({ message: "Failed to generate adventure" });
     }
   });

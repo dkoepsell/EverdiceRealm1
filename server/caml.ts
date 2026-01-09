@@ -17,6 +17,7 @@ import type {
   CAMLRoleAssignment,
   CAMLProcessInstance,
   CAMLTransition,
+  CAMLTransitionOp,
   CAMLSnapshot,
   CAMLTimebox,
   CAMLId,
@@ -970,7 +971,7 @@ export function convertCampaignToCAML2(
   // Session transitions (state changes between sessions)
   for (let i = 1; i < sessions.length; i++) {
     const currSession = sessions[i];
-    const ops: Array<{op: string; state_id: string; value: any}> = [];
+    const ops: CAMLTransitionOp[] = [];
     
     // Adventure progress change
     if (currSession.storyState?.adventureProgress) {
@@ -1227,40 +1228,42 @@ export function buildAdventureGraph(doc: CAML2Document): {
 
 export const CAML_AI_PROMPT = `You are generating a CAML 2.0 (Canonical Adventure Markup Language) D&D 5e adventure document.
 
-CAML 2.0 uses ontological layers to separate different aspects of the adventure:
-- world: Characters, locations, items, factions and their static connections
-- state: Status facts that depend on bearers (HP, conditions, attitudes)
-- roles: Revocable role assignments (quest givers, leaders, etc.)
-- processes: Things that happen in time (encounters, conversations, combat)
-- transitions: State changes caused by processes
-- snapshots: Timeline of campaign states
+CAML 2.0 uses ONTOLOGICAL LAYERS (BFO-aligned) to separate:
+- WORLD: Independent continuants (characters, locations, items, factions, connections) - ONLY intrinsic properties
+- STATE: Dependent continuants (mutable facts with bearer, type, value) - attitude, active, discovered, HP
+- ROLES: Revocable role assignments (QuestGiver, Guardian) with revocation conditions
+- PROCESSES: Occurrents (combat, social, puzzle, exploration) with timeboxes and participants
+- TRANSITIONS: State changes CAUSED BY processes - all mutations happen here
+- SNAPSHOTS: Timestamped timeline with narration and derived_from_transition
 
-Generate a complete CAML 2.0 JSON document with:
-1. meta: Adventure metadata (id, title, authors, system)
-2. world.entities: At least 5 characters (mix of PCs and NPCs), 6 locations, 8 items, 2 factions
-3. world.connections: Location connections with modes (road, door, portal, etc.)
-4. state.facts: Initial state facts for characters (HP, attitudes, conditions)
-5. roles.assignments: Quest givers, faction leaders, etc.
-6. processes.catalog: Planned encounters and events
-7. transitions.changes: (can be empty for initial adventure)
-8. snapshots.timeline: Initial snapshot with narration
+CRITICAL CAML 2.0 RULES:
+1. NPC attitude is a STATE FACT (mutable), NOT a character property
+2. Encounters are PROCESSES with participants and timeboxes, NOT static objects
+3. Quests are QuestGiver ROLES + quest_status STATE FACTS, NOT quest objects
+4. All state changes happen through TRANSITIONS caused by PROCESSES
+5. Characters have intrinsic properties (species, class, statblock) but NOT mutable ones (attitude, HP)
+6. Hidden locations have discovered state facts
+7. Guardians have active state facts that get set to false when defeated
+8. Defeating a guardian should unlock access (via transition updating discovered/accessible state)
 
-Use ID patterns like:
+ID patterns:
 - Characters: PC_Name or NPC_Name
-- Locations: LOC_Name
+- Locations: LOC_Name  
 - Items: ITEM_Name
-- Factions: FAC_Name
-- Connections: CONN_#
 - State facts: STATE_bearer_type
 - Roles: ROLE_type_holder
-- Processes: PROC_type_#
-- Snapshots: SNAP_#
+- Processes: PROC_type_location
+- Transitions: TR_description
+- Snapshots: SNAP_description
 
-Ensure all IDs match the pattern: ^[A-Za-z][A-Za-z0-9_\\-:.]{0,127}$
-
+Ensure all IDs match: ^[A-Za-z][A-Za-z0-9_\\-:.]{0,127}$
 The document must be valid JSON with caml_version: "2.0".
 Use only SRD 5.1 content (no proprietary D&D content).
-Include rich descriptions and interconnected elements.`;
+
+Reference examples:
+- caml-2.0/examples/the-lost-temple-history.caml2.json (minimal, clean)
+- caml-2.0/examples/the-lost-temple-whispers.caml2.json (dungeon gating)
+- caml-2.0/examples/whispers-in-the-shadows.caml2.json (multi-quest)`;
 
 // ============================================================================
 // Legacy Compatibility Exports
@@ -1360,7 +1363,7 @@ function convertCAML2ToLegacyPack(doc: CAML2Document): CAML1xAdventurePack {
       alignment: c.alignment,
       abilities: c.abilities,
       statblock: c.statblock,
-      attitude: attitudeLookup.get(c.id) || 'neutral'
+      attitude: (attitudeLookup.get(c.id) || 'neutral') as 'friendly' | 'neutral' | 'hostile'
     })),
     items: doc.world.entities.items.map(i => ({
       id: i.id,
@@ -1383,7 +1386,9 @@ function convertCAML2ToLegacyPack(doc: CAML2Document): CAML1xAdventurePack {
         description: p.notes,
         encounterType: p.type as any,
         occursAt: p.location,
-        enemies: p.participants.filter(part => part.startsWith('NPC_')),
+        enemies: p.participants
+          .filter(part => part.startsWith('NPC_'))
+          .map(npcId => ({ id: npcId, count: 1 })),
         difficulty: undefined,
         rewards: undefined
       })),
