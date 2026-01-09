@@ -6,9 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import CampaignPanel from "@/components/campaign/CampaignPanel";
-import CharacterSheet from "@/components/character/CharacterSheet";
-import CharacterProgress from "@/components/character/CharacterProgress";
-import DiceRoller from "@/components/dice/DiceRoller";
 import CampaignArchiveList from "@/components/campaign/CampaignArchiveList";
 import AdventureHistory from "@/components/adventure/AdventureHistory";
 import QuickStart from "@/components/onboarding/QuickStart";
@@ -16,7 +13,7 @@ import { Character, Campaign } from "@shared/schema";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
 import { getQueryFn, queryClient } from "@/lib/queryClient";
-import { Bookmark, Calendar, Dice5Icon, History, User, Users, Activity, Star, Play, Sparkles } from "lucide-react";
+import { Bookmark, Calendar, History, User, Users, Activity, Star, Play, Sparkles, Sword, Shield, ScrollText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function Dashboard() {
@@ -200,16 +197,37 @@ export default function Dashboard() {
 
   return (
     <div className="pb-16 min-h-screen bg-gradient-to-b from-background to-muted/20">
-      {/* Hero Section - Warm amber gradient design */}
-      <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-10 md:py-14 overflow-hidden">
+      {/* Hero Section - D&D-inspired branded design with Everdice identity */}
+      <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-10 md:py-16 overflow-hidden">
+        {/* Background decorative elements */}
         <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent"></div>
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-1/4 w-64 h-64 bg-orange-500/5 rounded-full blur-2xl"></div>
+        
+        {/* Fantasy decorative icons */}
+        <div className="absolute top-8 right-8 md:right-16 opacity-20">
+          <Sword className="h-16 w-16 md:h-24 md:w-24 text-amber-400 rotate-45" />
+        </div>
+        <div className="absolute top-20 right-24 md:right-48 opacity-15">
+          <Shield className="h-12 w-12 md:h-20 md:w-20 text-amber-300" />
+        </div>
+        <div className="absolute bottom-8 right-12 md:right-32 opacity-10">
+          <ScrollText className="h-14 w-14 md:h-18 md:w-18 text-orange-300" />
+        </div>
+        
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm mb-4">
-              <Activity className="h-3 w-3" />
-              <span>{userStats.onlineUsers} adventurers online</span>
+            {/* Everdice brand mark */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
+                <span className="text-white font-fantasy font-bold text-xl">E</span>
+              </div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
+                <Activity className="h-3 w-3" />
+                <span>{userStats.onlineUsers} adventurers online</span>
+              </div>
             </div>
+            
             <h1 className="text-3xl md:text-4xl font-fantasy font-bold text-white mb-3">
               {user ? `Welcome back, ${user.username}!` : 'Begin Your Adventure'}
             </h1>
@@ -257,7 +275,7 @@ export default function Dashboard() {
       {isMobile && (
         <div className="container mx-auto px-4 py-6">
           <Tabs defaultValue="active-campaign" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="active-campaign" className="flex flex-col items-center text-xs">
                 <Bookmark className="h-4 w-4 mb-1" />
                 Adventure
@@ -269,10 +287,6 @@ export default function Dashboard() {
               <TabsTrigger value="history" className="flex flex-col items-center text-xs">
                 <History className="h-4 w-4 mb-1" />
                 History
-              </TabsTrigger>
-              <TabsTrigger value="dice" className="flex flex-col items-center text-xs">
-                <Dice5Icon className="h-4 w-4 mb-1" />
-                Dice
               </TabsTrigger>
             </TabsList>
             
@@ -375,20 +389,61 @@ export default function Dashboard() {
                     <div className="animate-pulse space-y-4">
                       <div className="h-6 bg-gray-300 rounded w-3/4"></div>
                       <div className="h-40 bg-gray-300 rounded"></div>
-                      <div className="h-6 bg-gray-300 rounded w-1/2"></div>
                     </div>
                   </CardContent>
                 </Card>
               ) : activeCharacter ? (
-                <div className="space-y-4">
-                  <CharacterSheet character={activeCharacter} />
-                </div>
+                <Card className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-900 border-2 border-amber-200 dark:border-amber-800/50">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="font-fantasy text-xl text-amber-900 dark:text-amber-100">{activeCharacter.name}</CardTitle>
+                        <CardDescription className="text-amber-700 dark:text-amber-300">
+                          Level {activeCharacter.level} {activeCharacter.race} {activeCharacter.class}
+                        </CardDescription>
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="text-center px-3 py-1 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                          <p className="text-xs text-red-600 dark:text-red-400">HP</p>
+                          <p className="font-bold text-red-700 dark:text-red-300">{activeCharacter.hitPoints}/{activeCharacter.maxHitPoints}</p>
+                        </div>
+                        <div className="text-center px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                          <p className="text-xs text-blue-600 dark:text-blue-400">AC</p>
+                          <p className="font-bold text-blue-700 dark:text-blue-300">{activeCharacter.armorClass}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-2">
+                    <div className="grid grid-cols-6 gap-2 text-center">
+                      {[
+                        { name: 'STR', value: activeCharacter.strength },
+                        { name: 'DEX', value: activeCharacter.dexterity },
+                        { name: 'CON', value: activeCharacter.constitution },
+                        { name: 'INT', value: activeCharacter.intelligence },
+                        { name: 'WIS', value: activeCharacter.wisdom },
+                        { name: 'CHA', value: activeCharacter.charisma },
+                      ].map(stat => (
+                        <div key={stat.name} className="bg-white/50 dark:bg-slate-700/50 rounded-lg p-2">
+                          <p className="text-xs text-muted-foreground">{stat.name}</p>
+                          <p className="font-bold">{stat.value}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {Math.floor((stat.value - 10) / 2) >= 0 ? '+' : ''}{Math.floor((stat.value - 10) / 2)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <Link href="/characters" className="block mt-4">
+                      <Button variant="outline" className="w-full">View Full Character Sheet</Button>
+                    </Link>
+                  </CardContent>
+                </Card>
               ) : (
                 <Card className="bg-secondary-light rounded-lg shadow-xl overflow-hidden">
                   <CardHeader className="bg-primary p-4">
                     <CardTitle className="font-fantasy text-xl font-bold text-white">Create a Character</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-6 flex flex-col items-center justify-center min-h-[300px]">
+                  <CardContent className="p-6 flex flex-col items-center justify-center min-h-[200px]">
                     <div className="text-center">
                       <p className="text-lg mb-4 text-secondary">No characters found</p>
                       <Link href="/characters">
@@ -403,10 +458,6 @@ export default function Dashboard() {
             <TabsContent value="history" className="mt-4">
               <AdventureHistory />
             </TabsContent>
-            
-            <TabsContent value="dice" className="mt-4">
-              <DiceRoller />
-            </TabsContent>
           </Tabs>
         </div>
       )}
@@ -414,46 +465,64 @@ export default function Dashboard() {
       {/* Desktop Dashboard Content */}
       {!isMobile && (
         <div className="container mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Column: Character Sheet and Dice Roller */}
-            <div className="lg:col-span-1 space-y-6">
-              {/* Character Sheet Panel */}
-              {charactersLoading || campaignsLoading ? (
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="animate-pulse space-y-4">
-                      <div className="h-6 bg-gray-300 rounded w-3/4"></div>
-                      <div className="h-40 bg-gray-300 rounded"></div>
-                      <div className="h-6 bg-gray-300 rounded w-1/2"></div>
+          {/* Character Quick Stats Bar - Compact horizontal display */}
+          {activeCharacter && (
+            <Card className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-900 border-2 border-amber-200 dark:border-amber-800/50">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                      <User className="h-6 w-6 text-white" />
                     </div>
-                  </CardContent>
-                </Card>
-              ) : activeCharacter ? (
-                <CharacterSheet 
-                  character={activeCharacter}
-                />
-              ) : (
-                <Card className="bg-secondary-light rounded-lg shadow-xl overflow-hidden">
-                  <CardHeader className="bg-primary p-4">
-                    <CardTitle className="font-fantasy text-xl font-bold text-white">Character Sheet</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6 flex flex-col items-center justify-center h-[400px]">
-                    <div className="text-center">
-                      <p className="text-lg mb-4 text-secondary">No characters found</p>
-                      <Link href="/characters">
-                        <Button className="bg-primary-light hover:bg-primary-dark text-white">Create Character</Button>
-                      </Link>
+                    <div>
+                      <h3 className="font-fantasy text-lg font-bold text-amber-900 dark:text-amber-100">{activeCharacter.name}</h3>
+                      <p className="text-sm text-amber-700 dark:text-amber-300">
+                        Level {activeCharacter.level} {activeCharacter.race} {activeCharacter.class}
+                      </p>
                     </div>
-                  </CardContent>
-                </Card>
-              )}
-              
-              {/* Dice Roller Component */}
-              <DiceRoller />
-            </div>
-
-            {/* Right Columns */}
-            <div className="lg:col-span-2 space-y-8">
+                  </div>
+                  
+                  <div className="flex items-center gap-6">
+                    {/* Core Stats */}
+                    <div className="flex gap-3">
+                      <div className="text-center px-3 py-1 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                        <p className="text-xs text-red-600 dark:text-red-400">HP</p>
+                        <p className="font-bold text-red-700 dark:text-red-300">{activeCharacter.hitPoints}/{activeCharacter.maxHitPoints}</p>
+                      </div>
+                      <div className="text-center px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                        <p className="text-xs text-blue-600 dark:text-blue-400">AC</p>
+                        <p className="font-bold text-blue-700 dark:text-blue-300">{activeCharacter.armorClass}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Ability Scores - Compact */}
+                    <div className="hidden md:flex gap-2">
+                      {[
+                        { name: 'STR', value: activeCharacter.strength },
+                        { name: 'DEX', value: activeCharacter.dexterity },
+                        { name: 'CON', value: activeCharacter.constitution },
+                        { name: 'INT', value: activeCharacter.intelligence },
+                        { name: 'WIS', value: activeCharacter.wisdom },
+                        { name: 'CHA', value: activeCharacter.charisma },
+                      ].map(stat => (
+                        <div key={stat.name} className="text-center px-2 py-1 bg-white/50 dark:bg-slate-700/50 rounded">
+                          <p className="text-xs text-muted-foreground">{stat.name}</p>
+                          <p className="font-bold text-sm">{stat.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <Link href="/characters">
+                      <Button variant="outline" size="sm">Full Sheet</Button>
+                    </Link>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* Main Adventure Content - Full Width Focus */}
+          <div className="space-y-8">
               {/* Campaign Panel */}
               {campaignsLoading ? (
                 <Card>
@@ -574,7 +643,6 @@ export default function Dashboard() {
                   <CampaignArchiveList />
                 </CardContent>
               </Card>
-            </div>
           </div>
         </div>
       )}

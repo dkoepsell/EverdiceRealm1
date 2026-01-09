@@ -78,7 +78,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Gift,
-  Package
+  Package,
+  Wand2,
+  Map
 } from "lucide-react";
 
 // Import our tabs
@@ -130,16 +132,36 @@ export default function DMToolkit() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      {/* Hero Section */}
+      {/* Hero Section - D&D-inspired branded design */}
       <section className="relative bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 py-8 md:py-12 overflow-hidden">
+        {/* Background decorative elements */}
         <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-blue-500/5 to-transparent"></div>
         <div className="absolute top-0 right-0 w-80 h-80 bg-purple-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-1/4 w-48 h-48 bg-blue-500/5 rounded-full blur-2xl"></div>
+        
+        {/* Fantasy decorative icons */}
+        <div className="absolute top-6 right-8 md:right-16 opacity-15">
+          <BookOpen className="h-14 w-14 md:h-20 md:w-20 text-purple-400" />
+        </div>
+        <div className="absolute top-16 right-20 md:right-40 opacity-10">
+          <Wand2 className="h-10 w-10 md:h-16 md:w-16 text-blue-300 rotate-12" />
+        </div>
+        <div className="absolute bottom-6 right-12 md:right-28 opacity-10">
+          <Map className="h-12 w-12 md:h-16 md:w-16 text-purple-300" />
+        </div>
+        
         <div className="container mx-auto px-4 relative z-10">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm mb-3">
-                <Sparkles className="h-3 w-3" />
-                <span>AI-Powered Tools</span>
+              {/* Everdice DM brand mark */}
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                  <span className="text-white font-fantasy font-bold text-sm">DM</span>
+                </div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm">
+                  <Sparkles className="h-3 w-3" />
+                  <span>AI-Powered Tools</span>
+                </div>
               </div>
               <h1 className="text-2xl md:text-3xl font-fantasy font-bold text-white mb-2">Dungeon Master Toolkit</h1>
               <p className="text-white/60">Everything you need to create epic adventures</p>
