@@ -472,20 +472,33 @@ export function convertCampaignToCAML2(
 ): CAML2Document {
   const now = new Date().toISOString();
   
-  // Create document
+  // Create document with proper CAML 2.0 meta
   const doc = createEmptyCAML2Document(
     `ADV_everdice_${campaign.id}`,
     campaign.title,
     'Everdice'
   );
   
+  // Set meta created_utc
+  doc.meta.created_utc = campaign.createdAt || now;
+  doc.meta.tags = ['fantasy', 'rpg', campaign.difficulty || 'normal'];
+  doc.meta.system = {
+    name: 'D&D 5e SRD',
+    version: '5.1'
+  };
+  
   const latestSession = sessions[sessions.length - 1];
   const storyState = latestSession?.storyState || {};
   
-  // Build characters (PCs and NPCs)
+  // ============================================================================
+  // WORLD LAYER: Independent continuants only (timeless entities)
+  // In CAML 2.0, world entities are stripped of mutable/dynamic attributes
+  // ============================================================================
+  
   const characters: CAMLCharacter[] = [];
   
-  // Add player characters
+  // Add player characters (timeless representation)
+  // Note: statblock and abilities ARE intrinsic (base stats), but current HP/conditions are state
   for (const participant of participants) {
     if (participant.character) {
       const char = participant.character;
@@ -505,7 +518,8 @@ export function convertCampaignToCAML2(
     }
   }
   
-  // Add NPCs
+  // Add NPCs (timeless - attitude is NOT here, it's in state layer)
+  // Note: statblock and abilities ARE intrinsic properties
   for (const npc of npcs) {
     characters.push({
       id: generateCAMLId('NPC', npc.name),
@@ -517,7 +531,9 @@ export function convertCampaignToCAML2(
       class: npc.class,
       level: npc.level,
       alignment: npc.alignment,
+      abilities: npc.abilities,
       statblock: npc.statblock
+      // Note: attitude is a state fact, not an intrinsic property
     });
   }
   
@@ -622,10 +638,14 @@ export function convertCampaignToCAML2(
   }
   doc.world.entities.items = itemList;
   
-  // Build state facts
+  // ============================================================================
+  // STATE LAYER: Dependent continuants (facts that depend on bearers)
+  // In CAML 2.0, all mutable attributes become state facts
+  // ============================================================================
+  
   const facts: CAMLStateFact[] = [];
   
-  // Character HP states
+  // Character HP/XP states (mutable character stats)
   for (const participant of participants) {
     if (participant.character) {
       const charId = generateCAMLId('PC', participant.character.name);
@@ -637,25 +657,93 @@ export function convertCampaignToCAML2(
         units: 'hp'
       });
       facts.push({
+        id: `STATE_${charId}_max_hp`,
+        bearer: charId,
+        type: 'max_hp',
+        value: participant.character.maxHp || 10,
+        units: 'hp'
+      });
+      facts.push({
         id: `STATE_${charId}_xp`,
         bearer: charId,
         type: 'xp',
         value: participant.character.xp || 0,
         units: 'xp'
       });
+      // Character abilities as state (mutable through magic items, etc.)
+      if (participant.character.abilities) {
+        facts.push({
+          id: `STATE_${charId}_abilities`,
+          bearer: charId,
+          type: 'abilities',
+          value: participant.character.abilities
+        });
+      }
     }
   }
   
-  // NPC attitude states
+  // NPC attitude states - THIS IS THE KEY CAML 2.0 CHANGE
+  // Attitude is NOT an intrinsic property but a state fact that can change
   for (const npc of npcs) {
     const npcId = generateCAMLId('NPC', npc.name);
-    if (npc.attitude) {
-      facts.push({
-        id: `STATE_${npcId}_attitude`,
-        bearer: npcId,
-        type: 'attitude',
-        value: npc.attitude
+    facts.push({
+      id: `STATE_${npcId}_attitude`,
+      bearer: npcId,
+      type: 'attitude',
+      value: npc.attitude || 'neutral'
+    });
+    // NPC active/alive status
+    facts.push({
+      id: `STATE_${npcId}_active`,
+      bearer: npcId,
+      type: 'active',
+      value: true
+    });
+  }
+  
+  // Quest states - quests in CAML 2.0 are state facts, not objects
+  for (const quest of quests) {
+    const questId = generateCAMLId('QUEST', quest.title || `quest_${quest.id}`);
+    facts.push({
+      id: `STATE_${questId}_status`,
+      bearer: doc.meta.id,
+      type: 'quest_status',
+      value: quest.status || 'active'
+    });
+    // Quest objectives as individual state facts
+    if (quest.objectives && Array.isArray(quest.objectives)) {
+      quest.objectives.forEach((obj: any, i: number) => {
+        facts.push({
+          id: `STATE_${questId}_obj_${i}`,
+          bearer: doc.meta.id,
+          type: 'objective_complete',
+          value: obj.completed || false
+        });
       });
+    }
+  }
+  
+  // Location states (doors sealed, traps active, etc.)
+  if (dungeonMap?.mapData?.rooms) {
+    for (const room of dungeonMap.mapData.rooms) {
+      const roomId = locationIdMap.get(room.name || `Room ${room.id}`) || 
+                     generateCAMLId('LOC', `dungeon_${room.id}`);
+      if (room.locked || room.sealed) {
+        facts.push({
+          id: `STATE_${roomId}_sealed`,
+          bearer: roomId,
+          type: 'sealed',
+          value: true
+        });
+      }
+      if (room.explored !== undefined) {
+        facts.push({
+          id: `STATE_${roomId}_explored`,
+          bearer: roomId,
+          type: 'explored',
+          value: room.explored || false
+        });
+      }
     }
   }
   
@@ -671,31 +759,69 @@ export function convertCampaignToCAML2(
   
   doc.state.facts = facts;
   
-  // Build role assignments for quest givers
+  // ============================================================================
+  // ROLES LAYER: Revocable role assignments
+  // In CAML 2.0, roles can be granted and revoked via transitions
+  // ============================================================================
+  
   const assignments: CAMLRoleAssignment[] = [];
+  
+  // Quest givers
   for (const quest of quests) {
     if (quest.givenBy || quest.questGiver) {
       const npc = npcs.find(n => n.name === quest.givenBy || n.id === quest.questGiver);
       if (npc) {
+        const npcId = generateCAMLId('NPC', npc.name);
         assignments.push({
           id: generateCAMLId('ROLE', `questgiver_${quest.title}`),
           role: 'QuestGiver',
-          holder: generateCAMLId('NPC', npc.name),
-          notes: `Gives quest: ${quest.title}`
+          holder: npcId,
+          notes: `Gives quest: ${quest.title}`,
+          revocation: {
+            any: [
+              { lhs: `state[STATE_${npcId}_active].value`, op: '==', rhs: false }
+            ]
+          }
         });
       }
     }
   }
+  
+  // Guardian roles (NPCs that guard locations)
+  for (const npc of npcs) {
+    if (npc.role === 'guardian' || npc.type === 'guardian' || 
+        (npc.description && npc.description.toLowerCase().includes('guard'))) {
+      const npcId = generateCAMLId('NPC', npc.name);
+      assignments.push({
+        id: generateCAMLId('ROLE', `guardian_${npc.name}`),
+        role: 'Guardian',
+        holder: npcId,
+        revocation: {
+          any: [
+            { lhs: `state[STATE_${npcId}_active].value`, op: '==', rhs: false }
+          ]
+        }
+      });
+    }
+  }
+  
   doc.roles.assignments = assignments;
   
-  // Build processes from sessions
+  // ============================================================================
+  // PROCESSES LAYER: Occurrents (things that happen in time)
+  // In CAML 2.0, encounters/combats/puzzles are processes, not static objects
+  // ============================================================================
+  
   const catalog: CAMLProcessInstance[] = [];
+  let processIndex = 0;
+  
+  // Session processes (gameplay sessions as processes)
   for (const session of sessions) {
     const timebox: CAMLTimebox = {
       id: `TB_session_${session.id}`,
       start_utc: session.createdAt || now,
       end_utc: session.endedAt || now,
-      label: session.title || `Session ${session.sessionNumber}`
+      label: session.title || `Chapter ${session.sessionNumber}`
     };
     
     const participants_refs = participants.map(p => 
@@ -713,9 +839,36 @@ export function convertCampaignToCAML2(
         : undefined,
       notes: `Chapter ${session.sessionNumber}: ${session.title || 'Untitled'}`
     });
+    processIndex++;
   }
   
-  // Add combat processes
+  // Convert encounters to processes (KEY CAML 2.0 CHANGE)
+  // In CAML 1.x, encounters were listed as static objects under locations
+  // In CAML 2.0, encounters are processes with timeboxes
+  if (storyState.encounters) {
+    for (const enc of storyState.encounters) {
+      const encId = generateCAMLId('PROC', `encounter_${processIndex}`);
+      catalog.push({
+        id: encId,
+        type: enc.type || 'combat',
+        timebox: {
+          id: `TB_enc_${processIndex}`,
+          start_utc: enc.startedAt || now,
+          end_utc: enc.endedAt || now,
+          label: enc.name || `Encounter ${processIndex}`
+        },
+        participants: [
+          ...participants.map(p => generateCAMLId('PC', p.character?.name || `Player${p.id}`)),
+          ...(enc.enemies || []).map((e: any, i: number) => generateCAMLId('NPC', e.name || `Enemy${i}`))
+        ],
+        location: enc.location ? locationIdMap.get(enc.location) || startLocId : startLocId,
+        notes: enc.description || 'An encounter'
+      });
+      processIndex++;
+    }
+  }
+  
+  // Current combat as a process
   if (storyState.combatants && storyState.combatants.length > 0) {
     catalog.push({
       id: 'PROC_current_combat',
@@ -726,58 +879,240 @@ export function convertCampaignToCAML2(
         end_utc: now,
         label: 'Current Combat'
       },
-      participants: storyState.combatants.map((c: any, i: number) => 
-        generateCAMLId('NPC', c.name || `Enemy${i}`)
-      ),
+      participants: [
+        ...participants.map(p => generateCAMLId('PC', p.character?.name || `Player${p.id}`)),
+        ...storyState.combatants.map((c: any, i: number) => 
+          generateCAMLId('NPC', c.name || `Enemy${i}`)
+        )
+      ],
       location: startLocId,
       notes: 'Ongoing combat encounter'
     });
+    processIndex++;
+  }
+  
+  // Quest objectives as processes (completing objectives is a process)
+  for (const quest of quests) {
+    if (quest.status === 'completed') {
+      const questId = generateCAMLId('QUEST', quest.title || `quest_${quest.id}`);
+      catalog.push({
+        id: `PROC_quest_complete_${questId}`,
+        type: 'quest_completion',
+        timebox: {
+          id: `TB_quest_${questId}`,
+          start_utc: quest.completedAt || now,
+          end_utc: quest.completedAt || now,
+          label: `Quest Completed: ${quest.title}`
+        },
+        participants: participants.map(p => 
+          generateCAMLId('PC', p.character?.name || `Player${p.id}`)
+        ),
+        outcomes: [
+          `XP: ${quest.xpReward || 100}`,
+          `Gold: ${quest.goldReward || 0}`
+        ],
+        notes: `Completed quest: ${quest.title}`
+      });
+      processIndex++;
+    }
+  }
+  
+  // Trap/puzzle processes from dungeon map
+  if (dungeonMap?.mapData?.rooms) {
+    for (const room of dungeonMap.mapData.rooms) {
+      if (room.trap) {
+        catalog.push({
+          id: `PROC_trap_${room.id}`,
+          type: 'trap',
+          timebox: {
+            id: `TB_trap_${room.id}`,
+            start_utc: now,
+            end_utc: now,
+            label: `Trap: ${room.trap.name || 'Hidden Trap'}`
+          },
+          participants: [],
+          location: locationIdMap.get(room.name || `Room ${room.id}`) || 
+                    generateCAMLId('LOC', `dungeon_${room.id}`),
+          notes: room.trap.description || 'A dangerous trap'
+        });
+        processIndex++;
+      }
+      if (room.puzzle) {
+        catalog.push({
+          id: `PROC_puzzle_${room.id}`,
+          type: 'puzzle',
+          timebox: {
+            id: `TB_puzzle_${room.id}`,
+            start_utc: now,
+            end_utc: now,
+            label: `Puzzle: ${room.puzzle.name || 'Ancient Puzzle'}`
+          },
+          participants: [],
+          location: locationIdMap.get(room.name || `Room ${room.id}`) || 
+                    generateCAMLId('LOC', `dungeon_${room.id}`),
+          notes: room.puzzle.description || 'A challenging puzzle'
+        });
+        processIndex++;
+      }
+    }
   }
   
   doc.processes.catalog = catalog;
   
-  // Build transitions (one per session for state changes)
+  // ============================================================================
+  // TRANSITIONS LAYER: State changes caused by processes
+  // In CAML 2.0, all state changes must occur through explicit transitions
+  // ============================================================================
+  
   const changes: CAMLTransition[] = [];
+  let transitionIndex = 0;
+  
+  // Session transitions (state changes between sessions)
   for (let i = 1; i < sessions.length; i++) {
-    const prevSession = sessions[i - 1];
     const currSession = sessions[i];
+    const ops: Array<{op: string; state_id: string; value: any}> = [];
+    
+    // Adventure progress change
+    if (currSession.storyState?.adventureProgress) {
+      ops.push({
+        op: 'update_state',
+        state_id: 'STATE_adventure_progress',
+        value: currSession.storyState.adventureProgress
+      });
+    }
+    
+    // XP changes for characters
+    for (const participant of participants) {
+      if (participant.character) {
+        const charId = generateCAMLId('PC', participant.character.name);
+        ops.push({
+          op: 'update_state',
+          state_id: `STATE_${charId}_xp`,
+          value: participant.character.xp || 0
+        });
+      }
+    }
     
     changes.push({
       id: `TR_session_${currSession.id}`,
       caused_by: `PROC_session_${currSession.id}`,
-      ops: [{
-        op: 'update_state',
-        state_id: 'STATE_adventure_progress',
-        value: currSession.storyState?.adventureProgress || {}
-      }],
-      notes: `State changes from session ${i}`
+      ops,
+      notes: `State changes from Chapter ${i}`
     });
+    transitionIndex++;
   }
+  
+  // Quest completion transitions
+  for (const quest of quests) {
+    if (quest.status === 'completed') {
+      const questId = generateCAMLId('QUEST', quest.title || `quest_${quest.id}`);
+      changes.push({
+        id: `TR_quest_complete_${questId}`,
+        caused_by: `PROC_quest_complete_${questId}`,
+        ops: [
+          {
+            op: 'update_state',
+            state_id: `STATE_${questId}_status`,
+            value: 'completed'
+          }
+        ],
+        notes: `Quest completed: ${quest.title}`
+      });
+      transitionIndex++;
+    }
+  }
+  
+  // Combat/encounter outcome transitions
+  if (storyState.defeatedEnemies) {
+    for (const enemy of storyState.defeatedEnemies) {
+      const npcId = generateCAMLId('NPC', enemy.name || 'Unknown');
+      changes.push({
+        id: `TR_defeat_${npcId}`,
+        caused_by: 'PROC_current_combat',
+        ops: [
+          {
+            op: 'update_state',
+            state_id: `STATE_${npcId}_active`,
+            value: false
+          }
+        ],
+        notes: `${enemy.name} was defeated`
+      });
+      transitionIndex++;
+    }
+  }
+  
+  // Location state transitions (doors unsealed, areas explored)
+  if (storyState.exploredLocations) {
+    for (const locName of storyState.exploredLocations) {
+      const locId = locationIdMap.get(locName);
+      if (locId) {
+        changes.push({
+          id: `TR_explore_${locId}`,
+          caused_by: catalog[0]?.id || `PROC_session_1`,
+          ops: [
+            {
+              op: 'update_state',
+              state_id: `STATE_${locId}_explored`,
+              value: true
+            }
+          ],
+          notes: `${locName} was explored`
+        });
+        transitionIndex++;
+      }
+    }
+  }
+  
   doc.transitions.changes = changes;
   
-  // Build snapshots timeline
+  // ============================================================================
+  // SNAPSHOTS LAYER: Timestamped timeline for audit and replay
+  // Each snapshot captures the state at a point in time
+  // ============================================================================
+  
   const timeline: CAMLSnapshot[] = [];
+  
+  // Initial snapshot
+  timeline.push({
+    id: 'SNAP_initial',
+    time_utc: campaign.createdAt || now,
+    world_hash: 'initial',
+    state_hash: 'initial',
+    roles_hash: 'initial',
+    narration: campaign.description || `${campaign.title} begins.`
+  });
+  
+  // Session snapshots with narration
   for (const session of sessions) {
+    const transitionRef = session.sessionNumber > 1 ? `TR_session_${session.id}` : undefined;
     timeline.push({
       id: `SNAP_session_${session.id}`,
       time_utc: session.createdAt || now,
       world_hash: 'computed',
       state_hash: 'computed',
       roles_hash: 'computed',
-      narration: session.storyState?.currentNarrative?.slice(0, 500) || `Chapter ${session.sessionNumber}`,
-      derived_from_transition: session.id > 1 ? `TR_session_${session.id}` : undefined
+      narration: session.storyState?.currentNarrative?.slice(0, 500) || 
+                 session.title || 
+                 `Chapter ${session.sessionNumber}`,
+      derived_from_transition: transitionRef
     });
   }
   
-  if (timeline.length === 0) {
-    timeline.push({
-      id: 'SNAP_0',
-      time_utc: now,
-      world_hash: 'initial',
-      state_hash: 'initial',
-      roles_hash: 'initial',
-      narration: campaign.description || 'Campaign begins.'
-    });
+  // Quest completion snapshots
+  for (const quest of quests) {
+    if (quest.status === 'completed') {
+      const questId = generateCAMLId('QUEST', quest.title || `quest_${quest.id}`);
+      timeline.push({
+        id: `SNAP_quest_${questId}`,
+        time_utc: quest.completedAt || now,
+        world_hash: 'computed',
+        state_hash: 'computed',
+        roles_hash: 'computed',
+        narration: `Quest "${quest.title}" has been completed.`,
+        derived_from_transition: `TR_quest_complete_${questId}`
+      });
+    }
   }
   
   doc.snapshots.timeline = timeline;
@@ -975,6 +1310,18 @@ export function parseCAMLJson(content: string): CAML1xAdventurePack | null {
 }
 
 function convertCAML2ToLegacyPack(doc: CAML2Document): CAML1xAdventurePack {
+  // Build attitude lookup from state facts (CAML 2.0 stores attitude as state)
+  const attitudeLookup = new Map<string, string>();
+  for (const fact of doc.state.facts) {
+    if (fact.type === 'attitude') {
+      attitudeLookup.set(fact.bearer, String(fact.value));
+    }
+  }
+  
+  // Extract quests from state facts and roles (CAML 2.0 expresses quests via state/roles)
+  const questFacts = doc.state.facts.filter(f => f.type === 'quest_status');
+  const questGivers = doc.roles.assignments.filter(r => r.role === 'QuestGiver');
+  
   const adventure: CAML1xAdventureModule = {
     id: doc.meta.id,
     type: 'AdventureModule',
@@ -1000,6 +1347,7 @@ function convertCAML2ToLegacyPack(doc: CAML2Document): CAML1xAdventurePack {
           target: c.to
         }))
     })),
+    // NPCs with attitude extracted from state facts
     npcs: doc.world.entities.characters.filter(c => !c.pc).map(c => ({
       id: c.id,
       type: 'NPC' as const,
@@ -1011,7 +1359,8 @@ function convertCAML2ToLegacyPack(doc: CAML2Document): CAML1xAdventurePack {
       level: c.level,
       alignment: c.alignment,
       abilities: c.abilities,
-      statblock: c.statblock
+      statblock: c.statblock,
+      attitude: attitudeLookup.get(c.id) || 'neutral'
     })),
     items: doc.world.entities.items.map(i => ({
       id: i.id,
@@ -1023,26 +1372,58 @@ function convertCAML2ToLegacyPack(doc: CAML2Document): CAML1xAdventurePack {
       rarity: i.rarity,
       properties: i.properties
     })),
+    // Encounters from combat/encounter processes
     encounters: doc.processes.catalog
-      .filter(p => p.type.includes('combat') || p.type.includes('encounter'))
+      .filter(p => p.type === 'combat' || p.type === 'encounter' || 
+                   p.type === 'trap' || p.type === 'puzzle')
       .map(p => ({
         id: p.id,
         type: 'Encounter' as const,
         name: p.timebox.label || p.id,
         description: p.notes,
         encounterType: p.type as any,
-        occursAt: p.location
+        occursAt: p.location,
+        enemies: p.participants.filter(part => part.startsWith('NPC_')),
+        difficulty: undefined,
+        rewards: undefined
       })),
-    quests: doc.processes.catalog
-      .filter(p => p.type.includes('quest') || p.type.includes('objective') || p.type.includes('task'))
-      .map(p => ({
-        id: p.id,
-        type: 'Quest' as const,
-        name: p.timebox.label || p.id,
-        description: p.notes,
-        objectives: p.inputs?.map(i => i.note || i.ref) || [],
-        rewards: { xp: 100 }
-      })),
+    // Quests reconstructed from state facts, roles, AND quest_completion processes
+    quests: [
+      // Active quests from state facts
+      ...questFacts.map(qf => {
+        const questIdParts = qf.id.split('_');
+        const questId = questIdParts.slice(1, -1).join('_');
+        const giver = questGivers.find(g => g.notes?.includes(questId));
+        const objectiveFacts = doc.state.facts.filter(f => 
+          f.id.startsWith(`STATE_${questId}_obj_`)
+        );
+        return {
+          id: questId,
+          type: 'Quest' as const,
+          name: questId.replace(/_/g, ' '),
+          description: giver?.notes || '',
+          objectives: objectiveFacts.map((of, i) => ({
+            id: of.id,
+            description: `Objective ${i + 1}`,
+            completed: of.value === true
+          })),
+          rewards: { xp: 100, gold: 0 },
+          status: String(qf.value)
+        };
+      }),
+      // Completed quests from quest_completion processes
+      ...doc.processes.catalog
+        .filter(p => p.type === 'quest_completion')
+        .map(p => ({
+          id: p.id,
+          type: 'Quest' as const,
+          name: p.timebox.label || p.id,
+          description: p.notes,
+          objectives: [],
+          rewards: { xp: 100 },
+          status: 'completed'
+        }))
+    ],
     factions: doc.world.entities.factions.map(f => ({
       id: f.id,
       type: 'Faction' as const,
@@ -1052,7 +1433,7 @@ function convertCAML2ToLegacyPack(doc: CAML2Document): CAML1xAdventurePack {
     })),
     initialState: Object.fromEntries(
       doc.state.facts
-        .filter(f => f.bearer === doc.meta.id)
+        .filter(f => f.bearer === doc.meta.id && !f.type.startsWith('quest'))
         .map(f => [f.type, f.value])
     )
   };
