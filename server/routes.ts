@@ -10074,100 +10074,113 @@ Return your response as a JSON object with these fields:
       const adventureId = `adventure.${(title || 'adventure').toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
       const timestamp = new Date().toISOString();
       
-      const prompt = `Generate a CAML 2.0 D&D 5e adventure with these specifications:
+      const prompt = `Generate a complete CAML 2.0 D&D 5e adventure with ORIGINAL content.
+
+ADVENTURE TO CREATE:
+- ID: ${adventureId}
 - Title: ${title || 'The Lost Temple'}
 - Theme: ${theme || 'exploration and mystery'}
 - Setting: ${setting || 'fantasy dungeon'}
-- Level range: ${minLevel || 1} to ${maxLevel || 5}
+- Levels: ${minLevel || 1}-${maxLevel || 5}
+- Timestamp: ${timestamp}
 
-CAML 2.0 ONTOLOGICAL RULES (you MUST follow these):
-1. NPC "attitude" is a STATE FACT in state.facts, NEVER a character property
-2. Encounters are PROCESSES in processes.catalog with timeboxes, NEVER static encounter objects
-3. Quests are expressed via QuestGiver ROLES + state facts, NEVER as quest objects
-4. All state changes happen through TRANSITIONS caused by PROCESSES
-5. world.entities.characters have ONLY intrinsic properties (species, class, statblock), NEVER mutable ones
-
-REQUIRED CONTENT:
-- 5 unique locations (LOC_Entrance, LOC_Hall, etc.) connected logically
-- 4 NPCs: 2 allies (neutral/friendly attitude), 2 enemies (hostile attitude, with active=true state)
-- 1 hidden location with discovered=false state
-- ${encounterCount || 3} processes: mix of combat, social, puzzle, exploration types
+REQUIREMENTS:
+- 5 unique locations with logical connections
+- 4-5 NPCs (mix of allies and enemies) with ORIGINAL names
 - 3 items with rarity
-- At least 2 QuestGiver role assignments
-- At least 1 Guardian role with revocation condition
-- ${encounterCount || 3} transitions showing outcomes (defeat enemy -> active=false, etc.)
-- 2 snapshots: initial + victory
+- ${encounterCount || 3} processes (combat/social/puzzle/exploration mix)
+- 1 hidden location requiring discovery
+- All IDs must use YOUR adventure's names, not example names
 
-OUTPUT FORMAT (expand with creative content):
+CAML 2.0 JSON STRUCTURE (generate with your unique content):
+
 {
   "caml_version": "2.0",
-  "meta": {
-    "id": "${adventureId}",
-    "title": "${title || 'The Lost Temple'}",
-    "created_utc": "${timestamp}",
-    "authors": ["Everdice DM Toolkit"],
-    "tags": ["fantasy", "${theme || 'mystery'}"],
-    "levels": { "min": ${minLevel || 1}, "max": ${maxLevel || 5} }
-  },
+  "meta": { "id": "${adventureId}", "title": "${title || 'The Lost Temple'}", "created_utc": "${timestamp}", "authors": ["Everdice DM Toolkit"], "tags": ["fantasy"], "levels": {"min": ${minLevel || 1}, "max": ${maxLevel || 5}} },
   "world": {
     "entities": {
       "characters": [
-        { "id": "PC_Party", "kind": "character", "pc": true },
-        // ADD 4 NPCs with unique IDs, names, species, class, description
+        {"id": "PC_Party", "kind": "character", "pc": true},
+        {"id": "NPC_<YourUniqueName>", "kind": "character", "name": "<FullName>", "species": "<Species>", "class": "<Class>", "description": "<Description>"}
       ],
       "locations": [
-        // ADD 5 locations with unique IDs, names, descriptions, tags, features
+        {"id": "LOC_<YourName>", "kind": "location", "name": "<FullName>", "description": "<Description>", "tags": ["dungeon"], "features": ["<Feature>"]}
       ],
       "items": [
-        // ADD 3 items with unique IDs, names, rarity, description
+        {"id": "ITEM_<YourName>", "kind": "item", "name": "<FullName>", "rarity": "<uncommon|rare|legendary>", "description": "<Description>"}
       ],
       "factions": []
     },
     "connections": [
-      // ADD connections between YOUR locations using their actual IDs
+      {"id": "CONN_1", "from": "LOC_<YourLoc1>", "to": "LOC_<YourLoc2>", "mode": "<door|hall|stairs|concealed>"}
     ]
   },
   "state": {
     "facts": [
-      // ADD attitude facts for EACH NPC (bearer=NPC ID, type="attitude", value="neutral"|"friendly"|"hostile")
-      // ADD active facts for enemy NPCs (type="active", value=true)
-      // ADD discovered fact for hidden location (type="discovered", value=false)
+      {"id": "STATE_<NPCName>_Attitude", "bearer": "NPC_<NPCName>", "type": "attitude", "value": "<friendly|neutral|hostile>"},
+      {"id": "STATE_<EnemyName>_Active", "bearer": "NPC_<EnemyName>", "type": "active", "value": true},
+      {"id": "STATE_<HiddenLoc>_Discovered", "bearer": "LOC_<HiddenLoc>", "type": "discovered", "value": false},
+      {"id": "STATE_Quest_Main_Status", "bearer": "${adventureId}", "type": "quest_status", "value": "active"}
     ]
   },
   "roles": {
     "assignments": [
-      // ADD 2 QuestGiver roles with holder=NPC ID and notes describing the quest
-      // ADD 1 Guardian role with revocation condition referencing active state
+      {"id": "ROLE_QuestGiver_Main", "role": "QuestGiver", "holder": "NPC_<YourQuestGiver>", "revocation": {"any": []}, "notes": "<QuestDescription>"},
+      {"id": "ROLE_Guardian_<Name>", "role": "Guardian", "holder": "NPC_<YourEnemy>", "revocation": {"any": [{"lhs": "state[STATE_<EnemyName>_Active].value", "op": "==", "rhs": false}]}}
     ]
   },
   "processes": {
     "catalog": [
-      // ADD ${encounterCount || 3} processes with type (combat/social/puzzle/exploration)
-      // Each needs: id, type, timebox with label, participants array, location, notes
+      {"id": "PROC_<Type>_<Loc>", "type": "<combat|social|puzzle|exploration>", "timebox": {"id": "TB_1", "label": "<Title>"}, "participants": ["PC_Party", "NPC_<YourNPC>"], "location": "LOC_<YourLoc>", "notes": "<Description>"}
     ]
   },
   "transitions": {
     "changes": [
-      // ADD transitions for each process outcome
-      // Each transition updates state facts (e.g., defeat enemy -> active=false)
+      {"id": "TR_<Description>", "caused_by": "PROC_<YourProcess>", "ops": [{"op": "update_state", "state_id": "STATE_<YourState>", "value": <newValue>}]}
     ]
   },
   "snapshots": {
     "timeline": [
-      { "id": "SNAP_Initial", "time_utc": "${timestamp}", "world_hash": "initial", "state_hash": "initial", "roles_hash": "initial", "narration": "Opening scene description" },
-      { "id": "SNAP_Victory", "time_utc": "${timestamp}", "world_hash": "final", "state_hash": "final", "roles_hash": "final", "narration": "Victory description", "derived_from_transition": "TR_your_final_transition" }
+      {"id": "SNAP_Initial", "time_utc": "${timestamp}", "world_hash": "initial", "state_hash": "initial", "roles_hash": "initial", "narration": "<OpeningScene>"},
+      {"id": "SNAP_Victory", "time_utc": "${timestamp}", "world_hash": "final", "state_hash": "final", "roles_hash": "final", "narration": "<VictoryScene>", "derived_from_transition": "TR_<YourFinalTransition>"}
     ]
   }
 }
 
-IMPORTANT: All IDs must be consistent - if you create NPC_Guardian, reference NPC_Guardian in state facts, roles, and processes. Use only SRD 5.1 content.`;
+CRITICAL RULES:
+1. Replace ALL <Placeholders> with your ORIGINAL creative content
+2. meta.id MUST be "${adventureId}" and meta.title MUST be "${title || 'The Lost Temple'}"
+3. STATE_Quest_Main_Status bearer MUST be "${adventureId}"
+4. NO "attitude" property on NPCs - attitude is ONLY in state.facts
+5. All IDs must cross-reference correctly (NPC_Wizard in state.facts must exist in world.entities.characters)
+6. Use only SRD 5.1 content`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
           { 
             role: "system", 
-            content: "You are a CAML 2.0 adventure designer. Generate clean, minimal CAML 2.0 documents with proper ontological separation. Attitude is ALWAYS a state fact, never a character property. Encounters are ALWAYS processes, never static objects. Quests are expressed via QuestGiver roles and state facts, not as quest objects."
+            content: `You are a CAML 2.0 adventure designer. CAML 2.0 is NOT CAML 1.x.
+
+CAML 2.0 MANDATORY STRUCTURE:
+- Root must have "caml_version": "2.0" (NOT "type": "AdventureModule")
+- NPCs go in world.entities.characters WITHOUT attitude property
+- Attitudes are in state.facts as {bearer, type: "attitude", value}
+- Encounters are in processes.catalog as processes with timeboxes
+- Quests are expressed via roles.assignments (QuestGiver) + state.facts (quest_status)
+- All changes occur via transitions.changes caused by processes
+
+NEVER generate:
+- "type": "AdventureModule"
+- "encounters": [...] array at root
+- "quests": [...] array at root  
+- "attitude": "neutral" on NPC objects
+
+ALWAYS generate:
+- "caml_version": "2.0"
+- state.facts for EVERY NPC's attitude
+- processes.catalog for encounters
+- transitions.changes for state mutations`
           },
           { role: "user", content: prompt }
         ],
@@ -10178,9 +10191,67 @@ IMPORTANT: All IDs must be consistent - if you create NPC_Guardian, reference NP
       
       const generatedAdventure = JSON.parse(response.choices[0].message.content || '{}');
       
+      // Validate it's proper CAML 2.0 format
+      const hasCAML2Structure = generatedAdventure.caml_version === '2.0' && 
+                      generatedAdventure.world?.entities && 
+                      generatedAdventure.state?.facts &&
+                      generatedAdventure.processes?.catalog;
+      
+      const hasCAML1Artifacts = generatedAdventure.encounters || 
+                                generatedAdventure.quests || 
+                                generatedAdventure.type === 'AdventureModule';
+      
+      // Check for placeholder remnants - ALL angle-bracket tokens are invalid in CAML 2.0 output
+      const jsonStr = JSON.stringify(generatedAdventure);
+      const placeholderMatches = jsonStr.match(/<[^>]+>/g);
+      const hasPlaceholders = placeholderMatches && placeholderMatches.length > 0;
+      
+      // Check meta.id and title match request
+      const requestedTitle = title || 'The Lost Temple';
+      const metaIdCorrect = generatedAdventure.meta?.id === adventureId;
+      const metaTitleCorrect = generatedAdventure.meta?.title === requestedTitle;
+      
+      // Check minimum content counts
+      const characters = generatedAdventure.world?.entities?.characters || [];
+      const locations = generatedAdventure.world?.entities?.locations || [];
+      const processes = generatedAdventure.processes?.catalog || [];
+      const hasMinContent = characters.length >= 4 && locations.length >= 4 && processes.length >= 2;
+      
+      // Check no NPCs have attitude property (should be in state.facts)
+      const npcsWithAttitude = characters.filter((c: any) => c.attitude !== undefined);
+      const attitudesInState = npcsWithAttitude.length === 0;
+      
+      // isCAML2 includes ALL validations
+      const isCAML2 = hasCAML2Structure && !hasCAML1Artifacts && !hasPlaceholders && 
+                      metaIdCorrect && metaTitleCorrect && hasMinContent && attitudesInState;
+      
+      const warnings: string[] = [];
+      if (!hasCAML2Structure) warnings.push("Missing CAML 2.0 structure (world/state/processes layers)");
+      if (hasCAML1Artifacts) warnings.push("Contains CAML 1.x artifacts (encounters/quests arrays)");
+      if (hasPlaceholders) warnings.push(`Contains unsubstituted placeholders: ${placeholderMatches?.slice(0, 5).join(', ')}`);
+      if (!metaIdCorrect) warnings.push(`meta.id mismatch: expected ${adventureId}, got ${generatedAdventure.meta?.id}`);
+      if (!metaTitleCorrect) warnings.push(`meta.title mismatch: expected "${requestedTitle}", got "${generatedAdventure.meta?.title}"`);
+      if (!hasMinContent) warnings.push(`Insufficient content: ${characters.length} chars, ${locations.length} locs, ${processes.length} procs`);
+      if (!attitudesInState) warnings.push(`NPCs have attitude property instead of state facts: ${npcsWithAttitude.map((n: any) => n.id).join(', ')}`);
+      
+      if (warnings.length > 0) {
+        console.warn("CAML 2.0 generation issues:", warnings);
+      }
+      
+      // If validation fails, return error instead of success
+      if (!isCAML2) {
+        return res.status(422).json({
+          success: false,
+          message: "Generated adventure failed CAML 2.0 validation",
+          warnings,
+          adventure: generatedAdventure // Include for debugging
+        });
+      }
+      
       res.json({
         success: true,
         adventure: generatedAdventure,
+        isCAML2: true,
         yaml: exportToYAML(generatedAdventure),
         json: exportToJSON(generatedAdventure)
       });

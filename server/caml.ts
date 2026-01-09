@@ -1226,44 +1226,41 @@ export function buildAdventureGraph(doc: CAML2Document): {
 // AI Generation Prompt
 // ============================================================================
 
-export const CAML_AI_PROMPT = `You are generating a CAML 2.0 (Canonical Adventure Markup Language) D&D 5e adventure document.
+export const CAML_AI_PROMPT = `You are generating a CAML 2.0 (Canonical Adventure Markup Language) D&D 5e adventure. CAML 2.0 is NOT CAML 1.x.
 
-CAML 2.0 uses ONTOLOGICAL LAYERS (BFO-aligned) to separate:
-- WORLD: Independent continuants (characters, locations, items, factions, connections) - ONLY intrinsic properties
-- STATE: Dependent continuants (mutable facts with bearer, type, value) - attitude, active, discovered, HP
-- ROLES: Revocable role assignments (QuestGiver, Guardian) with revocation conditions
-- PROCESSES: Occurrents (combat, social, puzzle, exploration) with timeboxes and participants
-- TRANSITIONS: State changes CAUSED BY processes - all mutations happen here
-- SNAPSHOTS: Timestamped timeline with narration and derived_from_transition
+CAML 2.0 MANDATORY STRUCTURE:
+- Root must have "caml_version": "2.0" (NOT "type": "AdventureModule")
+- NPCs go in world.entities.characters WITHOUT attitude property
+- Attitudes are in state.facts as {id, bearer, type: "attitude", value}
+- Encounters are in processes.catalog as processes with timeboxes
+- Quests are expressed via roles.assignments (QuestGiver) + state.facts (quest_status)
+- All changes occur via transitions.changes caused by processes
 
-CRITICAL CAML 2.0 RULES:
-1. NPC attitude is a STATE FACT (mutable), NOT a character property
-2. Encounters are PROCESSES with participants and timeboxes, NOT static objects
-3. Quests are QuestGiver ROLES + quest_status STATE FACTS, NOT quest objects
-4. All state changes happen through TRANSITIONS caused by PROCESSES
-5. Characters have intrinsic properties (species, class, statblock) but NOT mutable ones (attitude, HP)
-6. Hidden locations have discovered state facts
-7. Guardians have active state facts that get set to false when defeated
-8. Defeating a guardian should unlock access (via transition updating discovered/accessible state)
+NEVER generate:
+- "type": "AdventureModule"
+- "encounters": [...] array at root
+- "quests": [...] array at root  
+- "attitude": "..." on NPC objects in world layer
+
+ALWAYS generate:
+- "caml_version": "2.0"
+- state.facts for EVERY NPC's attitude (bearer=NPC_id, type="attitude", value="neutral"/"friendly"/"hostile")
+- processes.catalog for encounters (each with id, type, timebox, participants, location, notes)
+- transitions.changes for state mutations (caused_by=process_id, ops=[{op,state_id,value}])
+- Enemy NPCs need active state facts that get set to false when defeated
+- Hidden locations need discovered state facts that get set to true when found
 
 ID patterns:
-- Characters: PC_Name or NPC_Name
-- Locations: LOC_Name  
-- Items: ITEM_Name
+- Characters: PC_Party, NPC_Name
+- Locations: LOC_Name
+- Items: ITEM_Name  
 - State facts: STATE_bearer_type
 - Roles: ROLE_type_holder
 - Processes: PROC_type_location
 - Transitions: TR_description
 - Snapshots: SNAP_description
 
-Ensure all IDs match: ^[A-Za-z][A-Za-z0-9_\\-:.]{0,127}$
-The document must be valid JSON with caml_version: "2.0".
-Use only SRD 5.1 content (no proprietary D&D content).
-
-Reference examples:
-- caml-2.0/examples/the-lost-temple-history.caml2.json (minimal, clean)
-- caml-2.0/examples/the-lost-temple-whispers.caml2.json (dungeon gating)
-- caml-2.0/examples/whispers-in-the-shadows.caml2.json (multi-quest)`;
+Reference examples in caml-2.0/examples/ directory.`;
 
 // ============================================================================
 // Legacy Compatibility Exports
