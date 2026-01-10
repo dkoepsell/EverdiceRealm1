@@ -1600,13 +1600,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
-      // Calculate total chapters based on difficulty
-      const difficulty = req.body.difficulty || 'Normal';
-      const totalChapters = difficulty === 'Heroic' ? 6 : 
-                            difficulty === 'Challenging' ? 5 : 4;
+      // Calculate total chapters based on campaign length selection
+      const campaignLength = req.body.campaignLength || 'standard';
+      let totalChapters: number;
+      
+      switch (campaignLength) {
+        case 'quick':
+          totalChapters = 3; // Quick Adventure: 3 chapters (~30 min)
+          break;
+        case 'epic':
+          // Epic Saga: 6-8 chapters (~2 hours) - randomize within range
+          totalChapters = 6 + Math.floor(Math.random() * 3); // 6, 7, or 8
+          break;
+        case 'standard':
+        default:
+          // Standard Quest: 4-5 chapters (~1 hour) - randomize within range
+          totalChapters = 4 + Math.floor(Math.random() * 2); // 4 or 5
+          break;
+      }
+      
+      // Remove any client-provided totalChapters to ensure server controls chapter count
+      const { totalChapters: _ignored, ...bodyWithoutChapters } = req.body;
+      
+      console.log(`Creating campaign with length: ${campaignLength}, totalChapters: ${totalChapters}`);
       
       const campaignData = insertCampaignSchema.parse({
-        ...req.body,
+        ...bodyWithoutChapters,
         userId: req.user.id,
         createdAt: new Date().toISOString(),
         currentSession: 1,

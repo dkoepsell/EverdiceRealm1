@@ -38,6 +38,7 @@ const createCampaignSchema = insertCampaignSchema.extend({
   description: z.string().min(10, "Description must be at least 10 characters"),
   difficulty: z.string().min(1, "Please select a difficulty"),
   narrativeStyle: z.string().min(1, "Please select a narrative style"),
+  campaignLength: z.string().min(1, "Please select a campaign length"),
 });
 
 // For AI campaign generation request
@@ -54,6 +55,13 @@ const difficulties = [
   "Easy - Beginner Friendly",
   "Normal - Balanced Challenge",
   "Hard - Deadly Encounters"
+];
+
+// Campaign length determines the number of chapters
+const campaignLengths = [
+  { value: "quick", label: "Quick Adventure", chapters: "3 chapters", time: "~30 minutes", description: "A short, focused adventure perfect for one session" },
+  { value: "standard", label: "Standard Quest", chapters: "4-5 chapters", time: "~1 hour", description: "A balanced story with room for exploration" },
+  { value: "epic", label: "Epic Saga", chapters: "6-8 chapters", time: "~2 hours", description: "A sprawling adventure with multiple story arcs" },
 ];
 
 const narrativeStyles = [
@@ -123,6 +131,7 @@ export default function Campaigns() {
       description: "",
       difficulty: "",
       narrativeStyle: "",
+      campaignLength: "standard",
       currentSession: 1,
       characters: [],
       worldRegionId: null,
@@ -290,7 +299,7 @@ export default function Campaigns() {
                             <CardTitle className="font-fantasy">{campaign.title}</CardTitle>
                           </div>
                           <span className="bg-primary-light text-white text-sm px-3 py-1 rounded-full">
-                            Ch. {campaign.currentSession}
+                            Ch. {campaign.currentSession}/{campaign.totalChapters || '?'}
                           </span>
                         </div>
                         {isActive && (
@@ -302,12 +311,17 @@ export default function Campaigns() {
                       <CardContent className="pt-4 bg-parchment character-sheet">
                         <p className="text-secondary mb-4 line-clamp-2">{campaign.description}</p>
                         
-                        <div className="flex justify-between text-sm text-gray-600 mb-3">
-                          <div className="flex items-center">
-                            <Scroll size={16} className="text-primary-light mr-1" />
-                            <span>{campaign.narrativeStyle}</span>
-                          </div>
-                          <span>{campaign.difficulty}</span>
+                        <div className="flex flex-wrap gap-2 text-xs text-gray-600 mb-3">
+                          <Badge variant="outline" className="text-xs">
+                            {campaign.campaignLength === 'quick' ? 'Quick' : campaign.campaignLength === 'epic' ? 'Epic' : 'Standard'}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {campaign.totalChapters || 5} chapters
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            <Scroll size={12} className="mr-1" />
+                            {campaign.narrativeStyle}
+                          </Badge>
                         </div>
                         
                         {!isActive && !campaign.isArchived && !campaign.isCompleted && (
@@ -511,6 +525,39 @@ export default function Campaigns() {
                       )}
                     />
                   </div>
+                  
+                  {/* Campaign Length - determines number of chapters */}
+                  <FormField
+                    control={form.control}
+                    name="campaignLength"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Campaign Length</FormLabel>
+                        <FormDescription className="text-xs mb-2">
+                          How long do you want your adventure to be?
+                        </FormDescription>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {campaignLengths.map((length) => (
+                            <div
+                              key={length.value}
+                              onClick={() => field.onChange(length.value)}
+                              className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                                field.value === length.value
+                                  ? 'border-primary bg-primary/5'
+                                  : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'
+                              }`}
+                            >
+                              <div className="font-semibold text-sm">{length.label}</div>
+                              <div className="text-xs text-primary font-medium">{length.chapters}</div>
+                              <div className="text-xs text-muted-foreground">{length.time}</div>
+                              <div className="text-xs text-muted-foreground mt-1">{length.description}</div>
+                            </div>
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   {/* World Map Location - where this adventure takes place */}
                   <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700/50">
