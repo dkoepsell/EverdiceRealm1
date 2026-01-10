@@ -486,23 +486,23 @@ export default function Dashboard() {
                     <div className="flex gap-3">
                       <div className="text-center px-3 py-1 bg-red-100 dark:bg-red-900/30 rounded-lg">
                         <p className="text-xs text-red-600 dark:text-red-400">HP</p>
-                        <p className="font-bold text-red-700 dark:text-red-300">{activeCharacter.hitPoints}/{activeCharacter.maxHitPoints}</p>
+                        <p className="font-bold text-red-700 dark:text-red-300">{activeCharacter.hitPoints || 0}/{activeCharacter.maxHitPoints || 0}</p>
                       </div>
                       <div className="text-center px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                         <p className="text-xs text-blue-600 dark:text-blue-400">AC</p>
-                        <p className="font-bold text-blue-700 dark:text-blue-300">{activeCharacter.armorClass}</p>
+                        <p className="font-bold text-blue-700 dark:text-blue-300">{activeCharacter.armorClass || 10}</p>
                       </div>
                     </div>
                     
                     {/* Ability Scores - Compact */}
                     <div className="hidden md:flex gap-2">
                       {[
-                        { name: 'STR', value: activeCharacter.strength },
-                        { name: 'DEX', value: activeCharacter.dexterity },
-                        { name: 'CON', value: activeCharacter.constitution },
-                        { name: 'INT', value: activeCharacter.intelligence },
-                        { name: 'WIS', value: activeCharacter.wisdom },
-                        { name: 'CHA', value: activeCharacter.charisma },
+                        { name: 'STR', value: activeCharacter.strength || 10 },
+                        { name: 'DEX', value: activeCharacter.dexterity || 10 },
+                        { name: 'CON', value: activeCharacter.constitution || 10 },
+                        { name: 'INT', value: activeCharacter.intelligence || 10 },
+                        { name: 'WIS', value: activeCharacter.wisdom || 10 },
+                        { name: 'CHA', value: activeCharacter.charisma || 10 },
                       ].map(stat => (
                         <div key={stat.name} className="text-center px-2 py-1 bg-white/50 dark:bg-slate-700/50 rounded">
                           <p className="text-xs text-muted-foreground">{stat.name}</p>
@@ -570,12 +570,12 @@ export default function Dashboard() {
                           </h4>
                           <div className="grid grid-cols-2 gap-2">
                             {[
-                              { name: 'Strength', abbr: 'STR', value: activeCharacter.strength },
-                              { name: 'Dexterity', abbr: 'DEX', value: activeCharacter.dexterity },
-                              { name: 'Constitution', abbr: 'CON', value: activeCharacter.constitution },
-                              { name: 'Intelligence', abbr: 'INT', value: activeCharacter.intelligence },
-                              { name: 'Wisdom', abbr: 'WIS', value: activeCharacter.wisdom },
-                              { name: 'Charisma', abbr: 'CHA', value: activeCharacter.charisma },
+                              { name: 'Strength', abbr: 'STR', value: activeCharacter.strength || 10 },
+                              { name: 'Dexterity', abbr: 'DEX', value: activeCharacter.dexterity || 10 },
+                              { name: 'Constitution', abbr: 'CON', value: activeCharacter.constitution || 10 },
+                              { name: 'Intelligence', abbr: 'INT', value: activeCharacter.intelligence || 10 },
+                              { name: 'Wisdom', abbr: 'WIS', value: activeCharacter.wisdom || 10 },
+                              { name: 'Charisma', abbr: 'CHA', value: activeCharacter.charisma || 10 },
                             ].map(stat => {
                               const modifier = Math.floor((stat.value - 10) / 2);
                               const modifierStr = modifier >= 0 ? `+${modifier}` : `${modifier}`;
@@ -602,17 +602,20 @@ export default function Dashboard() {
                             <div className="text-center p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
                               <p className="text-xs text-red-600 dark:text-red-400">Hit Points</p>
                               <p className="font-bold text-xl text-red-700 dark:text-red-300">
-                                {activeCharacter.hitPoints}/{activeCharacter.maxHitPoints}
+                                {activeCharacter.hitPoints || 0}/{activeCharacter.maxHitPoints || 0}
                               </p>
                             </div>
                             <div className="text-center p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                               <p className="text-xs text-blue-600 dark:text-blue-400">Armor Class</p>
-                              <p className="font-bold text-xl text-blue-700 dark:text-blue-300">{activeCharacter.armorClass}</p>
+                              <p className="font-bold text-xl text-blue-700 dark:text-blue-300">{activeCharacter.armorClass || 10}</p>
                             </div>
                             <div className="text-center p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
                               <p className="text-xs text-purple-600 dark:text-purple-400">Initiative</p>
                               <p className="font-bold text-xl text-purple-700 dark:text-purple-300">
-                                {activeCharacter.dexterity ? (Math.floor((activeCharacter.dexterity - 10) / 2) >= 0 ? '+' : '') + Math.floor((activeCharacter.dexterity - 10) / 2) : '+0'}
+                                {(() => {
+                                  const dexMod = Math.floor(((activeCharacter.dexterity || 10) - 10) / 2);
+                                  return dexMod >= 0 ? `+${dexMod}` : dexMod;
+                                })()}
                               </p>
                             </div>
                             <div className="text-center p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
@@ -632,8 +635,8 @@ export default function Dashboard() {
                               <span>Melee Attack</span>
                               <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900/30">
                                 {(() => {
-                                  const strMod = Math.floor((activeCharacter.strength - 10) / 2);
-                                  const profBonus = Math.ceil(activeCharacter.level / 4) + 1;
+                                  const strMod = Math.floor(((activeCharacter.strength || 10) - 10) / 2);
+                                  const profBonus = Math.ceil((activeCharacter.level || 1) / 4) + 1;
                                   const total = strMod + profBonus;
                                   return total >= 0 ? `+${total}` : total;
                                 })()}
@@ -643,8 +646,8 @@ export default function Dashboard() {
                               <span>Ranged Attack</span>
                               <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900/30">
                                 {(() => {
-                                  const dexMod = Math.floor((activeCharacter.dexterity - 10) / 2);
-                                  const profBonus = Math.ceil(activeCharacter.level / 4) + 1;
+                                  const dexMod = Math.floor(((activeCharacter.dexterity || 10) - 10) / 2);
+                                  const profBonus = Math.ceil((activeCharacter.level || 1) / 4) + 1;
                                   const total = dexMod + profBonus;
                                   return total >= 0 ? `+${total}` : total;
                                 })()}
@@ -661,23 +664,26 @@ export default function Dashboard() {
                             <Package className="h-4 w-4" />
                             Equipment
                           </h4>
-                          {activeCharacter.equipment && (activeCharacter.equipment as string[]).length > 0 ? (
-                            <ul className="space-y-1 text-sm max-h-32 overflow-y-auto">
-                              {(activeCharacter.equipment as string[]).slice(0, 8).map((item, idx) => (
-                                <li key={idx} className="flex items-center gap-2 text-muted-foreground">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                                  {item}
-                                </li>
-                              ))}
-                              {(activeCharacter.equipment as string[]).length > 8 && (
-                                <li className="text-xs text-muted-foreground italic">
-                                  +{(activeCharacter.equipment as string[]).length - 8} more items
-                                </li>
-                              )}
-                            </ul>
-                          ) : (
-                            <p className="text-sm text-muted-foreground italic">No equipment</p>
-                          )}
+                          {(() => {
+                            const equipmentList: string[] = Array.isArray(activeCharacter.equipment) ? activeCharacter.equipment as string[] : [];
+                            return equipmentList.length > 0 ? (
+                              <ul className="space-y-1 text-sm max-h-32 overflow-y-auto">
+                                {equipmentList.slice(0, 8).map((item: string, idx: number) => (
+                                  <li key={idx} className="flex items-center gap-2 text-muted-foreground">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                    {item}
+                                  </li>
+                                ))}
+                                {equipmentList.length > 8 && (
+                                  <li className="text-xs text-muted-foreground italic">
+                                    +{equipmentList.length - 8} more items
+                                  </li>
+                                )}
+                              </ul>
+                            ) : (
+                              <p className="text-sm text-muted-foreground italic">No equipment</p>
+                            );
+                          })()}
                         </div>
 
                         <div className="bg-white/50 dark:bg-slate-700/50 rounded-lg p-4">
