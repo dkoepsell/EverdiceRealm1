@@ -13,7 +13,7 @@ import { Character, Campaign } from "@shared/schema";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
 import { getQueryFn, queryClient } from "@/lib/queryClient";
-import { Bookmark, Calendar, History, User, Users, Activity, Star, Play, Sparkles, Sword, Shield, ScrollText } from "lucide-react";
+import { Bookmark, Calendar, History, User, Users, Activity, Star, Play, Sparkles, Sword, Shield, ScrollText, ChevronDown, ChevronUp, Heart, Zap, Package, Scroll } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function Dashboard() {
@@ -194,6 +194,7 @@ export default function Dashboard() {
 
   const isNewUser = characters.length === 0 && availableCampaigns.length === 0;
   const [showQuickStart, setShowQuickStart] = useState(false);
+  const [isCharacterSheetExpanded, setIsCharacterSheetExpanded] = useState(false);
 
   return (
     <div className="pb-16 min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -217,11 +218,8 @@ export default function Dashboard() {
         
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-2xl">
-            {/* Everdice brand mark */}
+            {/* Online adventurers badge */}
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
-                <span className="text-white font-fantasy font-bold text-xl">E</span>
-              </div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
                 <Activity className="h-3 w-3" />
                 <span>{userStats.onlineUsers} adventurers online</span>
@@ -465,10 +463,11 @@ export default function Dashboard() {
       {/* Desktop Dashboard Content */}
       {!isMobile && (
         <div className="container mx-auto px-4 py-8">
-          {/* Character Quick Stats Bar - Compact horizontal display */}
+          {/* Character Quick Stats Bar - Expandable to full sheet */}
           {activeCharacter && (
             <Card className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-900 border-2 border-amber-200 dark:border-amber-800/50">
               <CardContent className="py-4">
+                {/* Compact Stats Bar */}
                 <div className="flex items-center justify-between flex-wrap gap-4">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
@@ -512,11 +511,200 @@ export default function Dashboard() {
                       ))}
                     </div>
                     
-                    <Link href="/characters">
-                      <Button variant="outline" size="sm">Full Sheet</Button>
-                    </Link>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setIsCharacterSheetExpanded(!isCharacterSheetExpanded)}
+                      className="flex items-center gap-1"
+                    >
+                      {isCharacterSheetExpanded ? (
+                        <>
+                          <ChevronUp className="h-4 w-4" />
+                          Collapse
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="h-4 w-4" />
+                          Full Sheet
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
+
+                {/* Expanded Character Sheet */}
+                {isCharacterSheetExpanded && (
+                  <div className="mt-6 pt-6 border-t border-amber-200 dark:border-amber-800/50">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {/* Left Column - Character Details & Ability Scores */}
+                      <div className="space-y-4">
+                        <div className="bg-white/50 dark:bg-slate-700/50 rounded-lg p-4">
+                          <h4 className="font-fantasy text-sm font-bold text-amber-800 dark:text-amber-200 mb-3 flex items-center gap-2">
+                            <User className="h-4 w-4" />
+                            Character Details
+                          </h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Race:</span>
+                              <span className="font-medium">{activeCharacter.race}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Class:</span>
+                              <span className="font-medium">{activeCharacter.class}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Level:</span>
+                              <span className="font-medium">{activeCharacter.level}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">XP:</span>
+                              <span className="font-medium">{activeCharacter.experiencePoints || 0}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-white/50 dark:bg-slate-700/50 rounded-lg p-4">
+                          <h4 className="font-fantasy text-sm font-bold text-amber-800 dark:text-amber-200 mb-3 flex items-center gap-2">
+                            <Zap className="h-4 w-4" />
+                            Ability Scores
+                          </h4>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              { name: 'Strength', abbr: 'STR', value: activeCharacter.strength },
+                              { name: 'Dexterity', abbr: 'DEX', value: activeCharacter.dexterity },
+                              { name: 'Constitution', abbr: 'CON', value: activeCharacter.constitution },
+                              { name: 'Intelligence', abbr: 'INT', value: activeCharacter.intelligence },
+                              { name: 'Wisdom', abbr: 'WIS', value: activeCharacter.wisdom },
+                              { name: 'Charisma', abbr: 'CHA', value: activeCharacter.charisma },
+                            ].map(stat => {
+                              const modifier = Math.floor((stat.value - 10) / 2);
+                              const modifierStr = modifier >= 0 ? `+${modifier}` : `${modifier}`;
+                              return (
+                                <div key={stat.abbr} className="text-center p-2 bg-amber-100/50 dark:bg-amber-900/30 rounded">
+                                  <p className="text-xs text-muted-foreground">{stat.abbr}</p>
+                                  <p className="font-bold text-lg">{stat.value}</p>
+                                  <p className="text-xs text-amber-600 dark:text-amber-400">({modifierStr})</p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Middle Column - Combat Stats */}
+                      <div className="space-y-4">
+                        <div className="bg-white/50 dark:bg-slate-700/50 rounded-lg p-4">
+                          <h4 className="font-fantasy text-sm font-bold text-amber-800 dark:text-amber-200 mb-3 flex items-center gap-2">
+                            <Heart className="h-4 w-4" />
+                            Combat Stats
+                          </h4>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="text-center p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                              <p className="text-xs text-red-600 dark:text-red-400">Hit Points</p>
+                              <p className="font-bold text-xl text-red-700 dark:text-red-300">
+                                {activeCharacter.hitPoints}/{activeCharacter.maxHitPoints}
+                              </p>
+                            </div>
+                            <div className="text-center p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                              <p className="text-xs text-blue-600 dark:text-blue-400">Armor Class</p>
+                              <p className="font-bold text-xl text-blue-700 dark:text-blue-300">{activeCharacter.armorClass}</p>
+                            </div>
+                            <div className="text-center p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                              <p className="text-xs text-purple-600 dark:text-purple-400">Initiative</p>
+                              <p className="font-bold text-xl text-purple-700 dark:text-purple-300">
+                                {activeCharacter.dexterity ? (Math.floor((activeCharacter.dexterity - 10) / 2) >= 0 ? '+' : '') + Math.floor((activeCharacter.dexterity - 10) / 2) : '+0'}
+                              </p>
+                            </div>
+                            <div className="text-center p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                              <p className="text-xs text-green-600 dark:text-green-400">Speed</p>
+                              <p className="font-bold text-xl text-green-700 dark:text-green-300">{activeCharacter.speed || 30}ft</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-white/50 dark:bg-slate-700/50 rounded-lg p-4">
+                          <h4 className="font-fantasy text-sm font-bold text-amber-800 dark:text-amber-200 mb-3 flex items-center gap-2">
+                            <Sword className="h-4 w-4" />
+                            Attack Bonuses
+                          </h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between items-center p-2 bg-amber-100/50 dark:bg-amber-900/30 rounded">
+                              <span>Melee Attack</span>
+                              <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900/30">
+                                {(() => {
+                                  const strMod = Math.floor((activeCharacter.strength - 10) / 2);
+                                  const profBonus = Math.ceil(activeCharacter.level / 4) + 1;
+                                  const total = strMod + profBonus;
+                                  return total >= 0 ? `+${total}` : total;
+                                })()}
+                              </Badge>
+                            </div>
+                            <div className="flex justify-between items-center p-2 bg-amber-100/50 dark:bg-amber-900/30 rounded">
+                              <span>Ranged Attack</span>
+                              <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900/30">
+                                {(() => {
+                                  const dexMod = Math.floor((activeCharacter.dexterity - 10) / 2);
+                                  const profBonus = Math.ceil(activeCharacter.level / 4) + 1;
+                                  const total = dexMod + profBonus;
+                                  return total >= 0 ? `+${total}` : total;
+                                })()}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right Column - Equipment & Background */}
+                      <div className="space-y-4">
+                        <div className="bg-white/50 dark:bg-slate-700/50 rounded-lg p-4">
+                          <h4 className="font-fantasy text-sm font-bold text-amber-800 dark:text-amber-200 mb-3 flex items-center gap-2">
+                            <Package className="h-4 w-4" />
+                            Equipment
+                          </h4>
+                          {activeCharacter.equipment && (activeCharacter.equipment as string[]).length > 0 ? (
+                            <ul className="space-y-1 text-sm max-h-32 overflow-y-auto">
+                              {(activeCharacter.equipment as string[]).slice(0, 8).map((item, idx) => (
+                                <li key={idx} className="flex items-center gap-2 text-muted-foreground">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                  {item}
+                                </li>
+                              ))}
+                              {(activeCharacter.equipment as string[]).length > 8 && (
+                                <li className="text-xs text-muted-foreground italic">
+                                  +{(activeCharacter.equipment as string[]).length - 8} more items
+                                </li>
+                              )}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic">No equipment</p>
+                          )}
+                        </div>
+
+                        <div className="bg-white/50 dark:bg-slate-700/50 rounded-lg p-4">
+                          <h4 className="font-fantasy text-sm font-bold text-amber-800 dark:text-amber-200 mb-3 flex items-center gap-2">
+                            <Scroll className="h-4 w-4" />
+                            Background
+                          </h4>
+                          {activeCharacter.background ? (
+                            <p className="text-sm text-muted-foreground line-clamp-4">
+                              {activeCharacter.background}
+                            </p>
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic">No background story</p>
+                          )}
+                        </div>
+
+                        <div className="text-center">
+                          <Link href="/characters">
+                            <Button variant="link" size="sm" className="text-amber-600 dark:text-amber-400">
+                              Edit Character
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
