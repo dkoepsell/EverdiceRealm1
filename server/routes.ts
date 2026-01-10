@@ -7204,6 +7204,15 @@ Generate a complete CAML 2.0 JSON adventure.`;
       
       const { message, type } = req.body;
       
+      // Validate required fields
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ message: "Message is required and must be a string" });
+      }
+      
+      if (!type || !['narration', 'ooc', 'system'].includes(type)) {
+        return res.status(400).json({ message: "Type must be 'narration', 'ooc', or 'system'" });
+      }
+      
       // Get current session state
       const sessionState = await db.select().from(dmSessionStates)
         .where(eq(dmSessionStates.campaignId, campaignId))
@@ -7253,6 +7262,19 @@ Generate a complete CAML 2.0 JSON adventure.`;
       }
       
       const { id, type, entityId, name, data } = req.body;
+      
+      // Validate required fields
+      if (!type || typeof type !== 'string') {
+        return res.status(400).json({ message: "Type is required and must be a string" });
+      }
+      
+      if (!entityId || typeof entityId !== 'string') {
+        return res.status(400).json({ message: "EntityId is required and must be a string" });
+      }
+      
+      if (!name || typeof name !== 'string') {
+        return res.status(400).json({ message: "Name is required and must be a string" });
+      }
       
       // Get current session state
       const sessionState = await db.select().from(dmSessionStates)
