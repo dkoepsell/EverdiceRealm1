@@ -3078,7 +3078,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   <SelectTrigger className="h-6 w-16 text-xs" data-testid={`select-equip-${index}`}>
                                     <SelectValue placeholder="Equip" />
                                   </SelectTrigger>
-                                  <SelectContent className="z-[9999] bg-white dark:bg-slate-800 border shadow-lg">
+                                  <SelectContent 
+                                    position="item-aligned"
+                                    className="z-[9999] bg-white dark:bg-slate-800 border shadow-lg"
+                                  >
                                     <SelectItem value="weapon">Weapon</SelectItem>
                                     <SelectItem value="armor">Armor</SelectItem>
                                     <SelectItem value="shield">Shield</SelectItem>
@@ -3102,18 +3105,24 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                       <SelectValue placeholder="Give" />
                                     </SelectTrigger>
                                     <SelectContent 
-                                      side="top" 
-                                      align="end"
-                                      sideOffset={5}
+                                      position="item-aligned"
                                       className="z-[9999] bg-white dark:bg-slate-800 border shadow-lg min-w-[150px]"
                                     >
                                       {participants
                                         .filter((p: any) => p.characterId && p.characterId !== activeCharacter.id)
-                                        .map((p: any) => (
-                                          <SelectItem key={p.characterId} value={p.characterId.toString()}>
-                                            {p.character?.name || `Character ${p.characterId}`}
-                                          </SelectItem>
-                                        ))}
+                                        .length > 0 ? (
+                                        participants
+                                          .filter((p: any) => p.characterId && p.characterId !== activeCharacter.id)
+                                          .map((p: any) => (
+                                            <SelectItem key={p.characterId} value={p.characterId.toString()}>
+                                              {p.character?.name || `Character ${p.characterId}`}
+                                            </SelectItem>
+                                          ))
+                                      ) : (
+                                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                          No other party members
+                                        </div>
+                                      )}
                                     </SelectContent>
                                   </Select>
                                 )}
