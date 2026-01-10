@@ -34,6 +34,26 @@ import CharacterSheet from "@/components/character/CharacterSheet";
 import { AlertCircle, Plus, User, Users, Dice6, Swords, Sparkles, Sword, Wand2, Shield, Heart, Flame, Moon, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
+// D&D standard ability score rolling: 4d6 drop lowest
+function roll4d6DropLowest(): number {
+  const rolls = Array.from({ length: 4 }, () => Math.floor(Math.random() * 6) + 1);
+  rolls.sort((a, b) => a - b);
+  // Remove the lowest roll and sum the remaining 3
+  return rolls.slice(1).reduce((sum, roll) => sum + roll, 0);
+}
+
+// Generate a full set of ability scores using 4d6 drop lowest
+function rollAbilityScores(): { strength: number; dexterity: number; constitution: number; intelligence: number; wisdom: number; charisma: number } {
+  return {
+    strength: roll4d6DropLowest(),
+    dexterity: roll4d6DropLowest(),
+    constitution: roll4d6DropLowest(),
+    intelligence: roll4d6DropLowest(),
+    wisdom: roll4d6DropLowest(),
+    charisma: roll4d6DropLowest(),
+  };
+}
+
 const characterTemplates = [
   {
     id: "warrior",
@@ -684,7 +704,38 @@ export default function Characters() {
                     
                     <Separator />
                     
-                    <h3 className="font-fantasy text-lg font-bold">Ability Scores</h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-fantasy text-lg font-bold">Ability Scores</h3>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const scores = rollAbilityScores();
+                          form.setValue("strength", scores.strength);
+                          form.setValue("dexterity", scores.dexterity);
+                          form.setValue("constitution", scores.constitution);
+                          form.setValue("intelligence", scores.intelligence);
+                          form.setValue("wisdom", scores.wisdom);
+                          form.setValue("charisma", scores.charisma);
+                          // Update HP based on constitution modifier
+                          const conMod = Math.floor((scores.constitution - 10) / 2);
+                          const newHP = 10 + conMod;
+                          form.setValue("hitPoints", newHP);
+                          form.setValue("maxHitPoints", newHP);
+                          // Update AC based on dexterity modifier
+                          const dexMod = Math.floor((scores.dexterity - 10) / 2);
+                          form.setValue("armorClass", 10 + dexMod);
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <Dice6 className="h-4 w-4" />
+                        Roll Stats (4d6 drop lowest)
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Click "Roll Stats" to generate ability scores using D&D's 4d6 drop lowest method, or enter values manually.
+                    </p>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       <FormField
                         control={form.control}
