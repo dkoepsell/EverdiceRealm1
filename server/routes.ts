@@ -9108,6 +9108,108 @@ Respond with JSON:
             throw new Error("Campaign not found for chapter generation");
           }
           
+          // Get the campaign's ACTUAL total chapters (set at creation)
+          const campaignTotalChapters = campaignForChapter.totalChapters || 4;
+          
+          // === CHECK IF THIS IS THE FINAL CHAPTER - CAMPAIGN COMPLETE! ===
+          if (currentSession.sessionNumber >= campaignTotalChapters) {
+            console.log(`Campaign ${campaignId} COMPLETE! Final chapter ${currentSession.sessionNumber} of ${campaignTotalChapters} finished.`);
+            
+            // Mark the current session as completed
+            await db
+              .update(campaignSessions)
+              .set({ isCompleted: true })
+              .where(eq(campaignSessions.id, currentSession.id));
+            
+            // Generate completion rewards
+            const completionXP = campaignTotalChapters * 150; // 150 XP per chapter
+            const goldReward = campaignTotalChapters * 50; // 50 gold per chapter
+            
+            // Generate loot chest items based on difficulty
+            const lootChestItems = [];
+            const rarities = campaignForChapter.difficulty === 'Heroic' 
+              ? ['rare', 'rare', 'uncommon', 'uncommon', 'common']
+              : campaignForChapter.difficulty === 'Challenging'
+              ? ['rare', 'uncommon', 'uncommon', 'common', 'common']
+              : ['uncommon', 'uncommon', 'common', 'common', 'common'];
+            
+            const itemTypes = [
+              { name: 'Enchanted Blade', type: 'weapon', description: 'A finely crafted blade that gleams with magical energy.' },
+              { name: 'Ring of Protection', type: 'ring', description: 'Grants +1 to AC when worn.' },
+              { name: 'Potion of Greater Healing', type: 'potion', description: 'Restores 4d4+4 hit points.' },
+              { name: 'Cloak of Elvenkind', type: 'wondrous', description: 'Advantage on Stealth checks.' },
+              { name: 'Bag of Holding', type: 'wondrous', description: 'This bag has an interior space considerably larger than its outside dimensions.' }
+            ];
+            
+            for (let i = 0; i < Math.min(3, itemTypes.length); i++) {
+              lootChestItems.push({
+                ...itemTypes[i],
+                rarity: rarities[i] || 'common',
+                properties: 'Magical'
+              });
+            }
+            
+            // Award XP, gold, and items to character
+            if (character) {
+              const newCharXP = (character.experience || 0) + completionXP;
+              const newGold = (character.gold || 0) + goldReward;
+              
+              // Get current inventory and add loot items
+              const currentInventory = (character.inventory as any[]) || [];
+              const updatedInventory = [
+                ...currentInventory,
+                ...lootChestItems.map(item => ({
+                  ...item,
+                  id: `loot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                  equipped: false,
+                  quantity: 1
+                }))
+              ];
+              
+              // Update character with XP, gold, and items
+              await db
+                .update(characters)
+                .set({ 
+                  experience: newCharXP,
+                  gold: newGold,
+                  inventory: updatedInventory
+                })
+                .where(eq(characters.id, character.id));
+              
+              console.log(`Character ${character.name} awarded: ${completionXP} XP, ${goldReward} gold, ${lootChestItems.length} items`);
+            }
+            
+            // Record campaign completion trace
+            await recordTrace(campaignId, "everdice.campaignCompleted", {
+              totalChapters: campaignTotalChapters,
+              completionXP,
+              goldReward,
+              lootItems: lootChestItems.map(i => i.name)
+            }, {
+              sessionId: `session.${currentSession.sessionNumber}`,
+              who: "system.dm"
+            });
+            
+            // Set completion flag but DON'T advance to a new session
+            sessionAdvanced = false;
+            
+            // Include completion data in response
+            if (characterProgression) {
+              characterProgression.campaignComplete = true;
+              characterProgression.completionRewards = {
+                xp: completionXP,
+                gold: goldReward,
+                items: lootChestItems
+              };
+            }
+            
+            // Skip the rest of session advancement - campaign is done!
+            console.log(`Campaign completion rewards: ${completionXP} XP, ${goldReward} gold, ${lootChestItems.length} items`);
+            
+            // Return early from the advancement block
+            throw { type: 'campaign_complete', rewards: { xp: completionXP, gold: goldReward, items: lootChestItems } };
+          }
+          
           // Get all previous sessions to understand the story arc so far
           const previousSessions = await storage.getCampaignSessions(campaignId);
           const completedSessions = previousSessions.filter(s => s.isCompleted);
@@ -9126,13 +9228,9 @@ Respond with JSON:
           
           const nextChapterNumber = currentSession.sessionNumber + 1;
           
-          // Estimate total chapters based on difficulty, but ensure we don't trigger final chapter too early
-          // Minimum 3 chapters regardless of difficulty, and can't be final until chapter 3+
-          const baseEstimate = campaignForChapter.difficulty === 'Heroic' ? 6 : 
-                               campaignForChapter.difficulty === 'Challenging' ? 5 : 4;
-          // Ensure final chapter doesn't trigger until at least chapter 3, and give buffer based on sessions played
-          const minimumChapters = Math.max(3, completedSessions.length + 2);
-          const estimatedTotalChapters = Math.max(baseEstimate, minimumChapters);
+          // Use the campaign's actual total chapters, not estimated
+          // But ensure we don't go past it
+          const estimatedTotalChapters = campaignTotalChapters;
           
           // Only mark as climax/final if we've had enough story progression
           const isClimaxChapter = nextChapterNumber === estimatedTotalChapters - 1 && nextChapterNumber >= 3;
@@ -9373,9 +9471,21 @@ Choices should include 4 options with at least 2 requiring dice rolls.
             
             console.log(`Auto-advanced campaign ${campaignId} to session ${newSessionData.sessionNumber}`);
           }
-        } catch (advanceError) {
-          console.error("Failed to auto-advance session:", advanceError);
-          // Don't set sessionAdvanced to true, continue with original session data
+        } catch (advanceError: any) {
+          // Check if this is a campaign completion (not an error)
+          if (advanceError?.type === 'campaign_complete') {
+            console.log("Campaign completed successfully with rewards:", advanceError.rewards);
+            // Set the completion rewards in characterProgression
+            if (characterProgression) {
+              characterProgression.campaignComplete = true;
+              characterProgression.completionRewards = advanceError.rewards;
+            }
+            // Don't advance session, campaign is done
+            sessionAdvanced = false;
+          } else {
+            console.error("Failed to auto-advance session:", advanceError);
+            // Don't set sessionAdvanced to true, continue with original session data
+          }
         }
       }
 

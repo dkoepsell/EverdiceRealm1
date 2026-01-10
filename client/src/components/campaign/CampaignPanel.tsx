@@ -165,6 +165,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     skillImproved?: { skill: string; newBonus: number } | null;
   } | null>(null);
   
+  // Campaign completion state
+  const [campaignComplete, setCampaignComplete] = useState(false);
+  const [completionRewards, setCompletionRewards] = useState<{
+    xp: number;
+    gold: number;
+    items: { name: string; type: string; description: string; rarity: string; properties: string }[];
+  } | null>(null);
+  
   // Combat log state for D&D mechanics transparency
   const [detailedCombatLogs, setDetailedCombatLogs] = useState<{
     attacker: string;
@@ -797,6 +805,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       // Check if data contains progression data
       if (data && data.progression) {
         setProgressionRewards(data.progression);
+        
+        // === CHECK FOR CAMPAIGN COMPLETION ===
+        if (data.progression.campaignComplete && data.progression.completionRewards) {
+          setCampaignComplete(true);
+          setCompletionRewards(data.progression.completionRewards);
+          toast({
+            title: "🏆 Campaign Complete!",
+            description: "Congratulations! You have completed this adventure!",
+          });
+        }
         
         // Show quest completion toast first (more exciting!)
         if (data.progression.completedQuests?.length > 0) {
@@ -4021,6 +4039,96 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           <div className="flex justify-end mt-4">
             <Button onClick={() => setShowCombatLogDialog(false)}>
               Continue Adventure
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Campaign Completion Dialog - Victory! */}
+      <Dialog open={campaignComplete} onOpenChange={setCampaignComplete}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-2xl">
+              🏆 Victory! Campaign Complete!
+            </DialogTitle>
+            <DialogDescription>
+              Congratulations, brave adventurer! You have completed "{campaign.title}" and emerged victorious!
+            </DialogDescription>
+          </DialogHeader>
+          
+          {completionRewards && (
+            <div className="space-y-4">
+              {/* XP and Gold Summary */}
+              <div className="flex gap-4 justify-center p-4 bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-900/30 dark:to-yellow-900/30 rounded-lg">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-amber-600 dark:text-amber-400">
+                    +{completionRewards.xp}
+                  </div>
+                  <div className="text-sm text-amber-700 dark:text-amber-300">Experience Points</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
+                    +{completionRewards.gold}
+                  </div>
+                  <div className="text-sm text-yellow-700 dark:text-yellow-300">Gold Pieces</div>
+                </div>
+              </div>
+              
+              {/* Loot Chest */}
+              <div className="p-4 bg-gradient-to-b from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 rounded-lg border-2 border-amber-300 dark:border-amber-700">
+                <h4 className="font-bold text-lg text-amber-800 dark:text-amber-200 mb-3 flex items-center gap-2">
+                  🎁 Treasure Chest Loot
+                </h4>
+                <div className="space-y-2">
+                  {completionRewards.items.map((item, index) => (
+                    <div 
+                      key={index} 
+                      className={`p-3 rounded-lg border ${
+                        item.rarity === 'rare' 
+                          ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-600' 
+                          : item.rarity === 'uncommon'
+                          ? 'bg-green-50 dark:bg-green-900/30 border-green-300 dark:border-green-600'
+                          : 'bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <span className="font-semibold">{item.name}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded ${
+                          item.rarity === 'rare' 
+                            ? 'bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200' 
+                            : item.rarity === 'uncommon'
+                            ? 'bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-200'
+                            : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                        }`}>
+                          {item.rarity}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{item.description}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">{item.type} • {item.properties}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Completion Message */}
+              <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800 text-center">
+                <p className="text-purple-800 dark:text-purple-200 text-sm">
+                  Your heroic deeds will be remembered throughout the realm! 
+                  The items have been added to your character's inventory.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-center mt-4">
+            <Button 
+              onClick={() => {
+                setCampaignComplete(false);
+                setCompletionRewards(null);
+              }}
+              className="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white font-bold px-8"
+            >
+              🎉 Celebrate Victory!
             </Button>
           </div>
         </DialogContent>
