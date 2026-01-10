@@ -7148,8 +7148,77 @@ Generate a complete CAML 2.0 JSON adventure.`;
         })
       );
       
+      // Auto-populate entity library if empty
+      let camlEntitySources = sessionState[0].camlEntitySources as any;
+      if (!camlEntitySources || Object.keys(camlEntitySources).length === 0) {
+        // Load campaign NPCs
+        const campaignNpcs = await storage.getCampaignNpcs(campaignId);
+        
+        // Load campaign quests
+        const campaignQuests = await storage.getCampaignQuests(campaignId);
+        
+        // Load user's items (potential loot)
+        const userItems = await storage.getUserItems(campaign.userId);
+        
+        // Load campaign encounters from adventure elements
+        const elementsResult = await db.select().from(adventureElements)
+          .where(eq(adventureElements.userId, campaign.userId));
+        const encounters = elementsResult.filter((e: any) => e.elementType === 'encounter');
+        const locations = elementsResult.filter((e: any) => e.elementType === 'location');
+        
+        // Build entity sources for the Live Manager sidebar
+        camlEntitySources = {
+          npcs: campaignNpcs.map((npc: any) => ({
+            id: `npc-${npc.id}`,
+            name: npc.name,
+            type: 'npc',
+            description: npc.description,
+            race: npc.race,
+            role: npc.role,
+            personality: npc.personality,
+            motivation: npc.motivation
+          })),
+          items: userItems.slice(0, 50).map((item: any) => ({
+            id: `item-${item.id}`,
+            name: item.name,
+            type: 'item',
+            description: item.description,
+            itemType: item.type,
+            rarity: item.rarity
+          })),
+          encounters: encounters.map((enc: any) => ({
+            id: `encounter-${enc.id}`,
+            name: enc.name,
+            type: 'encounter',
+            description: enc.description,
+            details: enc.details
+          })),
+          locations: locations.map((loc: any) => ({
+            id: `location-${loc.id}`,
+            name: loc.name,
+            type: 'location',
+            description: loc.description,
+            details: loc.details
+          })),
+          quests: campaignQuests.map((quest: any) => ({
+            id: `quest-${quest.id}`,
+            name: quest.title,
+            type: 'quest',
+            description: quest.description,
+            status: quest.status,
+            objectives: quest.objectives
+          }))
+        };
+        
+        // Save to session state for future loads
+        await db.update(dmSessionStates)
+          .set({ camlEntitySources, lastUpdatedAt: new Date().toISOString() })
+          .where(eq(dmSessionStates.campaignId, campaignId));
+      }
+      
       res.json({
         ...sessionState[0],
+        camlEntitySources,
         participantsWithChars
       });
     } catch (error) {

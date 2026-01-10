@@ -62,6 +62,7 @@ import {
   Dice6,
   BookOpen,
   Zap,
+  Target,
 } from "lucide-react";
 
 interface LiveManagerPanelProps {
@@ -70,7 +71,7 @@ interface LiveManagerPanelProps {
 
 interface DraggableEntity {
   id: string;
-  type: "npc" | "item" | "encounter" | "location" | "monster";
+  type: "npc" | "item" | "encounter" | "location" | "monster" | "quest";
   name: string;
   data: any;
 }
@@ -124,6 +125,7 @@ function DraggableItem({ entity }: { entity: DraggableEntity }) {
       case "encounter": return <Sword className="h-4 w-4" />;
       case "location": return <MapPin className="h-4 w-4" />;
       case "monster": return <Skull className="h-4 w-4" />;
+      case "quest": return <Target className="h-4 w-4" />;
       default: return <Circle className="h-4 w-4" />;
     }
   };
@@ -135,6 +137,7 @@ function DraggableItem({ entity }: { entity: DraggableEntity }) {
       case "encounter": return "bg-red-100 text-red-700 border-red-200";
       case "location": return "bg-green-100 text-green-700 border-green-200";
       case "monster": return "bg-purple-100 text-purple-700 border-purple-200";
+      case "quest": return "bg-orange-100 text-orange-700 border-orange-200";
       default: return "bg-gray-100 text-gray-700 border-gray-200";
     }
   };
@@ -194,7 +197,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
     pendingChoices?: any[];
     dmMessages?: any[];
     sessionArtifacts?: SessionArtifact[];
-    camlEntitySources?: { npcs?: any[]; items?: any[]; encounters?: any[]; locations?: any[] };
+    camlEntitySources?: { npcs?: any[]; items?: any[]; encounters?: any[]; locations?: any[]; quests?: any[] };
     participantsWithChars?: any[];
   }>({
     queryKey: [`/api/campaigns/${selectedCampaignId}/dm-session-state`],
@@ -407,6 +410,18 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
     name: enc.name || enc.id,
     data: enc,
   }));
+  const camlLocations = (camlEntities.locations || []).map((loc: any, idx: number) => ({
+    id: `caml-location-${idx}`,
+    type: "location" as const,
+    name: loc.name || loc.id,
+    data: loc,
+  }));
+  const camlQuests = (camlEntities.quests || []).map((quest: any, idx: number) => ({
+    id: `caml-quest-${idx}`,
+    type: "quest" as const,
+    name: quest.name || quest.id,
+    data: quest,
+  }));
 
   if (!selectedCampaignId) {
     return (
@@ -459,21 +474,24 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
             {sidebarOpen && (
               <CardContent className="p-2 h-[calc(100%-60px)]">
                 <Tabs value={sidebarTab} onValueChange={setSidebarTab}>
-                  <TabsList className="grid w-full grid-cols-5 h-8">
-                    <TabsTrigger value="npcs" className="text-xs p-1">
+                  <TabsList className="grid w-full grid-cols-6 h-8">
+                    <TabsTrigger value="npcs" className="text-xs p-1" title="NPCs">
                       <Users className="h-3 w-3" />
                     </TabsTrigger>
-                    <TabsTrigger value="items" className="text-xs p-1">
+                    <TabsTrigger value="items" className="text-xs p-1" title="Items">
                       <Package className="h-3 w-3" />
                     </TabsTrigger>
-                    <TabsTrigger value="encounters" className="text-xs p-1">
+                    <TabsTrigger value="encounters" className="text-xs p-1" title="Encounters">
                       <Sword className="h-3 w-3" />
                     </TabsTrigger>
-                    <TabsTrigger value="monsters" className="text-xs p-1">
+                    <TabsTrigger value="monsters" className="text-xs p-1" title="Monsters">
                       <Skull className="h-3 w-3" />
                     </TabsTrigger>
-                    <TabsTrigger value="locations" className="text-xs p-1">
+                    <TabsTrigger value="locations" className="text-xs p-1" title="Locations">
                       <MapPin className="h-3 w-3" />
+                    </TabsTrigger>
+                    <TabsTrigger value="quests" className="text-xs p-1" title="Quests">
+                      <Target className="h-3 w-3" />
                     </TabsTrigger>
                   </TabsList>
 
@@ -483,7 +501,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                       {(sidebarTab === "npcs" && camlNpcs.length > 0) && (
                         <>
                           <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1 mt-2">
-                            <Sparkles className="h-3 w-3" /> From CAML
+                            <Sparkles className="h-3 w-3" /> From Campaign
                           </div>
                           {camlNpcs.map((entity) => (
                             <DraggableItem key={entity.id} entity={entity} />
@@ -494,7 +512,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                       {(sidebarTab === "items" && camlItems.length > 0) && (
                         <>
                           <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1 mt-2">
-                            <Sparkles className="h-3 w-3" /> From CAML
+                            <Sparkles className="h-3 w-3" /> From Campaign
                           </div>
                           {camlItems.map((entity) => (
                             <DraggableItem key={entity.id} entity={entity} />
@@ -505,9 +523,31 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                       {(sidebarTab === "encounters" && camlEncounters.length > 0) && (
                         <>
                           <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1 mt-2">
-                            <Sparkles className="h-3 w-3" /> From CAML
+                            <Sparkles className="h-3 w-3" /> From Campaign
                           </div>
                           {camlEncounters.map((entity) => (
+                            <DraggableItem key={entity.id} entity={entity} />
+                          ))}
+                          <Separator className="my-2" />
+                        </>
+                      )}
+                      {(sidebarTab === "locations" && camlLocations.length > 0) && (
+                        <>
+                          <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1 mt-2">
+                            <Sparkles className="h-3 w-3" /> From Campaign
+                          </div>
+                          {camlLocations.map((entity) => (
+                            <DraggableItem key={entity.id} entity={entity} />
+                          ))}
+                          <Separator className="my-2" />
+                        </>
+                      )}
+                      {(sidebarTab === "quests" && camlQuests.length > 0) && (
+                        <>
+                          <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1 mt-2">
+                            <Sparkles className="h-3 w-3" /> From Campaign
+                          </div>
+                          {camlQuests.map((entity) => (
                             <DraggableItem key={entity.id} entity={entity} />
                           ))}
                           <Separator className="my-2" />
