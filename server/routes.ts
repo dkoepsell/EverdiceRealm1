@@ -7554,8 +7554,10 @@ COMBAT MECHANICS REQUIREMENTS:
 - Track when combatants are wounded, bloodied (below 50% HP), or defeated
 - Player and party members can take damage from enemy attacks
 - AI companions should take actions each round - describe what they do!
+- IMPORTANT: Unconscious or dead companions CANNOT take actions! Do NOT include them in companionActions
+- If a companion has status "unconscious" or "dead" or currentHp <= 0, they are incapacitated and skip their turn
 - Include "combatEffects" with damage for ALL combatants (player, companions, enemies)
-- Include "companionActions" describing what each AI companion did this round
+- Include "companionActions" describing what each CONSCIOUS AI companion did this round (skip unconscious ones)
 - Combat should feel dangerous and consequential
 - ALWAYS populate "combatants" array with enemies when inCombat is true
 - ALWAYS populate "partyMembers" array with player and companions when inCombat is true
@@ -8943,7 +8945,16 @@ Respond with JSON:
               enemyDamage: combatEffects.enemyDamage,
               // Use enhanced party damage with D&D mechanics if available, else fallback
               partyDamage: enhancedPartyDamage.length > 0 ? enhancedPartyDamage : combatEffects.partyDamage,
-              companionActions: combatEffects.companionActions,
+              // Filter out actions from unconscious/dead companions
+              companionActions: (combatEffects.companionActions || []).filter((action: any) => {
+                // Check if this companion is conscious based on our combatant data
+                const companion = companionCombatants.find(c => c.name === action.name);
+                if (companion && (companion.status === 'unconscious' || companion.status === 'dead' || companion.currentHp <= 0)) {
+                  console.log(`Filtering out action from unconscious companion: ${action.name}`);
+                  return false;
+                }
+                return true;
+              }),
               // NEW: Detailed combat logs with transparent D&D mechanics
               detailedCombatLogs: detailedCombatLogs.map(log => ({
                 attacker: log.attacker,
