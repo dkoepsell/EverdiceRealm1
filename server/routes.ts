@@ -4135,13 +4135,26 @@ Return your response as a JSON object with these fields:
         return res.status(400).json({ message: "NPC is already in this campaign" });
       }
       
+      // Default healing potions for companions
+      const defaultInventory = [
+        {
+          name: "Potion of Healing",
+          type: "potion",
+          rarity: "common",
+          description: "Restores 2d4+2 hit points when consumed",
+          properties: "Consumable, healing",
+          quantity: 2
+        }
+      ];
+      
       const campaignNpcData = insertCampaignNpcSchema.parse({
         campaignId,
         npcId,
         role: req.body.role || 'companion',
         turnOrder: req.body.turnOrder,
         isActive: true,
-        joinedAt: new Date().toISOString()
+        joinedAt: new Date().toISOString(),
+        inventory: req.body.inventory || defaultInventory
       });
       
       const campaignNpc = await storage.addNpcToCampaign(campaignNpcData);

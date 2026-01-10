@@ -2154,30 +2154,39 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               🛡️ Your Party
                             </h5>
                             <div className="space-y-2">
-                              {(parsedStoryState.partyMembers as any[] || []).filter((m: any) => m.status !== 'unconscious').map((member: any, index: number) => (
+                              {(parsedStoryState.partyMembers as any[] || []).map((member: any, index: number) => {
+                                const isUnconscious = member.status === 'unconscious' || member.status === 'dead' || member.currentHp <= 0;
+                                const hpRatio = member.maxHp > 0 ? Math.max(0, member.currentHp / member.maxHp) : 0;
+                                
+                                return (
                                 <div 
                                   key={member.name || index}
                                   className={`p-2 rounded border ${
-                                    member.type === 'player' 
+                                    isUnconscious
+                                      ? 'bg-gray-100 dark:bg-gray-800/50 border-gray-400 dark:border-gray-600 opacity-75'
+                                      : member.type === 'player' 
                                       ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700' 
                                       : 'bg-green-50 dark:bg-green-900/30 border-green-300 dark:border-green-700'
                                   }`}
                                 >
                                   <div className="flex justify-between items-center mb-1">
                                     <span className={`font-bold text-sm ${
+                                      isUnconscious ? 'text-gray-500 dark:text-gray-400 line-through' :
                                       member.type === 'player' ? 'text-blue-800 dark:text-blue-200' : 'text-green-800 dark:text-green-200'
                                     }`}>
-                                      {member.type === 'player' ? '👤 ' : '🤝 '}{member.name}
+                                      {isUnconscious ? '💀 ' : member.type === 'player' ? '👤 ' : '🤝 '}{member.name}
                                       {member.class && <span className="text-xs ml-1 opacity-70">({member.class})</span>}
                                     </span>
                                     <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-                                      member.status === 'bloodied' 
+                                      isUnconscious
+                                        ? 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                        : member.status === 'bloodied' 
                                         ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' 
                                         : member.status === 'wounded'
                                         ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                                         : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                                     }`}>
-                                      {member.status || 'healthy'}
+                                      {isUnconscious ? '💀 unconscious' : member.status || 'healthy'}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-2">
@@ -2185,21 +2194,25 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                     <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
                                       <div 
                                         className={`h-full rounded-full transition-all ${
-                                          (member.currentHp / member.maxHp) <= 0.25 
+                                          isUnconscious || hpRatio <= 0
+                                            ? 'bg-gray-500'
+                                            : hpRatio <= 0.25 
                                             ? 'bg-red-500' 
-                                            : (member.currentHp / member.maxHp) <= 0.5 
+                                            : hpRatio <= 0.5 
                                             ? 'bg-orange-500' 
                                             : 'bg-green-500'
                                         }`}
-                                        style={{ width: `${Math.max(0, (member.currentHp / member.maxHp) * 100)}%` }}
+                                        style={{ width: isUnconscious ? '0%' : `${hpRatio * 100}%` }}
                                       />
                                     </div>
-                                    <span className="text-xs font-mono text-gray-700 dark:text-gray-300 min-w-[45px] text-right">
-                                      {member.currentHp}/{member.maxHp}
+                                    <span className={`text-xs font-mono min-w-[45px] text-right ${
+                                      isUnconscious ? 'text-red-600 dark:text-red-400 font-bold' : 'text-gray-700 dark:text-gray-300'
+                                    }`}>
+                                      {Math.max(0, member.currentHp)}/{member.maxHp}
                                     </span>
                                   </div>
                                 </div>
-                              ))}
+                              );})}
                             </div>
                           </div>
                           
