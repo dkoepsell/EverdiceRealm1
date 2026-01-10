@@ -1425,7 +1425,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Transfer item between characters in the same campaign
+  // Transfer item between characters or to NPC companions in the same campaign
   app.post("/api/campaigns/:campaignId/items/transfer", async (req, res) => {
     try {
       if (!req.isAuthenticated()) {
@@ -1433,26 +1433,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const campaignId = parseInt(req.params.campaignId);
-      const { fromCharacterId, toCharacterId, item } = req.body;
+      const { fromCharacterId, toCharacterId, toNpcId, item } = req.body;
       
-      if (!fromCharacterId || !toCharacterId || !item) {
-        return res.status(400).json({ message: "fromCharacterId, toCharacterId, and item are required" });
+      if (!fromCharacterId || !item) {
+        return res.status(400).json({ message: "fromCharacterId and item are required" });
       }
       
-      // Verify both characters are in the campaign
+      if (!toCharacterId && !toNpcId) {
+        return res.status(400).json({ message: "Either toCharacterId or toNpcId is required" });
+      }
+      
+      if (toCharacterId && toNpcId) {
+        return res.status(400).json({ message: "Cannot specify both toCharacterId and toNpcId" });
+      }
+      
+      // Verify source character is in the campaign
       const participants = await storage.getCampaignParticipants(campaignId);
       const fromParticipant = participants.find((p: any) => p.characterId === fromCharacterId);
-      const toParticipant = participants.find((p: any) => p.characterId === toCharacterId);
       
-      if (!fromParticipant || !toParticipant) {
-        return res.status(400).json({ message: "Both characters must be in the campaign" });
+      if (!fromParticipant) {
+        return res.status(400).json({ message: "Source character must be in the campaign" });
       }
       
       const fromCharacter = await storage.getCharacter(fromCharacterId);
-      const toCharacter = await storage.getCharacter(toCharacterId);
       
-      if (!fromCharacter || !toCharacter) {
-        return res.status(404).json({ message: "Character not found" });
+      if (!fromCharacter) {
+        return res.status(404).json({ message: "Source character not found" });
       }
       
       // Check if item is in from character's inventory
@@ -1479,17 +1485,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: new Date().toISOString()
       });
       
-      // Add to target
-      const toEquipment = toCharacter.equipment || [];
-      toEquipment.push(item);
+      let targetName = "";
       
-      await storage.updateCharacter(toCharacterId, {
-        equipment: toEquipment,
-        updatedAt: new Date().toISOString()
-      });
+      if (toCharacterId) {
+        // Transfer to another character
+        const toParticipant = participants.find((p: any) => p.characterId === toCharacterId);
+        
+        if (!toParticipant) {
+          return res.status(400).json({ message: "Target character must be in the campaign" });
+        }
+        
+        const toCharacter = await storage.getCharacter(toCharacterId);
+        
+        if (!toCharacter) {
+          return res.status(404).json({ message: "Target character not found" });
+        }
+        
+        const toEquipment = toCharacter.equipment || [];
+        toEquipment.push(item);
+        
+        await storage.updateCharacter(toCharacterId, {
+          equipment: toEquipment,
+          updatedAt: new Date().toISOString()
+        });
+        
+        targetName = toCharacter.name;
+      } else if (toNpcId) {
+        // Transfer to companion NPC
+        const campaignNpcs = await storage.getCampaignNpcs(campaignId);
+        const campaignNpc = campaignNpcs.find((cn: any) => cn.npcId === toNpcId);
+        
+        if (!campaignNpc) {
+          return res.status(400).json({ message: "NPC is not in this campaign" });
+        }
+        
+        if (campaignNpc.role !== 'companion' && campaignNpc.role !== 'ally') {
+          return res.status(400).json({ message: "Can only give items to companion or ally NPCs" });
+        }
+        
+        const npc = await storage.getNpc(toNpcId);
+        if (!npc) {
+          return res.status(404).json({ message: "NPC not found" });
+        }
+        
+        const npcInventory = campaignNpc.inventory || [];
+        npcInventory.push(item);
+        
+        await storage.updateCampaignNpc(campaignNpc.id, {
+          inventory: npcInventory
+        });
+        
+        targetName = npc.name;
+      }
       
       res.json({
-        message: `Transferred ${item} from ${fromCharacter.name} to ${toCharacter.name}`
+        message: `Transferred ${item} from ${fromCharacter.name} to ${targetName}`
       });
     } catch (error: any) {
       console.error("Error transferring item:", error);

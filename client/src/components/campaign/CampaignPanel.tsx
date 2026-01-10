@@ -1298,13 +1298,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   });
 
   const transferItemMutation = useMutation({
-    mutationFn: async ({ fromCharacterId, toCharacterId, item }: { fromCharacterId: number; toCharacterId: number; item: string }) => {
-      const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/items/transfer`, { fromCharacterId, toCharacterId, item });
+    mutationFn: async ({ fromCharacterId, toCharacterId, toNpcId, item }: { fromCharacterId: number; toCharacterId?: number; toNpcId?: number; item: string }) => {
+      const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/items/transfer`, { fromCharacterId, toCharacterId, toNpcId, item });
       return await response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
       toast({
         title: "Item Transferred",
         description: data.message,
@@ -3088,16 +3089,24 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                     <SelectItem value="accessory">Accessory</SelectItem>
                                   </SelectContent>
                                 </Select>
-                                {participants && participants.length > 1 && (
+                                {(participants?.length > 1 || partyNpcs?.length > 0) && (
                                   <Select 
                                     value=""
                                     onValueChange={(targetId) => {
                                       if (targetId) {
-                                        transferItemMutation.mutate({ 
-                                          fromCharacterId: activeCharacter.id, 
-                                          toCharacterId: parseInt(targetId), 
-                                          item 
-                                        });
+                                        if (targetId.startsWith('npc:')) {
+                                          transferItemMutation.mutate({ 
+                                            fromCharacterId: activeCharacter.id, 
+                                            toNpcId: parseInt(targetId.replace('npc:', '')), 
+                                            item 
+                                          });
+                                        } else {
+                                          transferItemMutation.mutate({ 
+                                            fromCharacterId: activeCharacter.id, 
+                                            toCharacterId: parseInt(targetId), 
+                                            item 
+                                          });
+                                        }
                                       }
                                     }}
                                   >
@@ -3110,17 +3119,20 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                     >
                                       {participants
                                         .filter((p: any) => p.characterId && p.characterId !== activeCharacter.id)
-                                        .length > 0 ? (
-                                        participants
-                                          .filter((p: any) => p.characterId && p.characterId !== activeCharacter.id)
-                                          .map((p: any) => (
-                                            <SelectItem key={p.characterId} value={p.characterId.toString()}>
-                                              {p.character?.name || `Character ${p.characterId}`}
-                                            </SelectItem>
-                                          ))
-                                      ) : (
+                                        .map((p: any) => (
+                                          <SelectItem key={p.characterId} value={p.characterId.toString()}>
+                                            {p.character?.name || `Character ${p.characterId}`}
+                                          </SelectItem>
+                                        ))}
+                                      {partyNpcs?.map((npc: any) => (
+                                        <SelectItem key={`npc-${npc.id}`} value={`npc:${npc.id}`}>
+                                          {npc.name} (Companion)
+                                        </SelectItem>
+                                      ))}
+                                      {participants.filter((p: any) => p.characterId && p.characterId !== activeCharacter.id).length === 0 && 
+                                       (!partyNpcs || partyNpcs.length === 0) && (
                                         <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                                          No other party members
+                                          No party members or companions
                                         </div>
                                       )}
                                     </SelectContent>
