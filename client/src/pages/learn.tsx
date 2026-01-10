@@ -725,9 +725,6 @@ export default function LearnPage() {
         </div>
         <div className="container mx-auto px-4 relative z-10">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-              <span className="text-white font-fantasy font-bold text-sm">E</span>
-            </div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">
               <Star className="h-3 w-3" />
               <span>Start Your Journey</span>

@@ -158,18 +158,33 @@ export default function BulletinBoardPage() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-amber-400 flex items-center gap-3">
-              <MessageSquare className="h-8 w-8" />
-              Bulletin Board
-            </h1>
-            <p className="text-slate-300 mt-1">Find players, join games, and connect with fellow adventurers</p>
-          </div>
-          
-          {user && (
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      {/* Hero Section */}
+      <section className="relative bg-gradient-to-br from-slate-900 via-amber-900/20 to-slate-900 py-8 md:py-12 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute top-6 right-8 md:right-16 opacity-15">
+          <Users className="h-14 w-14 md:h-20 md:w-20 text-amber-400" />
+        </div>
+        <div className="absolute top-16 right-20 md:right-40 opacity-10">
+          <MessageSquare className="h-10 w-10 md:h-16 md:w-16 text-yellow-300" />
+        </div>
+        <div className="absolute bottom-6 right-12 md:right-28 opacity-10">
+          <Gamepad2 className="h-12 w-12 md:h-16 md:w-16 text-amber-300" />
+        </div>
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
+                  <Users className="h-3 w-3" />
+                  <span>Find Your Party</span>
+                </div>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-fantasy font-bold text-white mb-2">Bulletin Board</h1>
+              <p className="text-white/60">Find players, join games, and connect with fellow adventurers</p>
+            </div>
+            {user && (
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
               <DialogTrigger asChild>
                 <Button className="bg-amber-600 hover:bg-amber-500 text-white" data-testid="button-create-post">
@@ -328,8 +343,11 @@ export default function BulletinBoardPage() {
               </DialogContent>
             </Dialog>
           )}
+          </div>
         </div>
+      </section>
 
+      <div className="max-w-6xl mx-auto p-6">
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />

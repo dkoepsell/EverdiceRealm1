@@ -128,32 +128,47 @@ export default function WorldMapPage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Map className="h-8 w-8 text-primary" />
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
-              The Realm of Everdice
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              Explore the world and track your adventures across all regions
-            </p>
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      {/* Hero Section */}
+      <section className="relative bg-gradient-to-br from-slate-900 via-cyan-900/20 to-slate-900 py-8 md:py-12 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-blue-500/5 to-transparent"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute top-6 right-8 md:right-16 opacity-15">
+          <Map className="h-14 w-14 md:h-20 md:w-20 text-cyan-400" />
+        </div>
+        <div className="absolute top-16 right-20 md:right-40 opacity-10">
+          <Compass className="h-10 w-10 md:h-16 md:w-16 text-blue-300 rotate-12" />
+        </div>
+        <div className="absolute bottom-6 right-12 md:right-28 opacity-10">
+          <MapPin className="h-12 w-12 md:h-16 md:w-16 text-cyan-300" />
+        </div>
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-sm">
+                  <Compass className="h-3 w-3" />
+                  <span>Explore the Realm</span>
+                </div>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-fantasy font-bold text-white mb-2">The Realm of Everdice</h1>
+              <p className="text-white/60">Explore the world and track your adventures</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="gap-1 bg-white/10 border-white/20 text-white">
+                <User className="h-3 w-3" />
+                {user?.username || "Guest"}
+              </Badge>
+              <Badge variant="secondary" className="gap-1 bg-cyan-500/20 text-cyan-300 border-cyan-500/30">
+                <CheckCircle2 className="h-3 w-3" />
+                {myProgress.filter(p => p.completionState === 'completed').length} / {regions.length + locations.length} Explored
+              </Badge>
+            </div>
           </div>
         </div>
-        
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="gap-1">
-            <User className="h-3 w-3" />
-            {user?.username || "Guest"}
-          </Badge>
-          <Badge variant="secondary" className="gap-1">
-            <CheckCircle2 className="h-3 w-3" />
-            {myProgress.filter(p => p.completionState === 'completed').length} / {regions.length + locations.length} Explored
-          </Badge>
-        </div>
-      </div>
+      </section>
 
+      <div className="container mx-auto p-6">
       <div className="flex gap-6">
         {/* World Map Grid */}
         <div className="flex-1">
@@ -449,6 +464,7 @@ export default function WorldMapPage() {
             </CardContent>
           </Card>
         </div>
+      </div>
       </div>
     </div>
   );

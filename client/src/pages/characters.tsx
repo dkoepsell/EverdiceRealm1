@@ -331,9 +331,6 @@ export default function Characters() {
         </div>
         <div className="container mx-auto px-4 relative z-10">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
-              <span className="text-white font-fantasy font-bold text-sm">E</span>
-            </div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
               <Users className="h-3 w-3" />
               <span>Build Your Party</span>

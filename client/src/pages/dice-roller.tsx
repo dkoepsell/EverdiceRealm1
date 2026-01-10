@@ -15,9 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
-// import { SkillCheckExplainer } from "@/components/education/SkillCheckExplainer";
 import { Badge } from "@/components/ui/badge";
-import { HelpCircle, BookOpen } from "lucide-react";
+import { HelpCircle, BookOpen, Dice1, Dice5, Sparkles } from "lucide-react";
 
 const diceTypes: DiceType[] = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"];
 
@@ -136,9 +135,33 @@ export default function DiceRoller() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-fantasy font-bold mb-6">Dice Roller</h1>
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      {/* Hero Section */}
+      <section className="relative bg-gradient-to-br from-slate-900 via-rose-900/20 to-slate-900 py-8 md:py-12 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-rose-500/10 via-pink-500/5 to-transparent"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-rose-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute top-6 right-8 md:right-16 opacity-15">
+          <Dice5 className="h-14 w-14 md:h-20 md:w-20 text-rose-400" />
+        </div>
+        <div className="absolute top-16 right-20 md:right-40 opacity-10">
+          <Dice1 className="h-10 w-10 md:h-16 md:w-16 text-pink-300 rotate-12" />
+        </div>
+        <div className="absolute bottom-6 right-12 md:right-28 opacity-10">
+          <Sparkles className="h-12 w-12 md:h-16 md:w-16 text-rose-300" />
+        </div>
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
+              <Dice5 className="h-3 w-3" />
+              <span>Test Your Luck</span>
+            </div>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-fantasy font-bold text-white mb-2">Dice Roller</h1>
+          <p className="text-white/60">Roll any dice for your adventures</p>
+        </div>
+      </section>
       
+      <div className="container mx-auto px-4 py-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Dice Selection */}
         <Card className="bg-secondary-light rounded-lg shadow-xl overflow-hidden">
@@ -396,6 +419,7 @@ export default function DiceRoller() {
             </div>
           </CardContent>
         </Card>
+      </div>
       </div>
     </div>
   );

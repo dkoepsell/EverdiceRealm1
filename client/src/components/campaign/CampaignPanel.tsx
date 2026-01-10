@@ -2297,7 +2297,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         <h4 className="font-semibold text-slate-900 dark:text-slate-100">What will you do?</h4>
                         
                         {/* Suggested Actions */}
-                        <div className="grid grid-cols-1 gap-2">
+                        <div className="grid grid-cols-1 gap-2 max-w-full overflow-hidden">
                           {currentSession.choices.map((choice: any, index: number) => {
                             // Parse DC and calculate success probability
                             const choiceText = choice.action || choice.text || '';
@@ -2330,23 +2330,23 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               <Button 
                                 key={index}
                                 variant="outline"
-                                className="justify-start h-auto py-3 px-4 bg-background hover:bg-accent border-2 border-border hover:border-primary text-left w-full"
+                                className="justify-start h-auto py-3 px-3 sm:px-4 bg-background hover:bg-accent border-2 border-border hover:border-primary text-left w-full max-w-full overflow-hidden"
                                 onClick={() => handleChoiceSelection(choice)}
                                 data-testid={`choice-button-${index}`}
                               >
-                                <div className="flex items-start w-full min-w-0">
-                                  <ArrowRight className="h-5 w-5 mr-2 mt-0.5 shrink-0 text-primary" />
-                                  <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 sm:gap-2 min-w-0 flex-1">
-                                    <span className="text-slate-900 dark:text-slate-100 font-medium break-words">
+                                <div className="flex items-start w-full min-w-0 overflow-hidden">
+                                  <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 mr-2 mt-0.5 shrink-0 text-primary" />
+                                  <div className="flex flex-col gap-1 min-w-0 flex-1 overflow-hidden">
+                                    <span className="text-slate-900 dark:text-slate-100 font-medium text-sm sm:text-base break-words whitespace-normal overflow-wrap-anywhere">
                                       {choiceText}
                                     </span>
                                     {hasRoll && (
-                                      <div className="flex items-center gap-1 shrink-0">
-                                        <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded font-bold whitespace-nowrap">
+                                      <div className="flex flex-wrap items-center gap-1">
+                                        <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded font-bold">
                                           {choice.rollPurpose || "Skill Check"} ({choice.diceType || "d20"})
                                         </span>
                                         {tooltipContent && activeCharacter && (
-                                          <span className={`text-xs px-1.5 py-0.5 rounded font-bold whitespace-nowrap ${getLikelihoodDescription(calculateSuccessProbability(dc, getSkillModifier(activeCharacter, skillName).modifier)).color} bg-black/20`}>
+                                          <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${getLikelihoodDescription(calculateSuccessProbability(dc, getSkillModifier(activeCharacter, skillName).modifier)).color} bg-black/20`}>
                                             {Math.round(calculateSuccessProbability(dc, getSkillModifier(activeCharacter, skillName).modifier))}%
                                           </span>
                                         )}
