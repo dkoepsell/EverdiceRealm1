@@ -66,6 +66,14 @@ import {
   CAML_TRACE_VERSION
 } from "@shared/caml-trace";
 import yaml from "js-yaml";
+import { 
+  processEnemyAttacks, 
+  processPlayerAttack, 
+  getCompanionDefaultStats,
+  type Combatant, 
+  type CombatLogEntry,
+  type CombatTurnResult 
+} from "./combatManager";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -8658,9 +8666,119 @@ Respond with JSON:
           let deathSaveSuccesses = character.deathSaveSuccesses || 0;
           let statusChange: string | null = null;
           
+          // === D&D Combat Manager Integration ===
+          // Process combat with transparent mechanics for educational purposes
+          let detailedCombatLogs: CombatLogEntry[] = [];
+          let enhancedPartyDamage: { name: string; damageTaken: number; newHp: number; maxHp: number; defeated: boolean; attackRoll?: any; targetAC?: number; mechanicsBreakdown?: string }[] = [];
+          
           if (combatEffects) {
             damageTaken = combatEffects.playerDamageTaken || 0;
             damageDealt = combatEffects.playerDamageDealt || 0;
+            
+            // Get companion NPCs for this campaign to apply damage to them
+            const campaignNpcs = await storage.getCampaignNpcs(campaignId);
+            const npcDetails = await Promise.all(
+              campaignNpcs.map(async (cn) => {
+                const npc = await storage.getNpc(cn.npcId);
+                return { campaignNpc: cn, npc };
+              })
+            );
+            
+            // Build combatant list from companions
+            const companionCombatants: Combatant[] = npcDetails
+              .filter(({ npc, campaignNpc }) => npc && campaignNpc.isActive && campaignNpc.role === 'companion')
+              .map(({ npc, campaignNpc }) => {
+                const defaultStats = getCompanionDefaultStats(npc!.class || 'Fighter', 1);
+                return {
+                  id: campaignNpc.id,
+                  name: npc!.name,
+                  type: 'companion' as const,
+                  currentHp: campaignNpc.currentHp ?? npc!.hitPoints ?? defaultStats.maxHp,
+                  maxHp: campaignNpc.maxHp ?? npc!.maxHitPoints ?? defaultStats.maxHp,
+                  armorClass: campaignNpc.armorClass ?? npc!.armorClass ?? defaultStats.armorClass,
+                  attackBonus: campaignNpc.attackBonus ?? defaultStats.attackBonus,
+                  damageRoll: campaignNpc.damageRoll ?? defaultStats.damageRoll,
+                  status: (campaignNpc.status as 'conscious' | 'unconscious' | 'dead' | 'stabilized') || 'conscious',
+                  class: npc!.class || undefined
+                };
+              });
+            
+            // Build enemy list from storyState combatants
+            const storyEnemies = storyAdvancement.storyState?.combatants || [];
+            const enemyCombatants: Combatant[] = storyEnemies
+              .filter((e: any) => e.type === 'enemy' || e.type === 'boss')
+              .map((e: any, index: number) => ({
+                id: index + 1000,
+                name: e.name,
+                type: 'enemy' as const,
+                currentHp: e.currentHp || e.maxHp || 20,
+                maxHp: e.maxHp || 20,
+                armorClass: e.ac || 12,
+                attackBonus: e.attackBonus || 3,
+                damageRoll: e.damage || '1d6+2',
+                status: 'conscious' as const
+              }));
+            
+            // Process enemy attacks against party (player + companions)
+            if (enemyCombatants.length > 0 && storyAdvancement.storyState?.inCombat) {
+              // Add player to party members for combat
+              const playerCombatant: Combatant = {
+                id: character.id,
+                name: character.name,
+                type: 'player',
+                currentHp: character.hitPoints,
+                maxHp: character.maxHitPoints,
+                armorClass: character.armorClass,
+                attackBonus: Math.floor(character.level / 4) + 2 + Math.floor((character.strength - 10) / 2),
+                damageRoll: '1d8+' + Math.floor((character.strength - 10) / 2),
+                status: 'conscious',
+                level: character.level
+              };
+              
+              const partyMembers = [playerCombatant, ...companionCombatants];
+              
+              // Use CombatManager to resolve enemy attacks with proper D&D mechanics
+              const combatResult = processEnemyAttacks(enemyCombatants, partyMembers);
+              detailedCombatLogs = combatResult.logs;
+              
+              // Apply damage to player from combat result
+              const playerDamageEntry = combatResult.partyDamageDealt.find(p => p.name === character.name);
+              if (playerDamageEntry) {
+                damageTaken = playerDamageEntry.damageTaken;
+              }
+              
+              // Apply damage to companions and update database
+              for (const damageEntry of combatResult.partyDamageDealt) {
+                // Find the companion in our list
+                const companionMatch = npcDetails.find(({ npc }) => npc?.name === damageEntry.name);
+                if (companionMatch && companionMatch.campaignNpc) {
+                  const cn = companionMatch.campaignNpc;
+                  const newStatus = damageEntry.newHp <= 0 ? 'unconscious' : 'conscious';
+                  
+                  // Update companion HP in database
+                  await db.execute(sql`
+                    UPDATE campaign_npcs 
+                    SET current_hp = ${damageEntry.newHp}, 
+                        status = ${newStatus}
+                    WHERE id = ${cn.id}
+                  `);
+                  
+                  // Find the combat log for this companion to include mechanics
+                  const logEntry = detailedCombatLogs.find(l => l.target === damageEntry.name);
+                  
+                  enhancedPartyDamage.push({
+                    name: damageEntry.name,
+                    damageTaken: damageEntry.damageTaken,
+                    newHp: damageEntry.newHp,
+                    maxHp: damageEntry.maxHp,
+                    defeated: damageEntry.defeated,
+                    attackRoll: logEntry?.attackRoll,
+                    targetAC: logEntry?.targetAC,
+                    mechanicsBreakdown: logEntry?.mechanicsBreakdown
+                  });
+                }
+              }
+            }
             
             if (damageTaken > 0) {
               // Check if already unconscious - damage at 0 HP = death save failure
@@ -8810,8 +8928,37 @@ Respond with JSON:
               maxHitPoints: newMaxHitPoints,
               combatDescription: combatEffects.combatDescription,
               enemyDamage: combatEffects.enemyDamage,
-              partyDamage: combatEffects.partyDamage,
-              companionActions: combatEffects.companionActions
+              // Use enhanced party damage with D&D mechanics if available, else fallback
+              partyDamage: enhancedPartyDamage.length > 0 ? enhancedPartyDamage : combatEffects.partyDamage,
+              companionActions: combatEffects.companionActions,
+              // NEW: Detailed combat logs with transparent D&D mechanics
+              detailedCombatLogs: detailedCombatLogs.map(log => ({
+                attacker: log.attacker,
+                attackerType: log.attackerType,
+                target: log.target,
+                targetType: log.targetType,
+                attackRoll: {
+                  roll: log.attackRoll.roll,
+                  modifier: log.attackRoll.modifier,
+                  total: log.attackRoll.total,
+                  isCritical: log.attackRoll.isCritical,
+                  isCriticalMiss: log.attackRoll.isCriticalMiss
+                },
+                targetAC: log.targetAC,
+                isHit: log.isHit,
+                damage: log.damage ? {
+                  diceRolls: log.damage.diceRolls,
+                  diceType: log.damage.diceType,
+                  modifier: log.damage.modifier,
+                  total: log.damage.total,
+                  isCritical: log.damage.isCritical
+                } : null,
+                targetNewHp: log.targetNewHp,
+                targetMaxHp: log.targetMaxHp,
+                targetStatus: log.targetStatus,
+                description: log.description,
+                mechanicsBreakdown: log.mechanicsBreakdown
+              }))
             } : null
           };
         }

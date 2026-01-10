@@ -164,6 +164,24 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     itemsFound: any[];
     skillImproved?: { skill: string; newBonus: number } | null;
   } | null>(null);
+  
+  // Combat log state for D&D mechanics transparency
+  const [detailedCombatLogs, setDetailedCombatLogs] = useState<{
+    attacker: string;
+    attackerType: string;
+    target: string;
+    targetType: string;
+    attackRoll: { roll: number; modifier: number; total: number; isCritical: boolean; isCriticalMiss: boolean };
+    targetAC: number;
+    isHit: boolean;
+    damage?: { diceRolls: number[]; diceType: string; modifier: number; total: number; isCritical: boolean } | null;
+    targetNewHp?: number;
+    targetMaxHp?: number;
+    targetStatus?: string;
+    description: string;
+    mechanicsBreakdown: string;
+  }[]>([]);
+  const [showCombatLogDialog, setShowCombatLogDialog] = useState(false);
   const [narrativeStyle, setNarrativeStyle] = useState(campaign.narrativeStyle);
   const [difficulty, setDifficulty] = useState(campaign.difficulty);
   const [worldRegionId, setWorldRegionId] = useState<number | null>(campaign.worldRegionId || null);
@@ -789,9 +807,22 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           });
         }
         
-        // Show combat effects toast if damage occurred
+        // Show combat effects with D&D mechanics transparency
         if (data.progression.combatEffects) {
           const combat = data.progression.combatEffects;
+          
+          // Store detailed combat logs for display (with defensive checks)
+          if (combat.detailedCombatLogs && Array.isArray(combat.detailedCombatLogs) && combat.detailedCombatLogs.length > 0) {
+            // Filter and validate logs to ensure they have required fields
+            const validLogs = combat.detailedCombatLogs.filter((log: any) => 
+              log && log.attacker && log.target && log.attackRoll
+            );
+            if (validLogs.length > 0) {
+              setDetailedCombatLogs(validLogs);
+              setShowCombatLogDialog(true);
+            }
+          }
+          
           if (combat.damageTaken > 0) {
             toast({
               title: `⚔️ Combat! You took ${combat.damageTaken} damage!`,
@@ -804,6 +835,25 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               title: `⚔️ Hit! You dealt ${combat.damageDealt} damage!`,
               description: combat.combatDescription || "Your attack connected!",
             });
+          }
+          
+          // Show party damage with D&D mechanics (including companions)
+          if (combat.partyDamage && combat.partyDamage.length > 0) {
+            for (const damage of combat.partyDamage) {
+              // Safely check for mechanicsBreakdown (may not exist)
+              const mechanicsText = damage.mechanicsBreakdown 
+                ? ` (${damage.mechanicsBreakdown.split('\n')[0]})` 
+                : damage.attackRoll 
+                ? ` (d20: ${damage.attackRoll.roll} + ${damage.attackRoll.modifier} = ${damage.attackRoll.total} vs AC ${damage.targetAC || '?'})`
+                : '';
+              toast({
+                title: damage.defeated 
+                  ? `💀 ${damage.name} was knocked unconscious!`
+                  : `⚔️ ${damage.name} took ${damage.damageTaken} damage!`,
+                description: `HP: ${damage.newHp}/${damage.maxHp}${mechanicsText}`,
+                variant: damage.defeated ? "destructive" : undefined,
+              });
+            }
           }
           
           // Show companion actions
@@ -3813,6 +3863,155 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           </DialogContent>
         </Dialog>
       )}
+      
+      {/* Detailed Combat Log Dialog - D&D Mechanics Transparency */}
+      <Dialog open={showCombatLogDialog} onOpenChange={setShowCombatLogDialog}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              ⚔️ Combat Report - D&D Mechanics
+            </DialogTitle>
+            <DialogDescription>
+              See exactly how combat was resolved using authentic D&D 5e rules. This helps you learn the mechanics!
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {detailedCombatLogs.map((log, index) => (
+              <div 
+                key={index} 
+                className={`p-4 rounded-lg border-2 ${
+                  log.attackerType === 'enemy' 
+                    ? 'bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-700' 
+                    : 'bg-green-50 dark:bg-green-950/30 border-green-300 dark:border-green-700'
+                }`}
+              >
+                {/* Attack Header */}
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold text-lg">
+                    {log.attackerType === 'enemy' ? '👹' : '🛡️'} {log.attacker} → {log.target}
+                  </span>
+                  <span className={`px-2 py-1 rounded text-sm font-bold ${
+                    log.attackRoll.isCritical 
+                      ? 'bg-yellow-400 text-yellow-900' 
+                      : log.attackRoll.isCriticalMiss 
+                      ? 'bg-gray-400 text-gray-900'
+                      : log.isHit 
+                      ? 'bg-green-500 text-white' 
+                      : 'bg-gray-300 text-gray-700'
+                  }`}>
+                    {log.attackRoll.isCritical ? '🎯 CRITICAL!' : log.attackRoll.isCriticalMiss ? '❌ FUMBLE!' : log.isHit ? '✓ HIT' : '✗ MISS'}
+                  </span>
+                </div>
+                
+                {/* Attack Roll Breakdown */}
+                <div className="bg-white dark:bg-gray-800 p-3 rounded-md mb-2 font-mono text-sm">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-gray-500">Attack Roll:</span>
+                    <span className={`px-2 py-0.5 rounded font-bold ${
+                      log.attackRoll.roll === 20 ? 'bg-yellow-200 text-yellow-800' : 
+                      log.attackRoll.roll === 1 ? 'bg-red-200 text-red-800' : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      d20({log.attackRoll.roll})
+                    </span>
+                    <span>+</span>
+                    <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded">
+                      {log.attackRoll.modifier} modifier
+                    </span>
+                    <span>=</span>
+                    <span className="font-bold text-lg">{log.attackRoll.total}</span>
+                    <span className="text-gray-500">vs</span>
+                    <span className="bg-gray-200 text-gray-800 px-2 py-0.5 rounded font-bold">
+                      AC {log.targetAC}
+                    </span>
+                  </div>
+                  
+                  {/* D&D Rule Explanation */}
+                  <div className="text-xs text-gray-500 mt-1 italic">
+                    {log.attackRoll.isCritical 
+                      ? "Natural 20! Critical hit automatically succeeds and doubles damage dice."
+                      : log.attackRoll.isCriticalMiss 
+                      ? "Natural 1! Critical miss automatically fails regardless of bonuses."
+                      : log.isHit 
+                      ? `Total (${log.attackRoll.total}) ≥ Target AC (${log.targetAC}) = Hit!`
+                      : `Total (${log.attackRoll.total}) < Target AC (${log.targetAC}) = Miss`
+                    }
+                  </div>
+                </div>
+                
+                {/* Damage Breakdown (if hit) */}
+                {log.isHit && log.damage && (
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-md mb-2 font-mono text-sm">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-gray-500">Damage:</span>
+                      {log.damage.diceRolls.map((roll, i) => (
+                        <span key={i} className="bg-red-100 text-red-800 px-2 py-0.5 rounded">
+                          {log.damage?.diceType}({roll})
+                        </span>
+                      ))}
+                      {log.damage.modifier > 0 && (
+                        <>
+                          <span>+</span>
+                          <span className="bg-orange-100 text-orange-800 px-2 py-0.5 rounded">
+                            {log.damage.modifier}
+                          </span>
+                        </>
+                      )}
+                      <span>=</span>
+                      <span className={`font-bold text-lg ${log.damage.isCritical ? 'text-yellow-600' : 'text-red-600'}`}>
+                        {log.damage.total} damage
+                      </span>
+                      {log.damage.isCritical && (
+                        <span className="text-yellow-600 text-xs">⚡ Critical (2x dice!)</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Result */}
+                <div className="text-sm mt-2">
+                  <p className="font-medium">{log.description}</p>
+                  {log.isHit && log.targetNewHp !== undefined && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-gray-500">{log.target} HP:</span>
+                      <div className="flex-1 max-w-[150px] bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full ${
+                            (log.targetNewHp / (log.targetMaxHp || 1)) <= 0.25 ? 'bg-red-500' : 
+                            (log.targetNewHp / (log.targetMaxHp || 1)) <= 0.5 ? 'bg-orange-500' : 'bg-green-500'
+                          }`}
+                          style={{ width: `${Math.max(0, ((log.targetNewHp || 0) / (log.targetMaxHp || 1)) * 100)}%` }}
+                        />
+                      </div>
+                      <span className="font-mono text-sm">{log.targetNewHp}/{log.targetMaxHp}</span>
+                      {log.targetNewHp <= 0 && (
+                        <span className="text-red-600 font-bold">💀 DOWN!</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Educational Footer */}
+          <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+            <h4 className="font-bold text-blue-800 dark:text-blue-200 text-sm mb-1">📚 D&D 5e Combat Rules</h4>
+            <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
+              <li>• <b>Attack Roll:</b> Roll d20 + attack modifier vs target's Armor Class (AC)</li>
+              <li>• <b>Natural 20:</b> Critical hit! Automatically hits and doubles damage dice</li>
+              <li>• <b>Natural 1:</b> Critical miss! Always fails regardless of modifiers</li>
+              <li>• <b>Damage:</b> On hit, roll damage dice + modifier to determine damage dealt</li>
+            </ul>
+          </div>
+
+          <div className="flex justify-end mt-4">
+            <Button onClick={() => setShowCombatLogDialog(false)}>
+              Continue Adventure
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
