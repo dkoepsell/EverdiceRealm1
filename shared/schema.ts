@@ -413,6 +413,15 @@ export const campaignNpcs = pgTable("campaign_npcs", {
   isActive: boolean("is_active").default(true), // Whether NPC is active
   joinedAt: text("joined_at").notNull().default(new Date().toISOString()),
   lastActiveAt: text("last_active_at"), // Last time they took a turn
+  // Campaign-specific combat stats (overrides base NPC stats for this campaign)
+  currentHp: integer("current_hp"), // Current HP in this campaign (null = use base NPC maxHitPoints)
+  maxHp: integer("max_hp"), // Max HP for this campaign (null = use base NPC maxHitPoints)
+  armorClass: integer("armor_class"), // AC for this campaign (null = use base NPC AC)
+  attackBonus: integer("attack_bonus").default(3), // Attack bonus for combat
+  damageRoll: text("damage_roll").default("1d6+1"), // Damage dice (e.g., "1d6+1")
+  status: text("status").default("conscious"), // conscious, unconscious, dead, stabilized
+  deathSaveSuccesses: integer("death_save_successes").default(0),
+  deathSaveFailures: integer("death_save_failures").default(0),
   // Override NPC default behavior
   customBehaviorRules: jsonb("custom_behavior_rules").default({}),
   controlledBy: integer("controlled_by"), // User ID of player who controls this NPC, null = AI controlled
