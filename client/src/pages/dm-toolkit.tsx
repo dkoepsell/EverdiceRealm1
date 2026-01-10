@@ -3511,10 +3511,9 @@ function CampaignBuilderTab() {
   ];
 
   const campaignLengths = [
-    { value: 'oneshot', label: 'One-Shot (1 session)', description: '3-5 hours of gameplay' },
-    { value: 'short', label: 'Short Campaign (3-5 sessions)', description: '2-3 weeks of gameplay' },
-    { value: 'medium', label: 'Medium Campaign (6-12 sessions)', description: '1-3 months of gameplay' },
-    { value: 'long', label: 'Long Campaign (13+ sessions)', description: '3+ months of ongoing adventure' }
+    { value: 'quick', label: 'Quick Adventure (3 chapters)', description: '~30 minutes of gameplay' },
+    { value: 'standard', label: 'Standard Quest (4-5 chapters)', description: '~1 hour of gameplay' },
+    { value: 'epic', label: 'Epic Saga (6-8 chapters)', description: '~2 hours of gameplay' }
   ];
 
   const campaignThemes = [
@@ -3581,6 +3580,7 @@ function CampaignBuilderTab() {
           description: generatedCampaign.description,
           difficulty: campaignLevel,
           narrativeStyle: campaignTheme,
+          campaignLength: campaignLength,
           generatedContent: generatedCampaign,
         }),
       });

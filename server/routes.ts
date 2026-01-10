@@ -10212,7 +10212,7 @@ Respond with JSON:
   // Import a CAML adventure (YAML or JSON)
   app.post("/api/caml/import", isAuthenticated, async (req, res) => {
     try {
-      const { content, format, createCampaign: shouldCreateCampaign } = req.body;
+      const { content, format, createCampaign: shouldCreateCampaign, campaignLength } = req.body;
       const userId = req.user!.id;
       
       console.log("CAML import request:", { format, shouldCreateCampaign, contentLength: content?.length });
@@ -10242,12 +10242,29 @@ Respond with JSON:
       const campaignData = convertCAMLToCampaign(pack);
       
       if (shouldCreateCampaign) {
+        // Calculate total chapters based on campaign length
+        let totalChapters: number;
+        switch (campaignLength) {
+          case 'quick':
+            totalChapters = 3;
+            break;
+          case 'epic':
+            totalChapters = 6 + Math.floor(Math.random() * 3); // 6-8
+            break;
+          case 'standard':
+          default:
+            totalChapters = 4 + Math.floor(Math.random() * 2); // 4-5
+            break;
+        }
+        
         const campaign = await storage.createCampaign({
           userId,
           title: campaignData.title,
           description: campaignData.description + (campaignData.setting ? `\n\nSetting: ${campaignData.setting}` : ''),
           difficulty: 'normal',
           narrativeStyle: 'balanced',
+          campaignLength: campaignLength || 'standard',
+          totalChapters,
           currentSession: 1,
           createdAt: new Date().toISOString()
         });
@@ -10734,6 +10751,7 @@ Return your response as a JSON object with these fields:
         minLevel, 
         maxLevel, 
         encounterCount,
+        campaignLength,
         includeQuests,
         includePuzzles
       } = req.body;

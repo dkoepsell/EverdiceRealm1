@@ -43,9 +43,16 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
   const [generateMinLevel, setGenerateMinLevel] = useState(1);
   const [generateMaxLevel, setGenerateMaxLevel] = useState(5);
   const [generateEncounterCount, setGenerateEncounterCount] = useState(5);
+  const [campaignLength, setCampaignLength] = useState('standard');
   const [includeQuests, setIncludeQuests] = useState(true);
   const [includePuzzles, setIncludePuzzles] = useState(true);
   const [generatedAdventure, setGeneratedAdventure] = useState<any>(null);
+
+  const campaignLengthOptions = [
+    { value: 'quick', label: 'Quick Adventure (3 chapters)', description: '~30 minutes' },
+    { value: 'standard', label: 'Standard Quest (4-5 chapters)', description: '~1 hour' },
+    { value: 'epic', label: 'Epic Saga (6-8 chapters)', description: '~2 hours' }
+  ];
 
   const importMutation = useMutation({
     mutationFn: async () => {
@@ -113,6 +120,7 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
         minLevel: generateMinLevel,
         maxLevel: generateMaxLevel,
         encounterCount: generateEncounterCount,
+        campaignLength,
         includeQuests,
         includePuzzles
       });
@@ -139,7 +147,8 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
       const response = await apiRequest('POST', '/api/caml/import', {
         content: adventureJson,
         format: 'json',
-        createCampaign: true
+        createCampaign: true,
+        campaignLength
       });
       return response.json();
     },
@@ -379,6 +388,21 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
                     <SelectItem value="ancient ruins">Ancient Ruins</SelectItem>
                     <SelectItem value="coastal town">Coastal Town</SelectItem>
                     <SelectItem value="mountain fortress">Mountain Fortress</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Campaign Length</Label>
+                <Select value={campaignLength} onValueChange={setCampaignLength}>
+                  <SelectTrigger data-testid="select-campaign-length">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {campaignLengthOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label} ({option.description})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
