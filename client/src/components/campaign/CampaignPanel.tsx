@@ -2414,7 +2414,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   <TooltipTrigger asChild>
                                     {button}
                                   </TooltipTrigger>
-                                  <TooltipContent side="right" className="bg-gray-900 border-gray-700 max-w-xs" data-testid={`tooltip-choice-${index}`}>
+                                  <TooltipContent side="top" align="center" sideOffset={5} className="bg-gray-900 border-gray-700 max-w-xs z-50" data-testid={`tooltip-choice-${index}`}>
                                     {tooltipContent}
                                   </TooltipContent>
                                 </Tooltip>
