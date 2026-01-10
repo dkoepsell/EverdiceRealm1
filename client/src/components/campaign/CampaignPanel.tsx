@@ -3078,7 +3078,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   <SelectTrigger className="h-6 w-16 text-xs" data-testid={`select-equip-${index}`}>
                                     <SelectValue placeholder="Equip" />
                                   </SelectTrigger>
-                                  <SelectContent>
+                                  <SelectContent className="z-[9999] bg-white dark:bg-slate-800 border shadow-lg">
                                     <SelectItem value="weapon">Weapon</SelectItem>
                                     <SelectItem value="armor">Armor</SelectItem>
                                     <SelectItem value="shield">Shield</SelectItem>
@@ -3101,7 +3101,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                     <SelectTrigger className="h-6 w-14 text-xs" data-testid={`select-transfer-${index}`}>
                                       <SelectValue placeholder="Give" />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent className="z-[9999] bg-white dark:bg-slate-800 border shadow-lg">
                                       {participants
                                         .filter((p: any) => p.characterId && p.characterId !== activeCharacter.id)
                                         .map((p: any) => (
