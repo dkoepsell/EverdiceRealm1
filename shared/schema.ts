@@ -837,3 +837,35 @@ export const insertCampaignTraceEventSchema = createInsertSchema(campaignTraceEv
 
 export type InsertCampaignTraceEvent = z.infer<typeof insertCampaignTraceEventSchema>;
 export type CampaignTraceEvent = typeof campaignTraceEvents.$inferSelect;
+
+// DM Live Session State - Tracks real-time session data for DM Live Manager
+export const dmSessionStates = pgTable("dm_session_states", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  sessionId: integer("session_id"), // Links to campaign_sessions
+  // Presence tracking
+  presence: jsonb("presence").default([]), // [{userId, characterId, name, isOnline, lastSeen}]
+  // Initiative tracking
+  initiativeOrder: jsonb("initiative_order").default([]), // [{characterId, name, initiative, isPlayer, isCurrentTurn, hp, maxHp, conditions}]
+  currentTurnIndex: integer("current_turn_index").default(0),
+  roundNumber: integer("round_number").default(1),
+  // Player choices tracking
+  pendingChoices: jsonb("pending_choices").default([]), // [{characterId, choice, timestamp}]
+  // DM messages log
+  dmMessages: jsonb("dm_messages").default([]), // [{message, timestamp, type: 'narration'|'ooc'|'system'}]
+  // Session artifacts - dragged items from sidebar
+  sessionArtifacts: jsonb("session_artifacts").default([]), // [{type, entityId, name, data, addedAt}]
+  // CAML entity sources for sidebar
+  camlEntitySources: jsonb("caml_entity_sources").default({}), // {npcs: [], items: [], encounters: [], locations: []}
+  // Status
+  isActive: boolean("is_active").default(true),
+  startedAt: text("started_at").notNull().default(new Date().toISOString()),
+  lastUpdatedAt: text("last_updated_at"),
+});
+
+export const insertDmSessionStateSchema = createInsertSchema(dmSessionStates).omit({
+  id: true,
+});
+
+export type InsertDmSessionState = z.infer<typeof insertDmSessionStateSchema>;
+export type DmSessionState = typeof dmSessionStates.$inferSelect;

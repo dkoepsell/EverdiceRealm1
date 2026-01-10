@@ -90,6 +90,7 @@ import AIAssistedDMGuide from "@/components/dm-toolkit/AIAssistedDMGuide";
 import LiveCampaignManagerTab from "@/components/dm-toolkit/LiveCampaignManagerTab";
 import EnhancedLiveSessionManager from "@/components/dm-toolkit/EnhancedLiveSessionManager";
 import DMTrainingCenterTab from "@/components/dm-toolkit/DMTrainingCenterTab";
+import LiveManagerPanel from "@/components/dm-toolkit/LiveManagerPanel";
 
 export default function DMToolkit() {
   const { user, isLoading: authLoading } = useAuth();
@@ -347,7 +348,46 @@ export default function DMToolkit() {
         </TabsContent>
         
         <TabsContent value="live-manager" className="space-y-4">
-          <EnhancedLiveSessionManager selectedCampaignId={selectedCampaignId} />
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <Play className="h-5 w-5 text-primary" />
+                Live Session Manager
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Real-time control panel for managing your campaign session
+              </p>
+            </div>
+            {campaigns.length > 0 && (
+              <Select
+                value={selectedCampaignId?.toString() || ""}
+                onValueChange={(value) => setSelectedCampaignId(value ? parseInt(value) : null)}
+              >
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue placeholder="Select campaign..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {campaigns.filter((c: any) => !c.isArchived).map((campaign: any) => (
+                    <SelectItem key={campaign.id} value={campaign.id.toString()}>
+                      {campaign.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          <Tabs defaultValue="control-panel" className="w-full">
+            <TabsList className="mb-4">
+              <TabsTrigger value="control-panel">Control Panel</TabsTrigger>
+              <TabsTrigger value="story-tools">Story & Content</TabsTrigger>
+            </TabsList>
+            <TabsContent value="control-panel">
+              <LiveManagerPanel selectedCampaignId={selectedCampaignId} />
+            </TabsContent>
+            <TabsContent value="story-tools">
+              <EnhancedLiveSessionManager selectedCampaignId={selectedCampaignId} />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
         
         <TabsContent value="companions" className="space-y-4">

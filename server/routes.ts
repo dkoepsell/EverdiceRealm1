@@ -31,7 +31,8 @@ import {
   monsters,
   chatMessages,
   onlineUsers,
-  campaignSessions
+  campaignSessions,
+  dmSessionStates
 } from "@shared/schema";
 import { setupAuth, isAuthenticated, requireAdmin } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";
@@ -7104,6 +7105,253 @@ Generate a complete CAML 2.0 JSON adventure.`;
     } catch (error) {
       console.error("Failed to get live session:", error);
       res.status(500).json({ message: "Failed to get live session" });
+    }
+  });
+
+  // DM Session State Management APIs
+
+  // Get or create DM session state
+  app.get("/api/campaigns/:campaignId/dm-session-state", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const campaign = await storage.getCampaign(campaignId);
+      
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      // Only DM can access this
+      if (campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can access session state" });
+      }
+      
+      // Get or create session state
+      let sessionState = await db.select().from(dmSessionStates)
+        .where(eq(dmSessionStates.campaignId, campaignId))
+        .limit(1);
+      
+      if (sessionState.length === 0) {
+        // Create new session state
+        const newState = await db.insert(dmSessionStates).values({
+          campaignId,
+          startedAt: new Date().toISOString(),
+        }).returning();
+        sessionState = newState;
+      }
+      
+      // Get participants with character data
+      const participants = await storage.getCampaignParticipants(campaignId);
+      const participantsWithChars = await Promise.all(
+        participants.map(async (p) => {
+          const character = await storage.getCharacter(p.characterId);
+          return { ...p, character };
+        })
+      );
+      
+      res.json({
+        ...sessionState[0],
+        participantsWithChars
+      });
+    } catch (error) {
+      console.error("Failed to get DM session state:", error);
+      res.status(500).json({ message: "Failed to get DM session state" });
+    }
+  });
+
+  // Update DM session state (initiative, presence, etc.)
+  app.patch("/api/campaigns/:campaignId/dm-session-state", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const campaign = await storage.getCampaign(campaignId);
+      
+      if (!campaign || campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can update session state" });
+      }
+      
+      const { initiativeOrder, presence, currentTurnIndex, roundNumber, camlEntitySources } = req.body;
+      
+      const updateData: any = {
+        lastUpdatedAt: new Date().toISOString(),
+      };
+      
+      if (initiativeOrder !== undefined) updateData.initiativeOrder = initiativeOrder;
+      if (presence !== undefined) updateData.presence = presence;
+      if (currentTurnIndex !== undefined) updateData.currentTurnIndex = currentTurnIndex;
+      if (roundNumber !== undefined) updateData.roundNumber = roundNumber;
+      if (camlEntitySources !== undefined) updateData.camlEntitySources = camlEntitySources;
+      
+      const updated = await db.update(dmSessionStates)
+        .set(updateData)
+        .where(eq(dmSessionStates.campaignId, campaignId))
+        .returning();
+      
+      res.json(updated[0]);
+    } catch (error) {
+      console.error("Failed to update DM session state:", error);
+      res.status(500).json({ message: "Failed to update session state" });
+    }
+  });
+
+  // Send DM message to players
+  app.post("/api/campaigns/:campaignId/dm-message", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const campaign = await storage.getCampaign(campaignId);
+      
+      if (!campaign || campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can send messages" });
+      }
+      
+      const { message, type } = req.body;
+      
+      // Get current session state
+      const sessionState = await db.select().from(dmSessionStates)
+        .where(eq(dmSessionStates.campaignId, campaignId))
+        .limit(1);
+      
+      if (sessionState.length === 0) {
+        return res.status(404).json({ message: "No session state found" });
+      }
+      
+      // Add message to log
+      const currentMessages = (sessionState[0].dmMessages as any[]) || [];
+      const newMessage = {
+        message,
+        type,
+        timestamp: new Date().toISOString(),
+      };
+      
+      const updated = await db.update(dmSessionStates)
+        .set({
+          dmMessages: [...currentMessages, newMessage],
+          lastUpdatedAt: new Date().toISOString(),
+        })
+        .where(eq(dmSessionStates.campaignId, campaignId))
+        .returning();
+      
+      // Broadcast to players via WebSocket
+      broadcastMessage('dm-message', {
+        campaignId,
+        ...newMessage
+      });
+      
+      res.json({ success: true, message: newMessage });
+    } catch (error) {
+      console.error("Failed to send DM message:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  // Add session artifact (from drag-and-drop)
+  app.post("/api/campaigns/:campaignId/session-artifact", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const campaign = await storage.getCampaign(campaignId);
+      
+      if (!campaign || campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can add artifacts" });
+      }
+      
+      const { id, type, entityId, name, data } = req.body;
+      
+      // Get current session state
+      const sessionState = await db.select().from(dmSessionStates)
+        .where(eq(dmSessionStates.campaignId, campaignId))
+        .limit(1);
+      
+      if (sessionState.length === 0) {
+        return res.status(404).json({ message: "No session state found" });
+      }
+      
+      // Add artifact
+      const currentArtifacts = (sessionState[0].sessionArtifacts as any[]) || [];
+      const newArtifact = {
+        id,
+        type,
+        entityId,
+        name,
+        data,
+        addedAt: new Date().toISOString(),
+      };
+      
+      const updated = await db.update(dmSessionStates)
+        .set({
+          sessionArtifacts: [...currentArtifacts, newArtifact],
+          lastUpdatedAt: new Date().toISOString(),
+        })
+        .where(eq(dmSessionStates.campaignId, campaignId))
+        .returning();
+      
+      // Broadcast to players
+      broadcastMessage('session-artifact-added', {
+        campaignId,
+        artifact: newArtifact
+      });
+      
+      res.json({ success: true, artifact: newArtifact });
+    } catch (error) {
+      console.error("Failed to add session artifact:", error);
+      res.status(500).json({ message: "Failed to add artifact" });
+    }
+  });
+
+  // Load CAML entities into session for sidebar pre-population
+  app.post("/api/campaigns/:campaignId/load-caml-entities", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const campaign = await storage.getCampaign(campaignId);
+      
+      if (!campaign || campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can load CAML entities" });
+      }
+      
+      const { camlContent, format } = req.body;
+      
+      let pack;
+      try {
+        if (format === 'yaml' || format === 'yml') {
+          pack = parseCAMLYaml(camlContent);
+        } else {
+          pack = parseCAMLJson(camlContent);
+        }
+      } catch (parseError) {
+        return res.status(400).json({ message: `Parse error: ${parseError}` });
+      }
+      
+      if (!pack) {
+        return res.status(400).json({ message: "Failed to parse CAML content" });
+      }
+      
+      // Extract entities from CAML
+      const entities = {
+        npcs: pack.world?.characters || [],
+        items: pack.world?.items || [],
+        locations: pack.world?.locations || [],
+        encounters: pack.processes?.filter((p: any) => p.type === 'encounter') || [],
+        connections: pack.world?.connections || [],
+      };
+      
+      // Update session state with CAML entities
+      const updated = await db.update(dmSessionStates)
+        .set({
+          camlEntitySources: entities,
+          lastUpdatedAt: new Date().toISOString(),
+        })
+        .where(eq(dmSessionStates.campaignId, campaignId))
+        .returning();
+      
+      res.json({
+        success: true,
+        loaded: {
+          npcs: entities.npcs.length,
+          items: entities.items.length,
+          locations: entities.locations.length,
+          encounters: entities.encounters.length,
+        }
+      });
+    } catch (error) {
+      console.error("Failed to load CAML entities:", error);
+      res.status(500).json({ message: "Failed to load CAML entities" });
     }
   });
 
