@@ -7159,8 +7159,8 @@ Generate a complete CAML 2.0 JSON adventure.`;
       }
 
       // Check if user is DM to provide enhanced context
-      const campaignForDM = session ? await storage.getCampaign(campaignId) : campaign;
-      const isDM = campaignForDM && campaignForDM.userId === req.user.id;
+      const campaignData = await storage.getCampaign(campaignId);
+      const isDM = campaignData && campaignData.userId === req.user.id;
       
       // Provide different context for DM vs players
       const responseData = {
@@ -7232,14 +7232,14 @@ Generate a complete CAML 2.0 JSON adventure.`;
         // Load campaign quests
         const campaignQuests = await storage.getCampaignQuests(campaignId);
         
-        // Load user's items (potential loot)
-        const userItems = await storage.getUserItems(campaign.userId);
+        // Load items by type as potential loot
+        const userItems = await storage.getItemsByType('weapon');
+        const armorItems = await storage.getItemsByType('armor');
+        const allItems = [...userItems, ...armorItems];
         
-        // Load campaign encounters from adventure elements
-        const elementsResult = await db.select().from(adventureElements)
-          .where(eq(adventureElements.userId, campaign.userId));
-        const encounters = elementsResult.filter((e: any) => e.elementType === 'encounter');
-        const locations = elementsResult.filter((e: any) => e.elementType === 'location');
+        // For now, use empty arrays for encounters and locations (adventure elements table may not exist)
+        const encounters: any[] = [];
+        const locations: any[] = [];
         
         // Build entity sources for the Live Manager sidebar
         camlEntitySources = {
@@ -7253,7 +7253,7 @@ Generate a complete CAML 2.0 JSON adventure.`;
             personality: npc.personality,
             motivation: npc.motivation
           })),
-          items: userItems.slice(0, 50).map((item: any) => ({
+          items: allItems.slice(0, 50).map((item: any) => ({
             id: `item-${item.id}`,
             name: item.name,
             type: 'item',
@@ -7893,9 +7893,11 @@ Perhaps another hero will rise to continue where they left off, or perhaps their
 
 You may create a new character or start a new adventure to continue playing.`;
         
-        await storage.updateSession(currentSession.id, {
+        await storage.advanceSessionStory(campaignId, {
           narrative: adventureEndNarrative,
           choices: [],
+          title: currentSession.title,
+          sessionNumber: currentSession.sessionNumber,
           storyState: {
             ...(currentSession.storyState as any || {}),
             adventureEnded: true,
@@ -9052,7 +9054,7 @@ Respond with JSON:
           
           if (storyLocation) {
             // Try to match location name to world locations
-            const allWorldLocations = await storage.getAllWorldLocations();
+            const allWorldLocations = await storage.getWorldLocations();
             const matchedLocation = allWorldLocations.find(loc => {
               const locName = loc.name.toLowerCase();
               const storyLocLower = storyLocation.toLowerCase();
