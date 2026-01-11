@@ -7150,10 +7150,10 @@ Generate a complete CAML 2.0 JSON adventure.`;
         session = await storage.createCampaignSession({
           campaignId,
           sessionNumber: 1,
+          title: "Chapter 1: The Beginning",
           narrative: `Welcome to ${campaign.title}! Your adventure begins...`,
           choices: ["Begin your adventure", "Look around", "Check your equipment"],
           storyState: initialStoryState,
-          isActive: true,
           createdAt: new Date().toISOString()
         });
       }
@@ -7799,10 +7799,10 @@ NARRATIVE RULES (MANDATORY):
         currentSession = await storage.createCampaignSession({
           campaignId,
           sessionNumber: 1,
+          title: "Chapter 1: The Beginning",
           narrative: `Welcome to ${campaign.title}! Your adventure begins...`,
           choices: ["Begin your adventure", "Look around", "Check your equipment"],
           storyState: initialStoryState,
-          isActive: true,
           createdAt: new Date().toISOString()
         });
       }
