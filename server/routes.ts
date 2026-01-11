@@ -7127,15 +7127,40 @@ Generate a complete CAML 2.0 JSON adventure.`;
       }
       
       const campaignId = parseInt(req.params.campaignId);
-      const session = await storage.getCurrentSession(campaignId);
+      let session = await storage.getCurrentSession(campaignId);
       
       if (!session) {
-        return res.status(404).json({ message: "No active session found" });
+        // Auto-create a session for the campaign if none exists
+        const campaign = await storage.getCampaign(campaignId);
+        if (!campaign) {
+          return res.status(404).json({ message: "Campaign not found" });
+        }
+        
+        const initialStoryState = {
+          activeQuests: [],
+          completedQuests: [],
+          discoveredLocations: [],
+          inventory: [],
+          npcsEncountered: [],
+          decisions: [],
+          combatLog: [],
+          location: "the starting area"
+        };
+        
+        session = await storage.createCampaignSession({
+          campaignId,
+          sessionNumber: 1,
+          narrative: `Welcome to ${campaign.title}! Your adventure begins...`,
+          choices: ["Begin your adventure", "Look around", "Check your equipment"],
+          storyState: initialStoryState,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        });
       }
 
       // Check if user is DM to provide enhanced context
-      const campaign = await storage.getCampaign(campaignId);
-      const isDM = campaign && campaign.userId === req.user.id;
+      const campaignForDM = session ? await storage.getCampaign(campaignId) : campaign;
+      const isDM = campaignForDM && campaignForDM.userId === req.user.id;
       
       // Provide different context for DM vs players
       const responseData = {
@@ -7757,9 +7782,29 @@ NARRATIVE RULES (MANDATORY):
 `;
       }
       
-      const currentSession = await storage.getCurrentSession(campaignId);
+      let currentSession = await storage.getCurrentSession(campaignId);
       if (!currentSession) {
-        return res.status(404).json({ message: "No active session found" });
+        // Auto-create a session for the campaign if none exists
+        const initialStoryState = {
+          activeQuests: [],
+          completedQuests: [],
+          discoveredLocations: [],
+          inventory: [],
+          npcsEncountered: [],
+          decisions: [],
+          combatLog: [],
+          location: "the starting area"
+        };
+        
+        currentSession = await storage.createCampaignSession({
+          campaignId,
+          sessionNumber: 1,
+          narrative: `Welcome to ${campaign.title}! Your adventure begins...`,
+          choices: ["Begin your adventure", "Look around", "Check your equipment"],
+          storyState: initialStoryState,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        });
       }
 
       // Parse skill check information if it exists
