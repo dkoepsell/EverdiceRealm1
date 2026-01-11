@@ -9976,9 +9976,14 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           trapsOvercome: trapDone
         } : null
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to advance story:", error);
-      res.status(500).json({ message: "Failed to advance story" });
+      console.error("Error stack:", error?.stack);
+      res.status(500).json({ 
+        message: "Failed to advance story", 
+        error: error?.message || String(error),
+        stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+      });
     }
   });
 
