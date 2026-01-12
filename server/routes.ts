@@ -2461,6 +2461,58 @@ Return your response as a JSON object with these fields:
     }
   });
   
+  // Bulk lookup items by names - returns stats for inventory display
+  app.post("/api/items/lookup", async (req, res) => {
+    try {
+      const { names } = req.body as { names: string[] };
+      if (!names || !Array.isArray(names)) {
+        return res.status(400).json({ message: "names array required" });
+      }
+      
+      const itemsMap: Record<string, any> = {};
+      
+      // Lookup each item name and collect stats
+      for (const name of names) {
+        if (!name || typeof name !== 'string') continue;
+        
+        const item = await storage.getItemByName(name);
+        if (item) {
+          itemsMap[name] = {
+            id: item.id,
+            name: item.name,
+            type: item.type,
+            rarity: item.rarity,
+            description: item.description,
+            // Weapon stats
+            damageDice: item.damageDice,
+            damageType: item.damageType,
+            weaponType: item.weaponType,
+            weaponRange: item.weaponRange,
+            attackBonus: item.attackBonus,
+            properties: item.properties,
+            // Armor stats
+            baseAC: item.baseAC,
+            maxDexBonus: item.maxDexBonus,
+            stealthDisadvantage: item.stealthDisadvantage,
+            strengthRequirement: item.strengthRequirement,
+            armorType: item.armorType,
+            // General stats
+            weight: item.weight,
+            value: item.value,
+            requiresAttunement: item.requiresAttunement,
+            magicBonus: item.magicBonus,
+            specialEffect: item.specialEffect
+          };
+        }
+      }
+      
+      res.json(itemsMap);
+    } catch (error) {
+      console.error("Error looking up items:", error);
+      res.status(500).json({ message: "Failed to lookup items" });
+    }
+  });
+  
   // Calculate character stats from equipped items
   app.get("/api/characters/:id/computed-stats", async (req, res) => {
     try {

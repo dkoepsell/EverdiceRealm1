@@ -409,6 +409,70 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     return campaignNpc?.npc || null;
   }, [selectedNpcId, campaignNpcs]);
   
+  // Collect all item names from active character's inventory and equipped slots
+  const allItemNames = useMemo(() => {
+    if (!activeCharacter) return [];
+    const items: string[] = [];
+    if (activeCharacter.equipment) items.push(...activeCharacter.equipment);
+    if ((activeCharacter as any).equippedWeapon) items.push((activeCharacter as any).equippedWeapon);
+    if ((activeCharacter as any).equippedArmor) items.push((activeCharacter as any).equippedArmor);
+    if ((activeCharacter as any).equippedShield) items.push((activeCharacter as any).equippedShield);
+    if ((activeCharacter as any).equippedAccessory) items.push((activeCharacter as any).equippedAccessory);
+    return Array.from(new Set(items.filter(Boolean)));
+  }, [activeCharacter]);
+  
+  // Fetch item stats for display
+  const { data: itemStatsMap = {} } = useQuery<Record<string, any>>({
+    queryKey: ['/api/items/lookup', allItemNames],
+    queryFn: async () => {
+      if (allItemNames.length === 0) return {};
+      const response = await apiRequest('POST', '/api/items/lookup', { names: allItemNames });
+      return response.json();
+    },
+    enabled: allItemNames.length > 0,
+    staleTime: 60000, // Cache for 1 minute
+  });
+  
+  // Helper function to format item stats for display
+  const formatItemStats = (itemName: string) => {
+    const stats = itemStatsMap[itemName];
+    if (!stats) return null;
+    
+    const parts: string[] = [];
+    
+    // Weapon stats
+    if (stats.damageDice) {
+      const damage = stats.magicBonus ? `${stats.damageDice}+${stats.magicBonus}` : stats.damageDice;
+      parts.push(`${damage} ${stats.damageType || ''}`);
+    }
+    if (stats.attackBonus) parts.push(`+${stats.attackBonus} attack`);
+    
+    // Armor stats
+    if (stats.baseAC) {
+      const ac = stats.magicBonus ? `AC ${stats.baseAC}+${stats.magicBonus}` : `AC ${stats.baseAC}`;
+      parts.push(ac);
+    }
+    
+    // Magic bonus for non-weapons/armor
+    if (stats.magicBonus && !stats.damageDice && !stats.baseAC) {
+      parts.push(`+${stats.magicBonus}`);
+    }
+    
+    return parts.length > 0 ? parts.join(' • ') : null;
+  };
+  
+  // Helper to get rarity color
+  const getRarityColor = (rarity: string | null) => {
+    switch (rarity?.toLowerCase()) {
+      case 'common': return 'text-slate-500';
+      case 'uncommon': return 'text-green-500';
+      case 'rare': return 'text-blue-500';
+      case 'very_rare': return 'text-purple-500';
+      case 'legendary': return 'text-orange-500';
+      default: return 'text-slate-400';
+    }
+  };
+  
   // Get all party NPCs for the dropdown
   const partyNpcs = useMemo(() => {
     if (!campaignNpcs) return [];
@@ -2966,9 +3030,17 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           <Sword className="h-3 w-3" /> Weapon
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-sm">
-                            {(activeCharacter as any).equippedWeapon || "None"}
-                          </span>
+                          <div className="flex-1 min-w-0">
+                            <span className={`font-medium text-sm block truncate ${itemStatsMap[(activeCharacter as any).equippedWeapon]?.rarity ? getRarityColor(itemStatsMap[(activeCharacter as any).equippedWeapon]?.rarity) : ''}`}>
+                              {(activeCharacter as any).equippedWeapon || "None"}
+                            </span>
+                            {(activeCharacter as any).equippedWeapon && itemStatsMap[(activeCharacter as any).equippedWeapon] && (
+                              <span className="text-xs text-amber-600 dark:text-amber-400 block">
+                                {itemStatsMap[(activeCharacter as any).equippedWeapon]?.damageDice} {itemStatsMap[(activeCharacter as any).equippedWeapon]?.damageType}
+                                {itemStatsMap[(activeCharacter as any).equippedWeapon]?.attackBonus ? ` (+${itemStatsMap[(activeCharacter as any).equippedWeapon]?.attackBonus} atk)` : ''}
+                              </span>
+                            )}
+                          </div>
                           {(activeCharacter as any).equippedWeapon && (
                             <Button
                               size="sm"
@@ -2989,9 +3061,18 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           <Shield className="h-3 w-3" /> Armor
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-sm">
-                            {(activeCharacter as any).equippedArmor || "None"}
-                          </span>
+                          <div className="flex-1 min-w-0">
+                            <span className={`font-medium text-sm block truncate ${itemStatsMap[(activeCharacter as any).equippedArmor]?.rarity ? getRarityColor(itemStatsMap[(activeCharacter as any).equippedArmor]?.rarity) : ''}`}>
+                              {(activeCharacter as any).equippedArmor || "None"}
+                            </span>
+                            {(activeCharacter as any).equippedArmor && itemStatsMap[(activeCharacter as any).equippedArmor] && (
+                              <span className="text-xs text-blue-600 dark:text-blue-400 block">
+                                AC {itemStatsMap[(activeCharacter as any).equippedArmor]?.baseAC}
+                                {itemStatsMap[(activeCharacter as any).equippedArmor]?.magicBonus ? `+${itemStatsMap[(activeCharacter as any).equippedArmor]?.magicBonus}` : ''}
+                                {itemStatsMap[(activeCharacter as any).equippedArmor]?.armorType ? ` (${itemStatsMap[(activeCharacter as any).equippedArmor]?.armorType})` : ''}
+                              </span>
+                            )}
+                          </div>
                           {(activeCharacter as any).equippedArmor && (
                             <Button
                               size="sm"
@@ -3012,9 +3093,17 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           <Shield className="h-3 w-3" /> Shield
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-sm">
-                            {(activeCharacter as any).equippedShield || "None"}
-                          </span>
+                          <div className="flex-1 min-w-0">
+                            <span className={`font-medium text-sm block truncate ${itemStatsMap[(activeCharacter as any).equippedShield]?.rarity ? getRarityColor(itemStatsMap[(activeCharacter as any).equippedShield]?.rarity) : ''}`}>
+                              {(activeCharacter as any).equippedShield || "None"}
+                            </span>
+                            {(activeCharacter as any).equippedShield && itemStatsMap[(activeCharacter as any).equippedShield] && (
+                              <span className="text-xs text-blue-600 dark:text-blue-400 block">
+                                +{itemStatsMap[(activeCharacter as any).equippedShield]?.baseAC || 2} AC
+                                {itemStatsMap[(activeCharacter as any).equippedShield]?.magicBonus ? ` (+${itemStatsMap[(activeCharacter as any).equippedShield]?.magicBonus} magic)` : ''}
+                              </span>
+                            )}
+                          </div>
                           {(activeCharacter as any).equippedShield && (
                             <Button
                               size="sm"
@@ -3035,9 +3124,17 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           <Sparkles className="h-3 w-3" /> Accessory
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-sm">
-                            {(activeCharacter as any).equippedAccessory || "None"}
-                          </span>
+                          <div className="flex-1 min-w-0">
+                            <span className={`font-medium text-sm block truncate ${itemStatsMap[(activeCharacter as any).equippedAccessory]?.rarity ? getRarityColor(itemStatsMap[(activeCharacter as any).equippedAccessory]?.rarity) : ''}`}>
+                              {(activeCharacter as any).equippedAccessory || "None"}
+                            </span>
+                            {(activeCharacter as any).equippedAccessory && itemStatsMap[(activeCharacter as any).equippedAccessory] && (
+                              <span className="text-xs text-purple-600 dark:text-purple-400 block truncate">
+                                {itemStatsMap[(activeCharacter as any).equippedAccessory]?.specialEffect || 
+                                 (itemStatsMap[(activeCharacter as any).equippedAccessory]?.magicBonus ? `+${itemStatsMap[(activeCharacter as any).equippedAccessory]?.magicBonus} magic bonus` : 'Magical')}
+                              </span>
+                            )}
+                          </div>
                           {(activeCharacter as any).equippedAccessory && (
                             <Button
                               size="sm"
@@ -3064,10 +3161,43 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       <div className="text-sm font-medium">Items ({activeCharacter.equipment?.length || 0})</div>
                       <div className="max-h-48 overflow-y-auto space-y-1">
                         {activeCharacter.equipment && activeCharacter.equipment.length > 0 ? (
-                          activeCharacter.equipment.map((item: string, index: number) => (
-                            <div key={index} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-700 rounded text-sm" data-testid={`item-${index}`}>
-                              <span className="flex-1 truncate" title={item}>{item}</span>
-                              <div className="flex items-center gap-1">
+                          activeCharacter.equipment.map((item: string, index: number) => {
+                            const stats = itemStatsMap[item];
+                            const statsText = formatItemStats(item);
+                            return (
+                            <div key={index} className="flex flex-col p-2 bg-slate-50 dark:bg-slate-700 rounded text-sm" data-testid={`item-${index}`}>
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className={`font-medium truncate block cursor-help ${stats?.rarity ? getRarityColor(stats.rarity) : ''}`} title={item}>
+                                        {item}
+                                        {stats?.magicBonus ? ` +${stats.magicBonus}` : ''}
+                                      </span>
+                                    </TooltipTrigger>
+                                    {stats && (
+                                      <TooltipContent side="left" className="max-w-xs">
+                                        <div className="space-y-1">
+                                          <div className="font-bold">{stats.name}</div>
+                                          {stats.rarity && <div className={`text-xs ${getRarityColor(stats.rarity)}`}>{stats.rarity}</div>}
+                                          {stats.damageDice && <div className="text-xs">Damage: {stats.damageDice} {stats.damageType}</div>}
+                                          {stats.attackBonus ? <div className="text-xs">Attack Bonus: +{stats.attackBonus}</div> : null}
+                                          {stats.baseAC && <div className="text-xs">Base AC: {stats.baseAC}</div>}
+                                          {stats.magicBonus ? <div className="text-xs">Magic Bonus: +{stats.magicBonus}</div> : null}
+                                          {stats.properties?.length > 0 && <div className="text-xs">Properties: {stats.properties.join(', ')}</div>}
+                                          {stats.specialEffect && <div className="text-xs italic text-purple-400">{stats.specialEffect}</div>}
+                                          {stats.description && <div className="text-xs text-slate-400 mt-1">{stats.description}</div>}
+                                        </div>
+                                      </TooltipContent>
+                                    )}
+                                  </Tooltip>
+                                  {statsText && (
+                                    <span className="text-xs text-slate-500 dark:text-slate-400 block truncate">
+                                      {statsText}
+                                    </span>
+                                  )}
+                                </div>
+                              <div className="flex items-center gap-1 ml-2 flex-shrink-0">
                                 <Select 
                                   value=""
                                   onValueChange={(slot) => {
@@ -3152,8 +3282,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   <Trash2 className="h-3 w-3" />
                                 </Button>
                               </div>
+                              </div>
                             </div>
-                          ))
+                          );
+                          })
                         ) : (
                           <p className="text-sm text-slate-600 dark:text-slate-400 py-2">No items in inventory</p>
                         )}
