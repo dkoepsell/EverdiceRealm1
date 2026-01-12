@@ -446,15 +446,28 @@ export function getProficiencyBonus(level: number): number {
 }
 
 /**
- * Determine if a weapon uses DEX (finesse or ranged)
+ * Determine if a weapon is strictly ranged (uses DEX only per D&D 5e RAW)
  */
-function isFinessOrRanged(weaponProperties: string[] = [], weaponName: string = ''): boolean {
+function isRangedWeapon(weaponProperties: string[] = [], weaponName: string = ''): boolean {
   const lowerName = weaponName.toLowerCase();
-  const isRanged = lowerName.includes('bow') || lowerName.includes('crossbow') || 
-                   lowerName.includes('sling') || lowerName.includes('dart') ||
-                   lowerName.includes('javelin') || lowerName.includes('throwing');
-  const hasFinesse = weaponProperties.some(p => p.toLowerCase().includes('finesse'));
-  return isRanged || hasFinesse;
+  return lowerName.includes('bow') || lowerName.includes('crossbow') || 
+         lowerName.includes('sling') || lowerName.includes('dart');
+}
+
+/**
+ * Determine if a weapon has the finesse property (can use STR or DEX)
+ */
+function isFinesseWeapon(weaponProperties: string[] = []): boolean {
+  return weaponProperties.some(p => p.toLowerCase().includes('finesse'));
+}
+
+/**
+ * Determine if a weapon is thrown (uses STR by default, but some are finesse)
+ */
+function isThrownWeapon(weaponProperties: string[] = [], weaponName: string = ''): boolean {
+  const lowerName = weaponName.toLowerCase();
+  const hasThrown = weaponProperties.some(p => p.toLowerCase().includes('thrown'));
+  return hasThrown || lowerName.includes('javelin') || lowerName.includes('throwing');
 }
 
 /**
@@ -483,11 +496,29 @@ export function calculateEffectiveCombatStats(
   // Get weapon stats
   const weaponStats = character.equippedWeapon ? itemStatsMap[character.equippedWeapon] : undefined;
   const weaponName = character.equippedWeapon || 'Unarmed';
+  const weaponProps = weaponStats?.properties || [];
   
-  // Determine attack ability (STR or DEX based on weapon)
-  const usesDex = weaponStats ? isFinessOrRanged(weaponStats.properties || [], weaponStats.name) : false;
-  // For finesse weapons, use the higher of STR or DEX
-  const attackAbilityMod = usesDex ? Math.max(strMod, dexMod) : strMod;
+  // Determine attack ability modifier based on weapon type (D&D 5e RAW):
+  // - Ranged weapons (bows, crossbows): DEX only
+  // - Finesse weapons: use higher of STR or DEX
+  // - Thrown weapons without finesse: STR (unless also finesse like dagger)
+  // - Melee weapons: STR
+  let attackAbilityMod: number;
+  
+  if (isRangedWeapon(weaponProps, weaponName)) {
+    // Ranged weapons always use DEX
+    attackAbilityMod = dexMod;
+  } else if (isFinesseWeapon(weaponProps)) {
+    // Finesse weapons use the higher of STR or DEX
+    attackAbilityMod = Math.max(strMod, dexMod);
+  } else if (isThrownWeapon(weaponProps, weaponName)) {
+    // Thrown weapons use STR (unless also finesse, handled above)
+    attackAbilityMod = strMod;
+  } else {
+    // Default melee: use STR
+    attackAbilityMod = strMod;
+  }
+  
   const damageAbilityMod = attackAbilityMod;
   
   // Weapon magic bonus (applies to both attack and damage)
