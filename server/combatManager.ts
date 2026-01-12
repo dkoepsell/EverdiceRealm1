@@ -395,6 +395,165 @@ export function calculateAttackBonus(level: number, abilityScore: number, isProf
 }
 
 /**
+ * Item stats interface for combat calculations
+ */
+export interface ItemStats {
+  name: string;
+  type: string;
+  damageDice?: string;
+  damageType?: string;
+  attackBonus?: number;
+  magicBonus?: number;
+  baseAC?: number;
+  armorType?: string;
+  properties?: string[];
+}
+
+/**
+ * Character combat stats derived from equipment and abilities
+ */
+export interface EffectiveCombatStats {
+  attackBonus: number;
+  damageRoll: string;
+  armorClass: number;
+  damageType: string;
+  weaponName: string;
+  breakdown: {
+    attackProficiency: number;
+    attackAbility: number;
+    attackMagic: number;
+    damageAbility: number;
+    damageMagic: number;
+    baseAC: number;
+    dexBonus: number;
+    shieldBonus: number;
+    magicACBonus: number;
+  };
+}
+
+/**
+ * Calculate ability modifier from ability score (D&D 5e formula)
+ */
+export function getAbilityModifier(score: number): number {
+  return Math.floor((score - 10) / 2);
+}
+
+/**
+ * Calculate proficiency bonus from level (D&D 5e formula)
+ */
+export function getProficiencyBonus(level: number): number {
+  return Math.ceil(level / 4) + 1;
+}
+
+/**
+ * Determine if a weapon uses DEX (finesse or ranged)
+ */
+function isFinessOrRanged(weaponProperties: string[] = [], weaponName: string = ''): boolean {
+  const lowerName = weaponName.toLowerCase();
+  const isRanged = lowerName.includes('bow') || lowerName.includes('crossbow') || 
+                   lowerName.includes('sling') || lowerName.includes('dart') ||
+                   lowerName.includes('javelin') || lowerName.includes('throwing');
+  const hasFinesse = weaponProperties.some(p => p.toLowerCase().includes('finesse'));
+  return isRanged || hasFinesse;
+}
+
+/**
+ * Calculate effective combat stats from character + equipped items
+ * This implements D&D 5e rules for attack bonus, damage, and AC
+ */
+export function calculateEffectiveCombatStats(
+  character: {
+    level: number;
+    strength: number;
+    dexterity: number;
+    constitution: number;
+    equippedWeapon?: string;
+    equippedArmor?: string;
+    equippedShield?: string;
+    armorClass?: number;
+    class?: string;
+  },
+  itemStatsMap: Record<string, ItemStats | undefined>
+): EffectiveCombatStats {
+  const level = character.level || 1;
+  const strMod = getAbilityModifier(character.strength || 10);
+  const dexMod = getAbilityModifier(character.dexterity || 10);
+  const profBonus = getProficiencyBonus(level);
+  
+  // Get weapon stats
+  const weaponStats = character.equippedWeapon ? itemStatsMap[character.equippedWeapon] : undefined;
+  const weaponName = character.equippedWeapon || 'Unarmed';
+  
+  // Determine attack ability (STR or DEX based on weapon)
+  const usesDex = weaponStats ? isFinessOrRanged(weaponStats.properties || [], weaponStats.name) : false;
+  // For finesse weapons, use the higher of STR or DEX
+  const attackAbilityMod = usesDex ? Math.max(strMod, dexMod) : strMod;
+  const damageAbilityMod = attackAbilityMod;
+  
+  // Weapon magic bonus (applies to both attack and damage)
+  const weaponMagicBonus = weaponStats?.magicBonus || weaponStats?.attackBonus || 0;
+  
+  // Calculate attack bonus: proficiency + ability mod + magic
+  const attackBonus = profBonus + attackAbilityMod + weaponMagicBonus;
+  
+  // Calculate damage roll
+  const baseDamageDice = weaponStats?.damageDice || '1d4'; // Unarmed = 1d4 (simplified)
+  const totalDamageBonus = damageAbilityMod + weaponMagicBonus;
+  const damageRoll = totalDamageBonus >= 0 
+    ? `${baseDamageDice}+${totalDamageBonus}` 
+    : `${baseDamageDice}${totalDamageBonus}`;
+  const damageType = weaponStats?.damageType || 'bludgeoning';
+  
+  // Calculate AC
+  const armorStats = character.equippedArmor ? itemStatsMap[character.equippedArmor] : undefined;
+  const shieldStats = character.equippedShield ? itemStatsMap[character.equippedShield] : undefined;
+  
+  let baseAC = 10; // Unarmored
+  let dexBonus = dexMod;
+  let armorMagicBonus = 0;
+  
+  if (armorStats && armorStats.baseAC) {
+    baseAC = armorStats.baseAC;
+    armorMagicBonus += armorStats.magicBonus || 0;
+    
+    // Apply DEX cap based on armor type
+    const armorType = armorStats.armorType?.toLowerCase() || '';
+    if (armorType.includes('heavy')) {
+      dexBonus = 0; // Heavy armor: no DEX bonus
+    } else if (armorType.includes('medium')) {
+      dexBonus = Math.min(dexMod, 2); // Medium armor: max +2 DEX
+    }
+    // Light armor: full DEX bonus (no change needed)
+  }
+  
+  // Shield bonus
+  const shieldBonus = shieldStats ? (shieldStats.baseAC || 2) : 0;
+  const shieldMagicBonus = shieldStats?.magicBonus || 0;
+  
+  // Total AC
+  const armorClass = baseAC + dexBonus + shieldBonus + armorMagicBonus + shieldMagicBonus;
+  
+  return {
+    attackBonus,
+    damageRoll,
+    armorClass,
+    damageType,
+    weaponName,
+    breakdown: {
+      attackProficiency: profBonus,
+      attackAbility: attackAbilityMod,
+      attackMagic: weaponMagicBonus,
+      damageAbility: damageAbilityMod,
+      damageMagic: weaponMagicBonus,
+      baseAC,
+      dexBonus,
+      shieldBonus: shieldBonus + shieldMagicBonus,
+      magicACBonus: armorMagicBonus
+    }
+  };
+}
+
+/**
  * Get default stats for a companion based on class
  */
 export function getCompanionDefaultStats(npcClass: string, level: number = 1): { attackBonus: number; damageRoll: string; armorClass: number; maxHp: number } {

@@ -71,9 +71,11 @@ import {
   processEnemyAttacks, 
   processPlayerAttack, 
   getCompanionDefaultStats,
+  calculateEffectiveCombatStats,
   type Combatant, 
   type CombatLogEntry,
-  type CombatTurnResult 
+  type CombatTurnResult,
+  type ItemStats
 } from "./combatManager";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -9243,16 +9245,53 @@ Respond with JSON:
             
             // Process enemy attacks against party (player + companions)
             if (enemyCombatants.length > 0 && storyAdvancement.storyState?.inCombat) {
-              // Add player to party members for combat
+              // Fetch equipment stats for the character to calculate combat stats
+              const equippedItemNames: string[] = [];
+              if ((character as any).equippedWeapon) equippedItemNames.push((character as any).equippedWeapon);
+              if ((character as any).equippedArmor) equippedItemNames.push((character as any).equippedArmor);
+              if ((character as any).equippedShield) equippedItemNames.push((character as any).equippedShield);
+              
+              // Look up item stats from database
+              const itemStatsMap: Record<string, ItemStats | undefined> = {};
+              for (const itemName of equippedItemNames) {
+                const item = await storage.getItemByName(itemName);
+                if (item) {
+                  itemStatsMap[itemName] = {
+                    name: item.name,
+                    type: item.type,
+                    damageDice: item.damageDice || undefined,
+                    damageType: item.damageType || undefined,
+                    attackBonus: item.attackBonus || undefined,
+                    magicBonus: item.magicBonus || undefined,
+                    baseAC: item.baseAC || undefined,
+                    armorType: item.armorType || undefined,
+                    properties: item.properties || undefined
+                  };
+                }
+              }
+              
+              // Calculate effective combat stats using D&D 5e rules
+              const combatStats = calculateEffectiveCombatStats({
+                level: character.level,
+                strength: character.strength,
+                dexterity: character.dexterity,
+                constitution: character.constitution,
+                equippedWeapon: (character as any).equippedWeapon,
+                equippedArmor: (character as any).equippedArmor,
+                equippedShield: (character as any).equippedShield,
+                class: character.class
+              }, itemStatsMap);
+              
+              // Add player to party members for combat with equipment-derived stats
               const playerCombatant: Combatant = {
                 id: character.id,
                 name: character.name,
                 type: 'player',
                 currentHp: character.hitPoints,
                 maxHp: character.maxHitPoints,
-                armorClass: character.armorClass,
-                attackBonus: Math.floor(character.level / 4) + 2 + Math.floor((character.strength - 10) / 2),
-                damageRoll: '1d8+' + Math.floor((character.strength - 10) / 2),
+                armorClass: combatStats.armorClass,
+                attackBonus: combatStats.attackBonus,
+                damageRoll: combatStats.damageRoll,
                 status: 'conscious',
                 level: character.level
               };
