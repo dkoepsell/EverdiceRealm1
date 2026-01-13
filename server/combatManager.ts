@@ -305,6 +305,137 @@ export function processEnemyAttacks(
 }
 
 /**
+ * Process companion attacks against enemies (companions auto-attack in combat)
+ * Each active companion attacks a random enemy
+ */
+export function processCompanionAttacks(
+  companions: Combatant[],
+  enemies: Combatant[]
+): CombatTurnResult {
+  const logs: CombatLogEntry[] = [];
+  const updatedEnemies = [...enemies];
+  const enemyDamageDealt: CombatTurnResult['enemyDamageDealt'] = [];
+  
+  // Filter to only conscious companions and enemies
+  const activeCompanions = companions.filter(c => c.type === 'companion' && c.status === 'conscious' && c.currentHp > 0);
+  const activeEnemies = updatedEnemies.filter(e => e.status === 'conscious' && e.currentHp > 0);
+  
+  if (activeCompanions.length === 0 || activeEnemies.length === 0) {
+    return {
+      logs: [],
+      updatedCombatants: updatedEnemies,
+      enemyDamageDealt: [],
+      partyDamageDealt: [],
+      combatSummary: "Companions have no targets or are unable to act.",
+      mechanicsExplanation: ""
+    };
+  }
+  
+  // Each active companion attacks a random enemy
+  for (const companion of activeCompanions) {
+    // Select a random target from active enemies (refresh active list each iteration)
+    const currentActiveEnemies = updatedEnemies.filter(e => e.status === 'conscious' && e.currentHp > 0);
+    if (currentActiveEnemies.length === 0) break;
+    
+    const targetIndex = Math.floor(Math.random() * currentActiveEnemies.length);
+    const target = currentActiveEnemies[targetIndex];
+    const enemyIndex = updatedEnemies.findIndex(e => e.id === target.id);
+    
+    // Make the attack roll
+    const attackRoll = makeAttackRoll(companion.attackBonus);
+    const isHit = doesAttackHit(attackRoll, target.armorClass);
+    
+    let damage: DamageRollResult | undefined;
+    let newHp = target.currentHp;
+    let newStatus = target.status;
+    
+    if (isHit) {
+      damage = rollDamage(companion.damageRoll, attackRoll.isCritical);
+      newHp = Math.max(0, target.currentHp - damage.total);
+      newStatus = getStatusFromHp(newHp, target.maxHp);
+      
+      // Update the enemy
+      if (enemyIndex !== -1) {
+        updatedEnemies[enemyIndex] = {
+          ...updatedEnemies[enemyIndex],
+          currentHp: newHp,
+          status: newStatus
+        };
+      }
+      
+      // Record damage dealt
+      enemyDamageDealt.push({
+        name: target.name,
+        damageTaken: damage.total,
+        newHp,
+        maxHp: target.maxHp,
+        defeated: newHp <= 0
+      });
+    }
+    
+    // Create the mechanics breakdown
+    const attackExplanation = formatAttackRollExplanation(attackRoll, target.armorClass, isHit);
+    const damageExplanation = damage ? formatDamageRollExplanation(damage, companion.damageRoll) : '';
+    const mechanicsBreakdown = damage 
+      ? `${attackExplanation}\n${damageExplanation}`
+      : attackExplanation;
+    
+    // Create descriptive text
+    let description: string;
+    if (attackRoll.isCritical && damage) {
+      description = `${companion.name} lands a devastating critical hit on ${target.name} for ${damage.total} damage!`;
+    } else if (attackRoll.isCriticalMiss) {
+      description = `${companion.name} swings at ${target.name} but fumbles!`;
+    } else if (isHit && damage) {
+      description = `${companion.name} strikes ${target.name} for ${damage.total} damage!`;
+    } else {
+      description = `${companion.name} attacks ${target.name} but misses!`;
+    }
+    
+    if (newHp <= 0 && damage) {
+      description += ` ${target.name} is defeated!`;
+    }
+    
+    logs.push({
+      attacker: companion.name,
+      attackerType: 'companion',
+      target: target.name,
+      targetType: 'enemy',
+      attackRoll,
+      targetAC: target.armorClass,
+      isHit,
+      damage,
+      targetNewHp: newHp,
+      targetMaxHp: target.maxHp,
+      targetStatus: newStatus,
+      description,
+      mechanicsBreakdown
+    });
+  }
+  
+  // Build summary
+  const hitCount = logs.filter(l => l.isHit).length;
+  const totalDamage = enemyDamageDealt.reduce((sum, e) => sum + e.damageTaken, 0);
+  const defeated = enemyDamageDealt.filter(e => e.defeated).length;
+  
+  let combatSummary = `Companions made ${logs.length} attack${logs.length !== 1 ? 's' : ''}: ${hitCount} hit${hitCount !== 1 ? 's' : ''} for ${totalDamage} total damage.`;
+  if (defeated > 0) {
+    combatSummary += ` ${defeated} enem${defeated !== 1 ? 'ies' : 'y'} defeated!`;
+  }
+  
+  const mechanicsExplanation = logs.map(l => l.mechanicsBreakdown).join('\n\n');
+  
+  return {
+    logs,
+    updatedCombatants: updatedEnemies,
+    enemyDamageDealt,
+    partyDamageDealt: [],
+    combatSummary,
+    mechanicsExplanation
+  };
+}
+
+/**
  * Process player/companion attack against enemies
  */
 export function processPlayerAttack(

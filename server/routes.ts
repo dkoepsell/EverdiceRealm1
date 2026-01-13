@@ -68,7 +68,8 @@ import {
 } from "@shared/caml-trace";
 import yaml from "js-yaml";
 import { 
-  processEnemyAttacks, 
+  processEnemyAttacks,
+  processCompanionAttacks,
   processPlayerAttack, 
   getCompanionDefaultStats,
   calculateEffectiveCombatStats,
@@ -9301,6 +9302,33 @@ Respond with JSON:
               // Use CombatManager to resolve enemy attacks with proper D&D mechanics
               const combatResult = processEnemyAttacks(enemyCombatants, partyMembers);
               detailedCombatLogs = combatResult.logs;
+              
+              // Process companion attacks against enemies (companions auto-attack!)
+              const companionAttackResult = processCompanionAttacks(companionCombatants, enemyCombatants);
+              
+              // Merge companion attack logs into detailed combat logs
+              detailedCombatLogs = [...detailedCombatLogs, ...companionAttackResult.logs];
+              
+              // Update enemy combatants with damage from companion attacks
+              for (const damageEntry of companionAttackResult.enemyDamageDealt) {
+                const enemyIndex = enemyCombatants.findIndex(e => e.name === damageEntry.name);
+                if (enemyIndex !== -1) {
+                  enemyCombatants[enemyIndex] = {
+                    ...enemyCombatants[enemyIndex],
+                    currentHp: damageEntry.newHp,
+                    status: damageEntry.newHp <= 0 ? 'unconscious' : 'conscious'
+                  };
+                }
+                
+                // Also update the story state combatants if present
+                const storyCombatant = storyAdvancement.storyState?.combatants?.find((c: any) => c.name === damageEntry.name);
+                if (storyCombatant) {
+                  storyCombatant.currentHp = damageEntry.newHp;
+                  if (damageEntry.defeated) {
+                    storyCombatant.defeated = true;
+                  }
+                }
+              }
               
               // Apply damage to player from combat result
               const playerDamageEntry = combatResult.partyDamageDealt.find(p => p.name === character.name);
