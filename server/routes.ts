@@ -9196,6 +9196,9 @@ Respond with JSON:
           let detailedCombatLogs: CombatLogEntry[] = [];
           let enhancedPartyDamage: { name: string; damageTaken: number; newHp: number; maxHp: number; defeated: boolean; attackRoll?: any; targetAC?: number; mechanicsBreakdown?: string }[] = [];
           
+          // Declare companionCombatants outside the if block so it's accessible everywhere
+          let companionCombatants: Combatant[] = [];
+          
           if (combatEffects) {
             damageTaken = combatEffects.playerDamageTaken || 0;
             damageDealt = combatEffects.playerDamageDealt || 0;
@@ -9210,7 +9213,7 @@ Respond with JSON:
             );
             
             // Build combatant list from companions
-            const companionCombatants: Combatant[] = npcDetails
+            companionCombatants = npcDetails
               .filter(({ npc, campaignNpc }) => npc && campaignNpc.isActive && campaignNpc.role === 'companion')
               .map(({ npc, campaignNpc }) => {
                 const defaultStats = getCompanionDefaultStats(npc!.class || 'Fighter', 1);
