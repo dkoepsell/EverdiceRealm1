@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ChevronsUpDown, Shield, User, UserPlus, X, Users, Sword, Heart } from 'lucide-react';
+import { ChevronsUpDown, Shield, User, UserPlus, X, Users, Sword, Heart, ImageIcon, Loader2 } from 'lucide-react';
 import { Character, User as UserType } from '@shared/schema';
 
 interface CampaignParticipant {
@@ -49,8 +49,11 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
       race: string;
       occupation: string;
       level?: number;
+      portraitUrl?: string | null;
     };
   }
+  
+  const [generatingPortraitFor, setGeneratingPortraitFor] = useState<number | null>(null);
 
   // Fetch participants (backend already includes NPCs in the response)
   const { data: participants = [], isLoading } = useQuery<ExtendedParticipant[]>({
@@ -183,6 +186,32 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
       removeNpcMutation.mutate({ campaignId, npcId });
     }
   };
+
+  const generateNpcPortraitMutation = useMutation({
+    mutationFn: async (npcId: number) => {
+      setGeneratingPortraitFor(npcId);
+      const response = await apiRequest('POST', `/api/npcs/${npcId}/generate-portrait`);
+      const data = await response.json();
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaignId}/participants`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaignId}/npcs`] });
+      setGeneratingPortraitFor(null);
+      toast({
+        title: 'Portrait generated!',
+        description: 'The companion now has a portrait'
+      });
+    },
+    onError: (error: Error) => {
+      setGeneratingPortraitFor(null);
+      toast({
+        title: 'Failed to generate portrait',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
 
   if (isLoading) {
     return <div className="flex items-center justify-center p-8">Loading participants...</div>;
@@ -392,26 +421,52 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
                 
                 {participant.isNpc ? (
                   // For NPCs
-                  isDM && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => handleRemoveNpc(campaignId, participant.npc?.id || 0)}
-                            disabled={removeNpcMutation.isPending}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Remove companion</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )
+                  <div className="flex gap-1">
+                    {!participant.npc?.portraitUrl && participant.npc?.id && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => generateNpcPortraitMutation.mutate(participant.npc!.id)}
+                              disabled={generatingPortraitFor === participant.npc.id}
+                            >
+                              {generatingPortraitFor === participant.npc.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <ImageIcon className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Generate portrait</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                    {isDM && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => handleRemoveNpc(campaignId, participant.npc?.id || 0)}
+                              disabled={removeNpcMutation.isPending}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Remove companion</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
                 ) : (
                   // For player characters
                   (isDM || user?.id === participant.userId) && participant.role !== 'dm' && (
