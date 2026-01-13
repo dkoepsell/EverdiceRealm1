@@ -8477,6 +8477,28 @@ Respond with JSON:
             xpAwarded += enemyXP;
           }
         }
+        
+        // CRITICAL: Update combatants in storyState with damage dealt
+        // This ensures enemy HP changes are persisted and sent back to frontend
+        if (storyAdvancement.storyState?.combatants) {
+          for (const damageEntry of combatEffects.enemyDamage) {
+            const combatantIndex = storyAdvancement.storyState.combatants.findIndex(
+              (c: any) => c.name === damageEntry.name
+            );
+            if (combatantIndex !== -1) {
+              const combatant = storyAdvancement.storyState.combatants[combatantIndex];
+              combatant.currentHp = damageEntry.newHp;
+              if (damageEntry.defeated) {
+                combatant.status = 'defeated';
+              } else if (damageEntry.newHp <= (combatant.maxHp * 0.25)) {
+                combatant.status = 'bloodied';
+              } else if (damageEntry.newHp <= (combatant.maxHp * 0.5)) {
+                combatant.status = 'wounded';
+              }
+              console.log(`Updated enemy ${damageEntry.name} HP: ${damageEntry.newHp}/${combatant.maxHp} (status: ${combatant.status})`);
+            }
+          }
+        }
       }
       
       // Bonus XP for significant story advancement
