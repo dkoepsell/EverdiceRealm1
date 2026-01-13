@@ -1830,8 +1830,67 @@ Return your response as a JSON object with these fields:
         // Update the campaign with the session number to establish the link
         await storage.updateCampaignSession(campaign.id, 1);
         
-        // Generate initial dungeon map for the campaign
+        // Generate initial dungeon map for the campaign with theme awareness
         try {
+          // Detect theme from campaign title and description
+          const mapCampaignText = `${campaign.title || ''} ${campaign.description || ''}`.toLowerCase();
+          
+          // Theme-specific map configurations
+          const mapThemes: Record<string, { 
+            mapName: string; 
+            wallType: string; 
+            floorType: string; 
+            corridorType: string;
+            roomNames: string[];
+            features: string[];
+          }> = {
+            nautical: {
+              mapName: `${campaign.title} - Ship Layout`,
+              wallType: 'hull',
+              floorType: 'deck',
+              corridorType: 'passage',
+              roomNames: ['Main Deck', 'Cargo Hold', 'Captain\'s Quarters', 'Crew Quarters', 'Galley', 'Brig', 'Gun Deck', 'Storage Bay', 'Navigation Room', 'Armory'],
+              features: ['barrel', 'crate', 'cannon', 'rope_coil', 'lantern', 'anchor', 'chest', 'hammock']
+            },
+            forest: {
+              mapName: `${campaign.title} - Wilderness`,
+              wallType: 'dense_trees',
+              floorType: 'clearing',
+              corridorType: 'path',
+              roomNames: ['Forest Clearing', 'Ancient Grove', 'Hidden Glade', 'Stream Crossing', 'Hollow Tree', 'Druid Circle', 'Animal Den', 'Fairy Ring', 'Rocky Outcrop', 'Fallen Tree Bridge'],
+              features: ['fallen_log', 'mushroom_circle', 'animal_tracks', 'wildflowers', 'berry_bush', 'bird_nest', 'stream']
+            },
+            urban: {
+              mapName: `${campaign.title} - City District`,
+              wallType: 'building',
+              floorType: 'cobblestone',
+              corridorType: 'alley',
+              roomNames: ['Market Square', 'Tavern Back Room', 'Guild Hall', 'Warehouse', 'Noble\'s Parlor', 'Sewer Junction', 'Guard Post', 'Shop Interior', 'Cellar', 'Rooftop'],
+              features: ['market_stall', 'barrel', 'crate', 'torch_sconce', 'bench', 'sewer_grate', 'poster']
+            },
+            dungeon: {
+              mapName: `${campaign.title} - Dungeon`,
+              wallType: 'wall',
+              floorType: 'floor',
+              corridorType: 'corridor',
+              roomNames: ['Entrance Chamber', 'Guard Room', 'Treasure Vault', 'Ritual Chamber', 'Prison Cells', 'Armory', 'Throne Room', 'Crypt', 'Library', 'Alchemy Lab'],
+              features: ['pillar', 'statue', 'altar', 'chest', 'torch', 'debris', 'bones']
+            }
+          };
+          
+          // Detect which theme matches
+          let detectedMapTheme = 'dungeon';
+          if (mapCampaignText.match(/ship|sea|ocean|pirate|sailor|nautical|harbor|coast|voyage|captain|crew/)) {
+            detectedMapTheme = 'nautical';
+          } else if (mapCampaignText.match(/forest|wood|tree|grove|wilderness|druid|fey|nature/)) {
+            detectedMapTheme = 'forest';
+          } else if (mapCampaignText.match(/city|town|urban|guild|tavern|sewer|street|market/)) {
+            detectedMapTheme = 'urban';
+          }
+          
+          const activeMapTheme = mapThemes[detectedMapTheme];
+          console.log(`Generating ${detectedMapTheme}-themed map for campaign: ${campaign.title}`);
+          
           const generateInitialDungeonMap = () => {
             const width = 25;
             const height = 18;
@@ -1840,13 +1899,14 @@ Return your response as a JSON object with these fields:
             for (let y = 0; y < height; y++) {
               const row: any[] = [];
               for (let x = 0; x < width; x++) {
-                row.push({ type: "wall", explored: false, visible: false });
+                row.push({ type: activeMapTheme.wallType, explored: false, visible: false, theme: detectedMapTheme });
               }
               tiles.push(row);
             }
             
-            const rooms: { x: number; y: number; w: number; h: number }[] = [];
+            const rooms: { x: number; y: number; w: number; h: number; name: string }[] = [];
             const numRooms = 5 + Math.floor(Math.random() * 4);
+            const usedRoomNames = new Set<string>();
             
             for (let i = 0; i < numRooms; i++) {
               const roomW = 3 + Math.floor(Math.random() * 4);
@@ -1864,10 +1924,35 @@ Return your response as a JSON object with these fields:
               }
               
               if (!overlaps) {
-                rooms.push({ x: roomX, y: roomY, w: roomW, h: roomH });
+                // Pick a unique room name for this theme
+                let roomName = activeMapTheme.roomNames[i % activeMapTheme.roomNames.length];
+                let nameAttempt = 0;
+                while (usedRoomNames.has(roomName) && nameAttempt < activeMapTheme.roomNames.length) {
+                  roomName = activeMapTheme.roomNames[(i + nameAttempt + 1) % activeMapTheme.roomNames.length];
+                  nameAttempt++;
+                }
+                usedRoomNames.add(roomName);
+                
+                rooms.push({ x: roomX, y: roomY, w: roomW, h: roomH, name: roomName });
                 for (let ry = roomY; ry < roomY + roomH; ry++) {
                   for (let rx = roomX; rx < roomX + roomW; rx++) {
-                    tiles[ry][rx] = { type: "floor", explored: false, visible: false };
+                    tiles[ry][rx] = { 
+                      type: activeMapTheme.floorType, 
+                      explored: false, 
+                      visible: false, 
+                      theme: detectedMapTheme,
+                      roomName: roomName
+                    };
+                  }
+                }
+                
+                // Add theme-appropriate features to some rooms
+                if (Math.random() > 0.5 && activeMapTheme.features.length > 0) {
+                  const featureX = roomX + Math.floor(roomW / 2);
+                  const featureY = roomY + Math.floor(roomH / 2);
+                  const feature = activeMapTheme.features[Math.floor(Math.random() * activeMapTheme.features.length)];
+                  if (tiles[featureY] && tiles[featureY][featureX]) {
+                    tiles[featureY][featureX].feature = feature;
                   }
                 }
               }
@@ -1884,14 +1969,14 @@ Return your response as a JSON object with these fields:
               let x = prevCenterX;
               while (x !== currCenterX) {
                 if (tiles[prevCenterY] && tiles[prevCenterY][x]) {
-                  tiles[prevCenterY][x] = { type: "corridor", explored: false, visible: false };
+                  tiles[prevCenterY][x] = { type: activeMapTheme.corridorType, explored: false, visible: false, theme: detectedMapTheme };
                 }
                 x += x < currCenterX ? 1 : -1;
               }
               let y = prevCenterY;
               while (y !== currCenterY) {
                 if (tiles[y] && tiles[y][currCenterX]) {
-                  tiles[y][currCenterX] = { type: "corridor", explored: false, visible: false };
+                  tiles[y][currCenterX] = { type: activeMapTheme.corridorType, explored: false, visible: false, theme: detectedMapTheme };
                 }
                 y += y < currCenterY ? 1 : -1;
               }
@@ -1914,19 +1999,29 @@ Return your response as a JSON object with these fields:
               }
             }
             
-            return { width, height, tiles, entities, playerPosition: playerPos, name: campaign.title + " Dungeon", level: 1 };
+            return { 
+              width, 
+              height, 
+              tiles, 
+              entities, 
+              playerPosition: playerPos, 
+              name: activeMapTheme.mapName, 
+              level: 1,
+              theme: detectedMapTheme,
+              rooms: rooms.map(r => ({ name: r.name, x: r.x, y: r.y, w: r.w, h: r.h }))
+            };
           };
           
           const initialMapData = generateInitialDungeonMap();
           await storage.createCampaignDungeonMap({
             campaignId: campaign.id,
-            mapName: campaign.title + " Dungeon",
+            mapName: activeMapTheme.mapName,
             mapData: initialMapData,
             playerPosition: initialMapData.playerPosition,
             fogOfWar: {},
             exploredTiles: [],
           });
-          console.log(`Created initial dungeon map for campaign ${campaign.id}`);
+          console.log(`Created initial ${detectedMapTheme}-themed map for campaign ${campaign.id}`);
         } catch (mapError) {
           console.error("Failed to create initial dungeon map:", mapError);
         }
