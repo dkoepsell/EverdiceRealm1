@@ -8315,6 +8315,14 @@ DUNGEON MAP SYNCHRONIZATION (CRITICAL):
 - Add features (chests, altars, etc) that you describe in the narrative to the features array
 - This ensures the dungeon map visually matches your storytelling
 
+ENVIRONMENTAL CONSTRAINTS (CRITICAL):
+- ALL narratives MUST respect the physical environment: ${themeContext || 'standard dungeon setting'}
+- Descriptions MUST match the campaign setting (if nautical: use ship terms, sea weather, maritime threats)
+- Combat encounters MUST feature theme-appropriate enemies (pirates/sea monsters for nautical, forest creatures for wilderness)
+- Physics and logic must be consistent (no teleportation, no impossible feats without magic)
+- Story progression MUST reflect natural consequences of player actions
+- Choices MUST be constrained by the environment (can't "climb a tree" on a ship, can't "swim away" in a desert)
+
 WRITING STYLE REQUIREMENTS:
 - Apply the ${narrativeStyle} storytelling style consistently
 - Lead with what HAPPENS as a result of the player action
@@ -8323,6 +8331,7 @@ WRITING STYLE REQUIREMENTS:
 - IMPORTANT: Make each story beat SIGNIFICANT - big reveals, meaningful encounters, plot twists
 - Advance the story rapidly - skip mundane travel or waiting periods
 - Jump to the next interesting moment or encounter
+- REFLECT SKILL CHECK OUTCOMES: Clearly show success or failure consequences in the narrative
 
 Generate the next story segment that:
 1. IMMEDIATELY shows what happened because of their specific action/roll
@@ -9265,6 +9274,76 @@ Respond with JSON:
       let finalChoices = storyAdvancement.choices || [];
       const inCombat = storyAdvancement.storyState?.inCombat || mergedStoryState.inCombat;
       
+      // CRITICAL: Ensure ALL player characters and companions are in partyMembers during combat
+      if (inCombat) {
+        // Ensure partyMembers array exists
+        if (!mergedStoryState.partyMembers) {
+          mergedStoryState.partyMembers = [];
+        }
+        
+        // Get ALL campaign participants (could be multiple players in multiplayer)
+        const participants = await storage.getCampaignParticipants(campaignId);
+        if (participants && participants.length > 0) {
+          for (const participant of participants) {
+            const character = await storage.getCharacter(participant.characterId);
+            if (character) {
+              // Check if this player is already in partyMembers
+              const alreadyInParty = (mergedStoryState.partyMembers as any[]).some(
+                (m: any) => m.name === character.name || (m.type === 'player' && m.characterId === character.id)
+              );
+              
+              if (!alreadyInParty) {
+                // Add player character to partyMembers
+                const playerStatus = character.hitPoints <= 0 ? 'unconscious' :
+                  character.hitPoints <= (character.maxHitPoints * 0.25) ? 'bloodied' :
+                  character.hitPoints <= (character.maxHitPoints * 0.5) ? 'wounded' : 'healthy';
+                
+                (mergedStoryState.partyMembers as any[]).unshift({
+                  characterId: character.id,
+                  name: character.name,
+                  type: 'player',
+                  class: character.class,
+                  maxHp: character.maxHitPoints,
+                  currentHp: character.hitPoints,
+                  ac: 10 + Math.floor((character.dexterity - 10) / 2),
+                  status: playerStatus
+                });
+                console.log(`Added player ${character.name} to partyMembers for combat display`);
+              }
+            }
+          }
+        }
+        
+        // Also ensure NPC companions from campaign_npcs are in partyMembers
+        const campaignNpcs = await storage.getCampaignNpcs(campaignId);
+        for (const cn of campaignNpcs) {
+          if (cn.isCompanion && cn.npcId) {
+            const npc = await storage.getNpc(cn.npcId);
+            if (npc) {
+              const companionInParty = (mergedStoryState.partyMembers as any[]).some(
+                (m: any) => m.name === npc.name
+              );
+              if (!companionInParty) {
+                const compStatus = (cn.currentHp || 0) <= 0 ? 'unconscious' :
+                  (cn.currentHp || 0) <= ((cn.maxHp || 20) * 0.25) ? 'bloodied' :
+                  (cn.currentHp || 0) <= ((cn.maxHp || 20) * 0.5) ? 'wounded' : 'healthy';
+                
+                (mergedStoryState.partyMembers as any[]).push({
+                  name: npc.name,
+                  type: 'companion',
+                  class: npc.class || 'Warrior',
+                  maxHp: cn.maxHp || 20,
+                  currentHp: cn.currentHp || cn.maxHp || 20,
+                  ac: 12,
+                  status: compStatus
+                });
+                console.log(`Added companion ${npc.name} to partyMembers for combat display`);
+              }
+            }
+          }
+        }
+      }
+      
       if (!inCombat) {
         // Get current dungeon map position for movement context
         const dungeonMap = await storage.getCampaignDungeonMap(campaignId);
@@ -9910,9 +9989,17 @@ Respond with JSON:
         // Condition 6: Any quest completed with high turn count (30+ turns)
         const anyQuestWithHighTurns = completedQuests.length > 0 && turnsThisChapter >= 30;
         
-        console.log(`Session advance check: adventureComplete=${adventureComplete}, allQuestsCompleted=${allQuestsCompleted}, majorMilestone=${majorMilestone}, hardCap=${hardCapReached}, softCap=${softCapReached}, anyQuestHighTurns=${anyQuestWithHighTurns}`);
+        // NEW Condition 7: ALL GOALS MET - check if all required encounters are done
+        const allGoalsMet = 
+          combatDone >= combatRequired &&
+          trapDone >= trapRequired &&
+          treasureDone >= treasureRequired &&
+          puzzlesDone >= puzzlesRequired &&
+          discoveriesDone >= discoveriesRequired;
         
-        return adventureComplete || allQuestsCompleted || majorMilestone || hardCapReached || softCapReached || anyQuestWithHighTurns;
+        console.log(`Session advance check: adventureComplete=${adventureComplete}, allQuestsCompleted=${allQuestsCompleted}, majorMilestone=${majorMilestone}, hardCap=${hardCapReached}, softCap=${softCapReached}, anyQuestHighTurns=${anyQuestWithHighTurns}, allGoalsMet=${allGoalsMet}`);
+        
+        return adventureComplete || allQuestsCompleted || majorMilestone || hardCapReached || softCapReached || anyQuestWithHighTurns || allGoalsMet;
       })();
       
       if (shouldAdvanceSession) {
@@ -9931,9 +10018,28 @@ Respond with JSON:
           // Get the campaign's ACTUAL total chapters (set at creation)
           const campaignTotalChapters = campaignForChapter.totalChapters || 4;
           
-          // === CHECK IF THIS IS THE FINAL CHAPTER - CAMPAIGN COMPLETE! ===
-          if (currentSession.sessionNumber >= campaignTotalChapters) {
-            console.log(`Campaign ${campaignId} COMPLETE! Final chapter ${currentSession.sessionNumber} of ${campaignTotalChapters} finished.`);
+          // Check if ALL goals and quests are complete for early campaign completion
+          const allGoalsComplete = 
+            combatDone >= combatRequired &&
+            trapDone >= trapRequired &&
+            treasureDone >= treasureRequired &&
+            puzzlesDone >= puzzlesRequired &&
+            discoveriesDone >= discoveriesRequired;
+          
+          // Quest completion: either no quests exist OR all existing quests are completed
+          const questsArray = (mergedStoryState.activeQuests || []) as any[];
+          const allQuestsComplete = questsArray.length === 0 || 
+            questsArray.every((q: any) => q.status === 'completed');
+          
+          const isFinalChapter = currentSession.sessionNumber >= campaignTotalChapters;
+          // Early completion: all goals met AND (no quests OR all quests done) AND at least halfway through campaign
+          const earlyCompletionTriggered = allGoalsComplete && allQuestsComplete && currentSession.sessionNumber >= Math.ceil(campaignTotalChapters * 0.5);
+          
+          // === CAMPAIGN COMPLETE CONDITIONS ===
+          // Complete if: on final chapter OR (all goals + all quests done AND at least halfway through)
+          if (isFinalChapter || earlyCompletionTriggered) {
+            console.log(`Campaign ${campaignId} COMPLETE! Session ${currentSession.sessionNumber} of ${campaignTotalChapters}. Reason: ${isFinalChapter ? 'Final chapter reached' : 'All goals & quests completed early'}`);
+
             
             // Mark the current session as completed
             await db
@@ -10054,7 +10160,7 @@ Respond with JSON:
           
           // Only mark as climax/final if we've had enough story progression
           const isClimaxChapter = nextChapterNumber === estimatedTotalChapters - 1 && nextChapterNumber >= 3;
-          const isFinalChapter = nextChapterNumber >= estimatedTotalChapters && nextChapterNumber >= 4;
+          const isNextChapterFinal = nextChapterNumber >= estimatedTotalChapters && nextChapterNumber >= 4;
           
           // Generate chapter content using AI
           const openaiClientForChapter = new OpenAI({ 
@@ -10087,10 +10193,10 @@ CURRENT CHAPTER (just ending):
 NEXT CHAPTER:
 - This will be Chapter ${nextChapterNumber} of approximately ${estimatedTotalChapters} chapters
 ${isClimaxChapter ? '- THIS IS THE CLIMAX CHAPTER - tension should build toward the final confrontation' : ''}
-${isFinalChapter ? '- THIS IS THE FINAL CHAPTER - the campaign should reach its epic conclusion' : ''}
+${isNextChapterFinal ? '- THIS IS THE FINAL CHAPTER - the campaign should reach its epic conclusion' : ''}
 
 CHAPTER REQUIREMENTS:
-${isFinalChapter ? `
+${isNextChapterFinal ? `
 - Generate the FINAL CHAPTER leading to campaign conclusion
 - Title should reflect the climactic nature (e.g., "The Final Reckoning", "The Last Stand")
 - Narrative should set up the ultimate confrontation or resolution
@@ -10160,7 +10266,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
             // Validate the response has required fields
             if (!generatedChapter.chapterTitle || generatedChapter.chapterTitle.toLowerCase().includes('chapter ' + nextChapterNumber)) {
               // AI failed to generate a unique title, create a better one
-              const titleOptions = isFinalChapter 
+              const titleOptions = isNextChapterFinal 
                 ? ["The Final Reckoning", "The Last Stand", "Dawn of Resolution", "The Ultimate Challenge"]
                 : isClimaxChapter
                 ? ["The Gathering Storm", "Into the Abyss", "The Darkest Hour", "Shadows Rising"]
