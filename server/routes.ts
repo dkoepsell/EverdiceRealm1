@@ -401,6 +401,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // NPC Portrait Generation endpoint
+  app.post("/api/npcs/:id/generate-portrait", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const npc = await storage.getNpc(id);
+      
+      if (!npc) {
+        return res.status(404).json({ message: "NPC not found" });
+      }
+      
+      // Generate portrait using OpenAI with NPC details
+      const portraitData = await generateCharacterPortrait({
+        name: npc.name,
+        race: npc.race,
+        class: npc.occupation || 'Warrior',
+        background: npc.personality || undefined,
+        appearance: npc.appearance || undefined
+      });
+      
+      // Update NPC with portrait URL
+      const updatedNpc = await storage.updateNpc(id, {
+        portraitUrl: portraitData.url
+      });
+      
+      res.json({ 
+        portraitUrl: portraitData.url, 
+        npc: updatedNpc 
+      });
+    } catch (error: any) {
+      console.error("Error generating NPC portrait:", error);
+      res.status(500).json({ 
+        message: "Failed to generate NPC portrait", 
+        error: error.message 
+      });
+    }
+  });
   
   app.post("/api/characters/:id/generate-background", async (req, res) => {
     try {

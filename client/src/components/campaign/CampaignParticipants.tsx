@@ -340,14 +340,19 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
               <div className="flex justify-between items-start">
                 <div className="flex items-center space-x-2">
                   <Avatar>
-                    {participant.character?.portraitUrl ? (
+                    {participant.isNpc ? (
+                      participant.npc?.portraitUrl ? (
+                        <AvatarImage src={participant.npc.portraitUrl} alt={participant.npc.name} />
+                      ) : (
+                        <AvatarFallback>
+                          {participant.npc?.name?.[0] || 'N'}
+                        </AvatarFallback>
+                      )
+                    ) : participant.character?.portraitUrl ? (
                       <AvatarImage src={participant.character.portraitUrl} alt={participant.character.name} />
                     ) : (
                       <AvatarFallback>
-                        {participant.isNpc 
-                          ? participant.npc?.name?.[0] || 'N'
-                          : participant.displayName?.[0] || participant.username?.[0] || 'U'
-                        }
+                        {participant.displayName?.[0] || participant.username?.[0] || 'U'}
                       </AvatarFallback>
                     )}
                   </Avatar>
