@@ -9317,9 +9317,10 @@ Respond with JSON:
         // Also ensure NPC companions from campaign_npcs are in partyMembers
         const campaignNpcs = await storage.getCampaignNpcs(campaignId);
         for (const cn of campaignNpcs) {
-          if (cn.isCompanion && cn.npcId) {
+          if (cn.npcId) {
             const npc = await storage.getNpc(cn.npcId);
-            if (npc) {
+            // Check isCompanion on the NPC record, not on campaign_npcs
+            if (npc && npc.isCompanion) {
               const companionInParty = (mergedStoryState.partyMembers as any[]).some(
                 (m: any) => m.name === npc.name
               );
