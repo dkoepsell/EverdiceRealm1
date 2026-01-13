@@ -7771,19 +7771,66 @@ Generate a complete CAML 2.0 JSON adventure.`;
           }
         }
         
-        // Describe the current room/tile
-        const tileTypeDescriptions: Record<string, string> = {
-          'floor': 'an open chamber with stone floors',
-          'corridor': 'a narrow corridor',
-          'door': 'a doorway',
-          'treasure': 'a room with a treasure chest',
-          'trap': 'a room with suspicious floor tiles',
-          'stairs_up': 'a room with stairs leading up',
-          'stairs_down': 'a room with stairs leading down',
-          'water': 'a flooded area with water on the floor',
-          'lava': 'a dangerous area near molten lava',
-          'pit': 'an area with a deep pit'
+        // Describe the current room/tile - detect theme from campaign for better descriptions
+        const themeTileDescriptions: Record<string, Record<string, string>> = {
+          nautical: {
+            'floor': 'a section of the ship deck with weathered wooden planks',
+            'corridor': 'a narrow passage between ship cabins',
+            'door': 'a cabin door reinforced with iron bands',
+            'treasure': 'a cargo hold filled with crates and a locked chest',
+            'trap': 'loose planks that might give way',
+            'stairs_up': 'a ladder leading up to the main deck',
+            'stairs_down': 'a hatch leading down to the lower decks',
+            'water': 'a flooded section of the bilge',
+            'lava': 'a section near the ship\'s burning galley',
+            'pit': 'a gaping hole in the deck exposing the hold below'
+          },
+          forest: {
+            'floor': 'a mossy forest clearing',
+            'corridor': 'a winding path through dense undergrowth',
+            'door': 'a natural archway formed by twisted branches',
+            'treasure': 'a hollow tree containing hidden valuables',
+            'trap': 'a section of ground concealing a snare',
+            'stairs_up': 'roots and rocks forming a natural climb',
+            'stairs_down': 'a slope descending into a shadowy ravine',
+            'water': 'a stream cutting through the forest floor',
+            'lava': 'ground scorched by wildfire',
+            'pit': 'a natural sinkhole covered by leaves'
+          },
+          urban: {
+            'floor': 'a cobblestone plaza',
+            'corridor': 'a narrow alleyway between buildings',
+            'door': 'a heavy wooden door to a building',
+            'treasure': 'a merchant\'s back room with a safe',
+            'trap': 'suspicious loose cobblestones',
+            'stairs_up': 'a wooden staircase ascending',
+            'stairs_down': 'stone steps leading to a cellar',
+            'water': 'a flooded sewer section',
+            'lava': 'a smithy\'s forge area',
+            'pit': 'an open sewer grate'
+          },
+          default: {
+            'floor': 'an open chamber with stone floors',
+            'corridor': 'a narrow corridor',
+            'door': 'a doorway',
+            'treasure': 'a room with a treasure chest',
+            'trap': 'a room with suspicious floor tiles',
+            'stairs_up': 'a room with stairs leading up',
+            'stairs_down': 'a room with stairs leading down',
+            'water': 'a flooded area with water on the floor',
+            'lava': 'a dangerous area near molten lava',
+            'pit': 'an area with a deep pit'
+          }
         };
+        
+        // Detect theme for tile descriptions
+        const mapThemeText = `${campaign?.title || ''} ${campaign?.description || ''}`.toLowerCase();
+        let mapTheme = 'default';
+        if (mapThemeText.match(/ship|sea|ocean|pirate|sailor|nautical|harbor|coast/)) mapTheme = 'nautical';
+        else if (mapThemeText.match(/forest|wood|tree|grove|wilderness/)) mapTheme = 'forest';
+        else if (mapThemeText.match(/city|town|urban|guild|tavern|sewer/)) mapTheme = 'urban';
+        
+        const tileTypeDescriptions = themeTileDescriptions[mapTheme] || themeTileDescriptions.default;
         
         const currentRoomDesc = mapData.currentRoom?.description || 
           tileTypeDescriptions[currentTile?.type || 'floor'] || 
@@ -7990,11 +8037,90 @@ You may create a new character or start a new adventure to continue playing.`;
         "dark": "Emphasize danger, consequences, and grim atmosphere. Focus on moral ambiguity and harsh realities."
       }[normalizedStyle] || "Use vivid, detailed descriptions of settings and actions.";
       
+      // Detect adventure theme from campaign title, description, and current narrative
+      const campaignText = `${campaign?.title || ''} ${campaign?.description || ''} ${currentSession.narrative || ''}`.toLowerCase();
+      
+      // Theme detection with environmental vocabulary
+      const themeDetection = {
+        nautical: {
+          keywords: ['ship', 'sea', 'ocean', 'pirate', 'sailor', 'maritime', 'naval', 'port', 'harbor', 'vessel', 'captain', 'crew', 'deck', 'anchor', 'sail', 'nautical', 'kraken', 'mermaid', 'lighthouse', 'island', 'coast', 'storm at sea', 'voyage'],
+          environments: ['ship deck', 'cargo hold', 'captain\'s quarters', 'crow\'s nest', 'galley', 'brig', 'gun deck', 'harbor warehouse', 'dock', 'lighthouse', 'sea cave', 'shipwreck', 'island beach', 'underwater grotto'],
+          enemies: ['pirates', 'sahuagin', 'sea hags', 'merrow', 'water elementals', 'giant crabs', 'reef sharks', 'sea serpents', 'ghost sailors', 'cursed crew', 'smugglers', 'mutinous sailors', 'sea zombies', 'kuo-toa'],
+          features: ['wooden planks', 'rope rigging', 'salt-crusted barrels', 'navigation charts', 'ship\'s wheel', 'cannons', 'anchor chains', 'fishing nets', 'barnacle-covered surfaces', 'porthole windows', 'swaying lanterns']
+        },
+        forest: {
+          keywords: ['forest', 'wood', 'tree', 'grove', 'glade', 'fey', 'druid', 'nature', 'wilderness', 'hunt', 'ranger', 'elven', 'sylvan'],
+          environments: ['ancient grove', 'forest clearing', 'tree hollow', 'overgrown ruins', 'fairy ring', 'druid circle', 'hunter\'s camp', 'animal den', 'stream crossing', 'fallen tree bridge'],
+          enemies: ['wolves', 'bears', 'giant spiders', 'goblins', 'orcs', 'bandits', 'dryads', 'treants', 'ettercaps', 'owlbears', 'displacer beasts', 'blights'],
+          features: ['twisted roots', 'moss-covered stones', 'fallen logs', 'mushroom circles', 'animal tracks', 'bird nests', 'vines', 'wildflowers', 'ancient trees']
+        },
+        undead: {
+          keywords: ['undead', 'zombie', 'skeleton', 'vampire', 'necromancer', 'crypt', 'graveyard', 'tomb', 'death', 'cursed', 'haunted', 'ghost', 'specter'],
+          environments: ['crypt chamber', 'bone-filled ossuary', 'vampire\'s lair', 'haunted manor', 'necromancer\'s laboratory', 'mass grave', 'mausoleum', 'embalming room', 'coffin storage'],
+          enemies: ['zombies', 'skeletons', 'ghouls', 'ghosts', 'wraiths', 'wights', 'vampires', 'vampire spawn', 'necromancers', 'death knights', 'shadows', 'specters'],
+          features: ['coffins', 'tombstones', 'skeletal remains', 'cobwebs', 'rotting tapestries', 'candelabras', 'burial urns', 'death masks', 'necromantic circles']
+        },
+        desert: {
+          keywords: ['desert', 'sand', 'pyramid', 'oasis', 'scorpion', 'mummy', 'pharaoh', 'sphinx', 'sandstorm', 'ancient egypt'],
+          environments: ['pyramid chamber', 'buried temple', 'oasis camp', 'sand-filled tomb', 'sun-bleached ruins', 'scorpion den', 'sultan\'s palace', 'bazaar'],
+          enemies: ['mummies', 'giant scorpions', 'dust mephits', 'gnolls', 'sphinxes', 'animated statues', 'sand elementals', 'yuan-ti', 'blue dragons'],
+          features: ['hieroglyphics', 'sarcophagi', 'sand drifts', 'stone pillars', 'golden treasures', 'oil lamps', 'palm fronds', 'water jugs']
+        },
+        mountain: {
+          keywords: ['mountain', 'cave', 'mine', 'dwarf', 'dwarven', 'giant', 'dragon', 'peak', 'cliff', 'gorge', 'avalanche'],
+          environments: ['mine shaft', 'crystal cavern', 'dragon\'s lair', 'mountain pass', 'dwarven forge', 'giant\'s throne room', 'ice cave', 'volcanic vent'],
+          enemies: ['giants', 'dragons', 'cave bears', 'trolls', 'kobolds', 'duergar', 'galeb duhr', 'rocs', 'yetis', 'wyverns'],
+          features: ['mine carts', 'gem deposits', 'stalactites', 'underground rivers', 'dwarven runes', 'forge equipment', 'crystalline formations']
+        },
+        urban: {
+          keywords: ['city', 'town', 'tavern', 'guild', 'noble', 'thief', 'assassin', 'sewer', 'criminal', 'marketplace', 'castle'],
+          environments: ['tavern back room', 'noble\'s mansion', 'thieves\' guild hideout', 'city sewers', 'guard barracks', 'market square', 'abandoned warehouse'],
+          enemies: ['thugs', 'assassins', 'corrupt guards', 'gang members', 'wererats', 'doppelgangers', 'cultists', 'noble rivals'],
+          features: ['wooden tables', 'wanted posters', 'merchant stalls', 'sewer grates', 'hidden doors', 'ornate furniture', 'candle chandeliers']
+        },
+        dungeon: {
+          keywords: ['dungeon', 'crypt', 'ruin', 'ancient', 'temple', 'fortress', 'labyrinth', 'maze', 'underground'],
+          environments: ['stone corridor', 'trapped hallway', 'ritual chamber', 'treasure vault', 'prison cells', 'throne room', 'armory', 'library'],
+          enemies: ['goblins', 'orcs', 'kobolds', 'minotaurs', 'gelatinous cubes', 'mimics', 'rust monsters', 'oozes', 'animated armors'],
+          features: ['stone pillars', 'ancient runes', 'iron torches', 'dusty tapestries', 'crumbling statues', 'locked chests', 'pressure plates']
+        }
+      };
+      
+      // Detect which theme matches best
+      let detectedTheme = 'dungeon'; // default
+      let maxMatches = 0;
+      
+      for (const [themeName, themeData] of Object.entries(themeDetection)) {
+        const matches = themeData.keywords.filter(kw => campaignText.includes(kw)).length;
+        if (matches > maxMatches) {
+          maxMatches = matches;
+          detectedTheme = themeName;
+        }
+      }
+      
+      const activeTheme = themeDetection[detectedTheme as keyof typeof themeDetection];
+      
+      // Build theme context for the AI
+      const themeContext = `
+ADVENTURE THEME: ${detectedTheme.toUpperCase()}
+ENVIRONMENT CONTEXT: This adventure takes place in a ${detectedTheme} setting. Use appropriate descriptions:
+- Typical environments: ${activeTheme.environments.slice(0, 5).join(', ')}
+- Appropriate enemies: ${activeTheme.enemies.slice(0, 6).join(', ')}
+- Environmental features: ${activeTheme.features.slice(0, 5).join(', ')}
+
+CRITICAL: Do NOT use generic dungeon descriptions (stone corridors, ancient runes, spectral guardians) unless they fit the ${detectedTheme} theme.
+Instead, describe environments that match the adventure's setting. For example:
+${detectedTheme === 'nautical' ? '- Use wooden decks, ship cabins, sea spray, creaking timbers, nautical equipment\n- Enemies should be sea creatures, pirates, or cursed sailors\n- Describe the motion of the ship, sound of waves, salt air' : ''}
+${detectedTheme === 'forest' ? '- Use dappled sunlight, rustling leaves, animal sounds, natural formations\n- Enemies should be forest creatures, fey, or wilderness threats' : ''}
+${detectedTheme === 'urban' ? '- Use city sounds, crowds, buildings, streets, social environments\n- Enemies should be criminals, corrupt officials, or urban monsters' : ''}
+`;
+      
       // Generate story continuation based on choice and previous context
       const prompt = `
 You are an expert Dungeon Master for a D&D game with a ${narrativeStyle} storytelling style.
 ${narrativeStyleInstructions}
 Difficulty: ${difficulty}
+${themeContext}
 
 Continue this D&D story based on the player's choice and maintain story continuity.
 
