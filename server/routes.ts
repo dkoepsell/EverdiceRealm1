@@ -5627,9 +5627,16 @@ Return your response as a JSON object with these fields:
         return res.status(403).json({ message: "Only the DM can view narrative insights" });
       }
       
-      // Return cached insights if available (stored in campaign.settings or a dedicated field)
-      const settings = campaign.settings as any || {};
-      const insights = settings.narrativeInsights || [];
+      // Return cached insights from session storyState
+      const sessions = await storage.getCampaignSessions(campaignId);
+      const currentSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
+      
+      if (!currentSession) {
+        return res.json([]);
+      }
+      
+      const storyState = currentSession.storyState as any || {};
+      const insights = storyState.narrativeInsights || [];
       
       res.json(insights);
     } catch (error) {
@@ -5739,15 +5746,15 @@ Focus on:
         insights = [];
       }
       
-      // Cache the insights in campaign settings
-      const currentSettings = campaign.settings as any || {};
-      await storage.updateCampaign(campaignId, {
-        settings: {
-          ...currentSettings,
+      // Cache the insights in session storyState
+      if (currentSession) {
+        const currentStoryState = currentSession.storyState as any || {};
+        await storage.updateSessionStoryState(campaignId, currentSession.sessionNumber, {
+          ...currentStoryState,
           narrativeInsights: insights,
           insightsGeneratedAt: new Date().toISOString()
-        }
-      });
+        });
+      }
       
       res.json(insights);
     } catch (error) {
