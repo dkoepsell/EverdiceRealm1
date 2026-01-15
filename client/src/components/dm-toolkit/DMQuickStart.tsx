@@ -97,16 +97,16 @@ export default function DMQuickStart({ onComplete, onCancel }: {
         const npcData = {
           name: npc.name,
           race: "Human",
-          class: npc.role,
-          background: npc.trait,
-          description: `${npc.role}. ${npc.trait}`,
-          personality: npc.trait,
+          occupation: npc.role || "Villager",
+          personality: npc.trait || "Friendly and helpful",
+          appearance: "Average build, common attire",
           motivation: "Pursuing their own goals",
-          secrets: "",
           hitPoints: 10,
           maxHitPoints: 10,
           armorClass: 10,
-          level: 1
+          level: 1,
+          isCompanion: true,
+          companionType: "social"
         };
         
         const npcResponse = await apiRequest("POST", "/api/npcs", npcData);
