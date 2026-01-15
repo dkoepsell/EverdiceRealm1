@@ -4,8 +4,9 @@ import { Character } from "@shared/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, Image } from "lucide-react";
+import { ChevronDown, ChevronUp, Image, BookOpen } from "lucide-react";
 import CharacterPortraitGenerator from "./CharacterPortraitGenerator";
+import CharacterStoryArc from "./CharacterStoryArc";
 
 interface CharacterSheetProps {
   character: Character;
@@ -75,10 +76,16 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
           </div>
           
           <Tabs defaultValue="main" value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-4">
+            <TabsList className="mb-4 flex-wrap">
               <TabsTrigger value="main">Abilities & Combat</TabsTrigger>
               <TabsTrigger value="skills">Skills</TabsTrigger>
               <TabsTrigger value="equipment">Equipment</TabsTrigger>
+              <TabsTrigger value="story">
+                <div className="flex items-center">
+                  <BookOpen className="h-4 w-4 mr-1" />
+                  Story
+                </div>
+              </TabsTrigger>
               <TabsTrigger value="portrait">
                 <div className="flex items-center">
                   <Image className="h-4 w-4 mr-1" />
@@ -284,8 +291,11 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
               </div>
             </TabsContent>
             
+            <TabsContent value="story">
+              <CharacterStoryArc characterId={character.id} characterName={character.name} />
+            </TabsContent>
+            
             <TabsContent value="portrait">
-              {/* Character Portrait Generator */}
               <CharacterPortraitGenerator character={character} />
             </TabsContent>
           </Tabs>

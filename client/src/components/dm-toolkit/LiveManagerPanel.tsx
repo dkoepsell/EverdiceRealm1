@@ -175,6 +175,72 @@ function DroppableZone({ children, id, isOver: externalIsOver }: { children: Rea
   );
 }
 
+interface ArcSignal {
+  characterId: number;
+  characterName: string;
+  profiles: any[];
+  recentEvents: any[];
+  summary: string;
+}
+
+function ArcSignalsPanel({ campaignId }: { campaignId: number | null }) {
+  const { data: arcSignals, isLoading } = useQuery<ArcSignal[]>({
+    queryKey: ['/api/campaigns', campaignId, 'reputation-signals'],
+    enabled: !!campaignId
+  });
+
+  if (!campaignId) {
+    return null;
+  }
+
+  return (
+    <Card className="border-indigo-500/20">
+      <CardHeader className="p-3 pb-1">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <BookOpen className="h-4 w-4 text-indigo-500" />
+          Arc Signals
+        </CardTitle>
+        <CardDescription className="text-xs">
+          Character reputation patterns
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="p-3 pt-0">
+        <ScrollArea className="h-[120px]">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : arcSignals && arcSignals.length > 0 ? (
+            <div className="space-y-2">
+              {arcSignals.map((signal) => (
+                <div 
+                  key={signal.characterId}
+                  className="p-2 rounded-lg border bg-indigo-500/5 border-indigo-500/20"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Users className="h-3 w-3 text-indigo-500" />
+                    <span className="text-sm font-medium">{signal.characterName}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {signal.summary}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
+              <BookOpen className="h-5 w-5 mb-2 opacity-50" />
+              <p className="text-xs text-center">
+                Character reputation patterns will emerge as the story unfolds
+              </p>
+            </div>
+          )}
+        </ScrollArea>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPanelProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -954,6 +1020,9 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                 </ScrollArea>
               </CardContent>
             </Card>
+
+            {/* Arc Signals - Character Reputation Insights */}
+            <ArcSignalsPanel campaignId={selectedCampaignId} />
 
             {/* DM Narration - The Payoff */}
             <Card className="border-amber-500/30 bg-gradient-to-b from-amber-500/5 to-transparent">
