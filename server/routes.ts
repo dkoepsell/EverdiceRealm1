@@ -1121,8 +1121,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         updateData.consumables = consumables;
       } else {
-        // Add items to equipment inventory
-        const equipment: any[] = (character as any).equipment || [];
+        // Add items to equipment inventory (stored as JSON strings in text array)
+        const equipment: string[] = (character as any).equipment || [];
         
         for (let i = 0; i < quantity; i++) {
           const newItem: any = {
@@ -1139,7 +1139,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (itemDamage) newItem.damage = itemDamage;
           if (itemArmor) newItem.armor = itemArmor;
           
-          equipment.push(newItem);
+          // Serialize object to JSON string for storage in text array
+          equipment.push(JSON.stringify(newItem));
         }
         
         updateData.equipment = equipment;

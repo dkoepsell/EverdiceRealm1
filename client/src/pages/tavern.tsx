@@ -368,7 +368,18 @@ export default function TavernPage() {
 
   const characterGold = activeCharacter?.gold || 0;
   const characterSilver = activeCharacter?.silver || 0;
-  const characterEquipment: InventoryItem[] = activeCharacter?.equipment || [];
+  // Parse equipment items - they may be stored as JSON strings or plain strings
+  const characterEquipment: InventoryItem[] = (activeCharacter?.equipment || []).map((item: string | InventoryItem) => {
+    if (typeof item === 'string') {
+      // Try to parse as JSON, otherwise treat as simple item name
+      try {
+        return JSON.parse(item);
+      } catch {
+        return { name: item, type: 'misc', rarity: 'common', description: '' };
+      }
+    }
+    return item;
+  });
 
   const canAfford = (item: ShopItem | null, qty: number = 1) => {
     if (!item) return false;
