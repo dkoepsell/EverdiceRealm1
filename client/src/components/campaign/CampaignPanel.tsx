@@ -3212,7 +3212,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                           {stats.attackBonus ? <div className="text-xs">Attack Bonus: +{stats.attackBonus}</div> : null}
                                           {stats.baseAC && <div className="text-xs">Base AC: {stats.baseAC}</div>}
                                           {stats.magicBonus ? <div className="text-xs">Magic Bonus: +{stats.magicBonus}</div> : null}
-                                          {stats.properties?.length > 0 && <div className="text-xs">Properties: {stats.properties.join(', ')}</div>}
+                                          {stats.properties && <div className="text-xs">Properties: {Array.isArray(stats.properties) ? stats.properties.join(', ') : stats.properties}</div>}
                                           {stats.specialEffect && <div className="text-xs italic text-purple-400">{stats.specialEffect}</div>}
                                           {stats.description && <div className="text-xs text-slate-400 mt-1">{stats.description}</div>}
                                         </div>
