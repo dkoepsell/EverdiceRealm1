@@ -1066,34 +1066,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newSilver = Math.floor((remainingCopper % 100) / 10);
       const newCopper = remainingCopper % 10;
       
-      // Add items to inventory
-      const equipment: any[] = (character as any).equipment || [];
+      // Check if item is a consumable (potions, scrolls, etc.)
+      const isConsumable = itemType?.toLowerCase().includes('potion') || 
+                           itemType?.toLowerCase().includes('consumable') ||
+                           itemType?.toLowerCase().includes('scroll') ||
+                           itemName?.toLowerCase().includes('potion') ||
+                           itemName?.toLowerCase().includes('antitoxin');
       
-      for (let i = 0; i < quantity; i++) {
-        const newItem: any = {
-          name: itemName,
-          type: itemType,
-          rarity: itemRarity || "common",
-          description: itemDescription,
-          equipped: false,
-          durability: 100,
-          maxDurability: 100
-        };
-        
-        if (itemProperties) newItem.properties = itemProperties;
-        if (itemDamage) newItem.damage = itemDamage;
-        if (itemArmor) newItem.armor = itemArmor;
-        
-        equipment.push(newItem);
-      }
-      
-      const updatedCharacter = await storage.updateCharacter(id, {
+      let updateData: any = {
         gold: newGold,
         silver: newSilver,
         copper: newCopper,
-        equipment,
         updatedAt: new Date().toISOString()
-      } as any);
+      };
+      
+      if (isConsumable) {
+        // Add to consumables list
+        const consumables: any[] = (character as any).consumables || [];
+        const existingConsumable = consumables.find(c => c.name === itemName);
+        
+        if (existingConsumable) {
+          existingConsumable.quantity = (existingConsumable.quantity || 1) + quantity;
+        } else {
+          // Determine consumable effect based on item name
+          let effect = itemDescription || "Unknown effect";
+          let healDice = undefined;
+          let healBonus = undefined;
+          
+          if (itemName.includes("Healing") || itemName.includes("healing")) {
+            if (itemName.includes("Greater")) {
+              effect = "Restores 4d4+4 HP";
+              healDice = "4d4";
+              healBonus = 4;
+            } else if (itemName.includes("Superior")) {
+              effect = "Restores 8d4+8 HP";
+              healDice = "8d4";
+              healBonus = 8;
+            } else {
+              effect = "Restores 2d4+2 HP";
+              healDice = "2d4";
+              healBonus = 2;
+            }
+          }
+          
+          consumables.push({
+            name: itemName,
+            type: "consumable",
+            effect,
+            quantity,
+            healDice,
+            healBonus
+          });
+        }
+        
+        updateData.consumables = consumables;
+      } else {
+        // Add items to equipment inventory
+        const equipment: any[] = (character as any).equipment || [];
+        
+        for (let i = 0; i < quantity; i++) {
+          const newItem: any = {
+            name: itemName,
+            type: itemType,
+            rarity: itemRarity || "common",
+            description: itemDescription,
+            equipped: false,
+            durability: 100,
+            maxDurability: 100
+          };
+          
+          if (itemProperties) newItem.properties = itemProperties;
+          if (itemDamage) newItem.damage = itemDamage;
+          if (itemArmor) newItem.armor = itemArmor;
+          
+          equipment.push(newItem);
+        }
+        
+        updateData.equipment = equipment;
+      }
+      
+      const updatedCharacter = await storage.updateCharacter(id, updateData);
       
       res.json({
         success: true,
