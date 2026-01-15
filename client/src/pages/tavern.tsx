@@ -370,7 +370,8 @@ export default function TavernPage() {
   const characterSilver = activeCharacter?.silver || 0;
   const characterEquipment: InventoryItem[] = activeCharacter?.equipment || [];
 
-  const canAfford = (item: ShopItem, qty: number = 1) => {
+  const canAfford = (item: ShopItem | null, qty: number = 1) => {
+    if (!item) return false;
     const totalGold = item.goldCost * qty;
     const totalSilver = (item.silverCost || 0) * qty;
     const playerTotalSilver = characterGold * 10 + characterSilver;
@@ -378,7 +379,8 @@ export default function TavernPage() {
     return playerTotalSilver >= itemTotalSilver;
   };
 
-  const getSellPrice = (item: InventoryItem) => {
+  const getSellPrice = (item: InventoryItem | null) => {
+    if (!item) return 0;
     const shopItem = SHOP_INVENTORY.find(si => si.name === item.name);
     if (shopItem) {
       return Math.floor(shopItem.goldCost / 2);
@@ -393,7 +395,8 @@ export default function TavernPage() {
     }
   };
 
-  const getRepairCost = (item: InventoryItem) => {
+  const getRepairCost = (item: InventoryItem | null) => {
+    if (!item) return { gold: 0, silver: 0 };
     return REPAIR_COSTS[item.rarity?.toLowerCase() || "common"] || REPAIR_COSTS.common;
   };
 
@@ -886,7 +889,7 @@ export default function TavernPage() {
               </div>
               <div className="flex items-center justify-between">
                 <span>Your Gold:</span>
-                <span className={`font-bold ${canAfford(selectedShopItem!, quantity) ? 'text-green-600' : 'text-red-600'}`}>
+                <span className={`font-bold ${canAfford(selectedShopItem, quantity) ? 'text-green-600' : 'text-red-600'}`}>
                   {characterGold} gp
                 </span>
               </div>
@@ -894,7 +897,7 @@ export default function TavernPage() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setBuyDialogOpen(false)}>Cancel</Button>
               <Button 
-                disabled={!canAfford(selectedShopItem!, quantity) || buyItemMutation.isPending}
+                disabled={!canAfford(selectedShopItem, quantity) || buyItemMutation.isPending}
                 onClick={() => {
                   if (activeCharacter && selectedShopItem) {
                     buyItemMutation.mutate({
@@ -924,7 +927,7 @@ export default function TavernPage() {
                 <span>You will receive:</span>
                 <span className="font-bold flex items-center gap-2 text-green-600">
                   <Coins className="h-4 w-4 text-yellow-600" />
-                  +{getSellPrice(selectedInventoryItem!)} gp
+                  +{getSellPrice(selectedInventoryItem)} gp
                 </span>
               </div>
             </div>
@@ -961,12 +964,12 @@ export default function TavernPage() {
                 <span>Repair Cost:</span>
                 <span className="font-bold flex items-center gap-2">
                   <Coins className="h-4 w-4 text-yellow-600" />
-                  {getRepairCost(selectedInventoryItem!).gold} gp
+                  {getRepairCost(selectedInventoryItem).gold} gp
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Your Gold:</span>
-                <span className={`font-bold ${characterGold >= getRepairCost(selectedInventoryItem!).gold ? 'text-green-600' : 'text-red-600'}`}>
+                <span className={`font-bold ${characterGold >= getRepairCost(selectedInventoryItem).gold ? 'text-green-600' : 'text-red-600'}`}>
                   {characterGold} gp
                 </span>
               </div>
@@ -974,7 +977,7 @@ export default function TavernPage() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setRepairDialogOpen(false)}>Cancel</Button>
               <Button 
-                disabled={characterGold < getRepairCost(selectedInventoryItem!).gold || repairItemMutation.isPending}
+                disabled={characterGold < getRepairCost(selectedInventoryItem).gold || repairItemMutation.isPending}
                 onClick={() => {
                   if (activeCharacter && selectedInventoryItem) {
                     repairItemMutation.mutate({
