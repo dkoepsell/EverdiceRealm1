@@ -1,0 +1,227 @@
+1. Diagnosis: Why This Feels Powerful but Unclear
+
+From a DM’s perspective, the current Live Session Manager feels like:
+
+“This is a control room… but I’m not sure what lever to pull first.”
+
+What’s happening cognitively
+
+There are many panels, all equally weighted
+
+Everything looks important, so nothing feels primary
+
+Drag-and-drop exists, but the UI doesn’t teach it
+
+The DM doesn’t get an obvious next action
+
+This is a classic expert-tool problem: the structure is correct, but the affordances aren’t obvious.
+
+2. The Core Design Shift You Need
+From: “Dashboard of systems”
+To: “Session flow workspace”
+
+A DM doesn’t think in terms of:
+
+entities
+
+initiative state
+
+session elements
+
+They think in terms of:
+
+What’s happening right now
+
+Who is involved
+
+What might happen next
+
+What do I need to say
+
+Your UI already supports this. It just doesn’t say it out loud.
+
+3. Reframe the Screen Around a Single Spine
+
+Right now the layout is visually flat. You need a clear center of gravity.
+
+Make this the spine:
+
+Active Scene / Current Moment
+
+Everything else should either:
+
+feed into it
+
+react to it
+
+prepare what comes next
+
+Concrete change
+
+Rename and visually elevate:
+
+“Active Session Elements” → “Current Scene”
+
+Bigger panel
+
+Slight glow or border
+
+Subheading like:
+
+“What’s in play right now”
+
+This tells the DM: this is where the session lives.
+
+4. Teach Drag-and-Drop Without Instructions
+
+Right now, drag-and-drop is invisible unless you already know it.
+
+Do this instead
+A. Make empty states instructional
+
+Replace:
+
+“Drop entities here”
+
+With:
+
+“Drag NPCs, locations, or threats here to bring them into the scene.”
+
+And add ghost previews when hovering draggable items.
+
+B. Use visual “snap” feedback
+
+When an entity is dragged:
+
+the Current Scene panel should glow
+
+show a dashed outline where it will land
+
+This turns drag-and-drop from a feature into a gesture.
+
+5. Simplify the Left Sidebar: From Library to Cast
+
+“Entity Library” is accurate, but not inviting.
+
+Rename it to:
+
+“Cast & World”
+
+Break it into visible sections:
+
+People (NPCs, companions)
+
+Places
+
+Factions / Threats
+
+Each item should answer, at a glance:
+
+Who are they?
+
+Why do they matter?
+
+Even a tiny subtitle like:
+
+“Owes the party a favor”
+“Hostile, wounded”
+
+goes a long way.
+
+6. Initiative Panel: Make It Contextual, Not Static
+
+Right now:
+
+Initiative sits there saying “No combatants”
+
+That feels like dead space
+
+Improve it by making it conditional
+
+If no combatants:
+
+Show a soft hint:
+
+“Drag creatures here to start combat.”
+
+If combatants present:
+
+Collapse other panels slightly
+
+Let initiative visually take over
+
+This mirrors how DMs actually shift mental modes.
+
+7. Player Choices: This Is a Huge Opportunity
+
+This panel is quietly brilliant and underplayed.
+
+Reframe it as:
+
+“Likely Player Moves”
+
+Add a subtitle:
+
+“Things the party may try next”
+
+Now this becomes:
+
+a DM foresight tool
+
+a preparation aid
+
+a confidence booster
+
+Optional upgrade later:
+
+mark choices as “prepared” or “unprepared”
+
+8. The Right Panel: Make Messaging the DM’s Reward
+
+The “Send to Players” area should feel like the payoff.
+
+Small changes, big effect
+
+Make “Narration” the obvious default
+
+Add example placeholder text like:
+
+“The harpies circle lower, their talons scraping stone…”
+
+Show a subtle indicator when something in the Current Scene changes:
+
+“You may want to describe this.”
+
+This creates a natural loop:
+Drag → Scene updates → Narrate
+
+9. One Missing Thing: A Clear First Action
+
+When a DM opens this screen, there should be one obvious thing to do.
+
+Add a lightweight onboarding overlay (dismissible)
+
+Example:
+
+“Drag something into the scene”
+
+“Choose what the players see”
+
+“Send narration”
+
+That’s it. Three steps. No CAML. No ontology.
+
+10. Why This Will Make It Frictionless
+
+With these changes:
+
+The DM always knows where to look
+
+The UI mirrors real DM thinking
+
+Drag-and-drop feels natural, not hidden
+
+The app feels like a co-DM, not a control panel
+
+You’re not removing complexity.
+You’re sequencing it.

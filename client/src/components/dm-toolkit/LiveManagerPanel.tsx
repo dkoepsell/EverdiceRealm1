@@ -157,14 +157,17 @@ function DraggableItem({ entity }: { entity: DraggableEntity }) {
   );
 }
 
-function DroppableZone({ children, id }: { children: React.ReactNode; id: string }) {
+function DroppableZone({ children, id, isOver: externalIsOver }: { children: React.ReactNode; id: string; isOver?: boolean }) {
   const { isOver, setNodeRef } = useDroppable({ id });
+  const showActive = isOver || externalIsOver;
 
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-[200px] rounded-lg border-2 border-dashed transition-colors p-4 ${
-        isOver ? "border-primary bg-primary/5" : "border-muted-foreground/20"
+      className={`min-h-[200px] rounded-lg border-2 transition-all duration-200 p-4 ${
+        showActive 
+          ? "border-amber-500 bg-amber-500/10 shadow-lg shadow-amber-500/20 border-solid" 
+          : "border-muted-foreground/30 border-dashed hover:border-muted-foreground/50"
       }`}
     >
       {children}
@@ -186,6 +189,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
   const [newInitiativeHp, setNewInitiativeHp] = useState(20);
   const [newInitiativeAc, setNewInitiativeAc] = useState(12);
   const [newInitiativeIsPlayer, setNewInitiativeIsPlayer] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(true);
 
   const { data: dmSessionState, refetch: refetchSession } = useQuery<{
     id?: number;
@@ -450,6 +454,38 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
+      {/* Onboarding Hint - First Time Help */}
+      {showOnboarding && sessionArtifacts.length === 0 && (
+        <div className="mb-4 p-4 rounded-lg bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-blue-500/10 border border-amber-500/20 relative">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute top-2 right-2 h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+            onClick={() => setShowOnboarding(false)}
+          >
+            ×
+          </Button>
+          <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-amber-500" />
+            Running Your First Scene
+          </h3>
+          <div className="grid grid-cols-3 gap-4 text-xs text-muted-foreground">
+            <div className="flex items-start gap-2">
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center font-bold">1</span>
+              <span>Drag characters or locations into the <strong className="text-amber-500">Current Scene</strong></span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-purple-500/20 text-purple-500 flex items-center justify-center font-bold">2</span>
+              <span>Check what players might do in <strong className="text-purple-500">Likely Moves</strong></span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center font-bold">3</span>
+              <span>Write your narration and <strong className="text-amber-500">Send to Players</strong></span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex h-[calc(100vh-200px)] gap-4">
         {/* Collapsible Sidebar with Entity Sources */}
         <div
@@ -460,7 +496,10 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
           <Card className="h-full">
             <CardHeader className="p-3 flex flex-row items-center justify-between">
               {sidebarOpen && (
-                <CardTitle className="text-sm">Entity Library</CardTitle>
+                <div>
+                  <CardTitle className="text-sm">Cast & World</CardTitle>
+                  <CardDescription className="text-xs">Drag to bring into the scene</CardDescription>
+                </div>
               )}
               <Button
                 variant="ghost"
@@ -472,26 +511,34 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
             </CardHeader>
             
             {sidebarOpen && (
-              <CardContent className="p-2 h-[calc(100%-60px)]">
+              <CardContent className="p-2 h-[calc(100%-80px)]">
                 <Tabs value={sidebarTab} onValueChange={setSidebarTab}>
-                  <TabsList className="grid w-full grid-cols-6 h-8">
-                    <TabsTrigger value="npcs" className="text-xs p-1" title="NPCs">
+                  <TabsList className="grid w-full grid-cols-3 h-8 mb-2">
+                    <TabsTrigger value="npcs" className="text-xs p-1 gap-1" title="People">
                       <Users className="h-3 w-3" />
+                      <span className="hidden sm:inline">People</span>
                     </TabsTrigger>
-                    <TabsTrigger value="items" className="text-xs p-1" title="Items">
-                      <Package className="h-3 w-3" />
-                    </TabsTrigger>
-                    <TabsTrigger value="encounters" className="text-xs p-1" title="Encounters">
-                      <Sword className="h-3 w-3" />
-                    </TabsTrigger>
-                    <TabsTrigger value="monsters" className="text-xs p-1" title="Monsters">
-                      <Skull className="h-3 w-3" />
-                    </TabsTrigger>
-                    <TabsTrigger value="locations" className="text-xs p-1" title="Locations">
+                    <TabsTrigger value="locations" className="text-xs p-1 gap-1" title="Places">
                       <MapPin className="h-3 w-3" />
+                      <span className="hidden sm:inline">Places</span>
                     </TabsTrigger>
-                    <TabsTrigger value="quests" className="text-xs p-1" title="Quests">
+                    <TabsTrigger value="monsters" className="text-xs p-1 gap-1" title="Threats">
+                      <Skull className="h-3 w-3" />
+                      <span className="hidden sm:inline">Threats</span>
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsList className="grid w-full grid-cols-3 h-8">
+                    <TabsTrigger value="items" className="text-xs p-1 gap-1" title="Items">
+                      <Package className="h-3 w-3" />
+                      <span className="hidden sm:inline">Items</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="encounters" className="text-xs p-1 gap-1" title="Events">
+                      <Sword className="h-3 w-3" />
+                      <span className="hidden sm:inline">Events</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="quests" className="text-xs p-1 gap-1" title="Quests">
                       <Target className="h-3 w-3" />
+                      <span className="hidden sm:inline">Quests</span>
                     </TabsTrigger>
                   </TabsList>
 
@@ -797,9 +844,13 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      No combatants in initiative
-                    </p>
+                    <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
+                      <Clock className="h-6 w-6 mb-2 opacity-50" />
+                      <p className="text-sm font-medium">No combat yet</p>
+                      <p className="text-xs text-center mt-1">
+                        Drag creatures to the scene, then add them here to start combat
+                      </p>
+                    </div>
                   )}
                 </ScrollArea>
                 {initiativeOrder.length > 0 && (
@@ -810,33 +861,35 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
               </CardContent>
             </Card>
 
-            {/* Session Canvas (Drop Zone) */}
-            <Card className="flex-1">
-              <CardHeader className="p-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <BookOpen className="h-4 w-4" />
-                  Active Session Elements
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Drag items from the sidebar to add to session
-                </CardDescription>
+            {/* Current Scene - THE SPINE */}
+            <Card className="flex-1 ring-2 ring-amber-500/30 bg-gradient-to-b from-amber-500/5 to-transparent shadow-lg">
+              <CardHeader className="p-3 pb-1">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-amber-500/20">
+                    <BookOpen className="h-4 w-4 text-amber-500" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-sm text-amber-500">Current Scene</CardTitle>
+                    <CardDescription className="text-xs">What's in play right now</CardDescription>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="p-3 pt-0">
-                <DroppableZone id="session-dropzone">
+              <CardContent className="p-3 pt-2">
+                <DroppableZone id="session-dropzone" isOver={!!activeId}>
                   <ScrollArea className="h-[200px]">
                     {sessionArtifacts.length > 0 ? (
                       <div className="grid grid-cols-2 gap-2">
                         {sessionArtifacts.map((artifact) => (
                           <div
                             key={artifact.id}
-                            className="p-2 rounded-lg border bg-card text-xs"
+                            className="p-2 rounded-lg border bg-card text-xs hover:bg-muted/50 transition-colors"
                           >
                             <div className="flex items-center gap-1 mb-1">
-                              {artifact.type === "npc" && <Users className="h-3 w-3" />}
-                              {artifact.type === "item" && <Package className="h-3 w-3" />}
-                              {artifact.type === "encounter" && <Sword className="h-3 w-3" />}
-                              {artifact.type === "monster" && <Skull className="h-3 w-3" />}
-                              {artifact.type === "location" && <MapPin className="h-3 w-3" />}
+                              {artifact.type === "npc" && <Users className="h-3 w-3 text-blue-500" />}
+                              {artifact.type === "item" && <Package className="h-3 w-3 text-amber-500" />}
+                              {artifact.type === "encounter" && <Sword className="h-3 w-3 text-red-500" />}
+                              {artifact.type === "monster" && <Skull className="h-3 w-3 text-purple-500" />}
+                              {artifact.type === "location" && <MapPin className="h-3 w-3 text-green-500" />}
                               <span className="font-medium truncate">{artifact.name}</span>
                             </div>
                             <Badge variant="outline" className="text-[10px]">
@@ -846,9 +899,14 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                         ))}
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                        <Upload className="h-8 w-8 mb-2 opacity-50" />
-                        <p className="text-sm">Drop entities here</p>
+                      <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-8">
+                        <div className="p-3 rounded-full bg-amber-500/10 mb-3">
+                          <Upload className="h-6 w-6 text-amber-500/70" />
+                        </div>
+                        <p className="text-sm font-medium mb-1">Build your scene</p>
+                        <p className="text-xs text-center max-w-[180px]">
+                          Drag NPCs, locations, or threats here to bring them into play
+                        </p>
                       </div>
                     )}
                   </ScrollArea>
@@ -857,25 +915,28 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
             </Card>
           </div>
 
-          {/* Right Column: Player Choices & DM Messages */}
+          {/* Right Column: Foresight & Narration */}
           <div className="space-y-4">
-            {/* Player Choices */}
-            <Card>
-              <CardHeader className="p-3">
+            {/* Likely Player Moves - Foresight Tool */}
+            <Card className="border-purple-500/20">
+              <CardHeader className="p-3 pb-1">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Dice6 className="h-4 w-4" />
-                  Player Choices
+                  <Sparkles className="h-4 w-4 text-purple-500" />
+                  Likely Player Moves
                 </CardTitle>
+                <CardDescription className="text-xs">
+                  Things the party may try next
+                </CardDescription>
               </CardHeader>
               <CardContent className="p-3 pt-0">
                 <ScrollArea className="h-[150px]">
                   {liveSession?.choices && liveSession.choices.length > 0 ? (
                     <div className="space-y-2">
                       {liveSession.choices.map((choice: any, idx: number) => (
-                        <div key={idx} className="p-2 rounded-lg border bg-muted/50">
+                        <div key={idx} className="p-2 rounded-lg border bg-purple-500/5 border-purple-500/20 hover:bg-purple-500/10 transition-colors">
                           <p className="text-sm">{choice.text}</p>
                           {choice.type && (
-                            <Badge variant="secondary" className="text-xs mt-1">
+                            <Badge variant="secondary" className="text-xs mt-1 bg-purple-500/10 text-purple-400">
                               {choice.type}
                             </Badge>
                           )}
@@ -883,34 +944,42 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      No pending choices
-                    </p>
+                    <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
+                      <Sparkles className="h-5 w-5 mb-2 opacity-50" />
+                      <p className="text-xs text-center">
+                        Player options will appear here as the story unfolds
+                      </p>
+                    </div>
                   )}
                 </ScrollArea>
               </CardContent>
             </Card>
 
-            {/* DM Message Composer */}
-            <Card>
-              <CardHeader className="p-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  Send to Players
-                </CardTitle>
+            {/* DM Narration - The Payoff */}
+            <Card className="border-amber-500/30 bg-gradient-to-b from-amber-500/5 to-transparent">
+              <CardHeader className="p-3 pb-1">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-amber-500/20">
+                    <Send className="h-4 w-4 text-amber-500" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-sm">Tell Your Story</CardTitle>
+                    <CardDescription className="text-xs">Describe what the players experience</CardDescription>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="p-3 pt-0 space-y-3">
+              <CardContent className="p-3 pt-2 space-y-3">
                 <div className="flex gap-1">
                   <Button
-                    variant={messageType === "narration" ? "default" : "outline"}
+                    variant={messageType === "narration" ? "default" : "ghost"}
                     size="sm"
-                    className="flex-1 text-xs"
+                    className={`flex-1 text-xs ${messageType === "narration" ? "bg-amber-500 hover:bg-amber-600" : ""}`}
                     onClick={() => setMessageType("narration")}
                   >
                     Narration
                   </Button>
                   <Button
-                    variant={messageType === "ooc" ? "default" : "outline"}
+                    variant={messageType === "ooc" ? "default" : "ghost"}
                     size="sm"
                     className="flex-1 text-xs"
                     onClick={() => setMessageType("ooc")}
@@ -918,7 +987,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                     OOC
                   </Button>
                   <Button
-                    variant={messageType === "system" ? "default" : "outline"}
+                    variant={messageType === "system" ? "default" : "ghost"}
                     size="sm"
                     className="flex-1 text-xs"
                     onClick={() => setMessageType("system")}
@@ -931,17 +1000,23 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                   onChange={(e) => setDmMessage(e.target.value)}
                   placeholder={
                     messageType === "narration"
-                      ? "Describe what the players see or hear..."
+                      ? "The harpies circle lower, their talons scraping stone as they prepare to strike..."
                       : messageType === "ooc"
-                      ? "Out of character message to players..."
-                      : "System announcement..."
+                      ? "Quick break everyone, 5 minutes..."
+                      : "Roll for initiative!"
                   }
-                  className="min-h-[80px] text-sm"
+                  className="min-h-[100px] text-sm border-amber-500/20 focus:border-amber-500"
                 />
+                {sessionArtifacts.length > 0 && !dmMessage && (
+                  <p className="text-xs text-amber-500/70 flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    You may want to describe what's happening in the scene
+                  </p>
+                )}
                 <Button
                   onClick={() => sendDmMessageMutation.mutate({ message: dmMessage, type: messageType })}
                   disabled={!dmMessage.trim() || sendDmMessageMutation.isPending}
-                  className="w-full"
+                  className="w-full bg-amber-500 hover:bg-amber-600"
                   size="sm"
                 >
                   {sendDmMessageMutation.isPending ? (
@@ -949,7 +1024,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                   ) : (
                     <Send className="h-4 w-4 mr-2" />
                   )}
-                  Send Message
+                  Send to Players
                 </Button>
               </CardContent>
             </Card>
