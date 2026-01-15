@@ -410,11 +410,28 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     return campaignNpc?.npc || null;
   }, [selectedNpcId, campaignNpcs]);
   
+  // Helper to parse equipment item from string (may be JSON or plain string)
+  const parseEquipmentItem = (item: string): { name: string; type?: string; damage?: string; armor?: number; rarity?: string; description?: string } => {
+    if (!item) return { name: 'Unknown' };
+    try {
+      const parsed = JSON.parse(item);
+      return parsed;
+    } catch {
+      return { name: item };
+    }
+  };
+  
   // Collect all item names from active character's inventory and equipped slots
   const allItemNames = useMemo(() => {
     if (!activeCharacter) return [];
     const items: string[] = [];
-    if (activeCharacter.equipment) items.push(...activeCharacter.equipment);
+    if (activeCharacter.equipment) {
+      // Parse each item to get its name
+      activeCharacter.equipment.forEach((item: string) => {
+        const parsed = parseEquipmentItem(item);
+        items.push(parsed.name);
+      });
+    }
     if ((activeCharacter as any).equippedWeapon) items.push((activeCharacter as any).equippedWeapon);
     if ((activeCharacter as any).equippedArmor) items.push((activeCharacter as any).equippedArmor);
     if ((activeCharacter as any).equippedShield) items.push((activeCharacter as any).equippedShield);
@@ -3170,17 +3187,19 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       <div className="text-sm font-medium">Items ({activeCharacter.equipment?.length || 0})</div>
                       <div className="max-h-48 overflow-y-auto space-y-1">
                         {activeCharacter.equipment && activeCharacter.equipment.length > 0 ? (
-                          activeCharacter.equipment.map((item: string, index: number) => {
-                            const stats = itemStatsMap[item];
-                            const statsText = formatItemStats(item);
+                          activeCharacter.equipment.map((itemRaw: string, index: number) => {
+                            const parsedItem = parseEquipmentItem(itemRaw);
+                            const itemName = parsedItem.name;
+                            const stats = itemStatsMap[itemName] || parsedItem;
+                            const statsText = formatItemStats(itemName);
                             return (
                             <div key={index} className="flex flex-col p-2 bg-slate-50 dark:bg-slate-700 rounded text-sm" data-testid={`item-${index}`}>
                               <div className="flex items-center justify-between">
                                 <div className="flex-1 min-w-0">
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <span className={`font-medium truncate block cursor-help ${stats?.rarity ? getRarityColor(stats.rarity) : ''}`} title={item}>
-                                        {item}
+                                      <span className={`font-medium truncate block cursor-help ${stats?.rarity ? getRarityColor(stats.rarity) : ''}`} title={itemName}>
+                                        {itemName}
                                         {stats?.magicBonus ? ` +${stats.magicBonus}` : ''}
                                       </span>
                                     </TooltipTrigger>
@@ -3211,7 +3230,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   value=""
                                   onValueChange={(slot) => {
                                     if (slot) {
-                                      equipItemMutation.mutate({ characterId: activeCharacter.id, item, slot });
+                                      equipItemMutation.mutate({ characterId: activeCharacter.id, item: itemName, slot });
                                     }
                                   }}
                                 >
@@ -3237,13 +3256,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                           transferItemMutation.mutate({ 
                                             fromCharacterId: activeCharacter.id, 
                                             toNpcId: parseInt(targetId.replace('npc:', '')), 
-                                            item 
+                                            item: itemName 
                                           });
                                         } else {
                                           transferItemMutation.mutate({ 
                                             fromCharacterId: activeCharacter.id, 
                                             toCharacterId: parseInt(targetId), 
-                                            item 
+                                            item: itemName 
                                           });
                                         }
                                       }
@@ -3283,7 +3302,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   className="h-6 w-6 p-0 text-destructive hover:text-destructive"
                                   onClick={() => removeItemMutation.mutate({ 
                                     characterId: activeCharacter.id, 
-                                    item 
+                                    item: itemName 
                                   })}
                                   disabled={removeItemMutation.isPending}
                                   data-testid={`button-remove-item-${index}`}
