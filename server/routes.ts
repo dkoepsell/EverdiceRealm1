@@ -10063,9 +10063,9 @@ Respond with JSON:
               })
             );
             
-            // Build combatant list from companions
+            // Build combatant list from companions (include 'ally' role as well)
             companionCombatants = npcDetails
-              .filter(({ npc, campaignNpc }) => npc && campaignNpc.isActive && campaignNpc.role === 'companion')
+              .filter(({ npc, campaignNpc }) => npc && campaignNpc.isActive && (campaignNpc.role === 'companion' || campaignNpc.role === 'ally'))
               .map(({ npc, campaignNpc }) => {
                 const defaultStats = getCompanionDefaultStats(npc!.class || 'Fighter', 1);
                 return {
@@ -10373,16 +10373,38 @@ Respond with JSON:
               enemyDamage: combatEffects.enemyDamage,
               // Use enhanced party damage with D&D mechanics if available, else fallback
               partyDamage: enhancedPartyDamage.length > 0 ? enhancedPartyDamage : combatEffects.partyDamage,
-              // Filter out actions from unconscious/dead companions
-              companionActions: (combatEffects.companionActions || []).filter((action: any) => {
-                // Check if this companion is conscious based on our combatant data
-                const companion = companionCombatants.find(c => c.name === action.name);
-                if (companion && (companion.status === 'unconscious' || companion.status === 'dead' || companion.currentHp <= 0)) {
-                  console.log(`Filtering out action from unconscious companion: ${action.name}`);
-                  return false;
-                }
-                return true;
-              }),
+              // Generate companion actions from combat logs (companions auto-attack in combat)
+              companionActions: (() => {
+                // Get AI-generated companion actions
+                const aiActions = (combatEffects.companionActions || []).filter((action: any) => {
+                  const companion = companionCombatants.find(c => c.name === action.name);
+                  if (companion && (companion.status === 'unconscious' || companion.status === 'dead' || companion.currentHp <= 0)) {
+                    return false;
+                  }
+                  return true;
+                });
+                
+                // Auto-generate actions from combat logs for companions that aren't in AI actions
+                const companionLogsActions = detailedCombatLogs
+                  .filter(log => log.attackerType === 'companion')
+                  .map(log => ({
+                    name: log.attacker,
+                    action: log.isHit 
+                      ? `attacks ${log.target}` 
+                      : `swings at ${log.target} but misses`,
+                    result: log.isHit && log.damage
+                      ? `Hit for ${log.damage.total} damage${log.damage.isCritical ? ' (CRITICAL!)' : ''}`
+                      : 'Missed',
+                    damageDealt: log.damage?.total || 0,
+                    mechanicsBreakdown: log.mechanicsBreakdown
+                  }));
+                
+                // Merge: prefer combat log actions, add any AI actions for companions not in logs
+                const companionNamesInLogs = new Set(companionLogsActions.map(a => a.name));
+                const extraAiActions = aiActions.filter((a: any) => !companionNamesInLogs.has(a.name));
+                
+                return [...companionLogsActions, ...extraAiActions];
+              })(),
               // NEW: Detailed combat logs with transparent D&D mechanics
               detailedCombatLogs: detailedCombatLogs.map(log => ({
                 attacker: log.attacker,
