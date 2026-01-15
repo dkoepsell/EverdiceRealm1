@@ -1047,32 +1047,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You don't own this character" });
       }
       
-      // Check if player can afford
+      // Check if player can afford - convert all to copper for accurate calculation
       const playerGold = (character as any).gold || 0;
       const playerSilver = (character as any).silver || 0;
-      const playerTotalSilver = playerGold * 10 + playerSilver;
-      const itemTotalSilver = goldCost * 10 + silverCost;
+      const playerCopper = (character as any).copper || 0;
       
-      if (playerTotalSilver < itemTotalSilver) {
+      // Convert everything to copper (1 gp = 10 sp = 100 cp)
+      const playerTotalCopper = playerGold * 100 + playerSilver * 10 + playerCopper;
+      const itemTotalCopper = goldCost * 100 + silverCost * 10;
+      
+      if (playerTotalCopper < itemTotalCopper) {
         return res.status(400).json({ message: "Not enough gold!" });
       }
       
-      // Deduct cost
-      let newGold = playerGold;
-      let newSilver = playerSilver;
-      
-      newGold -= goldCost;
-      newSilver -= silverCost;
-      
-      if (newSilver < 0) {
-        const borrow = Math.ceil(-newSilver / 10);
-        newGold -= borrow;
-        newSilver += borrow * 10;
-      }
-      
-      if (newGold < 0) {
-        return res.status(400).json({ message: "Not enough gold!" });
-      }
+      // Deduct cost and recalculate proper denominations
+      const remainingCopper = playerTotalCopper - itemTotalCopper;
+      const newGold = Math.floor(remainingCopper / 100);
+      const newSilver = Math.floor((remainingCopper % 100) / 10);
+      const newCopper = remainingCopper % 10;
       
       // Add items to inventory
       const equipment: any[] = (character as any).equipment || [];
@@ -1098,6 +1090,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedCharacter = await storage.updateCharacter(id, {
         gold: newGold,
         silver: newSilver,
+        copper: newCopper,
         equipment,
         updatedAt: new Date().toISOString()
       } as any);
@@ -5615,14 +5608,23 @@ Return your response as a JSON object with these fields:
 
   // ==================== Campaign Dashboard / Narrative Insights Routes ====================
   
-  // Get narrative insights for a campaign (cached)
+  // Get narrative insights for a campaign (cached) - DM only
   app.get("/api/campaigns/:campaignId/narrative-insights", async (req, res) => {
     try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
       const campaignId = parseInt(req.params.campaignId);
       const campaign = await storage.getCampaign(campaignId);
       
       if (!campaign) {
         return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      // Only DM can view narrative insights
+      if (campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can view narrative insights" });
       }
       
       // Return cached insights if available (stored in campaign.settings or a dedicated field)

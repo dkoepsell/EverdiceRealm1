@@ -54,6 +54,12 @@ Preferred communication style: Simple, everyday language.
 - **Dice Rolling Engine**: Standard RPG dice, real-time WebSocket rolls, history, critical hit/fumble detection, advantage/disadvantage mechanics.
 - **AI-Powered Features**: Campaign/story generation, dynamic narrative, character backgrounds/portraits, DM assistance (NPCs, locations, quests, monsters). AI focuses on exploration, discovery, mystery, and social encounters.
 - **DM Toolkit**: NPC/location/quest/monster generators, campaign notes, invitation system.
+- **Campaign Dashboard**: DM-only tab in campaign panel with AI-powered narrative insights, quest tracking, party status overview, and story hook suggestions. Uses GPT-4o to analyze campaign state and highlight critical junctures.
+- **Tavern System**: Between-campaign hub at `/tavern` for:
+    - **Shop**: Buy weapons, armor, potions, and adventuring gear with gold/silver
+    - **Inventory Management**: View equipment with damage/armor stats, sell unwanted items
+    - **Blacksmith**: Repair damaged equipment based on rarity tier
+    - **Social Hub**: Coming soon - chat, party finder, rumors, mini-games
 - **CAML 2.0 Integration**: Full support for CAML 2.0 (Canonical Adventure Markup Language) with ontological layers:
     - **world**: Independent continuants (characters, locations, items, factions, connections) - includes intrinsic properties like statblock/abilities
     - **state**: Dependent continuants (status facts with bearer, type, value) - includes mutable properties like NPC attitude, current HP, quest status
