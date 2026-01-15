@@ -5385,6 +5385,147 @@ Return your response as a JSON object with these fields:
     }
   });
 
+  // ==================== Campaign Dashboard / Narrative Insights Routes ====================
+  
+  // Get narrative insights for a campaign (cached)
+  app.get("/api/campaigns/:campaignId/narrative-insights", async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const campaign = await storage.getCampaign(campaignId);
+      
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      // Return cached insights if available (stored in campaign.settings or a dedicated field)
+      const settings = campaign.settings as any || {};
+      const insights = settings.narrativeInsights || [];
+      
+      res.json(insights);
+    } catch (error) {
+      console.error("Error fetching narrative insights:", error);
+      res.status(500).json({ message: "Failed to fetch narrative insights" });
+    }
+  });
+  
+  // Generate new narrative insights using AI
+  app.post("/api/campaigns/:campaignId/generate-narrative-insights", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const campaign = await storage.getCampaign(campaignId);
+      
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      // Only DM can generate insights
+      if (campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can generate narrative insights" });
+      }
+      
+      // Get current session and story state
+      const sessions = await storage.getCampaignSessions(campaignId);
+      const currentSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
+      
+      if (!currentSession) {
+        return res.json([]);
+      }
+      
+      const storyState = currentSession.storyState as any || {};
+      const quests = await storage.getCampaignQuests(campaignId);
+      const participants = await storage.getCampaignParticipants(campaignId);
+      
+      // Build context for AI
+      const activeQuests = [...quests.filter(q => q.status === 'active'), ...(storyState.activeQuests || [])];
+      const completedQuests = quests.filter(q => q.status === 'completed');
+      const partyMembers = storyState.partyMembers || [];
+      const journeyLog = storyState.journeyLog || [];
+      const currentLocation = storyState.currentLocation || storyState.location || 'Unknown';
+      const inCombat = storyState.inCombat || false;
+      const combatants = storyState.combatants || [];
+      
+      const prompt = `You are an expert D&D Dungeon Master analyzing a campaign to provide narrative insights.
+
+CAMPAIGN: "${campaign.title}"
+DESCRIPTION: ${campaign.description}
+CURRENT CHAPTER: ${currentSession.sessionNumber} of ${campaign.totalChapters || 5}
+CURRENT LOCATION: ${currentLocation}
+IN COMBAT: ${inCombat}
+
+ACTIVE QUESTS (${activeQuests.length}):
+${activeQuests.map((q: any) => `- ${q.title}: ${q.description}`).join('\n') || 'None'}
+
+COMPLETED QUESTS: ${completedQuests.length}
+
+PARTY STATUS:
+${partyMembers.map((p: any) => `- ${p.name} (${p.type}): HP ${p.currentHp}/${p.maxHp}, Status: ${p.status}`).join('\n') || 'No party data'}
+
+${inCombat ? `ENEMIES IN COMBAT:\n${combatants.filter((c: any) => c.type === 'enemy').map((e: any) => `- ${e.name}: HP ${e.currentHp}/${e.maxHp}`).join('\n')}` : ''}
+
+RECENT EVENTS (last 5):
+${journeyLog.slice(-5).map((entry: any) => `- ${entry.text || entry.message || JSON.stringify(entry)}`).join('\n') || 'No recent events'}
+
+Analyze this campaign state and provide 3-4 narrative insights for the DM. Each insight should be one of these types:
+- "critical": Urgent narrative junctures requiring immediate DM attention
+- "opportunity": Potential story developments or character moments
+- "warning": Issues that could derail the story or cause problems
+- "milestone": Achievements or progress worth celebrating
+
+Return JSON array:
+[
+  {
+    "type": "critical|opportunity|warning|milestone",
+    "title": "Brief insight title",
+    "description": "Detailed explanation of the insight",
+    "suggestion": "Optional action the DM could take"
+  }
+]
+
+Focus on:
+1. Story pacing and tension
+2. Quest progression
+3. Party health and resource management
+4. Potential plot hooks or character arcs
+5. Combat tactical considerations (if in combat)`;
+
+      const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const response = await openaiClient.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        max_tokens: 800,
+      });
+      
+      let insights = [];
+      try {
+        const parsed = JSON.parse(response.choices[0].message.content || '{}');
+        insights = Array.isArray(parsed) ? parsed : (parsed.insights || []);
+      } catch (e) {
+        console.error("Failed to parse narrative insights:", e);
+        insights = [];
+      }
+      
+      // Cache the insights in campaign settings
+      const currentSettings = campaign.settings as any || {};
+      await storage.updateCampaign(campaignId, {
+        settings: {
+          ...currentSettings,
+          narrativeInsights: insights,
+          insightsGeneratedAt: new Date().toISOString()
+        }
+      });
+      
+      res.json(insights);
+    } catch (error) {
+      console.error("Error generating narrative insights:", error);
+      res.status(500).json({ message: "Failed to generate narrative insights" });
+    }
+  });
+
   app.patch("/api/campaigns/:campaignId/turn-based", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
     

@@ -45,6 +45,7 @@ import {
 import CampaignParticipants from "./CampaignParticipants";
 import TurnManager from "./TurnManager";
 import CampaignDeploymentTab from "./CampaignDeploymentTab";
+import CampaignDashboard from "./CampaignDashboard";
 import { DungeonMapModal } from "../dungeon/DungeonMapModal";
 import type { DungeonMapData, MapEntity } from "../dungeon/DungeonMap";
 import { generateDungeon } from "../dungeon/DungeonGenerator";
@@ -1920,7 +1921,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       <Card className="border-2 border-accent-light bg-parchment drop-shadow-lg">
         <CardContent className="p-0">
           <Tabs defaultValue="narrative" className="w-full">
-            <TabsList className="grid w-full grid-cols-6 bg-secondary-light rounded-none">
+            <TabsList className={`grid w-full ${isDM ? 'grid-cols-7' : 'grid-cols-6'} bg-secondary-light rounded-none`}>
               <TabsTrigger value="narrative" className="text-xs sm:text-sm md:text-base">Narrative</TabsTrigger>
               <TabsTrigger value="journey-log" className="text-xs sm:text-sm md:text-base">Log</TabsTrigger>
               <TabsTrigger value="party" className="text-xs sm:text-sm md:text-base">Party</TabsTrigger>
@@ -1930,6 +1931,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   <span>Chat</span>
                 </span>
               </TabsTrigger>
+              {isDM && (
+                <TabsTrigger value="dashboard" className="text-xs sm:text-sm md:text-base">
+                  <span className="flex items-center">
+                    <BookOpen className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
+                    <span>Dashboard</span>
+                  </span>
+                </TabsTrigger>
+              )}
               <TabsTrigger value="settings" className="text-xs sm:text-sm md:text-base">Settings</TabsTrigger>
               <TabsTrigger value="deploy" className="text-xs sm:text-sm md:text-base">
                 <span className="flex items-center">
@@ -4008,6 +4017,18 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 </div>
               </div>
             </TabsContent>
+            
+            {isDM && (
+              <TabsContent value="dashboard" className="p-0">
+                <CampaignDashboard 
+                  campaign={campaign}
+                  currentSession={currentSession || null}
+                  participants={participants}
+                  campaignNpcs={campaignNpcs}
+                  campaignQuests={campaignQuests}
+                />
+              </TabsContent>
+            )}
             
             <TabsContent value="deploy" className="p-4">
               <CampaignDeploymentTab campaign={campaign} isCreator={isDM} />
