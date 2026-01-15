@@ -85,9 +85,9 @@ export default function DMQuickStart({ onComplete, onCancel }: {
       const campaignData = {
         title: data.adventureTitle,
         description: `${data.settingDescription}\n\nStarting Location: ${data.locationName} - ${data.locationAtmosphere}\n\nThe Hook: ${data.tension}`,
-        setting: data.settingDescription,
-        theme: "fantasy",
-        status: "active"
+        difficulty: "balanced",
+        narrativeStyle: "classic_fantasy",
+        campaignLength: "standard"
       };
       
       const campaign = await apiRequest("POST", "/api/campaigns", campaignData);
