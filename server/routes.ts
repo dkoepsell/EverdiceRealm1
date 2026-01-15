@@ -1021,6 +1021,234 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== Tavern Shop Routes ====================
+
+  // Buy item from shop
+  app.post("/api/characters/:id/buy-item", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const id = parseInt(req.params.id);
+      const { 
+        itemName, itemType, itemRarity, itemDescription, 
+        itemProperties, itemDamage, itemArmor,
+        goldCost, silverCost = 0, quantity = 1 
+      } = req.body;
+      
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      // Check if user owns this character
+      if ((character as any).userId !== req.user.id) {
+        return res.status(403).json({ message: "You don't own this character" });
+      }
+      
+      // Check if player can afford
+      const playerGold = (character as any).gold || 0;
+      const playerSilver = (character as any).silver || 0;
+      const playerTotalSilver = playerGold * 10 + playerSilver;
+      const itemTotalSilver = goldCost * 10 + silverCost;
+      
+      if (playerTotalSilver < itemTotalSilver) {
+        return res.status(400).json({ message: "Not enough gold!" });
+      }
+      
+      // Deduct cost
+      let newGold = playerGold;
+      let newSilver = playerSilver;
+      
+      newGold -= goldCost;
+      newSilver -= silverCost;
+      
+      if (newSilver < 0) {
+        const borrow = Math.ceil(-newSilver / 10);
+        newGold -= borrow;
+        newSilver += borrow * 10;
+      }
+      
+      if (newGold < 0) {
+        return res.status(400).json({ message: "Not enough gold!" });
+      }
+      
+      // Add items to inventory
+      const equipment: any[] = (character as any).equipment || [];
+      
+      for (let i = 0; i < quantity; i++) {
+        const newItem: any = {
+          name: itemName,
+          type: itemType,
+          rarity: itemRarity || "common",
+          description: itemDescription,
+          equipped: false,
+          durability: 100,
+          maxDurability: 100
+        };
+        
+        if (itemProperties) newItem.properties = itemProperties;
+        if (itemDamage) newItem.damage = itemDamage;
+        if (itemArmor) newItem.armor = itemArmor;
+        
+        equipment.push(newItem);
+      }
+      
+      const updatedCharacter = await storage.updateCharacter(id, {
+        gold: newGold,
+        silver: newSilver,
+        equipment,
+        updatedAt: new Date().toISOString()
+      } as any);
+      
+      res.json({
+        success: true,
+        character: updatedCharacter,
+        message: `Purchased ${quantity}x ${itemName} for ${goldCost} gp`
+      });
+    } catch (error: any) {
+      console.error("Error buying item:", error);
+      res.status(500).json({ message: "Failed to buy item", error: error.message });
+    }
+  });
+
+  // Sell item to shop
+  app.post("/api/characters/:id/sell-item", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const id = parseInt(req.params.id);
+      const { itemName } = req.body;
+      
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      if ((character as any).userId !== req.user.id) {
+        return res.status(403).json({ message: "You don't own this character" });
+      }
+      
+      const equipment: any[] = (character as any).equipment || [];
+      const itemIndex = equipment.findIndex(item => 
+        (typeof item === 'string' ? item : item.name) === itemName && !item.equipped
+      );
+      
+      if (itemIndex === -1) {
+        return res.status(404).json({ message: "Item not found in inventory or is equipped" });
+      }
+      
+      const item = equipment[itemIndex];
+      
+      // Calculate sell price (half of buy price, based on rarity)
+      const SELL_PRICES: Record<string, number> = {
+        common: 5,
+        uncommon: 25,
+        rare: 100,
+        "very rare": 500,
+        legendary: 2500
+      };
+      
+      const rarity = (typeof item === 'string' ? 'common' : item.rarity || 'common').toLowerCase();
+      const goldReceived = SELL_PRICES[rarity] || 5;
+      
+      // Remove item from inventory
+      equipment.splice(itemIndex, 1);
+      
+      // Add gold
+      const newGold = ((character as any).gold || 0) + goldReceived;
+      
+      const updatedCharacter = await storage.updateCharacter(id, {
+        gold: newGold,
+        equipment,
+        updatedAt: new Date().toISOString()
+      } as any);
+      
+      res.json({
+        success: true,
+        goldReceived,
+        character: updatedCharacter,
+        message: `Sold ${itemName} for ${goldReceived} gp`
+      });
+    } catch (error: any) {
+      console.error("Error selling item:", error);
+      res.status(500).json({ message: "Failed to sell item", error: error.message });
+    }
+  });
+
+  // Repair item at blacksmith
+  app.post("/api/characters/:id/repair-item", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const id = parseInt(req.params.id);
+      const { itemName } = req.body;
+      
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      if ((character as any).userId !== req.user.id) {
+        return res.status(403).json({ message: "You don't own this character" });
+      }
+      
+      const equipment: any[] = (character as any).equipment || [];
+      const itemIndex = equipment.findIndex(item => 
+        typeof item !== 'string' && item.name === itemName
+      );
+      
+      if (itemIndex === -1) {
+        return res.status(404).json({ message: "Item not found in inventory" });
+      }
+      
+      const item = equipment[itemIndex];
+      
+      // Calculate repair cost based on rarity
+      const REPAIR_COSTS: Record<string, number> = {
+        common: 5,
+        uncommon: 15,
+        rare: 50,
+        "very rare": 150,
+        legendary: 500
+      };
+      
+      const rarity = (item.rarity || 'common').toLowerCase();
+      const repairCost = REPAIR_COSTS[rarity] || 5;
+      
+      const playerGold = (character as any).gold || 0;
+      if (playerGold < repairCost) {
+        return res.status(400).json({ message: "Not enough gold for repair!" });
+      }
+      
+      // Repair item
+      item.durability = item.maxDurability || 100;
+      equipment[itemIndex] = item;
+      
+      const newGold = playerGold - repairCost;
+      
+      const updatedCharacter = await storage.updateCharacter(id, {
+        gold: newGold,
+        equipment,
+        updatedAt: new Date().toISOString()
+      } as any);
+      
+      res.json({
+        success: true,
+        character: updatedCharacter,
+        message: `Repaired ${itemName} for ${repairCost} gp`
+      });
+    } catch (error: any) {
+      console.error("Error repairing item:", error);
+      res.status(500).json({ message: "Failed to repair item", error: error.message });
+    }
+  });
+
   // Consumable Items Routes
   const CONSUMABLE_EFFECTS: Record<string, { type: string; effect: string; healDice?: string; healBonus?: number }> = {
     "Healing Potion": { type: "healing", effect: "Restores 2d4+2 HP", healDice: "2d4", healBonus: 2 },

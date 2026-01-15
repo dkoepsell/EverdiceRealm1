@@ -26,7 +26,8 @@ import {
   Shield,
   Menu,
   X,
-  Home
+  Home,
+  Beer
 } from "lucide-react";
 
 export default function Navbar() {
@@ -49,6 +50,7 @@ export default function Navbar() {
   ] : [];
   
   const moreLinks = [
+    { name: "Tavern", path: "/tavern", icon: Beer },
     { name: "World Map", path: "/world-map", icon: Map },
     { name: "DM Tools", path: "/dm-toolkit", icon: Wrench },
     { name: "Dice Roller", path: "/dice-roller", icon: Dice5 },
