@@ -23,6 +23,7 @@ Preferred communication style: Simple, everyday language.
 - **Dashboard (Play page)**: Redesigned hero with warm amber gradients, D&D-inspired decorative icons (sword, shield, scroll), Everdice brand mark, live "adventurers online" badge, streamlined narrative-first layout with compact character stats bar
 - **DM Toolkit**: New purple/blue gradient hero section with fantasy icons (book, wand, map), "DM" brand mark, "AI-Powered Tools" badge, reorganized tool grid into 3 categories (Essential Tools, Create Content, Utilities) with color-coded icons
 - **Simplified UX**: Removed dice roller from Play page, replaced tabbed character sheet with compact stats display, adventure narrative now central focus
+- **Live Manager Overhaul**: Complete UX redesign with clear workflow: "Cast & World" sidebar (People/Places/Threats) → "Current Scene" (elevated amber spine) → "Likely Player Moves" (purple foresight) → "Tell Your Story" (narration payoff). Onboarding hint guides first-time DMs with 3-step workflow. Empty states include icons and instructional text. Drag-drop shows amber glow feedback.
 
 ## System Architecture
 
