@@ -159,6 +159,225 @@ function validatePlayerChoice(
   return { valid: true };
 }
 
+// Reputation system helper functions
+interface StoryArcData {
+  profiles: any[];
+  recentEvents: any[];
+}
+
+function generateNarrativeSummary(storyArc: StoryArcData): string {
+  const { profiles, recentEvents } = storyArc;
+  
+  if (profiles.length === 0 && recentEvents.length === 0) {
+    return "Your story is just beginning. The world doesn't know you yet, but every adventure shapes how others will come to see you.";
+  }
+  
+  const summaryParts: string[] = [];
+  
+  // Add world perception if exists
+  const worldProfile = profiles.find(p => !p.factionId);
+  if (worldProfile) {
+    if (worldProfile.trustDescriptor) {
+      summaryParts.push(worldProfile.trustDescriptor);
+    }
+    if (worldProfile.behaviorDescriptor) {
+      summaryParts.push(worldProfile.behaviorDescriptor);
+    }
+  }
+  
+  // Add notable deeds from recent events
+  const significantEvents = recentEvents.filter(e => e.significance === 'major' || e.significance === 'defining');
+  if (significantEvents.length > 0) {
+    const deedsSummary = significantEvents.slice(0, 2).map(e => e.narrativeSummary).join(' ');
+    if (deedsSummary) {
+      summaryParts.push(deedsSummary);
+    }
+  }
+  
+  // Faction standings
+  const factionProfiles = profiles.filter(p => p.factionId);
+  if (factionProfiles.length > 0) {
+    const standingNotes = factionProfiles
+      .filter(f => f.trustLevel && f.trustLevel !== 'unknown')
+      .slice(0, 2)
+      .map(f => f.trustDescriptor || `Your standing with some factions has been noted.`);
+    summaryParts.push(...standingNotes);
+  }
+  
+  if (summaryParts.length === 0) {
+    return "The world is beginning to take notice of your deeds. Keep adventuring to see how your reputation develops.";
+  }
+  
+  return summaryParts.join(' ');
+}
+
+function generateCharacterArcSummaryForDM(signal: { characterName: string; profiles: any[]; recentEvents: any[] }): string {
+  const { characterName, profiles, recentEvents } = signal;
+  
+  if (profiles.length === 0 && recentEvents.length === 0) {
+    return `${characterName} has no notable reputation yet.`;
+  }
+  
+  const insights: string[] = [];
+  
+  // Analyze trust patterns
+  const worldProfile = profiles.find(p => !p.factionId);
+  if (worldProfile?.trustLevel) {
+    const trustLabels: Record<string, string> = {
+      'distrusted': 'NPCs may hesitate before trusting',
+      'cautious': 'NPCs approach with caution',
+      'neutral': 'NPCs have no strong opinions',
+      'trusted': 'NPCs generally trust their word',
+      'respected': 'NPCs hold in high regard'
+    };
+    if (trustLabels[worldProfile.trustLevel]) {
+      insights.push(trustLabels[worldProfile.trustLevel]);
+    }
+  }
+  
+  // Analyze behavioral tendencies
+  if (worldProfile?.tendencies) {
+    const tendencies = worldProfile.tendencies as Record<string, number>;
+    if (tendencies.merciful_vs_ruthless !== undefined) {
+      if (tendencies.merciful_vs_ruthless < 0.3) {
+        insights.push('Shows mercy to enemies');
+      } else if (tendencies.merciful_vs_ruthless > 0.7) {
+        insights.push('Quick to use force');
+      }
+    }
+    if (tendencies.selfless_vs_selfish !== undefined) {
+      if (tendencies.selfless_vs_selfish < 0.3) {
+        insights.push('Often puts others first');
+      } else if (tendencies.selfless_vs_selfish > 0.7) {
+        insights.push('Prioritizes self-interest');
+      }
+    }
+  }
+  
+  // Recent patterns
+  if (recentEvents.length > 0) {
+    const recentTypes = recentEvents.slice(0, 3).map(e => e.triggerType);
+    const typeCount: Record<string, number> = {};
+    recentTypes.forEach(t => { typeCount[t] = (typeCount[t] || 0) + 1; });
+    
+    const dominantType = Object.entries(typeCount).sort((a, b) => b[1] - a[1])[0];
+    if (dominantType && dominantType[1] >= 2) {
+      const typeDescriptions: Record<string, string> = {
+        'kept_promise': 'Pattern of keeping promises',
+        'broken_trust': 'Has broken trust recently',
+        'showed_mercy': 'Tends to show mercy',
+        'used_force': 'Pattern of using force',
+        'helped_stranger': 'Helps those in need',
+        'betrayal': 'Recent acts of betrayal noted'
+      };
+      if (typeDescriptions[dominantType[0]]) {
+        insights.push(typeDescriptions[dominantType[0]]);
+      }
+    }
+  }
+  
+  if (insights.length === 0) {
+    return `${characterName}'s reputation is still forming.`;
+  }
+  
+  return insights.join('. ') + '.';
+}
+
+async function updateReputationProfileFromEvent(
+  characterId: number,
+  campaignId: number,
+  factionId: number | null,
+  event: any
+): Promise<void> {
+  // Get or create the reputation profile
+  let profile = await storage.getCharacterReputationProfile(characterId, factionId, campaignId);
+  
+  // Calculate pattern deltas based on trigger type
+  const patternDeltas: Record<string, Record<string, number>> = {
+    'kept_promise': { trust: 0.1, selfless_vs_selfish: -0.05 },
+    'broken_trust': { trust: -0.2, selfless_vs_selfish: 0.1 },
+    'showed_mercy': { merciful_vs_ruthless: -0.15 },
+    'used_force': { merciful_vs_ruthless: 0.1, cautious_vs_reckless: 0.05 },
+    'helped_stranger': { trust: 0.05, selfless_vs_selfish: -0.1 },
+    'betrayal': { trust: -0.3, selfless_vs_selfish: 0.2 },
+    'completed_quest': { trust: 0.05 },
+    'abandoned_quest': { trust: -0.1 },
+    'negotiated_peace': { merciful_vs_ruthless: -0.1, cautious_vs_reckless: -0.1 },
+    'started_fight': { merciful_vs_ruthless: 0.1, cautious_vs_reckless: 0.1 }
+  };
+  
+  const delta = patternDeltas[event.triggerType] || {};
+  
+  if (!profile) {
+    // Create new profile
+    const tendencies: Record<string, number> = {
+      cautious_vs_reckless: 0.5,
+      merciful_vs_ruthless: 0.5,
+      selfless_vs_selfish: 0.5
+    };
+    
+    // Apply delta
+    Object.entries(delta).forEach(([key, value]) => {
+      if (key !== 'trust' && tendencies[key] !== undefined) {
+        tendencies[key] = Math.max(0, Math.min(1, tendencies[key] + value));
+      }
+    });
+    
+    await storage.createCharacterReputationProfile({
+      characterId,
+      campaignId,
+      factionId,
+      trustLevel: delta.trust ? (delta.trust > 0 ? 'neutral' : 'cautious') : 'unknown',
+      tendencies,
+      notableDeeds: [{ deed: event.narrativeSummary, impact: delta.trust && delta.trust > 0 ? 'positive' : 'neutral', timestamp: new Date().toISOString() }],
+      lastEventId: event.id
+    });
+  } else {
+    // Update existing profile
+    const currentTendencies = (profile.tendencies as Record<string, number>) || {
+      cautious_vs_reckless: 0.5,
+      merciful_vs_ruthless: 0.5,
+      selfless_vs_selfish: 0.5
+    };
+    
+    // Apply delta with diminishing returns
+    Object.entries(delta).forEach(([key, value]) => {
+      if (key !== 'trust' && currentTendencies[key] !== undefined) {
+        currentTendencies[key] = Math.max(0, Math.min(1, currentTendencies[key] + value * 0.8));
+      }
+    });
+    
+    // Update trust level based on accumulated trust changes
+    let newTrustLevel = profile.trustLevel;
+    if (delta.trust) {
+      const trustLevels = ['distrusted', 'cautious', 'unknown', 'neutral', 'trusted', 'respected'];
+      const currentIdx = trustLevels.indexOf(profile.trustLevel || 'unknown');
+      const newIdx = Math.max(0, Math.min(trustLevels.length - 1, currentIdx + Math.sign(delta.trust)));
+      newTrustLevel = trustLevels[newIdx];
+    }
+    
+    // Add to notable deeds if significant
+    const notableDeeds = (profile.notableDeeds as any[]) || [];
+    if (event.significance === 'major' || event.significance === 'defining') {
+      notableDeeds.push({
+        deed: event.narrativeSummary,
+        impact: delta.trust && delta.trust > 0 ? 'positive' : delta.trust && delta.trust < 0 ? 'negative' : 'neutral',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    await storage.updateCharacterReputationProfile(profile.id, {
+      tendencies: currentTendencies,
+      trustLevel: newTrustLevel,
+      notableDeeds: notableDeeds.slice(-10), // Keep last 10
+      lastEventId: event.id
+    });
+  }
+  
+  // Mark the event as processed
+  await storage.markReputationEventProcessed(event.id);
+}
+
 // Active WebSocket connections
 type ClientWebSocket = WebSocket;
 const activeConnections = new Set<ClientWebSocket>();
@@ -3098,6 +3317,136 @@ Return your response as a JSON object with these fields:
     } catch (error) {
       console.error("Error computing character stats:", error);
       res.status(500).json({ message: "Failed to compute character stats" });
+    }
+  });
+
+  // Character Reputation & Story Arc routes
+  app.get("/api/characters/:id/reputation", async (req, res) => {
+    try {
+      const characterId = parseInt(req.params.id);
+      const storyArc = await storage.getCharacterStoryArc(characterId);
+      
+      // Generate a narrative summary from the profiles and events
+      const narrativeSummary = generateNarrativeSummary(storyArc);
+      
+      res.json({
+        characterId,
+        ...storyArc,
+        narrativeSummary
+      });
+    } catch (error) {
+      console.error("Error fetching character reputation:", error);
+      res.status(500).json({ message: "Failed to fetch character reputation" });
+    }
+  });
+  
+  app.get("/api/characters/:id/story-arc", async (req, res) => {
+    try {
+      const characterId = parseInt(req.params.id);
+      const storyArc = await storage.getCharacterStoryArc(characterId);
+      
+      // Format for "Your Story So Far" display
+      const formattedArc = {
+        characterId,
+        worldPerception: storyArc.profiles.find(p => !p.factionId),
+        factionStandings: storyArc.profiles.filter(p => p.factionId),
+        recentDeeds: storyArc.recentEvents.map(e => ({
+          id: e.id,
+          type: e.triggerType,
+          summary: e.narrativeSummary,
+          significance: e.significance,
+          date: e.createdAt
+        })),
+        summary: generateNarrativeSummary(storyArc)
+      };
+      
+      res.json(formattedArc);
+    } catch (error) {
+      console.error("Error fetching character story arc:", error);
+      res.status(500).json({ message: "Failed to fetch character story arc" });
+    }
+  });
+  
+  // Record a reputation-affecting event
+  app.post("/api/characters/:id/reputation/event", isAuthenticated, async (req, res) => {
+    try {
+      const characterId = parseInt(req.params.id);
+      const { campaignId, triggerType, narrativeSummary, factionId, significance, witnesses, locationContext } = req.body;
+      
+      if (!campaignId || !triggerType || !narrativeSummary) {
+        return res.status(400).json({ message: "Missing required fields: campaignId, triggerType, narrativeSummary" });
+      }
+      
+      const event = await storage.createReputationEvent({
+        characterId,
+        campaignId,
+        factionId: factionId || null,
+        triggerType,
+        narrativeSummary,
+        significance: significance || "minor",
+        witnesses: witnesses || [],
+        locationContext: locationContext || null
+      });
+      
+      // Update or create the reputation profile based on this event
+      await updateReputationProfileFromEvent(characterId, campaignId, factionId, event);
+      
+      res.json(event);
+    } catch (error) {
+      console.error("Error recording reputation event:", error);
+      res.status(500).json({ message: "Failed to record reputation event" });
+    }
+  });
+  
+  // Campaign faction routes
+  app.get("/api/campaigns/:id/factions", async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const campaignFactions = await storage.getFactions(campaignId);
+      res.json(campaignFactions);
+    } catch (error) {
+      console.error("Error fetching campaign factions:", error);
+      res.status(500).json({ message: "Failed to fetch factions" });
+    }
+  });
+  
+  app.post("/api/campaigns/:id/factions", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const { name, description, type, disposition, values } = req.body;
+      
+      const faction = await storage.createFaction({
+        campaignId,
+        name,
+        description,
+        type: type || "group",
+        disposition: disposition || "neutral",
+        values: values || []
+      });
+      
+      res.json(faction);
+    } catch (error) {
+      console.error("Error creating faction:", error);
+      res.status(500).json({ message: "Failed to create faction" });
+    }
+  });
+  
+  // Campaign reputation signals (for DM view)
+  app.get("/api/campaigns/:id/reputation-signals", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const signals = await storage.getCampaignReputationSignals(campaignId);
+      
+      // Format signals for DM Arc Signals panel
+      const formattedSignals = signals.map(signal => ({
+        ...signal,
+        summary: generateCharacterArcSummaryForDM(signal)
+      }));
+      
+      res.json(formattedSignals);
+    } catch (error) {
+      console.error("Error fetching campaign reputation signals:", error);
+      res.status(500).json({ message: "Failed to fetch reputation signals" });
     }
   });
 
