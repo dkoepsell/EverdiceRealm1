@@ -854,10 +854,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Character not found" });
       }
       
-      // Check if weapon is in inventory
+      // Check if weapon is in inventory - handle both JSON strings and plain strings
       const currentEquipment = character.equipment || [];
-      const weaponIndex = currentEquipment.indexOf(weapon);
-      if (weaponIndex === -1) {
+      let foundWeapon: string | null = null;
+      let weaponIndex = -1;
+      
+      // First check for exact match
+      weaponIndex = currentEquipment.indexOf(weapon);
+      if (weaponIndex !== -1) {
+        foundWeapon = weapon;
+      } else {
+        // Check if weapon name matches a JSON-stored item
+        for (let i = 0; i < currentEquipment.length; i++) {
+          const equip = currentEquipment[i];
+          try {
+            const parsed = JSON.parse(equip);
+            if (parsed.name === weapon || parsed.name?.toLowerCase() === weapon?.toLowerCase()) {
+              foundWeapon = equip;
+              weaponIndex = i;
+              break;
+            }
+          } catch {
+            if (equip.toLowerCase() === weapon?.toLowerCase()) {
+              foundWeapon = equip;
+              weaponIndex = i;
+              break;
+            }
+          }
+        }
+      }
+      
+      if (weaponIndex === -1 || !foundWeapon) {
         return res.status(400).json({ message: "Weapon not in inventory" });
       }
       
@@ -865,7 +892,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // This preserves duplicate items
       const reorderedEquipment = [...currentEquipment];
       reorderedEquipment.splice(weaponIndex, 1); // Remove one instance
-      reorderedEquipment.unshift(weapon); // Add to front
+      reorderedEquipment.unshift(foundWeapon); // Add to front
       
       const updatedCharacter = await storage.updateCharacter(id, {
         equipment: reorderedEquipment,
@@ -1635,27 +1662,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Not authorized" });
       }
       
-      // Check if item is in inventory
+      // Check if item is in inventory - handle both JSON strings and plain strings
       const equipment = character.equipment || [];
-      if (!equipment.includes(item)) {
+      let foundItem: string | null = null;
+      
+      // First check for exact match
+      if (equipment.includes(item)) {
+        foundItem = item;
+      } else {
+        // Check if item name matches a JSON-stored item
+        for (const equip of equipment) {
+          try {
+            const parsed = JSON.parse(equip);
+            if (parsed.name === item || parsed.name?.toLowerCase() === item?.toLowerCase()) {
+              foundItem = equip; // Use the full JSON string
+              break;
+            }
+          } catch {
+            // Not JSON, check if plain string matches
+            if (equip.toLowerCase() === item?.toLowerCase()) {
+              foundItem = equip;
+              break;
+            }
+          }
+        }
+      }
+      
+      if (!foundItem) {
         return res.status(400).json({ message: "Item not in inventory" });
       }
       
-      // Build update object based on slot
+      // Build update object based on slot - use foundItem to preserve JSON data
       const updateData: any = { updatedAt: new Date().toISOString() };
+      
+      // Get display name for message
+      let displayName = item;
+      try {
+        const parsed = JSON.parse(foundItem);
+        displayName = parsed.name || item;
+      } catch {
+        displayName = foundItem;
+      }
       
       switch (slot) {
         case "weapon":
-          updateData.equippedWeapon = item;
+          updateData.equippedWeapon = foundItem;
           break;
         case "armor":
-          updateData.equippedArmor = item;
+          updateData.equippedArmor = foundItem;
           break;
         case "shield":
-          updateData.equippedShield = item;
+          updateData.equippedShield = foundItem;
           break;
         case "accessory":
-          updateData.equippedAccessory = item;
+          updateData.equippedAccessory = foundItem;
           break;
       }
       
@@ -1663,7 +1723,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         character: updatedCharacter,
-        message: `Equipped ${item} to ${slot} slot`
+        message: `Equipped ${displayName} to ${slot} slot`
       });
     } catch (error: any) {
       console.error("Error equipping item:", error);
