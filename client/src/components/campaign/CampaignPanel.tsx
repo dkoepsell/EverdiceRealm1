@@ -3219,7 +3219,27 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                       </TooltipContent>
                                     )}
                                   </Tooltip>
-                                  {statsText && (
+                                  {/* Show damage for weapons */}
+                                  {(stats?.damage || stats?.damageDice) && (
+                                    <span className="text-xs text-red-600 dark:text-red-400 block">
+                                      <Sword className="h-3 w-3 inline mr-1" />
+                                      {stats.damage || `${stats.damageDice}${stats.damageType ? ` ${stats.damageType}` : ''}`}
+                                    </span>
+                                  )}
+                                  {/* Show AC for armor/shields */}
+                                  {(stats?.armor || stats?.baseAC) && (
+                                    <span className="text-xs text-blue-600 dark:text-blue-400 block">
+                                      <Shield className="h-3 w-3 inline mr-1" />
+                                      AC +{stats.armor || stats.baseAC}
+                                    </span>
+                                  )}
+                                  {/* Show properties if available */}
+                                  {stats?.properties && typeof stats.properties === 'string' && (
+                                    <span className="text-xs text-slate-500 dark:text-slate-400 block truncate italic">
+                                      {stats.properties}
+                                    </span>
+                                  )}
+                                  {statsText && !stats?.damage && !stats?.damageDice && !stats?.armor && !stats?.baseAC && (
                                     <span className="text-xs text-slate-500 dark:text-slate-400 block truncate">
                                       {statsText}
                                     </span>

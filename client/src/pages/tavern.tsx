@@ -686,6 +686,11 @@ export default function TavernPage() {
                                     <span>AC +{item.armor}</span>
                                   </div>
                                 )}
+                                {item.properties && (
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 italic mb-1">
+                                    {item.properties}
+                                  </p>
+                                )}
                                 {item.durability !== undefined && (
                                   <div className="flex items-center gap-1 text-sm mb-1">
                                     <Wrench className="h-3 w-3" />
