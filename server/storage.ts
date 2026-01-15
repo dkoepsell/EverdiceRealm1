@@ -34,7 +34,11 @@ import {
   bulletinPosts, type BulletinPost, type InsertBulletinPost,
   bulletinResponses, type BulletinResponse, type InsertBulletinResponse,
   // CAML trace events
-  campaignTraceEvents, type CampaignTraceEvent, type InsertCampaignTraceEvent
+  campaignTraceEvents, type CampaignTraceEvent, type InsertCampaignTraceEvent,
+  // Reputation system
+  factions, type Faction, type InsertFaction,
+  characterReputationProfiles, type CharacterReputationProfile, type InsertCharacterReputationProfile,
+  reputationEvents, type ReputationEvent, type InsertReputationEvent
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or } from "drizzle-orm";
@@ -259,6 +263,29 @@ export interface IStorage {
   getTraceEvents(campaignId: number, sessionId?: string): Promise<CampaignTraceEvent[]>;
   getTraceEventCount(campaignId: number): Promise<number>;
   clearTraceEvents(campaignId: number): Promise<boolean>;
+  
+  // Faction operations
+  getFactions(campaignId: number): Promise<Faction[]>;
+  getFaction(id: number): Promise<Faction | undefined>;
+  createFaction(faction: InsertFaction): Promise<Faction>;
+  updateFaction(id: number, updates: Partial<Faction>): Promise<Faction | undefined>;
+  deleteFaction(id: number): Promise<boolean>;
+  
+  // Character Reputation Profile operations
+  getCharacterReputationProfiles(characterId: number, campaignId?: number): Promise<CharacterReputationProfile[]>;
+  getCharacterReputationProfile(characterId: number, factionId: number | null, campaignId: number): Promise<CharacterReputationProfile | undefined>;
+  createCharacterReputationProfile(profile: InsertCharacterReputationProfile): Promise<CharacterReputationProfile>;
+  updateCharacterReputationProfile(id: number, updates: Partial<CharacterReputationProfile>): Promise<CharacterReputationProfile | undefined>;
+  deleteCharacterReputationProfile(id: number): Promise<boolean>;
+  getCharacterStoryArc(characterId: number): Promise<{ profiles: CharacterReputationProfile[]; recentEvents: ReputationEvent[] }>;
+  
+  // Reputation Event operations
+  getReputationEvents(characterId: number, campaignId?: number, limit?: number): Promise<ReputationEvent[]>;
+  getReputationEvent(id: number): Promise<ReputationEvent | undefined>;
+  createReputationEvent(event: InsertReputationEvent): Promise<ReputationEvent>;
+  updateReputationEvent(id: number, updates: Partial<ReputationEvent>): Promise<ReputationEvent | undefined>;
+  markReputationEventProcessed(id: number): Promise<boolean>;
+  getCampaignReputationSignals(campaignId: number): Promise<{ characterId: number; characterName: string; profiles: CharacterReputationProfile[]; recentEvents: ReputationEvent[] }[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -2376,6 +2403,217 @@ export class DatabaseStorage implements IStorage {
     await db.delete(campaignTraceEvents)
       .where(eq(campaignTraceEvents.campaignId, campaignId));
     return true;
+  }
+  
+  // Faction operations
+  async getFactions(campaignId: number): Promise<Faction[]> {
+    return db.select()
+      .from(factions)
+      .where(eq(factions.campaignId, campaignId))
+      .orderBy(asc(factions.name));
+  }
+  
+  async getFaction(id: number): Promise<Faction | undefined> {
+    const [faction] = await db.select()
+      .from(factions)
+      .where(eq(factions.id, id));
+    return faction || undefined;
+  }
+  
+  async createFaction(faction: InsertFaction): Promise<Faction> {
+    const [created] = await db.insert(factions)
+      .values({
+        ...faction,
+        createdAt: new Date().toISOString()
+      })
+      .returning();
+    return created;
+  }
+  
+  async updateFaction(id: number, updates: Partial<Faction>): Promise<Faction | undefined> {
+    const [updated] = await db.update(factions)
+      .set(updates)
+      .where(eq(factions.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async deleteFaction(id: number): Promise<boolean> {
+    await db.delete(factions).where(eq(factions.id, id));
+    return true;
+  }
+  
+  // Character Reputation Profile operations
+  async getCharacterReputationProfiles(characterId: number, campaignId?: number): Promise<CharacterReputationProfile[]> {
+    if (campaignId) {
+      return db.select()
+        .from(characterReputationProfiles)
+        .where(and(
+          eq(characterReputationProfiles.characterId, characterId),
+          eq(characterReputationProfiles.campaignId, campaignId)
+        ))
+        .orderBy(desc(characterReputationProfiles.lastUpdatedAt));
+    }
+    return db.select()
+      .from(characterReputationProfiles)
+      .where(eq(characterReputationProfiles.characterId, characterId))
+      .orderBy(desc(characterReputationProfiles.lastUpdatedAt));
+  }
+  
+  async getCharacterReputationProfile(characterId: number, factionId: number | null, campaignId: number): Promise<CharacterReputationProfile | undefined> {
+    const conditions = [
+      eq(characterReputationProfiles.characterId, characterId),
+      eq(characterReputationProfiles.campaignId, campaignId)
+    ];
+    
+    if (factionId === null) {
+      const [profile] = await db.select()
+        .from(characterReputationProfiles)
+        .where(and(...conditions, sql`${characterReputationProfiles.factionId} IS NULL`));
+      return profile || undefined;
+    }
+    
+    const [profile] = await db.select()
+      .from(characterReputationProfiles)
+      .where(and(...conditions, eq(characterReputationProfiles.factionId, factionId)));
+    return profile || undefined;
+  }
+  
+  async createCharacterReputationProfile(profile: InsertCharacterReputationProfile): Promise<CharacterReputationProfile> {
+    const [created] = await db.insert(characterReputationProfiles)
+      .values({
+        ...profile,
+        lastUpdatedAt: new Date().toISOString()
+      })
+      .returning();
+    return created;
+  }
+  
+  async updateCharacterReputationProfile(id: number, updates: Partial<CharacterReputationProfile>): Promise<CharacterReputationProfile | undefined> {
+    const [updated] = await db.update(characterReputationProfiles)
+      .set({
+        ...updates,
+        lastUpdatedAt: new Date().toISOString()
+      })
+      .where(eq(characterReputationProfiles.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async deleteCharacterReputationProfile(id: number): Promise<boolean> {
+    await db.delete(characterReputationProfiles).where(eq(characterReputationProfiles.id, id));
+    return true;
+  }
+  
+  async getCharacterStoryArc(characterId: number): Promise<{ profiles: CharacterReputationProfile[]; recentEvents: ReputationEvent[] }> {
+    const profiles = await db.select()
+      .from(characterReputationProfiles)
+      .where(eq(characterReputationProfiles.characterId, characterId))
+      .orderBy(desc(characterReputationProfiles.lastUpdatedAt));
+    
+    const recentEvents = await db.select()
+      .from(reputationEvents)
+      .where(eq(reputationEvents.characterId, characterId))
+      .orderBy(desc(reputationEvents.createdAt))
+      .limit(10);
+    
+    return { profiles, recentEvents };
+  }
+  
+  // Reputation Event operations
+  async getReputationEvents(characterId: number, campaignId?: number, limit: number = 20): Promise<ReputationEvent[]> {
+    if (campaignId) {
+      return db.select()
+        .from(reputationEvents)
+        .where(and(
+          eq(reputationEvents.characterId, characterId),
+          eq(reputationEvents.campaignId, campaignId)
+        ))
+        .orderBy(desc(reputationEvents.createdAt))
+        .limit(limit);
+    }
+    return db.select()
+      .from(reputationEvents)
+      .where(eq(reputationEvents.characterId, characterId))
+      .orderBy(desc(reputationEvents.createdAt))
+      .limit(limit);
+  }
+  
+  async getReputationEvent(id: number): Promise<ReputationEvent | undefined> {
+    const [event] = await db.select()
+      .from(reputationEvents)
+      .where(eq(reputationEvents.id, id));
+    return event || undefined;
+  }
+  
+  async createReputationEvent(event: InsertReputationEvent): Promise<ReputationEvent> {
+    const [created] = await db.insert(reputationEvents)
+      .values({
+        ...event,
+        createdAt: new Date().toISOString()
+      })
+      .returning();
+    return created;
+  }
+  
+  async updateReputationEvent(id: number, updates: Partial<ReputationEvent>): Promise<ReputationEvent | undefined> {
+    const [updated] = await db.update(reputationEvents)
+      .set(updates)
+      .where(eq(reputationEvents.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async markReputationEventProcessed(id: number): Promise<boolean> {
+    await db.update(reputationEvents)
+      .set({ isProcessed: true })
+      .where(eq(reputationEvents.id, id));
+    return true;
+  }
+  
+  async getCampaignReputationSignals(campaignId: number): Promise<{ characterId: number; characterName: string; profiles: CharacterReputationProfile[]; recentEvents: ReputationEvent[] }[]> {
+    // Get all participants in the campaign
+    const participants = await db.select()
+      .from(campaignParticipants)
+      .where(eq(campaignParticipants.campaignId, campaignId));
+    
+    const results: { characterId: number; characterName: string; profiles: CharacterReputationProfile[]; recentEvents: ReputationEvent[] }[] = [];
+    
+    for (const participant of participants) {
+      if (!participant.characterId) continue;
+      
+      const [character] = await db.select()
+        .from(characters)
+        .where(eq(characters.id, participant.characterId));
+      
+      if (!character) continue;
+      
+      const profiles = await db.select()
+        .from(characterReputationProfiles)
+        .where(and(
+          eq(characterReputationProfiles.characterId, participant.characterId),
+          eq(characterReputationProfiles.campaignId, campaignId)
+        ))
+        .orderBy(desc(characterReputationProfiles.lastUpdatedAt));
+      
+      const recentEvents = await db.select()
+        .from(reputationEvents)
+        .where(and(
+          eq(reputationEvents.characterId, participant.characterId),
+          eq(reputationEvents.campaignId, campaignId)
+        ))
+        .orderBy(desc(reputationEvents.createdAt))
+        .limit(5);
+      
+      results.push({
+        characterId: participant.characterId,
+        characterName: character.name,
+        profiles,
+        recentEvents
+      });
+    }
+    
+    return results;
   }
 }
 

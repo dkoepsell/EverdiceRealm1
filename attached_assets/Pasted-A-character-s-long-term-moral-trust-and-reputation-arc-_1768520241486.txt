@@ -1,0 +1,250 @@
+A character’s long-term moral, trust, and reputation arc is absolutely consistent with real D&D play. In fact, it’s one of the most authentic aspects of tabletop play. The trick is to reflect it without turning it into a morality meter or a video-game alignment bar.
+
+Below is a way to do this that fits Everdice perfectly, preserves D&D credibility, and avoids gamification pitfalls.
+
+1. Why This Belongs in D&D (Culturally, Not Just Philosophically)
+
+At real tables, players constantly say things like:
+
+“NPCs don’t trust us anymore.”
+
+“My character wouldn’t do that now.”
+
+“We’re known for being ruthless.”
+
+“That came back to bite us.”
+
+Those are long-arc judgments, not single-roll outcomes.
+
+What’s missing in most systems is not morality, but memory of patterns.
+
+Everdice is uniquely positioned to capture that.
+
+2. The Core Principle (This Is Crucial)
+
+Never label a character as “good” or “bad.”
+Instead, reflect how the world has learned to relate to them.
+
+This mirrors real D&D:
+
+alignment is loose
+
+consequences are situational
+
+reputation is contextual
+
+So we track relational signals, not ethical verdicts.
+
+3. What You Should Track (Not Stats, but Tendencies)
+
+Think in terms of axes, not meters.
+
+A. Trust & Reliability
+
+Not “good vs evil,” but:
+
+Do others believe your word?
+
+Do promises tend to be kept?
+
+Are you predictable or volatile?
+
+This affects:
+
+NPC reactions
+
+negotiations
+
+second chances
+
+B. Moral Pattern Recognition
+
+Not alignment, but:
+
+Are you cautious or ruthless?
+
+Do you prioritize self-interest or others?
+
+Do you escalate or de-escalate conflict?
+
+These are patterns, not rules.
+
+C. Reputation by Audience (Very Important)
+
+Reputation should never be global.
+
+Track it per group:
+
+villagers
+
+factions
+
+institutions
+
+companions
+
+A character can be:
+
+feared by one group
+
+respected by another
+
+distrusted by a third
+
+That is extremely D&D-authentic.
+
+4. How to Represent This Without Gamifying It
+
+This is where most systems go wrong. Here’s how you avoid that.
+
+❌ Do NOT show:
+
+numeric morality scores
+
+“alignment drift”
+
+red/green meters
+
+optimization incentives
+
+✅ Instead, show descriptive summaries
+
+Example player-facing language:
+
+How the world sees you (so far):
+• Known for keeping your word under pressure
+• Quick to respond with force when threatened
+• Trusted by merchants, watched closely by guards
+
+This feels like DM notes, not mechanics.
+
+5. How It Updates (Quietly, Over Time)
+
+Changes should be:
+
+incremental
+
+infrequent
+
+pattern-based
+
+Not:
+
+“You chose violence → alignment shifts”
+
+But:
+
+“Over time, your reliance on force has become noticeable.”
+
+This should trigger:
+
+new narrative tags
+
+altered NPC expectations
+
+changed dialogue tone
+
+Not immediate penalties.
+
+6. Where This Lives in the UI
+Player-Facing: “Your Story So Far”
+
+A collapsible section that shows:
+
+reputation notes
+
+emerging tendencies
+
+unresolved moral threads
+
+Written in natural language, not system terms.
+
+DM-Facing: “Character Arc Signals”
+
+For the DM:
+
+a private view of emerging patterns
+
+suggestions like:
+
+“NPCs may begin to hesitate before trusting this character.”
+
+This supports, not replaces, DM judgment.
+
+7. Why This Is Consistent with Real D&D Play
+
+Because in real D&D:
+
+consequences accumulate
+
+tone shifts gradually
+
+the world reacts differently over time
+
+players reflect on who their character has become
+
+You’re not inventing a new layer.
+You’re externalizing what good DMs already do.
+
+8. One Critical Rule to Preserve Credibility
+
+The system may notice patterns.
+The DM always decides how they matter.
+
+This keeps Everdice as:
+
+a memory engine
+
+a pattern detector
+
+a narrative assistant
+
+Not a moral judge.
+
+9. Why This Is Especially Powerful for New Players
+
+This is a hidden bonus.
+
+New players often ask:
+
+“Am I playing my character right?”
+
+“What kind of character am I becoming?”
+
+Your system can answer that gently, descriptively, without shame or pressure.
+
+That builds confidence and roleplay depth.
+
+10. How This Fits Everdice’s Identity Perfectly
+
+This feature:
+
+aligns with CAML’s event-trace structure
+
+reinforces Everdice as a campaign memory engine
+
+differentiates you from VTTs
+
+makes the app feel alive across sessions
+
+It’s not just consistent with D&D.
+
+It’s one of the most D&D-faithful things you could add.
+
+Bottom Line
+
+Yes — long-term moral, trust, and reputation arcs belong in Everdice.
+
+But they must be:
+
+descriptive, not prescriptive
+
+relational, not absolute
+
+slow, not reactive
+
+narratively phrased, not numerically scored
+
+Do that, and you won’t be gamifying morality.
+
+You’ll be capturing the soul of long-form tabletop play.

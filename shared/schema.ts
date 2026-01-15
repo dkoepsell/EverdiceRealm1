@@ -870,3 +870,81 @@ export const insertDmSessionStateSchema = createInsertSchema(dmSessionStates).om
 
 export type InsertDmSessionState = z.infer<typeof insertDmSessionStateSchema>;
 export type DmSessionState = typeof dmSessionStates.$inferSelect;
+
+// Factions - Groups that characters build reputation with (per campaign)
+export const factions = pgTable("factions", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  type: text("type").notNull().default("group"), // group, institution, settlement, guild, religious, criminal
+  disposition: text("disposition").default("neutral"), // friendly, neutral, suspicious, hostile
+  values: text("values").array(), // What the faction values: honor, wealth, power, knowledge, etc.
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertFactionSchema = createInsertSchema(factions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertFaction = z.infer<typeof insertFactionSchema>;
+export type Faction = typeof factions.$inferSelect;
+
+// Character Reputation Profiles - Descriptive reputation per character/faction
+export const characterReputationProfiles = pgTable("character_reputation_profiles", {
+  id: serial("id").primaryKey(),
+  characterId: integer("character_id").notNull(),
+  factionId: integer("faction_id"), // Null = general world perception
+  campaignId: integer("campaign_id").notNull(),
+  // Trust & Reliability descriptors (narrative, not numeric)
+  trustDescriptor: text("trust_descriptor"), // e.g., "Known for keeping promises under pressure"
+  trustLevel: text("trust_level").default("unknown"), // unknown, distrusted, cautious, neutral, trusted, respected
+  // Behavioral tendency patterns
+  behaviorDescriptor: text("behavior_descriptor"), // e.g., "Quick to respond with force when threatened"
+  tendencies: jsonb("tendencies").default({}), // {cautious_vs_reckless: 0.7, merciful_vs_ruthless: 0.3, selfless_vs_selfish: 0.5}
+  // Notable deeds and reputation notes
+  notableDeeds: jsonb("notable_deeds").default([]), // [{deed: "Saved the village from bandits", impact: "positive", timestamp}]
+  reputationNotes: text("reputation_notes"), // DM notes about this reputation
+  // Update tracking
+  lastEventId: integer("last_event_id"), // Last reputation event processed
+  lastUpdatedAt: text("last_updated_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertCharacterReputationProfileSchema = createInsertSchema(characterReputationProfiles).omit({
+  id: true,
+  lastUpdatedAt: true,
+});
+
+export type InsertCharacterReputationProfile = z.infer<typeof insertCharacterReputationProfileSchema>;
+export type CharacterReputationProfile = typeof characterReputationProfiles.$inferSelect;
+
+// Reputation Events - Individual events that affected character reputation
+export const reputationEvents = pgTable("reputation_events", {
+  id: serial("id").primaryKey(),
+  characterId: integer("character_id").notNull(),
+  campaignId: integer("campaign_id").notNull(),
+  factionId: integer("faction_id"), // Null = affects general reputation
+  traceEventId: integer("trace_event_id"), // Link to campaign_trace_events if applicable
+  // Event classification
+  triggerType: text("trigger_type").notNull(), // kept_promise, broken_trust, showed_mercy, used_force, helped_stranger, betrayal, etc.
+  significance: text("significance").default("minor"), // minor, moderate, major, defining
+  // Narrative description of what happened
+  narrativeSummary: text("narrative_summary").notNull(),
+  // Impact on patterns (delta, not absolute)
+  patternDelta: jsonb("pattern_delta").default({}), // {trust: +0.1, cautious_vs_reckless: -0.05}
+  // Witnesses and context
+  witnesses: text("witnesses").array(), // Names of NPCs who witnessed
+  locationContext: text("location_context"), // Where it happened
+  // Metadata
+  isProcessed: boolean("is_processed").default(false), // Whether this was factored into profile
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertReputationEventSchema = createInsertSchema(reputationEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertReputationEvent = z.infer<typeof insertReputationEventSchema>;
+export type ReputationEvent = typeof reputationEvents.$inferSelect;
