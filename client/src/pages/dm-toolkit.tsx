@@ -91,12 +91,14 @@ import LiveCampaignManagerTab from "@/components/dm-toolkit/LiveCampaignManagerT
 import EnhancedLiveSessionManager from "@/components/dm-toolkit/EnhancedLiveSessionManager";
 import DMTrainingCenterTab from "@/components/dm-toolkit/DMTrainingCenterTab";
 import LiveManagerPanel from "@/components/dm-toolkit/LiveManagerPanel";
+import DMQuickStart from "@/components/dm-toolkit/DMQuickStart";
 
 export default function DMToolkit() {
   const { user, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("training");
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
   const [showAIGuide, setShowAIGuide] = useState(false);
+  const [showQuickStart, setShowQuickStart] = useState(false);
   
   // Fetch campaigns
   const { data: campaigns = [] } = useQuery<any[]>({
@@ -192,15 +194,81 @@ export default function DMToolkit() {
         </div>
       </section>
 
+      {/* Quick Start Dialog */}
+      <Dialog open={showQuickStart} onOpenChange={setShowQuickStart}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-center text-2xl font-bold flex items-center justify-center gap-2">
+              <Zap className="h-6 w-6 text-amber-500" />
+              First Session in 5 Minutes
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              Create your adventure with just a few simple steps. No experience needed!
+            </DialogDescription>
+          </DialogHeader>
+          <DMQuickStart 
+            onComplete={(campaignId) => {
+              setShowQuickStart(false);
+              setSelectedCampaignId(campaignId);
+              setActiveTab('live-manager');
+            }}
+            onCancel={() => setShowQuickStart(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
       <div className="container mx-auto px-4 py-6 md:py-8">
         <div className="space-y-8">
+          {/* Quick Start Banner - Prominent CTA for new DMs */}
+          {campaigns.length === 0 && (
+            <Card className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10 border-amber-500/30 overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl -mr-8 -mt-8"></div>
+              <CardContent className="p-6 md:p-8">
+                <div className="flex flex-col md:flex-row md:items-center gap-6">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Zap className="h-5 w-5 text-amber-500" />
+                      <span className="text-sm font-medium text-amber-500">New to DMing?</span>
+                    </div>
+                    <h3 className="text-2xl font-bold mb-2">Start Your First Session in 5 Minutes</h3>
+                    <p className="text-muted-foreground">
+                      No rulebooks needed. Just name your adventure, add a few characters, set the scene, 
+                      and you're ready to tell your story. We'll handle the rest.
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => setShowQuickStart(true)}
+                    size="lg"
+                    className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-orange-500/25 whitespace-nowrap"
+                  >
+                    <Play className="h-5 w-5 mr-2" />
+                    Quick Start
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Essential Tools - Large cards with colored icons */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <Star className="h-5 w-5 text-amber-500" />
               Essential Tools
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {/* Quick Start Card - Always visible */}
+              <Card 
+                className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-orange-500/5 hover:from-amber-500/10 hover:to-orange-500/10"
+                onClick={() => setShowQuickStart(true)}
+              >
+                <CardContent className="p-5 text-center">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                    <Zap className="h-6 w-6 text-white" />
+                  </div>
+                  <h4 className="font-semibold text-sm">Quick Start</h4>
+                  <p className="text-xs text-muted-foreground mt-1">5-minute setup</p>
+                </CardContent>
+              </Card>
               <Card 
                 className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${
                   activeTab === 'training' ? 'ring-2 ring-blue-500 bg-blue-500/5' : 'hover:bg-muted/50'

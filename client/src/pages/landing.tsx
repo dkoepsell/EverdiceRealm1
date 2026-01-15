@@ -11,7 +11,10 @@ import {
   Sword,
   Shield,
   Wand2,
-  Map
+  Map,
+  Zap,
+  Clock,
+  CheckCircle
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -172,6 +175,64 @@ export default function LandingPage() {
             </Link>
           </CardContent>
         </Card>
+      </section>
+
+      {/* Become a DM Section */}
+      <section className="container mx-auto px-4 py-16">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
+          <Card className="max-w-4xl mx-auto bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-purple-500/5 border-purple-500/20 overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
+            <CardContent className="p-8 md:p-12">
+              <div className="flex flex-col md:flex-row md:items-center gap-8">
+                <div className="flex-1">
+                  <div className="inline-flex items-center gap-2 bg-purple-500/10 text-purple-400 px-3 py-1 rounded-full text-sm font-medium mb-4">
+                    <Zap className="h-4 w-4" />
+                    For Dungeon Masters
+                  </div>
+                  <h2 className="text-2xl md:text-3xl font-bold mb-4">
+                    Run Your First Session in 5 Minutes
+                  </h2>
+                  <p className="text-muted-foreground mb-6">
+                    No experience needed. Our guided setup walks you through creating 
+                    an adventure step by step. Just add characters, set the scene, and start telling your story.
+                  </p>
+                  
+                  <div className="grid grid-cols-2 gap-3 mb-6">
+                    {[
+                      { icon: Clock, text: "5-minute setup" },
+                      { icon: Users, text: "Add NPCs easily" },
+                      { icon: Map, text: "Set your scene" },
+                      { icon: CheckCircle, text: "Start playing" }
+                    ].map(({ icon: Icon, text }) => (
+                      <div key={text} className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Icon className="h-4 w-4 text-purple-400" />
+                        {text}
+                      </div>
+                    ))}
+                  </div>
+
+                  <Link href={user ? "/dm-toolkit" : "/auth"}>
+                    <Button size="lg" className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 shadow-lg shadow-purple-500/25">
+                      <Zap className="h-5 w-5 mr-2" />
+                      {user ? "Start Quick Setup" : "Become a DM"}
+                    </Button>
+                  </Link>
+                </div>
+                
+                <div className="hidden md:block w-48 text-center">
+                  <div className="w-32 h-32 mx-auto rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center border border-purple-500/20">
+                    <BookOpen className="h-16 w-16 text-purple-400" />
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-3">Tell your story,<br/>we handle the rules</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       </section>
 
       <section className="container mx-auto px-4 py-16 pb-24">
