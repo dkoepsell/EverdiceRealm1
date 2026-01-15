@@ -982,7 +982,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
           </div>
 
           {/* Right Column: Foresight & Narration */}
-          <div className="space-y-4">
+          <div className="space-y-4 pb-32 overflow-y-auto">
             {/* Likely Player Moves - Foresight Tool */}
             <Card className="border-purple-500/20">
               <CardHeader className="p-3 pb-1">
