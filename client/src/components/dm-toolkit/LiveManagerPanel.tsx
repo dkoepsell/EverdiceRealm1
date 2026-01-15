@@ -552,7 +552,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
         </div>
       )}
 
-      <div className="flex h-[calc(100vh-200px)] gap-4">
+      <div className="flex h-[calc(100vh-280px)] gap-4 pb-8">
         {/* Collapsible Sidebar with Entity Sources */}
         <div
           className={`transition-all duration-300 ${

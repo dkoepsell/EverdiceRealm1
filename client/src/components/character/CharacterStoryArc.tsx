@@ -108,12 +108,12 @@ export default function CharacterStoryArc({ characterId, characterName }: Charac
   if (!hasContent) {
     return (
       <div className="space-y-4">
-        <div className="text-center py-6 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-lg border border-amber-200 dark:border-amber-700">
+        <div className="text-center py-6 bg-white dark:bg-gray-800 rounded-lg border-2 border-amber-400 dark:border-amber-600 shadow-sm">
           <BookOpen className="h-12 w-12 text-amber-600 mx-auto mb-3" />
-          <h3 className="font-fantasy text-lg font-semibold text-amber-800 dark:text-amber-300 mb-2">
+          <h3 className="font-fantasy text-lg font-semibold text-gray-900 dark:text-white mb-2">
             Your Story Awaits
           </h3>
-          <p className="text-amber-700 dark:text-amber-400 text-sm max-w-md mx-auto">
+          <p className="text-gray-700 dark:text-gray-300 text-sm max-w-md mx-auto px-4">
             The world doesn't know you yet. As you adventure, your deeds will shape how 
             factions and NPCs perceive you. Will you be trusted or feared?
           </p>
