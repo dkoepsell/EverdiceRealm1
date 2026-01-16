@@ -174,51 +174,69 @@ export default function WorldMapPage() {
         </section>
       </div>
 
+      {/* Main content with world map background */}
       <div className="container mx-auto px-4 pb-6">
-      <div className="flex gap-6">
-        {/* World Map Grid */}
-        <div className="flex-1">
-          <Card className="overflow-hidden border-2 border-primary/20">
-            <CardHeader className="bg-gradient-to-r from-primary/10 to-secondary/10 py-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Compass className="h-5 w-5" />
-                World Map
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4">
-              {/* Map Legend */}
-              <div className="flex flex-wrap gap-4 mb-4 text-xs">
-                <div className="flex items-center gap-1">
-                  <div className={`w-3 h-3 rounded ${dangerColors[1]}`} />
-                  <span>Safe (1-3)</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className={`w-3 h-3 rounded ${dangerColors[3]}`} />
-                  <span>Moderate (4-7)</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className={`w-3 h-3 rounded ${dangerColors[5]}`} />
-                  <span>Deadly (8+)</span>
-                </div>
-                <div className="flex items-center gap-1 ml-auto">
-                  <Lock className="h-3 w-3 text-gray-500" />
-                  <span>Undiscovered</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Eye className="h-3 w-3 text-blue-400" />
-                  <span>Discovered</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3 text-green-400" />
-                  <span>Completed</span>
-                </div>
-              </div>
+        <div 
+          className="relative rounded-2xl overflow-hidden border-4 border-amber-800/30 shadow-2xl"
+          style={{
+            backgroundImage: `url(${worldMapBackground})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          }}
+        >
+          {/* Subtle overlay for readability */}
+          <div className="absolute inset-0 bg-black/30" />
+          
+          {/* Inner vignette effect */}
+          <div className="absolute inset-0 pointer-events-none" style={{
+            boxShadow: 'inset 0 0 100px rgba(0,0,0,0.5)'
+          }} />
+          
+          <div className="relative z-10 p-6">
+            <div className="flex gap-6">
+              {/* World Map Grid */}
+              <div className="flex-1">
+                <Card className="overflow-hidden border-2 border-amber-500/30 bg-black/40 backdrop-blur-sm">
+                  <CardHeader className="bg-gradient-to-r from-amber-900/40 to-orange-900/30 py-3 border-b border-amber-500/20">
+                    <CardTitle className="flex items-center gap-2 text-lg text-amber-100">
+                      <Compass className="h-5 w-5 text-amber-400" />
+                      World Map
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    {/* Map Legend */}
+                    <div className="flex flex-wrap gap-4 mb-4 text-xs text-amber-100/80">
+                      <div className="flex items-center gap-1">
+                        <div className={`w-3 h-3 rounded ${dangerColors[1]}`} />
+                        <span>Safe (1-3)</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className={`w-3 h-3 rounded ${dangerColors[3]}`} />
+                        <span>Moderate (4-7)</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className={`w-3 h-3 rounded ${dangerColors[5]}`} />
+                        <span>Deadly (8+)</span>
+                      </div>
+                      <div className="flex items-center gap-1 ml-auto">
+                        <Lock className="h-3 w-3 text-gray-400" />
+                        <span>Undiscovered</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Eye className="h-3 w-3 text-blue-400" />
+                        <span>Discovered</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 text-green-400" />
+                        <span>Completed</span>
+                      </div>
+                    </div>
 
-              {/* The Map Grid - 9x7 grid with regions placed */}
-              <div 
-                className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-lg p-4"
-                style={{ minHeight: "400px" }}
-              >
+                    {/* The Map Grid - 9x7 grid with regions placed */}
+                    <div 
+                      className="relative bg-black/30 backdrop-blur-sm rounded-lg p-4 border border-amber-500/20"
+                      style={{ minHeight: "400px" }}
+                    >
                 {/* Grid overlay */}
                 <div 
                   className="absolute inset-4 grid"
@@ -293,202 +311,188 @@ export default function WorldMapPage() {
                       </Tooltip>
                     );
                   })}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Region Details Panel */}
-        <div className="w-80">
-          {selectedRegion ? (
-            <Card className="border-2 border-primary/20">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{selectedRegion.name}</CardTitle>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => setSelectedRegion(null)}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="flex gap-2">
-                  <Badge variant="outline">Lvl {selectedRegion.levelRange}</Badge>
-                  <Badge className={`${dangerColors[selectedRegion.dangerLevel || 1]} text-white`}>
-                    Danger {selectedRegion.dangerLevel}/5
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  {selectedRegion.description}
-                </p>
-                
-                {selectedRegion.lore && (
-                  <div className="p-3 bg-muted/50 rounded-lg text-sm italic">
-                    {selectedRegion.lore}
-                  </div>
-                )}
-
-                {/* Active Adventures in this Region */}
-                {(() => {
-                  const activity = getRegionActivity(selectedRegion.id);
-                  if (activity.campaigns.length === 0) return null;
-                  return (
-                    <div className="p-3 bg-amber-900/20 border border-amber-700/30 rounded-lg">
-                      <h4 className="font-semibold mb-2 flex items-center gap-2 text-amber-300">
-                        <Swords className="h-4 w-4" />
-                        Active Adventures ({activity.campaigns.length})
-                      </h4>
-                      <div className="space-y-2">
-                        {activity.campaigns.slice(0, 5).map((campaign: any) => (
-                          <div key={campaign.id} className="flex items-center gap-2 text-sm">
-                            <div className={`w-2 h-2 rounded-full ${campaign.isActive ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`} />
-                            <span className="flex-1 truncate">{campaign.title}</span>
-                            <div className="flex items-center gap-1 text-muted-foreground">
-                              <Users className="h-3 w-3" />
-                              <span className="text-xs">{campaign.adventurerCount}</span>
-                            </div>
-                          </div>
-                        ))}
-                        {activity.campaigns.length > 5 && (
-                          <p className="text-xs text-muted-foreground">
-                            +{activity.campaigns.length - 5} more adventures...
-                          </p>
-                        )}
-                      </div>
-                      <div className="mt-2 pt-2 border-t border-amber-700/30 flex items-center gap-2 text-xs text-amber-200">
-                        <Users className="h-3 w-3" />
-                        {activity.adventurerCount} adventurers exploring this region
                       </div>
                     </div>
-                  );
-                })()}
+                  </CardContent>
+                </Card>
+              </div>
 
-                <div>
-                  <h4 className="font-semibold mb-2 flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Locations ({regionLocations.length})
-                  </h4>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {regionLocations.map((location) => {
-                      const LocationIcon = locationIcons[location.locationType || 'landmark'] || MapPin;
-                      const progress = getLocationProgress(location.id);
-                      const progressState = getProgressState(progress);
-                      
-                      return (
-                        <div 
-                          key={location.id}
-                          className={`
-                            p-2 rounded-lg border transition-all
-                            ${progressState === 'undiscovered' ? 'opacity-60 bg-muted/30' : 'bg-muted/50'}
-                            ${location.isMainQuest ? 'border-amber-500/50' : 'border-transparent'}
-                          `}
-                          data-testid={`location-${location.id}`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <LocationIcon className="h-4 w-4 text-primary" />
-                            <span className="font-medium text-sm flex-1">{location.name}</span>
-                            {getProgressIcon(progressState)}
-                            {location.isMainQuest && (
-                              <Crown className="h-3 w-3 text-amber-400" />
+              {/* Region Details Panel */}
+              <div className="w-80">
+                  {selectedRegion ? (
+                    <Card className="border-2 border-amber-500/30 bg-black/40 backdrop-blur-sm">
+                      <CardHeader className="pb-3 border-b border-amber-500/20">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg text-amber-100">{selectedRegion.name}</CardTitle>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => setSelectedRegion(null)}
+                            className="text-amber-200 hover:text-amber-100"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="flex gap-2">
+                          <Badge variant="outline" className="border-amber-500/30 text-amber-200">Lvl {selectedRegion.levelRange}</Badge>
+                          <Badge className={`${dangerColors[selectedRegion.dangerLevel || 1]} text-white`}>
+                            Danger {selectedRegion.dangerLevel}/5
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <p className="text-sm text-amber-100/70">
+                          {selectedRegion.description}
+                        </p>
+                
+                        {selectedRegion.lore && (
+                          <div className="p-3 bg-amber-900/30 rounded-lg text-sm italic text-amber-100/60">
+                            {selectedRegion.lore}
+                          </div>
+                        )}
+
+                        {/* Active Adventures in this Region */}
+                        {(() => {
+                          const activity = getRegionActivity(selectedRegion.id);
+                          if (activity.campaigns.length === 0) return null;
+                          return (
+                            <div className="p-3 bg-amber-900/20 border border-amber-700/30 rounded-lg">
+                              <h4 className="font-semibold mb-2 flex items-center gap-2 text-amber-300">
+                                <Swords className="h-4 w-4" />
+                                Active Adventures ({activity.campaigns.length})
+                              </h4>
+                              <div className="space-y-2">
+                                {activity.campaigns.slice(0, 5).map((campaign: any) => (
+                                  <div key={campaign.id} className="flex items-center gap-2 text-sm text-amber-100/80">
+                                    <div className={`w-2 h-2 rounded-full ${campaign.isActive ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`} />
+                                    <span className="flex-1 truncate">{campaign.title}</span>
+                                    <div className="flex items-center gap-1 text-amber-100/60">
+                                      <Users className="h-3 w-3" />
+                                      <span className="text-xs">{campaign.adventurerCount}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                                {activity.campaigns.length > 5 && (
+                                  <p className="text-xs text-amber-100/50">
+                                    +{activity.campaigns.length - 5} more adventures...
+                                  </p>
+                                )}
+                              </div>
+                              <div className="mt-2 pt-2 border-t border-amber-700/30 flex items-center gap-2 text-xs text-amber-200">
+                                <Users className="h-3 w-3" />
+                                {activity.adventurerCount} adventurers exploring this region
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        <div>
+                          <h4 className="font-semibold mb-2 flex items-center gap-2 text-amber-100">
+                            <MapPin className="h-4 w-4 text-amber-400" />
+                            Locations ({regionLocations.length})
+                          </h4>
+                          <div className="space-y-2 max-h-64 overflow-y-auto">
+                            {regionLocations.map((location) => {
+                              const LocationIcon = locationIcons[location.locationType || 'landmark'] || MapPin;
+                              const progress = getLocationProgress(location.id);
+                              const progressState = getProgressState(progress);
+                              
+                              return (
+                                <div 
+                                  key={location.id}
+                                  className={`
+                                    p-2 rounded-lg border transition-all
+                                    ${progressState === 'undiscovered' ? 'opacity-60 bg-black/30' : 'bg-amber-900/20'}
+                                    ${location.isMainQuest ? 'border-amber-500/50' : 'border-amber-500/20'}
+                                  `}
+                                  data-testid={`location-${location.id}`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <LocationIcon className="h-4 w-4 text-amber-400" />
+                                    <span className="font-medium text-sm flex-1 text-amber-100">{location.name}</span>
+                                    {getProgressIcon(progressState)}
+                                    {location.isMainQuest && (
+                                      <Crown className="h-3 w-3 text-amber-400" />
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-amber-100/60 mt-1">
+                                    {location.description}
+                                  </p>
+                                  {(() => {
+                                    const locActivity = getLocationActivity(location.id);
+                                    if (locActivity.campaigns.length === 0) return null;
+                                    return (
+                                      <div className="mt-1 flex items-center gap-1">
+                                        <Badge variant="secondary" className="text-xs bg-amber-600/30 text-amber-200 border-amber-600/50">
+                                          <Swords className="h-3 w-3 mr-1" />
+                                          {locActivity.campaigns.length} active
+                                        </Badge>
+                                        <span className="text-xs text-amber-100/50">
+                                          ({locActivity.adventurerCount} adventurers)
+                                        </span>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              );
+                            })}
+                            {regionLocations.length === 0 && (
+                              <p className="text-sm text-amber-100/50 italic">
+                                No known locations in this region yet.
+                              </p>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {location.description}
-                          </p>
-                          {(() => {
-                            const locActivity = getLocationActivity(location.id);
-                            if (locActivity.campaigns.length === 0) return null;
-                            return (
-                              <div className="mt-1 flex items-center gap-1">
-                                <Badge variant="secondary" className="text-xs bg-amber-600/30 text-amber-200 border-amber-600/50">
-                                  <Swords className="h-3 w-3 mr-1" />
-                                  {locActivity.campaigns.length} active
-                                </Badge>
-                                <span className="text-xs text-muted-foreground">
-                                  ({locActivity.adventurerCount} adventurers)
-                                </span>
-                              </div>
-                            );
-                          })()}
                         </div>
-                      );
-                    })}
-                    {regionLocations.length === 0 && (
-                      <p className="text-sm text-muted-foreground italic">
-                        No known locations in this region yet.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="border-2 border-dashed border-muted">
-              <CardContent className="py-12 text-center">
-                <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="font-semibold mb-2">Select a Region</h3>
-                <p className="text-sm text-muted-foreground">
-                  Click on any region on the map to view its details and locations.
-                </p>
-              </CardContent>
-            </Card>
-          )}
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card className="border-2 border-dashed border-amber-500/30 bg-black/40 backdrop-blur-sm">
+                      <CardContent className="py-12 text-center">
+                        <MapPin className="h-12 w-12 mx-auto text-amber-400/50 mb-4" />
+                        <h3 className="font-semibold mb-2 text-amber-100">Select a Region</h3>
+                        <p className="text-sm text-amber-100/60">
+                          Click on any region on the map to view its details and locations.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
 
-          {/* Progress Summary */}
-          <Card className="mt-4">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Your Progress
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Regions Discovered</span>
-                  <span className="font-medium">
-                    {myProgress.filter(p => p.regionId && p.hasDiscovered).length} / {regions.length}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Locations Found</span>
-                  <span className="font-medium">
-                    {myProgress.filter(p => p.locationId && p.hasDiscovered).length} / {locations.length}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Areas Completed</span>
-                  <span className="font-medium text-green-400">
-                    {myProgress.filter(p => p.completionState === 'completed').length}
-                  </span>
+                  {/* Progress Summary */}
+                  <Card className="mt-4 border-2 border-amber-500/30 bg-black/40 backdrop-blur-sm">
+                    <CardHeader className="pb-2 border-b border-amber-500/20">
+                      <CardTitle className="text-sm flex items-center gap-2 text-amber-100">
+                        <User className="h-4 w-4 text-amber-400" />
+                        Your Progress
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-3">
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-amber-100/60">Regions Discovered</span>
+                          <span className="font-medium text-amber-100">
+                            {myProgress.filter(p => p.regionId && p.hasDiscovered).length} / {regions.length}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-amber-100/60">Locations Found</span>
+                          <span className="font-medium text-amber-100">
+                            {myProgress.filter(p => p.locationId && p.hasDiscovered).length} / {locations.length}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-amber-100/60">Areas Completed</span>
+                          <span className="font-medium text-green-400">
+                            {myProgress.filter(p => p.completionState === 'completed').length}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
-
-      {/* World Map Background Illustration */}
-      <div className="mt-8">
-        <div className="relative rounded-xl overflow-hidden border-4 border-amber-800/40 shadow-2xl">
-          <img 
-            src={worldMapBackground} 
-            alt="The Realm of Everdice - World Map" 
-            className="w-full h-auto"
-          />
-          <div className="absolute inset-0 pointer-events-none rounded-xl" style={{
-            boxShadow: 'inset 0 0 60px rgba(0,0,0,0.4)'
-          }} />
-        </div>
-        <p className="text-center text-sm text-muted-foreground mt-3 italic font-fantasy">
-          "The lands of Everdice stretch far beyond the horizon, filled with mystery and adventure..."
-        </p>
-      </div>
-      </div>
-    </div>
   );
 }
