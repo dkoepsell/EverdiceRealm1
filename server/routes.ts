@@ -4349,6 +4349,7 @@ Return your response as a JSON object with these fields:
       
       const validatedData = validationSchema.parse({
         ...participantData,
+        userId: targetUserId,
         campaignId,
         joinedAt: new Date().toISOString()
       });
