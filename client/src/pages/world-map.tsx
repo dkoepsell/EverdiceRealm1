@@ -238,8 +238,8 @@ export default function WorldMapPage() {
                         onClick={() => setSelectedRegion(isSelected ? null : region)}
                         className={`
                           absolute transition-all duration-200 cursor-pointer rounded
-                          hover:bg-amber-500/30 hover:backdrop-blur-[2px]
-                          ${isSelected ? 'bg-amber-500/40 ring-2 ring-amber-400 shadow-lg shadow-amber-500/20' : 'bg-transparent'}
+                          border border-amber-400/50 hover:bg-amber-500/30 hover:border-amber-400
+                          ${isSelected ? 'bg-amber-500/40 ring-2 ring-amber-400 shadow-lg shadow-amber-500/20' : 'bg-amber-900/20'}
                           ${progressState === 'undiscovered' ? 'opacity-60' : ''}
                         `}
                         style={{
