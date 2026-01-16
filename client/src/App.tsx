@@ -28,12 +28,23 @@ import TavernPage from "@/pages/tavern";
 import GroupsPage from "@/pages/groups";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import parchmentFrame from "@assets/image_1768600727955.png";
 
 function Router() {
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen relative">
+      <div 
+        className="fixed inset-0 pointer-events-none z-0 opacity-[0.03] dark:opacity-[0.02]"
+        style={{
+          backgroundImage: `url(${parchmentFrame})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundAttachment: 'fixed'
+        }}
+      />
       <Navbar />
-      <main className="flex-grow">
+      <main className="flex-grow relative z-10">
         <Switch>
           <Route path="/" component={LandingPage} />
           <ProtectedRoute path="/dashboard" component={Dashboard} />
