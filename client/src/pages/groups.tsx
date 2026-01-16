@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
 import { Users, Shield, Crown, Swords, Plus, Settings, UserPlus, Mail, Check, X } from "lucide-react";
 import type { PlayerGroup, GroupInvitation } from "@shared/schema";
+import parchmentFrame from "@assets/image_1768600727955.png";
 
 interface EnrichedInvitation extends GroupInvitation {
   groupName?: string;
@@ -162,6 +163,16 @@ export default function GroupsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-900/40 via-indigo-900/30 to-blue-900/40 border border-purple-500/20 p-8 mb-8">
+        {/* Parchment background texture */}
+        <div 
+          className="absolute inset-0 opacity-25 rounded-xl"
+          style={{
+            backgroundImage: `url(${parchmentFrame})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            mixBlendMode: 'overlay'
+          }}
+        />
         <div className="absolute top-4 right-8 opacity-10">
           <Shield className="h-20 w-20 text-purple-300" />
         </div>

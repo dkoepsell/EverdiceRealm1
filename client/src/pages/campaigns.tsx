@@ -31,6 +31,7 @@ import CampaignPanel from "@/components/campaign/CampaignPanel";
 import { AlertCircle, Book, MapPin, Plus, Scroll, Wand2, Star, Play } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import parchmentFrame from "@assets/image_1768600727955.png";
 
 // Extended schema with validation rules
 const createCampaignSchema = insertCampaignSchema.extend({
@@ -230,6 +231,16 @@ export default function Campaigns() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-8 md:py-12 overflow-hidden">
+        {/* Parchment background texture */}
+        <div 
+          className="absolute inset-0 opacity-20"
+          style={{
+            backgroundImage: `url(${parchmentFrame})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            mixBlendMode: 'overlay'
+          }}
+        />
         <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent"></div>
         <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl"></div>
         <div className="absolute top-6 right-8 md:right-16 opacity-15">

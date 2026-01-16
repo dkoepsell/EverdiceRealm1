@@ -33,6 +33,7 @@ import { Separator } from "@/components/ui/separator";
 import CharacterSheet from "@/components/character/CharacterSheet";
 import { AlertCircle, Plus, User, Users, Dice6, Swords, Sparkles, Sword, Wand2, Shield, Heart, Flame, Moon, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import parchmentFrame from "@assets/image_1768600727955.png";
 
 // D&D standard ability score rolling: 4d6 drop lowest
 function roll4d6DropLowest(): number {
@@ -341,6 +342,16 @@ export default function Characters() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-8 md:py-12 overflow-hidden">
+        {/* Parchment background texture */}
+        <div 
+          className="absolute inset-0 opacity-20"
+          style={{
+            backgroundImage: `url(${parchmentFrame})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            mixBlendMode: 'overlay'
+          }}
+        />
         <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent"></div>
         <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl"></div>
         <div className="absolute top-6 right-8 md:right-16 opacity-15">

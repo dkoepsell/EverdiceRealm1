@@ -92,6 +92,7 @@ import EnhancedLiveSessionManager from "@/components/dm-toolkit/EnhancedLiveSess
 import DMTrainingCenterTab from "@/components/dm-toolkit/DMTrainingCenterTab";
 import LiveManagerPanel from "@/components/dm-toolkit/LiveManagerPanel";
 import DMQuickStart from "@/components/dm-toolkit/DMQuickStart";
+import parchmentFrame from "@assets/image_1768600727955.png";
 
 export default function DMToolkit() {
   const { user, isLoading: authLoading } = useAuth();
@@ -137,6 +138,16 @@ export default function DMToolkit() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       {/* Hero Section - D&D-inspired branded design */}
       <section className="relative bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 py-8 md:py-12 overflow-hidden">
+        {/* Parchment background texture */}
+        <div 
+          className="absolute inset-0 opacity-20"
+          style={{
+            backgroundImage: `url(${parchmentFrame})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            mixBlendMode: 'overlay'
+          }}
+        />
         {/* Background decorative elements */}
         <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-blue-500/5 to-transparent"></div>
         <div className="absolute top-0 right-0 w-80 h-80 bg-purple-500/5 rounded-full blur-3xl"></div>
