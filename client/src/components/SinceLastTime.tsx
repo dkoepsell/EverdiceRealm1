@@ -14,7 +14,7 @@ export default function SinceLastTime({ campaignId }: SinceLastTimeProps) {
     enabled: !!campaignId,
   });
 
-  if (isLoading || !data || data.bullets.length === 0) {
+  if (isLoading || !data || !data.bullets || data.bullets.length === 0) {
     return null;
   }
 

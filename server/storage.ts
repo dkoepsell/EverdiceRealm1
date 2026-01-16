@@ -325,6 +325,7 @@ export interface IStorage {
   deleteUnresolvedThread(id: number): Promise<boolean>;
   
   // Character Arc Insight operations
+  getCharacterArcInsight(id: number): Promise<CharacterArcInsight | undefined>;
   getCharacterArcInsights(characterId: number, campaignId?: number): Promise<CharacterArcInsight[]>;
   getUnrevealedInsights(characterId: number): Promise<CharacterArcInsight[]>;
   createCharacterArcInsight(insight: InsertCharacterArcInsight): Promise<CharacterArcInsight>;
@@ -2871,6 +2872,13 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Character Arc Insight operations
+  async getCharacterArcInsight(id: number): Promise<CharacterArcInsight | undefined> {
+    const [insight] = await db.select()
+      .from(characterArcInsights)
+      .where(eq(characterArcInsights.id, id));
+    return insight || undefined;
+  }
+  
   async getCharacterArcInsights(characterId: number, campaignId?: number): Promise<CharacterArcInsight[]> {
     if (campaignId) {
       return db.select()

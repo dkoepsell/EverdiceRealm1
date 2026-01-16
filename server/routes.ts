@@ -21,6 +21,11 @@ import {
   insertMonsterSchema,
   insertChatMessageSchema,
   insertOnlineUserSchema,
+  insertPlayerGroupSchema,
+  insertPlayerGroupMemberSchema,
+  insertWorldMemorySchema,
+  insertUnresolvedThreadSchema,
+  insertCharacterArcInsightSchema,
   npcs,
   users,
   campaigns,
@@ -12978,11 +12983,12 @@ ALWAYS generate:
   app.post("/api/groups", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const group = await storage.createPlayerGroup({
+      const validated = insertPlayerGroupSchema.parse({
         ...req.body,
         founderId: userId,
         leaderIds: [userId]
       });
+      const group = await storage.createPlayerGroup(validated);
       // Add founder as member
       await storage.addPlayerGroupMember({
         groupId: group.id,
@@ -12990,7 +12996,10 @@ ALWAYS generate:
         role: "founder"
       });
       res.status(201).json(group);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid group data", errors: error.errors });
+      }
       console.error("Failed to create group:", error);
       res.status(500).json({ message: "Failed to create group" });
     }
@@ -13093,12 +13102,21 @@ ALWAYS generate:
   app.post("/api/campaigns/:campaignId/world-memory", isAuthenticated, async (req: any, res) => {
     try {
       const campaignId = parseInt(req.params.campaignId);
-      const memory = await storage.createWorldMemory({
+      // Verify user is DM of this campaign
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign || campaign.dmUserId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can create world memories" });
+      }
+      const validated = insertWorldMemorySchema.parse({
         ...req.body,
         campaignId
       });
+      const memory = await storage.createWorldMemory(validated);
       res.status(201).json(memory);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid world memory data", errors: error.errors });
+      }
       console.error("Failed to create world memory:", error);
       res.status(500).json({ message: "Failed to create world memory" });
     }
@@ -13147,12 +13165,21 @@ ALWAYS generate:
   app.post("/api/campaigns/:campaignId/threads", isAuthenticated, async (req: any, res) => {
     try {
       const campaignId = parseInt(req.params.campaignId);
-      const thread = await storage.createUnresolvedThread({
+      // Verify user is DM of this campaign
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign || campaign.dmUserId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can create threads" });
+      }
+      const validated = insertUnresolvedThreadSchema.parse({
         ...req.body,
         campaignId
       });
+      const thread = await storage.createUnresolvedThread(validated);
       res.status(201).json(thread);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid thread data", errors: error.errors });
+      }
       console.error("Failed to create thread:", error);
       res.status(500).json({ message: "Failed to create thread" });
     }
@@ -13201,21 +13228,50 @@ ALWAYS generate:
   app.post("/api/characters/:characterId/arc-insights", isAuthenticated, async (req: any, res) => {
     try {
       const characterId = parseInt(req.params.characterId);
-      const insight = await storage.createCharacterArcInsight({
+      // Verify user owns this character or is DM of related campaign
+      const character = await storage.getCharacter(characterId);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      // Only DMs should create arc insights, check via campaign if specified
+      const campaignId = req.body.campaignId;
+      if (campaignId) {
+        const campaign = await storage.getCampaign(campaignId);
+        if (!campaign || campaign.dmUserId !== req.user.id) {
+          return res.status(403).json({ message: "Only the DM can create arc insights" });
+        }
+      } else if (character.userId !== req.user.id) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      const validated = insertCharacterArcInsightSchema.parse({
         ...req.body,
         characterId
       });
+      const insight = await storage.createCharacterArcInsight(validated);
       res.status(201).json(insight);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid insight data", errors: error.errors });
+      }
       console.error("Failed to create arc insight:", error);
       res.status(500).json({ message: "Failed to create arc insight" });
     }
   });
   
   // Reveal an insight
-  app.patch("/api/arc-insights/:id/reveal", isAuthenticated, async (req, res) => {
+  app.patch("/api/arc-insights/:id/reveal", isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
+      // Get the insight to check ownership
+      const insight = await storage.getCharacterArcInsight(id);
+      if (!insight) {
+        return res.status(404).json({ message: "Insight not found" });
+      }
+      // Verify user owns the character
+      const character = await storage.getCharacter(insight.characterId);
+      if (!character || character.userId !== req.user.id) {
+        return res.status(403).json({ message: "Not authorized to reveal this insight" });
+      }
       const revealed = await storage.revealInsight(id);
       res.json(revealed);
     } catch (error) {
