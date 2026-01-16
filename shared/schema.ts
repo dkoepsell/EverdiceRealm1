@@ -999,6 +999,28 @@ export const insertPlayerGroupMemberSchema = createInsertSchema(playerGroupMembe
 export type InsertPlayerGroupMember = z.infer<typeof insertPlayerGroupMemberSchema>;
 export type PlayerGroupMember = typeof playerGroupMembers.$inferSelect;
 
+// Group Invitations
+export const groupInvitations = pgTable("group_invitations", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id").notNull(),
+  inviterId: integer("inviter_id").notNull(), // Who sent the invite
+  inviteeId: integer("invitee_id").notNull(), // Who is being invited
+  message: text("message"), // Optional message with the invite
+  status: text("status").default("pending"), // pending, accepted, declined, expired
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  respondedAt: text("responded_at"),
+});
+
+export const insertGroupInvitationSchema = createInsertSchema(groupInvitations).omit({
+  id: true,
+  createdAt: true,
+  respondedAt: true,
+  status: true,
+});
+
+export type InsertGroupInvitation = z.infer<typeof insertGroupInvitationSchema>;
+export type GroupInvitation = typeof groupInvitations.$inferSelect;
+
 // World Memory - Tracks significant events for "Since Last Time..." and delayed consequences
 export const worldMemory = pgTable("world_memory", {
   id: serial("id").primaryKey(),

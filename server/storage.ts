@@ -42,6 +42,7 @@ import {
   // World memory and player groups
   playerGroups, type PlayerGroup, type InsertPlayerGroup,
   playerGroupMembers, type PlayerGroupMember, type InsertPlayerGroupMember,
+  groupInvitations, type GroupInvitation, type InsertGroupInvitation,
   worldMemory, type WorldMemory, type InsertWorldMemory,
   unresolvedThreads, type UnresolvedThread, type InsertUnresolvedThread,
   characterArcInsights, type CharacterArcInsight, type InsertCharacterArcInsight,
@@ -307,6 +308,15 @@ export interface IStorage {
   addPlayerGroupMember(member: InsertPlayerGroupMember): Promise<PlayerGroupMember>;
   updatePlayerGroupMember(id: number, updates: Partial<PlayerGroupMember>): Promise<PlayerGroupMember | undefined>;
   removePlayerGroupMember(id: number): Promise<boolean>;
+  
+  // Group Invitation operations
+  getGroupInvitation(id: number): Promise<GroupInvitation | undefined>;
+  getGroupInvitations(groupId: number): Promise<GroupInvitation[]>;
+  getUserPendingInvitations(userId: number): Promise<GroupInvitation[]>;
+  createGroupInvitation(invitation: InsertGroupInvitation): Promise<GroupInvitation>;
+  respondToInvitation(id: number, status: 'accepted' | 'declined'): Promise<GroupInvitation | undefined>;
+  deleteGroupInvitation(id: number): Promise<boolean>;
+  findUserByUsername(username: string): Promise<User | undefined>;
   
   // World Memory operations
   getWorldMemories(campaignId: number, memoryType?: string): Promise<WorldMemory[]>;
@@ -2749,6 +2759,65 @@ export class DatabaseStorage implements IStorage {
   async removePlayerGroupMember(id: number): Promise<boolean> {
     await db.delete(playerGroupMembers).where(eq(playerGroupMembers.id, id));
     return true;
+  }
+  
+  // Group Invitation operations
+  async getGroupInvitation(id: number): Promise<GroupInvitation | undefined> {
+    const [invitation] = await db.select()
+      .from(groupInvitations)
+      .where(eq(groupInvitations.id, id));
+    return invitation || undefined;
+  }
+  
+  async getGroupInvitations(groupId: number): Promise<GroupInvitation[]> {
+    return db.select()
+      .from(groupInvitations)
+      .where(eq(groupInvitations.groupId, groupId))
+      .orderBy(desc(groupInvitations.createdAt));
+  }
+  
+  async getUserPendingInvitations(userId: number): Promise<GroupInvitation[]> {
+    return db.select()
+      .from(groupInvitations)
+      .where(and(
+        eq(groupInvitations.inviteeId, userId),
+        eq(groupInvitations.status, "pending")
+      ))
+      .orderBy(desc(groupInvitations.createdAt));
+  }
+  
+  async createGroupInvitation(invitation: InsertGroupInvitation): Promise<GroupInvitation> {
+    const [created] = await db.insert(groupInvitations)
+      .values({
+        ...invitation,
+        status: "pending",
+        createdAt: new Date().toISOString()
+      })
+      .returning();
+    return created;
+  }
+  
+  async respondToInvitation(id: number, status: 'accepted' | 'declined'): Promise<GroupInvitation | undefined> {
+    const [updated] = await db.update(groupInvitations)
+      .set({ 
+        status, 
+        respondedAt: new Date().toISOString() 
+      })
+      .where(eq(groupInvitations.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async deleteGroupInvitation(id: number): Promise<boolean> {
+    await db.delete(groupInvitations).where(eq(groupInvitations.id, id));
+    return true;
+  }
+  
+  async findUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select()
+      .from(users)
+      .where(eq(users.username, username));
+    return user || undefined;
   }
   
   // World Memory operations

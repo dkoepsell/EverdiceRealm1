@@ -13083,6 +13083,144 @@ ALWAYS generate:
     }
   });
   
+  // ========== GROUP INVITATIONS ==========
+  
+  // Get my pending invitations
+  app.get("/api/invitations/pending", isAuthenticated, async (req: any, res) => {
+    try {
+      const invitations = await storage.getUserPendingInvitations(req.user.id);
+      // Enrich with group info
+      const enriched = await Promise.all(invitations.map(async (inv) => {
+        const group = await storage.getPlayerGroup(inv.groupId);
+        const inviter = await storage.getUser(inv.inviterId);
+        return {
+          ...inv,
+          groupName: group?.name,
+          groupType: group?.type,
+          inviterName: inviter?.displayName || inviter?.username
+        };
+      }));
+      res.json(enriched);
+    } catch (error) {
+      console.error("Failed to fetch pending invitations:", error);
+      res.status(500).json({ message: "Failed to fetch invitations" });
+    }
+  });
+  
+  // Get invitations for a group
+  app.get("/api/groups/:id/invitations", isAuthenticated, async (req: any, res) => {
+    try {
+      const groupId = parseInt(req.params.id);
+      const group = await storage.getPlayerGroup(groupId);
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+      // Only leaders can see invitations
+      if (group.founderId !== req.user.id && !group.leaderIds?.includes(req.user.id)) {
+        return res.status(403).json({ message: "Only leaders can view invitations" });
+      }
+      const invitations = await storage.getGroupInvitations(groupId);
+      res.json(invitations);
+    } catch (error) {
+      console.error("Failed to fetch group invitations:", error);
+      res.status(500).json({ message: "Failed to fetch invitations" });
+    }
+  });
+  
+  // Invite a player to a group
+  app.post("/api/groups/:id/invite", isAuthenticated, async (req: any, res) => {
+    try {
+      const groupId = parseInt(req.params.id);
+      const group = await storage.getPlayerGroup(groupId);
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+      // Only leaders can invite
+      if (group.founderId !== req.user.id && !group.leaderIds?.includes(req.user.id)) {
+        return res.status(403).json({ message: "Only leaders can invite members" });
+      }
+      // Find user by username
+      const invitee = await storage.findUserByUsername(req.body.username);
+      if (!invitee) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      if (invitee.id === req.user.id) {
+        return res.status(400).json({ message: "You cannot invite yourself" });
+      }
+      // Check if already a member
+      const members = await storage.getPlayerGroupMembers(groupId);
+      if (members.some(m => m.userId === invitee.id)) {
+        return res.status(400).json({ message: "User is already a member" });
+      }
+      // Check for existing pending invitation
+      const existingInvites = await storage.getGroupInvitations(groupId);
+      if (existingInvites.some(inv => inv.inviteeId === invitee.id && inv.status === "pending")) {
+        return res.status(400).json({ message: "User already has a pending invitation" });
+      }
+      const invitation = await storage.createGroupInvitation({
+        groupId,
+        inviterId: req.user.id,
+        inviteeId: invitee.id,
+        message: req.body.message
+      });
+      res.status(201).json(invitation);
+    } catch (error) {
+      console.error("Failed to create invitation:", error);
+      res.status(500).json({ message: "Failed to send invitation" });
+    }
+  });
+  
+  // Accept an invitation
+  app.post("/api/invitations/:id/accept", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const invitation = await storage.getGroupInvitation(id);
+      if (!invitation) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+      if (invitation.inviteeId !== req.user.id) {
+        return res.status(403).json({ message: "This invitation is not for you" });
+      }
+      if (invitation.status !== "pending") {
+        return res.status(400).json({ message: "Invitation has already been responded to" });
+      }
+      // Update invitation status
+      await storage.respondToInvitation(id, "accepted");
+      // Add user to group
+      const member = await storage.addPlayerGroupMember({
+        groupId: invitation.groupId,
+        userId: req.user.id,
+        role: "member"
+      });
+      res.json({ success: true, member });
+    } catch (error) {
+      console.error("Failed to accept invitation:", error);
+      res.status(500).json({ message: "Failed to accept invitation" });
+    }
+  });
+  
+  // Decline an invitation
+  app.post("/api/invitations/:id/decline", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const invitation = await storage.getGroupInvitation(id);
+      if (!invitation) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+      if (invitation.inviteeId !== req.user.id) {
+        return res.status(403).json({ message: "This invitation is not for you" });
+      }
+      if (invitation.status !== "pending") {
+        return res.status(400).json({ message: "Invitation has already been responded to" });
+      }
+      await storage.respondToInvitation(id, "declined");
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to decline invitation:", error);
+      res.status(500).json({ message: "Failed to decline invitation" });
+    }
+  });
+  
   // ========== WORLD MEMORY (Since Last Time...) ==========
   
   // Get world memories for a campaign
