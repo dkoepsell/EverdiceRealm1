@@ -14,7 +14,7 @@ import { Character, Campaign } from "@shared/schema";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
 import { getQueryFn, queryClient } from "@/lib/queryClient";
-import { Bookmark, Calendar, History, User, Users, Activity, Star, Play, Sparkles, Sword, Shield, ScrollText, ChevronDown, ChevronUp, Heart, Zap, Package, Scroll } from "lucide-react";
+import { Bookmark, Calendar, History, User, Users, Activity, Star, Play, Sparkles, Sword, Shield, ScrollText, ChevronDown, ChevronUp, Heart, Zap, Package, Scroll, BookOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function Dashboard() {
@@ -237,35 +237,34 @@ export default function Dashboard() {
                 : "Learn to play, create adventures, and join a community of storytellers."}
             </p>
             <div className="flex flex-wrap gap-3">
-              {activeCampaign ? (
+              {activeCampaign && (
                 <Button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold px-6 py-2.5 rounded-lg shadow-lg shadow-amber-500/25 transition-all hover:shadow-amber-500/40">
                   <Play className="mr-2 h-4 w-4" />
                   Continue Adventure
                 </Button>
-              ) : (
-                <>
-                  <Button 
-                    onClick={() => {
-                      setShowLearnByPlaying(true);
-                      setShowQuickStart(false);
-                    }}
-                    className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-6 py-2.5 rounded-lg shadow-lg shadow-green-500/25 transition-all hover:shadow-green-500/40"
-                  >
-                    <Play className="mr-2 h-4 w-4" />
-                    Learn by Playing
-                  </Button>
-                  <Button 
-                    onClick={() => {
-                      setShowQuickStart(true);
-                      setShowLearnByPlaying(false);
-                    }}
-                    variant="outline"
-                    className="border-white/20 text-white/90 hover:bg-white/10 hover:border-white/30"
-                  >
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Quick Start
-                  </Button>
-                </>
+              )}
+              <Button 
+                onClick={() => {
+                  setShowLearnByPlaying(true);
+                  setShowQuickStart(false);
+                }}
+                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-6 py-2.5 rounded-lg shadow-lg shadow-green-500/25 transition-all hover:shadow-green-500/40"
+              >
+                <BookOpen className="mr-2 h-4 w-4" />
+                Learn by Playing
+              </Button>
+              {!activeCampaign && (
+                <Button 
+                  onClick={() => {
+                    setShowQuickStart(true);
+                    setShowLearnByPlaying(false);
+                  }}
+                  variant="outline"
+                  className="border-white/20 text-white/90 hover:bg-white/10 hover:border-white/30"
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Quick Start
+                </Button>
               )}
               <Link href="/campaigns">
                 <Button variant="outline" className="border-white/20 text-white/90 hover:bg-white/10 hover:border-white/30">
@@ -278,7 +277,7 @@ export default function Dashboard() {
       </section>
       
       {/* Learn by Playing - Solo adventure with companion */}
-      {showLearnByPlaying && !showQuickStart && !activeCampaign && (
+      {showLearnByPlaying && !showQuickStart && (
         <section className="container mx-auto px-4 py-8 -mt-4">
           <Card className="border-2 border-green-500/30 bg-gradient-to-br from-green-500/5 to-emerald-500/5">
             <CardContent className="p-6">
