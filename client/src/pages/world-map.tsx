@@ -185,7 +185,7 @@ export default function WorldMapPage() {
                 backgroundImage: `url(${worldMapBackground})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
-                aspectRatio: '9/7'
+                aspectRatio: '3/2'
               }}
             >
               {/* Inner vignette effect */}
@@ -215,8 +215,8 @@ export default function WorldMapPage() {
               <div 
                 className="absolute inset-0 grid"
                 style={{ 
-                  gridTemplateColumns: "repeat(9, 1fr)",
-                  gridTemplateRows: "repeat(7, 1fr)",
+                  gridTemplateColumns: "repeat(12, 1fr)",
+                  gridTemplateRows: "repeat(8, 1fr)",
                 }}
               >
                 {regions.map((region) => {
