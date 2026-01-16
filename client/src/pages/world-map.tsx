@@ -174,148 +174,119 @@ export default function WorldMapPage() {
         </section>
       </div>
 
-      {/* Main content with world map background */}
+      {/* Main content - Direct map interaction */}
       <div className="container mx-auto px-4 pb-6">
-        <div 
-          className="relative rounded-2xl overflow-hidden border-4 border-amber-800/30 shadow-2xl"
-          style={{
-            backgroundImage: `url(${worldMapBackground})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center'
-          }}
-        >
-          {/* Subtle overlay for readability */}
-          <div className="absolute inset-0 bg-black/30" />
-          
-          {/* Inner vignette effect */}
-          <div className="absolute inset-0 pointer-events-none" style={{
-            boxShadow: 'inset 0 0 100px rgba(0,0,0,0.5)'
-          }} />
-          
-          <div className="relative z-10 p-6">
-            <div className="flex gap-6">
-              {/* World Map Grid */}
-              <div className="flex-1">
-                <Card className="overflow-hidden border-2 border-amber-500/30 bg-black/40 backdrop-blur-sm">
-                  <CardHeader className="bg-gradient-to-r from-amber-900/40 to-orange-900/30 py-3 border-b border-amber-500/20">
-                    <CardTitle className="flex items-center gap-2 text-lg text-amber-100">
-                      <Compass className="h-5 w-5 text-amber-400" />
-                      World Map
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4">
-                    {/* Map Legend */}
-                    <div className="flex flex-wrap gap-4 mb-4 text-xs text-amber-100/80">
-                      <div className="flex items-center gap-1">
-                        <div className={`w-3 h-3 rounded ${dangerColors[1]}`} />
-                        <span>Safe (1-3)</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <div className={`w-3 h-3 rounded ${dangerColors[3]}`} />
-                        <span>Moderate (4-7)</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <div className={`w-3 h-3 rounded ${dangerColors[5]}`} />
-                        <span>Deadly (8+)</span>
-                      </div>
-                      <div className="flex items-center gap-1 ml-auto">
-                        <Lock className="h-3 w-3 text-gray-400" />
-                        <span>Undiscovered</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Eye className="h-3 w-3 text-blue-400" />
-                        <span>Discovered</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3 text-green-400" />
-                        <span>Completed</span>
-                      </div>
-                    </div>
-
-                    {/* The Map Grid - 9x7 grid with regions placed */}
-                    <div 
-                      className="relative bg-black/30 backdrop-blur-sm rounded-lg p-4 border border-amber-500/20"
-                      style={{ minHeight: "400px" }}
-                    >
-                {/* Grid overlay */}
-                <div 
-                  className="absolute inset-4 grid"
-                  style={{ 
-                    gridTemplateColumns: "repeat(9, 1fr)",
-                    gridTemplateRows: "repeat(7, 1fr)",
-                    gap: "4px"
-                  }}
-                >
-                  {regions.map((region) => {
-                    const TerrainIcon = terrainIcons[region.terrain || 'plains'] || Landmark;
-                    const progress = getRegionProgress(region.id);
-                    const progressState = getProgressState(progress);
-                    const isSelected = selectedRegion?.id === region.id;
-                    
-                    return (
-                      <Tooltip key={region.id}>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => setSelectedRegion(isSelected ? null : region)}
-                            className={`
-                              relative rounded-lg transition-all duration-300 cursor-pointer
-                              bg-gradient-to-br ${terrainColors[region.terrain || 'plains']}
-                              hover:scale-105 hover:z-10 hover:shadow-xl
-                              ${isSelected ? 'ring-2 ring-primary scale-105 z-10' : ''}
-                              ${progressState === 'undiscovered' ? 'opacity-60' : ''}
-                            `}
-                            style={{
-                              gridColumn: `${region.gridX} / span ${region.width}`,
-                              gridRow: `${region.gridY} / span ${region.height}`,
-                            }}
-                            data-testid={`region-${region.id}`}
-                          >
-                            {/* Danger indicator */}
-                            <div className={`absolute top-1 right-1 w-2 h-2 rounded-full ${dangerColors[region.dangerLevel || 1]}`} />
-                            
-                            {/* Progress indicator */}
-                            <div className="absolute top-1 left-1">
-                              {getProgressIcon(progressState)}
-                            </div>
-                            
-                            {/* Region content */}
-                            <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
-                              <TerrainIcon 
-                                className="h-6 w-6 mb-1" 
-                                style={{ color: region.color || '#888' }}
-                              />
-                              <span className="text-xs font-medium text-center line-clamp-2 text-white drop-shadow-md">
-                                {region.name}
-                              </span>
-                            </div>
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-xs">
-                          <div className="space-y-1">
-                            <p className="font-bold">{region.name}</p>
-                            <p className="text-xs text-muted-foreground">{region.description}</p>
-                            <div className="flex gap-2 text-xs">
-                              <Badge variant="outline" className="text-xs">
-                                Lvl {region.levelRange}
-                              </Badge>
-                              <Badge 
-                                variant="outline" 
-                                className={`text-xs ${dangerColors[region.dangerLevel || 1]} text-white`}
-                              >
-                                Danger: {region.dangerLevel}/5
-                              </Badge>
-                            </div>
-                            <p className="text-xs italic">{region.knownFor}</p>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  })}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+        <div className="flex gap-4">
+          {/* The Map - Direct interaction */}
+          <div className="flex-1">
+            <div 
+              className="relative rounded-2xl overflow-hidden border-4 border-amber-800/50 shadow-2xl"
+              style={{
+                backgroundImage: `url(${worldMapBackground})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                aspectRatio: '9/7'
+              }}
+            >
+              {/* Inner vignette effect */}
+              <div className="absolute inset-0 pointer-events-none" style={{
+                boxShadow: 'inset 0 0 80px rgba(0,0,0,0.4)'
+              }} />
+              
+              {/* Floating Legend - top left */}
+              <div className="absolute top-3 left-3 z-20 bg-black/60 backdrop-blur-sm rounded-lg px-3 py-2 border border-amber-500/30">
+                <div className="flex flex-wrap gap-3 text-xs text-amber-100/90">
+                  <div className="flex items-center gap-1">
+                    <Lock className="h-3 w-3 text-gray-400" />
+                    <span>Undiscovered</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Eye className="h-3 w-3 text-blue-400" />
+                    <span>Discovered</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3 text-green-400" />
+                    <span>Completed</span>
+                  </div>
+                </div>
               </div>
+
+              {/* Transparent clickable region hotspots - Grid overlay matching map */}
+              <div 
+                className="absolute inset-0 grid"
+                style={{ 
+                  gridTemplateColumns: "repeat(9, 1fr)",
+                  gridTemplateRows: "repeat(7, 1fr)",
+                }}
+              >
+                {regions.map((region) => {
+                  const progress = getRegionProgress(region.id);
+                  const progressState = getProgressState(progress);
+                  const isSelected = selectedRegion?.id === region.id;
+                  
+                  return (
+                    <Tooltip key={region.id}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => setSelectedRegion(isSelected ? null : region)}
+                          className={`
+                            relative transition-all duration-200 cursor-pointer
+                            hover:bg-white/10 hover:backdrop-blur-[1px]
+                            ${isSelected ? 'bg-amber-500/20 ring-2 ring-amber-400/60 ring-inset' : 'bg-transparent'}
+                            ${progressState === 'undiscovered' ? 'opacity-70' : ''}
+                          `}
+                          style={{
+                            gridColumn: `${region.gridX} / span ${region.width}`,
+                            gridRow: `${region.gridY} / span ${region.height}`,
+                          }}
+                          data-testid={`region-${region.id}`}
+                        >
+                          {/* Progress indicator - small corner badge */}
+                          <div className="absolute top-1 left-1 bg-black/50 rounded-full p-0.5">
+                            {getProgressIcon(progressState)}
+                          </div>
+                          
+                          {/* Region name - subtle label on hover or always visible */}
+                          <div className={`
+                            absolute bottom-1 left-1/2 -translate-x-1/2 
+                            px-2 py-0.5 rounded bg-black/70 backdrop-blur-sm
+                            text-xs font-medium text-amber-100 whitespace-nowrap
+                            transition-opacity duration-200
+                            ${isSelected ? 'opacity-100' : 'opacity-0 hover:opacity-100'}
+                          `}>
+                            {region.name}
+                          </div>
+                          
+                          {/* Hover border effect */}
+                          <div className={`
+                            absolute inset-0 rounded-sm border-2 transition-all duration-200
+                            ${isSelected ? 'border-amber-400/60' : 'border-transparent hover:border-white/30'}
+                          `} />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs bg-black/90 border-amber-500/30">
+                        <div className="space-y-1">
+                          <p className="font-bold text-amber-100">{region.name}</p>
+                          <p className="text-xs text-amber-100/70">{region.description}</p>
+                          <div className="flex gap-2 text-xs">
+                            <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-200">
+                              Lvl {region.levelRange}
+                            </Badge>
+                            <Badge 
+                              className={`text-xs ${dangerColors[region.dangerLevel || 1]} text-white`}
+                            >
+                              Danger: {region.dangerLevel}/5
+                            </Badge>
+                          </div>
+                          <p className="text-xs italic text-amber-100/60">{region.knownFor}</p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
 
               {/* Region Details Panel */}
               <div className="w-80">
@@ -492,7 +463,5 @@ export default function WorldMapPage() {
               </div>
             </div>
           </div>
-        </div>
-      </div>
   );
 }
