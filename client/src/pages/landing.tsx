@@ -17,6 +17,7 @@ import {
   CheckCircle
 } from "lucide-react";
 import { motion } from "framer-motion";
+import everdiceBackground from "@assets/image_1768599782346.png";
 
 const features = [
   {
@@ -51,8 +52,18 @@ export default function LandingPage() {
   const { user } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
-      <section className="container mx-auto px-4 pt-12 pb-20 md:pt-20 md:pb-32">
+    <div className="min-h-screen">
+      <section 
+        className="relative min-h-[80vh] flex items-center justify-center"
+        style={{
+          backgroundImage: `url(${everdiceBackground})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/40 to-background" />
+        <div className="container mx-auto px-4 py-20 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -121,6 +132,7 @@ export default function LandingPage() {
             </motion.div>
           ))}
         </motion.div>
+        </div>
       </section>
 
       <section className="container mx-auto px-4 py-16">

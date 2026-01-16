@@ -2678,20 +2678,34 @@ export class DatabaseStorage implements IStorage {
   
   // Player Group operations
   async getPlayerGroups(userId?: number): Promise<PlayerGroup[]> {
+    // Always return all public groups, plus any private groups the user is a member of
+    const publicGroups = await db.select()
+      .from(playerGroups)
+      .where(eq(playerGroups.isPublic, true))
+      .orderBy(desc(playerGroups.createdAt));
+    
     if (userId) {
       const memberships = await db.select()
         .from(playerGroupMembers)
         .where(eq(playerGroupMembers.userId, userId));
       const groupIds = memberships.map(m => m.groupId);
-      if (groupIds.length === 0) return [];
-      return db.select()
-        .from(playerGroups)
-        .where(sql`${playerGroups.id} = ANY(${groupIds})`);
+      
+      if (groupIds.length > 0) {
+        const privateGroups = await db.select()
+          .from(playerGroups)
+          .where(sql`${playerGroups.id} = ANY(${groupIds}) AND ${playerGroups.isPublic} = false`);
+        
+        // Merge, ensuring no duplicates
+        const allGroupIds = new Set(publicGroups.map(g => g.id));
+        for (const pg of privateGroups) {
+          if (!allGroupIds.has(pg.id)) {
+            publicGroups.push(pg);
+          }
+        }
+      }
     }
-    return db.select()
-      .from(playerGroups)
-      .where(eq(playerGroups.isPublic, true))
-      .orderBy(desc(playerGroups.createdAt));
+    
+    return publicGroups;
   }
   
   async getPlayerGroup(id: number): Promise<PlayerGroup | undefined> {
