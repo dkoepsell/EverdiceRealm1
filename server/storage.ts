@@ -38,7 +38,14 @@ import {
   // Reputation system
   factions, type Faction, type InsertFaction,
   characterReputationProfiles, type CharacterReputationProfile, type InsertCharacterReputationProfile,
-  reputationEvents, type ReputationEvent, type InsertReputationEvent
+  reputationEvents, type ReputationEvent, type InsertReputationEvent,
+  // World memory and player groups
+  playerGroups, type PlayerGroup, type InsertPlayerGroup,
+  playerGroupMembers, type PlayerGroupMember, type InsertPlayerGroupMember,
+  worldMemory, type WorldMemory, type InsertWorldMemory,
+  unresolvedThreads, type UnresolvedThread, type InsertUnresolvedThread,
+  characterArcInsights, type CharacterArcInsight, type InsertCharacterArcInsight,
+  userSessionTracking
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or } from "drizzle-orm";
@@ -286,6 +293,48 @@ export interface IStorage {
   updateReputationEvent(id: number, updates: Partial<ReputationEvent>): Promise<ReputationEvent | undefined>;
   markReputationEventProcessed(id: number): Promise<boolean>;
   getCampaignReputationSignals(campaignId: number): Promise<{ characterId: number; characterName: string; profiles: CharacterReputationProfile[]; recentEvents: ReputationEvent[] }[]>;
+  
+  // Player Group operations
+  getPlayerGroups(userId?: number): Promise<PlayerGroup[]>;
+  getPlayerGroup(id: number): Promise<PlayerGroup | undefined>;
+  createPlayerGroup(group: InsertPlayerGroup): Promise<PlayerGroup>;
+  updatePlayerGroup(id: number, updates: Partial<PlayerGroup>): Promise<PlayerGroup | undefined>;
+  deletePlayerGroup(id: number): Promise<boolean>;
+  
+  // Player Group Member operations
+  getPlayerGroupMembers(groupId: number): Promise<PlayerGroupMember[]>;
+  getUserGroupMemberships(userId: number): Promise<PlayerGroupMember[]>;
+  addPlayerGroupMember(member: InsertPlayerGroupMember): Promise<PlayerGroupMember>;
+  updatePlayerGroupMember(id: number, updates: Partial<PlayerGroupMember>): Promise<PlayerGroupMember | undefined>;
+  removePlayerGroupMember(id: number): Promise<boolean>;
+  
+  // World Memory operations
+  getWorldMemories(campaignId: number, memoryType?: string): Promise<WorldMemory[]>;
+  getUnrevealedWorldMemories(campaignId: number): Promise<WorldMemory[]>;
+  createWorldMemory(memory: InsertWorldMemory): Promise<WorldMemory>;
+  updateWorldMemory(id: number, updates: Partial<WorldMemory>): Promise<WorldMemory | undefined>;
+  revealWorldMemory(id: number): Promise<WorldMemory | undefined>;
+  deleteWorldMemory(id: number): Promise<boolean>;
+  
+  // Unresolved Thread operations
+  getUnresolvedThreads(campaignId: number, characterId?: number): Promise<UnresolvedThread[]>;
+  getActiveThreads(campaignId: number): Promise<UnresolvedThread[]>;
+  createUnresolvedThread(thread: InsertUnresolvedThread): Promise<UnresolvedThread>;
+  updateUnresolvedThread(id: number, updates: Partial<UnresolvedThread>): Promise<UnresolvedThread | undefined>;
+  resolveThread(id: number, notes?: string): Promise<UnresolvedThread | undefined>;
+  deleteUnresolvedThread(id: number): Promise<boolean>;
+  
+  // Character Arc Insight operations
+  getCharacterArcInsights(characterId: number, campaignId?: number): Promise<CharacterArcInsight[]>;
+  getUnrevealedInsights(characterId: number): Promise<CharacterArcInsight[]>;
+  createCharacterArcInsight(insight: InsertCharacterArcInsight): Promise<CharacterArcInsight>;
+  revealInsight(id: number): Promise<CharacterArcInsight | undefined>;
+  deleteCharacterArcInsight(id: number): Promise<boolean>;
+  
+  // User Session Tracking (for "Since Last Time...")
+  getUserSessionTracking(userId: number, campaignId: number): Promise<any>;
+  updateUserSessionTracking(userId: number, campaignId: number, bullets: any[]): Promise<any>;
+  getSinceLastTimeBullets(userId: number, campaignId: number): Promise<string[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -2614,6 +2663,308 @@ export class DatabaseStorage implements IStorage {
     }
     
     return results;
+  }
+  
+  // Player Group operations
+  async getPlayerGroups(userId?: number): Promise<PlayerGroup[]> {
+    if (userId) {
+      const memberships = await db.select()
+        .from(playerGroupMembers)
+        .where(eq(playerGroupMembers.userId, userId));
+      const groupIds = memberships.map(m => m.groupId);
+      if (groupIds.length === 0) return [];
+      return db.select()
+        .from(playerGroups)
+        .where(sql`${playerGroups.id} = ANY(${groupIds})`);
+    }
+    return db.select()
+      .from(playerGroups)
+      .where(eq(playerGroups.isPublic, true))
+      .orderBy(desc(playerGroups.createdAt));
+  }
+  
+  async getPlayerGroup(id: number): Promise<PlayerGroup | undefined> {
+    const [group] = await db.select()
+      .from(playerGroups)
+      .where(eq(playerGroups.id, id));
+    return group || undefined;
+  }
+  
+  async createPlayerGroup(group: InsertPlayerGroup): Promise<PlayerGroup> {
+    const [created] = await db.insert(playerGroups)
+      .values({
+        ...group,
+        createdAt: new Date().toISOString()
+      })
+      .returning();
+    return created;
+  }
+  
+  async updatePlayerGroup(id: number, updates: Partial<PlayerGroup>): Promise<PlayerGroup | undefined> {
+    const [updated] = await db.update(playerGroups)
+      .set({ ...updates, updatedAt: new Date().toISOString() })
+      .where(eq(playerGroups.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async deletePlayerGroup(id: number): Promise<boolean> {
+    await db.delete(playerGroupMembers).where(eq(playerGroupMembers.groupId, id));
+    await db.delete(playerGroups).where(eq(playerGroups.id, id));
+    return true;
+  }
+  
+  // Player Group Member operations
+  async getPlayerGroupMembers(groupId: number): Promise<PlayerGroupMember[]> {
+    return db.select()
+      .from(playerGroupMembers)
+      .where(eq(playerGroupMembers.groupId, groupId));
+  }
+  
+  async getUserGroupMemberships(userId: number): Promise<PlayerGroupMember[]> {
+    return db.select()
+      .from(playerGroupMembers)
+      .where(eq(playerGroupMembers.userId, userId));
+  }
+  
+  async addPlayerGroupMember(member: InsertPlayerGroupMember): Promise<PlayerGroupMember> {
+    const [created] = await db.insert(playerGroupMembers)
+      .values({
+        ...member,
+        joinedAt: new Date().toISOString()
+      })
+      .returning();
+    return created;
+  }
+  
+  async updatePlayerGroupMember(id: number, updates: Partial<PlayerGroupMember>): Promise<PlayerGroupMember | undefined> {
+    const [updated] = await db.update(playerGroupMembers)
+      .set(updates)
+      .where(eq(playerGroupMembers.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async removePlayerGroupMember(id: number): Promise<boolean> {
+    await db.delete(playerGroupMembers).where(eq(playerGroupMembers.id, id));
+    return true;
+  }
+  
+  // World Memory operations
+  async getWorldMemories(campaignId: number, memoryType?: string): Promise<WorldMemory[]> {
+    if (memoryType) {
+      return db.select()
+        .from(worldMemory)
+        .where(and(
+          eq(worldMemory.campaignId, campaignId),
+          eq(worldMemory.memoryType, memoryType)
+        ))
+        .orderBy(desc(worldMemory.createdAt));
+    }
+    return db.select()
+      .from(worldMemory)
+      .where(eq(worldMemory.campaignId, campaignId))
+      .orderBy(desc(worldMemory.createdAt));
+  }
+  
+  async getUnrevealedWorldMemories(campaignId: number): Promise<WorldMemory[]> {
+    return db.select()
+      .from(worldMemory)
+      .where(and(
+        eq(worldMemory.campaignId, campaignId),
+        sql`${worldMemory.revealedAt} IS NULL`
+      ))
+      .orderBy(desc(worldMemory.createdAt));
+  }
+  
+  async createWorldMemory(memory: InsertWorldMemory): Promise<WorldMemory> {
+    const [created] = await db.insert(worldMemory)
+      .values({
+        ...memory,
+        createdAt: new Date().toISOString()
+      })
+      .returning();
+    return created;
+  }
+  
+  async updateWorldMemory(id: number, updates: Partial<WorldMemory>): Promise<WorldMemory | undefined> {
+    const [updated] = await db.update(worldMemory)
+      .set(updates)
+      .where(eq(worldMemory.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async revealWorldMemory(id: number): Promise<WorldMemory | undefined> {
+    const [updated] = await db.update(worldMemory)
+      .set({ revealedAt: new Date().toISOString() })
+      .where(eq(worldMemory.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async deleteWorldMemory(id: number): Promise<boolean> {
+    await db.delete(worldMemory).where(eq(worldMemory.id, id));
+    return true;
+  }
+  
+  // Unresolved Thread operations
+  async getUnresolvedThreads(campaignId: number, characterId?: number): Promise<UnresolvedThread[]> {
+    if (characterId) {
+      return db.select()
+        .from(unresolvedThreads)
+        .where(and(
+          eq(unresolvedThreads.campaignId, campaignId),
+          eq(unresolvedThreads.characterId, characterId)
+        ))
+        .orderBy(desc(unresolvedThreads.createdAt));
+    }
+    return db.select()
+      .from(unresolvedThreads)
+      .where(eq(unresolvedThreads.campaignId, campaignId))
+      .orderBy(desc(unresolvedThreads.createdAt));
+  }
+  
+  async getActiveThreads(campaignId: number): Promise<UnresolvedThread[]> {
+    return db.select()
+      .from(unresolvedThreads)
+      .where(and(
+        eq(unresolvedThreads.campaignId, campaignId),
+        eq(unresolvedThreads.status, "active")
+      ))
+      .orderBy(desc(unresolvedThreads.createdAt));
+  }
+  
+  async createUnresolvedThread(thread: InsertUnresolvedThread): Promise<UnresolvedThread> {
+    const [created] = await db.insert(unresolvedThreads)
+      .values({
+        ...thread,
+        createdAt: new Date().toISOString()
+      })
+      .returning();
+    return created;
+  }
+  
+  async updateUnresolvedThread(id: number, updates: Partial<UnresolvedThread>): Promise<UnresolvedThread | undefined> {
+    const [updated] = await db.update(unresolvedThreads)
+      .set(updates)
+      .where(eq(unresolvedThreads.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async resolveThread(id: number, notes?: string): Promise<UnresolvedThread | undefined> {
+    const [updated] = await db.update(unresolvedThreads)
+      .set({ 
+        status: "resolved", 
+        resolvedAt: new Date().toISOString(),
+        resolutionNotes: notes || null
+      })
+      .where(eq(unresolvedThreads.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async deleteUnresolvedThread(id: number): Promise<boolean> {
+    await db.delete(unresolvedThreads).where(eq(unresolvedThreads.id, id));
+    return true;
+  }
+  
+  // Character Arc Insight operations
+  async getCharacterArcInsights(characterId: number, campaignId?: number): Promise<CharacterArcInsight[]> {
+    if (campaignId) {
+      return db.select()
+        .from(characterArcInsights)
+        .where(and(
+          eq(characterArcInsights.characterId, characterId),
+          eq(characterArcInsights.campaignId, campaignId)
+        ))
+        .orderBy(desc(characterArcInsights.createdAt));
+    }
+    return db.select()
+      .from(characterArcInsights)
+      .where(eq(characterArcInsights.characterId, characterId))
+      .orderBy(desc(characterArcInsights.createdAt));
+  }
+  
+  async getUnrevealedInsights(characterId: number): Promise<CharacterArcInsight[]> {
+    return db.select()
+      .from(characterArcInsights)
+      .where(and(
+        eq(characterArcInsights.characterId, characterId),
+        eq(characterArcInsights.isRevealed, false)
+      ))
+      .orderBy(desc(characterArcInsights.createdAt));
+  }
+  
+  async createCharacterArcInsight(insight: InsertCharacterArcInsight): Promise<CharacterArcInsight> {
+    const [created] = await db.insert(characterArcInsights)
+      .values({
+        ...insight,
+        createdAt: new Date().toISOString()
+      })
+      .returning();
+    return created;
+  }
+  
+  async revealInsight(id: number): Promise<CharacterArcInsight | undefined> {
+    const [updated] = await db.update(characterArcInsights)
+      .set({ isRevealed: true, revealedAt: new Date().toISOString() })
+      .where(eq(characterArcInsights.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async deleteCharacterArcInsight(id: number): Promise<boolean> {
+    await db.delete(characterArcInsights).where(eq(characterArcInsights.id, id));
+    return true;
+  }
+  
+  // User Session Tracking (for "Since Last Time...")
+  async getUserSessionTracking(userId: number, campaignId: number): Promise<any> {
+    const [tracking] = await db.select()
+      .from(userSessionTracking)
+      .where(and(
+        eq(userSessionTracking.userId, userId),
+        eq(userSessionTracking.campaignId, campaignId)
+      ));
+    return tracking || null;
+  }
+  
+  async updateUserSessionTracking(userId: number, campaignId: number, bullets: any[]): Promise<any> {
+    const existing = await this.getUserSessionTracking(userId, campaignId);
+    
+    if (existing) {
+      const [updated] = await db.update(userSessionTracking)
+        .set({
+          lastLoginAt: new Date().toISOString(),
+          sinceThenBullets: bullets,
+          bulletsCachedAt: new Date().toISOString()
+        })
+        .where(and(
+          eq(userSessionTracking.userId, userId),
+          eq(userSessionTracking.campaignId, campaignId)
+        ))
+        .returning();
+      return updated;
+    }
+    
+    const [created] = await db.insert(userSessionTracking)
+      .values({
+        userId,
+        campaignId,
+        lastLoginAt: new Date().toISOString(),
+        sinceThenBullets: bullets,
+        bulletsCachedAt: new Date().toISOString()
+      })
+      .returning();
+    return created;
+  }
+  
+  async getSinceLastTimeBullets(userId: number, campaignId: number): Promise<string[]> {
+    const tracking = await this.getUserSessionTracking(userId, campaignId);
+    if (!tracking || !tracking.sinceThenBullets) return [];
+    return tracking.sinceThenBullets as string[];
   }
 }
 

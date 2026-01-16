@@ -948,3 +948,150 @@ export const insertReputationEventSchema = createInsertSchema(reputationEvents).
 
 export type InsertReputationEvent = z.infer<typeof insertReputationEventSchema>;
 export type ReputationEvent = typeof reputationEvents.$inferSelect;
+
+// Player-Created Groups (Parties, Guilds, Factions)
+export const playerGroups = pgTable("player_groups", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // party, guild, faction, order, brotherhood, company
+  description: text("description"),
+  motto: text("motto"),
+  emblemUrl: text("emblem_url"),
+  // Leadership
+  founderId: integer("founder_id").notNull(),
+  leaderIds: integer("leader_ids").array().default([]),
+  // Collective reputation
+  collectiveIdentity: text("collective_identity"), // "Known for decisive action"
+  reputationDescriptor: text("reputation_descriptor"), // Narrative description of how they're perceived
+  notableAchievements: jsonb("notable_achievements").default([]), // [{achievement, date, significance}]
+  // Settings
+  isPublic: boolean("is_public").default(true),
+  maxMembers: integer("max_members").default(20),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  updatedAt: text("updated_at"),
+});
+
+export const insertPlayerGroupSchema = createInsertSchema(playerGroups).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPlayerGroup = z.infer<typeof insertPlayerGroupSchema>;
+export type PlayerGroup = typeof playerGroups.$inferSelect;
+
+// Group Membership
+export const playerGroupMembers = pgTable("player_group_members", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id").notNull(),
+  userId: integer("user_id").notNull(),
+  characterId: integer("character_id"), // Which character represents them (optional)
+  role: text("role").default("member"), // founder, leader, officer, member
+  title: text("title"), // Custom title within the group
+  joinedAt: text("joined_at").notNull().default(new Date().toISOString()),
+  isActive: boolean("is_active").default(true),
+});
+
+export const insertPlayerGroupMemberSchema = createInsertSchema(playerGroupMembers).omit({
+  id: true,
+  joinedAt: true,
+});
+
+export type InsertPlayerGroupMember = z.infer<typeof insertPlayerGroupMemberSchema>;
+export type PlayerGroupMember = typeof playerGroupMembers.$inferSelect;
+
+// World Memory - Tracks significant events for "Since Last Time..." and delayed consequences
+export const worldMemory = pgTable("world_memory", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  // Memory classification
+  memoryType: text("memory_type").notNull(), // npc_reaction, rumor_spread, faction_shift, location_change, consequence_pending, promise_made
+  // Content
+  subject: text("subject").notNull(), // Who/what this memory is about
+  narrative: text("narrative").notNull(), // The narrative description
+  details: jsonb("details").default({}), // Structured data about the memory
+  // Visibility and state
+  isResolved: boolean("is_resolved").default(false), // For pending consequences
+  revealedAt: text("revealed_at"), // When this surfaced to players (null = not yet)
+  // Causality tracking
+  causedByCharacterId: integer("caused_by_character_id"),
+  triggeringEventId: integer("triggering_event_id"), // Link to reputation event
+  // Timing
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  expiresAt: text("expires_at"), // When this memory fades (null = permanent)
+});
+
+export const insertWorldMemorySchema = createInsertSchema(worldMemory).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertWorldMemory = z.infer<typeof insertWorldMemorySchema>;
+export type WorldMemory = typeof worldMemory.$inferSelect;
+
+// Unresolved Threads - Promises, tensions, and pending consequences
+export const unresolvedThreads = pgTable("unresolved_threads", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  characterId: integer("character_id"), // Null = party-wide
+  // Thread type
+  threadType: text("thread_type").notNull(), // promise, tension, consequence, mystery, relationship
+  // Content
+  title: text("title").notNull(), // Brief summary
+  narrative: text("narrative").notNull(), // Full description
+  involvedParties: text("involved_parties").array().default([]), // NPCs, factions, or locations involved
+  // State
+  urgency: text("urgency").default("low"), // low, moderate, high, critical
+  status: text("status").default("active"), // active, dormant, resolved, failed
+  // Resolution
+  resolvedAt: text("resolved_at"),
+  resolutionNotes: text("resolution_notes"),
+  // Tracking
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  lastMentionedAt: text("last_mentioned_at"),
+});
+
+export const insertUnresolvedThreadSchema = createInsertSchema(unresolvedThreads).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertUnresolvedThread = z.infer<typeof insertUnresolvedThreadSchema>;
+export type UnresolvedThread = typeof unresolvedThreads.$inferSelect;
+
+// Character Arc Insights - Subtle patterns and turning points
+export const characterArcInsights = pgTable("character_arc_insights", {
+  id: serial("id").primaryKey(),
+  characterId: integer("character_id").notNull(),
+  campaignId: integer("campaign_id").notNull(),
+  // Insight type
+  insightType: text("insight_type").notNull(), // turning_point, pattern_emerging, crossroads, growth_moment
+  // Content
+  teaser: text("teaser").notNull(), // Cryptic hint: "A pattern is becoming noticeable"
+  fullInsight: text("full_insight"), // Detailed insight (revealed later or to DM)
+  relatedBehaviors: jsonb("related_behaviors").default([]), // Events that led to this insight
+  // Display state
+  isRevealed: boolean("is_revealed").default(false), // Whether player has seen this
+  revealedAt: text("revealed_at"),
+  // Tracking
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  expiresAt: text("expires_at"), // When insight is no longer relevant
+});
+
+export const insertCharacterArcInsightSchema = createInsertSchema(characterArcInsights).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertCharacterArcInsight = z.infer<typeof insertCharacterArcInsightSchema>;
+export type CharacterArcInsight = typeof characterArcInsights.$inferSelect;
+
+// User Session Tracking - For "Since Last Time..." feature
+export const userSessionTracking = pgTable("user_session_tracking", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  campaignId: integer("campaign_id").notNull(),
+  lastLoginAt: text("last_login_at").notNull(),
+  lastWorldStateHash: text("last_world_state_hash"), // To detect meaningful changes
+  sinceThenBullets: jsonb("since_then_bullets").default([]), // Cached bullets for display
+  bulletsCachedAt: text("bullets_cached_at"),
+});

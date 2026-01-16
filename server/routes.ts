@@ -12944,6 +12944,346 @@ ALWAYS generate:
     }
   });
 
+  // ========== PLAYER GROUPS (Parties, Guilds, Factions) ==========
+  
+  // Get all public groups or user's groups
+  app.get("/api/groups", async (req, res) => {
+    try {
+      const userId = req.isAuthenticated() ? (req.user as any).id : undefined;
+      const groups = await storage.getPlayerGroups(userId);
+      res.json(groups);
+    } catch (error) {
+      console.error("Failed to fetch groups:", error);
+      res.status(500).json({ message: "Failed to fetch groups" });
+    }
+  });
+  
+  // Get a specific group with members
+  app.get("/api/groups/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const group = await storage.getPlayerGroup(id);
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+      const members = await storage.getPlayerGroupMembers(id);
+      res.json({ ...group, members });
+    } catch (error) {
+      console.error("Failed to fetch group:", error);
+      res.status(500).json({ message: "Failed to fetch group" });
+    }
+  });
+  
+  // Create a new group
+  app.post("/api/groups", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const group = await storage.createPlayerGroup({
+        ...req.body,
+        founderId: userId,
+        leaderIds: [userId]
+      });
+      // Add founder as member
+      await storage.addPlayerGroupMember({
+        groupId: group.id,
+        userId,
+        role: "founder"
+      });
+      res.status(201).json(group);
+    } catch (error) {
+      console.error("Failed to create group:", error);
+      res.status(500).json({ message: "Failed to create group" });
+    }
+  });
+  
+  // Update a group
+  app.patch("/api/groups/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const group = await storage.getPlayerGroup(id);
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+      if (group.founderId !== req.user.id && !group.leaderIds?.includes(req.user.id)) {
+        return res.status(403).json({ message: "Not authorized to update this group" });
+      }
+      const updated = await storage.updatePlayerGroup(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to update group:", error);
+      res.status(500).json({ message: "Failed to update group" });
+    }
+  });
+  
+  // Delete a group
+  app.delete("/api/groups/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const group = await storage.getPlayerGroup(id);
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+      if (group.founderId !== req.user.id) {
+        return res.status(403).json({ message: "Only the founder can delete this group" });
+      }
+      await storage.deletePlayerGroup(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete group:", error);
+      res.status(500).json({ message: "Failed to delete group" });
+    }
+  });
+  
+  // Add member to group
+  app.post("/api/groups/:id/members", isAuthenticated, async (req: any, res) => {
+    try {
+      const groupId = parseInt(req.params.id);
+      const group = await storage.getPlayerGroup(groupId);
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+      // For now, users can add themselves; later could add invite system
+      const member = await storage.addPlayerGroupMember({
+        groupId,
+        userId: req.body.userId || req.user.id,
+        characterId: req.body.characterId,
+        role: req.body.role || "member",
+        title: req.body.title
+      });
+      res.status(201).json(member);
+    } catch (error) {
+      console.error("Failed to add group member:", error);
+      res.status(500).json({ message: "Failed to add member" });
+    }
+  });
+  
+  // Remove member from group
+  app.delete("/api/groups/:groupId/members/:memberId", isAuthenticated, async (req: any, res) => {
+    try {
+      const groupId = parseInt(req.params.groupId);
+      const memberId = parseInt(req.params.memberId);
+      const group = await storage.getPlayerGroup(groupId);
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+      await storage.removePlayerGroupMember(memberId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to remove group member:", error);
+      res.status(500).json({ message: "Failed to remove member" });
+    }
+  });
+  
+  // ========== WORLD MEMORY (Since Last Time...) ==========
+  
+  // Get world memories for a campaign
+  app.get("/api/campaigns/:campaignId/world-memory", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const memoryType = req.query.type as string | undefined;
+      const memories = await storage.getWorldMemories(campaignId, memoryType);
+      res.json(memories);
+    } catch (error) {
+      console.error("Failed to fetch world memories:", error);
+      res.status(500).json({ message: "Failed to fetch world memories" });
+    }
+  });
+  
+  // Create a world memory
+  app.post("/api/campaigns/:campaignId/world-memory", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const memory = await storage.createWorldMemory({
+        ...req.body,
+        campaignId
+      });
+      res.status(201).json(memory);
+    } catch (error) {
+      console.error("Failed to create world memory:", error);
+      res.status(500).json({ message: "Failed to create world memory" });
+    }
+  });
+  
+  // Reveal a world memory to players
+  app.patch("/api/world-memory/:id/reveal", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const revealed = await storage.revealWorldMemory(id);
+      res.json(revealed);
+    } catch (error) {
+      console.error("Failed to reveal world memory:", error);
+      res.status(500).json({ message: "Failed to reveal memory" });
+    }
+  });
+  
+  // ========== UNRESOLVED THREADS ==========
+  
+  // Get unresolved threads for a campaign
+  app.get("/api/campaigns/:campaignId/threads", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const characterId = req.query.characterId ? parseInt(req.query.characterId as string) : undefined;
+      const threads = await storage.getUnresolvedThreads(campaignId, characterId);
+      res.json(threads);
+    } catch (error) {
+      console.error("Failed to fetch threads:", error);
+      res.status(500).json({ message: "Failed to fetch threads" });
+    }
+  });
+  
+  // Get active threads only
+  app.get("/api/campaigns/:campaignId/threads/active", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const threads = await storage.getActiveThreads(campaignId);
+      res.json(threads);
+    } catch (error) {
+      console.error("Failed to fetch active threads:", error);
+      res.status(500).json({ message: "Failed to fetch active threads" });
+    }
+  });
+  
+  // Create an unresolved thread
+  app.post("/api/campaigns/:campaignId/threads", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const thread = await storage.createUnresolvedThread({
+        ...req.body,
+        campaignId
+      });
+      res.status(201).json(thread);
+    } catch (error) {
+      console.error("Failed to create thread:", error);
+      res.status(500).json({ message: "Failed to create thread" });
+    }
+  });
+  
+  // Resolve a thread
+  app.patch("/api/threads/:id/resolve", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const resolved = await storage.resolveThread(id, req.body.notes);
+      res.json(resolved);
+    } catch (error) {
+      console.error("Failed to resolve thread:", error);
+      res.status(500).json({ message: "Failed to resolve thread" });
+    }
+  });
+  
+  // ========== CHARACTER ARC INSIGHTS ==========
+  
+  // Get insights for a character
+  app.get("/api/characters/:characterId/arc-insights", isAuthenticated, async (req, res) => {
+    try {
+      const characterId = parseInt(req.params.characterId);
+      const campaignId = req.query.campaignId ? parseInt(req.query.campaignId as string) : undefined;
+      const insights = await storage.getCharacterArcInsights(characterId, campaignId);
+      res.json(insights);
+    } catch (error) {
+      console.error("Failed to fetch arc insights:", error);
+      res.status(500).json({ message: "Failed to fetch arc insights" });
+    }
+  });
+  
+  // Get unrevealed insights for a character
+  app.get("/api/characters/:characterId/arc-insights/unrevealed", isAuthenticated, async (req, res) => {
+    try {
+      const characterId = parseInt(req.params.characterId);
+      const insights = await storage.getUnrevealedInsights(characterId);
+      res.json(insights);
+    } catch (error) {
+      console.error("Failed to fetch unrevealed insights:", error);
+      res.status(500).json({ message: "Failed to fetch unrevealed insights" });
+    }
+  });
+  
+  // Create an arc insight
+  app.post("/api/characters/:characterId/arc-insights", isAuthenticated, async (req: any, res) => {
+    try {
+      const characterId = parseInt(req.params.characterId);
+      const insight = await storage.createCharacterArcInsight({
+        ...req.body,
+        characterId
+      });
+      res.status(201).json(insight);
+    } catch (error) {
+      console.error("Failed to create arc insight:", error);
+      res.status(500).json({ message: "Failed to create arc insight" });
+    }
+  });
+  
+  // Reveal an insight
+  app.patch("/api/arc-insights/:id/reveal", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const revealed = await storage.revealInsight(id);
+      res.json(revealed);
+    } catch (error) {
+      console.error("Failed to reveal insight:", error);
+      res.status(500).json({ message: "Failed to reveal insight" });
+    }
+  });
+  
+  // ========== SINCE LAST TIME... ==========
+  
+  // Get "Since Last Time..." bullets for a campaign
+  app.get("/api/campaigns/:campaignId/since-last-time", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = req.user.id;
+      
+      // Get tracking data
+      const tracking = await storage.getUserSessionTracking(userId, campaignId);
+      
+      // If no tracking or stale, generate new bullets from world memory
+      const now = new Date();
+      const shouldRefresh = !tracking || 
+        !tracking.bulletsCachedAt || 
+        (new Date(tracking.bulletsCachedAt).getTime() < now.getTime() - 3600000); // 1 hour cache
+      
+      if (shouldRefresh) {
+        // Get recent world memories since last login
+        const memories = await storage.getWorldMemories(campaignId);
+        const lastLogin = tracking?.lastLoginAt ? new Date(tracking.lastLoginAt) : new Date(0);
+        
+        // Filter to events since last login and generate bullets
+        const recentMemories = memories.filter(m => 
+          new Date(m.createdAt) > lastLogin
+        ).slice(0, 5);
+        
+        const bullets = recentMemories.map(m => m.narrative);
+        
+        // Update tracking
+        await storage.updateUserSessionTracking(userId, campaignId, bullets);
+        
+        res.json({ bullets, lastLogin: tracking?.lastLoginAt || null });
+      } else {
+        res.json({ 
+          bullets: tracking.sinceThenBullets || [], 
+          lastLogin: tracking.lastLoginAt 
+        });
+      }
+    } catch (error) {
+      console.error("Failed to fetch since-last-time data:", error);
+      res.status(500).json({ message: "Failed to fetch since-last-time data" });
+    }
+  });
+  
+  // Record a campaign visit (updates last login)
+  app.post("/api/campaigns/:campaignId/record-visit", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = req.user.id;
+      
+      // Update session tracking with current login time
+      const tracking = await storage.updateUserSessionTracking(userId, campaignId, []);
+      res.json(tracking);
+    } catch (error) {
+      console.error("Failed to record visit:", error);
+      res.status(500).json({ message: "Failed to record visit" });
+    }
+  });
+
   // ========== ADMIN ROUTES ==========
   
   // Get all users with stats (admin only)
