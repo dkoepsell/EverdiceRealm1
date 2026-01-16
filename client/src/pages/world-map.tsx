@@ -13,7 +13,7 @@ import {
 import { useState } from "react";
 import type { WorldRegion, WorldLocation, UserWorldProgress } from "@shared/schema";
 import parchmentFrame from "@assets/image_1768600727955.png";
-import worldMapImage from "@assets/image_1768601346570.png";
+import worldMapBackground from "@assets/image_1768601537026.png";
 
 const terrainIcons: Record<string, typeof Mountain> = {
   mountain: Mountain,
@@ -472,11 +472,11 @@ export default function WorldMapPage() {
         </div>
       </div>
 
-      {/* World Map Illustration */}
+      {/* World Map Background Illustration */}
       <div className="mt-8">
         <div className="relative rounded-xl overflow-hidden border-4 border-amber-800/40 shadow-2xl">
           <img 
-            src={worldMapImage} 
+            src={worldMapBackground} 
             alt="The Realm of Everdice - World Map" 
             className="w-full h-auto"
           />
