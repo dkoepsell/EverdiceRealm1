@@ -219,14 +219,14 @@ export default function WorldMapPage() {
                 
                 // Precise positions matching where text labels appear on the map
                 const labelPositions: Record<string, { left: string; top: string; width: string; height: string }> = {
-                  'The Frostpeak Mountains': { left: '4%', top: '6%', width: '14%', height: '8%' },
-                  'The Whispering Woods': { left: '30%', top: '10%', width: '18%', height: '6%' },
-                  'Shadowfen Marshes': { left: '62%', top: '8%', width: '18%', height: '6%' },
-                  'The Verdant Heartlands': { left: '25%', top: '42%', width: '18%', height: '8%' },
-                  'The Blighted Wastes': { left: '56%', top: '38%', width: '18%', height: '6%' },
-                  'Crystal Bay': { left: '10%', top: '80%', width: '12%', height: '6%' },
-                  'Sunfire Desert': { left: '36%', top: '68%', width: '14%', height: '6%' },
-                  'Ember Volcanic Isles': { left: '62%', top: '80%', width: '18%', height: '6%' },
+                  'The Frostpeak Mountains': { left: '6%', top: '11%', width: '12%', height: '7%' },
+                  'The Whispering Woods': { left: '28%', top: '16%', width: '17%', height: '5%' },
+                  'Shadowfen Marshes': { left: '60%', top: '13%', width: '17%', height: '5%' },
+                  'The Verdant Heartlands': { left: '35%', top: '38%', width: '15%', height: '8%' },
+                  'The Blighted Wastes': { left: '53%', top: '46%', width: '16%', height: '5%' },
+                  'Crystal Bay': { left: '12%', top: '83%', width: '11%', height: '5%' },
+                  'Sunfire Desert': { left: '39%', top: '62%', width: '13%', height: '5%' },
+                  'Ember Volcanic Isles': { left: '62%', top: '83%', width: '17%', height: '5%' },
                 };
                 
                 const pos = labelPositions[region.name] || { left: '0%', top: '0%', width: '10%', height: '5%' };
