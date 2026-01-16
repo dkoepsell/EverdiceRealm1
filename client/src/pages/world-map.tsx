@@ -211,80 +211,71 @@ export default function WorldMapPage() {
                 </div>
               </div>
 
-              {/* Transparent clickable region hotspots - Grid overlay matching map */}
-              <div 
-                className="absolute inset-0 grid"
-                style={{ 
-                  gridTemplateColumns: "repeat(12, 1fr)",
-                  gridTemplateRows: "repeat(8, 1fr)",
-                }}
-              >
-                {regions.map((region) => {
-                  const progress = getRegionProgress(region.id);
-                  const progressState = getProgressState(progress);
-                  const isSelected = selectedRegion?.id === region.id;
-                  
-                  return (
-                    <Tooltip key={region.id}>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => setSelectedRegion(isSelected ? null : region)}
-                          className={`
-                            relative transition-all duration-200 cursor-pointer
-                            hover:bg-white/10 hover:backdrop-blur-[1px]
-                            ${isSelected ? 'bg-amber-500/20 ring-2 ring-amber-400/60 ring-inset' : 'bg-transparent'}
-                            ${progressState === 'undiscovered' ? 'opacity-70' : ''}
-                          `}
-                          style={{
-                            gridColumn: `${region.gridX} / span ${region.width}`,
-                            gridRow: `${region.gridY} / span ${region.height}`,
-                          }}
-                          data-testid={`region-${region.id}`}
-                        >
-                          {/* Progress indicator - small corner badge */}
-                          <div className="absolute top-1 left-1 bg-black/50 rounded-full p-0.5">
-                            {getProgressIcon(progressState)}
-                          </div>
-                          
-                          {/* Region name - subtle label on hover or always visible */}
-                          <div className={`
-                            absolute bottom-1 left-1/2 -translate-x-1/2 
-                            px-2 py-0.5 rounded bg-black/70 backdrop-blur-sm
-                            text-xs font-medium text-amber-100 whitespace-nowrap
-                            transition-opacity duration-200
-                            ${isSelected ? 'opacity-100' : 'opacity-0 hover:opacity-100'}
-                          `}>
-                            {region.name}
-                          </div>
-                          
-                          {/* Hover border effect */}
-                          <div className={`
-                            absolute inset-0 rounded-sm border-2 transition-all duration-200
-                            ${isSelected ? 'border-amber-400/60' : 'border-transparent hover:border-white/30'}
-                          `} />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-xs bg-black/90 border-amber-500/30">
-                        <div className="space-y-1">
-                          <p className="font-bold text-amber-100">{region.name}</p>
-                          <p className="text-xs text-amber-100/70">{region.description}</p>
-                          <div className="flex gap-2 text-xs">
-                            <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-200">
-                              Lvl {region.levelRange}
-                            </Badge>
-                            <Badge 
-                              className={`text-xs ${dangerColors[region.dangerLevel || 1]} text-white`}
-                            >
-                              Danger: {region.dangerLevel}/5
-                            </Badge>
-                          </div>
-                          <p className="text-xs italic text-amber-100/60">{region.knownFor}</p>
+              {/* Transparent clickable region hotspots - positioned exactly on text labels */}
+              {regions.map((region) => {
+                const progress = getRegionProgress(region.id);
+                const progressState = getProgressState(progress);
+                const isSelected = selectedRegion?.id === region.id;
+                
+                // Precise positions matching where text labels appear on the map
+                const labelPositions: Record<string, { left: string; top: string; width: string; height: string }> = {
+                  'The Frostpeak Mountains': { left: '4%', top: '6%', width: '14%', height: '8%' },
+                  'The Whispering Woods': { left: '30%', top: '10%', width: '18%', height: '6%' },
+                  'Shadowfen Marshes': { left: '62%', top: '8%', width: '18%', height: '6%' },
+                  'The Verdant Heartlands': { left: '25%', top: '42%', width: '18%', height: '8%' },
+                  'The Blighted Wastes': { left: '56%', top: '38%', width: '18%', height: '6%' },
+                  'Crystal Bay': { left: '10%', top: '80%', width: '12%', height: '6%' },
+                  'Sunfire Desert': { left: '36%', top: '68%', width: '14%', height: '6%' },
+                  'Ember Volcanic Isles': { left: '62%', top: '80%', width: '18%', height: '6%' },
+                };
+                
+                const pos = labelPositions[region.name] || { left: '0%', top: '0%', width: '10%', height: '5%' };
+                
+                return (
+                  <Tooltip key={region.id}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setSelectedRegion(isSelected ? null : region)}
+                        className={`
+                          absolute transition-all duration-200 cursor-pointer rounded
+                          hover:bg-amber-500/30 hover:backdrop-blur-[2px]
+                          ${isSelected ? 'bg-amber-500/40 ring-2 ring-amber-400 shadow-lg shadow-amber-500/20' : 'bg-transparent'}
+                          ${progressState === 'undiscovered' ? 'opacity-60' : ''}
+                        `}
+                        style={{
+                          left: pos.left,
+                          top: pos.top,
+                          width: pos.width,
+                          height: pos.height,
+                        }}
+                        data-testid={`region-${region.id}`}
+                      >
+                        {/* Progress indicator */}
+                        <div className="absolute -top-1 -left-1 bg-black/70 rounded-full p-0.5">
+                          {getProgressIcon(progressState)}
                         </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  );
-                })}
-              </div>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs bg-black/90 border-amber-500/30">
+                      <div className="space-y-1">
+                        <p className="font-bold text-amber-100">{region.name}</p>
+                        <p className="text-xs text-amber-100/70">{region.description}</p>
+                        <div className="flex gap-2 text-xs">
+                          <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-200">
+                            Lvl {region.levelRange}
+                          </Badge>
+                          <Badge 
+                            className={`text-xs ${dangerColors[region.dangerLevel || 1]} text-white`}
+                          >
+                            Danger: {region.dangerLevel}/5
+                          </Badge>
+                        </div>
+                        <p className="text-xs italic text-amber-100/60">{region.knownFor}</p>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
             </div>
           </div>
 
