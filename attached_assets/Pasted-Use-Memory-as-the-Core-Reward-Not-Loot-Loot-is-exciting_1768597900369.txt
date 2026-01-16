@@ -1,0 +1,115 @@
+Use Memory as the Core Reward, Not Loot
+
+Loot is exciting short-term. Being remembered is exciting long-term.
+
+Sticky system-level idea
+
+A. Persistent World Memory
+Show players subtle reminders:
+
+NPCs referencing past actions
+
+Factions responding differently
+
+Locations changing over time
+
+Crucially:
+
+don’t always reward
+
+sometimes complicate
+
+That’s what makes it feel real.
+
+4. Make Returning Feel Like “Coming Back to Something Alive”
+
+One of the strongest retention drivers is the feeling that the world moved, even slightly, between sessions.
+
+Low-effort, high-impact feature
+
+“Since Last Time…”
+When a player logs in:
+
+3–5 short bullets
+
+written in narrative voice
+
+Example:
+
+Since last time…
+• The guards in Thornbridge remain wary of you
+• Rumors of the harpies have spread upriver
+• Grimshaw still hasn’t forgiven what happened in the woods
+
+This creates emotional continuity, not mechanical obligation.
+
+5. Make Choices Feel Meaningful Without Being Stressful
+
+Stickiness dies if choices feel either:
+
+meaningless
+
+or punishing
+
+The sweet spot
+
+Delayed Consequence Visibility
+
+Don’t immediately show outcomes
+
+Let effects surface later
+
+Let players recognize causality themselves
+
+This creates “aha” moments that keep people thinking between sessions.
+
+6. Social Stickiness Without Social Pressure
+
+People return to games because of shared memory, not because of schedules.
+
+Subtle social hooks
+
+A. Shared Party Identity
+
+Show the party’s emerging reputation:
+
+“Known for decisive action”
+
+“Often trusted with delicate matters”
+
+This gives players a collective story they want to continue.
+
+B. Private Reflections
+Let players see:
+
+how their character is perceived
+
+how they differ from the group
+
+This fuels roleplay without conflict.
+
+7. Give Players Reasons to Care Even When They’re Not Playing
+
+This is where many tabletop-adjacent apps fail.
+
+Sticky out-of-session ideas
+
+A. Character Arc Teasers
+Between sessions:
+
+“Your character is at a turning point.”
+
+“A pattern is becoming noticeable.”
+
+No details. Just intrigue.
+
+B. Unresolved Threads
+Show:
+
+promises not yet tested
+
+relationships in tension
+
+consequences waiting to land
+
+This keeps the campaign mentally present.
