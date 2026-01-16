@@ -243,21 +243,29 @@ export default function Dashboard() {
                   Continue Adventure
                 </Button>
               ) : (
-                <Button 
-                  onClick={() => setShowLearnByPlaying(true)}
-                  className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-6 py-2.5 rounded-lg shadow-lg shadow-green-500/25 transition-all hover:shadow-green-500/40"
-                >
-                  <Play className="mr-2 h-4 w-4" />
-                  Learn by Playing
-                </Button>
-                <Button 
-                  onClick={() => setShowQuickStart(true)}
-                  variant="outline"
-                  className="border-white/20 text-white/90 hover:bg-white/10 hover:border-white/30"
-                >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Quick Start
-                </Button>
+                <>
+                  <Button 
+                    onClick={() => {
+                      setShowLearnByPlaying(true);
+                      setShowQuickStart(false);
+                    }}
+                    className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-6 py-2.5 rounded-lg shadow-lg shadow-green-500/25 transition-all hover:shadow-green-500/40"
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    Learn by Playing
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      setShowQuickStart(true);
+                      setShowLearnByPlaying(false);
+                    }}
+                    variant="outline"
+                    className="border-white/20 text-white/90 hover:bg-white/10 hover:border-white/30"
+                  >
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Quick Start
+                  </Button>
+                </>
               )}
               <Link href="/campaigns">
                 <Button variant="outline" className="border-white/20 text-white/90 hover:bg-white/10 hover:border-white/30">
@@ -270,16 +278,20 @@ export default function Dashboard() {
       </section>
       
       {/* Learn by Playing - Solo adventure with companion */}
-      {showLearnByPlaying && !activeCampaign && (
+      {showLearnByPlaying && !showQuickStart && !activeCampaign && (
         <section className="container mx-auto px-4 py-8 -mt-4">
           <Card className="border-2 border-green-500/30 bg-gradient-to-br from-green-500/5 to-emerald-500/5">
             <CardContent className="p-6">
               <PlayerQuickStart 
                 onComplete={(campaignId, characterId) => {
                   setShowLearnByPlaying(false);
+                  setShowQuickStart(false);
                   setSelectedCampaignId(campaignId);
                 }}
-                onCancel={() => setShowLearnByPlaying(false)}
+                onCancel={() => {
+                  setShowLearnByPlaying(false);
+                  setShowQuickStart(false);
+                }}
               />
             </CardContent>
           </Card>
@@ -291,7 +303,10 @@ export default function Dashboard() {
         <section className="container mx-auto px-4 py-8 -mt-4">
           <QuickStart 
             existingCharacters={characters} 
-            onComplete={() => setShowQuickStart(false)} 
+            onComplete={() => {
+              setShowQuickStart(false);
+              setShowLearnByPlaying(false);
+            }} 
           />
         </section>
       )}

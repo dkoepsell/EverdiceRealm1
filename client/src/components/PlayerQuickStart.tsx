@@ -198,6 +198,17 @@ export default function PlayerQuickStart({
         throw new Error("Please complete all selections");
       }
 
+      const stats = {
+        strength: charTemplate.class === "Fighter" ? 16 : charTemplate.class === "Paladin" ? 15 : charTemplate.class === "Rogue" ? 10 : charTemplate.class === "Wizard" ? 8 : 12,
+        dexterity: charTemplate.class === "Rogue" ? 16 : charTemplate.class === "Wizard" ? 12 : 12,
+        constitution: 14,
+        intelligence: charTemplate.class === "Wizard" ? 16 : 10,
+        wisdom: 12,
+        charisma: charTemplate.class === "Paladin" ? 14 : 10
+      };
+      const hp = charTemplate.class === "Fighter" || charTemplate.class === "Paladin" ? 12 : 8;
+      const ac = charTemplate.class === "Fighter" || charTemplate.class === "Paladin" ? 16 : 12;
+      
       const characterData = {
         name: `${charTemplate.name.split(' ')[0]} the ${charTemplate.class}`,
         race: charTemplate.race,
@@ -205,18 +216,18 @@ export default function PlayerQuickStart({
         level: 1,
         background: "Adventurer",
         alignment: "Neutral Good",
-        strength: charTemplate.class === "Fighter" ? 16 : charTemplate.class === "Paladin" ? 15 : 10,
-        dexterity: charTemplate.class === "Rogue" ? 16 : 12,
-        constitution: 14,
-        intelligence: charTemplate.class === "Wizard" ? 16 : 10,
-        wisdom: 12,
-        charisma: charTemplate.class === "Paladin" ? 14 : 10,
-        hitPoints: charTemplate.class === "Fighter" || charTemplate.class === "Paladin" ? 12 : 8,
-        maxHitPoints: charTemplate.class === "Fighter" || charTemplate.class === "Paladin" ? 12 : 8,
-        armorClass: charTemplate.class === "Fighter" || charTemplate.class === "Paladin" ? 16 : 12,
-        experiencePoints: 0,
-        gold: 15,
-        equipment: ["Backpack", "Torch", "Rations (3 days)", "Waterskin"]
+        strength: stats.strength,
+        dexterity: stats.dexterity,
+        constitution: stats.constitution,
+        intelligence: stats.intelligence,
+        wisdom: stats.wisdom,
+        charisma: stats.charisma,
+        hitPoints: hp,
+        maxHitPoints: hp,
+        armorClass: ac,
+        skills: [],
+        equipment: [],
+        createdAt: new Date().toISOString()
       };
 
       const charResponse = await apiRequest("POST", "/api/characters", characterData);
@@ -238,8 +249,8 @@ export default function PlayerQuickStart({
         race: "Human",
         occupation: companionTemplate.role,
         personality: companionTemplate.description,
-        appearance: "Friendly and approachable",
-        motivation: "Help the hero learn and grow",
+        appearance: "Friendly and approachable, with a warm demeanor",
+        motivation: "Help the hero learn and grow on their journey",
         hitPoints: 25,
         maxHitPoints: 25,
         armorClass: 14,
@@ -257,7 +268,8 @@ export default function PlayerQuickStart({
       });
 
       await apiRequest("POST", `/api/campaigns/${campaign.id}/participants`, {
-        characterId: character.id
+        characterId: character.id,
+        role: "player"
       });
 
       queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
