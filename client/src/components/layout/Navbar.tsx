@@ -51,6 +51,7 @@ export default function Navbar() {
   
   const moreLinks = [
     { name: "Tavern", path: "/tavern", icon: Beer },
+    { name: "Guilds", path: "/groups", icon: Shield },
     { name: "World Map", path: "/world-map", icon: Map },
     { name: "DM Tools", path: "/dm-toolkit", icon: Wrench },
     { name: "Dice Roller", path: "/dice-roller", icon: Dice5 },

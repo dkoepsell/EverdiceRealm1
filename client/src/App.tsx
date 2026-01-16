@@ -25,6 +25,7 @@ import BulletinBoardPage from "@/pages/bulletin-board";
 import AdminPage from "@/pages/admin";
 import LegalPage from "@/pages/legal";
 import TavernPage from "@/pages/tavern";
+import GroupsPage from "@/pages/groups";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 
@@ -45,6 +46,7 @@ function Router() {
           <Route path="/world-map" component={WorldMapPage} />
           <ProtectedRoute path="/bulletin" component={BulletinBoardPage} />
           <ProtectedRoute path="/tavern" component={TavernPage} />
+          <ProtectedRoute path="/groups" component={GroupsPage} />
           <ProtectedRoute path="/caml" component={CAMLPage} />
           <ProtectedRoute path="/test" component={TestPage} />
           <ProtectedRoute path="/admin" component={AdminPage} />

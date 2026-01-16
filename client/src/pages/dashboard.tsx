@@ -10,6 +10,7 @@ import CampaignArchiveList from "@/components/campaign/CampaignArchiveList";
 import AdventureHistory from "@/components/adventure/AdventureHistory";
 import QuickStart from "@/components/onboarding/QuickStart";
 import PlayerQuickStart from "@/components/PlayerQuickStart";
+import SinceLastTime from "@/components/SinceLastTime";
 import { Character, Campaign } from "@shared/schema";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
@@ -307,6 +308,13 @@ export default function Dashboard() {
               setShowLearnByPlaying(false);
             }} 
           />
+        </section>
+      )}
+
+      {/* Since Last Time... - World memory updates */}
+      {activeCampaign && !showLearnByPlaying && !showQuickStart && (
+        <section className="container mx-auto px-4 py-4 -mt-2">
+          <SinceLastTime campaignId={activeCampaign.id} />
         </section>
       )}
 
