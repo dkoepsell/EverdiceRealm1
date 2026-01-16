@@ -34,7 +34,7 @@ function Router() {
   return (
     <div className="flex flex-col min-h-screen relative">
       <div 
-        className="fixed inset-0 pointer-events-none z-0 opacity-[0.03] dark:opacity-[0.02]"
+        className="fixed inset-0 pointer-events-none z-0 opacity-[0.12] dark:opacity-[0.08]"
         style={{
           backgroundImage: `url(${parchmentFrame})`,
           backgroundSize: 'cover',
