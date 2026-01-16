@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type { WorldRegion, WorldLocation, UserWorldProgress } from "@shared/schema";
+import parchmentFrame from "@assets/image_1768600727955.png";
+import worldMapImage from "@assets/image_1768601346570.png";
 
 const terrainIcons: Record<string, typeof Mountain> = {
   mountain: Mountain,
@@ -129,20 +131,23 @@ export default function WorldMapPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-slate-900 via-cyan-900/20 to-slate-900 py-8 md:py-12 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-blue-500/5 to-transparent"></div>
-        <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl"></div>
-        <div className="absolute top-6 right-8 md:right-16 opacity-15">
-          <Map className="h-14 w-14 md:h-20 md:w-20 text-cyan-400" />
-        </div>
-        <div className="absolute top-16 right-20 md:right-40 opacity-10">
-          <Compass className="h-10 w-10 md:h-16 md:w-16 text-blue-300 rotate-12" />
-        </div>
-        <div className="absolute bottom-6 right-12 md:right-28 opacity-10">
-          <MapPin className="h-12 w-12 md:h-16 md:w-16 text-cyan-300" />
-        </div>
-        <div className="container mx-auto px-4 relative z-10">
+      {/* Hero Section - Matching Groups page style */}
+      <div className="container mx-auto px-4 py-8">
+        <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-cyan-900/40 via-blue-900/30 to-slate-900/40 border border-cyan-500/20 p-8 mb-8">
+          {/* Parchment background texture */}
+          <div 
+            className="absolute inset-0 opacity-25 rounded-xl"
+            style={{
+              backgroundImage: `url(${parchmentFrame})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              mixBlendMode: 'overlay'
+            }}
+          />
+          <div className="absolute top-4 right-8 opacity-10">
+            <Map className="h-20 w-20 text-cyan-300" />
+          </div>
+          <div className="relative z-10">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-3">
@@ -166,9 +171,10 @@ export default function WorldMapPage() {
             </div>
           </div>
         </div>
-      </section>
+        </section>
+      </div>
 
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto px-4 pb-6">
       <div className="flex gap-6">
         {/* World Map Grid */}
         <div className="flex-1">
@@ -464,6 +470,23 @@ export default function WorldMapPage() {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      {/* World Map Illustration */}
+      <div className="mt-8">
+        <div className="relative rounded-xl overflow-hidden border-4 border-amber-800/40 shadow-2xl">
+          <img 
+            src={worldMapImage} 
+            alt="The Realm of Everdice - World Map" 
+            className="w-full h-auto"
+          />
+          <div className="absolute inset-0 pointer-events-none rounded-xl" style={{
+            boxShadow: 'inset 0 0 60px rgba(0,0,0,0.4)'
+          }} />
+        </div>
+        <p className="text-center text-sm text-muted-foreground mt-3 italic font-fantasy">
+          "The lands of Everdice stretch far beyond the horizon, filled with mystery and adventure..."
+        </p>
       </div>
       </div>
     </div>

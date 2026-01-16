@@ -202,35 +202,28 @@ export default function Dashboard() {
 
   return (
     <div className="pb-16 min-h-screen bg-gradient-to-b from-background to-muted/20">
-      {/* Hero Section - D&D-inspired branded design with Everdice identity */}
-      <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-10 md:py-16 overflow-hidden">
-        {/* Parchment background texture */}
-        <div 
-          className="absolute inset-0 opacity-20"
-          style={{
-            backgroundImage: `url(${parchmentFrame})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            mixBlendMode: 'overlay'
-          }}
-        />
-        {/* Background decorative elements */}
-        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent"></div>
-        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-1/4 w-64 h-64 bg-orange-500/5 rounded-full blur-2xl"></div>
-        
-        {/* Fantasy decorative icons */}
-        <div className="absolute top-8 right-8 md:right-16 opacity-20">
-          <Sword className="h-16 w-16 md:h-24 md:w-24 text-amber-400 rotate-45" />
-        </div>
-        <div className="absolute top-20 right-24 md:right-48 opacity-15">
-          <Shield className="h-12 w-12 md:h-20 md:w-20 text-amber-300" />
-        </div>
-        <div className="absolute bottom-8 right-12 md:right-32 opacity-10">
-          <ScrollText className="h-14 w-14 md:h-18 md:w-18 text-orange-300" />
-        </div>
-        
-        <div className="container mx-auto px-4 relative z-10">
+      {/* Hero Section - Matching Groups page style */}
+      <div className="container mx-auto px-4 py-8">
+        <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-900/40 via-orange-900/30 to-slate-900/40 border border-amber-500/20 p-8 mb-8">
+          {/* Parchment background texture */}
+          <div 
+            className="absolute inset-0 opacity-25 rounded-xl"
+            style={{
+              backgroundImage: `url(${parchmentFrame})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              mixBlendMode: 'overlay'
+            }}
+          />
+          {/* Fantasy decorative icons */}
+          <div className="absolute top-4 right-8 opacity-15">
+            <Sword className="h-20 w-20 text-amber-400 rotate-45" />
+          </div>
+          <div className="absolute top-12 right-24 opacity-10">
+            <Shield className="h-16 w-16 text-amber-300" />
+          </div>
+          
+          <div className="relative z-10">
           <div className="max-w-2xl">
             {/* Online adventurers badge */}
             <div className="flex items-center gap-3 mb-4">
@@ -286,7 +279,8 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      </section>
+        </section>
+      </div>
       
       {/* Learn by Playing - Solo adventure with companion */}
       {showLearnByPlaying && !showQuickStart && (

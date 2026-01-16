@@ -136,35 +136,28 @@ export default function DMToolkit() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      {/* Hero Section - D&D-inspired branded design */}
-      <section className="relative bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 py-8 md:py-12 overflow-hidden">
-        {/* Parchment background texture */}
-        <div 
-          className="absolute inset-0 opacity-20"
-          style={{
-            backgroundImage: `url(${parchmentFrame})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            mixBlendMode: 'overlay'
-          }}
-        />
-        {/* Background decorative elements */}
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-blue-500/5 to-transparent"></div>
-        <div className="absolute top-0 right-0 w-80 h-80 bg-purple-500/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-1/4 w-48 h-48 bg-blue-500/5 rounded-full blur-2xl"></div>
-        
-        {/* Fantasy decorative icons */}
-        <div className="absolute top-6 right-8 md:right-16 opacity-15">
-          <BookOpen className="h-14 w-14 md:h-20 md:w-20 text-purple-400" />
-        </div>
-        <div className="absolute top-16 right-20 md:right-40 opacity-10">
-          <Wand2 className="h-10 w-10 md:h-16 md:w-16 text-blue-300 rotate-12" />
-        </div>
-        <div className="absolute bottom-6 right-12 md:right-28 opacity-10">
-          <Map className="h-12 w-12 md:h-16 md:w-16 text-purple-300" />
-        </div>
-        
-        <div className="container mx-auto px-4 relative z-10">
+      {/* Hero Section - Matching Groups page style */}
+      <div className="container mx-auto px-4 py-8">
+        <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-900/40 via-indigo-900/30 to-slate-900/40 border border-purple-500/20 p-8 mb-8">
+          {/* Parchment background texture */}
+          <div 
+            className="absolute inset-0 opacity-25 rounded-xl"
+            style={{
+              backgroundImage: `url(${parchmentFrame})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              mixBlendMode: 'overlay'
+            }}
+          />
+          {/* Fantasy decorative icons */}
+          <div className="absolute top-4 right-8 opacity-15">
+            <BookOpen className="h-20 w-20 text-purple-400" />
+          </div>
+          <div className="absolute top-12 right-24 opacity-10">
+            <Wand2 className="h-16 w-16 text-blue-300 rotate-12" />
+          </div>
+          
+          <div className="relative z-10">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               {/* Brand badge */}
@@ -203,7 +196,8 @@ export default function DMToolkit() {
             </div>
           </div>
         </div>
-      </section>
+        </section>
+      </div>
 
       {/* Quick Start Dialog */}
       <Dialog open={showQuickStart} onOpenChange={setShowQuickStart}>
