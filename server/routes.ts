@@ -13127,6 +13127,26 @@ ALWAYS generate:
     }
   });
   
+  // Get user's group memberships with group details
+  app.get("/api/user/memberships", isAuthenticated, async (req: any, res) => {
+    try {
+      const memberships = await storage.getUserGroupMemberships(req.user.id);
+      const enriched = await Promise.all(memberships.map(async (m) => {
+        const group = await storage.getPlayerGroup(m.groupId);
+        return {
+          ...m,
+          groupName: group?.name,
+          groupType: group?.type,
+          groupMotto: group?.motto
+        };
+      }));
+      res.json(enriched);
+    } catch (error) {
+      console.error("Failed to fetch user memberships:", error);
+      res.status(500).json({ message: "Failed to fetch memberships" });
+    }
+  });
+  
   // Invite a player to a group
   app.post("/api/groups/:id/invite", isAuthenticated, async (req: any, res) => {
     try {

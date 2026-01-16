@@ -1,12 +1,33 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Character } from "@shared/schema";
+import { Character, PlayerGroupMember } from "@shared/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, Image, BookOpen } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ChevronDown, ChevronUp, Image, BookOpen, Shield, Users, Crown } from "lucide-react";
 import CharacterPortraitGenerator from "./CharacterPortraitGenerator";
 import CharacterStoryArc from "./CharacterStoryArc";
+import { getQueryFn } from "@/lib/queryClient";
+
+interface EnrichedMembership extends PlayerGroupMember {
+  groupName?: string;
+  groupType?: string;
+  groupMotto?: string;
+}
+
+const roleIcons: Record<string, any> = {
+  founder: Crown,
+  leader: Shield,
+  member: Users,
+};
+
+const roleColors: Record<string, string> = {
+  founder: "text-amber-400",
+  leader: "text-purple-400",
+  member: "text-blue-400",
+};
 
 interface CharacterSheetProps {
   character: Character;
@@ -15,6 +36,11 @@ interface CharacterSheetProps {
 export default function CharacterSheet({ character }: CharacterSheetProps) {
   const [activeTab, setActiveTab] = useState("main");
   const [isExpanded, setIsExpanded] = useState(true);
+
+  const { data: memberships = [] } = useQuery<EnrichedMembership[]>({
+    queryKey: ['/api/user/memberships'],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+  });
 
   // Calculate ability modifiers
   const getModifier = (abilityScore: number) => {
@@ -73,6 +99,39 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
                 <p className="font-medium text-secondary">{character.alignment || "None"}</p>
               </div>
             </div>
+            
+            {/* Guild/Party Affiliations */}
+            {memberships.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-primary/30">
+                <p className="text-sm text-gray-600 mb-2">Affiliations</p>
+                <div className="flex flex-wrap gap-2">
+                  {memberships.map((m) => {
+                    const role = m.role || "member";
+                    const RoleIcon = roleIcons[role] || Users;
+                    const colorClass = roleColors[role] || "text-gray-400";
+                    return (
+                      <Badge 
+                        key={m.id} 
+                        variant="outline" 
+                        className="flex items-center gap-1.5 py-1 px-2"
+                      >
+                        <RoleIcon className={`h-3 w-3 ${colorClass}`} />
+                        <span>{m.groupName}</span>
+                        {role === "founder" && (
+                          <span className="text-xs text-amber-400">(Founder)</span>
+                        )}
+                        {role === "leader" && (
+                          <span className="text-xs text-purple-400">(Leader)</span>
+                        )}
+                        {m.title && (
+                          <span className="text-xs text-muted-foreground">- {m.title}</span>
+                        )}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
           
           <Tabs defaultValue="main" value={activeTab} onValueChange={setActiveTab}>

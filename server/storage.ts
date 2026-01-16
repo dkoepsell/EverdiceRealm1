@@ -49,7 +49,7 @@ import {
   userSessionTracking
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql, asc, or } from "drizzle-orm";
+import { eq, and, desc, sql, asc, or, inArray } from "drizzle-orm";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -2693,7 +2693,10 @@ export class DatabaseStorage implements IStorage {
       if (groupIds.length > 0) {
         const privateGroups = await db.select()
           .from(playerGroups)
-          .where(sql`${playerGroups.id} = ANY(${groupIds}) AND ${playerGroups.isPublic} = false`);
+          .where(and(
+            inArray(playerGroups.id, groupIds),
+            eq(playerGroups.isPublic, false)
+          ));
         
         // Merge, ensuring no duplicates
         const allGroupIds = new Set(publicGroups.map(g => g.id));
