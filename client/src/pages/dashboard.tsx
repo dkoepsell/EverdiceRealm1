@@ -9,6 +9,7 @@ import CampaignPanel from "@/components/campaign/CampaignPanel";
 import CampaignArchiveList from "@/components/campaign/CampaignArchiveList";
 import AdventureHistory from "@/components/adventure/AdventureHistory";
 import QuickStart from "@/components/onboarding/QuickStart";
+import PlayerQuickStart from "@/components/PlayerQuickStart";
 import { Character, Campaign } from "@shared/schema";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
@@ -194,6 +195,7 @@ export default function Dashboard() {
 
   const isNewUser = characters.length === 0 && availableCampaigns.length === 0;
   const [showQuickStart, setShowQuickStart] = useState(false);
+  const [showLearnByPlaying, setShowLearnByPlaying] = useState(false);
   const [isCharacterSheetExpanded, setIsCharacterSheetExpanded] = useState(false);
 
   return (
@@ -242,8 +244,16 @@ export default function Dashboard() {
                 </Button>
               ) : (
                 <Button 
+                  onClick={() => setShowLearnByPlaying(true)}
+                  className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-6 py-2.5 rounded-lg shadow-lg shadow-green-500/25 transition-all hover:shadow-green-500/40"
+                >
+                  <Play className="mr-2 h-4 w-4" />
+                  Learn by Playing
+                </Button>
+                <Button 
                   onClick={() => setShowQuickStart(true)}
-                  className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold px-6 py-2.5 rounded-lg shadow-lg shadow-amber-500/25 transition-all hover:shadow-amber-500/40"
+                  variant="outline"
+                  className="border-white/20 text-white/90 hover:bg-white/10 hover:border-white/30"
                 >
                   <Sparkles className="mr-2 h-4 w-4" />
                   Quick Start
@@ -259,8 +269,25 @@ export default function Dashboard() {
         </div>
       </section>
       
+      {/* Learn by Playing - Solo adventure with companion */}
+      {showLearnByPlaying && !activeCampaign && (
+        <section className="container mx-auto px-4 py-8 -mt-4">
+          <Card className="border-2 border-green-500/30 bg-gradient-to-br from-green-500/5 to-emerald-500/5">
+            <CardContent className="p-6">
+              <PlayerQuickStart 
+                onComplete={(campaignId, characterId) => {
+                  setShowLearnByPlaying(false);
+                  setSelectedCampaignId(campaignId);
+                }}
+                onCancel={() => setShowLearnByPlaying(false)}
+              />
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
       {/* Quick Start Modal for new users */}
-      {(showQuickStart || isNewUser) && !activeCampaign && (
+      {showQuickStart && !showLearnByPlaying && !activeCampaign && (
         <section className="container mx-auto px-4 py-8 -mt-4">
           <QuickStart 
             existingCharacters={characters} 
