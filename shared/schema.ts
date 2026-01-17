@@ -1193,3 +1193,76 @@ export const insertWorldDevelopmentSchema = createInsertSchema(worldDevelopments
 
 export type InsertWorldDevelopment = z.infer<typeof insertWorldDevelopmentSchema>;
 export type WorldDevelopment = typeof worldDevelopments.$inferSelect;
+
+// User Activity Tracking - Tracks user interactions during sessions
+export const userActivityEvents = pgTable("user_activity_events", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  sessionId: text("session_id").notNull(), // Browser session identifier
+  eventType: text("event_type").notNull(), // page_view, feature_use, dice_roll, ai_request, campaign_action
+  eventCategory: text("event_category").notNull(), // navigation, combat, roleplay, dm_tools, character_mgmt
+  eventName: text("event_name").notNull(), // Specific action: "create_character", "roll_attack", "generate_npc"
+  eventData: jsonb("event_data").default({}), // Additional context data
+  pageUrl: text("page_url"),
+  campaignId: integer("campaign_id"), // If action is campaign-specific
+  characterId: integer("character_id"), // If action is character-specific
+  duration: integer("duration"), // Time spent in milliseconds (for timed events)
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertUserActivityEventSchema = createInsertSchema(userActivityEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertUserActivityEvent = z.infer<typeof insertUserActivityEventSchema>;
+export type UserActivityEvent = typeof userActivityEvents.$inferSelect;
+
+// User Sessions Analytics - Aggregated session data
+export const userSessionsAnalytics = pgTable("user_sessions_analytics", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  sessionId: text("session_id").notNull(),
+  startedAt: text("started_at").notNull(),
+  endedAt: text("ended_at"),
+  durationMinutes: integer("duration_minutes"),
+  pageViews: integer("page_views").default(0),
+  actionsCount: integer("actions_count").default(0),
+  diceRolls: integer("dice_rolls").default(0),
+  aiRequests: integer("ai_requests").default(0),
+  campaignsPlayed: jsonb("campaigns_played").default([]), // Array of campaign IDs
+  featuresUsed: jsonb("features_used").default([]), // Array of feature names
+  deviceType: text("device_type"), // desktop, mobile, tablet
+  browserInfo: text("browser_info"),
+});
+
+export const insertUserSessionsAnalyticsSchema = createInsertSchema(userSessionsAnalytics).omit({
+  id: true,
+});
+
+export type InsertUserSessionsAnalytics = z.infer<typeof insertUserSessionsAnalyticsSchema>;
+export type UserSessionsAnalytics = typeof userSessionsAnalytics.$inferSelect;
+
+// Daily Stats Rollup - Pre-aggregated daily metrics
+export const dailyStatsRollup = pgTable("daily_stats_rollup", {
+  id: serial("id").primaryKey(),
+  date: text("date").notNull(), // YYYY-MM-DD format
+  activeUsers: integer("active_users").default(0),
+  newUsers: integer("new_users").default(0),
+  totalSessions: integer("total_sessions").default(0),
+  avgSessionDuration: integer("avg_session_duration").default(0), // in minutes
+  totalDiceRolls: integer("total_dice_rolls").default(0),
+  totalAiRequests: integer("total_ai_requests").default(0),
+  campaignsStarted: integer("campaigns_started").default(0),
+  campaignsCompleted: integer("campaigns_completed").default(0),
+  charactersCreated: integer("characters_created").default(0),
+  featureBreakdown: jsonb("feature_breakdown").default({}), // { feature: count }
+  topPages: jsonb("top_pages").default([]), // [{ url, views }]
+});
+
+export const insertDailyStatsRollupSchema = createInsertSchema(dailyStatsRollup).omit({
+  id: true,
+});
+
+export type InsertDailyStatsRollup = z.infer<typeof insertDailyStatsRollupSchema>;
+export type DailyStatsRollup = typeof dailyStatsRollup.$inferSelect;
