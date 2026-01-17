@@ -40,7 +40,10 @@ import {
   dmSessionStates,
   worldRumors,
   worldDevelopments,
-  worldRegions
+  worldRegions,
+  diceRolls,
+  userActivityEvents,
+  userSessionsAnalytics
 } from "@shared/schema";
 import { setupAuth, isAuthenticated, requireAdmin } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";
@@ -48,7 +51,7 @@ import { generateCharacterPortrait, generateCharacterBackground } from "./lib/ch
 import { registerCampaignDeploymentRoutes } from "./lib/campaignDeploy";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { db } from "./db";
-import { eq, sql, desc } from "drizzle-orm";
+import { eq, sql, desc, and, gte } from "drizzle-orm";
 import OpenAI from "openai";
 import { getXPFromCR, calculateEncounterXP, QUEST_XP_REWARDS, getLevelFromXP, getXPToNextLevel } from "../shared/rules/xp";
 import { 
@@ -13704,6 +13707,267 @@ ALWAYS generate:
     } catch (error) {
       console.error("Admin: Failed to toggle admin status:", error);
       res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+  
+  // ===== Analytics Tracking Endpoints =====
+  
+  // Track user activity event (for frontend tracking)
+  app.post("/api/analytics/event", isAuthenticated, async (req: any, res) => {
+    try {
+      const { sessionId, eventType, eventCategory, eventName, eventData, pageUrl, campaignId, characterId, duration } = req.body;
+      await db.insert(userActivityEvents).values({
+        userId: req.user.id,
+        sessionId: sessionId || 'unknown',
+        eventType,
+        eventCategory,
+        eventName,
+        eventData: eventData || {},
+        pageUrl,
+        campaignId,
+        characterId,
+        duration,
+        createdAt: new Date().toISOString()
+      });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Analytics: Failed to track event:", error);
+      res.status(500).json({ message: "Failed to track event" });
+    }
+  });
+  
+  // Start/update session analytics
+  app.post("/api/analytics/session", isAuthenticated, async (req: any, res) => {
+    try {
+      const { sessionId, deviceType, browserInfo } = req.body;
+      
+      // Check if session exists
+      const [existing] = await db.select().from(userSessionsAnalytics)
+        .where(and(
+          eq(userSessionsAnalytics.sessionId, sessionId),
+          eq(userSessionsAnalytics.userId, req.user.id)
+        ));
+      
+      if (existing) {
+        // Update existing session
+        await db.update(userSessionsAnalytics)
+          .set({ endedAt: new Date().toISOString() })
+          .where(eq(userSessionsAnalytics.id, existing.id));
+      } else {
+        // Create new session
+        await db.insert(userSessionsAnalytics).values({
+          userId: req.user.id,
+          sessionId,
+          startedAt: new Date().toISOString(),
+          deviceType,
+          browserInfo
+        });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Analytics: Failed to track session:", error);
+      res.status(500).json({ message: "Failed to track session" });
+    }
+  });
+  
+  // ===== Admin Analytics Endpoints =====
+  
+  // Get analytics overview (admin only)
+  app.get("/api/admin/analytics/overview", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+      const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      // Get user counts
+      const allUsers = await db.select({ count: sql<number>`count(*)` }).from(users);
+      const recentUsers = await db.select({ count: sql<number>`count(*)` }).from(users)
+        .where(gte(users.createdAt, last7Days));
+      
+      // Get session counts
+      const todaySessions = await db.select({ count: sql<number>`count(*)` }).from(userSessionsAnalytics)
+        .where(gte(userSessionsAnalytics.startedAt, today));
+      const weekSessions = await db.select({ count: sql<number>`count(*)` }).from(userSessionsAnalytics)
+        .where(gte(userSessionsAnalytics.startedAt, last7Days));
+      
+      // Get activity counts
+      const todayEvents = await db.select({ count: sql<number>`count(*)` }).from(userActivityEvents)
+        .where(gte(userActivityEvents.createdAt, today));
+      const weekEvents = await db.select({ count: sql<number>`count(*)` }).from(userActivityEvents)
+        .where(gte(userActivityEvents.createdAt, last7Days));
+      
+      // Get dice roll counts
+      const todayDice = await db.select({ count: sql<number>`count(*)` }).from(diceRolls)
+        .where(gte(diceRolls.createdAt, today));
+      const weekDice = await db.select({ count: sql<number>`count(*)` }).from(diceRolls)
+        .where(gte(diceRolls.createdAt, last7Days));
+      
+      // Get campaign counts  
+      const activeCampaigns = await db.select({ count: sql<number>`count(*)` }).from(campaigns)
+        .where(and(eq(campaigns.isCompleted, false), eq(campaigns.isArchived, false)));
+      const weekNewCampaigns = await db.select({ count: sql<number>`count(*)` }).from(campaigns)
+        .where(gte(campaigns.createdAt, last7Days));
+      
+      // Get character counts
+      const totalCharacters = await db.select({ count: sql<number>`count(*)` }).from(characters);
+      const weekNewCharacters = await db.select({ count: sql<number>`count(*)` }).from(characters)
+        .where(gte(characters.createdAt, last7Days));
+      
+      res.json({
+        users: {
+          total: Number(allUsers[0]?.count) || 0,
+          newThisWeek: Number(recentUsers[0]?.count) || 0
+        },
+        sessions: {
+          today: Number(todaySessions[0]?.count) || 0,
+          thisWeek: Number(weekSessions[0]?.count) || 0
+        },
+        activity: {
+          eventsToday: Number(todayEvents[0]?.count) || 0,
+          eventsThisWeek: Number(weekEvents[0]?.count) || 0
+        },
+        diceRolls: {
+          today: Number(todayDice[0]?.count) || 0,
+          thisWeek: Number(weekDice[0]?.count) || 0
+        },
+        campaigns: {
+          active: Number(activeCampaigns[0]?.count) || 0,
+          newThisWeek: Number(weekNewCampaigns[0]?.count) || 0
+        },
+        characters: {
+          total: Number(totalCharacters[0]?.count) || 0,
+          newThisWeek: Number(weekNewCharacters[0]?.count) || 0
+        }
+      });
+    } catch (error) {
+      console.error("Admin Analytics: Failed to fetch overview:", error);
+      res.status(500).json({ message: "Failed to fetch analytics overview" });
+    }
+  });
+  
+  // Get activity breakdown by category (admin only)
+  app.get("/api/admin/analytics/activity-breakdown", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 7;
+      const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      
+      const breakdown = await db.select({
+        category: userActivityEvents.eventCategory,
+        count: sql<number>`count(*)`
+      })
+        .from(userActivityEvents)
+        .where(gte(userActivityEvents.createdAt, sinceDate))
+        .groupBy(userActivityEvents.eventCategory);
+      
+      res.json(breakdown);
+    } catch (error) {
+      console.error("Admin Analytics: Failed to fetch activity breakdown:", error);
+      res.status(500).json({ message: "Failed to fetch activity breakdown" });
+    }
+  });
+  
+  // Get top features (admin only)
+  app.get("/api/admin/analytics/top-features", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 7;
+      const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      
+      const features = await db.select({
+        feature: userActivityEvents.eventName,
+        count: sql<number>`count(*)`
+      })
+        .from(userActivityEvents)
+        .where(gte(userActivityEvents.createdAt, sinceDate))
+        .groupBy(userActivityEvents.eventName)
+        .orderBy(sql`count(*) DESC`)
+        .limit(15);
+      
+      res.json(features);
+    } catch (error) {
+      console.error("Admin Analytics: Failed to fetch top features:", error);
+      res.status(500).json({ message: "Failed to fetch top features" });
+    }
+  });
+  
+  // Get user activity timeline (admin only)
+  app.get("/api/admin/analytics/timeline", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 14;
+      const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      
+      const timeline = await db.select({
+        date: sql<string>`DATE(${userActivityEvents.createdAt})`,
+        count: sql<number>`count(*)`
+      })
+        .from(userActivityEvents)
+        .where(gte(userActivityEvents.createdAt, sinceDate))
+        .groupBy(sql`DATE(${userActivityEvents.createdAt})`)
+        .orderBy(sql`DATE(${userActivityEvents.createdAt})`);
+      
+      res.json(timeline);
+    } catch (error) {
+      console.error("Admin Analytics: Failed to fetch timeline:", error);
+      res.status(500).json({ message: "Failed to fetch timeline" });
+    }
+  });
+  
+  // Get most active users (admin only)
+  app.get("/api/admin/analytics/active-users", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 7;
+      const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      
+      const activeUsers = await db.select({
+        userId: userActivityEvents.userId,
+        eventCount: sql<number>`count(*)`,
+        lastActive: sql<string>`max(${userActivityEvents.createdAt})`
+      })
+        .from(userActivityEvents)
+        .where(gte(userActivityEvents.createdAt, sinceDate))
+        .groupBy(userActivityEvents.userId)
+        .orderBy(sql`count(*) DESC`)
+        .limit(10);
+      
+      // Get user details for the active users
+      const userDetails = await Promise.all(
+        activeUsers.map(async (au) => {
+          const [user] = await db.select({
+            id: users.id,
+            username: users.username,
+            displayName: users.displayName
+          }).from(users).where(eq(users.id, au.userId));
+          return {
+            ...au,
+            username: user?.username || 'Unknown',
+            displayName: user?.displayName || user?.username || 'Unknown'
+          };
+        })
+      );
+      
+      res.json(userDetails);
+    } catch (error) {
+      console.error("Admin Analytics: Failed to fetch active users:", error);
+      res.status(500).json({ message: "Failed to fetch active users" });
+    }
+  });
+  
+  // Get session statistics (admin only)
+  app.get("/api/admin/analytics/sessions", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 7;
+      const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      
+      const sessions = await db.select()
+        .from(userSessionsAnalytics)
+        .where(gte(userSessionsAnalytics.startedAt, sinceDate))
+        .orderBy(desc(userSessionsAnalytics.startedAt))
+        .limit(50);
+      
+      res.json(sessions);
+    } catch (error) {
+      console.error("Admin Analytics: Failed to fetch sessions:", error);
+      res.status(500).json({ message: "Failed to fetch sessions" });
     }
   });
 
