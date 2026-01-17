@@ -3424,26 +3424,6 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         <div className="text-lg font-bold text-orange-600 dark:text-orange-400">{(activeCharacter as any).copper || 0}</div>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => addCurrencyMutation.mutate({ characterId: activeCharacter.id, gold: 10 })}
-                        disabled={addCurrencyMutation.isPending}
-                        data-testid="button-add-gold"
-                      >
-                        {addCurrencyMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "+10 GP"}
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => spendCurrencyMutation.mutate({ characterId: activeCharacter.id, gold: 5 })}
-                        disabled={spendCurrencyMutation.isPending || ((activeCharacter as any).gold || 0) < 5}
-                        data-testid="button-spend-gold"
-                      >
-                        {spendCurrencyMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "-5 GP"}
-                      </Button>
-                    </div>
                   </div>
                 )}
 
@@ -3732,35 +3712,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   </div>
                 )}
 
-                {/* NPC Gold Management */}
+                {/* NPC Gold Display */}
                 {selectedPartyMemberType === "npc" && selectedNpc && (
                   <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800">
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                       <Coins className="h-5 w-5 text-yellow-500" />
                       Gold - {selectedNpc.name}
                     </h3>
-                    <div className="p-2 border rounded bg-gradient-to-b from-yellow-100 to-yellow-200 dark:from-yellow-900/50 dark:to-yellow-800/50 text-center mb-3">
+                    <div className="p-2 border rounded bg-gradient-to-b from-yellow-100 to-yellow-200 dark:from-yellow-900/50 dark:to-yellow-800/50 text-center">
                       <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{selectedNpc.gold || 0} GP</div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => updateNpcGoldMutation.mutate({ npcId: selectedNpc.id, amount: 10, operation: 'add' })}
-                        disabled={updateNpcGoldMutation.isPending}
-                        data-testid="button-npc-add-gold"
-                      >
-                        {updateNpcGoldMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "+10 GP"}
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => updateNpcGoldMutation.mutate({ npcId: selectedNpc.id, amount: 5, operation: 'subtract' })}
-                        disabled={updateNpcGoldMutation.isPending || (selectedNpc.gold || 0) < 5}
-                        data-testid="button-npc-spend-gold"
-                      >
-                        {updateNpcGoldMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "-5 GP"}
-                      </Button>
                     </div>
                   </div>
                 )}

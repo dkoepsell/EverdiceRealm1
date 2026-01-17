@@ -1436,15 +1436,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const equipment: any[] = (character as any).equipment || [];
-      const itemIndex = equipment.findIndex(item => 
-        (typeof item === 'string' ? item : item.name) === itemName && !item.equipped
+      
+      // Parse JSON string items if needed
+      const parsedEquipment = equipment.map(item => {
+        if (typeof item === 'string') {
+          try {
+            return JSON.parse(item);
+          } catch {
+            return { name: item, rarity: 'common', equipped: false };
+          }
+        }
+        return item;
+      });
+      
+      const itemIndex = parsedEquipment.findIndex(item => 
+        item.name === itemName && !item.equipped
       );
       
       if (itemIndex === -1) {
         return res.status(404).json({ message: "Item not found in inventory or is equipped" });
       }
       
-      const item = equipment[itemIndex];
+      const item = parsedEquipment[itemIndex];
       
       // Calculate sell price (half of buy price, based on rarity)
       const SELL_PRICES: Record<string, number> = {
@@ -1455,7 +1468,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         legendary: 2500
       };
       
-      const rarity = (typeof item === 'string' ? 'common' : item.rarity || 'common').toLowerCase();
+      const rarity = (item.rarity || 'common').toLowerCase();
       const goldReceived = SELL_PRICES[rarity] || 5;
       
       // Remove item from inventory
