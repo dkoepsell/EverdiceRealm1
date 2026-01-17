@@ -421,6 +421,17 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
   };
   
+  // Helper to get equipment name (handles both JSON and plain string)
+  const getEquipmentName = (item: string | null | undefined): string => {
+    if (!item) return 'None';
+    try {
+      const parsed = JSON.parse(item);
+      return parsed.name || item;
+    } catch {
+      return item;
+    }
+  };
+  
   // Collect all item names from active character's inventory and equipped slots
   const allItemNames = useMemo(() => {
     if (!activeCharacter) return [];
@@ -3057,13 +3068,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </div>
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
-                            <span className={`font-medium text-sm block truncate ${itemStatsMap[(activeCharacter as any).equippedWeapon]?.rarity ? getRarityColor(itemStatsMap[(activeCharacter as any).equippedWeapon]?.rarity) : ''}`}>
-                              {(activeCharacter as any).equippedWeapon || "None"}
+                            <span className={`font-medium text-sm block truncate ${itemStatsMap[getEquipmentName((activeCharacter as any).equippedWeapon)]?.rarity ? getRarityColor(itemStatsMap[getEquipmentName((activeCharacter as any).equippedWeapon)]?.rarity) : ''}`}>
+                              {getEquipmentName((activeCharacter as any).equippedWeapon)}
                             </span>
-                            {(activeCharacter as any).equippedWeapon && itemStatsMap[(activeCharacter as any).equippedWeapon] && (
+                            {(activeCharacter as any).equippedWeapon && itemStatsMap[getEquipmentName((activeCharacter as any).equippedWeapon)] && (
                               <span className="text-xs text-amber-600 dark:text-amber-400 block">
-                                {itemStatsMap[(activeCharacter as any).equippedWeapon]?.damageDice} {itemStatsMap[(activeCharacter as any).equippedWeapon]?.damageType}
-                                {itemStatsMap[(activeCharacter as any).equippedWeapon]?.attackBonus ? ` (+${itemStatsMap[(activeCharacter as any).equippedWeapon]?.attackBonus} atk)` : ''}
+                                {itemStatsMap[getEquipmentName((activeCharacter as any).equippedWeapon)]?.damageDice} {itemStatsMap[getEquipmentName((activeCharacter as any).equippedWeapon)]?.damageType}
+                                {itemStatsMap[getEquipmentName((activeCharacter as any).equippedWeapon)]?.attackBonus ? ` (+${itemStatsMap[getEquipmentName((activeCharacter as any).equippedWeapon)]?.attackBonus} atk)` : ''}
                               </span>
                             )}
                           </div>
@@ -3088,14 +3099,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </div>
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
-                            <span className={`font-medium text-sm block truncate ${itemStatsMap[(activeCharacter as any).equippedArmor]?.rarity ? getRarityColor(itemStatsMap[(activeCharacter as any).equippedArmor]?.rarity) : ''}`}>
-                              {(activeCharacter as any).equippedArmor || "None"}
+                            <span className={`font-medium text-sm block truncate ${itemStatsMap[getEquipmentName((activeCharacter as any).equippedArmor)]?.rarity ? getRarityColor(itemStatsMap[getEquipmentName((activeCharacter as any).equippedArmor)]?.rarity) : ''}`}>
+                              {getEquipmentName((activeCharacter as any).equippedArmor)}
                             </span>
-                            {(activeCharacter as any).equippedArmor && itemStatsMap[(activeCharacter as any).equippedArmor] && (
+                            {(activeCharacter as any).equippedArmor && itemStatsMap[getEquipmentName((activeCharacter as any).equippedArmor)] && (
                               <span className="text-xs text-blue-600 dark:text-blue-400 block">
-                                AC {itemStatsMap[(activeCharacter as any).equippedArmor]?.baseAC}
-                                {itemStatsMap[(activeCharacter as any).equippedArmor]?.magicBonus ? `+${itemStatsMap[(activeCharacter as any).equippedArmor]?.magicBonus}` : ''}
-                                {itemStatsMap[(activeCharacter as any).equippedArmor]?.armorType ? ` (${itemStatsMap[(activeCharacter as any).equippedArmor]?.armorType})` : ''}
+                                AC {itemStatsMap[getEquipmentName((activeCharacter as any).equippedArmor)]?.baseAC}
+                                {itemStatsMap[getEquipmentName((activeCharacter as any).equippedArmor)]?.magicBonus ? `+${itemStatsMap[getEquipmentName((activeCharacter as any).equippedArmor)]?.magicBonus}` : ''}
+                                {itemStatsMap[getEquipmentName((activeCharacter as any).equippedArmor)]?.armorType ? ` (${itemStatsMap[getEquipmentName((activeCharacter as any).equippedArmor)]?.armorType})` : ''}
                               </span>
                             )}
                           </div>
@@ -3120,13 +3131,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </div>
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
-                            <span className={`font-medium text-sm block truncate ${itemStatsMap[(activeCharacter as any).equippedShield]?.rarity ? getRarityColor(itemStatsMap[(activeCharacter as any).equippedShield]?.rarity) : ''}`}>
-                              {(activeCharacter as any).equippedShield || "None"}
+                            <span className={`font-medium text-sm block truncate ${itemStatsMap[getEquipmentName((activeCharacter as any).equippedShield)]?.rarity ? getRarityColor(itemStatsMap[getEquipmentName((activeCharacter as any).equippedShield)]?.rarity) : ''}`}>
+                              {getEquipmentName((activeCharacter as any).equippedShield)}
                             </span>
-                            {(activeCharacter as any).equippedShield && itemStatsMap[(activeCharacter as any).equippedShield] && (
+                            {(activeCharacter as any).equippedShield && itemStatsMap[getEquipmentName((activeCharacter as any).equippedShield)] && (
                               <span className="text-xs text-blue-600 dark:text-blue-400 block">
-                                +{itemStatsMap[(activeCharacter as any).equippedShield]?.baseAC || 2} AC
-                                {itemStatsMap[(activeCharacter as any).equippedShield]?.magicBonus ? ` (+${itemStatsMap[(activeCharacter as any).equippedShield]?.magicBonus} magic)` : ''}
+                                +{itemStatsMap[getEquipmentName((activeCharacter as any).equippedShield)]?.baseAC || 2} AC
+                                {itemStatsMap[getEquipmentName((activeCharacter as any).equippedShield)]?.magicBonus ? ` (+${itemStatsMap[getEquipmentName((activeCharacter as any).equippedShield)]?.magicBonus} magic)` : ''}
                               </span>
                             )}
                           </div>
@@ -3151,8 +3162,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </div>
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
-                            <span className={`font-medium text-sm block truncate ${itemStatsMap[(activeCharacter as any).equippedAccessory]?.rarity ? getRarityColor(itemStatsMap[(activeCharacter as any).equippedAccessory]?.rarity) : ''}`}>
-                              {(activeCharacter as any).equippedAccessory || "None"}
+                            <span className={`font-medium text-sm block truncate ${itemStatsMap[getEquipmentName((activeCharacter as any).equippedAccessory)]?.rarity ? getRarityColor(itemStatsMap[getEquipmentName((activeCharacter as any).equippedAccessory)]?.rarity) : ''}`}>
+                              {getEquipmentName((activeCharacter as any).equippedAccessory)}
                             </span>
                             {(activeCharacter as any).equippedAccessory && itemStatsMap[(activeCharacter as any).equippedAccessory] && (
                               <span className="text-xs text-purple-600 dark:text-purple-400 block truncate">
@@ -3542,7 +3553,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="font-medium text-sm">
-                            {selectedNpc.equippedWeapon || "None"}
+                            {getEquipmentName(selectedNpc.equippedWeapon)}
                           </span>
                           {selectedNpc.equippedWeapon && (
                             <Button
@@ -3564,7 +3575,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="font-medium text-sm">
-                            {selectedNpc.equippedArmor || "None"}
+                            {getEquipmentName(selectedNpc.equippedArmor)}
                           </span>
                           {selectedNpc.equippedArmor && (
                             <Button
@@ -3586,7 +3597,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="font-medium text-sm">
-                            {selectedNpc.equippedShield || "None"}
+                            {getEquipmentName(selectedNpc.equippedShield)}
                           </span>
                           {selectedNpc.equippedShield && (
                             <Button
@@ -3608,7 +3619,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="font-medium text-sm">
-                            {selectedNpc.equippedAccessory || "None"}
+                            {getEquipmentName(selectedNpc.equippedAccessory)}
                           </span>
                           {selectedNpc.equippedAccessory && (
                             <Button
