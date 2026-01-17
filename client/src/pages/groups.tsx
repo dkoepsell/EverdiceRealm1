@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
-import { Users, Shield, Crown, Swords, Plus, Settings, UserPlus, Mail, Check, X } from "lucide-react";
+import { Users, Shield, Crown, Swords, Plus, Settings, UserPlus, Mail, Check, X, Trash2, Loader2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import type { PlayerGroup, GroupInvitation } from "@shared/schema";
 import parchmentFrame from "@assets/image_1768600727955.png";
 
@@ -52,6 +53,14 @@ export default function GroupsPage() {
     description: "",
     motto: "",
   });
+  const [settingsGroup, setSettingsGroup] = useState<PlayerGroup | null>(null);
+  const [editingGroup, setEditingGroup] = useState({
+    name: "",
+    description: "",
+    motto: "",
+    collectiveIdentity: "",
+  });
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const { data: groups = [], isLoading } = useQuery<PlayerGroup[]>({
     queryKey: ['/api/groups'],
@@ -138,6 +147,76 @@ export default function GroupsPage() {
       });
     },
   });
+
+  const updateGroupMutation = useMutation({
+    mutationFn: async ({ groupId, updates }: { groupId: number; updates: Partial<typeof editingGroup> }) => {
+      const response = await apiRequest("PATCH", `/api/groups/${groupId}`, updates);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/groups'] });
+      setSettingsGroup(null);
+      toast({
+        title: "Group Updated",
+        description: "Your group settings have been saved!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to update group",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteGroupMutation = useMutation({
+    mutationFn: async (groupId: number) => {
+      const response = await apiRequest("DELETE", `/api/groups/${groupId}`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/groups'] });
+      setSettingsGroup(null);
+      setDeleteConfirmOpen(false);
+      toast({
+        title: "Group Dissolved",
+        description: "Your group has been permanently deleted.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to delete group",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const openGroupSettings = (group: PlayerGroup) => {
+    setSettingsGroup(group);
+    setEditingGroup({
+      name: group.name || "",
+      description: group.description || "",
+      motto: group.motto || "",
+      collectiveIdentity: group.collectiveIdentity || "",
+    });
+  };
+
+  const handleUpdateGroup = () => {
+    if (!settingsGroup || !editingGroup.name.trim()) {
+      toast({
+        title: "Name required",
+        description: "Please enter a name for your group",
+        variant: "destructive",
+      });
+      return;
+    }
+    updateGroupMutation.mutate({ 
+      groupId: settingsGroup.id, 
+      updates: editingGroup 
+    });
+  };
 
   const handleCreateGroup = () => {
     if (!newGroup.name.trim()) {
@@ -409,7 +488,7 @@ export default function GroupsPage() {
                       </div>
                     </div>
                     {user && group.founderId === user.id && (
-                      <Button variant="ghost" size="icon">
+                      <Button variant="ghost" size="icon" onClick={() => openGroupSettings(group)}>
                         <Settings className="h-4 w-4" />
                       </Button>
                     )}
@@ -460,6 +539,111 @@ export default function GroupsPage() {
           })}
         </div>
       )}
+
+      {/* Group Settings Dialog */}
+      <Dialog open={!!settingsGroup} onOpenChange={(open) => !open && setSettingsGroup(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Group Settings
+            </DialogTitle>
+            <DialogDescription>
+              Manage your {settingsGroup?.type} settings
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Group Name</Label>
+              <Input
+                id="edit-name"
+                value={editingGroup.name}
+                onChange={(e) => setEditingGroup({ ...editingGroup, name: e.target.value })}
+                placeholder="Enter group name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-motto">Motto</Label>
+              <Input
+                id="edit-motto"
+                value={editingGroup.motto}
+                onChange={(e) => setEditingGroup({ ...editingGroup, motto: e.target.value })}
+                placeholder="A short rallying cry or slogan"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea
+                id="edit-description"
+                value={editingGroup.description}
+                onChange={(e) => setEditingGroup({ ...editingGroup, description: e.target.value })}
+                placeholder="Describe your group's purpose and goals"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-identity">Collective Identity</Label>
+              <Input
+                id="edit-identity"
+                value={editingGroup.collectiveIdentity}
+                onChange={(e) => setEditingGroup({ ...editingGroup, collectiveIdentity: e.target.value })}
+                placeholder='e.g., "The Defenders of the Realm"'
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex flex-col gap-2 sm:flex-row">
+            <Button 
+              variant="destructive" 
+              onClick={() => setDeleteConfirmOpen(true)}
+              className="w-full sm:w-auto"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Dissolve Group
+            </Button>
+            <div className="flex gap-2 ml-auto">
+              <Button variant="outline" onClick={() => setSettingsGroup(null)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleUpdateGroup}
+                disabled={updateGroupMutation.isPending}
+              >
+                {updateGroupMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : null}
+                Save Changes
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Dissolve {settingsGroup?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your {settingsGroup?.type} and remove all member associations. 
+              All members will lose access to this group.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => settingsGroup && deleteGroupMutation.mutate(settingsGroup.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteGroupMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Dissolve Group
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
