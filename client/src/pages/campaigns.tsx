@@ -28,10 +28,10 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CampaignPanel from "@/components/campaign/CampaignPanel";
-import { AlertCircle, Book, MapPin, Plus, Scroll, Wand2, Star, Play } from "lucide-react";
+import { AlertCircle, Book, MapPin, Plus, Scroll, Wand2, Star, Play, Sparkles, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import parchmentFrame from "@assets/image_1768600727955.png";
+import { motion } from "framer-motion";
 
 // Extended schema with validation rules
 const createCampaignSchema = insertCampaignSchema.extend({
@@ -229,38 +229,31 @@ export default function Campaigns() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      {/* Hero Section - Matching Groups page style */}
+      {/* Hero Section - Modern style matching landing page */}
       <div className="container mx-auto px-4 py-8">
-        <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-900/40 via-orange-900/30 to-slate-900/40 border border-amber-500/20 p-8 mb-8">
-          {/* Parchment background texture */}
-          <div 
-            className="absolute inset-0 opacity-25 rounded-xl"
-            style={{
-              backgroundImage: `url(${parchmentFrame})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              mixBlendMode: 'overlay'
-            }}
-          />
-          {/* Fantasy decorative icons */}
-          <div className="absolute top-4 right-8 opacity-15">
-            <Scroll className="h-20 w-20 text-amber-400" />
-          </div>
-          <div className="absolute top-12 right-24 opacity-10">
-            <MapPin className="h-16 w-16 text-orange-300" />
-          </div>
+        <motion.section 
+          className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary/10 to-amber-500/10 border border-primary/20 p-8 md:p-12 mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl -mr-16 -mt-16" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl -ml-12 -mb-12" />
           
-          <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
-                <Book className="h-3 w-3" />
-                <span>Your Adventures</span>
-              </div>
+          <div className="relative z-10 max-w-2xl">
+            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
+              <Book className="h-4 w-4" />
+              Your Adventures
             </div>
-            <h1 className="text-2xl md:text-3xl font-fantasy font-bold text-white mb-2">Campaign Management</h1>
-            <p className="text-white/60">Create, join, and manage your epic quests</p>
+            
+            <h1 className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
+              Campaign Management
+            </h1>
+            <p className="text-muted-foreground text-lg">
+              Create, join, and manage your epic quests. Every adventure starts here.
+            </p>
           </div>
-        </section>
+        </motion.section>
       </div>
       
       <div className="container mx-auto px-4 pb-8">
@@ -296,61 +289,70 @@ export default function Campaigns() {
             </div>
           ) : campaigns && campaigns.length > 0 ? (
             <div>
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
-                {campaigns.map((campaign) => {
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
+                {campaigns.map((campaign, index) => {
                   const isActive = activeCampaignId === campaign.id;
                   return (
-                    <Card 
-                      key={campaign.id} 
-                      className={`cursor-pointer hover:shadow-lg transition-shadow ${isActive ? 'ring-2 ring-amber-500 ring-offset-2' : ''}`}
-                      onClick={() => setSelectedCampaign(campaign)}
+                    <motion.div
+                      key={campaign.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
                     >
-                      <CardHeader className="bg-primary text-white pb-2">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-2">
-                            {isActive && <Star className="h-4 w-4 text-amber-400 fill-amber-400" />}
-                            <CardTitle className="font-fantasy">{campaign.title}</CardTitle>
+                      <Card 
+                        className={`cursor-pointer hover:shadow-xl hover:border-primary/40 transition-all duration-300 overflow-hidden h-full bg-card/50 backdrop-blur ${isActive ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-background' : ''}`}
+                        onClick={() => setSelectedCampaign(campaign)}
+                      >
+                        <CardHeader className="pb-3 bg-gradient-to-r from-primary to-primary/80">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                {isActive && <Star className="h-4 w-4 text-amber-400 fill-amber-400 flex-shrink-0" />}
+                                <CardTitle className="text-white text-lg truncate">{campaign.title}</CardTitle>
+                              </div>
+                              {isActive && (
+                                <Badge className="bg-amber-500/90 text-white text-xs">
+                                  <Play className="h-3 w-3 mr-1" /> Active
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex-shrink-0 bg-white/20 text-white text-xs px-2.5 py-1 rounded-full font-medium">
+                              Ch. {campaign.currentSession}/{campaign.totalChapters || '?'}
+                            </div>
                           </div>
-                          <span className="bg-primary-light text-white text-sm px-3 py-1 rounded-full">
-                            Ch. {campaign.currentSession}/{campaign.totalChapters || '?'}
-                          </span>
-                        </div>
-                        {isActive && (
-                          <Badge className="mt-2 bg-amber-500 text-white w-fit">
-                            <Play className="h-3 w-3 mr-1" /> Active Adventure
-                          </Badge>
-                        )}
-                      </CardHeader>
-                      <CardContent className="pt-4 bg-parchment character-sheet">
-                        <p className="text-secondary mb-4 line-clamp-2">{campaign.description}</p>
-                        
-                        <div className="flex flex-wrap gap-2 text-xs text-gray-600 mb-3">
-                          <Badge variant="outline" className="text-xs">
-                            {campaign.campaignLength === 'quick' ? 'Quick' : campaign.campaignLength === 'epic' ? 'Epic' : 'Standard'}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            {campaign.totalChapters || 5} chapters
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            <Scroll size={12} className="mr-1" />
-                            {campaign.narrativeStyle}
-                          </Badge>
-                        </div>
-                        
-                        {!isActive && !campaign.isArchived && !campaign.isCompleted && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full border-amber-500 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950"
-                            onClick={(e) => setAsActiveAdventure(campaign.id, e)}
-                            data-testid={`button-set-active-campaign-${campaign.id}`}
-                          >
-                            <Star className="h-4 w-4 mr-2" />
-                            Set as Active Adventure
-                          </Button>
-                        )}
-                      </CardContent>
-                    </Card>
+                        </CardHeader>
+                        <CardContent className="pt-4 flex flex-col h-[calc(100%-80px)]">
+                          <p className="text-muted-foreground mb-4 line-clamp-2 flex-grow">{campaign.description}</p>
+                          
+                          <div className="flex flex-wrap gap-1.5 mb-4">
+                            <Badge variant="secondary" className="text-xs">
+                              {campaign.campaignLength === 'quick' ? 'Quick' : campaign.campaignLength === 'epic' ? 'Epic' : 'Standard'}
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              {campaign.totalChapters || 5} chapters
+                            </Badge>
+                            {campaign.narrativeStyle && (
+                              <Badge variant="outline" className="text-xs">
+                                {campaign.narrativeStyle}
+                              </Badge>
+                            )}
+                          </div>
+                          
+                          {!isActive && !campaign.isArchived && !campaign.isCompleted && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full border-primary/30 hover:bg-primary/10 hover:border-primary/50 transition-colors"
+                              onClick={(e) => setAsActiveAdventure(campaign.id, e)}
+                              data-testid={`button-set-active-campaign-${campaign.id}`}
+                            >
+                              <Star className="h-4 w-4 mr-2" />
+                              Set as Active
+                            </Button>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </motion.div>
                   );
                 })}
               </div>
@@ -374,24 +376,52 @@ export default function Campaigns() {
               )}
             </div>
           ) : (
-            <div className="text-center py-12 bg-secondary-light rounded-lg">
-              <AlertCircle className="h-12 w-12 text-primary-light mx-auto mb-4" />
-              <h3 className="text-xl font-fantasy font-bold mb-2">No Campaigns Found</h3>
-              <p className="text-muted-foreground mb-6">You haven't created any campaigns yet.</p>
-              <Button onClick={() => document.querySelector('[value="create"]')?.dispatchEvent(new Event('click'))}>
+            <motion.div 
+              className="text-center py-16 px-8 rounded-2xl bg-gradient-to-br from-primary/5 to-amber-500/5 border border-primary/10"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4 }}
+            >
+              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
+                <Book className="h-8 w-8 text-primary" />
+              </div>
+              <h3 className="text-2xl font-bold mb-3 bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
+                No Adventures Yet
+              </h3>
+              <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+                Your epic journey awaits! Create your first campaign and start telling stories.
+              </p>
+              <Button 
+                size="lg"
+                className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-orange-500/25"
+                onClick={() => document.querySelector('[value="create"]')?.dispatchEvent(new Event('click'))}
+              >
+                <Sparkles className="mr-2 h-5 w-5" />
                 Create Your First Campaign
               </Button>
-            </div>
+            </motion.div>
           )}
         </TabsContent>
         
         <TabsContent value="create">
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-fantasy">Create New Campaign</CardTitle>
-              <CardDescription>
-                Start a new adventure with AI-powered storytelling
-              </CardDescription>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+          <Card className="border-primary/20 bg-card/50 backdrop-blur overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-primary/5 to-amber-500/5 border-b border-primary/10">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Wand2 className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl">Create New Campaign</CardTitle>
+                  <CardDescription>
+                    Start a new adventure with AI-powered storytelling
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <Form {...form}>
@@ -702,7 +732,8 @@ export default function Campaigns() {
                   
                   <Button 
                     type="submit" 
-                    className="w-full bg-primary-light hover:bg-primary-dark"
+                    size="lg"
+                    className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-orange-500/25"
                     disabled={createCampaign.isPending || !characters || characters.length === 0}
                   >
                     {createCampaign.isPending ? "Creating..." : "Create Campaign"}
@@ -711,6 +742,7 @@ export default function Campaigns() {
               </Form>
             </CardContent>
           </Card>
+          </motion.div>
         </TabsContent>
       </Tabs>
       </div>
