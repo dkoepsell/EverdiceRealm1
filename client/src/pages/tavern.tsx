@@ -334,6 +334,11 @@ export default function TavernPage() {
     winnings: 0
   });
   
+  // Gold transfer state
+  const [goldTransferOpen, setGoldTransferOpen] = useState(false);
+  const [transferRecipient, setTransferRecipient] = useState<number | null>(null);
+  const [transferAmount, setTransferAmount] = useState(1);
+  
   const rollDice = (count: number): number[] => {
     return Array.from({ length: count }, () => Math.floor(Math.random() * 6) + 1);
   };
@@ -439,6 +444,33 @@ export default function TavernPage() {
       toast({
         title: "Sale Failed",
         description: error.message || "Could not sell item.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const transferGoldMutation = useMutation({
+    mutationFn: async ({ senderId, recipientId, amount }: { senderId: number; recipientId: number; amount: number }) => {
+      const response = await apiRequest("POST", `/api/characters/${senderId}/transfer-gold`, {
+        recipientId,
+        amount
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+      toast({
+        title: "Gold Sent!",
+        description: data.message
+      });
+      setGoldTransferOpen(false);
+      setTransferAmount(1);
+      setTransferRecipient(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Transfer Failed",
+        description: error.message || "Could not transfer gold.",
         variant: "destructive"
       });
     }
@@ -1086,6 +1118,32 @@ export default function TavernPage() {
                       <Users className="h-5 w-5 text-amber-600" />
                       Adventurers Looking for Company
                     </h3>
+                    
+                    {/* Your gold display */}
+                    {activeCharacter && (
+                      <Card className="bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border-yellow-200 dark:border-yellow-800/50">
+                        <CardContent className="p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Coins className="h-6 w-6 text-yellow-600" />
+                            <div>
+                              <p className="text-sm text-muted-foreground">Your Gold</p>
+                              <p className="text-xl font-bold text-yellow-700 dark:text-yellow-400">{characterGold} gp</p>
+                            </div>
+                          </div>
+                          {characters.length > 1 && (
+                            <Button 
+                              variant="outline" 
+                              onClick={() => setGoldTransferOpen(true)}
+                              disabled={characterGold < 1}
+                            >
+                              <Coins className="h-4 w-4 mr-2" />
+                              Send Gold
+                            </Button>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+                    
                     {characters.length > 1 ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {characters.filter(c => c.id !== activeCharacter?.id).map(char => (
@@ -1101,10 +1159,22 @@ export default function TavernPage() {
                               <div className="flex-1">
                                 <h4 className="font-bold">{char.name}</h4>
                                 <p className="text-sm text-muted-foreground">Level {char.level} {char.race} {char.class}</p>
+                                <p className="text-xs text-yellow-600 flex items-center gap-1 mt-1">
+                                  <Coins className="h-3 w-3" />
+                                  {char.gold ?? 0} gp
+                                </p>
                               </div>
-                              <Button variant="outline" size="sm">
-                                <Users className="h-4 w-4 mr-1" />
-                                Invite
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => {
+                                  setTransferRecipient(char.id);
+                                  setGoldTransferOpen(true);
+                                }}
+                                disabled={characterGold < 1}
+                              >
+                                <Coins className="h-4 w-4 mr-1" />
+                                Give Gold
                               </Button>
                             </CardContent>
                           </Card>
@@ -1405,6 +1475,80 @@ export default function TavernPage() {
                 }}
               >
                 {repairItemMutation.isPending ? "Repairing..." : "Repair"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Gold Transfer Dialog */}
+        <Dialog open={goldTransferOpen} onOpenChange={(open) => {
+          setGoldTransferOpen(open);
+          if (!open) {
+            setTransferRecipient(null);
+            setTransferAmount(1);
+          }
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Coins className="h-5 w-5 text-yellow-600" />
+                Send Gold
+              </DialogTitle>
+              <DialogDescription>
+                Share your wealth with another adventurer.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Recipient</label>
+                <Select 
+                  value={transferRecipient?.toString() || ""} 
+                  onValueChange={(val) => setTransferRecipient(parseInt(val))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a character" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {characters.filter(c => c.id !== activeCharacter?.id).map(char => (
+                      <SelectItem key={char.id} value={char.id.toString()}>
+                        {char.name} (Level {char.level} {char.class})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Amount (gp)</label>
+                <Input 
+                  type="number"
+                  min={1}
+                  max={characterGold}
+                  value={transferAmount}
+                  onChange={(e) => setTransferAmount(Math.max(1, Math.min(characterGold, parseInt(e.target.value) || 1)))}
+                />
+              </div>
+              <div className="flex items-center justify-between bg-slate-100 dark:bg-slate-800 p-3 rounded-lg">
+                <span>Your remaining gold:</span>
+                <span className={`font-bold ${characterGold - transferAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {Math.max(0, characterGold - transferAmount)} gp
+                </span>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setGoldTransferOpen(false)}>Cancel</Button>
+              <Button 
+                disabled={!transferRecipient || transferAmount < 1 || transferAmount > characterGold || transferGoldMutation.isPending}
+                onClick={() => {
+                  if (activeCharacter && transferRecipient) {
+                    transferGoldMutation.mutate({
+                      senderId: activeCharacter.id,
+                      recipientId: transferRecipient,
+                      amount: transferAmount
+                    });
+                  }
+                }}
+              >
+                {transferGoldMutation.isPending ? "Sending..." : "Send Gold"}
               </Button>
             </DialogFooter>
           </DialogContent>

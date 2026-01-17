@@ -1570,6 +1570,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Transfer gold between characters
+  app.post("/api/characters/:id/transfer-gold", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const senderId = parseInt(req.params.id);
+      const { recipientId, amount } = req.body;
+      
+      if (!recipientId || !amount || amount <= 0) {
+        return res.status(400).json({ message: "Invalid transfer request" });
+      }
+      
+      const sender = await storage.getCharacter(senderId);
+      const recipient = await storage.getCharacter(recipientId);
+      
+      if (!sender) {
+        return res.status(404).json({ message: "Sender character not found" });
+      }
+      
+      if (!recipient) {
+        return res.status(404).json({ message: "Recipient character not found" });
+      }
+      
+      if ((sender as any).userId !== req.user.id) {
+        return res.status(403).json({ message: "You can only send gold from your own characters" });
+      }
+      
+      const senderGold = (sender as any).gold ?? 0;
+      if (senderGold < amount) {
+        return res.status(400).json({ message: "Not enough gold to transfer" });
+      }
+      
+      // Deduct from sender
+      const newSenderGold = senderGold - amount;
+      await storage.updateCharacter(senderId, { gold: newSenderGold } as any);
+      
+      // Add to recipient
+      const recipientGold = (recipient as any).gold ?? 0;
+      const newRecipientGold = recipientGold + amount;
+      await storage.updateCharacter(recipientId, { gold: newRecipientGold } as any);
+      
+      res.json({
+        success: true,
+        message: `Transferred ${amount} gold to ${recipient.name}`,
+        senderGold: newSenderGold,
+        recipientGold: newRecipientGold
+      });
+    } catch (error: any) {
+      console.error("Error transferring gold:", error);
+      res.status(500).json({ message: "Failed to transfer gold", error: error.message });
+    }
+  });
+
   // Consumable Items Routes - affordable pricing for early-game players
   const CONSUMABLE_EFFECTS: Record<string, { type: string; effect: string; price: number; healDice?: string; healBonus?: number }> = {
     "Healing Potion": { type: "healing", effect: "Restores 2d4+2 HP", price: 10, healDice: "2d4", healBonus: 2 },
