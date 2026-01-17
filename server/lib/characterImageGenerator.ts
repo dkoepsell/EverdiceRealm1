@@ -91,7 +91,7 @@ async function saveImageToObjectStorage(imageUrl: string, objectPath: string): P
   }
 }
 
-// Helper function to create a detailed prompt for DALL-E
+// Helper function to create a detailed prompt for DALL-E with diverse representation
 function createImagePrompt(
   name: string,
   race: string,
@@ -99,23 +99,62 @@ function createImagePrompt(
   background?: string,
   appearance?: string
 ): string {
-  // Base prompt with high-quality fantasy art direction
-  let prompt = `Create a high-quality fantasy character portrait of ${name}, a ${race} ${characterClass}`;
+  // Determine diverse physical characteristics based on name hash for consistency
+  const nameHash = hashString(name);
+  const skinTones = [
+    "dark brown skin", "light brown skin", "olive skin", "fair skin", 
+    "deep ebony skin", "golden brown skin", "tan skin", "pale skin"
+  ];
+  const genders = ["male", "female", "androgynous"];
+  
+  // Use name hash for consistent but diverse selection
+  const skinTone = skinTones[Math.abs(nameHash) % skinTones.length];
+  const gender = genders[Math.abs(nameHash >> 3) % genders.length];
+  
+  // Map fantasy races to appropriate features while maintaining diversity
+  const raceFeatures: Record<string, string> = {
+    "Human": "",
+    "Elf": "with pointed ears and elegant features",
+    "Half-Elf": "with slightly pointed ears",
+    "Dwarf": "with a sturdy build and strong features",
+    "Halfling": "with a youthful face and small stature",
+    "Gnome": "with curious eyes and small pointed features",
+    "Dragonborn": "with draconic scales and reptilian features",
+    "Tiefling": "with small horns and unusual eye color",
+    "Half-Orc": "with prominent jaw and tusks",
+    "Aasimar": "with a subtle celestial glow",
+  };
+  
+  const raceDetail = raceFeatures[race] || "";
+  
+  // Base prompt with diverse representation
+  let prompt = `Create a high-quality fantasy character portrait of ${name}, a ${gender} ${race} ${characterClass} with ${skinTone} ${raceDetail}`;
 
   // Add background context if available
   if (background) {
-    prompt += ` with a background as a ${background}`;
+    prompt += `, who has a background as a ${background}`;
   }
 
-  // Add appearance details if available
+  // Add appearance details if available (override defaults)
   if (appearance) {
     prompt += `. ${appearance}`;
   }
 
   // Add artistic style direction
-  prompt += `. The style should be detailed fantasy art, with dramatic lighting and a heroic pose. Focus on the character's face and upper body, with appropriate attire and equipment for their class. Make the character look distinctive and memorable.`;
+  prompt += `. The style should be detailed fantasy art in the style of classic D&D character portraits, with dramatic lighting and a heroic pose. Focus on the character's face and upper body, with appropriate attire and equipment for their class. Make the character look distinctive, memorable, and true to their cultural background.`;
 
   return prompt;
+}
+
+// Simple string hash for consistent diversity selection
+function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return hash;
 }
 
 // Generate a background story for the character

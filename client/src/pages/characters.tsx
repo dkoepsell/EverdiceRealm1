@@ -161,8 +161,45 @@ export default function Characters() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [isCreatingFromTemplate, setIsCreatingFromTemplate] = useState(false);
+  const [generatingPortraitIds, setGeneratingPortraitIds] = useState<Set<number>>(new Set());
   
   const { toast } = useToast();
+  
+  // Mutation to generate portrait for a character
+  const generatePortraitMutation = useMutation({
+    mutationFn: async (characterId: number) => {
+      const response = await apiRequest("POST", `/api/characters/${characterId}/generate-portrait`);
+      return response.json();
+    },
+    onSuccess: (data, characterId) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      setGeneratingPortraitIds(prev => {
+        const next = new Set(prev);
+        next.delete(characterId);
+        return next;
+      });
+    },
+    onError: (error: Error, characterId) => {
+      setGeneratingPortraitIds(prev => {
+        const next = new Set(prev);
+        next.delete(characterId);
+        return next;
+      });
+      toast({
+        title: "Portrait Generation Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Auto-generate portrait for character if missing
+  const generatePortraitIfMissing = (character: Character) => {
+    if (!character.portraitUrl && !generatingPortraitIds.has(character.id)) {
+      setGeneratingPortraitIds(prev => new Set(prev).add(character.id));
+      generatePortraitMutation.mutate(character.id);
+    }
+  };
   
   const { data: characters, isLoading } = useQuery<Character[]>({
     queryKey: ['/api/characters'],
@@ -412,6 +449,28 @@ export default function Characters() {
             </div>
           ) : characters && characters.length > 0 ? (
             <div className="space-y-4">
+              {/* Generate All Missing Portraits Button */}
+              {characters.some(c => !c.portraitUrl) && (
+                <div className="flex justify-end mb-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      characters
+                        .filter(c => !c.portraitUrl && !generatingPortraitIds.has(c.id))
+                        .forEach(c => generatePortraitIfMissing(c));
+                    }}
+                    disabled={generatingPortraitIds.size > 0}
+                    className="flex items-center gap-2 bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {generatingPortraitIds.size > 0 
+                      ? `Generating ${generatingPortraitIds.size} portrait${generatingPortraitIds.size > 1 ? 's' : ''}...` 
+                      : `Generate All Portraits (${characters.filter(c => !c.portraitUrl).length} missing)`
+                    }
+                  </Button>
+                </div>
+              )}
               {characters.map((character) => {
                 const isExpanded = expandedCharacterId === character.id;
                 return (
@@ -423,8 +482,22 @@ export default function Characters() {
                       {/* Compact Stats Bar - Same as Dashboard */}
                       <div className="flex items-center justify-between flex-wrap gap-4">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
-                            <User className="h-6 w-6 text-white" />
+                          <div 
+                            className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center overflow-hidden relative cursor-pointer"
+                            onClick={() => !character.portraitUrl && generatePortraitIfMissing(character)}
+                            title={!character.portraitUrl ? "Click to generate portrait" : character.name}
+                          >
+                            {character.portraitUrl ? (
+                              <img 
+                                src={character.portraitUrl} 
+                                alt={character.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : generatingPortraitIds.has(character.id) ? (
+                              <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                            ) : (
+                              <User className="h-6 w-6 text-white" />
+                            )}
                           </div>
                           <div>
                             <h3 className="font-fantasy text-lg font-bold text-amber-900 dark:text-amber-100">{character.name}</h3>

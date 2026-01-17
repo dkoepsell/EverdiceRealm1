@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,8 @@ import SinceLastTime from "@/components/SinceLastTime";
 import { Character, Campaign } from "@shared/schema";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
-import { getQueryFn, queryClient } from "@/lib/queryClient";
+import { getQueryFn, queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Bookmark, Calendar, History, User, Users, Activity, Star, Play, Sparkles, Sword, Shield, ScrollText, ChevronDown, ChevronUp, Heart, Zap, Package, Scroll, BookOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import parchmentFrame from "@assets/image_1768600727955.png";
@@ -22,6 +23,45 @@ import parchmentFrame from "@assets/image_1768600727955.png";
 export default function Dashboard() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const { toast } = useToast();
+  
+  // Portrait generation state
+  const [generatingPortraitIds, setGeneratingPortraitIds] = useState<Set<number>>(new Set());
+  
+  // Portrait generation mutation
+  const generatePortraitMutation = useMutation({
+    mutationFn: async (characterId: number) => {
+      const response = await apiRequest("POST", `/api/characters/${characterId}/generate-portrait`);
+      return response.json();
+    },
+    onSuccess: (data, characterId) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      setGeneratingPortraitIds(prev => {
+        const next = new Set(prev);
+        next.delete(characterId);
+        return next;
+      });
+    },
+    onError: (error: Error, characterId) => {
+      setGeneratingPortraitIds(prev => {
+        const next = new Set(prev);
+        next.delete(characterId);
+        return next;
+      });
+      toast({
+        title: "Portrait Generation Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const generatePortraitIfMissing = (character: Character) => {
+    if (!character.portraitUrl && !generatingPortraitIds.has(character.id)) {
+      setGeneratingPortraitIds(prev => new Set(prev).add(character.id));
+      generatePortraitMutation.mutate(character.id);
+    }
+  };
   
   // For user counter stats
   const [userStats, setUserStats] = useState({
@@ -524,8 +564,22 @@ export default function Dashboard() {
                 {/* Compact Stats Bar */}
                 <div className="flex items-center justify-between flex-wrap gap-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
-                      <User className="h-6 w-6 text-white" />
+                    <div 
+                      className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center overflow-hidden relative cursor-pointer"
+                      onClick={() => !activeCharacter.portraitUrl && generatePortraitIfMissing(activeCharacter)}
+                      title={!activeCharacter.portraitUrl ? "Click to generate portrait" : activeCharacter.name}
+                    >
+                      {activeCharacter.portraitUrl ? (
+                        <img 
+                          src={activeCharacter.portraitUrl} 
+                          alt={activeCharacter.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : generatingPortraitIds.has(activeCharacter.id) ? (
+                        <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                      ) : (
+                        <User className="h-6 w-6 text-white" />
+                      )}
                     </div>
                     <div>
                       <h3 className="font-fantasy text-lg font-bold text-amber-900 dark:text-amber-100">{activeCharacter.name}</h3>
