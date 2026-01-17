@@ -692,6 +692,13 @@ export const worldRegions = pgTable("world_regions", {
   // Lore and details
   lore: text("lore"),
   knownFor: text("known_for"), // Brief description shown on hover
+  // Pressure gradients (0-100 scale) - These drift slowly over time for world events
+  instability: integer("instability").default(0), // Political/social unrest
+  danger: integer("danger").default(0), // Monster activity, banditry (distinct from dangerLevel rating)
+  opportunity: integer("opportunity").default(0), // Trade, treasure, alliances
+  mystery: integer("mystery").default(0), // Unexplained phenomena, rumors
+  currentMood: text("current_mood").default("stable"), // stable, tense, volatile, erupting
+  lastPressureUpdate: text("last_pressure_update"),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
 });
 
@@ -1117,3 +1124,72 @@ export const userSessionTracking = pgTable("user_session_tracking", {
   sinceThenBullets: jsonb("since_then_bullets").default([]), // Cached bullets for display
   bulletsCachedAt: text("bullets_cached_at"),
 });
+
+// World Rumors - Background narrative suggestions, not missions
+export const worldRumors = pgTable("world_rumors", {
+  id: serial("id").primaryKey(),
+  regionId: integer("region_id"), // Null = realm-wide
+  campaignId: integer("campaign_id"), // Null = global pool, or specific campaign
+  // The rumor itself
+  narrative: text("narrative").notNull(), // "Travelers speak of fires in the southern isles..."
+  source: text("source"), // Who spreads this rumor: merchants, guards, travelers, locals
+  // Classification
+  rumorType: text("rumor_type").notNull(), // threat, opportunity, mystery, omen, gossip
+  relatedFaction: text("related_faction"), // If tied to a faction
+  // Pressure drivers - what this rumor suggests
+  suggestsInstability: boolean("suggests_instability").default(false),
+  suggestsDanger: boolean("suggests_danger").default(false),
+  suggestsOpportunity: boolean("suggests_opportunity").default(false),
+  suggestsMystery: boolean("suggests_mystery").default(false),
+  // State
+  isActive: boolean("is_active").default(true),
+  timesHeard: integer("times_heard").default(0), // How many times surfaced
+  lastHeardAt: text("last_heard_at"),
+  // Origin tracking
+  generatedFromPattern: text("generated_from_pattern"), // What caused this rumor
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  expiresAt: text("expires_at"), // When rumor fades from circulation
+});
+
+export const insertWorldRumorSchema = createInsertSchema(worldRumors).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertWorldRumor = z.infer<typeof insertWorldRumorSchema>;
+export type WorldRumor = typeof worldRumors.$inferSelect;
+
+// World Developments - DM-facing suggestions, not player-facing events
+export const worldDevelopments = pgTable("world_developments", {
+  id: serial("id").primaryKey(),
+  regionId: integer("region_id"), // Null = realm-wide
+  campaignId: integer("campaign_id"), // Null = global, or specific campaign
+  // The development suggestion
+  title: text("title").notNull(), // Brief: "Trade routes weakening"
+  narrative: text("narrative").notNull(), // "Continued banditry may disrupt commerce..."
+  consequence: text("consequence"), // What happens if ignored
+  // Classification
+  developmentType: text("development_type").notNull(), // drift, consequence, opportunity, threat
+  urgency: text("urgency").default("slow"), // slow, moderate, pressing (not "urgent" - no demands)
+  // Source - what triggered this development
+  triggeredBy: text("triggered_by"), // player_action, world_drift, faction_movement, neglect
+  relatedPatterns: jsonb("related_patterns").default([]), // Events/actions that led here
+  // DM action state
+  dmDecision: text("dm_decision"), // null, adopted, modified, ignored, postponed
+  dmNotes: text("dm_notes"),
+  decidedAt: text("decided_at"),
+  // If adopted, what happened
+  resolution: text("resolution"),
+  resolvedAt: text("resolved_at"),
+  // Tracking
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  showAfter: text("show_after"), // Don't show until this date (for slow reveals)
+});
+
+export const insertWorldDevelopmentSchema = createInsertSchema(worldDevelopments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertWorldDevelopment = z.infer<typeof insertWorldDevelopmentSchema>;
+export type WorldDevelopment = typeof worldDevelopments.$inferSelect;

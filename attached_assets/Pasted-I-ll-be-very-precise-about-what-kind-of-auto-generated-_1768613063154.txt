@@ -1,0 +1,293 @@
+I’ll be very precise about what kind of auto-generated events belong in Everdice, and which absolutely do not.
+
+1. First Principle (Non-Negotiable)
+
+The world may act.
+The DM decides whether it matters.
+
+Auto-generated events must be:
+
+suggestions, not intrusions
+
+world-level, not player-commanding
+
+diegetic, not mechanical pop-ups
+
+This preserves table sovereignty.
+
+2. What “Auto-Generated World Events” Should Mean Here
+
+Not:
+
+daily quests
+
+timed raids
+
+global announcements
+
+MMO-style events
+
+Instead, think:
+
+The world slowly responds to what players and other tables are doing.
+
+These are background pressures, not demands.
+
+3. The Right Kinds of World Events (High Value)
+3.1 Consequence-Driven World Drift (Best Option)
+
+The system notices patterns and suggests world shifts.
+
+Examples:
+
+Trade routes weaken after repeated banditry
+
+A faction grows bold after unchecked success
+
+A border becomes unstable due to unresolved conflict
+
+These appear as:
+
+“The world may be changing…”
+
+Not as:
+
+“A new event has started!”
+
+This reinforces narrative causality.
+
+3.2 Rumors, Not Missions (Extremely Important)
+
+Auto-generated content should surface as rumors, omens, or whispers.
+
+Examples:
+
+“Travelers speak of fires in the southern isles.”
+
+“Merchants are avoiding the marsh road.”
+
+“The duke is said to be quietly hiring sellswords.”
+
+This is:
+
+D&D-authentic
+
+non-coercive
+
+irresistibly intriguing
+
+DMs choose what to elevate.
+
+3.3 Regional Risk/Reward Pressure
+
+Instead of events, think pressure gradients.
+
+Each region slowly accumulates:
+
+instability
+
+opportunity
+
+danger
+
+wealth
+
+Displayed subtly:
+
+color shifts
+
+icons
+
+phrases like “Tensions rising”
+
+Players feel:
+
+“If we ignore this, something will happen.”
+
+That’s perfect D&D psychology.
+
+4. Community Building Without MMO Energy
+
+This is delicate.
+
+4.1 What Community Should Mean in Everdice
+
+Not:
+
+chat rooms
+
+public leaderboards
+
+cross-table competition
+
+Instead:
+
+Parallel worlds, shared archetypes, anonymous echoes
+
+Players should feel:
+
+“Other adventurers exist out there.”
+
+Not:
+
+“We are competing.”
+
+4.2 Safe Community Touchpoints
+A. World State Aggregation (Anonymous)
+
+Example:
+
+“Across many worlds, unrest is rising in border regions.”
+
+No names. No stats. No winners.
+
+This creates shared atmosphere, not hierarchy.
+
+B. Shared Rumor Pools
+
+Some rumors originate from:
+
+other tables’ unresolved consequences
+
+abstracted, anonymized patterns
+
+This creates the sense of a living multiverse without forcing convergence.
+
+5. Risks and Rewards (Handled Carefully)
+5.1 Risks Should Be Narrative, Not Punitive
+
+Good risk:
+
+reputational shifts
+
+complications
+
+changed NPC behavior
+
+delayed consequences
+
+Bad risk:
+
+lost resources
+
+forced failure
+
+sudden difficulty spikes
+
+The system should threaten story, not punish play.
+
+5.2 Rewards Should Be Meaning, Not Loot
+
+Good rewards:
+
+new narrative threads
+
+alliances
+
+access
+
+recognition
+
+reputation shifts
+
+Bad rewards:
+
+XP boosts
+
+power creep
+
+optimization incentives
+
+Stickiness comes from meaning, not numbers.
+
+6. How This Actually Works in the UI
+DM sees:
+
+“Possible World Developments”
+• Low activity in the Heartlands may allow rival factions to expand
+• Continued neglect of the Marshes could worsen travel conditions
+
+DM can:
+
+ignore
+
+adopt
+
+modify
+
+postpone
+
+Nothing auto-fires.
+
+Players see:
+
+“The world does not wait forever.”
+
+That’s it.
+
+No timers. No alerts. No pressure.
+
+7. Why This Makes the Game Sticky
+
+This works because:
+
+The world feels alive even between sessions
+
+Choices feel like they echo outward
+
+Ignoring things has meaning, not punishment
+
+Players speculate between sessions
+
+Speculation is the strongest retention mechanic D&D has ever had.
+
+8. What You Should Explicitly Avoid
+
+Do not:
+
+push notifications demanding action
+
+daily login rewards
+
+global events with deadlines
+
+competitive metrics
+
+algorithmic “balancing”
+
+Those destroy tabletop trust.
+
+9. The Right Mental Model
+
+Think of Everdice’s world events as:
+
+Weather systems, not quests
+
+They create conditions.
+They do not issue commands.
+
+Bottom Line
+
+Yes — auto-generated world events are a huge opportunity for Everdice if they are:
+
+slow
+
+contextual
+
+optional
+
+narrative
+
+rumor-based
+
+DM-mediated
+
+Done right, they:
+
+increase return visits
+
+deepen immersion
+
+strengthen community
+
+preserve D&D credibility
