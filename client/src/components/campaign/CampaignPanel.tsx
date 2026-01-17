@@ -229,6 +229,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [monsterImages, setMonsterImages] = useState<Record<string, string>>({});
   const [generatingMonsterImage, setGeneratingMonsterImage] = useState<string | null>(null);
   const [isDownloadingTrace, setIsDownloadingTrace] = useState(false);
+  const [activeTab, setActiveTab] = useState("narrative");
   
   // Chat state for cooperative play
   const [chatMessages, setChatMessages] = useState<any[]>([]);
@@ -1948,7 +1949,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       
       <Card className="border-2 border-accent-light bg-parchment drop-shadow-lg">
         <CardContent className="p-0">
-          <Tabs defaultValue="narrative" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className={`grid w-full ${isDM ? 'grid-cols-7' : 'grid-cols-6'} bg-secondary-light rounded-none`}>
               <TabsTrigger value="narrative" className="text-xs sm:text-sm md:text-base">Narrative</TabsTrigger>
               <TabsTrigger value="journey-log" className="text-xs sm:text-sm md:text-base">Log</TabsTrigger>
@@ -2038,6 +2039,32 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         <span>End</span>
                       </div>
                     </div>
+                    
+                    {/* Contextual Party Tab Reminder - shows when low HP or no potions */}
+                    {activeCharacter && (
+                      activeCharacter.hitPoints < activeCharacter.maxHitPoints / 2 || 
+                      !((activeCharacter as any).consumables?.length > 0)
+                    ) && !parsedStoryState?.inCombat && (
+                      <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-300 dark:border-amber-700 rounded-lg p-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <FlaskConical className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                          <span className="text-sm text-amber-800 dark:text-amber-200">
+                            {activeCharacter.hitPoints < activeCharacter.maxHitPoints / 2 
+                              ? "Your hero is wounded! Consider stocking up on healing potions." 
+                              : "You have no consumables. Potions can save your life!"}
+                          </span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+                          onClick={() => setActiveTab("party")}
+                        >
+                          <Backpack className="h-4 w-4 mr-1" />
+                          Party Tab
+                        </Button>
+                      </div>
+                    )}
                     
                     <div className="flex justify-between items-start">
                       <h3 className="text-xl font-bold flex items-center" style={{ color: '#0f172a' }}>
@@ -2752,6 +2779,20 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             <TabsContent value="party" className="p-4">
               <div className="space-y-4">
                 <h2 className="text-xl font-bold font-fantasy" style={{ color: '#0f172a' }}>Campaign Party</h2>
+                
+                {/* Helpful intro hint */}
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <Sparkles className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Prepare for Adventure!</p>
+                      <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                        Manage your equipment, buy potions with your gold, and check your inventory before heading out. 
+                        Well-prepared adventurers survive longer!
+                      </p>
+                    </div>
+                  </div>
+                </div>
                 
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
