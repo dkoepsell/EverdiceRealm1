@@ -37,7 +37,10 @@ import {
   chatMessages,
   onlineUsers,
   campaignSessions,
-  dmSessionStates
+  dmSessionStates,
+  worldRumors,
+  worldDevelopments,
+  worldRegions
 } from "@shared/schema";
 import { setupAuth, isAuthenticated, requireAdmin } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";
@@ -12022,6 +12025,142 @@ Respond with JSON:
     } catch (error) {
       console.error("Failed to fetch region progress:", error);
       res.status(500).json({ message: "Failed to fetch region progress" });
+    }
+  });
+  
+  // ==================== World Events (Rumors & Developments) ====================
+  
+  // Get active rumors for the world or a campaign
+  app.get("/api/world/rumors", async (req, res) => {
+    try {
+      const { campaignId, regionId } = req.query;
+      const result = await db.select().from(worldRumors)
+        .where(sql`is_active = true ${campaignId ? sql`AND (campaign_id = ${campaignId} OR campaign_id IS NULL)` : sql``} ${regionId ? sql`AND (region_id = ${regionId} OR region_id IS NULL)` : sql``}`)
+        .orderBy(sql`created_at DESC`)
+        .limit(10);
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to fetch rumors:", error);
+      res.status(500).json({ message: "Failed to fetch rumors" });
+    }
+  });
+  
+  // Get a random rumor (for tavern experience)
+  app.get("/api/world/rumors/random", async (req, res) => {
+    try {
+      const { regionId } = req.query;
+      const result = await db.select().from(worldRumors)
+        .where(sql`is_active = true ${regionId ? sql`AND (region_id = ${regionId} OR region_id IS NULL)` : sql``}`)
+        .orderBy(sql`RANDOM()`)
+        .limit(1);
+      
+      if (result.length > 0) {
+        // Increment times heard
+        await db.update(worldRumors)
+          .set({ timesHeard: sql`times_heard + 1`, lastHeardAt: new Date().toISOString() })
+          .where(sql`id = ${result[0].id}`);
+      }
+      
+      res.json(result[0] || null);
+    } catch (error) {
+      console.error("Failed to fetch random rumor:", error);
+      res.status(500).json({ message: "Failed to fetch rumor" });
+    }
+  });
+  
+  // Create a new rumor (DM or system)
+  app.post("/api/world/rumors", isAuthenticated, async (req, res) => {
+    try {
+      const rumor = await db.insert(worldRumors).values({
+        ...req.body,
+        createdAt: new Date().toISOString()
+      }).returning();
+      res.json(rumor[0]);
+    } catch (error) {
+      console.error("Failed to create rumor:", error);
+      res.status(500).json({ message: "Failed to create rumor" });
+    }
+  });
+  
+  // Get pending world developments for DM
+  app.get("/api/world/developments", isAuthenticated, async (req, res) => {
+    try {
+      const { campaignId } = req.query;
+      const result = await db.select().from(worldDevelopments)
+        .where(sql`dm_decision IS NULL ${campaignId ? sql`AND (campaign_id = ${campaignId} OR campaign_id IS NULL)` : sql``} AND (show_after IS NULL OR show_after <= ${new Date().toISOString()})`)
+        .orderBy(sql`created_at DESC`);
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to fetch developments:", error);
+      res.status(500).json({ message: "Failed to fetch developments" });
+    }
+  });
+  
+  // DM responds to a world development
+  app.post("/api/world/developments/:id/decide", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { decision, notes } = req.body; // decision: adopted, modified, ignored, postponed
+      
+      const result = await db.update(worldDevelopments)
+        .set({ 
+          dmDecision: decision, 
+          dmNotes: notes,
+          decidedAt: new Date().toISOString()
+        })
+        .where(sql`id = ${id}`)
+        .returning();
+      
+      res.json(result[0]);
+    } catch (error) {
+      console.error("Failed to update development:", error);
+      res.status(500).json({ message: "Failed to update development" });
+    }
+  });
+  
+  // Get region pressure/mood data
+  app.get("/api/world/regions/:id/pressure", async (req, res) => {
+    try {
+      const regionId = parseInt(req.params.id);
+      const result = await db.select({
+        id: worldRegions.id,
+        name: worldRegions.name,
+        instability: worldRegions.instability,
+        danger: worldRegions.danger,
+        opportunity: worldRegions.opportunity,
+        mystery: worldRegions.mystery,
+        currentMood: worldRegions.currentMood
+      }).from(worldRegions).where(sql`id = ${regionId}`);
+      
+      res.json(result[0] || null);
+    } catch (error) {
+      console.error("Failed to fetch region pressure:", error);
+      res.status(500).json({ message: "Failed to fetch region pressure" });
+    }
+  });
+  
+  // Get world state summary (subtle player-facing)
+  app.get("/api/world/state", async (req, res) => {
+    try {
+      // Get regions with elevated pressure
+      const tensionsRising = await db.select({
+        name: worldRegions.name,
+        mood: worldRegions.currentMood
+      }).from(worldRegions)
+        .where(sql`(instability > 50 OR danger > 50 OR mystery > 50)`)
+        .limit(3);
+      
+      const worldState = {
+        message: tensionsRising.length > 0 
+          ? "The world does not wait forever." 
+          : "The realm rests quietly... for now.",
+        tensions: tensionsRising.map(r => `${r.name}: ${r.mood}`)
+      };
+      
+      res.json(worldState);
+    } catch (error) {
+      console.error("Failed to fetch world state:", error);
+      res.status(500).json({ message: "Failed to fetch world state" });
     }
   });
 

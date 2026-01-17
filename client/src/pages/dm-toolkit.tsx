@@ -92,6 +92,7 @@ import EnhancedLiveSessionManager from "@/components/dm-toolkit/EnhancedLiveSess
 import DMTrainingCenterTab from "@/components/dm-toolkit/DMTrainingCenterTab";
 import LiveManagerPanel from "@/components/dm-toolkit/LiveManagerPanel";
 import DMQuickStart from "@/components/dm-toolkit/DMQuickStart";
+import WorldDevelopmentsPanel from "@/components/dm-toolkit/WorldDevelopmentsPanel";
 import parchmentFrame from "@assets/image_1768600727955.png";
 
 export default function DMToolkit() {
@@ -453,12 +454,16 @@ export default function DMToolkit() {
             <TabsList className="mb-4">
               <TabsTrigger value="control-panel">Control Panel</TabsTrigger>
               <TabsTrigger value="story-tools">Story & Content</TabsTrigger>
+              <TabsTrigger value="world-events">World Events</TabsTrigger>
             </TabsList>
             <TabsContent value="control-panel">
               <LiveManagerPanel selectedCampaignId={selectedCampaignId} />
             </TabsContent>
             <TabsContent value="story-tools">
               <EnhancedLiveSessionManager selectedCampaignId={selectedCampaignId} />
+            </TabsContent>
+            <TabsContent value="world-events">
+              <WorldDevelopmentsPanel campaignId={selectedCampaignId || undefined} />
             </TabsContent>
           </Tabs>
         </TabsContent>

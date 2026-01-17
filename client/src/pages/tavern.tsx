@@ -501,11 +501,25 @@ export default function TavernPage() {
     }
   });
   
-  const hearNewRumor = () => {
+  const hearNewRumor = async () => {
     const npcs = ["A grizzled dwarf", "An elven merchant", "A hooded stranger", "The bartender", "A traveling bard", "A nervous halfling"];
     setRumorNPC(npcs[Math.floor(Math.random() * npcs.length)]);
+    
+    try {
+      const response = await fetch('/api/world/rumors/random');
+      if (response.ok) {
+        const rumor = await response.json();
+        if (rumor && rumor.narrative) {
+          setCurrentRumor(rumor.narrative);
+          return;
+        }
+      }
+    } catch (error) {
+      console.log("Falling back to local rumors");
+    }
+    
     let newRumor = currentRumor;
-    while (newRumor === currentRumor) {
+    while (newRumor === currentRumor && TAVERN_RUMORS.length > 1) {
       newRumor = TAVERN_RUMORS[Math.floor(Math.random() * TAVERN_RUMORS.length)];
     }
     setCurrentRumor(newRumor);
