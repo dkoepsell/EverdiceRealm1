@@ -1552,17 +1552,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Consumable Items Routes - with D&D 5e-style pricing
+  // Consumable Items Routes - affordable pricing for early-game players
   const CONSUMABLE_EFFECTS: Record<string, { type: string; effect: string; price: number; healDice?: string; healBonus?: number }> = {
-    "Healing Potion": { type: "healing", effect: "Restores 2d4+2 HP", price: 50, healDice: "2d4", healBonus: 2 },
-    "Greater Healing Potion": { type: "healing", effect: "Restores 4d4+4 HP", price: 150, healDice: "4d4", healBonus: 4 },
-    "Superior Healing Potion": { type: "healing", effect: "Restores 8d4+8 HP", price: 450, healDice: "8d4", healBonus: 8 },
-    "Supreme Healing Potion": { type: "healing", effect: "Restores 10d4+20 HP", price: 1350, healDice: "10d4", healBonus: 20 },
-    "Potion of Resistance": { type: "buff", effect: "Resistance to one damage type for 1 hour", price: 300 },
-    "Antitoxin": { type: "utility", effect: "Advantage on saves vs poison for 1 hour", price: 50 },
-    "Scroll of Cure Wounds": { type: "healing", effect: "Casts Cure Wounds (1d8+3 HP)", price: 75, healDice: "1d8", healBonus: 3 },
-    "Scroll of Lesser Restoration": { type: "utility", effect: "Ends one condition (poisoned, blinded, etc.)", price: 120 },
-    "Scroll of Revivify": { type: "utility", effect: "Resurrects a creature dead less than 1 minute", price: 500 },
+    "Healing Potion": { type: "healing", effect: "Restores 2d4+2 HP", price: 10, healDice: "2d4", healBonus: 2 },
+    "Greater Healing Potion": { type: "healing", effect: "Restores 4d4+4 HP", price: 25, healDice: "4d4", healBonus: 4 },
+    "Superior Healing Potion": { type: "healing", effect: "Restores 8d4+8 HP", price: 50, healDice: "8d4", healBonus: 8 },
+    "Supreme Healing Potion": { type: "healing", effect: "Restores 10d4+20 HP", price: 100, healDice: "10d4", healBonus: 20 },
+    "Potion of Resistance": { type: "buff", effect: "Resistance to one damage type for 1 hour", price: 35 },
+    "Antitoxin": { type: "utility", effect: "Advantage on saves vs poison for 1 hour", price: 8 },
+    "Scroll of Cure Wounds": { type: "healing", effect: "Casts Cure Wounds (1d8+3 HP)", price: 12, healDice: "1d8", healBonus: 3 },
+    "Scroll of Lesser Restoration": { type: "utility", effect: "Ends one condition (poisoned, blinded, etc.)", price: 20 },
+    "Scroll of Revivify": { type: "utility", effect: "Resurrects a creature dead less than 1 minute", price: 75 },
   };
 
   app.get("/api/characters/:id/consumables", async (req, res) => {
