@@ -1697,21 +1697,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const item = consumables[itemIndex];
       let resultMessage = "";
       let healedAmount = 0;
-      let newHP = character.hitPoints;
+      const currentHP = character.hitPoints ?? 0;
+      const maxHP = character.maxHitPoints ?? 10;
+      let newHP = currentHP;
       let newStatus = character.status;
       
       // Apply effect based on type
       if (item.type === "healing" && item.healDice) {
         const diceRoll = rollDice(item.healDice);
         healedAmount = diceRoll + (item.healBonus || 0);
-        newHP = Math.min(character.maxHitPoints, character.hitPoints + healedAmount);
+        newHP = Math.min(maxHP, currentHP + healedAmount);
         
         // If unconscious/stabilized and healed above 0, become conscious
         if (newHP > 0 && (character.status === "unconscious" || character.status === "stabilized")) {
           newStatus = "conscious";
-          resultMessage = `Used ${name}! Healed ${healedAmount} HP and regained consciousness!`;
+          resultMessage = `Used ${name}! Healed ${healedAmount} HP and regained consciousness! (${currentHP} → ${newHP})`;
         } else {
-          resultMessage = `Used ${name}! Healed ${healedAmount} HP (${character.hitPoints} → ${newHP}).`;
+          resultMessage = `Used ${name}! Healed ${healedAmount} HP (${currentHP} → ${newHP}).`;
         }
       } else {
         resultMessage = `Used ${name}! ${item.effect}`;
