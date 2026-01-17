@@ -1804,6 +1804,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: new Date().toISOString()
       };
       
+      // Always update HP if healing was applied
       if (healedAmount > 0) {
         updateData.hitPoints = newHP;
         updateData.status = newStatus;
@@ -1811,9 +1812,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updateData.deathSaveSuccesses = 0;
           updateData.deathSaveFailures = 0;
         }
+        console.log(`Healing applied: ${currentHP} -> ${newHP}, status: ${character.status} -> ${newStatus}`);
+        console.log(`Update data:`, JSON.stringify(updateData));
       }
       
       const updatedCharacter = await storage.updateCharacter(id, updateData);
+      console.log(`Updated character HP: ${updatedCharacter?.hitPoints}, status: ${updatedCharacter?.status}`);
       
       res.json({
         character: updatedCharacter,
