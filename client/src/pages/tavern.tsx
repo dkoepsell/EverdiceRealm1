@@ -237,6 +237,47 @@ const REPAIR_COSTS: Record<string, { gold: number; silver: number }> = {
   legendary: { gold: 500, silver: 0 }
 };
 
+interface TavernDrink {
+  id: string;
+  name: string;
+  description: string;
+  effect: string;
+  cost: number;
+  icon: string;
+}
+
+const TAVERN_DRINKS: TavernDrink[] = [
+  { id: "ale", name: "Dragon's Breath Ale", description: "A fiery brew that warms the soul", effect: "+1 to Charisma checks for the next hour", cost: 1, icon: "🍺" },
+  { id: "mead", name: "Honeyed Mead", description: "Sweet golden nectar from the northern hives", effect: "Advantage on next Persuasion check", cost: 2, icon: "🍯" },
+  { id: "wine", name: "Elven Starlight Wine", description: "A delicate vintage that shimmers like starlight", effect: "+1 to Wisdom saves for the next hour", cost: 5, icon: "🍷" },
+  { id: "spirits", name: "Dwarven Firewater", description: "Warning: May cause temporary blindness", effect: "Disadvantage on Perception, +2 to Constitution saves", cost: 3, icon: "🥃" },
+  { id: "cider", name: "Halfling Apple Cider", description: "Warm and comforting, like a hobbit hole", effect: "Restore 1d4 temporary HP", cost: 2, icon: "🍎" },
+  { id: "mystery", name: "Wizard's Mystery Brew", description: "What could possibly go wrong?", effect: "Roll 1d6 for a random magical effect", cost: 10, icon: "✨" }
+];
+
+const TAVERN_RUMORS = [
+  "I heard there's a dragon's hoard hidden beneath the old mill...",
+  "The mayor's been acting strange lately. Some say he's been replaced by a doppelganger.",
+  "Merchants from the east speak of a plague spreading through the port cities.",
+  "A band of goblins has been spotted near the old ruins. They seem to be searching for something.",
+  "The blacksmith's daughter went missing last fortnight. She was last seen heading toward the forest.",
+  "Strange lights have been appearing over the cemetery at midnight.",
+  "A traveling bard claims to know the location of an ancient temple filled with treasure.",
+  "The duke is offering a reward for anyone who can rid the countryside of the werewolf menace.",
+  "There's talk of a secret entrance to the Underdark hidden somewhere in the caves.",
+  "The old wizard's tower has been abandoned for years, but smoke was seen rising from it yesterday."
+];
+
+interface DiceGameState {
+  playerDice: number[];
+  houseDice: number[];
+  playerBet: number;
+  playerGuess: { count: number; face: number };
+  gamePhase: 'betting' | 'guessing' | 'reveal' | 'result';
+  result: 'win' | 'lose' | null;
+  winnings: number;
+}
+
 function getRarityColor(rarity: string): string {
   switch (rarity.toLowerCase()) {
     case "common": return "text-slate-600 dark:text-slate-400";
@@ -272,6 +313,71 @@ export default function TavernPage() {
   const [selectedShopItem, setSelectedShopItem] = useState<ShopItem | null>(null);
   const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null);
   const [quantity, setQuantity] = useState(1);
+  
+  // Tavern social features state
+  const [tavernTab, setTavernTab] = useState<'drinks' | 'party' | 'rumors' | 'games'>('drinks');
+  const [currentRumor, setCurrentRumor] = useState<string>(TAVERN_RUMORS[Math.floor(Math.random() * TAVERN_RUMORS.length)]);
+  const [rumorNPC, setRumorNPC] = useState<string>(() => {
+    const npcs = ["A grizzled dwarf", "An elven merchant", "A hooded stranger", "The bartender", "A traveling bard", "A nervous halfling"];
+    return npcs[Math.floor(Math.random() * npcs.length)];
+  });
+  const [lastDrinkPurchased, setLastDrinkPurchased] = useState<TavernDrink | null>(null);
+  
+  // Dice game state
+  const [diceGame, setDiceGame] = useState<DiceGameState>({
+    playerDice: [],
+    houseDice: [],
+    playerBet: 5,
+    playerGuess: { count: 1, face: 1 },
+    gamePhase: 'betting',
+    result: null,
+    winnings: 0
+  });
+  
+  const rollDice = (count: number): number[] => {
+    return Array.from({ length: count }, () => Math.floor(Math.random() * 6) + 1);
+  };
+  
+  const startDiceGame = () => {
+    if (!activeCharacter || characterGold < diceGame.playerBet) {
+      toast({ title: "Not enough gold!", variant: "destructive" });
+      return;
+    }
+    const playerDice = rollDice(5);
+    const houseDice = rollDice(5);
+    setDiceGame(prev => ({
+      ...prev,
+      playerDice,
+      houseDice,
+      gamePhase: 'guessing'
+    }));
+  };
+  
+  const makeGuess = () => {
+    const allDice = [...diceGame.playerDice, ...diceGame.houseDice];
+    const actualCount = allDice.filter(d => d === diceGame.playerGuess.face || d === 1).length;
+    const won = actualCount >= diceGame.playerGuess.count;
+    const winnings = won ? diceGame.playerBet * 2 : -diceGame.playerBet;
+    
+    setDiceGame(prev => ({
+      ...prev,
+      gamePhase: 'result',
+      result: won ? 'win' : 'lose',
+      winnings
+    }));
+  };
+  
+  const resetDiceGame = () => {
+    setDiceGame({
+      playerDice: [],
+      houseDice: [],
+      playerBet: 5,
+      playerGuess: { count: 1, face: 1 },
+      gamePhase: 'betting',
+      result: null,
+      winnings: 0
+    });
+  };
 
   const { data: characters = [] } = useQuery<any[]>({
     queryKey: ["/api/characters"],
@@ -361,6 +467,49 @@ export default function TavernPage() {
       });
     }
   });
+  
+  // Drink purchase mutation
+  const buyDrinkMutation = useMutation({
+    mutationFn: async ({ characterId, drink }: { characterId: number; drink: TavernDrink }) => {
+      const response = await apiRequest("POST", `/api/characters/${characterId}/buy-item`, {
+        itemName: drink.name,
+        itemType: "Beverage",
+        itemRarity: "common",
+        itemDescription: drink.description,
+        itemProperties: drink.effect,
+        goldCost: drink.cost,
+        silverCost: 0,
+        quantity: 1
+      });
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+      const drink = variables.drink;
+      setLastDrinkPurchased(drink);
+      toast({
+        title: `${drink.icon} Cheers!`,
+        description: `You enjoy a ${drink.name}. ${drink.effect}`
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Not enough gold!",
+        description: error.message || "You can't afford this drink.",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  const hearNewRumor = () => {
+    const npcs = ["A grizzled dwarf", "An elven merchant", "A hooded stranger", "The bartender", "A traveling bard", "A nervous halfling"];
+    setRumorNPC(npcs[Math.floor(Math.random() * npcs.length)]);
+    let newRumor = currentRumor;
+    while (newRumor === currentRumor) {
+      newRumor = TAVERN_RUMORS[Math.floor(Math.random() * TAVERN_RUMORS.length)];
+    }
+    setCurrentRumor(newRumor);
+  };
 
   const filteredShopItems = shopCategory === "all" 
     ? SHOP_INVENTORY 
@@ -833,32 +982,270 @@ export default function TavernPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12">
-                  <Users className="h-16 w-16 mx-auto mb-4 text-amber-600 opacity-50" />
-                  <h3 className="text-xl font-bold mb-2">Coming Soon!</h3>
-                  <p className="text-slate-600 dark:text-slate-400 max-w-md mx-auto">
-                    The tavern's common room will soon be bustling with activity. Chat with other players, 
-                    share stories from your adventures, and find new party members.
-                  </p>
-                  <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto">
-                    <Card className="p-4 text-center bg-amber-50 dark:bg-slate-800">
-                      <Beer className="h-8 w-8 mx-auto mb-2 text-amber-600" />
-                      <p className="text-sm font-medium">Order Drinks</p>
+                {/* Tavern Sub-tabs */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <button
+                    onClick={() => setTavernTab('drinks')}
+                    className={`p-4 text-center rounded-lg border-2 transition-all ${tavernTab === 'drinks' ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-500' : 'bg-slate-50 dark:bg-slate-800 border-transparent hover:border-amber-300'}`}
+                  >
+                    <Beer className="h-8 w-8 mx-auto mb-2 text-amber-600" />
+                    <p className="text-sm font-medium">Order Drinks</p>
+                  </button>
+                  <button
+                    onClick={() => setTavernTab('party')}
+                    className={`p-4 text-center rounded-lg border-2 transition-all ${tavernTab === 'party' ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-500' : 'bg-slate-50 dark:bg-slate-800 border-transparent hover:border-amber-300'}`}
+                  >
+                    <Users className="h-8 w-8 mx-auto mb-2 text-amber-600" />
+                    <p className="text-sm font-medium">Find Party</p>
+                  </button>
+                  <button
+                    onClick={() => setTavernTab('rumors')}
+                    className={`p-4 text-center rounded-lg border-2 transition-all ${tavernTab === 'rumors' ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-500' : 'bg-slate-50 dark:bg-slate-800 border-transparent hover:border-amber-300'}`}
+                  >
+                    <Sparkles className="h-8 w-8 mx-auto mb-2 text-amber-600" />
+                    <p className="text-sm font-medium">Hear Rumors</p>
+                  </button>
+                  <button
+                    onClick={() => setTavernTab('games')}
+                    className={`p-4 text-center rounded-lg border-2 transition-all ${tavernTab === 'games' ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-500' : 'bg-slate-50 dark:bg-slate-800 border-transparent hover:border-amber-300'}`}
+                  >
+                    <Zap className="h-8 w-8 mx-auto mb-2 text-amber-600" />
+                    <p className="text-sm font-medium">Mini-Games</p>
+                  </button>
+                </div>
+                
+                <Separator className="my-4" />
+                
+                {/* Order Drinks Tab */}
+                {tavernTab === 'drinks' && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-bold flex items-center gap-2">
+                      <Beer className="h-5 w-5 text-amber-600" />
+                      The Bartender's Menu
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {TAVERN_DRINKS.map(drink => (
+                        <Card key={drink.id} className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-900 border-amber-200 dark:border-amber-800/50">
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-2xl">{drink.icon}</span>
+                                <h4 className="font-bold text-amber-900 dark:text-amber-100">{drink.name}</h4>
+                              </div>
+                              <Badge variant="outline" className="text-amber-600">
+                                <Coins className="h-3 w-3 mr-1" />
+                                {drink.cost} gp
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">{drink.description}</p>
+                            <p className="text-xs text-amber-700 dark:text-amber-400 italic mb-3">Effect: {drink.effect}</p>
+                            <Button 
+                              size="sm" 
+                              className="w-full"
+                              disabled={!activeCharacter || characterGold < drink.cost || buyDrinkMutation.isPending}
+                              onClick={() => activeCharacter && buyDrinkMutation.mutate({ characterId: activeCharacter.id, drink })}
+                            >
+                              {buyDrinkMutation.isPending ? "Ordering..." : "Order Drink"}
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                    {lastDrinkPurchased && (
+                      <Card className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 mt-4">
+                        <CardContent className="p-4 flex items-center gap-3">
+                          <span className="text-3xl">{lastDrinkPurchased.icon}</span>
+                          <div>
+                            <p className="font-medium text-green-800 dark:text-green-200">You're enjoying a {lastDrinkPurchased.name}!</p>
+                            <p className="text-sm text-green-600 dark:text-green-400">{lastDrinkPurchased.effect}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                )}
+                
+                {/* Find Party Tab */}
+                {tavernTab === 'party' && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-bold flex items-center gap-2">
+                      <Users className="h-5 w-5 text-amber-600" />
+                      Adventurers Looking for Company
+                    </h3>
+                    {characters.length > 1 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {characters.filter(c => c.id !== activeCharacter?.id).map(char => (
+                          <Card key={char.id} className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900">
+                            <CardContent className="p-4 flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center overflow-hidden">
+                                {char.portraitUrl ? (
+                                  <img src={char.portraitUrl} alt={char.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <Users className="h-6 w-6 text-white" />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-bold">{char.name}</h4>
+                                <p className="text-sm text-muted-foreground">Level {char.level} {char.race} {char.class}</p>
+                              </div>
+                              <Button variant="outline" size="sm">
+                                <Users className="h-4 w-4 mr-1" />
+                                Invite
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    ) : (
+                      <Card className="bg-slate-50 dark:bg-slate-800 p-8 text-center">
+                        <Users className="h-12 w-12 mx-auto mb-4 text-slate-400" />
+                        <p className="text-muted-foreground">No other adventurers are at the tavern tonight.</p>
+                        <p className="text-sm text-muted-foreground mt-2">Create more characters to see them here!</p>
+                      </Card>
+                    )}
+                  </div>
+                )}
+                
+                {/* Hear Rumors Tab */}
+                {tavernTab === 'rumors' && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-bold flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-amber-600" />
+                      Whispers in the Common Room
+                    </h3>
+                    <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-slate-800 dark:to-purple-900/20 border-purple-200 dark:border-purple-800/50">
+                      <CardContent className="p-6">
+                        <div className="flex items-start gap-4">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                            <Users className="h-6 w-6 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm text-purple-600 dark:text-purple-400 font-medium mb-1">{rumorNPC} leans in and whispers:</p>
+                            <p className="text-lg italic text-slate-700 dark:text-slate-200">"{currentRumor}"</p>
+                          </div>
+                        </div>
+                      </CardContent>
                     </Card>
-                    <Card className="p-4 text-center bg-amber-50 dark:bg-slate-800">
-                      <Users className="h-8 w-8 mx-auto mb-2 text-amber-600" />
-                      <p className="text-sm font-medium">Find Party</p>
-                    </Card>
-                    <Card className="p-4 text-center bg-amber-50 dark:bg-slate-800">
-                      <Sparkles className="h-8 w-8 mx-auto mb-2 text-amber-600" />
-                      <p className="text-sm font-medium">Hear Rumors</p>
-                    </Card>
-                    <Card className="p-4 text-center bg-amber-50 dark:bg-slate-800">
-                      <Zap className="h-8 w-8 mx-auto mb-2 text-amber-600" />
-                      <p className="text-sm font-medium">Mini-Games</p>
+                    <div className="flex justify-center">
+                      <Button onClick={hearNewRumor} variant="outline" className="gap-2">
+                        <RefreshCw className="h-4 w-4" />
+                        Listen for Another Rumor
+                      </Button>
+                    </div>
+                    <p className="text-center text-sm text-muted-foreground">
+                      Rumors may lead to adventure hooks and quest opportunities!
+                    </p>
+                  </div>
+                )}
+                
+                {/* Mini-Games Tab - Liar's Dice */}
+                {tavernTab === 'games' && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-bold flex items-center gap-2">
+                      <Zap className="h-5 w-5 text-amber-600" />
+                      Liar's Dice
+                    </h3>
+                    <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-slate-800 dark:to-emerald-900/20 border-green-200 dark:border-green-800/50">
+                      <CardContent className="p-6">
+                        {diceGame.gamePhase === 'betting' && (
+                          <div className="space-y-4 text-center">
+                            <p className="text-muted-foreground">Place your bet and try to guess how many dice of a certain face are on the table!</p>
+                            <div className="flex items-center justify-center gap-4">
+                              <span>Bet:</span>
+                              <Input 
+                                type="number"
+                                min={1}
+                                max={Math.min(100, characterGold)}
+                                value={diceGame.playerBet}
+                                onChange={(e) => setDiceGame(prev => ({ ...prev, playerBet: Math.max(1, parseInt(e.target.value) || 1) }))}
+                                className="w-20"
+                              />
+                              <span className="text-yellow-600">gp</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">Your gold: {characterGold} gp</p>
+                            <Button 
+                              onClick={startDiceGame}
+                              disabled={!activeCharacter || characterGold < diceGame.playerBet}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              Roll the Dice!
+                            </Button>
+                          </div>
+                        )}
+                        
+                        {diceGame.gamePhase === 'guessing' && (
+                          <div className="space-y-4">
+                            <div className="text-center">
+                              <p className="font-medium mb-2">Your Dice:</p>
+                              <div className="flex justify-center gap-2 mb-4">
+                                {diceGame.playerDice.map((die, i) => (
+                                  <div key={i} className="w-10 h-10 bg-white dark:bg-slate-700 rounded-lg flex items-center justify-center text-xl font-bold border-2 border-amber-300">
+                                    {['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][die - 1]}
+                                  </div>
+                                ))}
+                              </div>
+                              <p className="text-sm text-muted-foreground mb-4">The house has 5 hidden dice. Guess how many dice total show a certain face (1s are wild)!</p>
+                            </div>
+                            <div className="flex items-center justify-center gap-4 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                <span>I bet there are at least</span>
+                                <Select value={diceGame.playerGuess.count.toString()} onValueChange={(v) => setDiceGame(prev => ({ ...prev, playerGuess: { ...prev.playerGuess, count: parseInt(v) } }))}>
+                                  <SelectTrigger className="w-16"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {[1,2,3,4,5,6,7,8,9,10].map(n => <SelectItem key={n} value={n.toString()}>{n}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                                <span>dice showing</span>
+                                <Select value={diceGame.playerGuess.face.toString()} onValueChange={(v) => setDiceGame(prev => ({ ...prev, playerGuess: { ...prev.playerGuess, face: parseInt(v) } }))}>
+                                  <SelectTrigger className="w-16"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {[2,3,4,5,6].map(n => <SelectItem key={n} value={n.toString()}>{['⚁', '⚂', '⚃', '⚄', '⚅'][n - 2]}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            <div className="flex justify-center mt-4">
+                              <Button onClick={makeGuess} className="bg-amber-600 hover:bg-amber-700">Make My Guess!</Button>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {diceGame.gamePhase === 'result' && (
+                          <div className="space-y-4 text-center">
+                            <div className={`text-2xl font-bold ${diceGame.result === 'win' ? 'text-green-600' : 'text-red-600'}`}>
+                              {diceGame.result === 'win' ? '🎉 You Win!' : '💔 You Lose!'}
+                            </div>
+                            <div>
+                              <p className="mb-2">Your Dice:</p>
+                              <div className="flex justify-center gap-2 mb-2">
+                                {diceGame.playerDice.map((die, i) => (
+                                  <div key={i} className="w-8 h-8 bg-white dark:bg-slate-700 rounded flex items-center justify-center font-bold border">
+                                    {['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][die - 1]}
+                                  </div>
+                                ))}
+                              </div>
+                              <p className="mb-2">House Dice:</p>
+                              <div className="flex justify-center gap-2 mb-4">
+                                {diceGame.houseDice.map((die, i) => (
+                                  <div key={i} className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded flex items-center justify-center font-bold border border-red-300">
+                                    {['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][die - 1]}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            <p className="text-lg">
+                              {diceGame.result === 'win' 
+                                ? <span className="text-green-600">+{diceGame.winnings} gold!</span>
+                                : <span className="text-red-600">{diceGame.winnings} gold</span>
+                              }
+                            </p>
+                            <Button onClick={resetDiceGame} variant="outline">Play Again</Button>
+                          </div>
+                        )}
+                      </CardContent>
                     </Card>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
