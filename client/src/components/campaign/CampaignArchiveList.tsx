@@ -145,16 +145,39 @@ export default function CampaignArchiveList() {
   // Filter completed campaigns (not archived, but completed)
   const completedCampaigns = campaigns.filter(campaign => !campaign.isArchived && campaign.isCompleted);
 
-  // Get character names for a campaign
-  const getCharacterNames = (characterIds: number[] | null) => {
-    if (!characterIds || characterIds.length === 0) return "No characters assigned";
+  // Fetch participants for all campaigns
+  const { data: allParticipants = [] } = useQuery<any[]>({
+    queryKey: ["/api/campaign-participants/all"],
+    queryFn: async () => {
+      // Fetch participants for each campaign
+      const participantPromises = campaigns.map(async (campaign) => {
+        try {
+          const response = await fetch(`/api/campaigns/${campaign.id}/participants`);
+          if (response.ok) {
+            const participants = await response.json();
+            return { campaignId: campaign.id, participants };
+          }
+        } catch (e) {
+          // Ignore errors
+        }
+        return { campaignId: campaign.id, participants: [] };
+      });
+      return Promise.all(participantPromises);
+    },
+    enabled: campaigns.length > 0,
+  });
+  
+  // Get character names for a campaign from participants
+  const getCharacterNames = (campaignId: number) => {
+    const campaignData = allParticipants.find((p: any) => p.campaignId === campaignId);
+    if (!campaignData || !campaignData.participants || campaignData.participants.length === 0) {
+      return "No characters assigned";
+    }
     
-    return characterIds
-      .map(id => {
-        const character = characters.find(c => c.id === id);
-        return character ? character.name : "Unknown";
-      })
-      .join(", ");
+    return campaignData.participants
+      .filter((p: any) => p.character)
+      .map((p: any) => p.character.name)
+      .join(", ") || "No characters assigned";
   };
 
   // Handle loading states
@@ -252,7 +275,7 @@ export default function CampaignArchiveList() {
                     </div>
                     <div className="flex items-center text-muted-foreground">
                       <Users className="mr-2 h-4 w-4" />
-                      <span>{getCharacterNames(campaign.characters)}</span>
+                      <span>{getCharacterNames(campaign.id)}</span>
                     </div>
                     <div className="flex items-center text-muted-foreground">
                       <Bookmark className="mr-2 h-4 w-4" />
@@ -357,7 +380,7 @@ export default function CampaignArchiveList() {
                     </div>
                     <div className="flex items-center text-muted-foreground">
                       <Users className="mr-2 h-4 w-4" />
-                      <span>{getCharacterNames(campaign.characters)}</span>
+                      <span>{getCharacterNames(campaign.id)}</span>
                     </div>
                     <div className="flex items-center text-muted-foreground">
                       <Bookmark className="mr-2 h-4 w-4" />
@@ -434,7 +457,7 @@ export default function CampaignArchiveList() {
                     </div>
                     <div className="flex items-center text-muted-foreground">
                       <Users className="mr-2 h-4 w-4" />
-                      <span>{getCharacterNames(campaign.characters)}</span>
+                      <span>{getCharacterNames(campaign.id)}</span>
                     </div>
                     <div className="flex items-center text-muted-foreground">
                       <Bookmark className="mr-2 h-4 w-4" />
