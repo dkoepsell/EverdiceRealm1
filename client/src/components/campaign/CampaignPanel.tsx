@@ -2550,14 +2550,17 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                     <span className="text-slate-900 dark:text-slate-100 font-medium text-sm sm:text-base break-words whitespace-normal overflow-wrap-anywhere">
                                       {choiceText}
                                     </span>
-                                    {hasRoll && (
+                                    {hasRoll && dc && (
                                       <div className="flex flex-wrap items-center gap-1">
                                         <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded font-bold">
-                                          {choice.rollPurpose || "Skill Check"} ({choice.diceType || "d20"})
+                                          {choice.rollPurpose && choice.rollPurpose !== "null" ? choice.rollPurpose : "Skill Check"} ({choice.diceType && choice.diceType !== "null" ? choice.diceType : "d20"})
                                         </span>
-                                        {tooltipContent && activeCharacter && (
+                                        {tooltipContent && activeCharacter && dc > 0 && (
                                           <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${getLikelihoodDescription(calculateSuccessProbability(dc, getSkillModifier(activeCharacter, skillName).modifier)).color} bg-black/20`}>
-                                            {Math.round(calculateSuccessProbability(dc, getSkillModifier(activeCharacter, skillName).modifier))}%
+                                            {(() => {
+                                              const prob = calculateSuccessProbability(dc, getSkillModifier(activeCharacter, skillName).modifier);
+                                              return isNaN(prob) ? "~50" : Math.round(prob);
+                                            })()}%
                                           </span>
                                         )}
                                       </div>
