@@ -63,10 +63,11 @@ export default function Dashboard() {
     }
   };
   
-  // For user counter stats
+  // For user counter stats - shows total community size
   const [userStats, setUserStats] = useState({
     totalRegistered: 0,
-    onlineUsers: 0
+    totalCharacters: 0,
+    totalCampaigns: 0
   });
 
   // For campaign selection - persist in localStorage
@@ -105,7 +106,8 @@ export default function Dashboard() {
           const data = await response.json();
           setUserStats({
             totalRegistered: data.totalRegistered,
-            onlineUsers: data.onlineUsers
+            totalCharacters: data.totalCharacters || 0,
+            totalCampaigns: data.totalCampaigns || 0
           });
         } else {
           console.error('Failed to fetch user stats:', response.statusText);
@@ -265,12 +267,18 @@ export default function Dashboard() {
           
           <div className="relative z-10">
           <div className="max-w-2xl">
-            {/* Online adventurers badge */}
+            {/* Community stats badge */}
             <div className="flex items-center gap-3 mb-4">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
-                <Activity className="h-3 w-3" />
-                <span>{userStats.onlineUsers} adventurers online</span>
+                <Users className="h-3 w-3" />
+                <span>{userStats.totalRegistered.toLocaleString()} adventurers have joined</span>
               </div>
+              {userStats.totalCharacters > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm">
+                  <Sword className="h-3 w-3" />
+                  <span>{userStats.totalCharacters.toLocaleString()} heroes created</span>
+                </div>
+              )}
             </div>
             
             <h1 className="text-3xl md:text-4xl font-fantasy font-bold text-white mb-3">

@@ -6370,23 +6370,21 @@ Focus on:
     try {
       // Count total registered users
       const totalUsers = await db.select({ count: sql`COUNT(*)` }).from(users);
-      const totalRegistered = totalUsers[0]?.count || 0;
+      const totalRegistered = Number(totalUsers[0]?.count || 0);
       
-      // Calculate online users based on active WebSocket connections
-      // Each client may have multiple connections, so count unique IPs
-      const activeConnections = new Set();
-      wss.clients.forEach((client) => {
-        if (client.readyState === 1) { // 1 = OPEN state
-          // Get a unique identifier (use socket properties or default to unknown)
-          const clientId = (client as any)._socket?.remoteAddress || 'unknown';
-          activeConnections.add(clientId);
-        }
-      });
+      // Count total characters created
+      const totalChars = await db.select({ count: sql`COUNT(*)` }).from(characters);
+      const totalCharacters = Number(totalChars[0]?.count || 0);
       
-      // Return the stats
+      // Count total campaigns created
+      const totalCamps = await db.select({ count: sql`COUNT(*)` }).from(campaigns);
+      const totalCampaigns = Number(totalCamps[0]?.count || 0);
+      
+      // Return the stats - public facing community metrics
       res.json({
-        totalRegistered: Number(totalRegistered),
-        onlineUsers: activeConnections.size
+        totalRegistered,
+        totalCharacters,
+        totalCampaigns
       });
     } catch (error) {
       console.error("Failed to fetch user statistics:", error);
