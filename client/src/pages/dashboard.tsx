@@ -674,7 +674,7 @@ export default function Dashboard() {
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">XP:</span>
-                              <span className="font-medium">{activeCharacter.experiencePoints || 0}</span>
+                              <span className="font-medium">{activeCharacter.experience || 0}</span>
                             </div>
                           </div>
                         </div>
