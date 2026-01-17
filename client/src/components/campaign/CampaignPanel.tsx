@@ -2302,8 +2302,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             </h5>
                             <div className="space-y-2">
                               {(parsedStoryState.partyMembers as any[] || []).map((member: any, index: number) => {
-                                const isUnconscious = member.status === 'unconscious' || member.status === 'dead' || member.currentHp <= 0;
-                                const hpRatio = member.maxHp > 0 ? Math.max(0, member.currentHp / member.maxHp) : 0;
+                                // Look up actual character HP from participants if this is a player character
+                                const participantChar = participants.find((p: any) => 
+                                  p.character?.name === member.name || p.character?.id === member.characterId
+                                )?.character;
+                                const actualHp = participantChar?.hitPoints ?? member.currentHp;
+                                const actualMaxHp = participantChar?.maxHitPoints ?? member.maxHp;
+                                const actualStatus = participantChar?.status ?? member.status;
+                                
+                                const isUnconscious = actualStatus === 'unconscious' || actualStatus === 'dead' || actualHp <= 0;
+                                const hpRatio = actualMaxHp > 0 ? Math.max(0, actualHp / actualMaxHp) : 0;
                                 
                                 return (
                                 <div 
@@ -2327,13 +2335,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                     <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
                                       isUnconscious
                                         ? 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                                        : member.status === 'bloodied' 
+                                        : actualStatus === 'bloodied' 
                                         ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' 
-                                        : member.status === 'wounded'
+                                        : actualStatus === 'wounded'
                                         ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                                         : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                                     }`}>
-                                      {isUnconscious ? '💀 unconscious' : member.status || 'healthy'}
+                                      {isUnconscious ? '💀 unconscious' : actualStatus || 'healthy'}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-2">
@@ -2355,7 +2363,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                     <span className={`text-xs font-mono min-w-[45px] text-right ${
                                       isUnconscious ? 'text-red-600 dark:text-red-400 font-bold' : 'text-gray-700 dark:text-gray-300'
                                     }`}>
-                                      {Math.max(0, member.currentHp)}/{member.maxHp}
+                                      {Math.max(0, actualHp)}/{actualMaxHp}
                                     </span>
                                   </div>
                                 </div>
