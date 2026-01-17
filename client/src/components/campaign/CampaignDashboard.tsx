@@ -127,11 +127,12 @@ export default function CampaignDashboard({
     
     for (const p of participants) {
       if (p.character) {
+        const maxHp = p.character.maxHitPoints ?? 10;
         statuses.push({
           name: p.character.name,
           type: 'player',
-          currentHp: p.character.hitPoints || p.character.maxHitPoints || 10,
-          maxHp: p.character.maxHitPoints || 10,
+          currentHp: p.character.hitPoints ?? maxHp,
+          maxHp: maxHp,
           status: p.character.status || 'conscious',
           class: p.character.class,
           level: p.character.level,
@@ -143,11 +144,12 @@ export default function CampaignDashboard({
     
     for (const pm of partyMembers) {
       if (pm.type === 'companion' && !statuses.some(s => s.name === pm.name)) {
+        const maxHp = pm.maxHp ?? 20;
         statuses.push({
           name: pm.name,
           type: 'companion',
-          currentHp: pm.currentHp || pm.maxHp || 20,
-          maxHp: pm.maxHp || 20,
+          currentHp: pm.currentHp ?? maxHp,
+          maxHp: maxHp,
           status: pm.status || 'conscious',
           class: pm.class,
           level: pm.level,
