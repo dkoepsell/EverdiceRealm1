@@ -2781,12 +2781,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 <h2 className="text-xl font-bold font-fantasy" style={{ color: '#0f172a' }}>Campaign Party</h2>
                 
                 {/* Helpful intro hint */}
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3">
-                  <div className="flex items-start gap-2">
-                    <Sparkles className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                <div className="bg-white/80 border-2 border-amber-300 rounded-lg p-4 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg shadow-sm">
+                      <Sparkles className="h-5 w-5 text-white" />
+                    </div>
                     <div>
-                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Prepare for Adventure!</p>
-                      <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                      <p className="font-bold text-slate-800">Prepare for Adventure!</p>
+                      <p className="text-sm text-slate-600 mt-1">
                         Manage your equipment, buy potions with your gold, and check your inventory before heading out. 
                         Well-prepared adventurers survive longer!
                       </p>
@@ -2825,10 +2827,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 <CampaignParticipants campaignId={campaign.id} isDM={isDM} />
 
                 {/* Party Member Selection */}
-                <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                <div className="mt-6 p-4 border-2 border-amber-200 rounded-lg bg-white/80 shadow-sm">
                   <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                      <Users className="h-5 w-5 text-slate-700 dark:text-slate-300" />
+                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                      <Users className="h-5 w-5 text-amber-600" />
                       Manage Party Member
                     </h3>
                     <Button
@@ -2882,7 +2884,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </Button>
                     ))}
                     {myParticipants.length === 0 && partyNpcs.length === 0 && (
-                      <p className="text-sm text-slate-600 dark:text-slate-400">No party members to manage</p>
+                      <p className="text-sm text-slate-500">No party members to manage</p>
                     )}
                   </div>
                 </div>

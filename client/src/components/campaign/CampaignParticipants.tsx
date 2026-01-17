@@ -537,9 +537,10 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
       </div>
       
       {participants?.length === 0 && (
-        <div className="text-center p-8 border-2 border-dashed rounded-lg">
-          <p className="text-slate-900 dark:text-slate-100 font-medium mb-2 text-lg">No participants in this campaign yet.</p>
-          {isDM && <p className="text-slate-900 dark:text-slate-100 font-medium">Use the Invite button to add players.</p>}
+        <div className="text-center p-8 border-2 border-dashed border-amber-300 rounded-lg bg-white/60">
+          <Users className="h-12 w-12 text-amber-400 mx-auto mb-3" />
+          <p className="text-slate-700 font-medium mb-2 text-lg">No participants in this campaign yet.</p>
+          {isDM && <p className="text-slate-600">Use the Invite button to add players.</p>}
         </div>
       )}
     </div>
