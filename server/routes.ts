@@ -1437,27 +1437,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const equipment: any[] = (character as any).equipment || [];
       
-      // Parse JSON string items if needed
-      const parsedEquipment = equipment.map(item => {
-        if (typeof item === 'string') {
+      // Parse JSON string items if needed, keeping track of original indices
+      let foundIndex = -1;
+      let foundItem: any = null;
+      
+      for (let i = 0; i < equipment.length; i++) {
+        let parsed = equipment[i];
+        if (typeof equipment[i] === 'string') {
           try {
-            return JSON.parse(item);
+            parsed = JSON.parse(equipment[i]);
           } catch {
-            return { name: item, rarity: 'common', equipped: false };
+            parsed = { name: equipment[i], rarity: 'common', equipped: false };
           }
         }
-        return item;
-      });
-      
-      const itemIndex = parsedEquipment.findIndex(item => 
-        item.name === itemName && !item.equipped
-      );
-      
-      if (itemIndex === -1) {
-        return res.status(404).json({ message: "Item not found in inventory or is equipped" });
+        if (parsed.name === itemName && !parsed.equipped) {
+          foundIndex = i;
+          foundItem = parsed;
+          break;
+        }
       }
       
-      const item = parsedEquipment[itemIndex];
+      if (foundIndex === -1 || !foundItem) {
+        return res.status(404).json({ message: "Item not found in inventory or is equipped" });
+      }
       
       // Calculate sell price (half of buy price, based on rarity)
       const SELL_PRICES: Record<string, number> = {
@@ -1468,14 +1470,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         legendary: 2500
       };
       
-      const rarity = (item.rarity || 'common').toLowerCase();
+      const rarity = (foundItem.rarity || 'common').toLowerCase();
       const goldReceived = SELL_PRICES[rarity] || 5;
       
-      // Remove item from inventory
-      equipment.splice(itemIndex, 1);
+      // Remove item from inventory at the correct index
+      equipment.splice(foundIndex, 1);
       
-      // Add gold
-      const newGold = ((character as any).gold || 0) + goldReceived;
+      // Add gold - ensure we're adding to existing gold correctly
+      const currentGold = (character as any).gold ?? 0;
+      const newGold = currentGold + goldReceived;
+      
+      console.log(`Selling item: ${itemName}, current gold: ${currentGold}, received: ${goldReceived}, new gold: ${newGold}`);
       
       const updatedCharacter = await storage.updateCharacter(id, {
         gold: newGold,
