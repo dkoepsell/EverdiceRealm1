@@ -1,0 +1,204 @@
+Current feeling
+
+Rectangular cream buttons
+
+Looks like a calculator or form input
+
+Functional, but emotionally flat
+
+What D&D players expect
+
+Dice feel physical
+
+Dice feel special
+
+Dice feel chosen, not clicked
+
+Concrete changes
+
+Replace rectangular dice buttons with:
+
+subtle die silhouettes (e.g., d20 icon for d20)
+
+slight bevel or inset shadow
+
+Make selected die feel picked up:
+
+glow
+
+raised edge
+
+faint roll animation when selected
+
+Even a tiny animation when clicking d20 will dramatically increase delight.
+
+2. Rename Sections to Match Table Language
+
+Language matters more than people think.
+
+Rename:
+
+Roll Dice → Dice Tray
+
+Custom Roll → Declare a Roll
+
+Results → The Roll
+
+Roll History → Table Log
+
+These are phrases D&D players already use.
+
+This costs nothing and immediately signals cultural fluency.
+
+3. Make the Roll Feel Like an Event
+
+Right now, the result panel feels empty and static.
+
+Improve the moment of the roll
+
+When a roll happens:
+
+briefly animate the die
+
+delay the number by ~300ms
+
+add a subtle “thump” or glow (even visual-only)
+
+D&D players live for the reveal moment.
+
+Even without sound, visual anticipation matters.
+
+4. Use Narrative Context More Prominently
+
+You already have a huge advantage here: purpose-driven rolls.
+
+Current:
+
+d20+3 Attack Roll for "Confront the Shadow Wolf in combat"
+
+Improve by:
+
+Styling the purpose larger than the math
+
+Making the math secondary
+
+Example layout:
+
+Attack Roll
+Confront the Shadow Wolf
+d20 + 3 → 17
+
+
+This keeps the focus on story, not arithmetic.
+
+5. Make Practice Checks Feel Like Learning, Not Testing
+
+Your “Practice Skill Checks” idea is excellent, but it currently looks like buttons.
+
+Improve by:
+
+adding a small subtitle:
+
+“Try common rolls without pressure”
+
+grouping them visually as a “DM suggests” area
+
+adding gentle flavor text on hover:
+
+“Often used when searching rooms or noticing danger.”
+
+This helps new players without embarrassing them.
+
+6. Visually Ground the UI in the World
+
+Right now, this panel floats in abstract space.
+
+Small aesthetic shifts:
+
+Add a parchment or felt texture behind the dice tray
+
+Slight vignette around edges
+
+Reduce flat gray where possible
+
+Think:
+
+Dice on a table, not controls in a dashboard.
+
+This pairs beautifully with your earlier parchment/map work.
+
+7. Reduce Cognitive Load in the Custom Roll Section
+
+The custom roll area is powerful, but visually dense.
+
+Suggestions:
+
+Collapse it by default
+
+Show a single “Declare a Roll” button
+
+Expand only when clicked
+
+This keeps casual users comfortable and power users happy.
+
+8. Align Colors with Meaning
+
+Your purple is strong and branded, but D&D players associate:
+
+parchment → warm tans
+
+danger → red/orange
+
+success → gold
+
+magic → blue/purple (this is where your purple shines)
+
+Use purple for magic and intent, not everything.
+
+For example:
+
+Purple highlight = magical or intentional choice
+
+Neutral tones = background structure
+
+9. One Small Feature That Adds Huge Cred
+
+Add a tiny line somewhere like:
+
+“The DM decides the outcome.”
+
+This signals:
+
+this is not a rules engine
+
+this respects table authority
+
+you understand D&D culture
+
+It builds trust instantly.
+
+10. What You Should Not Do
+
+Avoid:
+
+3D dice physics (scope creep)
+
+over-gamification
+
+flashy casino-style animations
+
+turning this into a VTT feature
+
+This should feel like a shared table tool, not a game within the game.
+
+Summary: What Will Make D&D Folks Smile
+
+Right now, this dice roller says:
+
+“I work.”
+
+With the changes above, it will say:
+
+“I belong at your table.”
+
+That’s the difference between a utility and a ritual.
