@@ -3395,32 +3395,6 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           <p className="text-sm text-slate-600 dark:text-slate-400 py-2">No items in inventory</p>
                         )}
                       </div>
-
-                      {/* Add Item */}
-                      <div className="flex gap-2 mt-3">
-                        <Input
-                          placeholder="Add new item..."
-                          value={newItemName}
-                          onChange={(e) => setNewItemName(e.target.value)}
-                          className="flex-1"
-                          data-testid="input-new-item"
-                        />
-                        <Button
-                          onClick={() => {
-                            if (newItemName.trim()) {
-                              addItemMutation.mutate({ 
-                                characterId: activeCharacter.id, 
-                                item: newItemName.trim() 
-                              });
-                            }
-                          }}
-                          disabled={!newItemName.trim() || addItemMutation.isPending}
-                          size="sm"
-                          data-testid="button-add-item"
-                        >
-                          {addItemMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                        </Button>
-                      </div>
                     </div>
                   </div>
                 )}
@@ -3753,32 +3727,6 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         ) : (
                           <p className="text-sm text-slate-600 dark:text-slate-400 py-2">No items in inventory</p>
                         )}
-                      </div>
-
-                      {/* Add Item to NPC */}
-                      <div className="flex gap-2 mt-3">
-                        <Input
-                          placeholder="Add new item..."
-                          value={newItemName}
-                          onChange={(e) => setNewItemName(e.target.value)}
-                          className="flex-1"
-                          data-testid="input-npc-new-item"
-                        />
-                        <Button
-                          onClick={() => {
-                            if (newItemName.trim()) {
-                              addNpcItemMutation.mutate({ 
-                                npcId: selectedNpc.id, 
-                                item: newItemName.trim() 
-                              });
-                            }
-                          }}
-                          disabled={!newItemName.trim() || addNpcItemMutation.isPending}
-                          size="sm"
-                          data-testid="button-npc-add-item"
-                        >
-                          {addNpcItemMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                        </Button>
                       </div>
                     </div>
                   </div>
