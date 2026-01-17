@@ -3524,29 +3524,29 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           <SelectValue placeholder="Buy a consumable..." />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Healing Potion" disabled={((activeCharacter as any).gold || 0) < 50}>
-                            Healing Potion (2d4+2 HP) - 50 gp
+                          <SelectItem value="Healing Potion" disabled={((activeCharacter as any).gold || 0) < 10}>
+                            Healing Potion (2d4+2 HP) - 10 gp
                           </SelectItem>
-                          <SelectItem value="Antitoxin" disabled={((activeCharacter as any).gold || 0) < 50}>
-                            Antitoxin - 50 gp
+                          <SelectItem value="Antitoxin" disabled={((activeCharacter as any).gold || 0) < 8}>
+                            Antitoxin - 8 gp
                           </SelectItem>
-                          <SelectItem value="Scroll of Cure Wounds" disabled={((activeCharacter as any).gold || 0) < 75}>
-                            Scroll of Cure Wounds (1d8+3 HP) - 75 gp
+                          <SelectItem value="Scroll of Cure Wounds" disabled={((activeCharacter as any).gold || 0) < 12}>
+                            Scroll of Cure Wounds (1d8+3 HP) - 12 gp
                           </SelectItem>
-                          <SelectItem value="Scroll of Lesser Restoration" disabled={((activeCharacter as any).gold || 0) < 120}>
-                            Scroll of Lesser Restoration - 120 gp
+                          <SelectItem value="Scroll of Lesser Restoration" disabled={((activeCharacter as any).gold || 0) < 20}>
+                            Scroll of Lesser Restoration - 20 gp
                           </SelectItem>
-                          <SelectItem value="Greater Healing Potion" disabled={((activeCharacter as any).gold || 0) < 150}>
-                            Greater Healing Potion (4d4+4 HP) - 150 gp
+                          <SelectItem value="Greater Healing Potion" disabled={((activeCharacter as any).gold || 0) < 25}>
+                            Greater Healing Potion (4d4+4 HP) - 25 gp
                           </SelectItem>
-                          <SelectItem value="Potion of Resistance" disabled={((activeCharacter as any).gold || 0) < 300}>
-                            Potion of Resistance - 300 gp
+                          <SelectItem value="Potion of Resistance" disabled={((activeCharacter as any).gold || 0) < 35}>
+                            Potion of Resistance - 35 gp
                           </SelectItem>
-                          <SelectItem value="Superior Healing Potion" disabled={((activeCharacter as any).gold || 0) < 450}>
-                            Superior Healing Potion (8d4+8 HP) - 450 gp
+                          <SelectItem value="Superior Healing Potion" disabled={((activeCharacter as any).gold || 0) < 50}>
+                            Superior Healing Potion (8d4+8 HP) - 50 gp
                           </SelectItem>
-                          <SelectItem value="Scroll of Revivify" disabled={((activeCharacter as any).gold || 0) < 500}>
-                            Scroll of Revivify (Resurrects) - 500 gp
+                          <SelectItem value="Scroll of Revivify" disabled={((activeCharacter as any).gold || 0) < 75}>
+                            Scroll of Revivify (Resurrects) - 75 gp
                           </SelectItem>
                         </SelectContent>
                       </Select>
