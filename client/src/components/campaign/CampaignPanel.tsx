@@ -3464,22 +3464,49 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       )}
                     </div>
                     
-                    {/* Add Consumable */}
-                    <div className="flex gap-2">
+                    {/* Quick-Buy Consumables */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Quick-Buy</span>
+                        <span className="text-sm font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                          <Coins className="h-3 w-3" />
+                          {(activeCharacter as any).gold || 0} gp
+                        </span>
+                      </div>
                       <Select onValueChange={(value) => addConsumableMutation.mutate({ characterId: activeCharacter.id, name: value })}>
                         <SelectTrigger className="flex-1" data-testid="select-add-consumable">
-                          <SelectValue placeholder="Add a consumable..." />
+                          <SelectValue placeholder="Buy a consumable..." />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Healing Potion">Healing Potion (2d4+2 HP)</SelectItem>
-                          <SelectItem value="Greater Healing Potion">Greater Healing Potion (4d4+4 HP)</SelectItem>
-                          <SelectItem value="Superior Healing Potion">Superior Healing Potion (8d4+8 HP)</SelectItem>
-                          <SelectItem value="Antitoxin">Antitoxin</SelectItem>
-                          <SelectItem value="Scroll of Cure Wounds">Scroll of Cure Wounds (1d8+3 HP)</SelectItem>
-                          <SelectItem value="Scroll of Lesser Restoration">Scroll of Lesser Restoration</SelectItem>
-                          <SelectItem value="Scroll of Revivify">Scroll of Revivify (Resurrects)</SelectItem>
+                          <SelectItem value="Healing Potion" disabled={((activeCharacter as any).gold || 0) < 50}>
+                            Healing Potion (2d4+2 HP) - 50 gp
+                          </SelectItem>
+                          <SelectItem value="Antitoxin" disabled={((activeCharacter as any).gold || 0) < 50}>
+                            Antitoxin - 50 gp
+                          </SelectItem>
+                          <SelectItem value="Scroll of Cure Wounds" disabled={((activeCharacter as any).gold || 0) < 75}>
+                            Scroll of Cure Wounds (1d8+3 HP) - 75 gp
+                          </SelectItem>
+                          <SelectItem value="Scroll of Lesser Restoration" disabled={((activeCharacter as any).gold || 0) < 120}>
+                            Scroll of Lesser Restoration - 120 gp
+                          </SelectItem>
+                          <SelectItem value="Greater Healing Potion" disabled={((activeCharacter as any).gold || 0) < 150}>
+                            Greater Healing Potion (4d4+4 HP) - 150 gp
+                          </SelectItem>
+                          <SelectItem value="Potion of Resistance" disabled={((activeCharacter as any).gold || 0) < 300}>
+                            Potion of Resistance - 300 gp
+                          </SelectItem>
+                          <SelectItem value="Superior Healing Potion" disabled={((activeCharacter as any).gold || 0) < 450}>
+                            Superior Healing Potion (8d4+8 HP) - 450 gp
+                          </SelectItem>
+                          <SelectItem value="Scroll of Revivify" disabled={((activeCharacter as any).gold || 0) < 500}>
+                            Scroll of Revivify (Resurrects) - 500 gp
+                          </SelectItem>
                         </SelectContent>
                       </Select>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Visit the Tavern for better deals and more options!
+                      </p>
                     </div>
                   </div>
                 )}

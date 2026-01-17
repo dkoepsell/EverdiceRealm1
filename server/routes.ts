@@ -1552,16 +1552,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Consumable Items Routes
-  const CONSUMABLE_EFFECTS: Record<string, { type: string; effect: string; healDice?: string; healBonus?: number }> = {
-    "Healing Potion": { type: "healing", effect: "Restores 2d4+2 HP", healDice: "2d4", healBonus: 2 },
-    "Greater Healing Potion": { type: "healing", effect: "Restores 4d4+4 HP", healDice: "4d4", healBonus: 4 },
-    "Superior Healing Potion": { type: "healing", effect: "Restores 8d4+8 HP", healDice: "8d4", healBonus: 8 },
-    "Supreme Healing Potion": { type: "healing", effect: "Restores 10d4+20 HP", healDice: "10d4", healBonus: 20 },
-    "Potion of Resistance": { type: "buff", effect: "Resistance to one damage type for 1 hour" },
-    "Antitoxin": { type: "utility", effect: "Advantage on saves vs poison for 1 hour" },
-    "Scroll of Cure Wounds": { type: "healing", effect: "Casts Cure Wounds (1d8+3 HP)", healDice: "1d8", healBonus: 3 },
-    "Scroll of Lesser Restoration": { type: "utility", effect: "Ends one condition (poisoned, blinded, etc.)" },
+  // Consumable Items Routes - with D&D 5e-style pricing
+  const CONSUMABLE_EFFECTS: Record<string, { type: string; effect: string; price: number; healDice?: string; healBonus?: number }> = {
+    "Healing Potion": { type: "healing", effect: "Restores 2d4+2 HP", price: 50, healDice: "2d4", healBonus: 2 },
+    "Greater Healing Potion": { type: "healing", effect: "Restores 4d4+4 HP", price: 150, healDice: "4d4", healBonus: 4 },
+    "Superior Healing Potion": { type: "healing", effect: "Restores 8d4+8 HP", price: 450, healDice: "8d4", healBonus: 8 },
+    "Supreme Healing Potion": { type: "healing", effect: "Restores 10d4+20 HP", price: 1350, healDice: "10d4", healBonus: 20 },
+    "Potion of Resistance": { type: "buff", effect: "Resistance to one damage type for 1 hour", price: 300 },
+    "Antitoxin": { type: "utility", effect: "Advantage on saves vs poison for 1 hour", price: 50 },
+    "Scroll of Cure Wounds": { type: "healing", effect: "Casts Cure Wounds (1d8+3 HP)", price: 75, healDice: "1d8", healBonus: 3 },
+    "Scroll of Lesser Restoration": { type: "utility", effect: "Ends one condition (poisoned, blinded, etc.)", price: 120 },
+    "Scroll of Revivify": { type: "utility", effect: "Resurrects a creature dead less than 1 minute", price: 500 },
   };
 
   app.get("/api/characters/:id/consumables", async (req, res) => {
@@ -1603,28 +1604,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Character not found" });
       }
       
+      // Get the consumable info including price
+      const effectInfo = CONSUMABLE_EFFECTS[name];
+      if (!effectInfo) {
+        return res.status(400).json({ message: "Unknown consumable type" });
+      }
+      
+      // Calculate total cost
+      const totalCost = effectInfo.price * quantity;
+      const currentGold = (character as any).gold || 0;
+      
+      // Check if character has enough gold
+      if (currentGold < totalCost) {
+        return res.status(400).json({ 
+          message: `Not enough gold! You need ${totalCost} gp but only have ${currentGold} gp.`,
+          required: totalCost,
+          available: currentGold
+        });
+      }
+      
       const consumables: any[] = (character as any).consumables || [];
       const existing = consumables.find(c => c.name === name);
       
       if (existing) {
         existing.quantity += quantity;
       } else {
-        const effectInfo = CONSUMABLE_EFFECTS[name] || { type: "unknown", effect: "Unknown effect" };
         consumables.push({
           name,
           quantity,
-          ...effectInfo
+          type: effectInfo.type,
+          effect: effectInfo.effect
         });
       }
       
+      // Deduct gold and update character
+      const newGold = currentGold - totalCost;
       const updatedCharacter = await storage.updateCharacter(id, {
         consumables,
+        gold: newGold,
         updatedAt: new Date().toISOString()
       } as any);
       
       res.json({
         character: updatedCharacter,
-        message: `Added ${quantity}x ${name}.`
+        message: `Purchased ${quantity}x ${name} for ${totalCost} gp. (${newGold} gp remaining)`,
+        goldSpent: totalCost,
+        goldRemaining: newGold
       });
     } catch (error: any) {
       console.error("Error adding consumable:", error);
