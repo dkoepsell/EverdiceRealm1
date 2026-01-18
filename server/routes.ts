@@ -10768,6 +10768,7 @@ Respond with JSON:
           if (combatEffects) {
             damageTaken = combatEffects.playerDamageTaken || 0;
             damageDealt = combatEffects.playerDamageDealt || 0;
+            console.log(`[COMBAT DEBUG] combatEffects received - playerDamageTaken: ${damageTaken}, inCombat: ${storyAdvancement.storyState?.inCombat}, combatants: ${JSON.stringify(storyAdvancement.storyState?.combatants || [])}`);
             
             // Get companion NPCs for this campaign to apply damage to them
             const campaignNpcs = await storage.getCampaignNpcs(campaignId);
@@ -10814,6 +10815,7 @@ Respond with JSON:
               }));
             
             // Process enemy attacks against party (player + companions)
+            console.log(`[COMBAT DEBUG] enemyCombatants.length: ${enemyCombatants.length}, inCombat: ${storyAdvancement.storyState?.inCombat}`);
             if (enemyCombatants.length > 0 && storyAdvancement.storyState?.inCombat) {
               // Fetch equipment stats for the character to calculate combat stats
               const equippedItemNames: string[] = [];
@@ -10901,8 +10903,12 @@ Respond with JSON:
               
               // Apply damage to player from combat result
               const playerDamageEntry = combatResult.partyDamageDealt.find(p => p.name === character.name);
+              console.log(`[COMBAT DEBUG] Looking for player "${character.name}" in partyDamageDealt:`, JSON.stringify(combatResult.partyDamageDealt));
               if (playerDamageEntry) {
                 damageTaken = playerDamageEntry.damageTaken;
+                console.log(`[COMBAT DEBUG] Found player damage entry, damageTaken now: ${damageTaken}`);
+              } else {
+                console.log(`[COMBAT DEBUG] Player not found in partyDamageDealt, keeping damageTaken: ${damageTaken}`);
               }
               
               // Apply damage to companions and update database
@@ -10938,6 +10944,7 @@ Respond with JSON:
               }
             }
             
+            console.log(`[COMBAT DEBUG] Final damageTaken before applying: ${damageTaken}, character.hitPoints: ${character.hitPoints}`);
             if (damageTaken > 0) {
               // Check if already unconscious - damage at 0 HP = death save failure
               if (character.hitPoints <= 0 && newStatus === "unconscious") {
@@ -10948,6 +10955,7 @@ Respond with JSON:
                 }
               } else {
                 newHitPoints = Math.max(0, character.hitPoints - damageTaken);
+                console.log(`[COMBAT DEBUG] Applied damage: ${character.hitPoints} - ${damageTaken} = ${newHitPoints}`);
                 
                 // Check for unconscious
                 if (newHitPoints <= 0 && character.hitPoints > 0) {
