@@ -353,6 +353,12 @@ export default function TavernPage() {
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+      // Also invalidate participants queries so Campaign Panel shows updated gold
+      queryClient.invalidateQueries({ predicate: (query) => 
+        Array.isArray(query.queryKey) && 
+        query.queryKey[0]?.toString().includes('/api/campaigns') &&
+        query.queryKey[0]?.toString().includes('/participants')
+      });
       if (variables.goldChange > 0) {
         toast({
           title: "Winnings Collected!",
