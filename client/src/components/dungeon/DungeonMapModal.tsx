@@ -320,6 +320,7 @@ export function DungeonMapModal({
           size="sm" 
           className="gap-2"
           data-testid="button-open-dungeon-map"
+          data-dungeon-map-trigger="true"
         >
           <Map className="w-4 h-4" />
           Dungeon Map

@@ -2057,12 +2057,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     
                     {/* Quick Reference Panel - Mini Map + Party Stats */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                      {/* Mini Map Widget */}
-                      <div className="bg-slate-800 dark:bg-slate-900 p-3 rounded-lg border-2 border-amber-600/50 shadow-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <h5 className="text-sm font-bold text-amber-400 flex items-center">
-                            <Map className="h-4 w-4 mr-1" />
-                            Current Location
+                      {/* Mini Map Widget - Shows actual map preview */}
+                      <div className="bg-slate-800 dark:bg-slate-900 p-2 rounded-lg border-2 border-amber-600/50 shadow-lg">
+                        <div className="flex items-center justify-between mb-1">
+                          <h5 className="text-xs font-bold text-amber-400 flex items-center">
+                            <MapPin className="h-3 w-3 mr-1 text-red-400" />
+                            {currentLocation || 'Unknown'}
                           </h5>
                           {dungeonMapData && mapMatchesLocation && (
                             <DungeonMapModal
@@ -2077,33 +2077,49 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             />
                           )}
                         </div>
-                        <div className="text-center">
-                          <div className="flex items-center justify-center gap-2 text-white">
-                            <MapPin className="h-4 w-4 text-red-400" />
-                            <span className="font-semibold">{currentLocation || 'Unknown'}</span>
-                          </div>
-                          {dungeonMapData && (
-                            <div className="mt-2 text-xs text-slate-400">
-                              Position: ({dungeonMapData.playerPosition?.x || 0}, {dungeonMapData.playerPosition?.y || 0})
-                            </div>
-                          )}
-                          {!dungeonMapData && !dungeonMapLoading && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={handleGenerateMap}
-                              disabled={isGeneratingMap}
-                              className="mt-2 text-xs border-amber-600 text-amber-400 hover:bg-amber-900/30"
+                        {/* Map Preview Grid */}
+                        {dungeonMapData && dungeonMapData.tiles ? (
+                          <div 
+                            className="relative bg-slate-900 rounded overflow-hidden cursor-pointer hover:ring-2 hover:ring-amber-500/50 transition-all"
+                            style={{ height: '100px' }}
+                            onClick={() => {
+                              const modalTrigger = document.querySelector('[data-dungeon-map-trigger]') as HTMLButtonElement;
+                              modalTrigger?.click();
+                            }}
+                          >
+                            <div 
+                              className="absolute inset-0 flex items-center justify-center"
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: `repeat(${dungeonMapData.tiles[0]?.length || 20}, 1fr)`,
+                                gap: '0px',
+                              }}
                             >
-                              {isGeneratingMap ? (
-                                <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                              ) : (
-                                <Map className="h-3 w-3 mr-1" />
+                              {dungeonMapData.tiles.slice(0, 18).map((row: any[], y: number) => 
+                                row.slice(0, 20).map((tile: any, x: number) => {
+                                  const isPlayer = dungeonMapData.playerPosition?.x === x && dungeonMapData.playerPosition?.y === y;
+                                  let bg = 'bg-slate-800';
+                                  if (tile?.type === 'floor' || tile?.type === 'corridor') bg = 'bg-amber-900/40';
+                                  if (tile?.type === 'door') bg = 'bg-amber-600/60';
+                                  if (tile?.type === 'stairs') bg = 'bg-purple-600/60';
+                                  if (isPlayer) bg = 'bg-green-500';
+                                  return <div key={`${x}-${y}`} className={`${bg}`} style={{ aspectRatio: '1' }} />;
+                                })
                               )}
-                              Generate Map
-                            </Button>
-                          )}
-                        </div>
+                            </div>
+                            <div className="absolute bottom-1 right-1 text-[8px] text-slate-400 bg-slate-900/80 px-1 rounded">
+                              Click to expand
+                            </div>
+                          </div>
+                        ) : dungeonMapLoading || isGeneratingMap ? (
+                          <div className="h-[100px] flex items-center justify-center bg-slate-900/50 rounded">
+                            <Loader2 className="h-5 w-5 animate-spin text-amber-400" />
+                          </div>
+                        ) : (
+                          <div className="h-[100px] flex items-center justify-center bg-slate-900/50 rounded text-slate-500 text-xs">
+                            Map generating...
+                          </div>
+                        )}
                       </div>
                       
                       {/* Party Stats Widget - Always visible */}
