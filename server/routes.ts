@@ -13518,8 +13518,8 @@ ALWAYS generate:
     }
   });
   
-  // Accept an invitation
-  app.post("/api/invitations/:id/accept", isAuthenticated, async (req: any, res) => {
+  // Accept a group invitation (uses specific path to avoid conflict with campaign invitations)
+  app.post("/api/group-invitations/:id/accept", isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const invitation = await storage.getGroupInvitation(id);
@@ -13547,8 +13547,8 @@ ALWAYS generate:
     }
   });
   
-  // Decline an invitation
-  app.post("/api/invitations/:id/decline", isAuthenticated, async (req: any, res) => {
+  // Decline a group invitation (uses specific path to avoid conflict with campaign invitations)
+  app.post("/api/group-invitations/:id/decline", isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const invitation = await storage.getGroupInvitation(id);

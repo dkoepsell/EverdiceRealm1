@@ -57,7 +57,7 @@ export default function InvitationAlert() {
 
   const acceptMutation = useMutation({
     mutationFn: async (invitationId: number) => {
-      const response = await apiRequest("POST", `/api/invitations/${invitationId}/accept`, {});
+      const response = await apiRequest("POST", `/api/group-invitations/${invitationId}/accept`, {});
       return response.json();
     },
     onSuccess: () => {
@@ -79,7 +79,7 @@ export default function InvitationAlert() {
 
   const declineMutation = useMutation({
     mutationFn: async (invitationId: number) => {
-      const response = await apiRequest("POST", `/api/invitations/${invitationId}/decline`, {});
+      const response = await apiRequest("POST", `/api/group-invitations/${invitationId}/decline`, {});
       return response.json();
     },
     onSuccess: () => {
