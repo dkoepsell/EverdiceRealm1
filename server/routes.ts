@@ -10933,11 +10933,47 @@ Respond with JSON:
             updatedSkillProgress[skill] = { uses: newUses, bonus: newBonus };
           }
           
-          // Add found items to character equipment
+          // Add found items to character - consumables go to consumables array, others to equipment
           const currentEquipment = character.equipment || [];
           const newEquipment = [...currentEquipment];
+          const currentConsumables: any[] = (character as any).consumables || [];
+          const newConsumables = [...currentConsumables];
+          
+          // Define consumable item patterns
+          const consumablePatterns: Record<string, { type: string; healDice: string; healBonus: number; effect: string }> = {
+            "healing potion": { type: "healing", healDice: "2d4", healBonus: 2, effect: "Restores 2d4+2 HP" },
+            "potion of healing": { type: "healing", healDice: "2d4", healBonus: 2, effect: "Restores 2d4+2 HP" },
+            "greater healing potion": { type: "healing", healDice: "4d4", healBonus: 4, effect: "Restores 4d4+4 HP" },
+            "superior healing potion": { type: "healing", healDice: "8d4", healBonus: 8, effect: "Restores 8d4+8 HP" },
+            "health potion": { type: "healing", healDice: "2d4", healBonus: 2, effect: "Restores 2d4+2 HP" },
+          };
+          
           for (const item of itemsFound) {
-            if (item.name && !newEquipment.includes(item.name)) {
+            if (!item.name) continue;
+            
+            const itemNameLower = item.name.toLowerCase();
+            const consumableMatch = Object.entries(consumablePatterns).find(([pattern]) => 
+              itemNameLower.includes(pattern)
+            );
+            
+            if (consumableMatch || item.type === 'consumable') {
+              // Add to consumables array
+              const existingConsumable = newConsumables.find(c => c.name === item.name);
+              if (existingConsumable) {
+                existingConsumable.quantity = (existingConsumable.quantity || 1) + 1;
+              } else {
+                const consumableData = consumableMatch ? consumableMatch[1] : { type: "consumable", healDice: "", healBonus: 0, effect: item.description || "Use this item" };
+                newConsumables.push({
+                  name: item.name,
+                  quantity: 1,
+                  type: consumableData.type,
+                  healDice: consumableData.healDice,
+                  healBonus: consumableData.healBonus,
+                  effect: consumableData.effect
+                });
+              }
+            } else if (!newEquipment.includes(item.name)) {
+              // Add to equipment for non-consumables
               newEquipment.push(item.name);
             }
           }
@@ -10951,6 +10987,7 @@ Respond with JSON:
             deathSaveSuccesses,
             deathSaveFailures,
             equipment: newEquipment,
+            consumables: newConsumables,
             skillProgress: updatedSkillProgress,
             updatedAt: new Date().toISOString()
           });
