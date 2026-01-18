@@ -1780,12 +1780,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existing) {
         existing.quantity += quantity;
       } else {
-        consumables.push({
+        const newConsumable: any = {
           name,
           quantity,
           type: effectInfo.type,
           effect: effectInfo.effect
-        });
+        };
+        // Include healing properties if it's a healing item
+        if (effectInfo.healDice) {
+          newConsumable.healDice = effectInfo.healDice;
+        }
+        if (effectInfo.healBonus !== undefined) {
+          newConsumable.healBonus = effectInfo.healBonus;
+        }
+        consumables.push(newConsumable);
       }
       
       // Deduct gold and update character
