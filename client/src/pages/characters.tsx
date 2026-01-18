@@ -806,7 +806,8 @@ export default function Characters() {
                                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                                       <AlertDialogAction
                                         onClick={() => deleteCharacter.mutate(character.id)}
-                                        className="bg-red-600 hover:bg-red-700"
+                                        className="bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                                        disabled={deleteCharacter.isPending}
                                       >
                                         {deleteCharacter.isPending ? "Deleting..." : "Delete Character"}
                                       </AlertDialogAction>
