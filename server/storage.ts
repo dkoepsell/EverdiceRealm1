@@ -43,6 +43,7 @@ import {
   playerGroups, type PlayerGroup, type InsertPlayerGroup,
   playerGroupMembers, type PlayerGroupMember, type InsertPlayerGroupMember,
   groupInvitations, type GroupInvitation, type InsertGroupInvitation,
+  groupMessages, type GroupMessage, type InsertGroupMessage,
   worldMemory, type WorldMemory, type InsertWorldMemory,
   unresolvedThreads, type UnresolvedThread, type InsertUnresolvedThread,
   characterArcInsights, type CharacterArcInsight, type InsertCharacterArcInsight,
@@ -317,6 +318,13 @@ export interface IStorage {
   respondToInvitation(id: number, status: 'accepted' | 'declined'): Promise<GroupInvitation | undefined>;
   deleteGroupInvitation(id: number): Promise<boolean>;
   findUserByUsername(username: string): Promise<User | undefined>;
+  
+  // Group Message Board operations
+  getGroupMessages(groupId: number): Promise<GroupMessage[]>;
+  getGroupMessage(id: number): Promise<GroupMessage | undefined>;
+  createGroupMessage(message: InsertGroupMessage): Promise<GroupMessage>;
+  deleteGroupMessage(id: number): Promise<boolean>;
+  toggleGroupMessagePin(id: number): Promise<GroupMessage | undefined>;
   
   // World Memory operations
   getWorldMemories(campaignId: number, memoryType?: string): Promise<WorldMemory[]>;
@@ -2835,6 +2843,49 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .where(eq(users.username, username));
     return user || undefined;
+  }
+  
+  // Group Message Board operations
+  async getGroupMessages(groupId: number): Promise<GroupMessage[]> {
+    return db.select()
+      .from(groupMessages)
+      .where(eq(groupMessages.groupId, groupId))
+      .orderBy(desc(groupMessages.isPinned), desc(groupMessages.createdAt));
+  }
+  
+  async getGroupMessage(id: number): Promise<GroupMessage | undefined> {
+    const [message] = await db.select()
+      .from(groupMessages)
+      .where(eq(groupMessages.id, id));
+    return message || undefined;
+  }
+  
+  async createGroupMessage(message: InsertGroupMessage): Promise<GroupMessage> {
+    const [created] = await db.insert(groupMessages)
+      .values({
+        ...message,
+        createdAt: new Date().toISOString()
+      })
+      .returning();
+    return created;
+  }
+  
+  async deleteGroupMessage(id: number): Promise<boolean> {
+    await db.delete(groupMessages).where(eq(groupMessages.id, id));
+    return true;
+  }
+  
+  async toggleGroupMessagePin(id: number): Promise<GroupMessage | undefined> {
+    const message = await this.getGroupMessage(id);
+    if (!message) return undefined;
+    const [updated] = await db.update(groupMessages)
+      .set({ 
+        isPinned: !message.isPinned,
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(groupMessages.id, id))
+      .returning();
+    return updated || undefined;
   }
   
   // World Memory operations

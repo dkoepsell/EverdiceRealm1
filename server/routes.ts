@@ -13545,6 +13545,112 @@ ALWAYS generate:
     }
   });
   
+  // ========== GROUP MESSAGE BOARD ==========
+  
+  // Get messages for a group
+  app.get("/api/groups/:id/messages", isAuthenticated, async (req: any, res) => {
+    try {
+      const groupId = parseInt(req.params.id);
+      // Verify user is a member
+      const members = await storage.getPlayerGroupMembers(groupId);
+      if (!members.some(m => m.userId === req.user.id)) {
+        return res.status(403).json({ message: "You are not a member of this group" });
+      }
+      const messages = await storage.getGroupMessages(groupId);
+      // Enrich with author names
+      const enrichedMessages = await Promise.all(messages.map(async (msg) => {
+        const author = await storage.getUser(msg.authorId);
+        return {
+          ...msg,
+          authorName: author?.username || 'Unknown'
+        };
+      }));
+      res.json(enrichedMessages);
+    } catch (error) {
+      console.error("Failed to fetch group messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+  
+  // Create a message
+  app.post("/api/groups/:id/messages", isAuthenticated, async (req: any, res) => {
+    try {
+      const groupId = parseInt(req.params.id);
+      // Verify user is a member
+      const members = await storage.getPlayerGroupMembers(groupId);
+      if (!members.some(m => m.userId === req.user.id)) {
+        return res.status(403).json({ message: "You are not a member of this group" });
+      }
+      const message = await storage.createGroupMessage({
+        groupId,
+        authorId: req.user.id,
+        title: req.body.title,
+        content: req.body.content,
+        isPinned: false,
+        isAnnouncement: false,
+      });
+      const author = await storage.getUser(req.user.id);
+      res.status(201).json({
+        ...message,
+        authorName: author?.username || 'Unknown'
+      });
+    } catch (error) {
+      console.error("Failed to create message:", error);
+      res.status(500).json({ message: "Failed to post message" });
+    }
+  });
+  
+  // Delete a message
+  app.delete("/api/groups/:groupId/messages/:messageId", isAuthenticated, async (req: any, res) => {
+    try {
+      const groupId = parseInt(req.params.groupId);
+      const messageId = parseInt(req.params.messageId);
+      // Verify user is member and author or leader
+      const members = await storage.getPlayerGroupMembers(groupId);
+      const membership = members.find(m => m.userId === req.user.id);
+      if (!membership) {
+        return res.status(403).json({ message: "You are not a member of this group" });
+      }
+      const message = await storage.getGroupMessage(messageId);
+      if (!message || message.groupId !== groupId) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+      // Only author or leaders can delete
+      const isLeader = membership.role === 'founder' || membership.role === 'leader';
+      if (message.authorId !== req.user.id && !isLeader) {
+        return res.status(403).json({ message: "You can only delete your own messages" });
+      }
+      await storage.deleteGroupMessage(messageId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete message:", error);
+      res.status(500).json({ message: "Failed to delete message" });
+    }
+  });
+  
+  // Toggle pin status (leaders only)
+  app.patch("/api/groups/:groupId/messages/:messageId/pin", isAuthenticated, async (req: any, res) => {
+    try {
+      const groupId = parseInt(req.params.groupId);
+      const messageId = parseInt(req.params.messageId);
+      // Verify user is a leader
+      const members = await storage.getPlayerGroupMembers(groupId);
+      const membership = members.find(m => m.userId === req.user.id);
+      if (!membership || (membership.role !== 'founder' && membership.role !== 'leader')) {
+        return res.status(403).json({ message: "Only leaders can pin messages" });
+      }
+      const message = await storage.getGroupMessage(messageId);
+      if (!message || message.groupId !== groupId) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+      const updated = await storage.toggleGroupMessagePin(messageId);
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to pin message:", error);
+      res.status(500).json({ message: "Failed to pin message" });
+    }
+  });
+  
   // ========== WORLD MEMORY (Since Last Time...) ==========
   
   // Get world memories for a campaign
