@@ -343,6 +343,32 @@ export default function TavernPage() {
     return Array.from({ length: count }, () => Math.floor(Math.random() * 6) + 1);
   };
   
+  // Mutation to update gold from dice game winnings
+  const diceGameMutation = useMutation({
+    mutationFn: async ({ characterId, goldChange }: { characterId: number; goldChange: number }) => {
+      const response = await apiRequest("POST", `/api/characters/${characterId}/add-currency`, {
+        gold: goldChange
+      });
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+      if (variables.goldChange > 0) {
+        toast({
+          title: "Winnings Collected!",
+          description: `You won ${variables.goldChange} gold at the dice table!`
+        });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update gold",
+        variant: "destructive"
+      });
+    }
+  });
+  
   const startDiceGame = () => {
     if (!activeCharacter || characterGold < diceGame.playerBet) {
       toast({ title: "Not enough gold!", variant: "destructive" });
@@ -363,6 +389,11 @@ export default function TavernPage() {
     const actualCount = allDice.filter(d => d === diceGame.playerGuess.face || d === 1).length;
     const won = actualCount >= diceGame.playerGuess.count;
     const winnings = won ? diceGame.playerBet * 2 : -diceGame.playerBet;
+    
+    // Actually update the character's gold
+    if (activeCharacter) {
+      diceGameMutation.mutate({ characterId: activeCharacter.id, goldChange: winnings });
+    }
     
     setDiceGame(prev => ({
       ...prev,
