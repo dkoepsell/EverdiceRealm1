@@ -1381,9 +1381,23 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       return await response.json();
     },
     onSuccess: (data) => {
-      // Force immediate refetch to update HP in mini stats
-      queryClient.refetchQueries({ queryKey: ['/api/characters'] });
-      queryClient.refetchQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      // Update character cache directly with new HP
+      if (data.character) {
+        queryClient.setQueryData(['/api/characters'], (old: any[] | undefined) => {
+          if (!old) return old;
+          return old.map(c => c.id === data.character.id ? { ...c, ...data.character } : c);
+        });
+        // Also update participants cache directly
+        queryClient.setQueryData([`/api/campaigns/${campaign.id}/participants`], (old: any[] | undefined) => {
+          if (!old) return old;
+          return old.map((p: any) => {
+            if (p.characterId === data.character.id && p.character) {
+              return { ...p, character: { ...p.character, hitPoints: data.character.hitPoints, status: data.character.status, consumables: data.character.consumables } };
+            }
+            return p;
+          });
+        });
+      }
       toast({
         title: data.healedAmount > 0 ? `Healed ${data.healedAmount} HP!` : "Item Used",
         description: data.message,
@@ -1404,9 +1418,23 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       return await response.json();
     },
     onSuccess: (data) => {
-      // Force immediate refetch to update HP in mini stats
-      queryClient.refetchQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
-      queryClient.refetchQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      // Update NPC cache directly with new HP
+      if (data.npc) {
+        queryClient.setQueryData([`/api/campaigns/${campaign.id}/npcs`], (old: any[] | undefined) => {
+          if (!old) return old;
+          return old.map((cn: any) => cn.npcId === data.npc.id ? { ...cn, npc: { ...cn.npc, ...data.npc } } : cn);
+        });
+        // Also update participants cache directly for NPCs
+        queryClient.setQueryData([`/api/campaigns/${campaign.id}/participants`], (old: any[] | undefined) => {
+          if (!old) return old;
+          return old.map((p: any) => {
+            if (p.isNpc && p.npcId === data.npc.id && p.character) {
+              return { ...p, npc: { ...p.npc, ...data.npc }, character: { ...p.character, hitPoints: data.npc.hitPoints, status: data.npc.status } };
+            }
+            return p;
+          });
+        });
+      }
       toast({
         title: data.healedAmount > 0 ? `Healed ${data.healedAmount} HP!` : "Item Used",
         description: data.message,
