@@ -2257,33 +2257,51 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           <Users className="h-4 w-4 mr-1" />
                           Party Status ({participants.length})
                         </h5>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           {participants.map((p: any, idx: number) => {
                             const char = p.character;
                             if (!char) return null;
                             const hpPercent = char.maxHitPoints > 0 ? Math.max(0, (char.hitPoints ?? 0) / char.maxHitPoints * 100) : 0;
                             const hpColor = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
-                            const isDead = char.status === 'dead' || (char.hitPoints ?? 0) <= 0;
+                            const isDead = char.status === 'dead' && (char.hitPoints ?? 0) <= 0;
+                            const isNpc = p.isNpc;
+                            const roleLabel = isNpc ? (char.companionType || char.occupation || 'Companion') : (char.class || 'Adventurer');
                             return (
-                              <div key={char.id || idx} className={`flex items-center gap-2 ${isDead ? 'opacity-50' : ''}`}>
-                                <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden shrink-0">
+                              <div key={char.id || idx} className={`flex items-center gap-2 p-1.5 rounded ${isDead ? 'opacity-50 bg-red-900/30' : 'bg-slate-800/50'}`}>
+                                <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden shrink-0 border border-slate-600">
                                   {char.portraitUrl ? (
                                     <img src={char.portraitUrl} alt="" className="w-full h-full object-cover" />
                                   ) : (
-                                    <User className="h-3 w-3 text-slate-400" />
+                                    <User className="h-4 w-4 text-slate-400" />
                                   )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center justify-between text-xs">
-                                    <span className={`font-medium truncate ${isDead ? 'text-red-400 line-through' : 'text-white'}`}>
-                                      {char.name}
-                                    </span>
-                                    <span className={`${isDead ? 'text-red-400' : 'text-emerald-300'}`}>
+                                    <div className="flex items-center gap-1">
+                                      <span className={`font-medium truncate ${isDead ? 'text-red-400 line-through' : 'text-white'}`}>
+                                        {char.name}
+                                      </span>
+                                      <span className="text-slate-400 text-[10px]">Lv{char.level || 1}</span>
+                                    </div>
+                                    <span className={`font-bold ${isDead ? 'text-red-400' : 'text-emerald-300'}`}>
                                       {isDead ? 'DEAD' : `${char.hitPoints ?? 0}/${char.maxHitPoints}`}
                                     </span>
                                   </div>
+                                  <div className="flex items-center justify-between text-[10px] text-slate-400 mt-0.5">
+                                    <span className="truncate capitalize">{roleLabel}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="flex items-center gap-0.5">
+                                        <Shield className="h-2.5 w-2.5" /> {char.armorClass || 10}
+                                      </span>
+                                      {char.gold > 0 && (
+                                        <span className="flex items-center gap-0.5 text-yellow-400">
+                                          <Coins className="h-2.5 w-2.5" /> {char.gold}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
                                   {!isDead && (
-                                    <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden mt-0.5">
+                                    <div className="h-1 bg-slate-700 rounded-full overflow-hidden mt-0.5">
                                       <div className={`h-full ${hpColor} transition-all`} style={{ width: `${hpPercent}%` }} />
                                     </div>
                                   )}
