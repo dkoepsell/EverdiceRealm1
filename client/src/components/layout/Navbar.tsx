@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
+import { getQueryFn } from "@/lib/queryClient";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +45,16 @@ export default function Navbar() {
   const handleLogout = () => {
     logoutMutation.mutate();
   };
+  
+  // Query for pending group invitations
+  const { data: pendingInvitations = [] } = useQuery<any[]>({
+    queryKey: ['/api/invitations/pending'],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    enabled: !!user,
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+  
+  const pendingInvitationCount = pendingInvitations?.length || 0;
   
   const mainNavLinks = user ? [
     { name: "Play", path: "/dashboard", icon: Play },
@@ -142,19 +155,32 @@ export default function Navbar() {
             {user && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="text-white/90 hover:text-white hover:bg-white/10">
+                  <Button variant="ghost" className="text-white/90 hover:text-white hover:bg-white/10 relative">
                     <MoreHorizontal className="h-4 w-4 mr-2" />
                     More
+                    {pendingInvitationCount > 0 && (
+                      <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-red-500 text-white text-xs">
+                        {pendingInvitationCount}
+                      </Badge>
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
                   {moreLinks.map((link) => {
                     const Icon = link.icon;
+                    const showBadge = link.path === '/groups' && pendingInvitationCount > 0;
                     return (
                       <DropdownMenuItem key={link.path} asChild>
-                        <Link href={link.path} className="flex items-center cursor-pointer">
-                          <Icon className="h-4 w-4 mr-2" />
-                          {link.name}
+                        <Link href={link.path} className="flex items-center justify-between cursor-pointer w-full">
+                          <span className="flex items-center">
+                            <Icon className="h-4 w-4 mr-2" />
+                            {link.name}
+                          </span>
+                          {showBadge && (
+                            <Badge className="bg-red-500 text-white text-xs h-5 px-1.5">
+                              {pendingInvitationCount}
+                            </Badge>
+                          )}
                         </Link>
                       </DropdownMenuItem>
                     );
@@ -277,15 +303,23 @@ export default function Navbar() {
                 
                 {moreLinks.map((link) => {
                   const Icon = link.icon;
+                  const showBadge = link.path === '/groups' && pendingInvitationCount > 0;
                   return (
                     <Link key={link.path} href={link.path}>
                       <Button
                         variant="ghost"
-                        className="w-full justify-start text-white/80 hover:text-white hover:bg-white/10"
+                        className="w-full justify-between text-white/80 hover:text-white hover:bg-white/10"
                         onClick={() => setMobileMenuOpen(false)}
                       >
-                        <Icon className="h-4 w-4 mr-3" />
-                        {link.name}
+                        <span className="flex items-center">
+                          <Icon className="h-4 w-4 mr-3" />
+                          {link.name}
+                        </span>
+                        {showBadge && (
+                          <Badge className="bg-red-500 text-white text-xs h-5 px-1.5">
+                            {pendingInvitationCount} invite{pendingInvitationCount > 1 ? 's' : ''}
+                          </Badge>
+                        )}
                       </Button>
                     </Link>
                   );
