@@ -1244,6 +1244,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Alias route for tavern dice game (uses add-currency instead of currency/add)
+  app.post("/api/characters/:id/add-currency", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { gold = 0, silver = 0, copper = 0, platinum = 0 } = req.body;
+      
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      const updatedCharacter = await storage.updateCharacter(id, {
+        gold: ((character as any).gold || 0) + gold,
+        silver: ((character as any).silver || 0) + silver,
+        copper: ((character as any).copper || 0) + copper,
+        platinum: ((character as any).platinum || 0) + platinum,
+        updatedAt: new Date().toISOString()
+      } as any);
+      
+      const changedParts = [];
+      if (platinum !== 0) changedParts.push(`${platinum > 0 ? '+' : ''}${platinum} pp`);
+      if (gold !== 0) changedParts.push(`${gold > 0 ? '+' : ''}${gold} gp`);
+      if (silver !== 0) changedParts.push(`${silver > 0 ? '+' : ''}${silver} sp`);
+      if (copper !== 0) changedParts.push(`${copper > 0 ? '+' : ''}${copper} cp`);
+      
+      res.json({
+        character: updatedCharacter,
+        message: changedParts.length > 0 ? `Currency changed: ${changedParts.join(", ")}` : "No change"
+      });
+    } catch (error: any) {
+      console.error("Error changing currency:", error);
+      res.status(500).json({ message: "Failed to change currency", error: error.message });
+    }
+  });
+
   app.post("/api/characters/:id/currency/spend", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
