@@ -570,37 +570,70 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     const combined = locationLower + ' ' + narrativeLower;
     
     if (/forest|wood|grove|glade|thicket|jungle|wilder/.test(combined)) {
-      return { type: 'forest', floor: '#2d5016', corridor: '#3d6b1e', wall: '#1a3409', door: '#8b6914', stairs: '#4a7c23', accent: 'emerald' };
+      return { 
+        type: 'Forest', floor: '#2d5016', corridor: '#3d6b1e', wall: '#1a3409', door: '#8b6914', stairs: '#4a7c23', accent: 'emerald',
+        labels: { floor: 'Clearing', corridor: 'Path', door: 'Passage', stairs: 'Trail' }
+      };
     }
     if (/cave|cavern|underground|depth|grotto|mine|tunnel/.test(combined)) {
-      return { type: 'cave', floor: '#4a4a4a', corridor: '#5a5a5a', wall: '#1f1f1f', door: '#6b5b3b', stairs: '#7c6aed', accent: 'slate' };
+      return { 
+        type: 'Cave', floor: '#4a4a4a', corridor: '#5a5a5a', wall: '#1f1f1f', door: '#6b5b3b', stairs: '#7c6aed', accent: 'slate',
+        labels: { floor: 'Cavern', corridor: 'Tunnel', door: 'Opening', stairs: 'Descent' }
+      };
     }
     if (/castle|fortress|citadel|keep|tower|palace|manor/.test(combined)) {
-      return { type: 'castle', floor: '#4a4a5a', corridor: '#5a5a6a', wall: '#2a2a3a', door: '#8b7355', stairs: '#9c8afd', accent: 'violet' };
+      return { 
+        type: 'Castle', floor: '#4a4a5a', corridor: '#5a5a6a', wall: '#2a2a3a', door: '#8b7355', stairs: '#9c8afd', accent: 'violet',
+        labels: { floor: 'Stone', corridor: 'Hall', door: 'Door', stairs: 'Stairs' }
+      };
     }
     if (/crypt|tomb|necro|undead|grave|catacomb|mausoleum/.test(combined)) {
-      return { type: 'crypt', floor: '#3a3a4a', corridor: '#4a4a5a', wall: '#1a1a2a', door: '#5b5b6b', stairs: '#8c7acd', accent: 'purple' };
+      return { 
+        type: 'Crypt', floor: '#3a3a4a', corridor: '#4a4a5a', wall: '#1a1a2a', door: '#5b5b6b', stairs: '#8c7acd', accent: 'purple',
+        labels: { floor: 'Tomb', corridor: 'Passage', door: 'Archway', stairs: 'Descent' }
+      };
     }
     if (/temple|shrine|sanctuary|chapel|altar|holy/.test(combined)) {
-      return { type: 'temple', floor: '#5a5a6a', corridor: '#6a6a7a', wall: '#3a3a4a', door: '#c4a84b', stairs: '#9c9afd', accent: 'amber' };
+      return { 
+        type: 'Temple', floor: '#5a5a6a', corridor: '#6a6a7a', wall: '#3a3a4a', door: '#c4a84b', stairs: '#9c9afd', accent: 'amber',
+        labels: { floor: 'Chamber', corridor: 'Aisle', door: 'Portal', stairs: 'Ascent' }
+      };
     }
     if (/swamp|marsh|bog|fen|mire|wetland/.test(combined)) {
-      return { type: 'swamp', floor: '#3d4a2d', corridor: '#4a5a3a', wall: '#1a2a1a', door: '#6b6b4b', stairs: '#5c8a5d', accent: 'lime' };
+      return { 
+        type: 'Swamp', floor: '#3d4a2d', corridor: '#4a5a3a', wall: '#1a2a1a', door: '#6b6b4b', stairs: '#5c8a5d', accent: 'lime',
+        labels: { floor: 'Dry Land', corridor: 'Path', door: 'Crossing', stairs: 'Rise' }
+      };
     }
     if (/desert|sand|dune|oasis|arid|wasteland/.test(combined)) {
-      return { type: 'desert', floor: '#8b7355', corridor: '#9c8466', wall: '#5a4a3a', door: '#c4a84b', stairs: '#d4b85b', accent: 'orange' };
+      return { 
+        type: 'Desert', floor: '#8b7355', corridor: '#9c8466', wall: '#5a4a3a', door: '#c4a84b', stairs: '#d4b85b', accent: 'orange',
+        labels: { floor: 'Sand', corridor: 'Trail', door: 'Oasis', stairs: 'Dune' }
+      };
     }
     if (/ice|frost|frozen|glacier|snow|arctic|tundra/.test(combined)) {
-      return { type: 'ice', floor: '#6a8a9a', corridor: '#7a9aaa', wall: '#3a5a6a', door: '#8a9aaa', stairs: '#9abacc', accent: 'cyan' };
+      return { 
+        type: 'Ice', floor: '#6a8a9a', corridor: '#7a9aaa', wall: '#3a5a6a', door: '#8a9aaa', stairs: '#9abacc', accent: 'cyan',
+        labels: { floor: 'Ice', corridor: 'Path', door: 'Gap', stairs: 'Slope' }
+      };
     }
     if (/volcano|lava|fire|inferno|magma|burn/.test(combined)) {
-      return { type: 'volcano', floor: '#5a2a1a', corridor: '#6a3a2a', wall: '#2a1a0a', door: '#8b3b1b', stairs: '#cc4a2a', accent: 'red' };
+      return { 
+        type: 'Volcano', floor: '#5a2a1a', corridor: '#6a3a2a', wall: '#2a1a0a', door: '#8b3b1b', stairs: '#cc4a2a', accent: 'red',
+        labels: { floor: 'Rock', corridor: 'Path', door: 'Vent', stairs: 'Ledge' }
+      };
     }
     if (/sewer|drain|undercity|beneath|pipe/.test(combined)) {
-      return { type: 'sewer', floor: '#3a4a3a', corridor: '#4a5a4a', wall: '#1a2a1a', door: '#5b6b5b', stairs: '#6c7c6c', accent: 'stone' };
+      return { 
+        type: 'Sewer', floor: '#3a4a3a', corridor: '#4a5a4a', wall: '#1a2a1a', door: '#5b6b5b', stairs: '#6c7c6c', accent: 'stone',
+        labels: { floor: 'Ground', corridor: 'Tunnel', door: 'Grate', stairs: 'Ladder' }
+      };
     }
     // Default dungeon theme
-    return { type: 'dungeon', floor: '#78350f', corridor: '#92400e', wall: '#0f172a', door: '#d97706', stairs: '#7c3aed', accent: 'amber' };
+    return { 
+      type: 'Dungeon', floor: '#78350f', corridor: '#92400e', wall: '#0f172a', door: '#d97706', stairs: '#7c3aed', accent: 'amber',
+      labels: { floor: 'Floor', corridor: 'Corridor', door: 'Door', stairs: 'Stairs' }
+    };
   }, [currentLocation, parsedStoryState?.currentNarrative]);
   
   // Map location key includes session number so each chapter/level gets its own map
@@ -2225,13 +2258,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                     <span className="w-3 h-3 rounded-full bg-green-500 border border-green-400"></span> You
                                   </span>
                                   <span className="flex items-center gap-1">
-                                    <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: mapEnvironment.floor }}></span> Floor
+                                    <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: mapEnvironment.floor }}></span> {mapEnvironment.labels.floor}
                                   </span>
                                   <span className="flex items-center gap-1">
-                                    <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: mapEnvironment.door, border: `1px solid ${mapEnvironment.door}` }}></span> Door
+                                    <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: mapEnvironment.door, border: `1px solid ${mapEnvironment.door}` }}></span> {mapEnvironment.labels.door}
                                   </span>
                                   <span className="flex items-center gap-1">
-                                    <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: mapEnvironment.stairs }}></span> Stairs
+                                    <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: mapEnvironment.stairs }}></span> {mapEnvironment.labels.stairs}
                                   </span>
                                   <span className="text-amber-400 ml-2">Click map to expand</span>
                                 </div>

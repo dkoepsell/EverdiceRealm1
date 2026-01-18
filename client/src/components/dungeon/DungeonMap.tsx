@@ -118,6 +118,147 @@ const ENTITY_COLORS: Record<EntityType, string> = {
   boss: "text-purple-400",
 };
 
+// Environment-specific labels for map elements
+type EnvironmentType = "dungeon" | "forest" | "cave" | "castle" | "ruins" | "swamp" | "mountain" | "desert" | "town" | "underground";
+
+const ENVIRONMENT_LABELS: Record<EnvironmentType, {
+  floor: string;
+  corridor: string;
+  wall: string;
+  door: string;
+  lockedDoor: string;
+  stairsUp: string;
+  stairsDown: string;
+  fog: string;
+  enemy: string;
+}> = {
+  dungeon: {
+    floor: "Floor",
+    corridor: "Corridor", 
+    wall: "Wall (blocked)",
+    door: "Door (open)",
+    lockedDoor: "Locked Door",
+    stairsUp: "Stairs Up",
+    stairsDown: "Stairs Down",
+    fog: "Unexplored (fog)",
+    enemy: "Enemy"
+  },
+  forest: {
+    floor: "Clearing",
+    corridor: "Forest Path",
+    wall: "Dense Trees",
+    door: "Passage",
+    lockedDoor: "Blocked Path",
+    stairsUp: "Uphill Trail",
+    stairsDown: "Downhill Trail",
+    fog: "Unexplored",
+    enemy: "Creature"
+  },
+  cave: {
+    floor: "Cavern Floor",
+    corridor: "Tunnel",
+    wall: "Rock Wall",
+    door: "Cave Opening",
+    lockedDoor: "Collapsed Passage",
+    stairsUp: "Ascending Tunnel",
+    stairsDown: "Descending Tunnel",
+    fog: "Darkness",
+    enemy: "Creature"
+  },
+  castle: {
+    floor: "Stone Floor",
+    corridor: "Hallway",
+    wall: "Castle Wall",
+    door: "Door",
+    lockedDoor: "Barred Door",
+    stairsUp: "Stairs Up",
+    stairsDown: "Stairs Down",
+    fog: "Unexplored",
+    enemy: "Guard"
+  },
+  ruins: {
+    floor: "Crumbled Floor",
+    corridor: "Ruined Passage",
+    wall: "Rubble",
+    door: "Archway",
+    lockedDoor: "Collapsed Arch",
+    stairsUp: "Broken Stairs",
+    stairsDown: "Descent",
+    fog: "Shadows",
+    enemy: "Guardian"
+  },
+  swamp: {
+    floor: "Dry Ground",
+    corridor: "Muddy Path",
+    wall: "Murky Water",
+    door: "Crossing",
+    lockedDoor: "Impassable Bog",
+    stairsUp: "Rising Ground",
+    stairsDown: "Sinking Ground",
+    fog: "Mist",
+    enemy: "Creature"
+  },
+  mountain: {
+    floor: "Plateau",
+    corridor: "Mountain Trail",
+    wall: "Cliff Face",
+    door: "Pass",
+    lockedDoor: "Blocked Pass",
+    stairsUp: "Ascent",
+    stairsDown: "Descent",
+    fog: "Clouds",
+    enemy: "Beast"
+  },
+  desert: {
+    floor: "Sandy Ground",
+    corridor: "Trail",
+    wall: "Dunes",
+    door: "Oasis",
+    lockedDoor: "Sandstorm",
+    stairsUp: "Dune Crest",
+    stairsDown: "Valley",
+    fog: "Sandstorm",
+    enemy: "Creature"
+  },
+  town: {
+    floor: "Street",
+    corridor: "Alley",
+    wall: "Building",
+    door: "Doorway",
+    lockedDoor: "Locked Door",
+    stairsUp: "Steps",
+    stairsDown: "Cellar Stairs",
+    fog: "Unexplored",
+    enemy: "Hostile"
+  },
+  underground: {
+    floor: "Cavern",
+    corridor: "Passage",
+    wall: "Solid Rock",
+    door: "Opening",
+    lockedDoor: "Sealed Chamber",
+    stairsUp: "Shaft Up",
+    stairsDown: "Shaft Down",
+    fog: "Darkness",
+    enemy: "Denizen"
+  }
+};
+
+// Helper to detect environment from map name or description
+function detectEnvironment(name?: string): EnvironmentType {
+  const text = (name || "").toLowerCase();
+  if (text.includes("forest") || text.includes("glade") || text.includes("grove") || text.includes("wood")) return "forest";
+  if (text.includes("cave") || text.includes("cavern")) return "cave";
+  if (text.includes("castle") || text.includes("fortress") || text.includes("keep")) return "castle";
+  if (text.includes("ruin") || text.includes("temple") || text.includes("shrine")) return "ruins";
+  if (text.includes("swamp") || text.includes("marsh") || text.includes("bog")) return "swamp";
+  if (text.includes("mountain") || text.includes("peak") || text.includes("cliff")) return "mountain";
+  if (text.includes("desert") || text.includes("dune") || text.includes("oasis")) return "desert";
+  if (text.includes("town") || text.includes("city") || text.includes("village")) return "town";
+  if (text.includes("underground") || text.includes("underdark") || text.includes("depths")) return "underground";
+  return "dungeon";
+}
+
 interface DungeonMapProps {
   mapData: DungeonMapData;
   onTileClick?: (x: number, y: number) => void;
@@ -126,6 +267,7 @@ interface DungeonMapProps {
   interactive?: boolean;
   showControls?: boolean;
   selectedEntity?: string | null;
+  environment?: EnvironmentType;
 }
 
 export function DungeonMap({
@@ -136,9 +278,14 @@ export function DungeonMap({
   interactive = true,
   showControls = true,
   selectedEntity,
+  environment,
 }: DungeonMapProps) {
   const [zoom, setZoom] = useState(1);
   const [viewOffset, setViewOffset] = useState({ x: 0, y: 0 });
+  
+  // Auto-detect environment from map name if not explicitly provided
+  const detectedEnv = environment || detectEnvironment(mapData.name);
+  const labels = ENVIRONMENT_LABELS[detectedEnv];
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!interactive || !onPlayerMove) return;
@@ -452,27 +599,27 @@ export function DungeonMap({
               </div>
               <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
                 <div className="w-4 h-4 bg-amber-200 dark:bg-amber-700 border-2 border-amber-400 dark:border-amber-500 rounded-sm" />
-                <span className="font-medium">Floor</span>
+                <span className="font-medium">{labels.floor}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
                 <div className="w-4 h-4 bg-amber-300 dark:bg-amber-800 border-2 border-amber-400 dark:border-amber-600 rounded-sm" />
-                <span className="font-medium">Corridor</span>
+                <span className="font-medium">{labels.corridor}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
                 <div className="w-4 h-4 bg-stone-700 dark:bg-stone-900 border-2 border-stone-500 dark:border-stone-700 rounded-sm" />
-                <span className="font-medium">Wall (blocked)</span>
+                <span className="font-medium">{labels.wall}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
                 <div className="w-4 h-4 bg-amber-500 dark:bg-amber-600 border-2 border-amber-600 dark:border-amber-400 rounded-sm flex items-center justify-center">
                   <DoorOpen className="w-3 h-3 text-white" />
                 </div>
-                <span className="font-medium">Door (open)</span>
+                <span className="font-medium">{labels.door}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
                 <div className="w-4 h-4 bg-red-600 dark:bg-red-800 border-2 border-red-700 dark:border-red-600 rounded-sm flex items-center justify-center">
                   <Lock className="w-3 h-3 text-white" />
                 </div>
-                <span className="font-medium">Locked Door</span>
+                <span className="font-medium">{labels.lockedDoor}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
                 <div className="w-4 h-4 bg-yellow-400 dark:bg-yellow-500 border-2 border-yellow-500 dark:border-yellow-400 rounded-sm flex items-center justify-center">
@@ -484,11 +631,11 @@ export function DungeonMap({
                 <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
                   <Skull className="w-3 h-3 text-white" />
                 </div>
-                <span className="font-medium">Enemy</span>
+                <span className="font-medium">{labels.enemy}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
                 <div className="w-4 h-4 bg-indigo-400 dark:bg-indigo-600 opacity-60 border-2 border-indigo-300 dark:border-indigo-500 rounded-sm" style={{ background: 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(99,102,241,0.3) 2px, rgba(99,102,241,0.3) 4px)' }} />
-                <span className="font-medium">Unexplored (fog)</span>
+                <span className="font-medium">{labels.fog}</span>
               </div>
               <p className="text-xs text-muted-foreground mt-2 italic">Movement is driven by your story choices above</p>
             </div>
