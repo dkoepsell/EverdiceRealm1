@@ -1375,6 +1375,53 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
   });
 
+  // Quick-Buy AND Use mutation for healing items - buys and immediately uses
+  const quickBuyAndUseMutation = useMutation({
+    mutationFn: async ({ characterId, name }: { characterId: number; name: string }) => {
+      // First add the consumable
+      const addResponse = await apiRequest('POST', `/api/characters/${characterId}/consumables/add`, { name, quantity: 1 });
+      const addData = await addResponse.json();
+      if (!addResponse.ok) throw new Error(addData.message || "Failed to purchase");
+      
+      // Then immediately use it
+      const useResponse = await apiRequest('POST', `/api/characters/${characterId}/consumables/use`, { name });
+      const useData = await useResponse.json();
+      if (!useResponse.ok) throw new Error(useData.message || "Failed to use");
+      
+      return useData;
+    },
+    onSuccess: (data) => {
+      // Update character cache directly with new HP
+      if (data.character) {
+        queryClient.setQueryData(['/api/characters'], (old: any[] | undefined) => {
+          if (!old) return old;
+          return old.map(c => c.id === data.character.id ? { ...c, ...data.character } : c);
+        });
+        // Also update participants cache directly
+        queryClient.setQueryData([`/api/campaigns/${campaign.id}/participants`], (old: any[] | undefined) => {
+          if (!old) return old;
+          return old.map((p: any) => {
+            if (p.characterId === data.character.id && p.character) {
+              return { ...p, character: { ...p.character, hitPoints: data.character.hitPoints, status: data.character.status, consumables: data.character.consumables, gold: data.character.gold } };
+            }
+            return p;
+          });
+        });
+      }
+      toast({
+        title: data.healedAmount > 0 ? `Healed ${data.healedAmount} HP!` : "Item Used",
+        description: `Purchased and used immediately. ${data.message}`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Quick-Buy Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
   const useConsumableMutation = useMutation({
     mutationFn: async ({ characterId, name }: { characterId: number; name: string }) => {
       const response = await apiRequest('POST', `/api/characters/${characterId}/consumables/use`, { name });
@@ -3740,9 +3787,18 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           {(activeCharacter as any).gold || 0} gp
                         </span>
                       </div>
-                      <Select onValueChange={(value) => addConsumableMutation.mutate({ characterId: activeCharacter.id, name: value })}>
+                      <Select onValueChange={(value) => {
+                          // Healing items are bought AND used immediately
+                          const healingItems = ['Healing Potion', 'Greater Healing Potion', 'Superior Healing Potion', 'Scroll of Cure Wounds'];
+                          if (healingItems.includes(value)) {
+                            quickBuyAndUseMutation.mutate({ characterId: activeCharacter.id, name: value });
+                          } else {
+                            // Non-healing items just get added to inventory
+                            addConsumableMutation.mutate({ characterId: activeCharacter.id, name: value });
+                          }
+                        }}>
                         <SelectTrigger className="flex-1" data-testid="select-add-consumable">
-                          <SelectValue placeholder="Buy a consumable..." />
+                          <SelectValue placeholder="Quick-heal (buy & use)..." />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Healing Potion" disabled={((activeCharacter as any).gold || 0) < 10}>
