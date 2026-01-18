@@ -1779,6 +1779,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (existing) {
         existing.quantity += quantity;
+        // Fix any existing consumables that might be missing healDice/healBonus
+        if (effectInfo.healDice && !existing.healDice) {
+          existing.healDice = effectInfo.healDice;
+        }
+        if (effectInfo.healBonus !== undefined && existing.healBonus === undefined) {
+          existing.healBonus = effectInfo.healBonus;
+        }
+        // Also ensure type is set correctly
+        if (effectInfo.type && !existing.type) {
+          existing.type = effectInfo.type;
+        }
       } else {
         const newConsumable: any = {
           name,
