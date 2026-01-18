@@ -2435,8 +2435,8 @@ Return your response as a JSON object with these fields:
   - requiresDiceRoll: Boolean indicating if this action requires a dice roll
   - diceType: If requiresDiceRoll is true, include the type of dice to roll ("d20" for most skill checks)
   - rollDC: If requiresDiceRoll is true, include the DC/difficulty (number to beat) for this roll
-  - rollModifier: The modifier to add to the roll (usually -2 to +5)
-  - rollPurpose: A short explanation of what the roll is for (e.g., "Perception Check", "Athletics Check")
+  - skillType: The skill or ability used (e.g., "perception", "persuasion", "stealth", "athletics", "investigation", "arcana", "insight"). IMPORTANT: Vary the skills used - don't just use strength-based checks. Include social skills (persuasion, deception, intimidation), mental skills (investigation, perception, arcana), and physical skills (athletics, acrobatics, stealth) as appropriate to the situation.
+  - rollPurpose: A short explanation of what the roll is for (e.g., "Perception Check", "Persuasion Check", "Investigation Check")
   - successText: Brief text to display on a successful roll
   - failureText: Brief text to display on a failed roll
 - activeQuests: An array of 1-3 initial quests, each with:
@@ -3801,10 +3801,10 @@ Return your response as a JSON object with these fields:
   - description: A brief explanation of what this action entails 
   - icon: A simple icon identifier (use: "search", "hand-sparkles", "running", "sword", or any basic icon name)
   - requiresDiceRoll: Boolean indicating if this action requires a dice roll
-  - diceType: If requiresDiceRoll is true, include the type of dice to roll ("d20" for most skill checks and attacks, "d4", "d6", "d8", etc. for damage)
+  - diceType: If requiresDiceRoll is true, include the type of dice to roll ("d20" for most skill checks and attacks)
   - rollDC: If requiresDiceRoll is true, include the DC/difficulty (number to beat) for this roll
-  - rollModifier: The modifier to add to the roll (based on character attributes, usually -2 to +5)
-  - rollPurpose: A short explanation of what the roll is for (e.g., "Perception Check", "Athletics Check", "Attack Roll")
+  - skillType: The skill or ability used (e.g., "perception", "persuasion", "stealth", "athletics", "investigation", "arcana", "insight", "intimidation", "deception", "acrobatics"). IMPORTANT: Use varied skills appropriate to the situation - social situations should use Persuasion/Deception/Insight, sneaking uses Stealth, searching uses Perception/Investigation, climbing/jumping uses Athletics/Acrobatics, magical knowledge uses Arcana. Don't default everything to Athletics or Strength.
+  - rollPurpose: A short explanation of what the roll is for (e.g., "Perception Check", "Persuasion Check", "Stealth Check")
   - successText: Brief text to display on a successful roll
   - failureText: Brief text to display on a failed roll
 `;
@@ -4080,8 +4080,14 @@ Return your response as a JSON object with these fields:
   - requiresDiceRoll: Boolean indicating if this action requires a dice roll
   - diceType: If requiresDiceRoll is true, include the type of dice to roll ("d20" for most skill checks)
   - rollDC: If requiresDiceRoll is true, include the DC/difficulty (10-15 for most, 16-20 for hard)
-  - rollModifier: The modifier to add to the roll (based on character attributes, usually -2 to +5)
-  - rollPurpose: A short explanation of what the roll is for (e.g., "Perception Check", "Investigation Check")
+  - skillType: The skill or ability used. IMPORTANT: Match the skill to the action type:
+    * Social/talking: "persuasion", "deception", "intimidation", "insight"
+    * Searching/noticing: "perception", "investigation"  
+    * Sneaking/hiding: "stealth"
+    * Physical challenges: "athletics" (climbing, jumping, swimming), "acrobatics" (balance, tumbling)
+    * Knowledge: "arcana" (magic), "history", "religion", "nature"
+    * Other: "survival", "medicine", "animal_handling"
+  - rollPurpose: A short explanation of what the roll is for (e.g., "Perception Check", "Persuasion Check", "Stealth Check")
   - successText: Brief text to display on a successful roll
   - failureText: Brief text to display on a failed roll
 - questUpdate: Optional object with quest progress. Include if this action completes or advances a quest:
@@ -9335,6 +9341,16 @@ CHOICE REQUIREMENTS:
 - Include variety: dialogue, exploration, action, stealth, magic/investigation
 - At least 2 choices should require dice rolls
 - Make choices specific to the current situation, not generic
+- USE VARIED SKILLS: Don't default to Athletics/Strength. Match skills to actions:
+  * Talking/convincing NPCs: persuasion, deception, intimidation
+  * Reading emotions/detecting lies: insight
+  * Looking for clues/hidden things: investigation, perception
+  * Sneaking/hiding: stealth
+  * Climbing/jumping/swimming: athletics
+  * Balance/tumbling: acrobatics
+  * Magic knowledge: arcana
+  * Religious knowledge: religion
+  * Nature/survival: survival, nature
 
 Respond with JSON:
 {
@@ -9348,7 +9364,8 @@ Respond with JSON:
       "requiresDiceRoll": true/false,
       "diceType": "d20/d6/etc (if roll required)",
       "rollDC": "number (if roll required)",
-      "rollPurpose": "What the roll represents",
+      "skillType": "the skill for this roll: perception/investigation/persuasion/deception/intimidation/insight/stealth/athletics/acrobatics/arcana/religion/nature/survival/medicine/animal_handling",
+      "rollPurpose": "What the roll represents (e.g., Persuasion Check, Perception Check)",
       "successText": "What happens on success",
       "failureText": "What happens on failure"
     }

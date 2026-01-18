@@ -1576,12 +1576,26 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       
       console.log("Final dice type being used:", diceType);
       
+      // Calculate the actual modifier from character's stats based on the skill/check type
+      // Extract skill name from choice.skillType, choice.rollPurpose, or parse from action text
+      const skillName = choice.skillType || 
+                       choice.rollPurpose?.toLowerCase().replace(/\s+check/i, '').replace(/\s+save/i, '').trim() || 
+                       'strength';
+      
+      // Use character's actual ability modifier instead of AI-provided rollModifier
+      let calculatedModifier = choice.rollModifier || 0;
+      if (activeCharacter) {
+        const { modifier, breakdown } = getSkillModifier(activeCharacter, skillName);
+        calculatedModifier = modifier;
+        console.log(`Calculated ${skillName} modifier for ${activeCharacter.name}: ${breakdown}`);
+      }
+      
       // Set up the dice roll with defaults for any missing values
       setCurrentDiceRoll({
         action: choice.action,
         diceType: diceType,
         rollDC: choice.rollDC || 10, // Default DC if none provided
-        rollModifier: choice.rollModifier || 0,
+        rollModifier: calculatedModifier,
         rollPurpose: choice.rollPurpose || "Skill Check",
         successText: choice.successText || "Success!",
         failureText: choice.failureText || "Failure!"
@@ -1592,7 +1606,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         action: choice.action,
         diceType: diceType,
         rollDC: choice.rollDC || 10,
-        rollModifier: choice.rollModifier || 0,
+        rollModifier: calculatedModifier,
+        skillName: skillName,
       });
       
       setShowDiceRollDialog(true);
