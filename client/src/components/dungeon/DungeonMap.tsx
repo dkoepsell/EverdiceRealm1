@@ -344,22 +344,84 @@ export function DungeonMap({
     }
   };
 
+  // D&D Mini-style figurine component
+  const MiniBase = ({ children, color, glow }: { children: React.ReactNode; color: string; glow?: string }) => (
+    <div className="relative flex flex-col items-center">
+      {/* Figurine body */}
+      <div 
+        className={`relative z-10 ${color} rounded-t-full shadow-md`}
+        style={{ 
+          width: '16px', 
+          height: '18px',
+          boxShadow: glow ? `0 0 8px 2px ${glow}` : '0 2px 4px rgba(0,0,0,0.3)'
+        }}
+      >
+        {children}
+      </div>
+      {/* Mini base (like a D&D miniature stand) */}
+      <div 
+        className="rounded-full bg-gradient-to-b from-stone-600 to-stone-800 border border-stone-500"
+        style={{ 
+          width: '20px', 
+          height: '6px',
+          marginTop: '-2px',
+          boxShadow: '0 2px 3px rgba(0,0,0,0.4)'
+        }}
+      />
+    </div>
+  );
+
   const getEntityIcon = (entity: MapEntity) => {
-    const colorClass = ENTITY_COLORS[entity.type];
-    
     switch (entity.type) {
       case "player":
-        return <User className={`w-5 h-5 ${colorClass}`} />;
+        return (
+          <MiniBase color="bg-gradient-to-b from-emerald-400 to-emerald-600" glow="rgba(52,211,153,0.5)">
+            <User className="w-3 h-3 text-white absolute top-1 left-1/2 -translate-x-1/2" />
+          </MiniBase>
+        );
       case "ally":
-        return <Users className={`w-5 h-5 ${colorClass}`} />;
+        return (
+          <MiniBase color="bg-gradient-to-b from-blue-400 to-blue-600" glow="rgba(96,165,250,0.4)">
+            <Users className="w-3 h-3 text-white absolute top-1 left-1/2 -translate-x-1/2" />
+          </MiniBase>
+        );
       case "enemy":
-        return <Skull className={`w-5 h-5 ${colorClass}`} />;
+        return (
+          <MiniBase color="bg-gradient-to-b from-red-500 to-red-700" glow="rgba(239,68,68,0.5)">
+            <Skull className="w-3 h-3 text-white absolute top-1 left-1/2 -translate-x-1/2" />
+          </MiniBase>
+        );
       case "boss":
-        return <Skull className={`w-6 h-6 ${colorClass}`} />;
+        return (
+          <div className="relative flex flex-col items-center scale-125">
+            <div 
+              className="relative z-10 bg-gradient-to-b from-purple-500 to-purple-800 rounded-t-full shadow-lg"
+              style={{ 
+                width: '18px', 
+                height: '20px',
+                boxShadow: '0 0 12px 3px rgba(168,85,247,0.6)'
+              }}
+            >
+              <Skull className="w-3.5 h-3.5 text-yellow-300 absolute top-1 left-1/2 -translate-x-1/2" />
+            </div>
+            <div 
+              className="rounded-full bg-gradient-to-b from-stone-500 to-stone-800 border-2 border-yellow-500"
+              style={{ width: '22px', height: '7px', marginTop: '-2px' }}
+            />
+          </div>
+        );
       case "npc":
-        return <MapPin className={`w-5 h-5 ${colorClass}`} />;
+        return (
+          <MiniBase color="bg-gradient-to-b from-yellow-400 to-amber-600">
+            <MapPin className="w-3 h-3 text-white absolute top-1 left-1/2 -translate-x-1/2" />
+          </MiniBase>
+        );
       default:
-        return <User className={`w-5 h-5 ${colorClass}`} />;
+        return (
+          <MiniBase color="bg-gradient-to-b from-gray-400 to-gray-600">
+            <User className="w-3 h-3 text-white absolute top-1 left-1/2 -translate-x-1/2" />
+          </MiniBase>
+        );
     }
   };
 
@@ -461,30 +523,77 @@ export function DungeonMap({
       </CardHeader>
       <CardContent>
         <div className="flex gap-4">
+          {/* Tabletop Frame - Wood grain effect */}
           <div 
-            className="relative overflow-auto border-2 border-amber-500 dark:border-amber-700 rounded-lg bg-stone-200 dark:bg-stone-950 p-3"
-            style={{ maxHeight: "450px", maxWidth: "100%" }}
+            className="relative overflow-auto rounded-xl p-1"
+            style={{ 
+              maxHeight: "480px", 
+              maxWidth: "100%",
+              background: 'linear-gradient(135deg, #8B4513 0%, #A0522D 25%, #8B4513 50%, #6B3E0C 75%, #8B4513 100%)',
+              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.4)'
+            }}
             data-testid="dungeon-map-grid"
           >
-            {/* Compass Rose Overlay */}
-            <div className="absolute top-2 right-2 z-20 bg-white/90 dark:bg-stone-900/90 rounded-lg p-2 border border-amber-500 dark:border-amber-600 shadow-md">
-              <div className="flex flex-col items-center text-xs font-bold">
-                <span className="text-amber-600 dark:text-amber-400">N</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-amber-600 dark:text-amber-400">W</span>
-                  <Compass className="w-6 h-6 text-amber-600 dark:text-amber-500" />
-                  <span className="text-amber-600 dark:text-amber-400">E</span>
+            {/* Inner map area with parchment-like texture */}
+            <div 
+              className="relative rounded-lg p-3"
+              style={{
+                background: 'linear-gradient(to bottom right, #e8dcc4 0%, #d4c4a8 50%, #c9b896 100%)',
+                boxShadow: 'inset 0 0 20px rgba(139,69,19,0.2)'
+              }}
+            >
+              {/* Decorative corner dice - bottom left */}
+              <div className="absolute bottom-1 left-1 z-30 opacity-60">
+                <div 
+                  className="w-5 h-5 bg-gradient-to-br from-red-600 to-red-800 rounded-sm rotate-12 flex items-center justify-center text-white text-xs font-bold shadow-md"
+                  style={{ boxShadow: '1px 1px 3px rgba(0,0,0,0.4)' }}
+                >
+                  20
                 </div>
-                <span className="text-amber-600 dark:text-amber-400">S</span>
               </div>
-            </div>
-            
-            {/* Player Position Indicator */}
-            <div className="absolute top-2 left-2 z-20 bg-white/90 dark:bg-stone-900/90 rounded-lg px-2 py-1 border border-emerald-500 dark:border-emerald-600 text-xs shadow-md">
-              <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                Position: ({mapData.playerPosition.x}, {mapData.playerPosition.y})
-              </span>
-            </div>
+              
+              {/* Decorative corner dice - bottom right */}
+              <div className="absolute bottom-1 right-1 z-30 opacity-60">
+                <div 
+                  className="w-4 h-4 bg-gradient-to-br from-blue-600 to-blue-800 rounded-sm -rotate-6 flex items-center justify-center text-white text-[10px] font-bold shadow-md"
+                  style={{ boxShadow: '1px 1px 3px rgba(0,0,0,0.4)' }}
+                >
+                  6
+                </div>
+              </div>
+
+              {/* Compass Rose Overlay - styled like antique compass */}
+              <div 
+                className="absolute top-2 right-2 z-20 rounded-full p-2 border-2 border-amber-700"
+                style={{
+                  background: 'radial-gradient(circle, #f5e6c8 0%, #d4b896 100%)',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.3)'
+                }}
+              >
+                <div className="flex flex-col items-center text-xs font-bold" style={{ fontFamily: 'serif' }}>
+                  <span className="text-amber-800">N</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-amber-800">W</span>
+                    <Compass className="w-5 h-5 text-amber-700" />
+                    <span className="text-amber-800">E</span>
+                  </div>
+                  <span className="text-amber-800">S</span>
+                </div>
+              </div>
+              
+              {/* Player Position Indicator - parchment style */}
+              <div 
+                className="absolute top-2 left-2 z-20 rounded px-2 py-1 text-xs"
+                style={{
+                  background: 'linear-gradient(to bottom, #f5e6c8, #e8d4b8)',
+                  border: '1px solid #a67c52',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}
+              >
+                <span className="text-amber-900 font-medium" style={{ fontFamily: 'serif' }}>
+                  ⚔ Hex ({mapData.playerPosition.x}, {mapData.playerPosition.y})
+                </span>
+              </div>
             
             {/* Hex Grid Container */}
             <div
@@ -545,8 +654,28 @@ export function DungeonMap({
                       )}
                       {isPlayerHere && (
                         <div className="absolute inset-0 flex items-center justify-center z-10">
-                          <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/50 ring-2 ring-white animate-pulse">
-                            <Navigation className="w-3 h-3 text-white" />
+                          {/* Party mini with glowing base - tabletop D&D style */}
+                          <div className="relative flex flex-col items-center animate-pulse">
+                            <div 
+                              className="relative z-10 bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 rounded-t-full shadow-lg"
+                              style={{ 
+                                width: '18px', 
+                                height: '20px',
+                                boxShadow: '0 0 12px 4px rgba(52,211,153,0.6), inset 0 1px 2px rgba(255,255,255,0.3)'
+                              }}
+                            >
+                              <Navigation className="w-3.5 h-3.5 text-white absolute top-1.5 left-1/2 -translate-x-1/2 drop-shadow-sm" />
+                            </div>
+                            {/* Glowing mini base */}
+                            <div 
+                              className="rounded-full bg-gradient-to-b from-amber-500 to-amber-700 border-2 border-amber-400"
+                              style={{ 
+                                width: '22px', 
+                                height: '7px', 
+                                marginTop: '-2px',
+                                boxShadow: '0 0 8px 2px rgba(251,191,36,0.5), 0 2px 4px rgba(0,0,0,0.4)'
+                              }}
+                            />
                           </div>
                         </div>
                       )}
@@ -554,6 +683,7 @@ export function DungeonMap({
                   );
                 })
               )}
+              </div>
             </div>
           </div>
 
@@ -605,58 +735,85 @@ export function DungeonMap({
               </>
             )}
             
-            {/* Map Legend - Always visible with hex shapes */}
-            <div className="space-y-1.5 bg-stone-100 dark:bg-stone-900 p-2 rounded-lg border border-stone-300 dark:border-stone-700">
-              <div className="text-sm font-bold text-stone-800 dark:text-stone-200 flex items-center gap-1">
+            {/* Map Legend - Tabletop parchment style with hex shapes */}
+            <div 
+              className="space-y-1.5 p-2.5 rounded-lg border-2"
+              style={{
+                background: 'linear-gradient(to bottom, #f5e6c8, #e8d4b8)',
+                borderColor: '#a67c52',
+                boxShadow: '2px 2px 6px rgba(0,0,0,0.2)'
+              }}
+            >
+              <div className="text-sm font-bold flex items-center gap-1" style={{ color: '#5c3d1e', fontFamily: 'serif' }}>
                 <span>⬡</span> Hex Map Legend
               </div>
-              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center ring-2 ring-white shadow">
-                  <Navigation className="w-3 h-3 text-white" />
+              <div className="flex items-center gap-2 text-xs" style={{ color: '#5c3d1e' }}>
+                {/* Mini-style party icon in legend */}
+                <div className="relative flex flex-col items-center" style={{ transform: 'scale(0.8)' }}>
+                  <div 
+                    className="relative z-10 bg-gradient-to-b from-emerald-400 to-emerald-600 rounded-t-full"
+                    style={{ width: '14px', height: '16px', boxShadow: '0 0 6px 2px rgba(52,211,153,0.4)' }}
+                  >
+                    <Navigation className="w-2.5 h-2.5 text-white absolute top-1 left-1/2 -translate-x-1/2" />
+                  </div>
+                  <div 
+                    className="rounded-full bg-gradient-to-b from-amber-500 to-amber-700 border border-amber-400"
+                    style={{ width: '16px', height: '5px', marginTop: '-1px' }}
+                  />
                 </div>
                 <span className="font-medium">You (Party)</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                <div className="w-5 h-4 bg-amber-200 dark:bg-amber-700 flex items-center justify-center" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.2)' }} />
+              <div className="flex items-center gap-2 text-xs" style={{ color: '#5c3d1e' }}>
+                <div className="w-5 h-4 bg-amber-200 flex items-center justify-center" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.2)' }} />
                 <span className="font-medium">{labels.floor}</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                <div className="w-5 h-4 bg-amber-300 dark:bg-amber-800 flex items-center justify-center" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.2)' }} />
+              <div className="flex items-center gap-2 text-xs" style={{ color: '#5c3d1e' }}>
+                <div className="w-5 h-4 bg-amber-300 flex items-center justify-center" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.2)' }} />
                 <span className="font-medium">{labels.corridor}</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                <div className="w-5 h-4 bg-stone-700 dark:bg-stone-900 flex items-center justify-center" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.3)' }} />
+              <div className="flex items-center gap-2 text-xs" style={{ color: '#5c3d1e' }}>
+                <div className="w-5 h-4 bg-stone-700 flex items-center justify-center" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.3)' }} />
                 <span className="font-medium">{labels.wall}</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                <div className="w-5 h-4 bg-amber-500 dark:bg-amber-600 flex items-center justify-center" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.2)' }}>
+              <div className="flex items-center gap-2 text-xs" style={{ color: '#5c3d1e' }}>
+                <div className="w-5 h-4 bg-amber-500 flex items-center justify-center" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.2)' }}>
                   <DoorOpen className="w-2.5 h-2.5 text-white" />
                 </div>
                 <span className="font-medium">{labels.door}</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                <div className="w-5 h-4 bg-red-600 dark:bg-red-800 flex items-center justify-center" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.2)' }}>
+              <div className="flex items-center gap-2 text-xs" style={{ color: '#5c3d1e' }}>
+                <div className="w-5 h-4 bg-red-600 flex items-center justify-center" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.2)' }}>
                   <Lock className="w-2.5 h-2.5 text-white" />
                 </div>
                 <span className="font-medium">{labels.lockedDoor}</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                <div className="w-5 h-4 bg-yellow-400 dark:bg-yellow-500 flex items-center justify-center" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.2)' }}>
-                  <Gem className="w-2.5 h-2.5 text-amber-800 dark:text-amber-900" />
+              <div className="flex items-center gap-2 text-xs" style={{ color: '#5c3d1e' }}>
+                <div className="w-5 h-4 bg-yellow-400 flex items-center justify-center" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.2)' }}>
+                  <Gem className="w-2.5 h-2.5 text-amber-800" />
                 </div>
                 <span className="font-medium">Treasure</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                  <Skull className="w-3 h-3 text-white" />
+              <div className="flex items-center gap-2 text-xs" style={{ color: '#5c3d1e' }}>
+                {/* Mini-style enemy icon in legend */}
+                <div className="relative flex flex-col items-center" style={{ transform: 'scale(0.8)' }}>
+                  <div 
+                    className="relative z-10 bg-gradient-to-b from-red-500 to-red-700 rounded-t-full"
+                    style={{ width: '14px', height: '16px', boxShadow: '0 0 6px 2px rgba(239,68,68,0.4)' }}
+                  >
+                    <Skull className="w-2.5 h-2.5 text-white absolute top-1 left-1/2 -translate-x-1/2" />
+                  </div>
+                  <div 
+                    className="rounded-full bg-gradient-to-b from-stone-600 to-stone-800 border border-stone-500"
+                    style={{ width: '16px', height: '5px', marginTop: '-1px' }}
+                  />
                 </div>
                 <span className="font-medium">{labels.enemy}</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                <div className="w-5 h-4 bg-indigo-400 dark:bg-indigo-600 opacity-60" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', background: 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(99,102,241,0.3) 2px, rgba(99,102,241,0.3) 4px)' }} />
+              <div className="flex items-center gap-2 text-xs" style={{ color: '#5c3d1e' }}>
+                <div className="w-5 h-4 opacity-60" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', background: 'repeating-linear-gradient(45deg, #c9b896, #c9b896 2px, rgba(99,102,241,0.3) 2px, rgba(99,102,241,0.3) 4px)' }} />
                 <span className="font-medium">{labels.fog}</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-2 italic">Movement is driven by your story choices above</p>
+              <p className="text-xs mt-2 italic" style={{ color: '#8b6914' }}>Movement is driven by your story choices above</p>
             </div>
           </div>
         </div>
