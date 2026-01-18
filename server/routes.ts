@@ -13306,7 +13306,12 @@ ALWAYS generate:
     try {
       const userId = req.isAuthenticated() ? (req.user as any).id : undefined;
       const groups = await storage.getPlayerGroups(userId);
-      res.json(groups);
+      // Add member count to each group
+      const groupsWithMemberCount = await Promise.all(groups.map(async (group) => {
+        const members = await storage.getPlayerGroupMembers(group.id);
+        return { ...group, memberCount: members.length };
+      }));
+      res.json(groupsWithMemberCount);
     } catch (error) {
       console.error("Failed to fetch groups:", error);
       res.status(500).json({ message: "Failed to fetch groups" });

@@ -606,7 +606,7 @@ export default function GroupsPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Users className="h-4 w-4" />
-                      <span>Members</span>
+                      <span>{(group as any).memberCount || 1} {(group as any).memberCount === 1 ? 'Member' : 'Members'}</span>
                     </div>
                     <div className="flex gap-2">
                       <Button 
