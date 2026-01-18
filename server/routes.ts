@@ -6619,6 +6619,27 @@ Focus on:
     }
   });
   
+  // Get pending group invitations for current user - MUST come before /api/invitations/:code
+  app.get("/api/invitations/pending", isAuthenticated, async (req: any, res) => {
+    try {
+      const invitations = await storage.getUserPendingInvitations(req.user.id);
+      const enriched = await Promise.all(invitations.map(async (inv) => {
+        const group = await storage.getPlayerGroup(inv.groupId);
+        const inviter = await storage.getUser(inv.inviterId);
+        return {
+          ...inv,
+          groupName: group?.name,
+          groupType: group?.type,
+          inviterName: inviter?.displayName || inviter?.username
+        };
+      }));
+      res.json(enriched);
+    } catch (error) {
+      console.error("Failed to fetch pending invitations:", error);
+      res.status(500).json({ message: "Failed to fetch invitations" });
+    }
+  });
+  
   app.get("/api/invitations/:code", async (req, res) => {
     try {
       const code = req.params.code;
@@ -13388,28 +13409,6 @@ ALWAYS generate:
   });
   
   // ========== GROUP INVITATIONS ==========
-  
-  // Get my pending invitations
-  app.get("/api/invitations/pending", isAuthenticated, async (req: any, res) => {
-    try {
-      const invitations = await storage.getUserPendingInvitations(req.user.id);
-      // Enrich with group info
-      const enriched = await Promise.all(invitations.map(async (inv) => {
-        const group = await storage.getPlayerGroup(inv.groupId);
-        const inviter = await storage.getUser(inv.inviterId);
-        return {
-          ...inv,
-          groupName: group?.name,
-          groupType: group?.type,
-          inviterName: inviter?.displayName || inviter?.username
-        };
-      }));
-      res.json(enriched);
-    } catch (error) {
-      console.error("Failed to fetch pending invitations:", error);
-      res.status(500).json({ message: "Failed to fetch invitations" });
-    }
-  });
   
   // Get invitations for a group
   app.get("/api/groups/:id/invitations", isAuthenticated, async (req: any, res) => {

@@ -28,6 +28,7 @@ import TavernPage from "@/pages/tavern";
 import GroupsPage from "@/pages/groups";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import InvitationAlert from "@/components/InvitationAlert";
 import parchmentFrame from "@assets/image_1768600727955.png";
 
 function Router() {
@@ -44,6 +45,7 @@ function Router() {
         }}
       />
       <Navbar />
+      <InvitationAlert />
       <main className="flex-grow relative z-10">
         <Switch>
           <Route path="/" component={LandingPage} />
