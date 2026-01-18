@@ -82,7 +82,7 @@ export default function GroupsPage() {
   });
 
   const { data: groupMessages = [], isLoading: messagesLoading } = useQuery<EnrichedMessage[]>({
-    queryKey: ['/api/groups', messagesBoardGroup?.id, 'messages'],
+    queryKey: [`/api/groups/${messagesBoardGroup?.id}/messages`],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!messagesBoardGroup,
   });
@@ -99,7 +99,7 @@ export default function GroupsPage() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/groups', messagesBoardGroup?.id, 'messages'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/groups/${messagesBoardGroup?.id}/messages`] });
       setNewMessage({ title: "", content: "" });
       toast({
         title: "Message Posted",
@@ -121,7 +121,7 @@ export default function GroupsPage() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/groups', messagesBoardGroup?.id, 'messages'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/groups/${messagesBoardGroup?.id}/messages`] });
       toast({
         title: "Message Deleted",
         description: "The message has been removed.",
@@ -142,7 +142,7 @@ export default function GroupsPage() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/groups', messagesBoardGroup?.id, 'messages'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/groups/${messagesBoardGroup?.id}/messages`] });
       toast({
         title: "Message Updated",
         description: "Pin status has been changed.",
