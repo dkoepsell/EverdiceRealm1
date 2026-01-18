@@ -88,7 +88,7 @@ export default function GroupsPage() {
   });
 
   const { data: groupWithMembers } = useQuery<{ members: Array<{ id: number; userId: number; role: string; title?: string; username?: string }> }>({
-    queryKey: ['/api/groups', viewMembersGroup?.id],
+    queryKey: [`/api/groups/${viewMembersGroup?.id}`],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!viewMembersGroup,
   });
