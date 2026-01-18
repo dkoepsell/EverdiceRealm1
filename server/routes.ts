@@ -482,9 +482,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Add starter consumables including resurrection scrolls
       const starterConsumables = [
-        { name: "Healing Potion", quantity: 2, effect: "Restores 2d4+2 HP" },
-        { name: "Scroll of Revivify", quantity: 2, effect: "Resurrects a dead character" },
-        { name: "Antitoxin", quantity: 1, effect: "Advantage on poison saves for 1 hour" }
+        { name: "Healing Potion", quantity: 2, type: "healing", effect: "Restores 2d4+2 HP", healDice: "2d4", healBonus: 2 },
+        { name: "Scroll of Revivify", quantity: 2, type: "utility", effect: "Resurrects a dead character" },
+        { name: "Antitoxin", quantity: 1, type: "utility", effect: "Advantage on poison saves for 1 hour" }
       ];
       
       // Add starter equipment based on class
