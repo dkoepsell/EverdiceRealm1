@@ -964,6 +964,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       // Invalidate sessions data to refresh
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
       
+      // Invalidate characters and participants to reflect HP/status changes from combat
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      
       // If the user is the campaign owner, also update the campaign data
       if (campaign.userId === user?.id) {
         queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
