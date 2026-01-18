@@ -1509,7 +1509,8 @@ export class DatabaseStorage implements IStorage {
         skills: ["Athletics", "Intimidation", "Perception", "Survival"],
         equipment: ["Greatsword", "Heavy Crossbow", "Plate Armor", "Tower Shield"],
         consumables: JSON.stringify([
-          { name: "Healing Potion", quantity: 3, type: "healing", healDice: "2d4", healBonus: 2, effect: "Restores 2d4+2 HP" }
+          { name: "Healing Potion", quantity: 3, type: "healing", healDice: "2d4", healBonus: 2, effect: "Restores 2d4+2 HP" },
+          { name: "Revivify Scroll", quantity: 2, type: "resurrection", effect: "Revives a dead creature within 1 minute of death to 1 HP" }
         ]),
         combatAbilities: JSON.stringify([
           "Protective Strike: Disadvantage on attacks against allies within 5 feet",
@@ -1543,7 +1544,8 @@ export class DatabaseStorage implements IStorage {
         equipment: ["Longbow", "Healer's Kit", "Herb Pouch", "Druidic Focus", "Studded Leather"],
         consumables: JSON.stringify([
           { name: "Healing Potion", quantity: 4, type: "healing", healDice: "2d4", healBonus: 2, effect: "Restores 2d4+2 HP" },
-          { name: "Greater Healing Potion", quantity: 1, type: "healing", healDice: "4d4", healBonus: 4, effect: "Restores 4d4+4 HP" }
+          { name: "Greater Healing Potion", quantity: 1, type: "healing", healDice: "4d4", healBonus: 4, effect: "Restores 4d4+4 HP" },
+          { name: "Revivify Scroll", quantity: 2, type: "resurrection", effect: "Revives a dead creature within 1 minute of death to 1 HP" }
         ]),
         supportAbilities: JSON.stringify([
           "Healing Word: Restore 1d4+4 hit points to an ally within 60 feet",
@@ -1577,7 +1579,8 @@ export class DatabaseStorage implements IStorage {
         equipment: ["Light Crossbow", "Tinker's Tools", "Alchemist's Supplies", "Bag of Tricks", "Various Gadgets"],
         consumables: JSON.stringify([
           { name: "Healing Potion", quantity: 2, type: "healing", healDice: "2d4", healBonus: 2, effect: "Restores 2d4+2 HP" },
-          { name: "Antitoxin", quantity: 2, type: "buff", effect: "Advantage on poison saves for 1 hour" }
+          { name: "Antitoxin", quantity: 2, type: "buff", effect: "Advantage on poison saves for 1 hour" },
+          { name: "Revivify Scroll", quantity: 2, type: "resurrection", effect: "Revives a dead creature within 1 minute of death to 1 HP" }
         ]),
         combatAbilities: JSON.stringify([
           "Smoke Bomb: Create a 10-foot cloud of smoke to obscure vision",
@@ -1610,7 +1613,8 @@ export class DatabaseStorage implements IStorage {
         skills: ["Persuasion", "Deception", "Performance", "History", "Insight"],
         equipment: ["Lute", "Rapier", "Fine Clothes", "Disguise Kit", "Light Armor"],
         consumables: JSON.stringify([
-          { name: "Healing Potion", quantity: 2, type: "healing", healDice: "2d4", healBonus: 2, effect: "Restores 2d4+2 HP" }
+          { name: "Healing Potion", quantity: 2, type: "healing", healDice: "2d4", healBonus: 2, effect: "Restores 2d4+2 HP" },
+          { name: "Revivify Scroll", quantity: 2, type: "resurrection", effect: "Revives a dead creature within 1 minute of death to 1 HP" }
         ]),
         supportAbilities: JSON.stringify([
           "Bardic Inspiration: Grant allies a d6 bonus to ability checks, attacks, or saves",
@@ -1644,7 +1648,8 @@ export class DatabaseStorage implements IStorage {
         equipment: ["Warhammer", "Handaxe", "Heavy Crossbow", "Chainmail", "Shield"],
         consumables: JSON.stringify([
           { name: "Healing Potion", quantity: 3, type: "healing", healDice: "2d4", healBonus: 2, effect: "Restores 2d4+2 HP" },
-          { name: "Antitoxin", quantity: 1, type: "buff", effect: "Advantage on poison saves for 1 hour" }
+          { name: "Antitoxin", quantity: 1, type: "buff", effect: "Advantage on poison saves for 1 hour" },
+          { name: "Revivify Scroll", quantity: 2, type: "resurrection", effect: "Revives a dead creature within 1 minute of death to 1 HP" }
         ]),
         combatAbilities: JSON.stringify([
           "Shield Master: Use shield to protect allies from area effects",
