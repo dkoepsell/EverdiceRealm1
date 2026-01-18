@@ -2263,11 +2263,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     {parsedStoryState?.activeQuests && 
                      (parsedStoryState.activeQuests as any[]).length > 0 && (
                       <div className="bg-amber-50 dark:bg-amber-950/30 p-4 rounded-md border border-amber-200 dark:border-amber-800 mb-4">
-                        <h4 className="font-semibold text-amber-800 dark:text-amber-200 flex items-center mb-3">
+                        <h4 className="font-semibold flex items-center mb-3" style={{ color: '#92400e' }}>
                           <Target className="h-4 w-4 mr-2" />
                           Adventure Objectives
                         </h4>
-                        <p className="text-xs text-amber-700 dark:text-amber-300 mb-3 opacity-80">
+                        <p className="text-xs mb-3" style={{ color: '#92400e' }}>
                           Complete these objectives through your actions to progress the story
                         </p>
                         <div className="space-y-2">
@@ -2305,14 +2305,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     {/* Combat Status Display */}
                     {parsedStoryState?.inCombat && (
                       <div className="bg-red-50 dark:bg-red-950/30 p-4 rounded-md border-2 border-red-400 dark:border-red-700 mb-4">
-                        <h4 className="font-bold text-red-700 dark:text-red-300 flex items-center mb-3 text-lg">
+                        <h4 className="font-bold flex items-center mb-3 text-lg" style={{ color: '#b91c1c' }}>
                           ⚔️ COMBAT!
                         </h4>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {/* Party Members Column */}
                           <div>
-                            <h5 className="font-semibold text-green-700 dark:text-green-300 mb-2 flex items-center">
+                            <h5 className="font-semibold mb-2 flex items-center" style={{ color: '#15803d' }}>
                               🛡️ Your Party
                             </h5>
                             <div className="space-y-2">
@@ -2388,7 +2388,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           
                           {/* Enemies Column */}
                           <div>
-                            <h5 className="font-semibold text-red-700 dark:text-red-300 mb-2 flex items-center">
+                            <h5 className="font-semibold mb-2 flex items-center" style={{ color: '#b91c1c' }}>
                               👹 Enemies
                             </h5>
                             <div className="space-y-3">
@@ -2527,7 +2527,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     {/* Action choices */}
                     {!isAdvancingStory && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 ? (
                       <div className="mt-6 space-y-4">
-                        <h4 className="font-semibold text-slate-900 dark:text-slate-100">What will you do?</h4>
+                        <h4 className="font-semibold" style={{ color: '#1e293b' }}>What will you do?</h4>
                         
                         {/* Suggested Actions */}
                         <div className="grid grid-cols-1 gap-2 max-w-full overflow-hidden">
