@@ -11,15 +11,20 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
-import { Users, Shield, Crown, Swords, Plus, Settings, UserPlus, Mail, Check, X, Trash2, Loader2 } from "lucide-react";
+import { Users, Shield, Crown, Swords, Plus, Settings, UserPlus, Mail, Check, X, Trash2, Loader2, MessageSquare, Pin, Send } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import type { PlayerGroup, GroupInvitation } from "@shared/schema";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { PlayerGroup, GroupInvitation, GroupMessage } from "@shared/schema";
 import parchmentFrame from "@assets/image_1768600727955.png";
 
 interface EnrichedInvitation extends GroupInvitation {
   groupName?: string;
   groupType?: string;
   inviterName?: string;
+}
+
+interface EnrichedMessage extends GroupMessage {
+  authorName: string;
 }
 
 const groupTypeIcons: Record<string, any> = {
@@ -61,6 +66,8 @@ export default function GroupsPage() {
     collectiveIdentity: "",
   });
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [messagesBoardGroup, setMessagesBoardGroup] = useState<PlayerGroup | null>(null);
+  const [newMessage, setNewMessage] = useState({ title: "", content: "" });
 
   const { data: groups = [], isLoading } = useQuery<PlayerGroup[]>({
     queryKey: ['/api/groups'],
@@ -71,6 +78,76 @@ export default function GroupsPage() {
     queryKey: ['/api/invitations/pending'],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!user,
+  });
+
+  const { data: groupMessages = [], isLoading: messagesLoading } = useQuery<EnrichedMessage[]>({
+    queryKey: ['/api/groups', messagesBoardGroup?.id, 'messages'],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    enabled: !!messagesBoardGroup,
+  });
+
+  const postMessageMutation = useMutation({
+    mutationFn: async ({ groupId, title, content }: { groupId: number; title: string; content: string }) => {
+      const response = await apiRequest("POST", `/api/groups/${groupId}/messages`, { title, content });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/groups', messagesBoardGroup?.id, 'messages'] });
+      setNewMessage({ title: "", content: "" });
+      toast({
+        title: "Message Posted",
+        description: "Your message has been added to the board!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to post message",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMessageMutation = useMutation({
+    mutationFn: async ({ groupId, messageId }: { groupId: number; messageId: number }) => {
+      const response = await apiRequest("DELETE", `/api/groups/${groupId}/messages/${messageId}`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/groups', messagesBoardGroup?.id, 'messages'] });
+      toast({
+        title: "Message Deleted",
+        description: "The message has been removed.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to delete message",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const pinMessageMutation = useMutation({
+    mutationFn: async ({ groupId, messageId }: { groupId: number; messageId: number }) => {
+      const response = await apiRequest("PATCH", `/api/groups/${groupId}/messages/${messageId}/pin`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/groups', messagesBoardGroup?.id, 'messages'] });
+      toast({
+        title: "Message Updated",
+        description: "Pin status has been changed.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to update message",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
+      });
+    },
   });
 
   const createGroupMutation = useMutation({
@@ -237,6 +314,20 @@ export default function GroupsPage() {
       username: inviteUsername.trim(),
       message: inviteMessage.trim() || undefined
     });
+  };
+
+  const handlePostMessage = () => {
+    if (!messagesBoardGroup || !newMessage.content.trim()) return;
+    postMessageMutation.mutate({
+      groupId: messagesBoardGroup.id,
+      title: newMessage.title.trim() || "Untitled",
+      content: newMessage.content.trim(),
+    });
+  };
+
+  const isGroupLeader = (group: PlayerGroup) => {
+    if (!user) return false;
+    return group.founderId === user.id || (group.leaderIds?.includes(user.id) ?? false);
   };
 
   return (
@@ -517,21 +608,26 @@ export default function GroupsPage() {
                       <Users className="h-4 w-4" />
                       <span>Members</span>
                     </div>
-                    {user && (group.founderId === user.id || group.leaderIds?.includes(user.id)) ? (
+                    <div className="flex gap-2">
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => setInviteGroupId(group.id)}
+                        onClick={() => setMessagesBoardGroup(group)}
                       >
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Invite
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Board
                       </Button>
-                    ) : (
-                      <Button variant="outline" size="sm" disabled>
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Join
-                      </Button>
-                    )}
+                      {user && (group.founderId === user.id || group.leaderIds?.includes(user.id)) && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setInviteGroupId(group.id)}
+                        >
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Invite
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -644,6 +740,121 @@ export default function GroupsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Message Board Dialog */}
+      <Dialog open={!!messagesBoardGroup} onOpenChange={(open) => !open && setMessagesBoardGroup(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              {messagesBoardGroup?.name} - Message Board
+            </DialogTitle>
+            <DialogDescription>
+              Share notes, plans, and updates with your group
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+            {/* New Message Form */}
+            <div className="space-y-3 border-b pb-4">
+              <Input
+                placeholder="Subject (optional)"
+                value={newMessage.title}
+                onChange={(e) => setNewMessage({ ...newMessage, title: e.target.value })}
+              />
+              <div className="flex gap-2">
+                <Textarea
+                  placeholder="Write your message..."
+                  value={newMessage.content}
+                  onChange={(e) => setNewMessage({ ...newMessage, content: e.target.value })}
+                  rows={2}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handlePostMessage}
+                  disabled={!newMessage.content.trim() || postMessageMutation.isPending}
+                  className="self-end"
+                >
+                  {postMessageMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+            
+            {/* Messages List */}
+            <ScrollArea className="flex-1 min-h-[200px] max-h-[400px] pr-4">
+              {messagesLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="animate-pulse">
+                      <div className="h-4 bg-muted rounded w-1/3 mb-2" />
+                      <div className="h-16 bg-muted rounded" />
+                    </div>
+                  ))}
+                </div>
+              ) : groupMessages.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <p>No messages yet</p>
+                  <p className="text-sm">Be the first to post!</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {groupMessages.map((msg) => (
+                    <Card key={msg.id} className={msg.isPinned ? "border-amber-500/50 bg-amber-500/5" : ""}>
+                      <CardHeader className="py-3 px-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              {msg.isPinned && <Pin className="h-3 w-3 text-amber-500" />}
+                              <CardTitle className="text-sm font-medium">
+                                {msg.title || "Untitled"}
+                              </CardTitle>
+                            </div>
+                            <CardDescription className="text-xs mt-1">
+                              by {msg.authorName} • {new Date(msg.createdAt!).toLocaleDateString()}
+                            </CardDescription>
+                          </div>
+                          <div className="flex gap-1">
+                            {messagesBoardGroup && isGroupLeader(messagesBoardGroup) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => pinMessageMutation.mutate({ groupId: messagesBoardGroup.id, messageId: msg.id })}
+                                disabled={pinMessageMutation.isPending}
+                              >
+                                <Pin className={`h-3 w-3 ${msg.isPinned ? "text-amber-500" : "text-muted-foreground"}`} />
+                              </Button>
+                            )}
+                            {(msg.authorId === user?.id || (messagesBoardGroup && isGroupLeader(messagesBoardGroup))) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-destructive"
+                                onClick={() => messagesBoardGroup && deleteMessageMutation.mutate({ groupId: messagesBoardGroup.id, messageId: msg.id })}
+                                disabled={deleteMessageMutation.isPending}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="py-2 px-4">
+                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
