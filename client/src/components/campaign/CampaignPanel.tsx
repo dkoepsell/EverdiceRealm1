@@ -2317,7 +2317,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                       <span className="text-slate-400 text-[10px]">Lv{char.level || 1}</span>
                                     </div>
                                     <span className={`font-bold ${isDead ? 'text-red-400' : 'text-emerald-300'}`}>
-                                      {isDead ? 'DEAD' : `${char.hitPoints ?? 0}/${char.maxHitPoints}`}
+                                      {isDead ? 'DEAD' : `${char.hitPoints ?? 0}/${char.maxHitPoints ?? char.hitPoints ?? 10}`}
                                     </span>
                                   </div>
                                   <div className="flex items-center justify-between text-[10px] text-slate-400 mt-0.5">
