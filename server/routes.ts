@@ -4469,7 +4469,14 @@ Return your response as a JSON object with these fields:
               race: npc.race,
               class: npc.occupation,
               level: npc.level || 1,
-              portraitUrl: npc.portraitUrl
+              portraitUrl: npc.portraitUrl,
+              hitPoints: npc.hitPoints,
+              maxHitPoints: npc.maxHitPoints,
+              armorClass: npc.armorClass,
+              gold: npc.gold || 0,
+              status: npc.status,
+              companionType: npc.companionType,
+              occupation: npc.occupation
             }
           };
         })
