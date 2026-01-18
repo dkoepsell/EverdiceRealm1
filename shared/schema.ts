@@ -1028,6 +1028,30 @@ export const insertGroupInvitationSchema = createInsertSchema(groupInvitations).
 export type InsertGroupInvitation = z.infer<typeof insertGroupInvitationSchema>;
 export type GroupInvitation = typeof groupInvitations.$inferSelect;
 
+// Group Message Board - Asynchronous messages between guild members
+export const groupMessages = pgTable("group_messages", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id").notNull(),
+  authorId: integer("author_id").notNull(),
+  // Message content
+  title: text("title"),
+  content: text("content").notNull(),
+  isPinned: boolean("is_pinned").default(false),
+  isAnnouncement: boolean("is_announcement").default(false),
+  // Metadata
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  updatedAt: text("updated_at"),
+});
+
+export const insertGroupMessageSchema = createInsertSchema(groupMessages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertGroupMessage = z.infer<typeof insertGroupMessageSchema>;
+export type GroupMessage = typeof groupMessages.$inferSelect;
+
 // World Memory - Tracks significant events for "Since Last Time..." and delayed consequences
 export const worldMemory = pgTable("world_memory", {
   id: serial("id").primaryKey(),
