@@ -1507,7 +1507,10 @@ export class DatabaseStorage implements IStorage {
         wisdom: 14,
         charisma: 8,
         skills: ["Athletics", "Intimidation", "Perception", "Survival"],
-        equipment: ["Greatsword", "Heavy Crossbow", "Plate Armor", "Tower Shield", "Healing Potions (3)"],
+        equipment: ["Greatsword", "Heavy Crossbow", "Plate Armor", "Tower Shield"],
+        consumables: JSON.stringify([
+          { name: "Healing Potion", quantity: 3, type: "healing", healDice: "2d4", healBonus: 2, effect: "Restores 2d4+2 HP" }
+        ]),
         combatAbilities: JSON.stringify([
           "Protective Strike: Disadvantage on attacks against allies within 5 feet",
           "Second Wind: Once per rest, regain 1d10+5 hit points as a bonus action",
@@ -1538,6 +1541,10 @@ export class DatabaseStorage implements IStorage {
         charisma: 14,
         skills: ["Nature", "Medicine", "Perception", "Survival", "Animal Handling"],
         equipment: ["Longbow", "Healer's Kit", "Herb Pouch", "Druidic Focus", "Studded Leather"],
+        consumables: JSON.stringify([
+          { name: "Healing Potion", quantity: 4, type: "healing", healDice: "2d4", healBonus: 2, effect: "Restores 2d4+2 HP" },
+          { name: "Greater Healing Potion", quantity: 1, type: "healing", healDice: "4d4", healBonus: 4, effect: "Restores 4d4+4 HP" }
+        ]),
         supportAbilities: JSON.stringify([
           "Healing Word: Restore 1d4+4 hit points to an ally within 60 feet",
           "Goodberry: Create 10 berries that each restore 1 hit point and provide nourishment",
@@ -1568,6 +1575,10 @@ export class DatabaseStorage implements IStorage {
         charisma: 10,
         skills: ["Arcana", "Investigation", "Perception", "Sleight of Hand", "Thieves' Tools"],
         equipment: ["Light Crossbow", "Tinker's Tools", "Alchemist's Supplies", "Bag of Tricks", "Various Gadgets"],
+        consumables: JSON.stringify([
+          { name: "Healing Potion", quantity: 2, type: "healing", healDice: "2d4", healBonus: 2, effect: "Restores 2d4+2 HP" },
+          { name: "Antitoxin", quantity: 2, type: "buff", effect: "Advantage on poison saves for 1 hour" }
+        ]),
         combatAbilities: JSON.stringify([
           "Smoke Bomb: Create a 10-foot cloud of smoke to obscure vision",
           "Shock Trap: Place a trap that deals 2d6 lightning damage when triggered",
@@ -1598,6 +1609,9 @@ export class DatabaseStorage implements IStorage {
         charisma: 18,
         skills: ["Persuasion", "Deception", "Performance", "History", "Insight"],
         equipment: ["Lute", "Rapier", "Fine Clothes", "Disguise Kit", "Light Armor"],
+        consumables: JSON.stringify([
+          { name: "Healing Potion", quantity: 2, type: "healing", healDice: "2d4", healBonus: 2, effect: "Restores 2d4+2 HP" }
+        ]),
         supportAbilities: JSON.stringify([
           "Bardic Inspiration: Grant allies a d6 bonus to ability checks, attacks, or saves",
           "Countercharm: Protect allies from being charmed or frightened",
@@ -1628,6 +1642,10 @@ export class DatabaseStorage implements IStorage {
         charisma: 8,
         skills: ["Athletics", "History", "Insight", "Smith's Tools"],
         equipment: ["Warhammer", "Handaxe", "Heavy Crossbow", "Chainmail", "Shield"],
+        consumables: JSON.stringify([
+          { name: "Healing Potion", quantity: 3, type: "healing", healDice: "2d4", healBonus: 2, effect: "Restores 2d4+2 HP" },
+          { name: "Antitoxin", quantity: 1, type: "buff", effect: "Advantage on poison saves for 1 hour" }
+        ]),
         combatAbilities: JSON.stringify([
           "Shield Master: Use shield to protect allies from area effects",
           "Dwarven Resilience: Advantage on saving throws against poison",

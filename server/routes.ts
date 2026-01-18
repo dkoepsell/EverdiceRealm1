@@ -5029,6 +5029,91 @@ Return your response as a JSON object with these fields:
     }
   });
   
+  // Use consumable for NPC
+  app.post("/api/npcs/:id/consumables/use", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { name } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ message: "Consumable name is required" });
+      }
+      
+      const npc = await storage.getNpc(id);
+      if (!npc) {
+        return res.status(404).json({ message: "NPC not found" });
+      }
+      
+      if (npc.status === "dead") {
+        return res.status(400).json({ message: "Dead NPCs cannot use items." });
+      }
+      
+      const consumables: any[] = Array.isArray(npc.consumables) 
+        ? npc.consumables 
+        : (typeof npc.consumables === 'string' ? JSON.parse(npc.consumables as string) : []);
+      const itemIndex = consumables.findIndex(c => c.name === name);
+      
+      if (itemIndex === -1) {
+        return res.status(404).json({ message: "Consumable not found" });
+      }
+      
+      const item = consumables[itemIndex];
+      let resultMessage = "";
+      let healedAmount = 0;
+      const currentHP = npc.hitPoints ?? 0;
+      const maxHP = npc.maxHitPoints ?? 10;
+      let newHP = currentHP;
+      let newStatus = npc.status || "conscious";
+      
+      // Apply effect based on type
+      if (item.type === "healing" && item.healDice) {
+        const diceRoll = rollDice(item.healDice);
+        healedAmount = diceRoll + (item.healBonus || 0);
+        newHP = Math.min(maxHP, currentHP + healedAmount);
+        
+        // If unconscious/stabilized and healed above 0, become conscious
+        if (newHP > 0 && (npc.status === "unconscious" || npc.status === "stabilized")) {
+          newStatus = "conscious";
+          resultMessage = `${npc.name} used ${name}! Healed ${healedAmount} HP and regained consciousness! (${currentHP} → ${newHP})`;
+        } else {
+          resultMessage = `${npc.name} used ${name}! Healed ${healedAmount} HP (${currentHP} → ${newHP}).`;
+        }
+      } else {
+        resultMessage = `${npc.name} used ${name}! ${item.effect}`;
+      }
+      
+      // Reduce quantity or remove
+      if (item.quantity <= 1) {
+        consumables.splice(itemIndex, 1);
+      } else {
+        item.quantity -= 1;
+      }
+      
+      const updateData: any = {
+        consumables,
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Always update HP if healing was applied
+      if (healedAmount > 0) {
+        updateData.hitPoints = newHP;
+        updateData.status = newStatus;
+      }
+      
+      const updatedNpc = await storage.updateNpc(id, updateData);
+      
+      res.json({
+        npc: updatedNpc,
+        healedAmount,
+        newHP,
+        message: resultMessage
+      });
+    } catch (error: any) {
+      console.error("Error using NPC consumable:", error);
+      res.status(500).json({ message: "Failed to use consumable", error: error.message });
+    }
+  });
+  
   // Equip item for NPC
   app.post("/api/npcs/:id/equip", async (req, res) => {
     try {

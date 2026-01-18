@@ -1365,6 +1365,28 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
   });
 
+  const useNpcConsumableMutation = useMutation({
+    mutationFn: async ({ npcId, name }: { npcId: number; name: string }) => {
+      const response = await apiRequest('POST', `/api/npcs/${npcId}/consumables/use`, { name });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: data.healedAmount > 0 ? `Healed ${data.healedAmount} HP!` : "Item Used",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Use Item",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
   // Equipment management mutations
   const equipItemMutation = useMutation({
     mutationFn: async ({ characterId, item, slot }: { characterId: number; item: string; slot: string }) => {
@@ -3952,6 +3974,46 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         ) : (
                           <p className="text-sm text-slate-600 dark:text-slate-400 py-2">No items in inventory</p>
                         )}
+                      </div>
+                    </div>
+                    
+                    {/* NPC Consumables Section */}
+                    <div className="mt-4 space-y-2">
+                      <div className="text-sm font-medium flex items-center gap-2">
+                        <FlaskConical className="h-4 w-4 text-green-500" />
+                        Consumables
+                      </div>
+                      <div className="max-h-48 overflow-y-auto space-y-1">
+                        {(() => {
+                          const npcConsumables = Array.isArray(selectedNpc.consumables) 
+                            ? selectedNpc.consumables 
+                            : (typeof selectedNpc.consumables === 'string' 
+                              ? JSON.parse(selectedNpc.consumables) 
+                              : []);
+                          return npcConsumables.length > 0 ? (
+                            npcConsumables.map((item: any, index: number) => (
+                              <div key={index} className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded text-sm border border-green-200 dark:border-green-800" data-testid={`npc-consumable-${index}`}>
+                                <div className="flex-1">
+                                  <span className="font-medium">{item.name}</span>
+                                  <span className="text-xs text-slate-500 ml-2">x{item.quantity}</span>
+                                  <div className="text-xs text-slate-600 dark:text-slate-400">{item.effect}</div>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 text-xs bg-green-100 hover:bg-green-200 dark:bg-green-800 dark:hover:bg-green-700 border-green-300 dark:border-green-600"
+                                  onClick={() => useNpcConsumableMutation.mutate({ npcId: selectedNpc.id, name: item.name })}
+                                  disabled={useNpcConsumableMutation.isPending || selectedNpc.status === "dead"}
+                                  data-testid={`button-npc-use-consumable-${index}`}
+                                >
+                                  {useNpcConsumableMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Use"}
+                                </Button>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-slate-600 dark:text-slate-400 py-2">No consumables. Add healing potions!</p>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
