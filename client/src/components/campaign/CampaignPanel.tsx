@@ -46,7 +46,6 @@ import CampaignParticipants from "./CampaignParticipants";
 import TurnManager from "./TurnManager";
 import CampaignDeploymentTab from "./CampaignDeploymentTab";
 import CampaignDashboard from "./CampaignDashboard";
-import { DungeonMapModal } from "../dungeon/DungeonMapModal";
 import type { DungeonMapData, MapEntity } from "../dungeon/DungeonMap";
 import { generateDungeon } from "../dungeon/DungeonGenerator";
 
@@ -2169,18 +2168,6 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             </h5>
                           </button>
                           <div className="flex items-center gap-2">
-                            {dungeonMapData && mapMatchesLocation && !isMapCollapsed && (
-                              <DungeonMapModal
-                                campaignId={campaign.id}
-                                campaignName={campaign.title}
-                                dungeonLevel={currentSession.sessionNumber}
-                                mapId={dungeonMapId}
-                                initialMapData={dungeonMapData}
-                                onMapDataChange={handleDungeonMapChange}
-                                pendingEncounter={parsedStoryState?.pendingEncounter}
-                                readOnly={true}
-                              />
-                            )}
                             <button
                               onClick={() => setIsMapCollapsed(!isMapCollapsed)}
                               className="p-1 hover:bg-slate-600/50 rounded"
@@ -2382,76 +2369,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         Chapter {currentSession.sessionNumber}: {currentSession.title.replace(/^(Session|Chapter)\s*\d+:\s*/i, '')}
                       </h3>
                       
-                      {/* Map and location controls - map is location-specific */}
+                      {/* Current location display */}
                       <div className="flex items-center gap-2">
-                        {dungeonMapLoading ? (
-                          <Button variant="outline" size="sm" disabled className="flex items-center gap-1">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span>Loading Map...</span>
-                          </Button>
-                        ) : dungeonMapError ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="outline" size="sm" className="flex items-center gap-1 text-amber-600 border-amber-400">
-                                <Map className="h-4 w-4" />
-                                <span>Map Error</span>
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Could not load map. Try refreshing.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        ) : dungeonMapData && mapMatchesLocation ? (
-                          <DungeonMapModal
-                            campaignId={campaign.id}
-                            campaignName={campaign.title}
-                            dungeonLevel={currentSession.sessionNumber}
-                            mapId={dungeonMapId}
-                            initialMapData={dungeonMapData}
-                            onMapDataChange={handleDungeonMapChange}
-                            pendingEncounter={parsedStoryState?.pendingEncounter}
-                            readOnly={true}
-                            onTileInteraction={(x, y, tileType) => {
-                              if (tileType === "treasure") {
-                                toast({
-                                  title: "Treasure!",
-                                  description: "You found treasure! Roll Investigation to search.",
-                                });
-                              } else if (tileType === "trap") {
-                                toast({
-                                  title: "Trap triggered!",
-                                  description: "Make a Dexterity save to avoid damage.",
-                                  variant: "destructive",
-                                });
-                              }
-                            }}
-                            onEntityInteraction={(entity) => {
-                              if (entity.type === "enemy" || entity.type === "boss") {
-                                toast({
-                                  title: `${entity.name} encountered!`,
-                                  description: `HP: ${entity.hp}/${entity.maxHp}`,
-                                  variant: "destructive",
-                                });
-                              }
-                            }}
-                          />
-                        ) : mapNotFound ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleGenerateMap}
-                            disabled={isGeneratingMap}
-                            className="flex items-center gap-1"
-                            data-testid="button-generate-map"
-                          >
-                            {isGeneratingMap ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Map className="h-4 w-4" />
-                            )}
-                            <span>Generate Map</span>
-                          </Button>
-                        ) : null}
                         <Button variant="outline" size="sm" className="flex items-center gap-1">
                           <MapPin className="h-4 w-4" />
                           <span className="hidden sm:inline">{currentLocation}</span>
