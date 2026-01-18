@@ -370,7 +370,11 @@ export function DungeonMap({
     setViewOffset({ x: 0, y: 0 });
   };
 
-  const tileSize = Math.floor(32 * zoom);
+  // Hex dimensions: width and height ratio for flat-top hexagons
+  const hexWidth = Math.floor(36 * zoom);
+  const hexHeight = Math.floor(hexWidth * 0.866); // height = width * sqrt(3)/2
+  const hexVerticalSpacing = Math.floor(hexHeight * 0.75); // rows overlap by 25%
+  const hexHorizontalOffset = Math.floor(hexWidth * 0.5); // offset for odd rows
 
   return (
     <Card className="bg-card border-border">
@@ -482,11 +486,12 @@ export function DungeonMap({
               </span>
             </div>
             
+            {/* Hex Grid Container */}
             <div
-              className="grid gap-0.5 mt-8"
+              className="relative mt-8"
               style={{
-                gridTemplateColumns: `repeat(${mapData.width}, ${tileSize}px)`,
-                gridTemplateRows: `repeat(${mapData.height}, ${tileSize}px)`,
+                width: mapData.width * hexWidth + hexHorizontalOffset + 10,
+                height: mapData.height * hexVerticalSpacing + (hexHeight - hexVerticalSpacing) + 10,
               }}
             >
               {mapData.tiles.map((row, y) =>
@@ -497,19 +502,31 @@ export function DungeonMap({
                   const isExplored = tile.explored || tile.visible;
                   const isVisible = tile.visible;
                   const isSelected = entity && entity.id === selectedEntity;
+                  
+                  // Calculate hex position with offset for odd rows
+                  const isOddRow = y % 2 === 1;
+                  const hexX = x * hexWidth + (isOddRow ? hexHorizontalOffset : 0);
+                  const hexY = y * hexVerticalSpacing;
 
                   return (
                     <div
                       key={`${x}-${y}`}
                       className={`
-                        relative flex items-center justify-center
-                        ${!isExplored ? 'bg-indigo-900/40 dark:bg-indigo-950/60' : tileColor.bg} ${!isExplored ? 'border-indigo-700/50 dark:border-indigo-800/50' : tileColor.border} border
+                        absolute flex items-center justify-center
+                        ${!isExplored ? 'bg-indigo-900/40 dark:bg-indigo-950/60' : tileColor.bg}
                         ${!isExplored ? "opacity-70" : isVisible ? "opacity-100" : "opacity-80"}
-                        ${interactive && tile.type !== "wall" ? "cursor-pointer hover:ring-2 hover:ring-primary/50" : ""}
-                        ${isSelected ? "ring-2 ring-yellow-400" : ""}
+                        ${interactive && tile.type !== "wall" ? "cursor-pointer hover:brightness-110 hover:scale-105" : ""}
+                        ${isSelected ? "ring-2 ring-yellow-400 ring-offset-1" : ""}
                         transition-all duration-200
                       `}
-                      style={{ width: tileSize, height: tileSize }}
+                      style={{ 
+                        width: hexWidth, 
+                        height: hexHeight,
+                        left: hexX,
+                        top: hexY,
+                        clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)',
+                        boxShadow: isExplored ? 'inset 0 0 0 2px rgba(0,0,0,0.2)' : 'none',
+                      }}
                       onClick={() => {
                         if (!interactive) return;
                         if (entity && onEntityClick) {
@@ -528,8 +545,8 @@ export function DungeonMap({
                       )}
                       {isPlayerHere && (
                         <div className="absolute inset-0 flex items-center justify-center z-10">
-                          <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/50 ring-2 ring-white animate-pulse">
-                            <Navigation className="w-4 h-4 text-white" />
+                          <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/50 ring-2 ring-white animate-pulse">
+                            <Navigation className="w-3 h-3 text-white" />
                           </div>
                         </div>
                       )}
@@ -588,9 +605,11 @@ export function DungeonMap({
               </>
             )}
             
-            {/* Map Legend - Always visible */}
+            {/* Map Legend - Always visible with hex shapes */}
             <div className="space-y-1.5 bg-stone-100 dark:bg-stone-900 p-2 rounded-lg border border-stone-300 dark:border-stone-700">
-              <div className="text-sm font-bold text-stone-800 dark:text-stone-200">Map Legend</div>
+              <div className="text-sm font-bold text-stone-800 dark:text-stone-200 flex items-center gap-1">
+                <span>⬡</span> Hex Map Legend
+              </div>
               <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
                 <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center ring-2 ring-white shadow">
                   <Navigation className="w-3 h-3 text-white" />
@@ -598,32 +617,32 @@ export function DungeonMap({
                 <span className="font-medium">You (Party)</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                <div className="w-4 h-4 bg-amber-200 dark:bg-amber-700 border-2 border-amber-400 dark:border-amber-500 rounded-sm" />
+                <div className="w-5 h-4 bg-amber-200 dark:bg-amber-700 flex items-center justify-center" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.2)' }} />
                 <span className="font-medium">{labels.floor}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                <div className="w-4 h-4 bg-amber-300 dark:bg-amber-800 border-2 border-amber-400 dark:border-amber-600 rounded-sm" />
+                <div className="w-5 h-4 bg-amber-300 dark:bg-amber-800 flex items-center justify-center" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.2)' }} />
                 <span className="font-medium">{labels.corridor}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                <div className="w-4 h-4 bg-stone-700 dark:bg-stone-900 border-2 border-stone-500 dark:border-stone-700 rounded-sm" />
+                <div className="w-5 h-4 bg-stone-700 dark:bg-stone-900 flex items-center justify-center" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.3)' }} />
                 <span className="font-medium">{labels.wall}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                <div className="w-4 h-4 bg-amber-500 dark:bg-amber-600 border-2 border-amber-600 dark:border-amber-400 rounded-sm flex items-center justify-center">
-                  <DoorOpen className="w-3 h-3 text-white" />
+                <div className="w-5 h-4 bg-amber-500 dark:bg-amber-600 flex items-center justify-center" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.2)' }}>
+                  <DoorOpen className="w-2.5 h-2.5 text-white" />
                 </div>
                 <span className="font-medium">{labels.door}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                <div className="w-4 h-4 bg-red-600 dark:bg-red-800 border-2 border-red-700 dark:border-red-600 rounded-sm flex items-center justify-center">
-                  <Lock className="w-3 h-3 text-white" />
+                <div className="w-5 h-4 bg-red-600 dark:bg-red-800 flex items-center justify-center" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.2)' }}>
+                  <Lock className="w-2.5 h-2.5 text-white" />
                 </div>
                 <span className="font-medium">{labels.lockedDoor}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                <div className="w-4 h-4 bg-yellow-400 dark:bg-yellow-500 border-2 border-yellow-500 dark:border-yellow-400 rounded-sm flex items-center justify-center">
-                  <Gem className="w-3 h-3 text-amber-800 dark:text-amber-900" />
+                <div className="w-5 h-4 bg-yellow-400 dark:bg-yellow-500 flex items-center justify-center" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.2)' }}>
+                  <Gem className="w-2.5 h-2.5 text-amber-800 dark:text-amber-900" />
                 </div>
                 <span className="font-medium">Treasure</span>
               </div>
@@ -634,7 +653,7 @@ export function DungeonMap({
                 <span className="font-medium">{labels.enemy}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                <div className="w-4 h-4 bg-indigo-400 dark:bg-indigo-600 opacity-60 border-2 border-indigo-300 dark:border-indigo-500 rounded-sm" style={{ background: 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(99,102,241,0.3) 2px, rgba(99,102,241,0.3) 4px)' }} />
+                <div className="w-5 h-4 bg-indigo-400 dark:bg-indigo-600 opacity-60" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', background: 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(99,102,241,0.3) 2px, rgba(99,102,241,0.3) 4px)' }} />
                 <span className="font-medium">{labels.fog}</span>
               </div>
               <p className="text-xs text-muted-foreground mt-2 italic">Movement is driven by your story choices above</p>
