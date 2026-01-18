@@ -610,7 +610,7 @@ export default function GroupsPage() {
                       </p>
                     </div>
                   )}
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -620,13 +620,13 @@ export default function GroupsPage() {
                       <Users className="h-4 w-4" />
                       <span>{(group as any).memberCount || 1} {(group as any).memberCount === 1 ? 'Member' : 'Members'}</span>
                     </Button>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 ml-auto">
                       <Button 
                         variant="outline" 
                         size="sm"
                         onClick={() => setMessagesBoardGroup(group)}
                       >
-                        <MessageSquare className="h-4 w-4 mr-2" />
+                        <MessageSquare className="h-4 w-4 mr-1" />
                         Board
                       </Button>
                       {user && (group.founderId === user.id || group.leaderIds?.includes(user.id)) && (
@@ -635,7 +635,7 @@ export default function GroupsPage() {
                           size="sm"
                           onClick={() => setInviteGroupId(group.id)}
                         >
-                          <UserPlus className="h-4 w-4 mr-2" />
+                          <UserPlus className="h-4 w-4 mr-1" />
                           Invite
                         </Button>
                       )}
