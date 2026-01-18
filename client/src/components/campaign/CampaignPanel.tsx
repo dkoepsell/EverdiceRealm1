@@ -216,6 +216,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [dungeonMapLocation, setDungeonMapLocation] = useState<string | null>(null);
   const [isGeneratingMap, setIsGeneratingMap] = useState(false);
   const [isMapCollapsed, setIsMapCollapsed] = useState(false);
+  const [isMapExpanded, setIsMapExpanded] = useState(false);
   const [chapterProgress, setChapterProgress] = useState<{
     combat: { done: number; required: number; complete: boolean };
     traps: { done: number; required: number; complete: boolean };
@@ -2286,10 +2287,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                     padding: '3px',
                                     boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.4)'
                                   }}
-                                  onClick={() => {
-                                    const modalTrigger = document.querySelector('[data-dungeon-map-trigger]') as HTMLButtonElement;
-                                    modalTrigger?.click();
-                                  }}
+                                  onClick={() => setIsMapExpanded(true)}
                                 >
                                   {/* Parchment-style inner container */}
                                   <div 
@@ -4735,6 +4733,146 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               🎉 Celebrate Victory!
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Expanded Hex Map Dialog */}
+      <Dialog open={isMapExpanded} onOpenChange={setIsMapExpanded}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <Map className="h-5 w-5" />
+              {currentLocation || 'Dungeon Map'} 
+              <span className="text-sm font-normal text-muted-foreground ml-2">⬡ Hex Grid</span>
+            </DialogTitle>
+            <DialogDescription>
+              Explore the terrain - each hex represents your movement options
+            </DialogDescription>
+          </DialogHeader>
+          
+          {dungeonMapData && dungeonMapData.tiles ? (() => {
+            // Larger hex size for expanded view
+            const hexSize = 32;
+            const hexWidth = hexSize;
+            const hexHeight = Math.floor(hexSize * 1.15);
+            const hexHorizontalSpacing = Math.floor(hexWidth * 0.78);
+            const hexVerticalSpacing = Math.floor(hexHeight * 0.5);
+            const hexOffset = Math.floor(hexHorizontalSpacing * 0.5);
+            const mapWidth = (dungeonMapData.tiles[0]?.length || 20);
+            const mapHeight = dungeonMapData.tiles.length;
+            const containerWidth = mapWidth * hexHorizontalSpacing + hexOffset + hexWidth;
+            const containerHeight = mapHeight * hexVerticalSpacing + hexHeight;
+            
+            return (
+              <div 
+                className="rounded-xl overflow-hidden mx-auto"
+                style={{ 
+                  background: 'linear-gradient(135deg, #8B4513 0%, #A0522D 25%, #8B4513 50%, #6B3E0C 75%, #8B4513 100%)',
+                  padding: '6px',
+                  boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.5)'
+                }}
+              >
+                {/* Parchment inner container */}
+                <div 
+                  className="rounded-lg relative overflow-auto p-4"
+                  style={{
+                    background: 'linear-gradient(to bottom right, #e8dcc4 0%, #d4c4a8 50%, #c9b896 100%)',
+                    maxHeight: '60vh',
+                  }}
+                >
+                  {/* Decorative dice corners */}
+                  <div className="absolute top-2 left-2 z-30 opacity-50">
+                    <div className="w-6 h-6 bg-gradient-to-br from-red-600 to-red-800 rounded-sm rotate-12 flex items-center justify-center text-white text-xs font-bold shadow-md">20</div>
+                  </div>
+                  <div className="absolute top-2 right-2 z-30 opacity-50">
+                    <div className="w-5 h-5 bg-gradient-to-br from-blue-600 to-blue-800 rounded-sm -rotate-6 flex items-center justify-center text-white text-[10px] font-bold shadow-md">12</div>
+                  </div>
+                  
+                  {/* Hex grid */}
+                  <div 
+                    className="relative mx-auto"
+                    style={{
+                      width: containerWidth,
+                      height: containerHeight,
+                      minHeight: '200px',
+                    }}
+                  >
+                    {dungeonMapData.tiles.map((row: any[], y: number) => 
+                      row.map((tile: any, x: number) => {
+                        const isPlayer = dungeonMapData.playerPosition?.x === x && dungeonMapData.playerPosition?.y === y;
+                        const isOddRow = y % 2 === 1;
+                        const hexX = x * hexHorizontalSpacing + (isOddRow ? hexOffset : 0);
+                        const hexY = y * hexVerticalSpacing;
+                        
+                        let bgColor = mapEnvironment.wall;
+                        if (tile?.type === 'floor') {
+                          bgColor = mapEnvironment.floor;
+                        } else if (tile?.type === 'corridor') {
+                          bgColor = mapEnvironment.corridor;
+                        } else if (tile?.type === 'door') {
+                          bgColor = mapEnvironment.door;
+                        } else if (tile?.type === 'stairs') {
+                          bgColor = mapEnvironment.stairs;
+                        } else if (tile?.type === 'chest' || tile?.type === 'treasure') {
+                          bgColor = '#eab308';
+                        }
+                        
+                        return (
+                          <div 
+                            key={`expanded-${x}-${y}`} 
+                            className="absolute transition-all hover:brightness-110"
+                            style={{ 
+                              backgroundColor: isPlayer ? '#22c55e' : bgColor,
+                              width: hexWidth,
+                              height: hexHeight,
+                              left: hexX,
+                              top: hexY,
+                              clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+                              boxShadow: isPlayer 
+                                ? '0 0 12px 4px rgba(34,197,94,0.7)' 
+                                : 'inset 0 0 0 2px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.2)',
+                            }} 
+                          >
+                            {isPlayer && (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <div className="w-4 h-4 bg-white rounded-full flex items-center justify-center animate-pulse">
+                                  <User className="w-3 h-3 text-green-600" />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+                
+                {/* Legend */}
+                <div className="flex items-center justify-center gap-4 py-2 px-3 text-xs" style={{ background: 'linear-gradient(to bottom, #e8d4b8, #d4c4a8)', color: '#5c3d1e' }}>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-4" style={{ backgroundColor: '#22c55e', clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}></span> 
+                    <span className="font-medium">You</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-4" style={{ backgroundColor: mapEnvironment.floor, clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}></span> 
+                    <span className="font-medium">{mapEnvironment.labels.floor}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-4" style={{ backgroundColor: mapEnvironment.door, clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}></span> 
+                    <span className="font-medium">{mapEnvironment.labels.door}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-4" style={{ backgroundColor: mapEnvironment.wall, clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}></span> 
+                    <span className="font-medium">Wall</span>
+                  </span>
+                </div>
+              </div>
+            );
+          })() : (
+            <div className="h-64 flex items-center justify-center text-muted-foreground">
+              No map data available
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
