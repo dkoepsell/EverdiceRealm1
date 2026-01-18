@@ -554,6 +554,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch character" });
     }
   });
+
+  // Delete a character (only owner can delete)
+  app.delete("/api/characters/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      const id = parseInt(req.params.id);
+      const character = await storage.getCharacter(id);
+      
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      // Verify ownership
+      if (character.userId !== req.user.id) {
+        return res.status(403).json({ message: "You can only delete your own characters" });
+      }
+      
+      // Check if character is in any active campaigns
+      const campaigns = await storage.getCampaigns();
+      const participatingCampaigns = [];
+      for (const campaign of campaigns) {
+        const participants = await storage.getCampaignParticipants(campaign.id);
+        if (participants.some(p => p.characterId === id)) {
+          participatingCampaigns.push(campaign.title);
+        }
+      }
+      
+      if (participatingCampaigns.length > 0) {
+        return res.status(400).json({ 
+          message: `Cannot delete character while participating in campaigns: ${participatingCampaigns.join(', ')}. Remove them from these campaigns first.`
+        });
+      }
+      
+      await storage.deleteCharacter(id);
+      res.json({ message: "Character deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting character:", error);
+      res.status(500).json({ message: "Failed to delete character" });
+    }
+  });
   
   // Testing OpenAI portrait generation
   app.get("/api/test-portrait-generation", async (req, res) => {

@@ -31,7 +31,18 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import CharacterSheet from "@/components/character/CharacterSheet";
-import { AlertCircle, Plus, User, Users, Dice6, Swords, Sparkles, Sword, Wand2, Shield, Heart, Flame, Moon, Loader2, ChevronDown, ChevronUp, Zap, Package, Scroll, Edit } from "lucide-react";
+import { AlertCircle, Plus, User, Users, Dice6, Swords, Sparkles, Sword, Wand2, Shield, Heart, Flame, Moon, Loader2, ChevronDown, ChevronUp, Zap, Package, Scroll, Edit, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import parchmentFrame from "@assets/image_1768600727955.png";
 
@@ -246,6 +257,29 @@ export default function Characters() {
       toast({
         title: "Error",
         description: "Failed to create character. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteCharacter = useMutation({
+    mutationFn: async (characterId: number) => {
+      const response = await apiRequest("DELETE", `/api/characters/${characterId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      toast({
+        title: "Character Deleted",
+        description: "Your character has been removed.",
+      });
+      setExpandedCharacterId(null);
+      setSelectedCharacter(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Cannot Delete Character",
+        description: error.message || "This character may be participating in active campaigns.",
         variant: "destructive",
       });
     },
@@ -500,7 +534,15 @@ export default function Characters() {
                             )}
                           </div>
                           <div>
-                            <h3 className="font-fantasy text-lg font-bold text-amber-900 dark:text-amber-100">{character.name}</h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className={`font-fantasy text-lg font-bold ${character.status === 'dead' ? 'text-gray-500 dark:text-gray-400 line-through' : 'text-amber-900 dark:text-amber-100'}`}>{character.name}</h3>
+                              {character.status === 'dead' && (
+                                <Badge variant="destructive" className="text-xs">DEAD</Badge>
+                              )}
+                              {character.status === 'unconscious' && (
+                                <Badge variant="outline" className="text-xs border-red-500 text-red-600">Unconscious</Badge>
+                              )}
+                            </div>
                             <p className="text-sm text-amber-700 dark:text-amber-300">
                               Level {character.level} {character.race} {character.class}
                             </p>
@@ -726,7 +768,7 @@ export default function Characters() {
                                 )}
                               </div>
 
-                              <div className="text-center">
+                              <div className="flex justify-center gap-2">
                                 <Button 
                                   variant="outline" 
                                   size="sm" 
@@ -736,6 +778,41 @@ export default function Characters() {
                                   <Edit className="h-4 w-4 mr-2" />
                                   Edit Character
                                 </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="text-red-600 dark:text-red-400 border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Delete
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete {character.name}?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This will permanently delete this character and all their progress.
+                                        {character.status === "dead" && (
+                                          <span className="block mt-2 text-orange-600 dark:text-orange-400">
+                                            This character has died in battle. Deleting them will remove them from the game entirely.
+                                          </span>
+                                        )}
+                                        This action cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => deleteCharacter.mutate(character.id)}
+                                        className="bg-red-600 hover:bg-red-700"
+                                      >
+                                        {deleteCharacter.isPending ? "Deleting..." : "Delete Character"}
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
                               </div>
                             </div>
                           </div>
