@@ -2055,13 +2055,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </div>
                     </div>
                     
-                    {/* Quick Reference Panel - Mini Map + Party Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                      {/* Mini Map Widget - Shows actual map preview */}
-                      <div className="bg-slate-800 dark:bg-slate-900 p-2 rounded-lg border-2 border-amber-600/50 shadow-lg">
-                        <div className="flex items-center justify-between mb-1">
-                          <h5 className="text-xs font-bold text-amber-400 flex items-center">
-                            <MapPin className="h-3 w-3 mr-1 text-red-400" />
+                    {/* Quick Reference Panel - Full Width Map + Party Stats Row */}
+                    <div className="space-y-3 mb-4">
+                      {/* Dungeon Map Widget - Full width, larger view */}
+                      <div className="bg-slate-800 dark:bg-slate-900 p-3 rounded-lg border-2 border-amber-600/50 shadow-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <h5 className="text-sm font-bold text-amber-400 flex items-center">
+                            <Map className="h-4 w-4 mr-2" />
                             {currentLocation || 'Unknown'}
                           </h5>
                           {dungeonMapData && mapMatchesLocation && (
@@ -2077,58 +2077,98 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             />
                           )}
                         </div>
-                        {/* Map Preview Grid */}
+                        {/* Map Preview Grid - Full size visible map */}
                         {dungeonMapData && dungeonMapData.tiles ? (
                           <div 
-                            className="relative bg-slate-900 rounded overflow-hidden cursor-pointer hover:ring-2 hover:ring-amber-500/50 transition-all"
-                            style={{ height: '100px' }}
+                            className="relative bg-slate-950 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-amber-500/50 transition-all border border-slate-700"
                             onClick={() => {
                               const modalTrigger = document.querySelector('[data-dungeon-map-trigger]') as HTMLButtonElement;
                               modalTrigger?.click();
                             }}
                           >
                             <div 
-                              className="absolute inset-0 flex items-center justify-center"
                               style={{
                                 display: 'grid',
                                 gridTemplateColumns: `repeat(${dungeonMapData.tiles[0]?.length || 20}, 1fr)`,
-                                gap: '0px',
+                                gap: '1px',
+                                padding: '4px',
+                                backgroundColor: '#1e293b',
                               }}
                             >
-                              {dungeonMapData.tiles.slice(0, 18).map((row: any[], y: number) => 
-                                row.slice(0, 20).map((tile: any, x: number) => {
+                              {dungeonMapData.tiles.map((row: any[], y: number) => 
+                                row.map((tile: any, x: number) => {
                                   const isPlayer = dungeonMapData.playerPosition?.x === x && dungeonMapData.playerPosition?.y === y;
-                                  let bg = 'bg-slate-800';
-                                  if (tile?.type === 'floor' || tile?.type === 'corridor') bg = 'bg-amber-900/40';
-                                  if (tile?.type === 'door') bg = 'bg-amber-600/60';
-                                  if (tile?.type === 'stairs') bg = 'bg-purple-600/60';
-                                  if (isPlayer) bg = 'bg-green-500';
-                                  return <div key={`${x}-${y}`} className={`${bg}`} style={{ aspectRatio: '1' }} />;
+                                  let bgColor = '#0f172a'; // Wall - dark
+                                  let border = '';
+                                  if (tile?.type === 'floor') {
+                                    bgColor = '#78350f'; // Floor - brown
+                                  } else if (tile?.type === 'corridor') {
+                                    bgColor = '#92400e'; // Corridor - lighter brown
+                                  } else if (tile?.type === 'door') {
+                                    bgColor = '#d97706'; // Door - amber
+                                    border = '1px solid #fbbf24';
+                                  } else if (tile?.type === 'stairs') {
+                                    bgColor = '#7c3aed'; // Stairs - purple
+                                  } else if (tile?.type === 'chest' || tile?.type === 'treasure') {
+                                    bgColor = '#eab308'; // Treasure - yellow
+                                  }
+                                  if (isPlayer) {
+                                    bgColor = '#22c55e'; // Player - green
+                                    border = '2px solid #4ade80';
+                                  }
+                                  return (
+                                    <div 
+                                      key={`${x}-${y}`} 
+                                      style={{ 
+                                        backgroundColor: bgColor,
+                                        aspectRatio: '1',
+                                        minWidth: '8px',
+                                        minHeight: '8px',
+                                        border: border || undefined,
+                                        borderRadius: isPlayer ? '50%' : '1px',
+                                      }} 
+                                    />
+                                  );
                                 })
                               )}
                             </div>
-                            <div className="absolute bottom-1 right-1 text-[8px] text-slate-400 bg-slate-900/80 px-1 rounded">
-                              Click to expand
+                            {/* Legend */}
+                            <div className="flex items-center justify-center gap-4 py-2 px-3 bg-slate-900/90 text-[10px] text-slate-400 border-t border-slate-700">
+                              <span className="flex items-center gap-1">
+                                <span className="w-3 h-3 rounded-full bg-green-500 border border-green-400"></span> You
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <span className="w-3 h-3 bg-amber-700 rounded-sm"></span> Floor
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <span className="w-3 h-3 bg-amber-500 rounded-sm border border-amber-400"></span> Door
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <span className="w-3 h-3 bg-purple-600 rounded-sm"></span> Stairs
+                              </span>
+                              <span className="text-amber-400 ml-2">Click map to expand</span>
                             </div>
                           </div>
                         ) : dungeonMapLoading || isGeneratingMap ? (
-                          <div className="h-[100px] flex items-center justify-center bg-slate-900/50 rounded">
-                            <Loader2 className="h-5 w-5 animate-spin text-amber-400" />
+                          <div className="h-[150px] flex items-center justify-center bg-slate-900/50 rounded">
+                            <Loader2 className="h-6 w-6 animate-spin text-amber-400" />
+                            <span className="ml-2 text-amber-400 text-sm">Generating map...</span>
                           </div>
                         ) : (
-                          <div className="h-[100px] flex items-center justify-center bg-slate-900/50 rounded text-slate-500 text-xs">
-                            Map generating...
+                          <div className="h-[150px] flex items-center justify-center bg-slate-900/50 rounded text-slate-500 text-sm">
+                            <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                            Preparing dungeon...
                           </div>
                         )}
                       </div>
                       
-                      {/* Party Stats Widget - Always visible */}
+                      {/* Party Stats Widget - Below map */}
                       <div className="bg-gradient-to-br from-emerald-900/80 to-green-900/80 dark:from-emerald-950 dark:to-green-950 p-3 rounded-lg border-2 border-emerald-600/50 shadow-lg">
                         <h5 className="text-sm font-bold text-emerald-300 flex items-center mb-2">
                           <Users className="h-4 w-4 mr-1" />
                           Party Status ({participants.length})
                         </h5>
-                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                           {participants.map((p: any, idx: number) => {
                             const char = p.character;
                             if (!char) return null;
