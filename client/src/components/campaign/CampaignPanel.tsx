@@ -2055,6 +2055,104 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </div>
                     </div>
                     
+                    {/* Quick Reference Panel - Mini Map + Party Stats */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                      {/* Mini Map Widget */}
+                      <div className="bg-slate-800 dark:bg-slate-900 p-3 rounded-lg border-2 border-amber-600/50 shadow-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <h5 className="text-sm font-bold text-amber-400 flex items-center">
+                            <Map className="h-4 w-4 mr-1" />
+                            Current Location
+                          </h5>
+                          {dungeonMapData && mapMatchesLocation && (
+                            <DungeonMapModal
+                              campaignId={campaign.id}
+                              campaignName={campaign.title}
+                              dungeonLevel={currentSession.sessionNumber}
+                              mapId={dungeonMapId}
+                              initialMapData={dungeonMapData}
+                              onMapDataChange={handleDungeonMapChange}
+                              pendingEncounter={parsedStoryState?.pendingEncounter}
+                              readOnly={true}
+                            />
+                          )}
+                        </div>
+                        <div className="text-center">
+                          <div className="flex items-center justify-center gap-2 text-white">
+                            <MapPin className="h-4 w-4 text-red-400" />
+                            <span className="font-semibold">{currentLocation || 'Unknown'}</span>
+                          </div>
+                          {dungeonMapData && (
+                            <div className="mt-2 text-xs text-slate-400">
+                              Position: ({dungeonMapData.playerPosition?.x || 0}, {dungeonMapData.playerPosition?.y || 0})
+                            </div>
+                          )}
+                          {!dungeonMapData && !dungeonMapLoading && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleGenerateMap}
+                              disabled={isGeneratingMap}
+                              className="mt-2 text-xs border-amber-600 text-amber-400 hover:bg-amber-900/30"
+                            >
+                              {isGeneratingMap ? (
+                                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                              ) : (
+                                <Map className="h-3 w-3 mr-1" />
+                              )}
+                              Generate Map
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Party Stats Widget - Always visible */}
+                      <div className="bg-gradient-to-br from-emerald-900/80 to-green-900/80 dark:from-emerald-950 dark:to-green-950 p-3 rounded-lg border-2 border-emerald-600/50 shadow-lg">
+                        <h5 className="text-sm font-bold text-emerald-300 flex items-center mb-2">
+                          <Users className="h-4 w-4 mr-1" />
+                          Party Status ({participants.length})
+                        </h5>
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {participants.map((p: any, idx: number) => {
+                            const char = p.character;
+                            if (!char) return null;
+                            const hpPercent = char.maxHitPoints > 0 ? Math.max(0, (char.hitPoints ?? 0) / char.maxHitPoints * 100) : 0;
+                            const hpColor = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
+                            const isDead = char.status === 'dead' || (char.hitPoints ?? 0) <= 0;
+                            return (
+                              <div key={char.id || idx} className={`flex items-center gap-2 ${isDead ? 'opacity-50' : ''}`}>
+                                <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden shrink-0">
+                                  {char.portraitUrl ? (
+                                    <img src={char.portraitUrl} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <User className="h-3 w-3 text-slate-400" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className={`font-medium truncate ${isDead ? 'text-red-400 line-through' : 'text-white'}`}>
+                                      {char.name}
+                                    </span>
+                                    <span className={`${isDead ? 'text-red-400' : 'text-emerald-300'}`}>
+                                      {isDead ? 'DEAD' : `${char.hitPoints ?? 0}/${char.maxHitPoints}`}
+                                    </span>
+                                  </div>
+                                  {!isDead && (
+                                    <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden mt-0.5">
+                                      <div className={`h-full ${hpColor} transition-all`} style={{ width: `${hpPercent}%` }} />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {participants.length === 0 && (
+                            <p className="text-xs text-emerald-400/70 italic">No party members</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
                     {/* Contextual Party Tab Reminder - shows when low HP or no potions */}
                     {activeCharacter && (
                       activeCharacter.hitPoints < activeCharacter.maxHitPoints / 2 || 
