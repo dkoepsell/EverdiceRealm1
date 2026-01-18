@@ -2100,39 +2100,44 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     <div className="space-y-3 mb-4">
                       {/* Dungeon Map Widget - Collapsible, environment-aware */}
                       <div className="bg-slate-800 dark:bg-slate-900 rounded-lg border-2 border-amber-600/50 shadow-lg overflow-hidden">
-                        <button
-                          onClick={() => setIsMapCollapsed(!isMapCollapsed)}
-                          className="w-full flex items-center justify-between p-3 hover:bg-slate-700/50 transition-colors"
-                        >
-                          <h5 className="text-sm font-bold text-amber-400 flex items-center">
-                            <Map className="h-4 w-4 mr-2" />
-                            {currentLocation || 'Unknown'}
-                            <span className="ml-2 text-xs font-normal text-slate-400 capitalize">
-                              ({mapEnvironment.type})
-                            </span>
-                          </h5>
+                        <div className="flex items-center justify-between p-3 hover:bg-slate-700/50 transition-colors">
+                          <button
+                            onClick={() => setIsMapCollapsed(!isMapCollapsed)}
+                            className="flex-1 flex items-center text-left"
+                          >
+                            <h5 className="text-sm font-bold text-amber-400 flex items-center">
+                              <Map className="h-4 w-4 mr-2" />
+                              {currentLocation || 'Unknown'}
+                              <span className="ml-2 text-xs font-normal text-slate-400 capitalize">
+                                ({mapEnvironment.type})
+                              </span>
+                            </h5>
+                          </button>
                           <div className="flex items-center gap-2">
                             {dungeonMapData && mapMatchesLocation && !isMapCollapsed && (
-                              <div onClick={(e) => e.stopPropagation()}>
-                                <DungeonMapModal
-                                  campaignId={campaign.id}
-                                  campaignName={campaign.title}
-                                  dungeonLevel={currentSession.sessionNumber}
-                                  mapId={dungeonMapId}
-                                  initialMapData={dungeonMapData}
-                                  onMapDataChange={handleDungeonMapChange}
-                                  pendingEncounter={parsedStoryState?.pendingEncounter}
-                                  readOnly={true}
-                                />
-                              </div>
+                              <DungeonMapModal
+                                campaignId={campaign.id}
+                                campaignName={campaign.title}
+                                dungeonLevel={currentSession.sessionNumber}
+                                mapId={dungeonMapId}
+                                initialMapData={dungeonMapData}
+                                onMapDataChange={handleDungeonMapChange}
+                                pendingEncounter={parsedStoryState?.pendingEncounter}
+                                readOnly={true}
+                              />
                             )}
-                            {isMapCollapsed ? (
-                              <ChevronDown className="h-4 w-4 text-slate-400" />
-                            ) : (
-                              <ChevronUp className="h-4 w-4 text-slate-400" />
-                            )}
+                            <button
+                              onClick={() => setIsMapCollapsed(!isMapCollapsed)}
+                              className="p-1 hover:bg-slate-600/50 rounded"
+                            >
+                              {isMapCollapsed ? (
+                                <ChevronDown className="h-4 w-4 text-slate-400" />
+                              ) : (
+                                <ChevronUp className="h-4 w-4 text-slate-400" />
+                              )}
+                            </button>
                           </div>
-                        </button>
+                        </div>
                         
                         {!isMapCollapsed && (
                           <div className="p-3 pt-0">

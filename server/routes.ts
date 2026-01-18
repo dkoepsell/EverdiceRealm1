@@ -5604,9 +5604,28 @@ Return your response as a JSON object with these fields:
         };
       }
       
+      // Combat cooldown - reduce/prevent combat encounters if recent combat occurred
+      const movesSinceLastCombat = storyState.movesSinceLastCombat || 999;
+      const combatCooldownActive = movesSinceLastCombat < 4; // Minimum 4 moves between combat encounters
+      
+      // If combat cooldown is active and this would be a combat encounter, convert to social or exploration
+      if (combatCooldownActive && encounterTriggered && encounterData?.type === 'combat') {
+        // Convert combat to exploration - enemies spotted but can be avoided
+        encounterData = {
+          type: 'exploration',
+          description: `You spot ${nearbyEntities?.filter((e: any) => e.type === 'enemy' || e.type === 'boss').map((e: any) => e.name).join(' and ') || 'enemies'} in the distance. They haven't noticed you yet - perhaps you can find another way or learn something useful here.`,
+          choices: [
+            { id: 'investigate', text: 'Search for useful items or clues (Investigation DC 12)', rollRequired: { type: 'd20', skill: 'investigation' } },
+            { id: 'stealth', text: 'Sneak past them quietly (Stealth DC 13)', rollRequired: { type: 'd20', skill: 'stealth' } },
+            { id: 'observe', text: 'Watch and learn their patrol patterns', rollRequired: null }
+          ],
+          resolved: false
+        };
+      }
+      
       // Random puzzle encounter chance (if no other encounter triggered)
-      // Triggers ~15% of the time on non-special tiles to vary gameplay
-      if (!encounterTriggered && Math.random() < 0.15) {
+      // Increased from 15% to 22% for more variety
+      if (!encounterTriggered && Math.random() < 0.22) {
         const puzzleTypes = [
           {
             description: 'Ancient runes glow on the wall, forming a cryptic riddle. The answer may unlock hidden secrets.',
@@ -5651,8 +5670,8 @@ Return your response as a JSON object with these fields:
         };
       }
       
-      // Social encounter chance (10% - adds variety with NPC interactions)
-      if (!encounterTriggered && Math.random() < 0.10) {
+      // Social encounter chance - increased from 10% to 18% for more NPC interactions
+      if (!encounterTriggered && Math.random() < 0.18) {
         const socialEncounters = [
           {
             description: 'A weary traveler sits by a small fire, offering to share information about the dangers ahead.',
@@ -5697,8 +5716,8 @@ Return your response as a JSON object with these fields:
         };
       }
       
-      // Exploration/Discovery encounter chance (12% - finding hidden areas, clues, lore)
-      if (!encounterTriggered && Math.random() < 0.12) {
+      // Exploration/Discovery encounter chance - increased from 12% to 25% for more discoveries
+      if (!encounterTriggered && Math.random() < 0.25) {
         const explorationEncounters = [
           {
             description: 'You notice loose stones in the wall that might conceal a hidden passage.',
@@ -5796,6 +5815,10 @@ Return your response as a JSON object with these fields:
       const existingJourneyLog = storyState.journeyLog || [];
       const hasStoryEvent = encounterTriggered || narrativeEvent || forceNarrativeEvent;
       
+      // Track combat encounters for cooldown system
+      const isCombatEncounter = encounterTriggered && encounterData?.type === 'combat';
+      const newMovesSinceLastCombat = isCombatEncounter ? 0 : (movesSinceLastCombat + 1);
+      
       const updatedStoryState = {
         ...storyState,
         lastMovement: {
@@ -5807,6 +5830,7 @@ Return your response as a JSON object with these fields:
         pendingEncounter: encounterTriggered ? encounterData : null,
         movementsSinceLastEvent: hasStoryEvent ? 0 : movesSinceEvent,
         movesWithoutStory: hasStoryEvent ? 0 : movesWithoutStory,
+        movesSinceLastCombat: newMovesSinceLastCombat,
         startPosition: storyState.startPosition || startPosition,
         explorationLimit: storyState.explorationLimit || explorationLimit,
         journeyLog: [...existingJourneyLog, journeyEntry].slice(-50),
@@ -6062,6 +6086,7 @@ Return your response as a JSON object with these fields:
         pendingEncounter: null, // Clear the pending encounter so movement can continue
         inCombat: isCombatEncounter ? false : storyState.inCombat, // Clear combat flag after combat resolution
         combatants: isCombatEncounter ? [] : storyState.combatants, // Clear enemies
+        movesSinceLastCombat: isCombatEncounter ? 0 : storyState.movesSinceLastCombat, // Reset combat cooldown after combat
         lastResolvedEncounter: {
           ...encounter,
           resolved: true,
