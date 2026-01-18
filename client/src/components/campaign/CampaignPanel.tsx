@@ -216,6 +216,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [dungeonMapId, setDungeonMapId] = useState<number | null>(null);
   const [dungeonMapLocation, setDungeonMapLocation] = useState<string | null>(null);
   const [isGeneratingMap, setIsGeneratingMap] = useState(false);
+  const [isMapCollapsed, setIsMapCollapsed] = useState(false);
   const [chapterProgress, setChapterProgress] = useState<{
     combat: { done: number; required: number; complete: boolean };
     traps: { done: number; required: number; complete: boolean };
@@ -561,6 +562,46 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
     return campaign.title || 'Adventure';
   }, [parsedStoryState?.currentLocation, currentSession?.location, campaign.title]);
+  
+  // Detect environment type from location name for map theming
+  const mapEnvironment = useMemo(() => {
+    const locationLower = (currentLocation || '').toLowerCase();
+    const narrativeLower = (parsedStoryState?.currentNarrative || '').toLowerCase();
+    const combined = locationLower + ' ' + narrativeLower;
+    
+    if (/forest|wood|grove|glade|thicket|jungle|wilder/.test(combined)) {
+      return { type: 'forest', floor: '#2d5016', corridor: '#3d6b1e', wall: '#1a3409', door: '#8b6914', stairs: '#4a7c23', accent: 'emerald' };
+    }
+    if (/cave|cavern|underground|depth|grotto|mine|tunnel/.test(combined)) {
+      return { type: 'cave', floor: '#4a4a4a', corridor: '#5a5a5a', wall: '#1f1f1f', door: '#6b5b3b', stairs: '#7c6aed', accent: 'slate' };
+    }
+    if (/castle|fortress|citadel|keep|tower|palace|manor/.test(combined)) {
+      return { type: 'castle', floor: '#4a4a5a', corridor: '#5a5a6a', wall: '#2a2a3a', door: '#8b7355', stairs: '#9c8afd', accent: 'violet' };
+    }
+    if (/crypt|tomb|necro|undead|grave|catacomb|mausoleum/.test(combined)) {
+      return { type: 'crypt', floor: '#3a3a4a', corridor: '#4a4a5a', wall: '#1a1a2a', door: '#5b5b6b', stairs: '#8c7acd', accent: 'purple' };
+    }
+    if (/temple|shrine|sanctuary|chapel|altar|holy/.test(combined)) {
+      return { type: 'temple', floor: '#5a5a6a', corridor: '#6a6a7a', wall: '#3a3a4a', door: '#c4a84b', stairs: '#9c9afd', accent: 'amber' };
+    }
+    if (/swamp|marsh|bog|fen|mire|wetland/.test(combined)) {
+      return { type: 'swamp', floor: '#3d4a2d', corridor: '#4a5a3a', wall: '#1a2a1a', door: '#6b6b4b', stairs: '#5c8a5d', accent: 'lime' };
+    }
+    if (/desert|sand|dune|oasis|arid|wasteland/.test(combined)) {
+      return { type: 'desert', floor: '#8b7355', corridor: '#9c8466', wall: '#5a4a3a', door: '#c4a84b', stairs: '#d4b85b', accent: 'orange' };
+    }
+    if (/ice|frost|frozen|glacier|snow|arctic|tundra/.test(combined)) {
+      return { type: 'ice', floor: '#6a8a9a', corridor: '#7a9aaa', wall: '#3a5a6a', door: '#8a9aaa', stairs: '#9abacc', accent: 'cyan' };
+    }
+    if (/volcano|lava|fire|inferno|magma|burn/.test(combined)) {
+      return { type: 'volcano', floor: '#5a2a1a', corridor: '#6a3a2a', wall: '#2a1a0a', door: '#8b3b1b', stairs: '#cc4a2a', accent: 'red' };
+    }
+    if (/sewer|drain|undercity|beneath|pipe/.test(combined)) {
+      return { type: 'sewer', floor: '#3a4a3a', corridor: '#4a5a4a', wall: '#1a2a1a', door: '#5b6b5b', stairs: '#6c7c6c', accent: 'stone' };
+    }
+    // Default dungeon theme
+    return { type: 'dungeon', floor: '#78350f', corridor: '#92400e', wall: '#0f172a', door: '#d97706', stairs: '#7c3aed', accent: 'amber' };
+  }, [currentLocation, parsedStoryState?.currentNarrative]);
   
   // Map location key includes session number so each chapter/level gets its own map
   const mapLocationKey = useMemo(() => {
@@ -2057,107 +2098,128 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     
                     {/* Quick Reference Panel - Full Width Map + Party Stats Row */}
                     <div className="space-y-3 mb-4">
-                      {/* Dungeon Map Widget - Full width, larger view */}
-                      <div className="bg-slate-800 dark:bg-slate-900 p-3 rounded-lg border-2 border-amber-600/50 shadow-lg">
-                        <div className="flex items-center justify-between mb-2">
+                      {/* Dungeon Map Widget - Collapsible, environment-aware */}
+                      <div className="bg-slate-800 dark:bg-slate-900 rounded-lg border-2 border-amber-600/50 shadow-lg overflow-hidden">
+                        <button
+                          onClick={() => setIsMapCollapsed(!isMapCollapsed)}
+                          className="w-full flex items-center justify-between p-3 hover:bg-slate-700/50 transition-colors"
+                        >
                           <h5 className="text-sm font-bold text-amber-400 flex items-center">
                             <Map className="h-4 w-4 mr-2" />
                             {currentLocation || 'Unknown'}
+                            <span className="ml-2 text-xs font-normal text-slate-400 capitalize">
+                              ({mapEnvironment.type})
+                            </span>
                           </h5>
-                          {dungeonMapData && mapMatchesLocation && (
-                            <DungeonMapModal
-                              campaignId={campaign.id}
-                              campaignName={campaign.title}
-                              dungeonLevel={currentSession.sessionNumber}
-                              mapId={dungeonMapId}
-                              initialMapData={dungeonMapData}
-                              onMapDataChange={handleDungeonMapChange}
-                              pendingEncounter={parsedStoryState?.pendingEncounter}
-                              readOnly={true}
-                            />
-                          )}
-                        </div>
-                        {/* Map Preview Grid - Full size visible map */}
-                        {dungeonMapData && dungeonMapData.tiles ? (
-                          <div 
-                            className="relative bg-slate-950 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-amber-500/50 transition-all border border-slate-700"
-                            onClick={() => {
-                              const modalTrigger = document.querySelector('[data-dungeon-map-trigger]') as HTMLButtonElement;
-                              modalTrigger?.click();
-                            }}
-                          >
-                            <div 
-                              style={{
-                                display: 'grid',
-                                gridTemplateColumns: `repeat(${dungeonMapData.tiles[0]?.length || 20}, 1fr)`,
-                                gap: '1px',
-                                padding: '4px',
-                                backgroundColor: '#1e293b',
-                              }}
-                            >
-                              {dungeonMapData.tiles.map((row: any[], y: number) => 
-                                row.map((tile: any, x: number) => {
-                                  const isPlayer = dungeonMapData.playerPosition?.x === x && dungeonMapData.playerPosition?.y === y;
-                                  let bgColor = '#0f172a'; // Wall - dark
-                                  let border = '';
-                                  if (tile?.type === 'floor') {
-                                    bgColor = '#78350f'; // Floor - brown
-                                  } else if (tile?.type === 'corridor') {
-                                    bgColor = '#92400e'; // Corridor - lighter brown
-                                  } else if (tile?.type === 'door') {
-                                    bgColor = '#d97706'; // Door - amber
-                                    border = '1px solid #fbbf24';
-                                  } else if (tile?.type === 'stairs') {
-                                    bgColor = '#7c3aed'; // Stairs - purple
-                                  } else if (tile?.type === 'chest' || tile?.type === 'treasure') {
-                                    bgColor = '#eab308'; // Treasure - yellow
-                                  }
-                                  if (isPlayer) {
-                                    bgColor = '#22c55e'; // Player - green
-                                    border = '2px solid #4ade80';
-                                  }
-                                  return (
-                                    <div 
-                                      key={`${x}-${y}`} 
-                                      style={{ 
-                                        backgroundColor: bgColor,
-                                        aspectRatio: '1',
-                                        minWidth: '8px',
-                                        minHeight: '8px',
-                                        border: border || undefined,
-                                        borderRadius: isPlayer ? '50%' : '1px',
-                                      }} 
-                                    />
-                                  );
-                                })
-                              )}
-                            </div>
-                            {/* Legend */}
-                            <div className="flex items-center justify-center gap-4 py-2 px-3 bg-slate-900/90 text-[10px] text-slate-400 border-t border-slate-700">
-                              <span className="flex items-center gap-1">
-                                <span className="w-3 h-3 rounded-full bg-green-500 border border-green-400"></span> You
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <span className="w-3 h-3 bg-amber-700 rounded-sm"></span> Floor
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <span className="w-3 h-3 bg-amber-500 rounded-sm border border-amber-400"></span> Door
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <span className="w-3 h-3 bg-purple-600 rounded-sm"></span> Stairs
-                              </span>
-                              <span className="text-amber-400 ml-2">Click map to expand</span>
-                            </div>
+                          <div className="flex items-center gap-2">
+                            {dungeonMapData && mapMatchesLocation && !isMapCollapsed && (
+                              <div onClick={(e) => e.stopPropagation()}>
+                                <DungeonMapModal
+                                  campaignId={campaign.id}
+                                  campaignName={campaign.title}
+                                  dungeonLevel={currentSession.sessionNumber}
+                                  mapId={dungeonMapId}
+                                  initialMapData={dungeonMapData}
+                                  onMapDataChange={handleDungeonMapChange}
+                                  pendingEncounter={parsedStoryState?.pendingEncounter}
+                                  readOnly={true}
+                                />
+                              </div>
+                            )}
+                            {isMapCollapsed ? (
+                              <ChevronDown className="h-4 w-4 text-slate-400" />
+                            ) : (
+                              <ChevronUp className="h-4 w-4 text-slate-400" />
+                            )}
                           </div>
-                        ) : dungeonMapLoading || isGeneratingMap ? (
-                          <div className="h-[150px] flex items-center justify-center bg-slate-900/50 rounded">
-                            <Loader2 className="h-6 w-6 animate-spin text-amber-400" />
-                            <span className="ml-2 text-amber-400 text-sm">Generating map...</span>
-                          </div>
-                        ) : (
-                          <div className="h-[150px] flex items-center justify-center bg-slate-900/50 rounded text-slate-500 text-sm">
-                            <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                            Preparing dungeon...
+                        </button>
+                        
+                        {!isMapCollapsed && (
+                          <div className="p-3 pt-0">
+                            {/* Map Preview Grid - Environment-aware colors */}
+                            {dungeonMapData && dungeonMapData.tiles ? (
+                              <div 
+                                className="relative rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-amber-500/50 transition-all border border-slate-700"
+                                style={{ backgroundColor: mapEnvironment.wall }}
+                                onClick={() => {
+                                  const modalTrigger = document.querySelector('[data-dungeon-map-trigger]') as HTMLButtonElement;
+                                  modalTrigger?.click();
+                                }}
+                              >
+                                <div 
+                                  style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: `repeat(${dungeonMapData.tiles[0]?.length || 20}, 1fr)`,
+                                    gap: '1px',
+                                    padding: '4px',
+                                    backgroundColor: mapEnvironment.wall,
+                                  }}
+                                >
+                                  {dungeonMapData.tiles.map((row: any[], y: number) => 
+                                    row.map((tile: any, x: number) => {
+                                      const isPlayer = dungeonMapData.playerPosition?.x === x && dungeonMapData.playerPosition?.y === y;
+                                      let bgColor = mapEnvironment.wall;
+                                      let border = '';
+                                      if (tile?.type === 'floor') {
+                                        bgColor = mapEnvironment.floor;
+                                      } else if (tile?.type === 'corridor') {
+                                        bgColor = mapEnvironment.corridor;
+                                      } else if (tile?.type === 'door') {
+                                        bgColor = mapEnvironment.door;
+                                        border = `1px solid ${mapEnvironment.door}`;
+                                      } else if (tile?.type === 'stairs') {
+                                        bgColor = mapEnvironment.stairs;
+                                      } else if (tile?.type === 'chest' || tile?.type === 'treasure') {
+                                        bgColor = '#eab308';
+                                      }
+                                      if (isPlayer) {
+                                        bgColor = '#22c55e';
+                                        border = '2px solid #4ade80';
+                                      }
+                                      return (
+                                        <div 
+                                          key={`${x}-${y}`} 
+                                          style={{ 
+                                            backgroundColor: bgColor,
+                                            aspectRatio: '1',
+                                            minWidth: '8px',
+                                            minHeight: '8px',
+                                            border: border || undefined,
+                                            borderRadius: isPlayer ? '50%' : '1px',
+                                          }} 
+                                        />
+                                      );
+                                    })
+                                  )}
+                                </div>
+                                {/* Legend - Environment-aware */}
+                                <div className="flex items-center justify-center gap-4 py-2 px-3 bg-slate-900/90 text-[10px] text-slate-400 border-t border-slate-700">
+                                  <span className="flex items-center gap-1">
+                                    <span className="w-3 h-3 rounded-full bg-green-500 border border-green-400"></span> You
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: mapEnvironment.floor }}></span> Floor
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: mapEnvironment.door, border: `1px solid ${mapEnvironment.door}` }}></span> Door
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: mapEnvironment.stairs }}></span> Stairs
+                                  </span>
+                                  <span className="text-amber-400 ml-2">Click map to expand</span>
+                                </div>
+                              </div>
+                            ) : dungeonMapLoading || isGeneratingMap ? (
+                              <div className="h-[150px] flex items-center justify-center bg-slate-900/50 rounded">
+                                <Loader2 className="h-6 w-6 animate-spin text-amber-400" />
+                                <span className="ml-2 text-amber-400 text-sm">Generating map...</span>
+                              </div>
+                            ) : (
+                              <div className="h-[150px] flex items-center justify-center bg-slate-900/50 rounded text-slate-500 text-sm">
+                                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                Preparing dungeon...
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
