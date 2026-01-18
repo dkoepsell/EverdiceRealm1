@@ -1517,6 +1517,7 @@ export class DatabaseStorage implements IStorage {
           "Second Wind: Once per rest, regain 1d10+5 hit points as a bonus action",
           "Cleaving Attack: After dropping a foe, can make another attack"
         ]),
+        gold: 150,
         createdBy: systemUser.id
       },
       {
@@ -1552,6 +1553,7 @@ export class DatabaseStorage implements IStorage {
           "Goodberry: Create 10 berries that each restore 1 hit point and provide nourishment",
           "Pass Without Trace: Help the group move stealthily through natural environments"
         ]),
+        gold: 200,
         createdBy: systemUser.id
       },
       {
@@ -1587,6 +1589,7 @@ export class DatabaseStorage implements IStorage {
           "Shock Trap: Place a trap that deals 2d6 lightning damage when triggered",
           "Analyze Weakness: Identify vulnerabilities in creatures or structures"
         ]),
+        gold: 175,
         createdBy: systemUser.id
       },
       {
@@ -1621,6 +1624,7 @@ export class DatabaseStorage implements IStorage {
           "Countercharm: Protect allies from being charmed or frightened",
           "Song of Rest: Help allies recover additional hit points during short rests"
         ]),
+        gold: 250,
         createdBy: systemUser.id
       },
       {
@@ -1656,6 +1660,7 @@ export class DatabaseStorage implements IStorage {
           "Dwarven Resilience: Advantage on saving throws against poison",
           "Combat Maneuvers: Trip, disarm, or push opponents in battle"
         ]),
+        gold: 125,
         createdBy: systemUser.id
       }
     ];
