@@ -1381,8 +1381,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       return await response.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
-      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      // Force immediate refetch to update HP in mini stats
+      queryClient.refetchQueries({ queryKey: ['/api/characters'] });
+      queryClient.refetchQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
       toast({
         title: data.healedAmount > 0 ? `Healed ${data.healedAmount} HP!` : "Item Used",
         description: data.message,
@@ -1403,8 +1404,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       return await response.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      // Force immediate refetch to update HP in mini stats
+      queryClient.refetchQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
+      queryClient.refetchQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
       toast({
         title: data.healedAmount > 0 ? `Healed ${data.healedAmount} HP!` : "Item Used",
         description: data.message,
