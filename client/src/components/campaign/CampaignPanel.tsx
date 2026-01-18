@@ -2281,19 +2281,20 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       activeCharacter.hitPoints < activeCharacter.maxHitPoints / 2 || 
                       !((activeCharacter as any).consumables?.length > 0)
                     ) && !parsedStoryState?.inCombat && (
-                      <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-300 dark:border-amber-700 rounded-lg p-2 flex items-center justify-between">
+                      <div className="bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 border-2 border-amber-400 dark:border-amber-600 rounded-lg p-2 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <FlaskConical className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                          <span className="text-sm text-amber-800 dark:text-amber-200">
+                          <FlaskConical className="h-4 w-4" style={{ color: '#92400e' }} />
+                          <span className="text-sm font-medium" style={{ color: '#78350f' }}>
                             {activeCharacter.hitPoints < activeCharacter.maxHitPoints / 2 
                               ? "Your hero is wounded! Consider stocking up on healing potions." 
                               : "You have no consumables. Potions can save your life!"}
                           </span>
                         </div>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          className="text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+                          className="border-amber-500 hover:bg-amber-200 dark:hover:bg-amber-900/50"
+                          style={{ color: '#78350f' }}
                           onClick={() => setActiveTab("party")}
                         >
                           <Backpack className="h-4 w-4 mr-1" />
@@ -2511,7 +2512,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 <p className="font-medium text-sm">{quest.title}</p>
                                 <p className="text-xs opacity-80">{quest.description}</p>
                                 {quest.xpReward && quest.status !== 'completed' && (
-                                  <div className="flex items-center gap-2 mt-1 text-xs font-medium text-purple-600 dark:text-purple-400">
+                                  <div className="flex items-center gap-2 mt-1 text-xs font-bold" style={{ color: '#7c2d12' }}>
                                     <Sparkles className="h-3 w-3" />
                                     {quest.xpReward} XP on completion
                                   </div>
