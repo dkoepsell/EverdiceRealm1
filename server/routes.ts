@@ -13327,7 +13327,12 @@ ALWAYS generate:
         return res.status(404).json({ message: "Group not found" });
       }
       const members = await storage.getPlayerGroupMembers(id);
-      res.json({ ...group, members });
+      // Enrich members with usernames
+      const enrichedMembers = await Promise.all(members.map(async (member) => {
+        const user = await storage.getUser(member.userId);
+        return { ...member, username: user?.username || 'Unknown' };
+      }));
+      res.json({ ...group, members: enrichedMembers });
     } catch (error) {
       console.error("Failed to fetch group:", error);
       res.status(500).json({ message: "Failed to fetch group" });

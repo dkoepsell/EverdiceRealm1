@@ -68,6 +68,7 @@ export default function GroupsPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [messagesBoardGroup, setMessagesBoardGroup] = useState<PlayerGroup | null>(null);
   const [newMessage, setNewMessage] = useState({ title: "", content: "" });
+  const [viewMembersGroup, setViewMembersGroup] = useState<PlayerGroup | null>(null);
 
   const { data: groups = [], isLoading } = useQuery<PlayerGroup[]>({
     queryKey: ['/api/groups'],
@@ -84,6 +85,12 @@ export default function GroupsPage() {
     queryKey: ['/api/groups', messagesBoardGroup?.id, 'messages'],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!messagesBoardGroup,
+  });
+
+  const { data: groupWithMembers } = useQuery<{ members: Array<{ id: number; userId: number; role: string; title?: string; username?: string }> }>({
+    queryKey: ['/api/groups', viewMembersGroup?.id],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    enabled: !!viewMembersGroup,
   });
 
   const postMessageMutation = useMutation({
@@ -604,10 +611,15 @@ export default function GroupsPage() {
                     </div>
                   )}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground px-2"
+                      onClick={() => setViewMembersGroup(group)}
+                    >
                       <Users className="h-4 w-4" />
                       <span>{(group as any).memberCount || 1} {(group as any).memberCount === 1 ? 'Member' : 'Members'}</span>
-                    </div>
+                    </Button>
                     <div className="flex gap-2">
                       <Button 
                         variant="outline" 
@@ -853,6 +865,61 @@ export default function GroupsPage() {
               )}
             </ScrollArea>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Members Dialog */}
+      <Dialog open={!!viewMembersGroup} onOpenChange={(open) => !open && setViewMembersGroup(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              {viewMembersGroup?.name} Members
+            </DialogTitle>
+            <DialogDescription>
+              {(groupWithMembers as any)?.members?.length || 0} members in this {viewMembersGroup?.type}
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[400px] pr-4">
+            <div className="space-y-2">
+              {(groupWithMembers as any)?.members?.map((member: any) => {
+                const isFounder = member.userId === viewMembersGroup?.founderId;
+                const isLeader = viewMembersGroup?.leaderIds?.includes(member.userId);
+                return (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                        isFounder ? 'bg-amber-500/20 text-amber-500' : 
+                        isLeader ? 'bg-purple-500/20 text-purple-500' : 
+                        'bg-slate-500/20 text-slate-400'
+                      }`}>
+                        {member.username?.charAt(0)?.toUpperCase() || '?'}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{member.username || 'Unknown'}</p>
+                        {member.title && (
+                          <p className="text-xs text-muted-foreground italic">{member.title}</p>
+                        )}
+                      </div>
+                    </div>
+                    <Badge variant="outline" className={`capitalize text-xs ${
+                      isFounder ? 'border-amber-500/50 text-amber-500' :
+                      isLeader ? 'border-purple-500/50 text-purple-500' :
+                      ''
+                    }`}>
+                      {isFounder ? 'Founder' : isLeader ? 'Leader' : member.role || 'Member'}
+                    </Badge>
+                  </div>
+                );
+              })}
+              {!(groupWithMembers as any)?.members?.length && (
+                <p className="text-center text-muted-foreground py-4">Loading members...</p>
+              )}
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>
