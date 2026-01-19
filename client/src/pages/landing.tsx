@@ -127,7 +127,7 @@ export default function LandingPage() {
                 {/* Micro-Trust Line */}
                 {!user && (
                   <p className="text-sm text-muted-foreground/80">
-                    Safe for families • No VTT • No AI DM • Free during beta
+                    Safe for families • You stay in control • Free during beta
                   </p>
                 )}
               </div>
@@ -224,7 +224,7 @@ export default function LandingPage() {
             viewport={{ once: true }}
             className="text-center text-sm text-muted-foreground mt-8"
           >
-            No accounts required to explore. No AI running the game. No public exposure.
+            No accounts required to explore. AI assists, you decide. No public exposure.
           </motion.p>
         </div>
       </section>
