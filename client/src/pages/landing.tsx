@@ -226,6 +226,16 @@ export default function LandingPage() {
           >
             No accounts required to explore. AI assists, you decide. No public exposure.
           </motion.p>
+
+          {/* Experienced Player Contrast Line */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="text-center text-sm text-muted-foreground/70 italic mt-4"
+          >
+            Already experienced? Everdice stays out of your way and keeps your campaign coherent.
+          </motion.p>
         </div>
       </section>
 
