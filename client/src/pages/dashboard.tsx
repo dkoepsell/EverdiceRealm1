@@ -794,12 +794,20 @@ export default function Dashboard() {
                           </h4>
                           {(() => {
                             const equipmentList: string[] = Array.isArray(activeCharacter.equipment) ? activeCharacter.equipment as string[] : [];
+                            const parseItem = (item: string) => {
+                              try {
+                                const parsed = JSON.parse(item);
+                                return parsed.name || item;
+                              } catch {
+                                return item;
+                              }
+                            };
                             return equipmentList.length > 0 ? (
                               <ul className="space-y-1 text-sm max-h-32 overflow-y-auto">
                                 {equipmentList.slice(0, 8).map((item: string, idx: number) => (
                                   <li key={idx} className="flex items-center gap-2 text-muted-foreground">
                                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                                    {item}
+                                    {parseItem(item)}
                                   </li>
                                 ))}
                                 {equipmentList.length > 8 && (
