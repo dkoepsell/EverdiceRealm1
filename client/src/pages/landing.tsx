@@ -14,38 +14,56 @@ import {
   Map,
   Zap,
   Clock,
-  CheckCircle
+  CheckCircle,
+  Home,
+  GraduationCap,
+  Heart
 } from "lucide-react";
 import { motion } from "framer-motion";
 import everdiceBackground from "@assets/image_1768599782346.png";
 
 const features = [
   {
-    icon: BookOpen,
-    title: "Learn to Play",
-    description: "Perfect for beginners - discover D&D rules through interactive tutorials and guided play."
-  },
-  {
-    icon: Users,
-    title: "Easy Character Creation",
-    description: "Create your hero in minutes with guided templates or dive deep with full customization."
+    icon: Sparkles,
+    title: "Simple to Learn",
+    description: "Start playing in minutes. No complex setup, no software tutorials, no pressure to \"know everything.\""
   },
   {
     icon: Dice5,
-    title: "Real Dice Rolling",
-    description: "Experience authentic D&D mechanics with animated dice rolls and skill checks."
+    title: "Real Dice, Real Imagination",
+    description: "Everdice supports your table instead of replacing it. Roll physical dice, talk freely, improvise boldly."
   },
   {
-    icon: Sparkles,
-    title: "Create Adventures",
-    description: "Design your own quests, build worlds, and share epic stories with your community."
+    icon: BookOpen,
+    title: "Campaigns That Remember",
+    description: "Keep track of characters, choices, and story arcs so everyone can pick up right where they left off."
+  },
+  {
+    icon: Home,
+    title: "Safe for Families & Classrooms",
+    description: "No ads, no public chat, no hidden monetization. Designed for parents, teachers, and young players."
   }
 ];
 
-const characterTypes = [
-  { icon: Sword, name: "Warrior", color: "text-red-400" },
-  { icon: Wand2, name: "Wizard", color: "text-purple-400" },
-  { icon: Shield, name: "Paladin", color: "text-yellow-400" },
+const reassuranceBlocks = [
+  {
+    icon: Heart,
+    title: "Parents",
+    description: "A safe, ad-free space to introduce kids to collaborative storytelling and creativity.",
+    color: "text-rose-400"
+  },
+  {
+    icon: GraduationCap,
+    title: "Teachers",
+    description: "Works in classrooms and clubs as a structured way to teach teamwork, reading, and imagination.",
+    color: "text-blue-400"
+  },
+  {
+    icon: Wand2,
+    title: "First-Time Dungeon Masters",
+    description: "Guides you without taking control. You stay the DM. Everdice just keeps things organized.",
+    color: "text-purple-400"
+  }
 ];
 
 export default function LandingPage() {
@@ -53,8 +71,9 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen">
+      {/* Hero Section - Full Viewport */}
       <section 
-        className="relative min-h-[80vh] flex items-center justify-center"
+        className="relative min-h-screen flex items-center justify-center"
         style={{
           backgroundImage: `url(${everdiceBackground})`,
           backgroundSize: 'cover',
@@ -62,85 +81,80 @@ export default function LandingPage() {
           backgroundRepeat: 'no-repeat'
         }}
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/40 to-background" />
-        <div className="container mx-auto px-4 py-20 relative z-10">
-        <div className="max-w-4xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
-              <Users className="h-4 w-4" />
-              Your Gateway to Tabletop RPG
-            </div>
-            
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent leading-tight">
-              Learn, Play & Create Adventures
-            </h1>
-            
-            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-              Discover the magic of tabletop RPGs. Create characters, embark on quests, 
-              and join a community of storytellers — no experience needed.
-            </p>
+        <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background" />
+        
+        <div className="container mx-auto px-4 py-24 relative z-10">
+          <div className="max-w-[720px] mx-auto text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              {/* Eyebrow / Trust Cue */}
+              <div 
+                className="text-xs font-semibold tracking-widest uppercase mb-4"
+                style={{ color: '#E6C77A' }}
+              >
+                For families, beginners, and Dungeon Masters
+              </div>
+              
+              {/* Main Headline */}
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-5 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 bg-clip-text text-transparent leading-tight tracking-tight">
+                Beginner-Friendly. DM-Respectful.
+              </h1>
+              
+              {/* Subheadline */}
+              <p 
+                className="text-lg leading-relaxed mb-8 max-w-[640px] mx-auto"
+                style={{ color: 'rgba(255,255,255,0.85)' }}
+              >
+                Everdice makes it easy for anyone to start playing D&D while giving Dungeon Masters 
+                the structure they need to run meaningful, long-form campaigns.
+              </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              {user ? (
-                <Link href="/dashboard">
-                  <Button size="lg" className="text-lg px-8 py-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-orange-500/25">
-                    Continue Your Adventure
+              {/* CTA Button */}
+              <div className="flex flex-col items-center gap-3">
+                <Link href={user ? "/dashboard" : "/auth"}>
+                  <Button 
+                    size="lg" 
+                    className="text-base px-7 py-6 font-semibold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-orange-500/25"
+                  >
+                    {user ? "Continue Your Adventure" : "Run Your First Campaign (Free Beta)"}
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </Link>
-              ) : (
-                <>
-                  <Link href="/auth">
-                    <Button size="lg" className="text-lg px-8 py-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-orange-500/25">
-                      Start Your Adventure
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </Button>
-                  </Link>
-                  <Link href="/how-it-works">
-                    <Button variant="outline" size="lg" className="text-lg px-8 py-6">
-                      Learn More
-                    </Button>
-                  </Link>
-                </>
-              )}
-            </div>
-          </motion.div>
+                
+                {/* Micro-Trust Line */}
+                {!user && (
+                  <p className="text-sm text-muted-foreground/80">
+                    Safe for families • No VTT • No AI DM • Free during beta
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          </div>
         </div>
 
-        <motion.div 
-          className="mt-16 flex justify-center gap-8"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4, duration: 0.6 }}
-        >
-          {characterTypes.map((char, i) => (
-            <motion.div
-              key={char.name}
-              className="flex flex-col items-center gap-2"
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.5 + i * 0.1 }}
-            >
-              <div className={`p-4 rounded-full bg-card border-2 border-border shadow-lg ${char.color}`}>
-                <char.icon className="h-8 w-8" />
-              </div>
-              <span className="text-sm text-muted-foreground">{char.name}</span>
-            </motion.div>
-          ))}
-        </motion.div>
-        </div>
+        {/* Soft fade to next section */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
       </section>
 
-      <section className="container mx-auto px-4 py-16">
+      {/* Feature Icons Section */}
+      <section className="container mx-auto px-4 py-16 -mt-8">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-4">Everything You Need to Play</h2>
-          <p className="text-muted-foreground max-w-xl mx-auto">
-            Everdice handles the complex rules so you can focus on the fun.
-          </p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="text-2xl md:text-3xl font-bold mb-4">
+              Everything You Need to Play — Nothing You Don't
+            </h2>
+            <p className="text-muted-foreground max-w-[680px] mx-auto leading-relaxed">
+              Everdice removes technical barriers so new players can focus on imagination, 
+              storytelling, and learning the game together.
+            </p>
+          </motion.div>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
@@ -168,6 +182,54 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Reassurance Strip - Parents / Teachers / First-Time DMs */}
+      <section className="py-12 bg-gradient-to-b from-amber-950/20 to-background">
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-10"
+          >
+            <h2 className="text-xl md:text-2xl font-bold mb-3">
+              Designed for Learning, Teaching, and First Adventures
+            </h2>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            {reassuranceBlocks.map((block, i) => (
+              <motion.div
+                key={block.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="text-center"
+              >
+                <div className={`inline-flex items-center justify-center w-14 h-14 rounded-full bg-card border border-border mb-4 ${block.color}`}>
+                  <block.icon className="h-7 w-7" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">{block.title}</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  {block.description}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Micro-Trust Footer */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="text-center text-sm text-muted-foreground mt-8"
+          >
+            No accounts required to explore. No AI running the game. No public exposure.
+          </motion.p>
+        </div>
+      </section>
+
+      {/* Explore the World Section */}
       <section className="container mx-auto px-4 py-16">
         <Card className="max-w-4xl mx-auto bg-gradient-to-r from-primary/10 to-amber-500/10 border-primary/20">
           <CardContent className="p-8 md:p-12 text-center">
@@ -247,6 +309,7 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
+      {/* Final CTA */}
       <section className="container mx-auto px-4 py-16 pb-24">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-4">Ready to Begin?</h2>

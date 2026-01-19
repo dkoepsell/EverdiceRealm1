@@ -1,0 +1,177 @@
+i like this, show me graphically how it fits on the landing page without overwhelming: Alternate Version B: “Bridging Beginners and Veterans”
+
+(this one explicitly reassures experienced DMs)
+
+Headline
+
+Beginner-Friendly. DM-Respectful.
+
+Subheadline
+
+Everdice makes it easy for anyone to start playing D&D while giving Dungeon Masters the structure they need to run meaningful, long-form campaigns.
+
+Bullet Value Props
+
+Welcomes new players without dumbing the game down
+
+Helps DMs track story, consequences, and world state
+
+Supports family play, classrooms, and online groups
+
+Built by a DM. Open, transparent beta.
+
+Call to Action
+
+Run Your First Campaign (Free Beta) 
+
+Great choice. The key is layering, not replacing, so this copy sits inside what you already like rather than fighting it.
+
+Below is a graphical layout explanation showing exactly where this copy lives on your existing landing page so it feels calm, welcoming, and non-overwhelming.
+
+1️⃣ Think in Layers, Not More Text
+
+Your current hero already has strong visual weight:
+
+Parchment background
+
+World map + adventurers
+
+Big fantasy title
+
+Orange CTA
+
+So the new copy should act as a clarifying lens, not a second hero.
+
+Visual Hierarchy (Top → Bottom)
+[ Everdice Logo + Nav ]
+────────────────────────────
+[ Small eyebrow / trust cue ]
+────────────────────────────
+[ Main Headline (new) ]
+[ Subheadline (1 sentence) ]
+────────────────────────────
+[ CTA Button ]
+[ micro-trust line ]
+────────────────────────────
+[ Soft divider / fade ]
+[ Three-icon reassurance row ]
+
+
+Nothing new competes with the artwork.
+
+2️⃣ Exact Placement on Your Page
+🔹 A. Eyebrow Line (Very Small, Optional but Powerful)
+
+This replaces or refines your current “Your Gateway to Tabletop RPG”.
+
+Position:
+Centered, directly above the headline, small caps or pill-style badge.
+
+Text (example):
+
+For families, beginners, and Dungeon Masters
+
+Why it works:
+Parents and new players feel seen instantly, DMs don’t feel excluded.
+
+🔹 B. Headline (This Becomes the Anchor)
+
+Replace the current large headline text with:
+
+Beginner-Friendly. DM-Respectful.
+
+Same font family, same color logic, slightly tighter letter spacing.
+
+This headline is:
+
+Short
+
+Reassuring
+
+Not salesy
+
+Not childish
+
+🔹 C. Subheadline (One Calm Sentence)
+
+This sits exactly where your current paragraph is, but tighter.
+
+Everdice makes it easy for anyone to start playing D&D while giving Dungeon Masters the structure they need to run meaningful, long-form campaigns.
+
+Design tips:
+
+Max width: ~600px
+
+Increase line-height
+
+Slightly higher contrast than your current paragraph (right now it’s a bit faint)
+
+3️⃣ CTA: Keep It Singular and Strong
+
+You already have the right button color and placement.
+
+Button text:
+
+Run Your First Campaign (Free Beta)
+
+Directly below it (small text, muted):
+
+Safe for families • No VTT • No AI DM • Free during beta
+
+This line does enormous trust work without visual clutter.
+
+4️⃣ Bullet Props → Convert Them into Icons (Critical)
+
+Instead of a bullet list (which would overwhelm), convert them into a 3–4 icon row below the hero fade.
+
+Visually:
+🧙 Beginner-Friendly
+Welcomes new players without dumbing things down
+
+📜 Campaign Continuity
+Track story, consequences, and world state
+
+🏡 Family & Classroom Safe
+Great for families, teachers, and online groups
+
+🛡 Built by a DM
+Open, transparent beta
+
+
+Design rules:
+
+Icons only, no boxes
+
+Muted gold or parchment ink color
+
+Short labels, not sentences
+
+This sits below the main hero, not inside it
+
+This keeps the hero clean while still communicating value.
+
+5️⃣ What You Do Not Add (Important)
+
+Do not add:
+
+A second CTA
+
+A video autoplay
+
+Long explanations
+
+Testimonials yet
+
+Feature grids in the hero
+
+All of that belongs below the fold.
+
+6️⃣ One-Screen Mental Snapshot
+
+If someone scrolls zero pixels, they should understand:
+
+“This is a safe, friendly way to start D&D — and it still respects serious DMs.”
+
+If they scroll one screen, they understand:
+
+“It’s not a VTT, not a video game, and not intimidating.”

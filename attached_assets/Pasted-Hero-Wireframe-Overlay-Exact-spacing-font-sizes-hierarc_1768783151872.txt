@@ -1,0 +1,169 @@
+Hero Wireframe Overlay
+
+(Exact spacing, font sizes, hierarchy)
+
+This assumes a full-viewport hero (100vh) with your parchment background intact.
+
+Hero Container
+Hero Section (min-height: 100vh)
+Padding-top: 96px   (accounts for navbar)
+Padding-bottom: 72px
+Text-align: center
+Max content width: 720px
+
+Eyebrow / Trust Cue (Optional but recommended)
+Font size: 12px
+Font weight: 600
+Letter spacing: 0.08em
+Text transform: uppercase
+Color: muted gold (#E6C77A or similar)
+Margin-bottom: 16px
+
+
+Text
+
+For families, beginners, and Dungeon Masters
+
+Headline (Primary Conversion Anchor)
+Font size: 48px (desktop)
+Font size: 36px (tablet)
+Font size: 30px (mobile)
+
+Font weight: 700
+Line height: 1.2
+Margin-bottom: 20px
+Color: your existing warm gold/orange
+
+
+Text
+
+Beginner-Friendly. DM-Respectful.
+
+Subheadline (Single Sentence, Calm)
+Font size: 18px
+Line height: 1.6
+Font weight: 400
+Max width: 640px
+Margin: 0 auto 32px auto
+Color: parchment-gray (increase contrast vs current)
+
+
+Text
+
+Everdice makes it easy for anyone to start playing D&D while giving Dungeon Masters the structure they need to run meaningful, long-form campaigns.
+
+CTA Button
+Button padding: 14px 28px
+Font size: 16px
+Font weight: 600
+Border radius: existing
+Margin-bottom: 12px
+
+
+Text
+
+Run Your First Campaign (Free Beta)
+
+Micro-Trust Line (Under CTA)
+Font size: 13px
+Color: muted gray-gold
+Line height: 1.4
+
+
+Text
+
+Safe for families • No VTT • No AI DM • Free during beta
+
+Fade to Value Icons (Below Hero Fold)
+
+Add a soft dark-to-transparent gradient at bottom of hero so the next section gently emerges.
+
+2️⃣ “Everything You Need to Play”
+Rewritten for Family + Beginner Alignment
+Section Header
+Font size: 32px
+Font weight: 700
+Margin-bottom: 16px
+
+
+Header
+
+Everything You Need to Play — Nothing You Don’t
+
+Subheader
+Font size: 17px
+Max width: 680px
+Line height: 1.6
+Margin-bottom: 40px
+
+
+Text
+
+Everdice removes technical barriers so new players can focus on imagination, storytelling, and learning the game together.
+
+Feature Grid (2×2 on desktop, stacked on mobile)
+
+Each item:
+
+Icon size: 28px
+Title font: 18px / 600
+Body font: 15px / 1.5
+Max width per item: 320px
+
+🧙 Simple to Learn
+
+Start playing in minutes. No complex setup, no software tutorials, no pressure to “know everything.”
+
+🎲 Real Dice, Real Imagination
+
+Everdice supports your table instead of replacing it. Roll physical dice, talk freely, improvise boldly.
+
+📖 Campaigns That Remember
+
+Keep track of characters, choices, and story arcs so everyone can pick up right where they left off.
+
+🏡 Safe for Families & Classrooms
+
+No ads, no public chat, no hidden monetization. Designed for parents, teachers, and young players.
+
+3️⃣ Reassurance Strip
+
+Parents / Teachers / First-Time DMs
+
+This should be a full-width band with slightly darker parchment or neutral background.
+
+Reassurance Strip Layout
+Padding: 48px 24px
+Text-align: center
+Max-width inner: 960px
+
+Headline
+Font size: 26px
+Font weight: 700
+Margin-bottom: 16px
+
+
+Text
+
+Designed for Learning, Teaching, and First Adventures
+
+Three-Column Reassurance Blocks
+👨‍👩‍👧 Parents
+
+A safe, ad-free space to introduce kids to collaborative storytelling and creativity.
+
+🧑‍🏫 Teachers
+
+Works in classrooms and clubs as a structured way to teach teamwork, reading, and imagination.
+
+🧙 First-Time Dungeon Masters
+
+Guides you without taking control. You stay the DM. Everdice just keeps things organized.
+
+Micro-Trust Footer
+Font size: 14px
+Color: muted
+Margin-top: 24px
+
+
+No accounts required to explore. No AI running the game. No public exposure.
