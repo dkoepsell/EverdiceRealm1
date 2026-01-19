@@ -31,7 +31,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import CharacterSheet from "@/components/character/CharacterSheet";
-import { AlertCircle, Plus, User, Users, Dice6, Swords, Sparkles, Sword, Wand2, Shield, Heart, Flame, Moon, Loader2, ChevronDown, ChevronUp, Zap, Package, Scroll, Edit, Trash2 } from "lucide-react";
+import { AlertCircle, Plus, User, Users, Dice6, Swords, Sparkles, Sword, Wand2, Shield, Heart, Flame, Moon, Loader2, ChevronDown, ChevronUp, Zap, Package, Scroll, Edit, Trash2, HelpCircle, BookOpen, Target, Brain, Eye } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,6 +65,64 @@ function rollAbilityScores(): { strength: number; dexterity: number; constitutio
     charisma: roll4d6DropLowest(),
   };
 }
+
+const buildArchetypes = [
+  {
+    id: "frontline",
+    name: "Frontline Protector",
+    icon: Shield,
+    color: "from-red-500 to-orange-500",
+    summary: "You protect allies and absorb damage",
+    classes: ["Fighter", "Barbarian", "Paladin"],
+    keyStats: "Strength or Dexterity, Constitution",
+    playstyle: "Stand between enemies and your party. Use heavy armor and high HP to tank hits.",
+    tip: "Prioritize Constitution for more HP. Fighters get the most attacks, Barbarians rage for damage resistance, Paladins heal and smite."
+  },
+  {
+    id: "striker",
+    name: "Precision Striker",
+    icon: Target,
+    color: "from-slate-500 to-zinc-600",
+    summary: "You deal massive single-target damage",
+    classes: ["Rogue", "Ranger", "Monk"],
+    keyStats: "Dexterity, then Wisdom or Intelligence",
+    playstyle: "Find weak spots and exploit them. Use positioning, stealth, or mobility to get advantage.",
+    tip: "Rogues deal Sneak Attack damage when they have advantage. Rangers excel at range. Monks can stun enemies."
+  },
+  {
+    id: "arcane",
+    name: "Arcane Power",
+    icon: Wand2,
+    color: "from-purple-500 to-indigo-500",
+    summary: "You control the battlefield with magic",
+    classes: ["Wizard", "Sorcerer", "Warlock"],
+    keyStats: "Intelligence (Wizard) or Charisma (Sorcerer/Warlock)",
+    playstyle: "Stay safe at range. Use spells to control crowds, deal area damage, or buff allies.",
+    tip: "Wizards have the most spell variety. Sorcerers can modify spells. Warlocks recharge on short rests."
+  },
+  {
+    id: "support",
+    name: "Divine Support",
+    icon: Heart,
+    color: "from-cyan-500 to-blue-500",
+    summary: "You heal, buff, and protect the party",
+    classes: ["Cleric", "Druid", "Bard"],
+    keyStats: "Wisdom (Cleric/Druid) or Charisma (Bard)",
+    playstyle: "Keep allies alive and enhance their abilities. Remove conditions and provide utility.",
+    tip: "Clerics are the best healers. Druids can shapeshift. Bards inspire allies and have great skills."
+  },
+  {
+    id: "versatile",
+    name: "Versatile Adventurer",
+    icon: Brain,
+    color: "from-emerald-500 to-teal-500",
+    summary: "You adapt to any situation",
+    classes: ["Bard", "Ranger", "Paladin"],
+    keyStats: "Varies by class - usually Charisma or Dexterity",
+    playstyle: "Fill gaps in the party. Switch between combat, support, and utility as needed.",
+    tip: "These classes can do a bit of everything. Great for small parties or if you like flexibility."
+  }
+];
 
 const characterTemplates = [
   {
@@ -173,6 +231,8 @@ export default function Characters() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [isCreatingFromTemplate, setIsCreatingFromTemplate] = useState(false);
   const [generatingPortraitIds, setGeneratingPortraitIds] = useState<Set<number>>(new Set());
+  const [showBuildGuidance, setShowBuildGuidance] = useState(false);
+  const [selectedArchetype, setSelectedArchetype] = useState<string | null>(null);
   
   const { toast } = useToast();
   
@@ -872,6 +932,79 @@ export default function Characters() {
         </TabsContent>
         
         <TabsContent value="quick">
+          {/* Build Guidance - Collapsible */}
+          <Card className={`mb-6 border-2 transition-all ${showBuildGuidance ? 'border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-orange-500/5' : 'border-dashed border-muted-foreground/30'}`}>
+            <button 
+              className="w-full p-4 flex items-center justify-between text-left"
+              onClick={() => setShowBuildGuidance(!showBuildGuidance)}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-amber-500/10">
+                  <HelpCircle className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">Need help choosing?</h3>
+                  <p className="text-xs text-muted-foreground">Learn about character builds and playstyles</p>
+                </div>
+              </div>
+              {showBuildGuidance ? <ChevronUp className="h-5 w-5 text-muted-foreground" /> : <ChevronDown className="h-5 w-5 text-muted-foreground" />}
+            </button>
+            
+            {showBuildGuidance && (
+              <CardContent className="pt-0 pb-6">
+                <Separator className="mb-4" />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {buildArchetypes.map((archetype) => {
+                    const Icon = archetype.icon;
+                    const isSelected = selectedArchetype === archetype.id;
+                    return (
+                      <button
+                        key={archetype.id}
+                        onClick={() => setSelectedArchetype(isSelected ? null : archetype.id)}
+                        className={`p-4 rounded-lg border text-left transition-all ${
+                          isSelected 
+                            ? 'border-amber-500 bg-amber-500/10 shadow-md' 
+                            : 'border-border hover:border-amber-500/50 hover:bg-muted/30'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${archetype.color} flex items-center justify-center`}>
+                            <Icon className="h-5 w-5 text-white" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-sm">{archetype.name}</h4>
+                            <p className="text-xs text-muted-foreground">{archetype.summary}</p>
+                          </div>
+                        </div>
+                        
+                        {isSelected && (
+                          <div className="mt-3 pt-3 border-t border-amber-500/20 space-y-2 text-sm">
+                            <div>
+                              <span className="font-medium text-amber-700 dark:text-amber-300">Best Classes: </span>
+                              <span className="text-muted-foreground">{archetype.classes.join(', ')}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-amber-700 dark:text-amber-300">Key Stats: </span>
+                              <span className="text-muted-foreground">{archetype.keyStats}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-amber-700 dark:text-amber-300">Playstyle: </span>
+                              <span className="text-muted-foreground">{archetype.playstyle}</span>
+                            </div>
+                            <div className="bg-amber-500/10 rounded p-2 mt-2">
+                              <span className="font-medium text-amber-700 dark:text-amber-300">Tip: </span>
+                              <span className="text-muted-foreground text-xs">{archetype.tip}</span>
+                            </div>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            )}
+          </Card>
+
           <Card className="mb-6">
             <CardHeader className="text-center">
               <CardTitle className="text-2xl font-fantasy bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
@@ -941,6 +1074,113 @@ export default function Characters() {
         </TabsContent>
         
         <TabsContent value="create">
+          {/* Build Guidance for Advanced Tab */}
+          <Card className={`mb-6 border-2 transition-all ${showBuildGuidance ? 'border-purple-500/30 bg-gradient-to-br from-purple-500/5 to-indigo-500/5' : 'border-dashed border-muted-foreground/30'}`}>
+            <button 
+              className="w-full p-4 flex items-center justify-between text-left"
+              onClick={() => setShowBuildGuidance(!showBuildGuidance)}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-purple-500/10">
+                  <BookOpen className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">Character Build Guide</h3>
+                  <p className="text-xs text-muted-foreground">Learn about archetypes, stats, and playstyles before you build</p>
+                </div>
+              </div>
+              {showBuildGuidance ? <ChevronUp className="h-5 w-5 text-muted-foreground" /> : <ChevronDown className="h-5 w-5 text-muted-foreground" />}
+            </button>
+            
+            {showBuildGuidance && (
+              <CardContent className="pt-0 pb-6">
+                <Separator className="mb-4" />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                  {buildArchetypes.map((archetype) => {
+                    const Icon = archetype.icon;
+                    const isSelected = selectedArchetype === archetype.id;
+                    return (
+                      <button
+                        key={archetype.id}
+                        onClick={() => setSelectedArchetype(isSelected ? null : archetype.id)}
+                        className={`p-4 rounded-lg border text-left transition-all ${
+                          isSelected 
+                            ? 'border-purple-500 bg-purple-500/10 shadow-md' 
+                            : 'border-border hover:border-purple-500/50 hover:bg-muted/30'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${archetype.color} flex items-center justify-center`}>
+                            <Icon className="h-5 w-5 text-white" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-sm">{archetype.name}</h4>
+                            <p className="text-xs text-muted-foreground">{archetype.summary}</p>
+                          </div>
+                        </div>
+                        
+                        {isSelected && (
+                          <div className="mt-3 pt-3 border-t border-purple-500/20 space-y-2 text-sm">
+                            <div>
+                              <span className="font-medium text-purple-700 dark:text-purple-300">Best Classes: </span>
+                              <span className="text-muted-foreground">{archetype.classes.join(', ')}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-purple-700 dark:text-purple-300">Key Stats: </span>
+                              <span className="text-muted-foreground">{archetype.keyStats}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-purple-700 dark:text-purple-300">Playstyle: </span>
+                              <span className="text-muted-foreground">{archetype.playstyle}</span>
+                            </div>
+                            <div className="bg-purple-500/10 rounded p-2 mt-2">
+                              <span className="font-medium text-purple-700 dark:text-purple-300">Tip: </span>
+                              <span className="text-muted-foreground text-xs">{archetype.tip}</span>
+                            </div>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                
+                {/* Quick stat allocation guide */}
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                    <Dice6 className="h-4 w-4 text-purple-500" />
+                    Stat Priority Guide
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                    <div className="p-2 bg-background rounded">
+                      <span className="font-medium">Melee Combat:</span>
+                      <span className="text-muted-foreground"> STR &gt; CON &gt; DEX</span>
+                    </div>
+                    <div className="p-2 bg-background rounded">
+                      <span className="font-medium">Ranged/Finesse:</span>
+                      <span className="text-muted-foreground"> DEX &gt; CON &gt; WIS</span>
+                    </div>
+                    <div className="p-2 bg-background rounded">
+                      <span className="font-medium">Spellcasting:</span>
+                      <span className="text-muted-foreground"> INT/WIS/CHA &gt; CON</span>
+                    </div>
+                    <div className="p-2 bg-background rounded">
+                      <span className="font-medium">Support/Healing:</span>
+                      <span className="text-muted-foreground"> WIS &gt; CON &gt; DEX</span>
+                    </div>
+                    <div className="p-2 bg-background rounded">
+                      <span className="font-medium">Face/Social:</span>
+                      <span className="text-muted-foreground"> CHA &gt; WIS &gt; INT</span>
+                    </div>
+                    <div className="p-2 bg-background rounded">
+                      <span className="font-medium">Tank:</span>
+                      <span className="text-muted-foreground"> CON &gt; STR &gt; WIS</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            )}
+          </Card>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <Card>
               <CardHeader>
