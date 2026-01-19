@@ -2921,8 +2921,18 @@ function MonstersTab() {
           ) : (
             <>
               {monsters.map((monster) => (
-                <Card key={monster.id}>
-                  <CardHeader className="pb-2">
+                <Card key={monster.id} className="overflow-hidden">
+                  {monster.imageUrl && (
+                    <div className="relative h-40 w-full bg-gradient-to-b from-muted/30 to-transparent">
+                      <img 
+                        src={monster.imageUrl} 
+                        alt={monster.name}
+                        className="w-full h-full object-cover object-top"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+                    </div>
+                  )}
+                  <CardHeader className={monster.imageUrl ? "pb-2 pt-3" : "pb-2"}>
                     <div className="flex justify-between">
                       <CardTitle className="font-fantasy">{monster.name}</CardTitle>
                       {monster.challenge_rating && <Badge>CR {monster.challenge_rating}</Badge>}
