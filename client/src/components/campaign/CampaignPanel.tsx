@@ -1046,13 +1046,29 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             }
           }
           
-          // Show companion actions
+          // Show companion actions prominently - they fight alongside you!
           if (combat.companionActions && combat.companionActions.length > 0) {
             for (const companion of combat.companionActions) {
               toast({
-                title: `🤝 ${companion.name}`,
-                description: `${companion.action}${companion.damageDealt ? ` (${companion.damageDealt} damage!)` : ''}`,
+                title: `⚔️ Companion Attack: ${companion.name}`,
+                description: companion.damageDealt 
+                  ? `${companion.action} - Dealt ${companion.damageDealt} damage to the enemy!`
+                  : companion.action,
               });
+            }
+          }
+          
+          // Check if companions were attacked and notify
+          if (combat.partyDamage && combat.partyDamage.length > 0) {
+            const companionDamage = combat.partyDamage.filter((d: any) => d.isCompanion);
+            if (companionDamage.length > 0) {
+              for (const damage of companionDamage) {
+                toast({
+                  title: `🛡️ ${damage.name} was attacked!`,
+                  description: `Your companion took ${damage.damageTaken} damage (HP: ${damage.newHp}/${damage.maxHp})`,
+                  variant: damage.defeated ? "destructive" : undefined,
+                });
+              }
             }
           }
           
@@ -4627,9 +4643,21 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               >
                 {/* Attack Header */}
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-bold text-lg">
-                    {log.attackerType === 'enemy' ? '👹' : '🛡️'} {log.attacker} → {log.target}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-lg">
+                      {log.attackerType === 'enemy' ? '👹' : log.attackerType === 'companion' ? '🗡️' : '🛡️'} {log.attacker} → {log.target}
+                    </span>
+                    {log.attackerType === 'companion' && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                        NPC Companion
+                      </span>
+                    )}
+                    {log.targetType === 'companion' && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+                        Companion Targeted
+                      </span>
+                    )}
+                  </div>
                   <span className={`px-2 py-1 rounded text-sm font-bold ${
                     log.attackRoll.isCritical 
                       ? 'bg-yellow-400 text-yellow-900' 

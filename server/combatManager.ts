@@ -54,7 +54,7 @@ export interface CombatTurnResult {
   logs: CombatLogEntry[];
   updatedCombatants: Combatant[];
   enemyDamageDealt: { name: string; damageTaken: number; newHp: number; maxHp: number; defeated: boolean }[];
-  partyDamageDealt: { name: string; damageTaken: number; newHp: number; maxHp: number; defeated: boolean }[];
+  partyDamageDealt: { name: string; damageTaken: number; newHp: number; maxHp: number; defeated: boolean; isCompanion?: boolean }[];
   combatSummary: string;
   mechanicsExplanation: string;
 }
@@ -232,13 +232,14 @@ export function processEnemyAttacks(
         };
       }
       
-      // Record damage dealt
+      // Record damage dealt with companion flag
       partyDamageDealt.push({
         name: target.name,
         damageTaken: damage.total,
         newHp,
         maxHp: target.maxHp,
-        defeated: newHp <= 0
+        defeated: newHp <= 0,
+        isCompanion: target.type === 'companion'
       });
     }
     
@@ -249,16 +250,17 @@ export function processEnemyAttacks(
       ? `${attackExplanation}\n${damageExplanation}`
       : attackExplanation;
     
-    // Create descriptive text
+    // Create descriptive text with companion identification
+    const targetLabel = target.type === 'companion' ? `your companion ${target.name}` : target.name;
     let description: string;
     if (attackRoll.isCritical && damage) {
-      description = `${enemy.name} lands a devastating critical hit on ${target.name} for ${damage.total} damage!`;
+      description = `${enemy.name} lands a devastating critical hit on ${targetLabel} for ${damage.total} damage!`;
     } else if (attackRoll.isCriticalMiss) {
-      description = `${enemy.name} swings wildly at ${target.name} but fumbles completely!`;
+      description = `${enemy.name} swings wildly at ${targetLabel} but fumbles completely!`;
     } else if (isHit && damage) {
-      description = `${enemy.name} strikes ${target.name} for ${damage.total} damage!`;
+      description = `${enemy.name} strikes ${targetLabel} for ${damage.total} damage!`;
     } else {
-      description = `${enemy.name} attacks ${target.name} but misses!`;
+      description = `${enemy.name} attacks ${targetLabel} but misses!`;
     }
     
     if (newHp <= 0 && damage) {
