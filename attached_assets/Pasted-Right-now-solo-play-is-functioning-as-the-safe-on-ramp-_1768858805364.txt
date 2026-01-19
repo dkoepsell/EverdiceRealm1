@@ -1,0 +1,189 @@
+Right now, solo play is functioning as the “safe on-ramp” into Everdice. Users are testing the waters, learning the interface, and building confidence without social risk. The goal is not to disrupt that, but to gently widen the funnel outward.
+
+Below is a steering strategy that respects how they already behave while nudging them toward (1) learning D&D, (2) trying other modes, and (3) coming back.
+
+1. Treat Solo Adventure as the Canonical Onboarding Path (Not a Dead End)
+
+First, lean into what they are already doing.
+
+Reframe solo play explicitly as:
+
+“Solo Adventure (Learn D&D at Your Own Pace)”
+
+Then, instrument it as a tutorial that naturally points elsewhere.
+
+Add “What You’re Actually Learning” Moments
+
+After certain solo milestones, surface a short, non-intrusive panel:
+
+You just used a core D&D mechanic
+
+• Ability checks
+• Narrative choice consequences
+• DM-guided outcomes
+
+👉 These are the same tools used in group games
+
+CTA:
+
+“See how this works in a party”
+
+“Try this with friends”
+
+This turns solo play into explicit skill acquisition.
+
+2. Soft Mode Switching Inside the Solo Adventure
+
+Instead of asking users to leave solo mode, let solo mode mutate.
+
+A. “Ghost Party” Upgrade (Very Low Friction)
+
+After a few solo sessions:
+
+Want help?
+
+Add AI companions to your adventure:
+• Fighter
+• Rogue
+• Cleric
+
+This introduces:
+
+Party dynamics
+
+Turn structure
+
+Shared narrative
+
+Without:
+
+Scheduling
+
+Social anxiety
+
+Rules overload
+
+Later, you can say:
+
+“These companions can be replaced with real players.”
+
+B. “Drop-In Co-Op” Prompt
+
+If someone returns more than once:
+
+Play this scene with others
+
+Let others join just for the next encounter.
+
+Key point:
+Do not pitch a campaign. Pitch one scene.
+
+3. Micro-Learning Instead of D&D Rule Dumps
+
+Avoid “Learn D&D” pages. Nobody clicks those.
+
+Instead, embed 30–60 second knowledge bites tied to actions.
+
+Examples
+
+After a roll:
+
+“Why did this succeed?”
+Ability score + modifier + difficulty
+
+After a choice:
+
+“D&D is a game of consequences, not right answers.”
+
+After combat:
+
+“In group play, players coordinate turns like this…”
+
+Each ends with:
+
+“Want to see this live?”
+
+4. Explicit Pathways on the Home Screen (But Not Pushy)
+
+Add three clearly labeled paths, visually equal, emotionally different:
+
+🧭 Play Solo
+
+Learn D&D. No pressure. Just story.
+
+🎲 Play Together
+
+Co-op adventures with friends or strangers.
+
+🧙 Learn to Run Games
+
+Try being the Dungeon Master.
+
+Important:
+Do not hide DMing behind expertise language. Frame it as experimentation.
+
+5. Convert Return Visits Into Exploration
+
+Right now, returning users default to solo again. Intercept that once, gently.
+
+On Second or Third Visit:
+
+Welcome back
+
+Last time you played solo.
+
+Want to try something new today?
+
+Buttons:
+
+Continue Solo
+
+Add AI Party
+
+Join a One-Shot
+
+Watch a Game in Progress (spectator mode later)
+
+Even if 90% click “Continue Solo”, the seed is planted.
+
+6. Lightweight Social Proof (Without Testimonials Yet)
+
+With only 19 users, don’t fake scale.
+
+Instead use honest framing:
+
+“Most players start solo.”
+
+“Many try co-op on their second or third visit.”
+
+This normalizes progression.
+
+7. Repo-Level Hooks (for EverdiceRealm1)
+
+In the GitHub repo, reinforce this philosophy so contributors align with it:
+
+README Additions
+
+Add a section like:
+
+Design Philosophy: Gentle Onboarding
+
+Everdice assumes most users:
+• are new to D&D
+• feel social or rules anxiety
+• want to try before committing
+
+Solo play is the default entry point,
+not the final destination.
+
+Future Feature Flags
+
+Document stubs like:
+
+solo_to_party_transition
+
+ai_companion_party
+
+one_scene_coop
+
+This makes your intent legible to future collaborators.

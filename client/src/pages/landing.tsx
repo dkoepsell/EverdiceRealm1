@@ -18,7 +18,9 @@ import {
   CheckCircle,
   Home,
   GraduationCap,
-  Heart
+  Heart,
+  Compass,
+  Crown
 } from "lucide-react";
 import { motion } from "framer-motion";
 import everdiceBackground from "@assets/image_1768599782346.png";
@@ -146,6 +148,100 @@ export default function LandingPage() {
 
         {/* Soft fade to next section */}
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
+      </section>
+
+      {/* Three Pathways Section - Clear Entry Points */}
+      <section className="container mx-auto px-4 py-16 -mt-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center mb-10"
+        >
+          <h2 className="text-2xl md:text-3xl font-bold mb-3">
+            Choose Your Path
+          </h2>
+          <p className="text-muted-foreground max-w-lg mx-auto">
+            Most players start solo. Many try co-op on their second or third visit.
+          </p>
+        </motion.div>
+
+        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          {/* Solo Path */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0 }}
+          >
+            <Link href={user ? "/dashboard" : "/auth"}>
+              <Card className="h-full cursor-pointer group hover:shadow-xl transition-all duration-300 border-2 hover:border-emerald-500/50 bg-gradient-to-b from-emerald-500/5 to-transparent">
+                <CardContent className="pt-8 pb-6 text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Compass className="h-8 w-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Play Solo</h3>
+                  <p className="text-muted-foreground text-sm mb-4">
+                    Learn D&D at your own pace. No pressure. Just story.
+                  </p>
+                  <div className="text-xs text-emerald-500 font-medium">
+                    Perfect for beginners
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
+
+          {/* Together Path */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+          >
+            <Link href={user ? "/dashboard" : "/auth"}>
+              <Card className="h-full cursor-pointer group hover:shadow-xl transition-all duration-300 border-2 hover:border-amber-500/50 bg-gradient-to-b from-amber-500/5 to-transparent">
+                <CardContent className="pt-8 pb-6 text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Users className="h-8 w-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Play Together</h3>
+                  <p className="text-muted-foreground text-sm mb-4">
+                    Co-op adventures with friends or family.
+                  </p>
+                  <div className="text-xs text-amber-500 font-medium">
+                    Invite your party
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
+
+          {/* DM Path */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+          >
+            <Link href={user ? "/dm-toolkit" : "/auth"}>
+              <Card className="h-full cursor-pointer group hover:shadow-xl transition-all duration-300 border-2 hover:border-purple-500/50 bg-gradient-to-b from-purple-500/5 to-transparent">
+                <CardContent className="pt-8 pb-6 text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Crown className="h-8 w-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Run Games</h3>
+                  <p className="text-muted-foreground text-sm mb-4">
+                    Try being the Dungeon Master. We'll guide you.
+                  </p>
+                  <div className="text-xs text-purple-500 font-medium">
+                    Experiment freely
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
+        </div>
       </section>
 
       {/* Founder Testimonial Bridge */}

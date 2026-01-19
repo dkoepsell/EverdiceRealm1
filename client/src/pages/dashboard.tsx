@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { getQueryFn, queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Bookmark, Calendar, History, User, Users, Activity, Star, Play, Sparkles, Sword, Shield, ScrollText, ChevronDown, ChevronUp, Heart, Zap, Package, Scroll, BookOpen } from "lucide-react";
+import { ReturnVisitorPrompt } from "@/components/learning/ReturnVisitorPrompt";
 import { Badge } from "@/components/ui/badge";
 import parchmentFrame from "@assets/image_1768600727955.png";
 
@@ -360,6 +361,17 @@ export default function Dashboard() {
               setShowQuickStart(false);
               setShowLearnByPlaying(false);
             }} 
+          />
+        </section>
+      )}
+
+      {/* Return Visitor Prompt - gentle nudge to try new modes */}
+      {!showLearnByPlaying && !showQuickStart && availableCampaigns.length > 0 && (
+        <section className="container mx-auto px-4 pt-2">
+          <ReturnVisitorPrompt 
+            userName={user?.username}
+            hasSoloSession={availableCampaigns.length > 0}
+            onDismiss={() => {}}
           />
         </section>
       )}
