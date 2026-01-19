@@ -463,8 +463,9 @@ export default function TavernPage() {
       });
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+    onSuccess: async () => {
+      // Force immediate refetch to update inventory display
+      await queryClient.refetchQueries({ queryKey: ["/api/characters"] });
       toast({
         title: "Purchase Complete!",
         description: `You bought ${quantity}x ${selectedShopItem?.name}.`
@@ -488,8 +489,9 @@ export default function TavernPage() {
       });
       return response.json();
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+    onSuccess: async (data) => {
+      // Force immediate refetch to update inventory display
+      await queryClient.refetchQueries({ queryKey: ["/api/characters"] });
       toast({
         title: "Item Sold!",
         description: `You received ${data.goldReceived}gp for ${selectedInventoryItem?.name}.`
