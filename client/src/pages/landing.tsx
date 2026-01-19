@@ -147,6 +147,52 @@ export default function LandingPage() {
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
       </section>
 
+      {/* Founder Testimonial Bridge */}
+      <section className="container mx-auto px-4 py-12">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="max-w-2xl mx-auto"
+        >
+          <div 
+            className="rounded-xl p-8 text-center"
+            style={{ 
+              background: 'linear-gradient(to bottom, rgba(201, 184, 150, 0.08), rgba(201, 184, 150, 0.03))',
+              border: '1px solid rgba(201, 184, 150, 0.15)'
+            }}
+          >
+            <p 
+              className="text-base leading-relaxed mb-4 italic"
+              style={{ color: 'rgba(255,255,255,0.8)' }}
+            >
+              "I built Everdice to help my kids learn D&D in a safe, pressure-free way — and to give us a way to keep playing together even when I'm traveling.
+            </p>
+            <p 
+              className="text-base leading-relaxed mb-6 italic"
+              style={{ color: 'rgba(255,255,255,0.8)' }}
+            >
+              It turned out to be just as useful for running serious, long-form campaigns without the overhead of a virtual tabletop."
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <div 
+                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold"
+                style={{ 
+                  background: 'linear-gradient(135deg, #C9B896 0%, #A89070 100%)',
+                  color: '#2a2218'
+                }}
+              >
+                KL
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-medium" style={{ color: '#C9B896' }}>KoeppyLoco</p>
+                <p className="text-xs text-muted-foreground">Creator of Everdice</p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </section>
+
       {/* Feature Icons Section */}
       <section className="container mx-auto px-4 py-16 -mt-8">
         <div className="text-center mb-12">
