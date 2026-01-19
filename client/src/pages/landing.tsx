@@ -105,11 +105,19 @@ export default function LandingPage() {
               
               {/* Subheadline */}
               <p 
-                className="text-lg leading-relaxed mb-8 max-w-[640px] mx-auto"
+                className="text-lg leading-relaxed mb-4 max-w-[640px] mx-auto"
                 style={{ color: 'rgba(255,255,255,0.85)' }}
               >
                 Everdice makes it easy for anyone to start playing D&D while giving Dungeon Masters 
                 the structure they need to run meaningful, long-form campaigns.
+              </p>
+
+              {/* Authority Line for Experienced Players */}
+              <p 
+                className="text-sm italic mb-8 max-w-[580px] mx-auto"
+                style={{ color: '#C9B896' }}
+              >
+                For experienced tables: Everdice stays out of your way and keeps long campaigns coherent.
               </p>
 
               {/* CTA Button */}
@@ -225,16 +233,6 @@ export default function LandingPage() {
             className="text-center text-sm text-muted-foreground mt-8"
           >
             No accounts required to explore. AI assists, you decide. No public exposure.
-          </motion.p>
-
-          {/* Experienced Player Contrast Line */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            className="text-center text-sm text-muted-foreground/70 italic mt-4"
-          >
-            Already experienced? Everdice stays out of your way and keeps your campaign coherent.
           </motion.p>
         </div>
       </section>
