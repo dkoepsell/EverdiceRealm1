@@ -29,7 +29,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -2143,30 +2143,112 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         <CardContent className="p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className={`grid w-full ${isDM ? 'grid-cols-7' : 'grid-cols-6'} bg-secondary-light rounded-none`}>
-              <TabsTrigger value="narrative" className="text-xs sm:text-sm md:text-base">Narrative</TabsTrigger>
-              <TabsTrigger value="journey-log" className="text-xs sm:text-sm md:text-base">Log</TabsTrigger>
-              <TabsTrigger value="party" className="text-xs sm:text-sm md:text-base">Party</TabsTrigger>
-              <TabsTrigger value="chat" className="text-xs sm:text-sm md:text-base" data-testid="tab-chat">
-                <span className="flex items-center">
-                  <MessageCircle className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
-                  <span>Chat</span>
-                </span>
-              </TabsTrigger>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <TabsTrigger value="narrative" className="text-xs sm:text-sm md:text-base">
+                    <span className="flex items-center">
+                      <BookOpen className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
+                      <span>Narrative</span>
+                    </span>
+                  </TabsTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p className="font-medium">Your Adventure Story</p>
+                  <p className="text-xs text-muted-foreground">Read the unfolding narrative, take actions, and see the story progress. This is where the adventure happens!</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <TabsTrigger value="journey-log" className="text-xs sm:text-sm md:text-base">
+                    <span className="flex items-center">
+                      <Scroll className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
+                      <span>Log</span>
+                    </span>
+                  </TabsTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p className="font-medium">Journey Log & History</p>
+                  <p className="text-xs text-muted-foreground">Review past events, completed quests, dice rolls, and key moments. Never forget what happened in previous sessions.</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <TabsTrigger value="party" className="text-xs sm:text-sm md:text-base">
+                    <span className="flex items-center">
+                      <Users className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
+                      <span>Party</span>
+                    </span>
+                  </TabsTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p className="font-medium">Your Adventuring Party</p>
+                  <p className="text-xs text-muted-foreground">View all party members, their stats, HP, and inventory. Manage your group and see who's joined the campaign.</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <TabsTrigger value="chat" className="text-xs sm:text-sm md:text-base" data-testid="tab-chat">
+                    <span className="flex items-center">
+                      <MessageCircle className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
+                      <span>Chat</span>
+                    </span>
+                  </TabsTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p className="font-medium">Party Chat</p>
+                  <p className="text-xs text-muted-foreground">Talk with other players in real-time. Coordinate tactics, roleplay in character, or just hang out between turns.</p>
+                </TooltipContent>
+              </Tooltip>
+              
               {isDM && (
-                <TabsTrigger value="dashboard" className="text-xs sm:text-sm md:text-base">
-                  <span className="flex items-center">
-                    <BookOpen className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
-                    <span>Dashboard</span>
-                  </span>
-                </TabsTrigger>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <TabsTrigger value="dashboard" className="text-xs sm:text-sm md:text-base">
+                      <span className="flex items-center">
+                        <LayoutDashboard className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
+                        <span>Dashboard</span>
+                      </span>
+                    </TabsTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p className="font-medium">DM Command Center</p>
+                    <p className="text-xs text-muted-foreground">AI-powered insights about your campaign: story analysis, quest tracking, party status, and suggestions for what to do next.</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
-              <TabsTrigger value="settings" className="text-xs sm:text-sm md:text-base">Settings</TabsTrigger>
-              <TabsTrigger value="deploy" className="text-xs sm:text-sm md:text-base">
-                <span className="flex items-center">
-                  <Share2 className="h-3.5 w-3.5 mr-1 md:mr-2 hidden sm:inline-block" />
-                  <span>Deploy</span>
-                </span>
-              </TabsTrigger>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <TabsTrigger value="settings" className="text-xs sm:text-sm md:text-base">
+                    <span className="flex items-center">
+                      <Settings className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
+                      <span>Settings</span>
+                    </span>
+                  </TabsTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p className="font-medium">Campaign Settings</p>
+                  <p className="text-xs text-muted-foreground">Adjust campaign options, theme preferences, difficulty settings, and manage campaign-wide configurations.</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <TabsTrigger value="deploy" className="text-xs sm:text-sm md:text-base">
+                    <span className="flex items-center">
+                      <Share2 className="h-3.5 w-3.5 mr-1 md:mr-2 hidden sm:inline-block" />
+                      <span>Deploy</span>
+                    </span>
+                  </TabsTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p className="font-medium">Share & Invite Players</p>
+                  <p className="text-xs text-muted-foreground">Get invite links to share with friends, manage who can join, and deploy your campaign for others to play.</p>
+                </TooltipContent>
+              </Tooltip>
             </TabsList>
             
             <TabsContent value="narrative" className="p-4 sm:p-6">
