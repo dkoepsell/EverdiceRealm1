@@ -265,17 +265,17 @@ export default function AuthPage() {
       </div>
       
       {/* Right column with hero content */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary via-primary-dark to-slate-900 items-center justify-center p-12 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-900 via-amber-950/30 to-slate-900 items-center justify-center p-12 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 to-transparent"></div>
         </div>
         <div className="max-w-lg text-center text-white relative z-10">
-          <div className="mb-8">
+          <div className="mb-6">
             <svg
               viewBox="0 0 24 24"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
-              className="w-20 h-20 mx-auto text-amber-400 mb-4"
+              className="w-16 h-16 mx-auto text-amber-400 mb-4"
             >
               <path
                 d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
@@ -293,42 +293,45 @@ export default function AuthPage() {
               />
             </svg>
           </div>
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-amber-300 to-orange-400 bg-clip-text text-transparent">
-            Your AI Dungeon Master
+          <h1 className="text-3xl font-bold mb-3 bg-gradient-to-r from-amber-300 to-orange-400 bg-clip-text text-transparent">
+            Beginner-Friendly. DM-Respectful.
           </h1>
-          <p className="text-lg mb-10 text-white/80 leading-relaxed">
-            Create characters, embark on epic quests, and let AI guide your adventure. 
-            No experience required.
+          <p className="text-base mb-8 text-white/80 leading-relaxed max-w-md mx-auto">
+            Everdice makes it easy for anyone to start playing D&D while giving Dungeon Masters 
+            the structure they need for meaningful campaigns.
           </p>
-          <div className="space-y-4 text-left">
-            <div className="flex items-center bg-white/5 rounded-lg p-4 backdrop-blur-sm">
-              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center mr-4 flex-shrink-0">
-                <span className="text-amber-400 text-lg">1</span>
+          <div className="space-y-3 text-left">
+            <div className="flex items-center bg-white/5 rounded-lg p-4 backdrop-blur-sm border border-white/5">
+              <div className="w-9 h-9 rounded-full bg-amber-500/20 flex items-center justify-center mr-4 flex-shrink-0">
+                <span className="text-amber-400 text-sm font-medium">1</span>
               </div>
               <div>
-                <h3 className="font-semibold text-amber-300">Create Your Hero</h3>
-                <p className="text-sm text-white/70">Quick templates or full customization</p>
+                <h3 className="font-semibold text-amber-300 text-sm">Simple to Learn</h3>
+                <p className="text-xs text-white/60">Start playing in minutes, no pressure</p>
               </div>
             </div>
-            <div className="flex items-center bg-white/5 rounded-lg p-4 backdrop-blur-sm">
-              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center mr-4 flex-shrink-0">
-                <span className="text-amber-400 text-lg">2</span>
+            <div className="flex items-center bg-white/5 rounded-lg p-4 backdrop-blur-sm border border-white/5">
+              <div className="w-9 h-9 rounded-full bg-amber-500/20 flex items-center justify-center mr-4 flex-shrink-0">
+                <span className="text-amber-400 text-sm font-medium">2</span>
               </div>
               <div>
-                <h3 className="font-semibold text-amber-300">Choose Your Quest</h3>
-                <p className="text-sm text-white/70">AI generates unique adventures for you</p>
+                <h3 className="font-semibold text-amber-300 text-sm">Campaigns That Remember</h3>
+                <p className="text-xs text-white/60">Pick up right where you left off</p>
               </div>
             </div>
-            <div className="flex items-center bg-white/5 rounded-lg p-4 backdrop-blur-sm">
-              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center mr-4 flex-shrink-0">
-                <span className="text-amber-400 text-lg">3</span>
+            <div className="flex items-center bg-white/5 rounded-lg p-4 backdrop-blur-sm border border-white/5">
+              <div className="w-9 h-9 rounded-full bg-amber-500/20 flex items-center justify-center mr-4 flex-shrink-0">
+                <span className="text-amber-400 text-sm font-medium">3</span>
               </div>
               <div>
-                <h3 className="font-semibold text-amber-300">Play Anytime</h3>
-                <p className="text-sm text-white/70">Your story continues wherever you left off</p>
+                <h3 className="font-semibold text-amber-300 text-sm">Safe for Families</h3>
+                <p className="text-xs text-white/60">No ads, designed for all ages</p>
               </div>
             </div>
           </div>
+          <p className="text-xs text-white/50 mt-6 italic">
+            For experienced tables: Everdice stays out of your way and keeps long campaigns coherent.
+          </p>
         </div>
       </div>
     </div>
