@@ -567,6 +567,7 @@ export const monsters = pgTable("monsters", {
   description: text("description"),
   environment: text("environment").array().default([]),
   lore: text("lore"), // Background information
+  imageUrl: text("image_url"), // Monster portrait/image URL
   created_by: integer("created_by").notNull(),
   is_public: boolean("is_public").default(false),
   created_at: timestamp("created_at").defaultNow(),

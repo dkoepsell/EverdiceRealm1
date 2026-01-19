@@ -1,6 +1,8 @@
 import { Storage, File } from "@google-cloud/storage";
 import { Response } from "express";
 import { randomUUID } from "crypto";
+import * as fs from "fs";
+import * as path from "path";
 import {
   ObjectAclPolicy,
   ObjectPermission,
@@ -236,6 +238,44 @@ export class ObjectStorageService {
       objectFile,
       requestedPermission: requestedPermission ?? ObjectPermission.READ,
     });
+  }
+
+  // Uploads a local file to the public directory and returns the public URL path
+  async uploadPublicFile(localFilePath: string, destFileName: string): Promise<string> {
+    const publicPaths = this.getPublicObjectSearchPaths();
+    if (publicPaths.length === 0) {
+      throw new Error("No public object search paths configured");
+    }
+
+    // Use the first public path as the destination
+    const publicPath = publicPaths[0];
+    const fullPath = `${publicPath}/${destFileName}`;
+
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+
+    // Read the local file and upload
+    const fileBuffer = fs.readFileSync(localFilePath);
+    await file.save(fileBuffer, {
+      contentType: this.getContentType(destFileName),
+    });
+
+    // Return the path for serving via our API
+    return `/api/public-assets/${destFileName}`;
+  }
+
+  private getContentType(fileName: string): string {
+    const ext = path.extname(fileName).toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.svg': 'image/svg+xml',
+    };
+    return mimeTypes[ext] || 'application/octet-stream';
   }
 }
 
