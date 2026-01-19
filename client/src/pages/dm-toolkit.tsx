@@ -93,6 +93,7 @@ import DMTrainingCenterTab from "@/components/dm-toolkit/DMTrainingCenterTab";
 import LiveManagerPanel from "@/components/dm-toolkit/LiveManagerPanel";
 import DMQuickStart from "@/components/dm-toolkit/DMQuickStart";
 import WorldDevelopmentsPanel from "@/components/dm-toolkit/WorldDevelopmentsPanel";
+import ThreatArchetypes from "@/components/dm-toolkit/ThreatArchetypes";
 import parchmentFrame from "@assets/image_1768600727955.png";
 
 export default function DMToolkit() {
@@ -350,6 +351,7 @@ export default function DMToolkit() {
                 { id: 'quests', icon: Scroll, label: 'Quests', color: 'text-amber-500' },
                 { id: 'items', icon: Package, label: 'Items', color: 'text-cyan-500' },
                 { id: 'monsters', icon: Swords, label: 'Monsters', color: 'text-red-500' },
+                { id: 'threats', icon: Target, label: 'Threats', color: 'text-orange-500' },
                 { id: 'deploy', icon: Globe, label: 'Deploy', color: 'text-indigo-500' },
               ].map(({ id, icon: Icon, label, color }) => (
                 <Card 
@@ -406,6 +408,7 @@ export default function DMToolkit() {
             <TabsTrigger value="quests">Quests</TabsTrigger>
             <TabsTrigger value="items">Items</TabsTrigger>
             <TabsTrigger value="monsters">Monsters</TabsTrigger>
+            <TabsTrigger value="threats">Threat Archetypes</TabsTrigger>
             <TabsTrigger value="invitations">Invitations</TabsTrigger>
             <TabsTrigger value="notes">Notes</TabsTrigger>
             <TabsTrigger value="generators">Generators</TabsTrigger>
@@ -486,6 +489,10 @@ export default function DMToolkit() {
         
         <TabsContent value="monsters" className="space-y-4">
           <MonstersTab />
+        </TabsContent>
+
+        <TabsContent value="threats" className="space-y-4">
+          <ThreatArchetypes />
         </TabsContent>
 
         <TabsContent value="invitations" className="space-y-4">

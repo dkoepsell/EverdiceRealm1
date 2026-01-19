@@ -1,0 +1,395 @@
+Excellent. Below is a **production-ready design** you can actually implement in Everdice without rework. I’ll give you:
+
+1. **The exact Archetype Schema** (field-by-field, system-agnostic, DM-first)
+2. **A complete “Beginner Threat Pack”** built using that schema
+
+This is intentionally **small, legible, and confidence-building**.
+
+---
+
+# I. Everdice Threat Archetype Schema (Canonical v1.0)
+
+This schema is not a stat block.
+It is a **narrative–behavioral object** that wraps *any* system.
+
+---
+
+## 1. Archetype Header
+
+```yaml
+archetype_id: string
+display_name: string
+threat_tier: low | medium | high | apex
+playstyle_role: brute | skirmisher | controller | support | solo | swarm
+```
+
+**Why this matters**
+
+* `threat_tier` replaces CR anxiety
+* `playstyle_role` helps the DM visualize combat flow immediately
+
+---
+
+## 2. Narrative Function (Most Important)
+
+```yaml
+narrative_function:
+  purpose: string
+  story_pressure: string
+  when_to_use: string
+```
+
+**Example**
+
+* purpose: “Forces confrontation through territorial dominance”
+* story_pressure: “The longer it is ignored, the worse the situation becomes”
+* when_to_use: “When players hesitate or split focus”
+
+This tells the DM *why this exists*.
+
+---
+
+## 3. Behavioral Logic (How It Acts)
+
+```yaml
+behavior:
+  default_tactic: string
+  under_pressure: string
+  when_winning: string
+  when_losing: string
+```
+
+This is what lets an insecure DM answer:
+
+> “What would it do *now*?”
+
+No guessing. No scripts.
+
+---
+
+## 4. Escalation Clock (Training Wheels)
+
+```yaml
+escalation:
+  trigger: string
+  stages:
+    - stage: 1
+      description: string
+    - stage: 2
+      description: string
+    - stage: 3
+      description: string
+```
+
+This is the **anti-freeze mechanism**.
+If the DM stalls, the world moves.
+
+---
+
+## 5. Consequence Hooks (DM Choice Menu)
+
+```yaml
+consequences:
+  if_players_succeed:
+    - string
+  if_players_fail:
+    - string
+  if_players_delay:
+    - string
+  unexpected_player_action:
+    - string
+```
+
+These are **prompts**, not mandates.
+
+---
+
+## 6. System Adapters (Optional Layer)
+
+```yaml
+system_adapters:
+  dnd5e_stub:
+    difficulty_band: easy | standard | deadly
+    damage_profile: low | mixed | high
+    save_pressure: physical | mental | mixed
+```
+
+No IP. No stat blocks.
+Just enough to translate.
+
+---
+
+## 7. Reskin Suggestions (Critical for Creativity)
+
+```yaml
+reskins:
+  - string
+  - string
+  - string
+```
+
+This prevents creative paralysis.
+
+---
+
+## 8. DM Confidence Note (Psychological Support)
+
+```yaml
+dm_note: string
+```
+
+This is explicitly reassuring and instructional.
+
+---
+
+# II. Beginner Threat Pack (First-Time DM Safe)
+
+This pack ships **by default**.
+
+Goal:
+
+> “No matter what the DM picks, it will work.”
+
+![Image](https://wizardsduelgame.wordpress.com/wp-content/uploads/2014/12/monsters-stage-for-variations1000x800px.jpg)
+
+![Image](https://www.graphicdesignforum.com/uploads/default/original/3X/0/e/0ef976bbcd47ef8af3e579bbff0199ea2ba74f98.jpeg)
+
+![Image](https://www.pent.ca.gov/pbis/tier3/images/behaviorescalationcycle.png)
+
+![Image](https://www.beyondintractability.org/cic_images/eclipse/Slide11-cropped.png)
+
+---
+
+## 1. The Territorial Brute
+
+```yaml
+display_name: Territorial Brute
+threat_tier: low
+playstyle_role: brute
+```
+
+**Narrative Function**
+
+* purpose: Controls space through force
+* story_pressure: Forces players to commit or retreat
+* when_to_use: Early dungeons, roadblocks, guardians
+
+**Behavior**
+
+* default_tactic: Blocks movement and attacks nearest threat
+* under_pressure: Becomes reckless
+* when_winning: Presses advantage
+* when_losing: Tries to smash an escape
+
+**Escalation**
+
+* trigger: Players linger
+* stages:
+
+  * Loud warnings
+  * Reinforced defenses
+  * Environmental damage
+
+**Reskins**
+
+* Ogre
+* Stone guardian
+* Mutated beast
+
+**DM Note**
+
+> “This creature exists to be obvious. Let it be simple.”
+
+---
+
+## 2. The Cunning Skirmisher
+
+```yaml
+display_name: Cunning Skirmisher
+threat_tier: low
+playstyle_role: skirmisher
+```
+
+**Narrative Function**
+
+* purpose: Punishes careless movement
+* story_pressure: Creates tactical tension
+* when_to_use: Forests, ruins, ambush scenes
+
+**Behavior**
+
+* default_tactic: Hit-and-run
+* under_pressure: Disengages
+* when_winning: Taunts and isolates
+* when_losing: Retreats or surrenders
+
+**Escalation**
+
+* trigger: Players overextend
+* stages:
+
+  * Hit-and-fade
+  * Coordinated attack
+  * Full withdrawal
+
+**Reskins**
+
+* Goblin scout
+* Bandit
+* Fey trickster
+
+**DM Note**
+
+> “If unsure, have it retreat. Retreat is still action.”
+
+---
+
+## 3. The Fragile Controller
+
+```yaml
+display_name: Fragile Controller
+threat_tier: medium
+playstyle_role: controller
+```
+
+**Narrative Function**
+
+* purpose: Warps the battlefield
+* story_pressure: Forces prioritization
+* when_to_use: Boss support, magical sites
+
+**Behavior**
+
+* default_tactic: Alters terrain or minds
+* under_pressure: Seeks protection
+* when_winning: Increases chaos
+* when_losing: Tries to escape or bargain
+
+**Escalation**
+
+* trigger: Ignored for too long
+* stages:
+
+  * Minor disruption
+  * Area denial
+  * Battlefield lockdown
+
+**Reskins**
+
+* Cult caster
+* Psionic entity
+* Arcane device
+
+**DM Note**
+
+> “If players focus it early, reward them.”
+
+---
+
+## 4. The Corrupted Ally
+
+```yaml
+display_name: Corrupted Ally
+threat_tier: medium
+playstyle_role: support
+```
+
+**Narrative Function**
+
+* purpose: Moral tension
+* story_pressure: Forces hard choices
+* when_to_use: Personal stakes
+
+**Behavior**
+
+* default_tactic: Hesitant aggression
+* under_pressure: Emotional reactions
+* when_winning: Doubles down
+* when_losing: Breaks or pleads
+
+**Escalation**
+
+* trigger: Emotional confrontation
+* stages:
+
+  * Verbal conflict
+  * Reluctant violence
+  * Irreversible harm
+
+**Reskins**
+
+* Mind-controlled friend
+* Possessed guard
+* Blackmailed official
+
+**DM Note**
+
+> “This threat is about choice, not damage.”
+
+---
+
+## 5. The Apex Solo Threat
+
+```yaml
+display_name: Apex Solo Threat
+threat_tier: apex
+playstyle_role: solo
+```
+
+**Narrative Function**
+
+* purpose: Defines the arc
+* story_pressure: The world reacts to it
+* when_to_use: Climactic moments
+
+**Behavior**
+
+* default_tactic: Dominates presence
+* under_pressure: Escalates spectacle
+* when_winning: Toys with players
+* when_losing: Unleashes last reserve
+
+**Escalation**
+
+* trigger: Time or damage thresholds
+* stages:
+
+  * Threat display
+  * Environmental devastation
+  * Final transformation
+
+**Reskins**
+
+* Ancient predator
+* War construct
+* Elemental catastrophe
+
+**DM Note**
+
+> “You are allowed to make this dramatic.”
+
+---
+
+# III. Why This Works
+
+* New DMs choose **roles**, not stats
+* Every threat answers “what happens next?”
+* Escalation removes paralysis
+* Reskins encourage creativity
+* No IP exposure
+* System-agnostic by design
+
+This is *exactly* the layer Everdice should own.
+
+---
+
+## Natural Next Steps
+
+If you want, we can next:
+
+* Convert this into **actual JSON** for your backend
+* Design a **Beginner Encounter Builder** using only archetypes
+* Create a **Threat → Consequence visual flow**
+* Add **CAML-Trace hooks** so threats emit narrative events
+
+Just say which one to tackle next.
