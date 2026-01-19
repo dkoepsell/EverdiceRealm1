@@ -303,7 +303,7 @@ export default function LandingPage() {
                   <p className="text-sm text-muted-foreground leading-relaxed mb-4">
                     If you care about campaign state, narrative traceability, or building tools around tabletop play, you'll feel at home here.
                   </p>
-                  <Link href="/learn">
+                  <Link href="/caml">
                     <span className="text-sm font-medium text-amber-500 hover:text-amber-400 transition-colors">
                       → Learn about the underlying format (CAML)
                     </span>
