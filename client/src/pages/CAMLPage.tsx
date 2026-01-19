@@ -64,9 +64,9 @@ export default function CAMLPage() {
         onImportComplete={handleImportComplete}
       />
       
-      <div className="mt-8 p-4 bg-muted/50 rounded-lg">
-        <h2 className="font-semibold mb-2" style={{ color: '#0f172a' }}>About CAML 2.0</h2>
-        <p className="text-sm text-muted-foreground">
+      <div className="mt-8 p-4 bg-card/80 border border-border rounded-lg">
+        <h2 className="font-semibold mb-2 text-foreground">About CAML 2.0</h2>
+        <p className="text-sm text-foreground/80 leading-relaxed">
           CAML 2.0 separates adventure data into ontological layers: world (entities), 
           state (facts), roles (assignments), processes (occurrents), transitions (changes), 
           and snapshots (timeline). This enables full audit, replay, and correspondence play.
@@ -76,9 +76,9 @@ export default function CAMLPage() {
           href="https://github.com/dkoepsell/CAML5e" 
           target="_blank" 
           rel="noopener noreferrer"
-          className="text-sm text-primary hover:underline mt-2 inline-block"
+          className="text-sm text-amber-500 hover:text-amber-400 hover:underline mt-3 inline-block font-medium"
         >
-          Learn more about CAML-5e on GitHub
+          Learn more about CAML-5e on GitHub →
         </a>
       </div>
       </div>
