@@ -46,6 +46,7 @@ import CampaignParticipants from "./CampaignParticipants";
 import TurnManager from "./TurnManager";
 import CampaignDeploymentTab from "./CampaignDeploymentTab";
 import CampaignDashboard from "./CampaignDashboard";
+import { LearningTip, useLearningTips } from "@/components/learning/LearningTip";
 import type { DungeonMapData, MapEntity } from "../dungeon/DungeonMap";
 import { generateDungeon } from "../dungeon/DungeonGenerator";
 
@@ -56,6 +57,7 @@ interface CampaignPanelProps {
 function CampaignPanel({ campaign }: CampaignPanelProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { currentTip, showTip, hideTip } = useLearningTips();
   
   const isDM = campaign.userId === user?.id;
   
@@ -550,6 +552,19 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       }
     }
   }, [sessions, campaign]);
+  
+  // Track combat state changes and show learning tip when combat starts
+  const prevInCombat = useRef(false);
+  useEffect(() => {
+    const inCombat = parsedStoryState?.inCombat || false;
+    if (inCombat && !prevInCombat.current) {
+      // Combat just started - show combat learning tip (40% chance)
+      if (Math.random() < 0.4) {
+        setTimeout(() => showTip('combat'), 2000);
+      }
+    }
+    prevInCombat.current = inCombat;
+  }, [parsedStoryState?.inCombat, showTip]);
   
   // Get current location from story state
   const currentLocation = useMemo(() => {
@@ -1834,6 +1849,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       advanceStory.mutate({ choice: choice.action || choice.text || String(choice) }, {
         onSettled: () => {
           setIsAdvancingStory(false);
+          // Show learning tip after making a choice (20% chance)
+          if (Math.random() < 0.2) {
+            setTimeout(() => showTip('choice'), 1000);
+          }
         }
       });
     }
@@ -1942,6 +1961,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               setCurrentDiceRoll(null);
               setDiceRollResult(null);
               setIsRolling(false);
+              // Show learning tip after dice roll (30% chance to avoid overwhelming)
+              if (Math.random() < 0.3) {
+                setTimeout(() => showTip('dice_roll'), 1500);
+              }
             }
           });
         }, 1000);
@@ -2055,7 +2078,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             : 'Skill Modifier (Ability + Proficiency + Skill):'}
                         </span>
                         <span className="font-bold text-blue-600 dark:text-blue-400">
-                          {currentDiceRoll?.rollModifier >= 0 ? '+' : ''}{currentDiceRoll?.rollModifier}
+                          {(currentDiceRoll?.rollModifier ?? 0) >= 0 ? '+' : ''}{currentDiceRoll?.rollModifier}
                         </span>
                       </div>
                     )}
@@ -5009,6 +5032,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Learning Tips - micro-learning after D&D mechanics */}
+      <LearningTip 
+        type={currentTip.type}
+        show={currentTip.show}
+        onClose={hideTip}
+        onLearnMore={() => {
+          window.open('/learn', '_blank');
+        }}
+      />
     </div>
   );
 }
