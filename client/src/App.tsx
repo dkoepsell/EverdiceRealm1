@@ -60,7 +60,7 @@ function Router() {
           <ProtectedRoute path="/bulletin" component={BulletinBoardPage} />
           <ProtectedRoute path="/tavern" component={TavernPage} />
           <ProtectedRoute path="/groups" component={GroupsPage} />
-          <ProtectedRoute path="/caml" component={CAMLPage} />
+          <Route path="/caml" component={CAMLPage} />
           <ProtectedRoute path="/test" component={TestPage} />
           <ProtectedRoute path="/admin" component={AdminPage} />
           <Route path="/how-it-works" component={HowItWorks} />
