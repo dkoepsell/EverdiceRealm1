@@ -80,7 +80,9 @@ import {
   Gift,
   Package,
   Wand2,
-  Map
+  Map,
+  FileCode,
+  Download
 } from "lucide-react";
 
 // Import our tabs
@@ -98,16 +100,66 @@ import parchmentFrame from "@assets/image_1768600727955.png";
 
 export default function DMToolkit() {
   const { user, isLoading: authLoading } = useAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("training");
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
   const [showAIGuide, setShowAIGuide] = useState(false);
   const [showQuickStart, setShowQuickStart] = useState(false);
+  const [exportCampaignId, setExportCampaignId] = useState<number | null>(null);
+  const [exportFormat, setExportFormat] = useState<"yaml" | "json">("yaml");
+  const [isExporting, setIsExporting] = useState(false);
   
   // Fetch campaigns
   const { data: campaigns = [] } = useQuery<any[]>({
     queryKey: ["/api/campaigns"],
     enabled: !!user
   });
+  
+  // Handle CAML export
+  const handleExportCampaign = async () => {
+    if (!exportCampaignId) {
+      toast({
+        title: "No campaign selected",
+        description: "Please select a campaign to export",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsExporting(true);
+    try {
+      const response = await fetch(`/api/campaigns/${exportCampaignId}/export/caml?format=${exportFormat}`);
+      if (!response.ok) throw new Error("Export failed");
+      
+      const data = await response.json();
+      const content = exportFormat === "yaml" ? data.yaml : JSON.stringify(data.json, null, 2);
+      const filename = `${data.filename || 'campaign'}.caml2.${exportFormat}`;
+      
+      // Download file
+      const blob = new Blob([content], { type: exportFormat === "yaml" ? "text/yaml" : "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Campaign exported",
+        description: `Saved as ${filename}`
+      });
+    } catch (error) {
+      toast({
+        title: "Export failed",
+        description: "Could not export campaign as CAML 2.0",
+        variant: "destructive"
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
   
   if (authLoading) {
     return (
@@ -516,6 +568,10 @@ export default function DMToolkit() {
               </h2>
               <p className="text-muted-foreground">Turn your creations into a deployable campaign for players</p>
             </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-500/30">
+              <FileCode className="h-4 w-4 text-purple-400" />
+              <span className="text-sm font-medium text-purple-300">CAML 2.0 Compatible</span>
+            </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -655,6 +711,84 @@ export default function DMToolkit() {
                 <li>Made public in the campaign directory for anyone to discover</li>
                 <li>Customized with your own rules, difficulty levels, and narrative styles</li>
               </ul>
+            </CardContent>
+          </Card>
+          
+          <Card className="mt-4 border-purple-500/20 bg-gradient-to-br from-purple-900/10 to-blue-900/10">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <FileCode className="mr-2 h-5 w-5 text-purple-400" />
+                <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                  Export as CAML 2.0
+                </span>
+              </CardTitle>
+              <CardDescription>
+                Export your campaign in Canonical Adventure Markup Language format for use with other tools
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  CAML 2.0 is an open standard for representing tabletop adventures. Your campaign's
+                  characters, locations, quests, and narrative structure will be preserved in a portable format.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline" className="border-purple-500/30 text-purple-300">
+                    Foundry VTT Compatible
+                  </Badge>
+                  <Badge variant="outline" className="border-blue-500/30 text-blue-300">
+                    JSON/YAML Export
+                  </Badge>
+                  <Badge variant="outline" className="border-green-500/30 text-green-300">
+                    Full State Preservation
+                  </Badge>
+                </div>
+              </div>
+              
+              <div className="flex flex-col md:flex-row gap-4 items-start md:items-end pt-2 border-t border-purple-500/20">
+                <div className="space-y-2 flex-1">
+                  <Label htmlFor="export-campaign" className="text-sm text-muted-foreground">Select Campaign</Label>
+                  <Select value={exportCampaignId?.toString() || ""} onValueChange={(v) => setExportCampaignId(Number(v))}>
+                    <SelectTrigger id="export-campaign" className="bg-background/50">
+                      <SelectValue placeholder="Choose a campaign to export" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {campaigns.filter((c: any) => c.userId === user?.id).map((campaign: any) => (
+                        <SelectItem key={campaign.id} value={campaign.id.toString()}>
+                          {campaign.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="export-format" className="text-sm text-muted-foreground">Format</Label>
+                  <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as "yaml" | "json")}>
+                    <SelectTrigger id="export-format" className="w-32 bg-background/50">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="yaml">YAML</SelectItem>
+                      <SelectItem value="json">JSON</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <Button 
+                  variant="outline" 
+                  className="border-purple-500/50 hover:bg-purple-900/20 text-purple-300 shrink-0"
+                  onClick={handleExportCampaign}
+                  disabled={isExporting || !exportCampaignId}
+                >
+                  {isExporting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="mr-2 h-4 w-4" />
+                  )}
+                  Export Campaign
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
