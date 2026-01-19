@@ -2928,6 +2928,10 @@ function MonstersTab() {
                         src={monster.imageUrl} 
                         alt={monster.name}
                         className="w-full h-full object-cover object-top"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
                     </div>
@@ -2962,27 +2966,27 @@ function MonstersTab() {
                       <div className="grid grid-cols-6 gap-2 text-center text-sm mt-2">
                         <div className="space-y-1">
                           <div className="font-medium">STR</div>
-                          <div className="bg-muted rounded-md py-1">{monster.strength} ({Math.floor((monster.strength - 10) / 2) >= 0 ? '+' : ''}{Math.floor((monster.strength - 10) / 2)})</div>
+                          <div className="bg-muted rounded-md py-1">{monster.strength ?? 10} ({Math.floor(((monster.strength ?? 10) - 10) / 2) >= 0 ? '+' : ''}{Math.floor(((monster.strength ?? 10) - 10) / 2)})</div>
                         </div>
                         <div className="space-y-1">
                           <div className="font-medium">DEX</div>
-                          <div className="bg-muted rounded-md py-1">{monster.dexterity} ({Math.floor((monster.dexterity - 10) / 2) >= 0 ? '+' : ''}{Math.floor((monster.dexterity - 10) / 2)})</div>
+                          <div className="bg-muted rounded-md py-1">{monster.dexterity ?? 10} ({Math.floor(((monster.dexterity ?? 10) - 10) / 2) >= 0 ? '+' : ''}{Math.floor(((monster.dexterity ?? 10) - 10) / 2)})</div>
                         </div>
                         <div className="space-y-1">
                           <div className="font-medium">CON</div>
-                          <div className="bg-muted rounded-md py-1">{monster.constitution} ({Math.floor((monster.constitution - 10) / 2) >= 0 ? '+' : ''}{Math.floor((monster.constitution - 10) / 2)})</div>
+                          <div className="bg-muted rounded-md py-1">{monster.constitution ?? 10} ({Math.floor(((monster.constitution ?? 10) - 10) / 2) >= 0 ? '+' : ''}{Math.floor(((monster.constitution ?? 10) - 10) / 2)})</div>
                         </div>
                         <div className="space-y-1">
                           <div className="font-medium">INT</div>
-                          <div className="bg-muted rounded-md py-1">{monster.intelligence} ({Math.floor((monster.intelligence - 10) / 2) >= 0 ? '+' : ''}{Math.floor((monster.intelligence - 10) / 2)})</div>
+                          <div className="bg-muted rounded-md py-1">{monster.intelligence ?? 10} ({Math.floor(((monster.intelligence ?? 10) - 10) / 2) >= 0 ? '+' : ''}{Math.floor(((monster.intelligence ?? 10) - 10) / 2)})</div>
                         </div>
                         <div className="space-y-1">
                           <div className="font-medium">WIS</div>
-                          <div className="bg-muted rounded-md py-1">{monster.wisdom} ({Math.floor((monster.wisdom - 10) / 2) >= 0 ? '+' : ''}{Math.floor((monster.wisdom - 10) / 2)})</div>
+                          <div className="bg-muted rounded-md py-1">{monster.wisdom ?? 10} ({Math.floor(((monster.wisdom ?? 10) - 10) / 2) >= 0 ? '+' : ''}{Math.floor(((monster.wisdom ?? 10) - 10) / 2)})</div>
                         </div>
                         <div className="space-y-1">
                           <div className="font-medium">CHA</div>
-                          <div className="bg-muted rounded-md py-1">{monster.charisma} ({Math.floor((monster.charisma - 10) / 2) >= 0 ? '+' : ''}{Math.floor((monster.charisma - 10) / 2)})</div>
+                          <div className="bg-muted rounded-md py-1">{monster.charisma ?? 10} ({Math.floor(((monster.charisma ?? 10) - 10) / 2) >= 0 ? '+' : ''}{Math.floor(((monster.charisma ?? 10) - 10) / 2)})</div>
                         </div>
                       </div>
                       
