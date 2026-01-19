@@ -335,12 +335,30 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
                 <h3 className="font-fantasy text-lg font-bold mb-3 text-primary-light">Equipment</h3>
                 <ul className="bg-parchment-dark rounded-lg p-4 space-y-2">
                   {character.equipment && character.equipment.length > 0 ? (
-                    character.equipment.map((item, index) => (
-                      <li key={index} className="flex justify-between items-center pb-2 border-b border-gray-300">
-                        <span>{item}</span>
-                        <span className="text-sm text-gray-600">Item</span>
-                      </li>
-                    ))
+                    character.equipment.map((item, index) => {
+                      let itemName = item;
+                      let itemType = "Item";
+                      let itemDetails = "";
+                      try {
+                        const parsed = JSON.parse(item);
+                        itemName = parsed.name || item;
+                        itemType = parsed.type || "Item";
+                        if (parsed.damage) itemDetails = parsed.damage;
+                        else if (parsed.armor) itemDetails = `AC +${parsed.armor}`;
+                        else if (parsed.damageDice) itemDetails = parsed.damageDice;
+                      } catch {
+                        itemName = item;
+                      }
+                      return (
+                        <li key={index} className="flex justify-between items-center pb-2 border-b border-gray-300">
+                          <div>
+                            <span className="font-medium">{itemName}</span>
+                            {itemDetails && <span className="text-sm text-gray-500 ml-2">({itemDetails})</span>}
+                          </div>
+                          <span className="text-sm text-gray-600">{itemType}</span>
+                        </li>
+                      );
+                    })
                   ) : (
                     <li className="py-4 text-center">
                       <p>No equipment added yet</p>

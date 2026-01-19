@@ -1443,38 +1443,19 @@ export default function Characters() {
                               </FormControl>
                               <SelectContent>
                                 {races.map(race => (
-                                  <HoverCard key={race} openDelay={200} closeDelay={100}>
-                                    <HoverCardTrigger asChild>
-                                      <SelectItem value={race} className="cursor-pointer">
-                                        <span className="flex items-center gap-2">
-                                          {race}
-                                          <Eye className="h-3 w-3 text-muted-foreground opacity-50" />
-                                        </span>
-                                      </SelectItem>
-                                    </HoverCardTrigger>
-                                    <HoverCardContent side="right" align="start" className="w-72 z-[100]">
-                                      <div className="space-y-2">
-                                        <h4 className="font-bold text-sm">{race}</h4>
-                                        <div className="text-xs space-y-1">
-                                          <div>
-                                            <span className="font-medium text-amber-600 dark:text-amber-400">Traits: </span>
-                                            <span className="text-muted-foreground">{raceInfo[race]?.traits}</span>
-                                          </div>
-                                          <div>
-                                            <span className="font-medium text-green-600 dark:text-green-400">Advantages: </span>
-                                            <span className="text-muted-foreground">{raceInfo[race]?.advantages}</span>
-                                          </div>
-                                          <div className="pt-1 border-t">
-                                            <span className="font-medium text-blue-600 dark:text-blue-400">Best For: </span>
-                                            <span className="text-muted-foreground">{raceInfo[race]?.bestFor}</span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </HoverCardContent>
-                                  </HoverCard>
+                                  <SelectItem key={race} value={race} title={`${raceInfo[race]?.traits} | ${raceInfo[race]?.advantages}`}>
+                                    {race}
+                                  </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
+                            {field.value && raceInfo[field.value] && (
+                              <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-xs space-y-1">
+                                <div><span className="font-medium text-amber-700 dark:text-amber-300">Traits:</span> {raceInfo[field.value].traits}</div>
+                                <div><span className="font-medium text-green-700 dark:text-green-300">Advantages:</span> {raceInfo[field.value].advantages}</div>
+                                <div><span className="font-medium text-blue-700 dark:text-blue-300">Best For:</span> {raceInfo[field.value].bestFor}</div>
+                              </div>
+                            )}
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1494,42 +1475,23 @@ export default function Characters() {
                               </FormControl>
                               <SelectContent>
                                 {classes.map(cls => (
-                                  <HoverCard key={cls} openDelay={200} closeDelay={100}>
-                                    <HoverCardTrigger asChild>
-                                      <SelectItem value={cls} className="cursor-pointer">
-                                        <span className="flex items-center gap-2">
-                                          {cls}
-                                          <Eye className="h-3 w-3 text-muted-foreground opacity-50" />
-                                        </span>
-                                      </SelectItem>
-                                    </HoverCardTrigger>
-                                    <HoverCardContent side="right" align="start" className="w-80 z-[100]">
-                                      <div className="space-y-2">
-                                        <div className="flex items-center justify-between">
-                                          <h4 className="font-bold text-sm">{cls}</h4>
-                                          <Badge variant="secondary" className="text-xs">{classInfo[cls]?.hitDie}</Badge>
-                                        </div>
-                                        <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">{classInfo[cls]?.role}</p>
-                                        <div className="text-xs space-y-1">
-                                          <div>
-                                            <span className="font-medium text-amber-600 dark:text-amber-400">Primary Stat: </span>
-                                            <span className="text-muted-foreground">{classInfo[cls]?.primaryStat}</span>
-                                          </div>
-                                          <div>
-                                            <span className="font-medium text-green-600 dark:text-green-400">Key Features: </span>
-                                            <span className="text-muted-foreground">{classInfo[cls]?.features}</span>
-                                          </div>
-                                          <div className="pt-1 border-t">
-                                            <span className="font-medium text-blue-600 dark:text-blue-400">Playstyle: </span>
-                                            <span className="text-muted-foreground">{classInfo[cls]?.playstyle}</span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </HoverCardContent>
-                                  </HoverCard>
+                                  <SelectItem key={cls} value={cls} title={`${classInfo[cls]?.role} | ${classInfo[cls]?.primaryStat}`}>
+                                    {cls}
+                                  </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
+                            {field.value && classInfo[field.value] && (
+                              <div className="mt-2 p-2 bg-purple-500/10 border border-purple-500/20 rounded text-xs space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-purple-700 dark:text-purple-300">{classInfo[field.value].role}</span>
+                                  <Badge variant="secondary" className="text-xs">{classInfo[field.value].hitDie}</Badge>
+                                </div>
+                                <div><span className="font-medium text-amber-700 dark:text-amber-300">Primary Stat:</span> {classInfo[field.value].primaryStat}</div>
+                                <div><span className="font-medium text-green-700 dark:text-green-300">Features:</span> {classInfo[field.value].features}</div>
+                                <div><span className="font-medium text-blue-700 dark:text-blue-300">Playstyle:</span> {classInfo[field.value].playstyle}</div>
+                              </div>
+                            )}
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1574,35 +1536,19 @@ export default function Characters() {
                               </FormControl>
                               <SelectContent>
                                 {alignments.map(alignment => (
-                                  <HoverCard key={alignment} openDelay={200} closeDelay={100}>
-                                    <HoverCardTrigger asChild>
-                                      <SelectItem value={alignment} className="cursor-pointer">
-                                        <span className="flex items-center gap-2">
-                                          {alignment}
-                                          <Eye className="h-3 w-3 text-muted-foreground opacity-50" />
-                                        </span>
-                                      </SelectItem>
-                                    </HoverCardTrigger>
-                                    <HoverCardContent side="right" align="start" className="w-72 z-[100]">
-                                      <div className="space-y-2">
-                                        <h4 className="font-bold text-sm">{alignment}</h4>
-                                        <p className="text-xs text-muted-foreground">{alignmentInfo[alignment]?.description}</p>
-                                        <div className="text-xs space-y-1">
-                                          <div>
-                                            <span className="font-medium text-purple-600 dark:text-purple-400">Examples: </span>
-                                            <span className="text-muted-foreground">{alignmentInfo[alignment]?.examples}</span>
-                                          </div>
-                                          <div className="pt-1 border-t bg-muted/50 rounded p-2 mt-2">
-                                            <span className="font-medium text-amber-600 dark:text-amber-400">Roleplay Tip: </span>
-                                            <span className="text-muted-foreground italic">{alignmentInfo[alignment]?.roleplayTip}</span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </HoverCardContent>
-                                  </HoverCard>
+                                  <SelectItem key={alignment} value={alignment} title={alignmentInfo[alignment]?.description}>
+                                    {alignment}
+                                  </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
+                            {field.value && alignmentInfo[field.value] && (
+                              <div className="mt-2 p-2 bg-slate-500/10 border border-slate-500/20 rounded text-xs space-y-1">
+                                <div className="text-muted-foreground">{alignmentInfo[field.value].description}</div>
+                                <div><span className="font-medium text-purple-700 dark:text-purple-300">Examples:</span> {alignmentInfo[field.value].examples}</div>
+                                <div className="italic text-amber-700 dark:text-amber-300">Roleplay: {alignmentInfo[field.value].roleplayTip}</div>
+                              </div>
+                            )}
                             <FormMessage />
                           </FormItem>
                         )}
