@@ -9621,6 +9621,13 @@ TACTICAL COMBAT OPTIONS (include these choices when in combat):
 - Use item/potion (consumes turn)
 - Cast a spell (if magic user)
 
+CRITICAL - UNCONSCIOUS/INCAPACITATED CHARACTERS:
+- If the player character is UNCONSCIOUS (0 HP), they CANNOT attack, cast spells, move, or take any actions
+- Unconscious characters can ONLY: make death saving throws, wait to be healed/stabilized by allies
+- NEVER offer attack/combat options for unconscious characters - this is a core D&D rule
+- Companions/allies should be the ones taking action when the player is down
+- When a player is unconscious, focus choices on what ALLIES can do: heal the player, protect them, continue fighting
+
 DUNGEON MAP SYNCHRONIZATION (CRITICAL):
 - The dungeonState MUST reflect what you describe in the narrative
 - If the narrative mentions "a corridor to the north and a door to the east", the exits array MUST include north and east
