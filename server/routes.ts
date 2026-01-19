@@ -1648,6 +1648,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Degrade equipment durability (called after combat/adventure actions)
+  app.post("/api/characters/:id/degrade-equipment", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { actionType } = req.body; // 'combat', 'adventure', 'exploration'
+      
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      const equipment: any[] = (character as any).equipment || [];
+      let degradedItems: string[] = [];
+      
+      // Determine degradation amount based on action type
+      const DEGRADATION_AMOUNTS: Record<string, { weapon: number; armor: number }> = {
+        combat: { weapon: 5, armor: 3 },      // Combat is hardest on gear
+        adventure: { weapon: 2, armor: 1 },   // General adventuring causes light wear
+        exploration: { weapon: 1, armor: 1 }  // Exploration is gentlest
+      };
+      
+      const degradation = DEGRADATION_AMOUNTS[actionType] || DEGRADATION_AMOUNTS.adventure;
+      
+      // Degrade equipped items
+      equipment.forEach((item, index) => {
+        if (typeof item === 'string') return; // Skip simple string items
+        
+        // Initialize durability if not present
+        if (item.durability === undefined) {
+          item.maxDurability = 100;
+          item.durability = 100;
+        }
+        
+        // Only degrade equipped items or items that are weapons/armor
+        const isWeapon = item.type?.toLowerCase().includes('weapon') || item.damage;
+        const isArmor = item.type?.toLowerCase().includes('armor') || item.armor;
+        const isEquipped = item.equipped;
+        
+        if (isEquipped || isWeapon || isArmor) {
+          const degradeAmount = isWeapon ? degradation.weapon : degradation.armor;
+          const oldDurability = item.durability;
+          item.durability = Math.max(0, item.durability - degradeAmount);
+          
+          if (item.durability < oldDurability) {
+            degradedItems.push(item.name);
+          }
+          
+          equipment[index] = item;
+        }
+      });
+      
+      if (degradedItems.length > 0) {
+        await storage.updateCharacter(id, {
+          equipment,
+          updatedAt: new Date().toISOString()
+        } as any);
+      }
+      
+      // Find items that are now broken or critically damaged
+      const brokenItems = equipment.filter(item => 
+        typeof item !== 'string' && item.durability !== undefined && item.durability <= 0
+      ).map(item => item.name);
+      
+      const criticalItems = equipment.filter(item => 
+        typeof item !== 'string' && item.durability !== undefined && 
+        item.durability > 0 && item.durability <= 20
+      ).map(item => item.name);
+      
+      res.json({
+        success: true,
+        degradedItems,
+        brokenItems,
+        criticalItems,
+        message: degradedItems.length > 0 
+          ? `Equipment wear: ${degradedItems.join(', ')}` 
+          : 'No equipment degraded'
+      });
+    } catch (error: any) {
+      console.error("Error degrading equipment:", error);
+      res.status(500).json({ message: "Failed to degrade equipment", error: error.message });
+    }
+  });
+
   // Transfer gold between characters
   app.post("/api/characters/:id/transfer-gold", async (req, res) => {
     try {

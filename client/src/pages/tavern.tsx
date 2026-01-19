@@ -1052,11 +1052,44 @@ export default function TavernPage() {
                                   </p>
                                 )}
                                 {item.durability !== undefined && (
-                                  <div className="flex items-center gap-1 text-sm mb-1">
-                                    <Wrench className="h-3 w-3" />
-                                    <span className={item.durability < (item.maxDurability || 100) * 0.3 ? 'text-red-500' : ''}>
-                                      Durability: {item.durability}/{item.maxDurability || 100}
-                                    </span>
+                                  <div className="space-y-1 mb-2">
+                                    <div className="flex items-center justify-between text-xs">
+                                      <span className="flex items-center gap-1">
+                                        <Wrench className="h-3 w-3" />
+                                        Durability
+                                      </span>
+                                      <span className={`font-medium ${
+                                        item.durability <= 0 ? 'text-red-600' :
+                                        item.durability < (item.maxDurability || 100) * 0.3 ? 'text-red-500' :
+                                        item.durability < (item.maxDurability || 100) * 0.6 ? 'text-orange-500' :
+                                        'text-green-600'
+                                      }`}>
+                                        {item.durability}/{item.maxDurability || 100}
+                                      </span>
+                                    </div>
+                                    <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                      <div 
+                                        className={`h-full transition-all ${
+                                          item.durability <= 0 ? 'bg-red-600' :
+                                          item.durability < (item.maxDurability || 100) * 0.3 ? 'bg-red-500' :
+                                          item.durability < (item.maxDurability || 100) * 0.6 ? 'bg-orange-500' :
+                                          'bg-green-500'
+                                        }`}
+                                        style={{ width: `${Math.max(0, (item.durability / (item.maxDurability || 100)) * 100)}%` }}
+                                      />
+                                    </div>
+                                    {item.durability <= 0 && (
+                                      <div className="flex items-center gap-1 text-xs text-red-600 font-medium">
+                                        <AlertTriangle className="h-3 w-3" />
+                                        Broken! Visit blacksmith to repair.
+                                      </div>
+                                    )}
+                                    {item.durability > 0 && item.durability <= 20 && (
+                                      <div className="flex items-center gap-1 text-xs text-orange-600 font-medium">
+                                        <AlertCircle className="h-3 w-3" />
+                                        Needs repair soon!
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </>

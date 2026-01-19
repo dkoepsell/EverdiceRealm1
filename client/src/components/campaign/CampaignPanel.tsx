@@ -1055,6 +1055,30 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               });
             }
           }
+          
+          // Degrade equipment after combat
+          if (userParticipant?.characterId) {
+            apiRequest('POST', `/api/characters/${userParticipant.characterId}/degrade-equipment`, {
+              actionType: 'combat'
+            }).then((res) => res.json()).then((degradeResult) => {
+              if (degradeResult.criticalItems?.length > 0) {
+                toast({
+                  title: "⚠️ Equipment Wear",
+                  description: `${degradeResult.criticalItems.join(', ')} need repair soon!`,
+                  variant: "destructive"
+                });
+              }
+              if (degradeResult.brokenItems?.length > 0) {
+                toast({
+                  title: "💔 Equipment Broken!",
+                  description: `${degradeResult.brokenItems.join(', ')} need repair at the tavern blacksmith!`,
+                  variant: "destructive"
+                });
+              }
+              // Refresh character data to show updated durability
+              queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+            }).catch(console.error);
+          }
         }
         
         // Show progression toast
