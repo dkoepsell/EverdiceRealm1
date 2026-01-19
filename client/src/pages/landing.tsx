@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useAuth } from "@/hooks/use-auth";
 import { 
   Sparkles, 
@@ -280,6 +281,37 @@ export default function LandingPage() {
           >
             No accounts required to explore. AI assists, you decide. No public exposure.
           </motion.p>
+
+          {/* For Tinkerers Accordion */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="max-w-xl mx-auto mt-10"
+          >
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="tinkerers" className="border-muted-foreground/20">
+                <AccordionTrigger 
+                  className="text-sm text-muted-foreground hover:text-foreground py-3 justify-center gap-2"
+                >
+                  For tinkerers and system-builders
+                </AccordionTrigger>
+                <AccordionContent className="text-center pb-4">
+                  <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                    Everdice campaigns are backed by a structured adventure format designed to be readable, exportable, and extensible.
+                  </p>
+                  <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+                    If you care about campaign state, narrative traceability, or building tools around tabletop play, you'll feel at home here.
+                  </p>
+                  <Link href="/learn">
+                    <span className="text-sm font-medium text-amber-500 hover:text-amber-400 transition-colors">
+                      → Learn about the underlying format (CAML)
+                    </span>
+                  </Link>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </motion.div>
         </div>
       </section>
 
