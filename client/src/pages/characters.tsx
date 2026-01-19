@@ -44,7 +44,200 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import parchmentFrame from "@assets/image_1768600727955.png";
+
+// Race info with traits and advantages
+const raceInfo: Record<string, { traits: string; advantages: string; bestFor: string }> = {
+  "Human": {
+    traits: "+1 to all ability scores, Extra language, Extra skill",
+    advantages: "Most versatile race. Fits any class well.",
+    bestFor: "Any class - great for beginners"
+  },
+  "Elf": {
+    traits: "+2 DEX, Darkvision, Fey Ancestry (charm resist), Trance (4hr rest)",
+    advantages: "Graceful and perceptive. Immune to sleep magic.",
+    bestFor: "Ranger, Rogue, Wizard"
+  },
+  "Dwarf": {
+    traits: "+2 CON, Darkvision, Poison resistance, Stonecunning",
+    advantages: "Hardy and resilient. Extra HP and poison resist.",
+    bestFor: "Fighter, Cleric, Paladin"
+  },
+  "Halfling": {
+    traits: "+2 DEX, Lucky (reroll 1s), Brave (fear resist), Nimble",
+    advantages: "Lucky trait is powerful. Can move through larger creatures.",
+    bestFor: "Rogue, Bard, Ranger"
+  },
+  "Dragonborn": {
+    traits: "+2 STR, +1 CHA, Breath Weapon, Damage Resistance",
+    advantages: "Built-in AoE attack. Resistance to your dragon type's element.",
+    bestFor: "Paladin, Fighter, Sorcerer"
+  },
+  "Gnome": {
+    traits: "+2 INT, Darkvision, Gnome Cunning (magic save advantage)",
+    advantages: "Excellent magic resistance. Great for casters.",
+    bestFor: "Wizard, Artificer, Bard"
+  },
+  "Half-Elf": {
+    traits: "+2 CHA, +1 to two others, Darkvision, Fey Ancestry, 2 skills",
+    advantages: "Extremely versatile. Extra skills and flexible stats.",
+    bestFor: "Bard, Warlock, Paladin, Sorcerer"
+  },
+  "Half-Orc": {
+    traits: "+2 STR, +1 CON, Darkvision, Relentless Endurance, Savage Attacks",
+    advantages: "Can drop to 1 HP instead of 0 once. Extra crit damage.",
+    bestFor: "Barbarian, Fighter, Paladin"
+  },
+  "Tiefling": {
+    traits: "+2 CHA, +1 INT, Darkvision, Fire resistance, Infernal Legacy spells",
+    advantages: "Free spells and fire resistance. Great for face characters.",
+    bestFor: "Warlock, Sorcerer, Bard, Paladin"
+  }
+};
+
+// Class info with role and key features
+const classInfo: Record<string, { role: string; hitDie: string; primaryStat: string; features: string; playstyle: string }> = {
+  "Barbarian": {
+    role: "Melee Damage Dealer / Tank",
+    hitDie: "d12 (highest HP)",
+    primaryStat: "Strength, Constitution",
+    features: "Rage (damage resist + bonus), Reckless Attack, Danger Sense",
+    playstyle: "Rush into combat, absorb hits, deal massive damage"
+  },
+  "Bard": {
+    role: "Support / Face / Jack-of-all-trades",
+    hitDie: "d8",
+    primaryStat: "Charisma",
+    features: "Bardic Inspiration, Spellcasting, Jack of All Trades, Expertise",
+    playstyle: "Buff allies, control battlefield, excel at social encounters"
+  },
+  "Cleric": {
+    role: "Healer / Support / Divine Caster",
+    hitDie: "d8",
+    primaryStat: "Wisdom",
+    features: "Divine Domain powers, Channel Divinity, Full spellcasting, Armor",
+    playstyle: "Heal and buff allies, can fight in melee with armor"
+  },
+  "Druid": {
+    role: "Spellcaster / Shapeshifter",
+    hitDie: "d8",
+    primaryStat: "Wisdom",
+    features: "Wild Shape (become animals), Nature spellcasting, Circle features",
+    playstyle: "Control nature, transform into beasts, versatile spellcasting"
+  },
+  "Fighter": {
+    role: "Martial Combat Expert",
+    hitDie: "d10",
+    primaryStat: "Strength or Dexterity",
+    features: "Fighting Style, Action Surge, Extra Attacks (up to 4), Second Wind",
+    playstyle: "Master of weapons and armor. Most attacks per turn."
+  },
+  "Monk": {
+    role: "Mobile Striker / Martial Artist",
+    hitDie: "d8",
+    primaryStat: "Dexterity, Wisdom",
+    features: "Martial Arts, Ki points, Unarmored Defense, Stunning Strike",
+    playstyle: "Fast, mobile, stun enemies, deflect missiles"
+  },
+  "Paladin": {
+    role: "Holy Warrior / Tank / Support",
+    hitDie: "d10",
+    primaryStat: "Strength, Charisma",
+    features: "Divine Smite, Lay on Hands healing, Aura of Protection, Spells",
+    playstyle: "Smite evil, protect allies, heal, wear heavy armor"
+  },
+  "Ranger": {
+    role: "Ranged Striker / Scout",
+    hitDie: "d10",
+    primaryStat: "Dexterity, Wisdom",
+    features: "Favored Enemy, Natural Explorer, Fighting Style, Spellcasting",
+    playstyle: "Track enemies, fight at range, wilderness survival expert"
+  },
+  "Rogue": {
+    role: "Skill Expert / Burst Damage",
+    hitDie: "d8",
+    primaryStat: "Dexterity",
+    features: "Sneak Attack, Expertise, Cunning Action, Evasion, Uncanny Dodge",
+    playstyle: "Strike from shadows, massive single-target damage, skill master"
+  },
+  "Sorcerer": {
+    role: "Arcane Blaster / Metamagic User",
+    hitDie: "d6",
+    primaryStat: "Charisma",
+    features: "Sorcery Points, Metamagic (modify spells), Innate spellcasting",
+    playstyle: "Fewer spells but can enhance them. Twin/Quicken/Subtle spells."
+  },
+  "Warlock": {
+    role: "Eldritch Blaster / Pact Caster",
+    hitDie: "d8",
+    primaryStat: "Charisma",
+    features: "Pact Magic (short rest slots), Eldritch Invocations, Pact Boon",
+    playstyle: "Fewer slots but recover on short rest. Powerful Eldritch Blast."
+  },
+  "Wizard": {
+    role: "Arcane Scholar / Utility Caster",
+    hitDie: "d6 (lowest)",
+    primaryStat: "Intelligence",
+    features: "Spellbook, Arcane Recovery, School specialization, Most spell variety",
+    playstyle: "Largest spell list. Prepare different spells daily. Very versatile."
+  }
+};
+
+// Alignment info with description and roleplay guidance
+const alignmentInfo: Record<string, { description: string; examples: string; roleplayTip: string }> = {
+  "Lawful Good": {
+    description: "Follows rules and does what's right. Honor and justice above all.",
+    examples: "Paladins, noble knights, honest guards, righteous clerics",
+    roleplayTip: "You believe society's laws exist to protect the innocent"
+  },
+  "Neutral Good": {
+    description: "Does good without bias toward law or chaos. Follows their conscience.",
+    examples: "Healers, helpful druids, kind commoners, benevolent rulers",
+    roleplayTip: "You help others because it's right, not because rules say so"
+  },
+  "Chaotic Good": {
+    description: "Values freedom and kindness. Rebels against tyranny for good causes.",
+    examples: "Robin Hood types, freedom fighters, kind rogues, wild heroes",
+    roleplayTip: "You fight for the little guy and hate bullies and tyrants"
+  },
+  "Lawful Neutral": {
+    description: "Order and organization matter most. Follows codes strictly.",
+    examples: "Judges, monks, soldiers following orders, bureaucrats",
+    roleplayTip: "You believe structure prevents chaos, regardless of good or evil"
+  },
+  "True Neutral": {
+    description: "Maintains balance or simply doesn't pick sides. Acts situationally.",
+    examples: "Druids of balance, unaligned wanderers, pragmatic merchants",
+    roleplayTip: "You see all sides and act based on circumstances"
+  },
+  "Chaotic Neutral": {
+    description: "Values personal freedom above all. Unpredictable but not malicious.",
+    examples: "Free-spirited wanderers, wild mages, selfish but not evil rogues",
+    roleplayTip: "You do what you want when you want, consequences be damned"
+  },
+  "Lawful Evil": {
+    description: "Uses rules and systems to gain power. Organized villainy.",
+    examples: "Tyrants, corrupt officials, crime lords, evil clerics",
+    roleplayTip: "You exploit laws to dominate others. Order serves your ambition."
+  },
+  "Neutral Evil": {
+    description: "Purely selfish. Does whatever they can get away with.",
+    examples: "Mercenaries, assassins, selfish schemers, traitors",
+    roleplayTip: "You look out for yourself first. Allies are tools."
+  },
+  "Chaotic Evil": {
+    description: "Destructive and unpredictable. Revels in chaos and suffering.",
+    examples: "Demons, mad cultists, brutal warlords, sadistic villains",
+    roleplayTip: "You destroy because you can. Rules are for the weak."
+  }
+};
 
 // D&D standard ability score rolling: 4d6 drop lowest
 function roll4d6DropLowest(): number {
@@ -1250,7 +1443,35 @@ export default function Characters() {
                               </FormControl>
                               <SelectContent>
                                 {races.map(race => (
-                                  <SelectItem key={race} value={race}>{race}</SelectItem>
+                                  <HoverCard key={race} openDelay={200} closeDelay={100}>
+                                    <HoverCardTrigger asChild>
+                                      <SelectItem value={race} className="cursor-pointer">
+                                        <span className="flex items-center gap-2">
+                                          {race}
+                                          <Eye className="h-3 w-3 text-muted-foreground opacity-50" />
+                                        </span>
+                                      </SelectItem>
+                                    </HoverCardTrigger>
+                                    <HoverCardContent side="right" align="start" className="w-72 z-[100]">
+                                      <div className="space-y-2">
+                                        <h4 className="font-bold text-sm">{race}</h4>
+                                        <div className="text-xs space-y-1">
+                                          <div>
+                                            <span className="font-medium text-amber-600 dark:text-amber-400">Traits: </span>
+                                            <span className="text-muted-foreground">{raceInfo[race]?.traits}</span>
+                                          </div>
+                                          <div>
+                                            <span className="font-medium text-green-600 dark:text-green-400">Advantages: </span>
+                                            <span className="text-muted-foreground">{raceInfo[race]?.advantages}</span>
+                                          </div>
+                                          <div className="pt-1 border-t">
+                                            <span className="font-medium text-blue-600 dark:text-blue-400">Best For: </span>
+                                            <span className="text-muted-foreground">{raceInfo[race]?.bestFor}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </HoverCardContent>
+                                  </HoverCard>
                                 ))}
                               </SelectContent>
                             </Select>
@@ -1273,7 +1494,39 @@ export default function Characters() {
                               </FormControl>
                               <SelectContent>
                                 {classes.map(cls => (
-                                  <SelectItem key={cls} value={cls}>{cls}</SelectItem>
+                                  <HoverCard key={cls} openDelay={200} closeDelay={100}>
+                                    <HoverCardTrigger asChild>
+                                      <SelectItem value={cls} className="cursor-pointer">
+                                        <span className="flex items-center gap-2">
+                                          {cls}
+                                          <Eye className="h-3 w-3 text-muted-foreground opacity-50" />
+                                        </span>
+                                      </SelectItem>
+                                    </HoverCardTrigger>
+                                    <HoverCardContent side="right" align="start" className="w-80 z-[100]">
+                                      <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                          <h4 className="font-bold text-sm">{cls}</h4>
+                                          <Badge variant="secondary" className="text-xs">{classInfo[cls]?.hitDie}</Badge>
+                                        </div>
+                                        <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">{classInfo[cls]?.role}</p>
+                                        <div className="text-xs space-y-1">
+                                          <div>
+                                            <span className="font-medium text-amber-600 dark:text-amber-400">Primary Stat: </span>
+                                            <span className="text-muted-foreground">{classInfo[cls]?.primaryStat}</span>
+                                          </div>
+                                          <div>
+                                            <span className="font-medium text-green-600 dark:text-green-400">Key Features: </span>
+                                            <span className="text-muted-foreground">{classInfo[cls]?.features}</span>
+                                          </div>
+                                          <div className="pt-1 border-t">
+                                            <span className="font-medium text-blue-600 dark:text-blue-400">Playstyle: </span>
+                                            <span className="text-muted-foreground">{classInfo[cls]?.playstyle}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </HoverCardContent>
+                                  </HoverCard>
                                 ))}
                               </SelectContent>
                             </Select>
@@ -1321,7 +1574,32 @@ export default function Characters() {
                               </FormControl>
                               <SelectContent>
                                 {alignments.map(alignment => (
-                                  <SelectItem key={alignment} value={alignment}>{alignment}</SelectItem>
+                                  <HoverCard key={alignment} openDelay={200} closeDelay={100}>
+                                    <HoverCardTrigger asChild>
+                                      <SelectItem value={alignment} className="cursor-pointer">
+                                        <span className="flex items-center gap-2">
+                                          {alignment}
+                                          <Eye className="h-3 w-3 text-muted-foreground opacity-50" />
+                                        </span>
+                                      </SelectItem>
+                                    </HoverCardTrigger>
+                                    <HoverCardContent side="right" align="start" className="w-72 z-[100]">
+                                      <div className="space-y-2">
+                                        <h4 className="font-bold text-sm">{alignment}</h4>
+                                        <p className="text-xs text-muted-foreground">{alignmentInfo[alignment]?.description}</p>
+                                        <div className="text-xs space-y-1">
+                                          <div>
+                                            <span className="font-medium text-purple-600 dark:text-purple-400">Examples: </span>
+                                            <span className="text-muted-foreground">{alignmentInfo[alignment]?.examples}</span>
+                                          </div>
+                                          <div className="pt-1 border-t bg-muted/50 rounded p-2 mt-2">
+                                            <span className="font-medium text-amber-600 dark:text-amber-400">Roleplay Tip: </span>
+                                            <span className="text-muted-foreground italic">{alignmentInfo[alignment]?.roleplayTip}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </HoverCardContent>
+                                  </HoverCard>
                                 ))}
                               </SelectContent>
                             </Select>
