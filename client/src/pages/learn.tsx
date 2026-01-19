@@ -26,8 +26,413 @@ import {
   Heart,
   Brain,
   Eye,
-  Sparkles
+  Sparkles,
+  Wand2,
+  Theater,
+  Compass,
+  ChevronRight,
+  User
 } from "lucide-react";
+
+// Build Archetypes Data
+const BUILD_ARCHETYPES = [
+  {
+    id: "frontline",
+    title: "Frontline Protector",
+    icon: Shield,
+    fantasy: "I start as muscle, become a leader, end as a legend.",
+    color: "from-red-500 to-orange-500",
+    bgColor: "bg-red-50 dark:bg-red-950",
+    borderColor: "border-red-500",
+    races: ["Dwarf", "Human", "Half-Orc", "Dragonborn"],
+    classes: ["Fighter", "Paladin", "Barbarian"],
+    backgrounds: ["Soldier", "Guard", "Mercenary", "Knight"],
+    whyGood: "Even if roleplay is light early, leadership emerges naturally.",
+    progression: {
+      early: {
+        level: "1-4",
+        identity: "Protector",
+        description: "You are a reliable body. Simple role: stand in front, protect others. Learn positioning, teamwork, and threat control."
+      },
+      mid: {
+        level: "5-10",
+        identity: "Leader",
+        description: "You become a tactical anchor. Fighters gain multiple attacks; Paladins gain auras. Others rely on you to decide when to advance or retreat."
+      },
+      late: {
+        level: "11+",
+        identity: "Icon",
+        description: "You are a symbol. Enemies plan around you. Your presence changes how fights unfold. You feel like a captain, champion, or chosen defender."
+      }
+    }
+  },
+  {
+    id: "stealth",
+    title: "Precision & Shadow",
+    icon: Eye,
+    fantasy: "I survive quietly, then shape outcomes from the edges.",
+    color: "from-slate-600 to-slate-800",
+    bgColor: "bg-slate-50 dark:bg-slate-900",
+    borderColor: "border-slate-500",
+    races: ["Halfling", "Elf", "Tiefling"],
+    classes: ["Rogue", "Ranger"],
+    backgrounds: ["Scout", "Criminal", "Spy", "Hunter"],
+    whyGood: "You are useful even when combat confidence is low.",
+    progression: {
+      early: {
+        level: "1-4",
+        identity: "Survivor",
+        description: "You are a problem-solver. You scout, sneak, gather information. Combat role is precise, not dominant."
+      },
+      mid: {
+        level: "5-10",
+        identity: "Planner",
+        description: "You become a force multiplier. Sneak attack, mobility, and terrain mastery matter. You often decide how encounters begin."
+      },
+      late: {
+        level: "11+",
+        identity: "Decider",
+        description: "You are an architect of outcomes. You bypass fights, assassinate key threats, or control space. The party trusts your judgment."
+      }
+    }
+  },
+  {
+    id: "magic",
+    title: "Magical Ascension",
+    icon: Wand2,
+    fantasy: "I begin fragile, then rewrite reality.",
+    color: "from-purple-500 to-blue-500",
+    bgColor: "bg-purple-50 dark:bg-purple-950",
+    borderColor: "border-purple-500",
+    races: ["Human", "Elf", "High Elf", "Tiefling"],
+    classes: ["Cleric (safest)", "Wizard (deepest)", "Sorcerer (simplest)"],
+    backgrounds: ["Acolyte", "Sage", "Apprentice", "Scholar"],
+    whyGood: "Cleric forgives mistakes and allows identity changes.",
+    progression: {
+      early: {
+        level: "1-4",
+        identity: "Student",
+        description: "You are careful and limited. Spells are precious. You learn timing and restraint."
+      },
+      mid: {
+        level: "5-10",
+        identity: "Controller",
+        description: "You become decisive. Battlefield control, buffs, and debuffs define fights. Clerics anchor parties; wizards reshape encounters."
+      },
+      late: {
+        level: "11+",
+        identity: "Reality-Shaper",
+        description: "You are world-altering. Flight, teleportation, resurrection, domination. Problems become 'should we?' not 'can we?'"
+      }
+    }
+  },
+  {
+    id: "social",
+    title: "Social & Adaptive",
+    icon: Theater,
+    fantasy: "I talk first, fight when needed, and connect everything.",
+    color: "from-pink-500 to-rose-500",
+    bgColor: "bg-pink-50 dark:bg-pink-950",
+    borderColor: "border-pink-500",
+    races: ["Half-Elf", "Human", "Tiefling"],
+    classes: ["Bard", "Warlock"],
+    backgrounds: ["Entertainer", "Noble", "Charlatan", "Diplomat"],
+    whyGood: "You stay relevant even if combat rules feel overwhelming.",
+    progression: {
+      early: {
+        level: "1-4",
+        identity: "Connector",
+        description: "You negotiate, deceive, inspire. Combat role is support or precision. You are a connector."
+      },
+      mid: {
+        level: "5-10",
+        identity: "Influencer",
+        description: "You become a driver of narrative. Bardic inspiration or pact abilities reshape group success. NPCs respond strongly to you."
+      },
+      late: {
+        level: "11+",
+        identity: "Power-Broker",
+        description: "You are a lynchpin. You influence factions, shape alliances, control information. The story bends around your choices."
+      }
+    }
+  },
+  {
+    id: "universal",
+    title: "Explorer (I'm Not Sure Yet)",
+    icon: Compass,
+    fantasy: "I discover who I am as I play.",
+    color: "from-emerald-500 to-teal-500",
+    bgColor: "bg-emerald-50 dark:bg-emerald-950",
+    borderColor: "border-emerald-500",
+    races: ["Human", "Half-Elf"],
+    classes: ["Fighter", "Cleric", "Bard"],
+    backgrounds: ["Soldier", "Acolyte", "Scholar"],
+    whyGood: "This arc never traps you. Maximum flexibility while you discover your character.",
+    progression: {
+      early: {
+        level: "1-4",
+        identity: "Explorer",
+        description: "You learn the game. You try different approaches. No pressure to specialize."
+      },
+      mid: {
+        level: "5-10",
+        identity: "Adapter",
+        description: "You specialize naturally based on what you enjoy. Your character evolves with your preferences."
+      },
+      late: {
+        level: "11+",
+        identity: "Specialist",
+        description: "You grow into a role no one expected. Your journey of discovery becomes your character's story."
+      }
+    }
+  }
+];
+
+function BuildArchetypes() {
+  const [selectedArchetype, setSelectedArchetype] = useState<string | null>(null);
+  const [showProgression, setShowProgression] = useState(false);
+
+  const archetype = BUILD_ARCHETYPES.find(a => a.id === selectedArchetype);
+
+  return (
+    <div className="space-y-8">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold font-fantasy mb-2">Choose Your Character Arc</h2>
+        <p className="text-muted-foreground max-w-2xl mx-auto">
+          Not sure what to play? These archetypes help you discover your playstyle. 
+          Pick how you want to <strong>feel</strong> at the table, not stats.
+        </p>
+      </div>
+
+      {!selectedArchetype ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {BUILD_ARCHETYPES.map((arch) => {
+            const IconComponent = arch.icon;
+            return (
+              <Card 
+                key={arch.id}
+                className={`cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:scale-105 ${arch.bgColor} hover:${arch.borderColor}`}
+                onClick={() => setSelectedArchetype(arch.id)}
+              >
+                <CardHeader className="pb-3">
+                  <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${arch.color} flex items-center justify-center mb-3`}>
+                    <IconComponent className="h-7 w-7 text-white" />
+                  </div>
+                  <CardTitle className="text-xl">{arch.title}</CardTitle>
+                  <CardDescription className="italic text-base">
+                    "{arch.fantasy}"
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex flex-wrap gap-1.5">
+                    {arch.classes.slice(0, 3).map((cls) => (
+                      <Badge key={cls} variant="secondary" className="text-xs">
+                        {cls}
+                      </Badge>
+                    ))}
+                  </div>
+                  <Button variant="ghost" className="w-full group">
+                    Learn More <ChevronRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : archetype && (
+        <div className="space-y-6">
+          <Button 
+            variant="outline" 
+            onClick={() => { setSelectedArchetype(null); setShowProgression(false); }}
+            className="mb-4"
+          >
+            ← Back to All Archetypes
+          </Button>
+
+          <Card className={`border-2 ${archetype.borderColor} ${archetype.bgColor}`}>
+            <CardHeader>
+              <div className="flex items-start gap-4">
+                <div className={`w-16 h-16 rounded-xl bg-gradient-to-br ${archetype.color} flex items-center justify-center flex-shrink-0`}>
+                  <archetype.icon className="h-8 w-8 text-white" />
+                </div>
+                <div className="flex-1">
+                  <CardTitle className="text-2xl mb-1">{archetype.title}</CardTitle>
+                  <p className="text-lg italic text-muted-foreground">"{archetype.fantasy}"</p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <User className="h-4 w-4" /> Best Races
+                  </h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {archetype.races.map((race) => (
+                      <Badge key={race} variant="outline">{race}</Badge>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <Sword className="h-4 w-4" /> Best Classes
+                  </h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {archetype.classes.map((cls) => (
+                      <Badge key={cls} className="bg-primary/10">{cls}</Badge>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <BookOpen className="h-4 w-4" /> Backgrounds
+                  </h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {archetype.backgrounds.map((bg) => (
+                      <Badge key={bg} variant="secondary">{bg}</Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+                <p className="text-sm">
+                  <strong className="text-primary">Why this arc works if unsure:</strong> {archetype.whyGood}
+                </p>
+              </div>
+
+              <Button 
+                onClick={() => setShowProgression(!showProgression)}
+                variant="default"
+                className="w-full"
+              >
+                {showProgression ? "Hide" : "Show"} Character Progression Arc
+              </Button>
+
+              {showProgression && (
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="text-lg font-bold font-fantasy text-center mb-4">Your Journey</h3>
+                  <div className="relative">
+                    <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-green-500 via-blue-500 to-purple-500"></div>
+                    
+                    <div className="space-y-6">
+                      <div className="relative pl-14">
+                        <div className="absolute left-4 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                          <span className="text-white text-xs font-bold">1</span>
+                        </div>
+                        <Card className="border-green-500/30 bg-green-50/50 dark:bg-green-950/30">
+                          <CardHeader className="pb-2">
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-green-700 dark:text-green-400">
+                                Early Game: {archetype.progression.early.identity}
+                              </CardTitle>
+                              <Badge variant="outline" className="text-green-600">
+                                Level {archetype.progression.early.level}
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-sm">{archetype.progression.early.description}</p>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      <div className="relative pl-14">
+                        <div className="absolute left-4 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                          <span className="text-white text-xs font-bold">2</span>
+                        </div>
+                        <Card className="border-blue-500/30 bg-blue-50/50 dark:bg-blue-950/30">
+                          <CardHeader className="pb-2">
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-blue-700 dark:text-blue-400">
+                                Mid Game: {archetype.progression.mid.identity}
+                              </CardTitle>
+                              <Badge variant="outline" className="text-blue-600">
+                                Level {archetype.progression.mid.level}
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-sm">{archetype.progression.mid.description}</p>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      <div className="relative pl-14">
+                        <div className="absolute left-4 w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
+                          <span className="text-white text-xs font-bold">3</span>
+                        </div>
+                        <Card className="border-purple-500/30 bg-purple-50/50 dark:bg-purple-950/30">
+                          <CardHeader className="pb-2">
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-purple-700 dark:text-purple-400">
+                                Late Game: {archetype.progression.late.identity}
+                              </CardTitle>
+                              <Badge variant="outline" className="text-purple-600">
+                                Level {archetype.progression.late.level}
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-sm">{archetype.progression.late.description}</p>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-amber-500" />
+                Ready to Create Your Character?
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                Now that you know your arc, head to the Characters page to bring your hero to life!
+              </p>
+              <Button asChild variant="default">
+                <a href="/characters">Create Character →</a>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {!selectedArchetype && (
+        <Card className="bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 border-slate-300 dark:border-slate-700">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Brain className="h-5 w-5 text-slate-500" />
+              Final Advice for New Players
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <ul className="text-sm space-y-2">
+              <li className="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <span><strong>Pick how you want to feel</strong> at the table, not stats</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <span><strong>Choose classes that allow mistakes</strong> - Cleric, Fighter, and Bard are forgiving</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <span><strong>Avoid overly complex builds early</strong> - simplicity lets you focus on fun</span>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
 
 // Practice Module Data
 const SKILL_CHECK_SCENARIOS = [
@@ -738,10 +1143,14 @@ export default function LearnPage() {
       <div className="container mx-auto p-4 max-w-7xl">
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5 mb-8">
+          <TabsList className="grid w-full grid-cols-6 mb-8">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <Star className="h-4 w-4" />
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="archetypes" className="flex items-center gap-2">
+              <Compass className="h-4 w-4" />
+              Build Guide
             </TabsTrigger>
             <TabsTrigger value="paths" className="flex items-center gap-2">
               <GraduationCap className="h-4 w-4" />
@@ -873,6 +1282,10 @@ export default function LearnPage() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="archetypes">
+            <BuildArchetypes />
           </TabsContent>
 
           <TabsContent value="paths">

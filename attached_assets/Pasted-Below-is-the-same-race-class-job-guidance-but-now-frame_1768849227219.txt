@@ -1,0 +1,260 @@
+Below is the same race–class–job guidance, but now framed as clear progression arcs so an uncertain player can see:
+
+Who am I at level 1?
+
+What do I grow into by mid-campaign?
+
+What do I become by the end?
+
+
+Think of these as narrative + mechanical growth paths, not optimization tracks.
+
+
+---
+
+🛡️ Frontline Protector Arc
+
+Fantasy: “I start as muscle, become a leader, end as a legend.”
+
+Best Starting Picks
+
+Race: Dwarf, Human, Half-Orc
+
+Class: Fighter or Paladin
+
+Background: Soldier, Guard, Mercenary
+
+
+Progression Arc
+
+Early Game (Lv 1–4)
+
+You are a reliable body
+
+Simple role: stand in front, protect others
+
+You learn positioning, teamwork, and threat control
+
+
+Mid Game (Lv 5–10)
+
+You become a tactical anchor
+
+Fighters gain multiple attacks and battlefield control
+
+Paladins gain auras and moral authority
+
+Others begin to rely on you to decide when to advance or retreat
+
+
+Late Game (Lv 11+)
+
+You are a symbol
+
+Enemies plan around you
+
+Your presence changes how fights unfold
+
+You feel like a captain, champion, or chosen defender
+
+
+✅ Why this arc works if unsure:
+Even if roleplay is light early, leadership emerges naturally.
+
+
+---
+
+🗡️ Precision & Shadow Arc
+
+Fantasy: “I survive quietly, then shape outcomes from the edges.”
+
+Best Starting Picks
+
+Race: Halfling, Elf, Tiefling
+
+Class: Rogue or Ranger
+
+Background: Scout, Criminal, Hunter
+
+
+Progression Arc
+
+Early Game (Lv 1–4)
+
+You are a problem-solver
+
+You scout, sneak, gather information
+
+Combat role is precise, not dominant
+
+
+Mid Game (Lv 5–10)
+
+You become a force multiplier
+
+Sneak attack, mobility, and terrain mastery matter
+
+You often decide how encounters begin
+
+
+Late Game (Lv 11+)
+
+You are an architect of outcomes
+
+You bypass fights, assassinate key threats, or control space
+
+The party trusts your judgment on risk and planning
+
+
+✅ Why this arc works if unsure:
+You are useful even when combat confidence is low.
+
+
+---
+
+🔮 Magical Ascension Arc
+
+Fantasy: “I begin fragile, then rewrite reality.”
+
+Best Starting Picks
+
+Race: Human, Elf, Tiefling
+
+Class: Cleric (safest), Wizard (deepest), Sorcerer (simplest)
+
+Background: Acolyte, Sage, Apprentice
+
+
+Progression Arc
+
+Early Game (Lv 1–4)
+
+You are careful and limited
+
+Spells are precious
+
+You learn timing and restraint
+
+
+Mid Game (Lv 5–10)
+
+You become decisive
+
+Battlefield control, buffs, and debuffs define fights
+
+Clerics anchor parties; wizards reshape encounters
+
+
+Late Game (Lv 11+)
+
+You are world-altering
+
+Flight, teleportation, resurrection, domination
+
+Problems stop being “can we?” and become “should we?”
+
+
+⚠️ If uncertain: Cleric forgives mistakes and allows identity changes.
+
+
+---
+
+🎭 Social & Adaptive Arc
+
+Fantasy: “I talk first, fight when needed, and connect everything.”
+
+Best Starting Picks
+
+Race: Half-Elf, Human, Tiefling
+
+Class: Bard or Warlock
+
+Background: Entertainer, Noble, Charlatan
+
+
+Progression Arc
+
+Early Game (Lv 1–4)
+
+You are a connector
+
+You negotiate, deceive, inspire
+
+Combat role is support or precision
+
+
+Mid Game (Lv 5–10)
+
+You become a driver of narrative
+
+Bardic inspiration or pact abilities reshape group success
+
+NPCs respond strongly to you
+
+
+Late Game (Lv 11+)
+
+You are a lynchpin
+
+You influence factions, shape alliances, control information
+
+The story bends around your choices
+
+
+✅ Why this arc works if unsure:
+You stay relevant even if combat rules feel overwhelming.
+
+
+---
+
+🧭 “I’m Not Sure Yet” Universal Arc
+
+Fantasy: “I discover who I am as I play.”
+
+Safest Picks
+
+Race: Human or Half-Elf
+
+Class: Fighter, Cleric, Bard
+
+Background: Soldier, Acolyte, Scholar
+
+
+Progression Shape
+
+Early: learn the game
+
+Mid: specialize naturally
+
+Late: grow into a role no one expected
+
+
+This arc never traps you.
+
+
+---
+
+🎯 Summary Table (Progression-Focused)
+
+Build Type	Early Identity	Mid Identity	Late Identity
+
+Frontline	Protector	Leader	Icon
+Stealth	Survivor	Planner	Decider
+Magic	Student	Controller	Reality-shaper
+Social	Talker	Influencer	Power-broker
+Uncertain	Explorer	Adapter	Specialist
+
+
+
+---
+
+If you want next, I can:
+
+Turn these into one-page CAML archetype sheets
+
+Design progression cards for Everdice
+
+Build a “choose-your-arc” character creator for beginners
+
+
+Just tell me how you want to use this.
