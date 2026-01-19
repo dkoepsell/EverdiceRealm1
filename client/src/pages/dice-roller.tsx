@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { clientRollDice, DiceRoll, DiceRollResult, DiceType } from "@/lib/dice";
+import { trackFeatureUse } from "@/lib/analytics";
 import { Character } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -167,6 +168,7 @@ export default function DiceRoller() {
       const result = clientRollDice(diceRoll);
       setDiceResult(result);
       saveDiceRoll.mutate(diceRoll);
+      trackFeatureUse("dice_roll", { diceType, count: diceCount, modifier });
       setIsRolling(false);
       
       setTimeout(() => {

@@ -8,6 +8,7 @@ import { User as SelectUser, insertUserSchema } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import { trackSession, trackEvent } from "../lib/analytics";
 
 type AuthContextType = {
   user: SelectUser | null;
@@ -88,6 +89,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Failed to initialize WebSocket after login:', err);
       }
       
+      // Track session and login event for analytics
+      trackSession();
+      trackEvent("auth", "login", { userId: user.id });
+      
       toast({
         title: "Login successful",
         description: `Welcome back, ${user.username}!`,
@@ -134,6 +139,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error('Failed to initialize WebSocket after registration:', err);
       }
+      
+      // Track session and registration event for analytics
+      trackSession();
+      trackEvent("auth", "register", { userId: user.id });
       
       toast({
         title: "Registration successful",
