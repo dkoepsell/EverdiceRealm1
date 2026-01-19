@@ -27,7 +27,9 @@ import {
   RefreshCw,
   AlertCircle,
   Check,
-  X
+  X,
+  Weight,
+  AlertTriangle
 } from "lucide-react";
 import {
   Dialog,
@@ -56,6 +58,7 @@ interface ShopItem {
   silverCost?: number;
   damage?: string;
   armor?: number;
+  weight: number;
   category: "weapons" | "armor" | "potions" | "tools" | "misc";
 }
 
@@ -67,6 +70,7 @@ interface InventoryItem {
   properties?: string;
   damage?: string;
   armor?: number;
+  weight?: number;
   durability?: number;
   maxDurability?: number;
   equipped?: boolean;
@@ -81,6 +85,7 @@ const SHOP_INVENTORY: ShopItem[] = [
     description: "A versatile sword favored by warriors and adventurers alike.",
     damage: "1d8 slashing (versatile 1d10)",
     goldCost: 15,
+    weight: 3,
     category: "weapons"
   },
   {
@@ -91,6 +96,7 @@ const SHOP_INVENTORY: ShopItem[] = [
     description: "A compact bow ideal for quick shots.",
     damage: "1d6 piercing",
     goldCost: 25,
+    weight: 2,
     category: "weapons"
   },
   {
@@ -101,6 +107,7 @@ const SHOP_INVENTORY: ShopItem[] = [
     description: "A heavy axe perfect for cleaving through enemies.",
     damage: "1d8 slashing (versatile 1d10)",
     goldCost: 10,
+    weight: 4,
     category: "weapons"
   },
   {
@@ -112,6 +119,7 @@ const SHOP_INVENTORY: ShopItem[] = [
     damage: "1d4 piercing",
     properties: "Finesse, light, thrown (20/60)",
     goldCost: 2,
+    weight: 1,
     category: "weapons"
   },
   {
@@ -123,6 +131,7 @@ const SHOP_INVENTORY: ShopItem[] = [
     armor: 16,
     properties: "Disadvantage on Stealth, Str 13 required",
     goldCost: 75,
+    weight: 55,
     category: "armor"
   },
   {
@@ -134,6 +143,7 @@ const SHOP_INVENTORY: ShopItem[] = [
     armor: 11,
     properties: "+Dex modifier to AC",
     goldCost: 10,
+    weight: 10,
     category: "armor"
   },
   {
@@ -145,6 +155,7 @@ const SHOP_INVENTORY: ShopItem[] = [
     armor: 14,
     properties: "+Dex modifier (max 2), disadvantage on Stealth",
     goldCost: 50,
+    weight: 45,
     category: "armor"
   },
   {
@@ -156,6 +167,7 @@ const SHOP_INVENTORY: ShopItem[] = [
     armor: 2,
     properties: "+2 AC bonus",
     goldCost: 10,
+    weight: 6,
     category: "armor"
   },
   {
@@ -166,6 +178,7 @@ const SHOP_INVENTORY: ShopItem[] = [
     description: "A red liquid that glimmers when agitated. Heals 2d4+2 HP.",
     properties: "Heals 2d4+2 hit points",
     goldCost: 50,
+    weight: 0.5,
     category: "potions"
   },
   {
@@ -176,6 +189,7 @@ const SHOP_INVENTORY: ShopItem[] = [
     description: "A more potent healing draught. Heals 4d4+4 HP.",
     properties: "Heals 4d4+4 hit points",
     goldCost: 150,
+    weight: 0.5,
     category: "potions"
   },
   {
@@ -186,6 +200,7 @@ const SHOP_INVENTORY: ShopItem[] = [
     description: "Grants advantage on saves against poison for 1 hour.",
     properties: "Advantage on poison saves for 1 hour",
     goldCost: 50,
+    weight: 0.5,
     category: "potions"
   },
   {
@@ -195,6 +210,7 @@ const SHOP_INVENTORY: ShopItem[] = [
     rarity: "common",
     description: "Lockpicks and small tools for disabling traps and opening locks.",
     goldCost: 25,
+    weight: 1,
     category: "tools"
   },
   {
@@ -204,6 +220,7 @@ const SHOP_INVENTORY: ShopItem[] = [
     rarity: "common",
     description: "Strong rope for climbing, binding, or other uses.",
     goldCost: 1,
+    weight: 10,
     category: "misc"
   },
   {
@@ -215,6 +232,7 @@ const SHOP_INVENTORY: ShopItem[] = [
     properties: "Bright light 20 ft, dim light additional 20 ft",
     goldCost: 1,
     silverCost: 0,
+    weight: 10,
     category: "misc"
   },
   {
@@ -225,6 +243,7 @@ const SHOP_INVENTORY: ShopItem[] = [
     description: "Dried food for 5 days of travel.",
     goldCost: 2,
     silverCost: 50,
+    weight: 10,
     category: "misc"
   }
 ];
@@ -613,6 +632,44 @@ export default function TavernPage() {
     return item;
   });
 
+  // Encumbrance system (D&D 5e: Carrying Capacity = Strength × 15)
+  const getItemWeight = (item: InventoryItem): number => {
+    // First check if item has weight stored
+    if (item.weight !== undefined) return item.weight;
+    // Otherwise look up from shop inventory
+    const shopItem = SHOP_INVENTORY.find(si => si.name === item.name);
+    if (shopItem) return shopItem.weight;
+    // Default weights by type
+    switch (item.type?.toLowerCase()) {
+      case 'martial melee weapon':
+      case 'martial ranged weapon':
+        return 4;
+      case 'simple melee weapon':
+      case 'simple ranged weapon':
+        return 2;
+      case 'heavy armor':
+        return 55;
+      case 'medium armor':
+        return 40;
+      case 'light armor':
+        return 10;
+      case 'shield':
+        return 6;
+      case 'potion':
+      case 'consumable':
+        return 0.5;
+      default:
+        return 1;
+    }
+  };
+
+  const characterStrength = activeCharacter?.strength || 10;
+  const carryingCapacity = characterStrength * 15; // D&D 5e standard
+  const totalInventoryWeight = characterEquipment.reduce((total, item) => total + getItemWeight(item), 0);
+  const encumbrancePercent = Math.min((totalInventoryWeight / carryingCapacity) * 100, 100);
+  const isOverburdened = totalInventoryWeight > carryingCapacity;
+  const isEncumbered = totalInventoryWeight > carryingCapacity * 0.66; // 2/3 capacity = encumbered
+
   const canAfford = (item: ShopItem | null, qty: number = 1) => {
     if (!item) return false;
     const totalGold = item.goldCost * qty;
@@ -820,7 +877,13 @@ export default function TavernPage() {
                               {item.rarity}
                             </Badge>
                           </div>
-                          <p className="text-xs text-slate-500 mb-2">{item.type}</p>
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs text-slate-500">{item.type}</p>
+                            <div className="flex items-center gap-1 text-xs text-slate-500">
+                              <Weight className="h-3 w-3" />
+                              <span>{item.weight} lbs</span>
+                            </div>
+                          </div>
                           <p className="text-sm text-slate-600 dark:text-slate-400 mb-3 line-clamp-2">
                             {item.description}
                           </p>
@@ -875,6 +938,65 @@ export default function TavernPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                {/* Encumbrance Bar */}
+                {activeCharacter && (
+                  <div className="mb-6 p-4 rounded-lg bg-slate-100 dark:bg-slate-800 border">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Weight className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                        <span className="font-medium text-sm">Carrying Capacity</span>
+                      </div>
+                      <span className={`text-sm font-bold ${isOverburdened ? 'text-red-600' : isEncumbered ? 'text-orange-600' : 'text-green-600'}`}>
+                        {totalInventoryWeight.toFixed(1)} / {carryingCapacity} lbs
+                      </span>
+                    </div>
+                    <div className="w-full h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full transition-all ${
+                          isOverburdened ? 'bg-red-500' : 
+                          isEncumbered ? 'bg-orange-500' : 
+                          encumbrancePercent > 50 ? 'bg-yellow-500' : 'bg-green-500'
+                        }`}
+                        style={{ width: `${encumbrancePercent}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between mt-1 text-xs text-slate-500">
+                      <span>STR {characterStrength} × 15 lbs</span>
+                      <span>{encumbrancePercent.toFixed(0)}% full</span>
+                    </div>
+                    
+                    {/* Overburdened Warning */}
+                    {isOverburdened && (
+                      <div className="mt-3 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-medium text-red-700 dark:text-red-400">You are overburdened!</p>
+                            <p className="text-sm text-red-600 dark:text-red-400/80">
+                              Your movement speed is reduced to 0. Sell some items below to lighten your load.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Encumbered Warning */}
+                    {isEncumbered && !isOverburdened && (
+                      <div className="mt-3 p-3 bg-orange-100 dark:bg-orange-900/30 border border-orange-300 dark:border-orange-700 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-medium text-orange-700 dark:text-orange-400">You are encumbered</p>
+                            <p className="text-sm text-orange-600 dark:text-orange-400/80">
+                              Your movement speed is reduced by 10 ft. Consider selling some items.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {characterEquipment.length === 0 ? (
                   <div className="text-center py-12 text-slate-500">
                     <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -900,7 +1022,13 @@ export default function TavernPage() {
                             </div>
                             {typeof item !== 'string' && (
                               <>
-                                <p className="text-xs text-slate-500 mb-2">{item.type}</p>
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-xs text-slate-500">{item.type}</p>
+                                  <div className="flex items-center gap-1 text-xs text-slate-500">
+                                    <Weight className="h-3 w-3" />
+                                    <span>{getItemWeight(item)} lbs</span>
+                                  </div>
+                                </div>
                                 {item.description && (
                                   <p className="text-sm text-slate-600 dark:text-slate-400 mb-2 line-clamp-2">
                                     {item.description}
