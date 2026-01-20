@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Character, insertCharacterSchema } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -427,8 +427,23 @@ export default function Characters() {
   const [generatingPortraitIds, setGeneratingPortraitIds] = useState<Set<number>>(new Set());
   const [showBuildGuidance, setShowBuildGuidance] = useState(false);
   const [selectedArchetype, setSelectedArchetype] = useState<string | null>(null);
+  const [characterSheetJustOpened, setCharacterSheetJustOpened] = useState(false);
   
+  const characterSheetRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  
+  // Scroll to and highlight character sheet when it opens
+  useEffect(() => {
+    if (selectedCharacter && characterSheetRef.current) {
+      // Small delay to ensure the element is rendered
+      setTimeout(() => {
+        characterSheetRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setCharacterSheetJustOpened(true);
+        // Remove highlight after animation
+        setTimeout(() => setCharacterSheetJustOpened(false), 2000);
+      }, 100);
+    }
+  }, [selectedCharacter]);
   
   // Mutation to generate portrait for a character
   const generatePortraitMutation = useMutation({
@@ -1036,32 +1051,55 @@ export default function Characters() {
                                 )}
                               </div>
 
+                              <p className="text-xs text-muted-foreground text-center mb-2">
+                                Click a button to open the character panel below
+                              </p>
                               <div className="flex justify-center gap-2 flex-wrap">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  className="text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700"
-                                  onClick={() => {
-                                    setSelectedCharacterInitialTab("main");
-                                    setSelectedCharacter(character);
-                                  }}
-                                >
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  Edit Character
-                                </Button>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        className="text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700"
+                                        onClick={() => {
+                                          setSelectedCharacterInitialTab("main");
+                                          setSelectedCharacter(character);
+                                        }}
+                                      >
+                                        <Edit className="h-4 w-4 mr-2" />
+                                        Edit Character
+                                        <ChevronDown className="h-3 w-3 ml-1 opacity-60" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Opens character panel below to edit stats, inventory, and more</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                                 {['wizard', 'sorcerer', 'cleric', 'bard', 'druid', 'warlock', 'paladin', 'ranger'].includes(character.class?.toLowerCase() || '') && (
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    className="text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-700"
-                                    onClick={() => {
-                                      setSelectedCharacterInitialTab("spells");
-                                      setSelectedCharacter(character);
-                                    }}
-                                  >
-                                    <Sparkles className="h-4 w-4 mr-2" />
-                                    Spell Book
-                                  </Button>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button 
+                                          variant="outline" 
+                                          size="sm" 
+                                          className="text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-700"
+                                          onClick={() => {
+                                            setSelectedCharacterInitialTab("spells");
+                                            setSelectedCharacter(character);
+                                          }}
+                                        >
+                                          <Sparkles className="h-4 w-4 mr-2" />
+                                          Spell Book
+                                          <ChevronDown className="h-3 w-3 ml-1 opacity-60" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Opens spell panel below to learn and prepare spells</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                 )}
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
@@ -1110,12 +1148,53 @@ export default function Characters() {
               })}
               
               {selectedCharacter && (
-                <div className="mt-6">
-                  <h2 className="text-2xl font-fantasy font-bold mb-4">Edit Character</h2>
+                <div 
+                  ref={characterSheetRef}
+                  className={`mt-6 scroll-mt-4 transition-all duration-500 ${
+                    characterSheetJustOpened 
+                      ? 'ring-2 ring-amber-400 ring-offset-2 rounded-lg shadow-lg shadow-amber-200/50 dark:shadow-amber-900/30' 
+                      : ''
+                  }`}
+                >
+                  {/* Visual indicator that panel opened */}
+                  <div className={`flex items-center gap-2 mb-4 ${characterSheetJustOpened ? 'animate-pulse' : ''}`}>
+                    <div className="flex-1 h-px bg-gradient-to-r from-amber-400 to-transparent" />
+                    <h2 className="text-2xl font-fantasy font-bold text-amber-700 dark:text-amber-300 flex items-center gap-2">
+                      <ChevronDown className="h-5 w-5" />
+                      Character Panel
+                    </h2>
+                    <div className="flex-1 h-px bg-gradient-to-l from-amber-400 to-transparent" />
+                  </div>
+                  
+                  {/* Spellcaster education tip */}
+                  {['wizard', 'sorcerer', 'cleric', 'bard', 'druid', 'warlock', 'paladin', 'ranger'].includes(
+                    selectedCharacter.class?.toLowerCase() || ''
+                  ) && selectedCharacterInitialTab === "spells" && (
+                    <Card className="mb-4 border-purple-200 dark:border-purple-800 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/30 dark:to-indigo-950/30">
+                      <CardContent className="py-3 px-4">
+                        <div className="flex items-start gap-3">
+                          <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900">
+                            <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-sm text-purple-800 dark:text-purple-200 mb-1">
+                              Learning Spells
+                            </h4>
+                            <p className="text-xs text-purple-700 dark:text-purple-300">
+                              As a {selectedCharacter.class}, you can learn new spells! Use the <strong>Class Spells</strong> tab to see all spells available to your class. 
+                              Spells marked "Available" can be learned now. Higher-level spells unlock as you level up. 
+                              Don't forget to <strong>prepare</strong> your spells before adventuring!
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  
                   <CharacterSheet character={selectedCharacter} initialTab={selectedCharacterInitialTab} />
                   <div className="mt-4 text-center">
                     <Button variant="outline" onClick={() => setSelectedCharacter(null)}>
-                      Close Editor
+                      Close Character Panel
                     </Button>
                   </div>
                 </div>
