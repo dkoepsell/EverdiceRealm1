@@ -9958,6 +9958,12 @@ CRITICAL: Reference these enemies by their EXACT names above in your narrative a
   return '';
 })()}
 
+**PREVIOUS CHOICES OFFERED - DO NOT REPEAT THESE**:
+${currentSession.choices && currentSession.choices.length > 0 ? 
+  currentSession.choices.map((c: any) => `- "${c.text}"`).join('\n') : 
+  'No previous choices'}
+CRITICAL: Generate COMPLETELY NEW and DIFFERENT choices this round. Do NOT copy or paraphrase the choices above.
+
 CRITICAL INSTRUCTIONS - FOLLOW EXACTLY:
 
 1. FOCUS ON ACTION AND CONSEQUENCES, NOT DESCRIPTION
