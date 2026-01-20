@@ -1550,7 +1550,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
   const useNpcConsumableMutation = useMutation({
     mutationFn: async ({ npcId, name }: { npcId: number; name: string }) => {
-      const response = await apiRequest('POST', `/api/npcs/${npcId}/consumables/use`, { name });
+      // Use campaign-specific route to access campaign_npcs consumables (not base NPC)
+      const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/npcs/${npcId}/consumables/use`, { name });
       return await response.json();
     },
     onSuccess: (data) => {
