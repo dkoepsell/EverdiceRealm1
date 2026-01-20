@@ -480,6 +480,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user.id
       });
       
+      // Check for duplicate character name for this user
+      const existingCharacters = await storage.getCharactersByUserId(req.user.id);
+      const duplicateName = existingCharacters.find(
+        (c: any) => c.name.toLowerCase() === (characterData as any).name?.toLowerCase()
+      );
+      if (duplicateName) {
+        return res.status(400).json({ 
+          message: `You already have a character named "${(characterData as any).name}". Please choose a different name.`
+        });
+      }
+      
       // Add starter consumables including resurrection scrolls
       const starterConsumables = [
         { name: "Healing Potion", quantity: 2, type: "healing", effect: "Restores 2d4+2 HP", healDice: "2d4", healBonus: 2 },
