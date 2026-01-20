@@ -1555,23 +1555,39 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       return await response.json();
     },
     onSuccess: (data) => {
-      // Update NPC cache directly with new HP
-      if (data.npc) {
-        queryClient.setQueryData([`/api/campaigns/${campaign.id}/npcs`], (old: any[] | undefined) => {
-          if (!old) return old;
-          return old.map((cn: any) => cn.npcId === data.npc.id ? { ...cn, npc: { ...cn.npc, ...data.npc } } : cn);
+      // Update campaign NPC cache with updated consumables and HP
+      queryClient.setQueryData([`/api/campaigns/${campaign.id}/npcs`], (old: any[] | undefined) => {
+        if (!old) return old;
+        return old.map((cn: any) => {
+          if (cn.npcId === data.npcId) {
+            return { 
+              ...cn, 
+              consumables: data.consumables,
+              currentHp: data.currentHp,
+              status: data.status,
+              npc: { ...cn.npc, hitPoints: data.currentHp, status: data.status }
+            };
+          }
+          return cn;
         });
-        // Also update participants cache directly for NPCs
-        queryClient.setQueryData([`/api/campaigns/${campaign.id}/participants`], (old: any[] | undefined) => {
-          if (!old) return old;
-          return old.map((p: any) => {
-            if (p.isNpc && p.npcId === data.npc.id && p.character) {
-              return { ...p, npc: { ...p.npc, ...data.npc }, character: { ...p.character, hitPoints: data.npc.hitPoints, status: data.npc.status } };
-            }
-            return p;
-          });
+      });
+      // Also update participants cache
+      queryClient.setQueryData([`/api/campaigns/${campaign.id}/participants`], (old: any[] | undefined) => {
+        if (!old) return old;
+        return old.map((p: any) => {
+          if (p.isNpc && p.npcId === data.npcId) {
+            return { 
+              ...p, 
+              consumables: data.consumables,
+              currentHp: data.currentHp,
+              status: data.status,
+              npc: { ...p.npc, hitPoints: data.currentHp, status: data.status },
+              character: { ...p.character, hitPoints: data.currentHp, status: data.status }
+            };
+          }
+          return p;
         });
-      }
+      });
       toast({
         title: data.healedAmount > 0 ? `Healed ${data.healedAmount} HP!` : "Item Used",
         description: data.message,
