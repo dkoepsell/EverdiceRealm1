@@ -9945,6 +9945,19 @@ ${currentSession.playerChoicesMade && currentSession.playerChoicesMade.length > 
 NPC Interactions in Progress:
 ${JSON.stringify(currentSession.npcInteractions || {})}
 
+${(() => {
+  const storyState = currentSession.storyState as any;
+  if (storyState?.inCombat && storyState?.combatants?.length > 0) {
+    const enemies = storyState.combatants.filter((c: any) => c.type === 'enemy' || c.type === 'boss');
+    if (enemies.length > 0) {
+      return `**CURRENT COMBAT - USE THESE EXACT ENEMIES (DO NOT CHANGE NAMES)**:
+${enemies.map((e: any) => `- "${e.name}" (${e.type}): HP ${e.currentHp}/${e.maxHp}, AC ${e.ac}, Status: ${e.status}`).join('\n')}
+CRITICAL: Reference these enemies by their EXACT names above in your narrative and combatEffects!`;
+    }
+  }
+  return '';
+})()}
+
 CRITICAL INSTRUCTIONS - FOLLOW EXACTLY:
 
 1. FOCUS ON ACTION AND CONSEQUENCES, NOT DESCRIPTION
@@ -9980,6 +9993,13 @@ COMBAT MECHANICS REQUIREMENTS:
 - Combat should feel dangerous and consequential
 - ALWAYS populate "combatants" array with enemies when inCombat is true
 - ALWAYS populate "partyMembers" array with player and companions when inCombat is true
+
+CRITICAL - PRESERVE EXISTING COMBATANTS:
+- If "combatants" array exists in the Current Story State above, you MUST use THE EXACT SAME enemy names
+- Do NOT replace existing enemies with different creatures (e.g., don't replace "Corrupted Druid" with "Goblin")
+- Copy enemy names EXACTLY from the story state - maintain consistency throughout the battle
+- Only add NEW enemies if reinforcements arrive in the narrative
+- The enemyDamage array in combatEffects MUST reference enemies by their EXACT name from combatants
 
 COMBAT END CONDITIONS:
 - Set "inCombat": false when ALL enemies are defeated, fled, or surrendered
