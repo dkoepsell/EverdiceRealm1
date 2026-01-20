@@ -4600,6 +4600,7 @@ Return your response as a JSON object with these fields:
             isNpc: true,
             npc: npc,
             // Match the structure of participants for the frontend
+            // Use campaign-specific HP/status from campaign_npcs, fallback to base NPC values
             character: {
               id: npc.id,
               name: npc.name,
@@ -4607,11 +4608,11 @@ Return your response as a JSON object with these fields:
               class: npc.occupation,
               level: npc.level || 1,
               portraitUrl: npc.portraitUrl,
-              hitPoints: npc.hitPoints,
-              maxHitPoints: npc.maxHitPoints,
+              hitPoints: campaignNpc.currentHp ?? npc.hitPoints,
+              maxHitPoints: campaignNpc.maxHp ?? npc.maxHitPoints,
               armorClass: npc.armorClass,
               gold: npc.gold || 0,
-              status: npc.status,
+              status: campaignNpc.status ?? npc.status,
               companionType: npc.companionType,
               occupation: npc.occupation
             }
