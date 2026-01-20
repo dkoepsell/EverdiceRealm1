@@ -2303,10 +2303,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       <Card className="border-2 border-accent-light bg-parchment drop-shadow-lg">
         <CardContent className="p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className={`grid w-full ${isDM ? 'grid-cols-7' : 'grid-cols-6'} bg-slate-800 dark:bg-slate-900 rounded-none border-b-2 border-amber-600 h-12`}>
+            <TabsList className={`grid w-full ${isDM ? 'grid-cols-7' : 'grid-cols-6'} bg-slate-900 rounded-none border-b-2 border-amber-500 h-12`}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TabsTrigger value="narrative" className="text-xs sm:text-sm md:text-base text-slate-300 data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
+                  <TabsTrigger value="narrative" className="text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
                     <span className="flex items-center">
                       <BookOpen className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
                       <span>Narrative</span>
@@ -2321,7 +2321,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TabsTrigger value="journey-log" className="text-xs sm:text-sm md:text-base text-slate-300 data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
+                  <TabsTrigger value="journey-log" className="text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
                     <span className="flex items-center">
                       <Scroll className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
                       <span>Log</span>
@@ -2336,7 +2336,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TabsTrigger value="party" className="text-xs sm:text-sm md:text-base text-slate-300 data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
+                  <TabsTrigger value="party" className="text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
                     <span className="flex items-center">
                       <Users className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
                       <span>Party</span>
@@ -2351,7 +2351,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TabsTrigger value="chat" className="text-xs sm:text-sm md:text-base text-slate-300 data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700" data-testid="tab-chat">
+                  <TabsTrigger value="chat" className="text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700" data-testid="tab-chat">
                     <span className="flex items-center">
                       <MessageCircle className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
                       <span>Chat</span>
@@ -2367,7 +2367,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               {isDM && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <TabsTrigger value="dashboard" className="text-xs sm:text-sm md:text-base text-slate-300 data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
+                    <TabsTrigger value="dashboard" className="text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
                       <span className="flex items-center">
                         <LayoutDashboard className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
                         <span>Dashboard</span>
@@ -2383,7 +2383,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TabsTrigger value="settings" className="text-xs sm:text-sm md:text-base text-slate-300 data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
+                  <TabsTrigger value="settings" className="text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
                     <span className="flex items-center">
                       <Settings className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
                       <span>Settings</span>
@@ -2398,7 +2398,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TabsTrigger value="deploy" className="text-xs sm:text-sm md:text-base text-slate-300 data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none">
+                  <TabsTrigger value="deploy" className="text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none">
                     <span className="flex items-center">
                       <Share2 className="h-3.5 w-3.5 mr-1 md:mr-2 hidden sm:inline-block" />
                       <span>Deploy</span>
