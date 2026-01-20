@@ -792,10 +792,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Character Rest Routes - HP Recovery
+  // Character Rest Routes - HP Recovery (heals entire party when not in combat)
   app.post("/api/characters/:id/short-rest", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const { campaignId } = req.body; // Optional: if provided, heal all party members
       const character = await storage.getCharacter(id);
       
       if (!character) {
@@ -827,10 +828,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: new Date().toISOString()
       });
       
+      // If campaignId provided, also heal all NPC companions in the party
+      const companionResults: any[] = [];
+      if (campaignId) {
+        const campaignNpcs = await storage.getCampaignNpcs(campaignId);
+        for (const cn of campaignNpcs) {
+          if (cn.role === 'companion' || cn.role === 'ally') {
+            const npc = await storage.getNpc(cn.npcId);
+            if (!npc) continue;
+            const currentHp = cn.currentHp ?? npc.hitPoints ?? 0;
+            const maxHp = cn.maxHp ?? npc.maxHitPoints ?? 10;
+            const status = cn.status || 'conscious';
+            
+            // Skip dead/unconscious NPCs
+            if (status === 'dead' || status === 'unconscious') continue;
+            
+            const npcHealAmount = Math.max(1, Math.floor(maxHp * 0.25));
+            const npcNewHp = Math.min(maxHp, currentHp + npcHealAmount);
+            const npcActualHeal = npcNewHp - currentHp;
+            
+            if (npcActualHeal > 0) {
+              await storage.updateCampaignNpc(cn.id, { currentHp: npcNewHp });
+              companionResults.push({ name: npc.name, healed: npcActualHeal });
+            }
+          }
+        }
+      }
+      
+      const companionMsg = companionResults.length > 0 
+        ? ` Companions also rested: ${companionResults.map(c => `${c.name} +${c.healed} HP`).join(', ')}.`
+        : '';
+      
       res.json({
         character: updatedCharacter,
         healedAmount: actualHeal,
-        message: `Short rest complete. Recovered ${actualHeal} HP.`
+        companionResults,
+        message: `Short rest complete. Recovered ${actualHeal} HP.${companionMsg}`
       });
     } catch (error: any) {
       console.error("Error during short rest:", error);
@@ -841,6 +874,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/characters/:id/long-rest", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const { campaignId } = req.body; // Optional: if provided, heal all party members
       const character = await storage.getCharacter(id);
       
       if (!character) {
@@ -858,10 +892,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: new Date().toISOString()
       });
       
+      // If campaignId provided, also fully heal all NPC companions
+      const companionResults: any[] = [];
+      if (campaignId) {
+        const campaignNpcs = await storage.getCampaignNpcs(campaignId);
+        for (const cn of campaignNpcs) {
+          if (cn.role === 'companion' || cn.role === 'ally') {
+            const npc = await storage.getNpc(cn.npcId);
+            if (!npc) continue;
+            const currentHp = cn.currentHp ?? npc.hitPoints ?? 0;
+            const maxHp = cn.maxHp ?? npc.maxHitPoints ?? 10;
+            const npcActualHeal = maxHp - currentHp;
+            
+            if (npcActualHeal > 0 || cn.status !== 'conscious') {
+              await storage.updateCampaignNpc(cn.id, { 
+                currentHp: maxHp, 
+                status: 'conscious' 
+              });
+              companionResults.push({ name: npc.name, healed: npcActualHeal });
+            }
+          }
+        }
+      }
+      
+      const companionMsg = companionResults.length > 0 
+        ? ` Companions also rested: ${companionResults.map(c => `${c.name} fully healed`).join(', ')}.`
+        : '';
+      
       res.json({
         character: updatedCharacter,
         healedAmount: actualHeal,
-        message: `Long rest complete. Fully restored to ${character.maxHitPoints} HP.`
+        companionResults,
+        message: `Long rest complete. Fully restored to ${character.maxHitPoints} HP.${companionMsg}`
       });
     } catch (error: any) {
       console.error("Error during long rest:", error);

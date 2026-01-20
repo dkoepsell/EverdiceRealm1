@@ -1258,17 +1258,18 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
   });
 
-  // Rest mutations for HP recovery
+  // Rest mutations for HP recovery (heals entire party including NPC companions)
   const shortRestMutation = useMutation({
     mutationFn: async (characterId: number) => {
-      const response = await apiRequest('POST', `/api/characters/${characterId}/short-rest`);
+      const response = await apiRequest('POST', `/api/characters/${characterId}/short-rest`, { campaignId: campaign.id });
       return await response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
       toast({
-        title: "Short Rest Complete",
+        title: "Party Short Rest Complete",
         description: data.message,
       });
     },
@@ -1283,14 +1284,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
   const longRestMutation = useMutation({
     mutationFn: async (characterId: number) => {
-      const response = await apiRequest('POST', `/api/characters/${characterId}/long-rest`);
+      const response = await apiRequest('POST', `/api/characters/${characterId}/long-rest`, { campaignId: campaign.id });
       return await response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
       toast({
-        title: "Long Rest Complete",
+        title: "Party Long Rest Complete",
         description: data.message,
       });
     },
