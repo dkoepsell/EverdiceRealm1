@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Character, PlayerGroupMember } from "@shared/schema";
@@ -36,11 +36,16 @@ const roleColors: Record<string, string> = {
 
 interface CharacterSheetProps {
   character: Character;
+  initialTab?: string;
 }
 
-export default function CharacterSheet({ character }: CharacterSheetProps) {
-  const [activeTab, setActiveTab] = useState("main");
+export default function CharacterSheet({ character, initialTab = "main" }: CharacterSheetProps) {
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [isExpanded, setIsExpanded] = useState(true);
+  
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab, character.id]);
 
   const { data: memberships = [] } = useQuery<EnrichedMembership[]>({
     queryKey: ['/api/user/memberships'],

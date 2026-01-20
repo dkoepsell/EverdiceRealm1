@@ -419,6 +419,7 @@ const backgrounds = [
 
 export default function Characters() {
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
+  const [selectedCharacterInitialTab, setSelectedCharacterInitialTab] = useState<string>("main");
   const [expandedCharacterId, setExpandedCharacterId] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
@@ -1040,7 +1041,10 @@ export default function Characters() {
                                   variant="outline" 
                                   size="sm" 
                                   className="text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700"
-                                  onClick={() => setSelectedCharacter(character)}
+                                  onClick={() => {
+                                    setSelectedCharacterInitialTab("main");
+                                    setSelectedCharacter(character);
+                                  }}
                                 >
                                   <Edit className="h-4 w-4 mr-2" />
                                   Edit Character
@@ -1051,11 +1055,8 @@ export default function Characters() {
                                     size="sm" 
                                     className="text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-700"
                                     onClick={() => {
+                                      setSelectedCharacterInitialTab("spells");
                                       setSelectedCharacter(character);
-                                      setTimeout(() => {
-                                        const spellsTab = document.querySelector('[value="spells"]') as HTMLElement;
-                                        spellsTab?.click();
-                                      }, 100);
                                     }}
                                   >
                                     <Sparkles className="h-4 w-4 mr-2" />
@@ -1111,7 +1112,7 @@ export default function Characters() {
               {selectedCharacter && (
                 <div className="mt-6">
                   <h2 className="text-2xl font-fantasy font-bold mb-4">Edit Character</h2>
-                  <CharacterSheet character={selectedCharacter} />
+                  <CharacterSheet character={selectedCharacter} initialTab={selectedCharacterInitialTab} />
                   <div className="mt-4 text-center">
                     <Button variant="outline" onClick={() => setSelectedCharacter(null)}>
                       Close Editor
