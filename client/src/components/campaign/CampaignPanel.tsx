@@ -2806,9 +2806,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   p.character?.name === member.name || p.character?.id === member.characterId
                                 )?.character;
                                 // For companions, look up actual HP from partyNpcs (database values)
+                                // Note: partyNpcs uses hitPoints/maxHitPoints, not currentHp/maxHp
                                 const companionNpc = member.type !== 'player' ? partyNpcs?.find((npc: any) => npc.name === member.name) : null;
-                                const actualHp = participantChar?.hitPoints ?? companionNpc?.currentHp ?? member.currentHp;
-                                const actualMaxHp = participantChar?.maxHitPoints ?? companionNpc?.maxHp ?? member.maxHp;
+                                const actualHp = participantChar?.hitPoints ?? companionNpc?.hitPoints ?? member.currentHp;
+                                const actualMaxHp = participantChar?.maxHitPoints ?? companionNpc?.maxHitPoints ?? member.maxHp;
                                 const actualStatus = participantChar?.status ?? companionNpc?.status ?? member.status;
                                 
                                 const isUnconscious = actualStatus === 'unconscious' || actualStatus === 'dead' || actualHp <= 0;
