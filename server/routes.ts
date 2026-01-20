@@ -10006,13 +10006,23 @@ COMBAT END CONDITIONS:
 - Combat can also end via successful disengage/retreat by the party
 - Describe the combat resolution clearly in the narrative
 
-TACTICAL COMBAT OPTIONS (include these choices when in combat):
+TACTICAL COMBAT OPTIONS (include diverse choices each round):
 - Attack with current weapon (requires attack roll)
-- Switch weapons (free action, describe new weapon)
-- Disengage/retreat (requires Athletics or Acrobatics check)
-- Defensive stance (take cover, +2 AC, no attack)
+- Targeted attack: aim for weak spot, trip, disarm (harder DC, special effect)
+- Defensive maneuver: dodge, parry, take cover
+- Use the environment: throw debris, push enemy, use terrain
+- Disengage/retreat (requires Athletics or Acrobatics check)  
 - Use item/potion (consumes turn)
 - Cast a spell (if magic user)
+- Companion tactics: coordinate with allies, protect wounded party member
+
+COMBAT CHOICE VARIETY (CRITICAL):
+- Each combat round MUST have DIFFERENT choice wordings - never repeat the exact same options
+- Adapt choices to the current situation: enemy position, party status, environment
+- Reference specific enemies by name in attack options (e.g., "Strike the Corrupted Druid's staff")
+- Include at least one creative/environmental option each round
+- If the party is wounded, include defensive or healing options
+- If an enemy is bloodied, include finishing move options
 
 CRITICAL - UNCONSCIOUS/INCAPACITATED CHARACTERS:
 - If the player character is UNCONSCIOUS (0 HP), they CANNOT attack, cast spells, move, or take any actions
@@ -10998,9 +11008,27 @@ Respond with JSON:
       const previousTurnsInChapter = currentStoryState.turnsInChapter || 0;
       const turnsInChapter = previousTurnsInChapter + 1;
       
+      // CRITICAL: Preserve existing combatants if in combat - don't let AI rename enemies
+      let preservedCombatants = storyAdvancement.storyState?.combatants;
+      if (currentStoryState.inCombat && currentStoryState.combatants?.length > 0) {
+        // Use existing combatants, but update HP from AI if provided
+        preservedCombatants = currentStoryState.combatants.map((existingEnemy: any) => {
+          const aiEnemy = storyAdvancement.storyState?.combatants?.find(
+            (ae: any) => ae.name === existingEnemy.name
+          );
+          if (aiEnemy) {
+            // Merge AI updates (HP, status) but keep original name
+            return { ...existingEnemy, currentHp: aiEnemy.currentHp ?? existingEnemy.currentHp, status: aiEnemy.status ?? existingEnemy.status };
+          }
+          return existingEnemy;
+        }).filter((e: any) => e.status !== 'defeated' && (e.currentHp === undefined || e.currentHp > 0));
+        console.log(`Preserved ${preservedCombatants.length} existing combatants from session`);
+      }
+      
       // Merge the new exploration limit with the AI-generated story state
       const mergedStoryState = {
         ...storyAdvancement.storyState,
+        combatants: preservedCombatants, // Use preserved combatants to prevent AI renaming
         explorationLimit: newExplorationLimit,
         startPosition: currentStoryState.startPosition || { x: 4, y: 4 },
         journeyLog: updatedJourneyLog,
@@ -11299,10 +11327,12 @@ Respond with JSON:
               };
             });
           
-          // Build enemy list from storyState combatants
-          const storyEnemies = storyAdvancement.storyState?.combatants || [];
+          // Build enemy list from EXISTING session's storyState combatants (not AI response)
+          // This ensures consistency - we use the enemies that were already established
+          const existingStoryState = currentSession.storyState as any;
+          const storyEnemies = existingStoryState?.combatants || storyAdvancement.storyState?.combatants || [];
           const enemyCombatants: Combatant[] = storyEnemies
-            .filter((e: any) => e.type === 'enemy' || e.type === 'boss')
+            .filter((e: any) => (e.type === 'enemy' || e.type === 'boss') && e.status !== 'defeated' && (e.currentHp > 0 || e.currentHp === undefined))
             .map((e: any, index: number) => ({
               id: index + 1000,
               name: e.name,
