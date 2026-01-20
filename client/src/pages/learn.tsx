@@ -1040,6 +1040,22 @@ const LEARNING_PATHS = [
     completionReward: "Basic Player Badge"
   },
   {
+    title: "Spellcaster's Path",
+    description: "Master the arcane arts and divine magic!",
+    icon: Sparkles,
+    color: "bg-purple-100 text-purple-800 border-purple-200",
+    darkColor: "dark:bg-purple-900 dark:text-purple-200 dark:border-purple-800",
+    steps: [
+      "Understand spell levels, slots, and cantrips",
+      "Learn spell components (V, S, M) and casting time",
+      "Master concentration and spell saving throws",
+      "Explore schools of magic and their specialties",
+      "Practice spell preparation and spellbook management"
+    ],
+    timeEstimate: "3-4 hours",
+    completionReward: "Spellcaster Badge"
+  },
+  {
     title: "Experienced Player",
     description: "Ready to deepen your understanding?",
     icon: TrendingUp,
@@ -1106,6 +1122,32 @@ const QUICK_REFERENCES = [
       "Sources: Positioning, spells, conditions, help",
       "They cancel out: Never stack multiples",
       "Affects: Attack rolls, ability checks, saves"
+    ]
+  },
+  {
+    title: "Spellcasting Basics",
+    icon: Sparkles,
+    items: [
+      "Cantrips: Free to cast, scale with character level",
+      "Spell Slots: Resource spent to cast leveled spells",
+      "Spell Level: 1st-9th, higher = more powerful",
+      "Components: V (verbal), S (somatic), M (material)",
+      "Concentration: One spell at a time, save on damage",
+      "Spell DC: 8 + proficiency + spellcasting modifier"
+    ]
+  },
+  {
+    title: "Schools of Magic",
+    icon: Wand2,
+    items: [
+      "Abjuration: Protection, wards, counterspells",
+      "Conjuration: Summon creatures and objects",
+      "Divination: Knowledge, foresight, detection",
+      "Enchantment: Mind control, charm, fear",
+      "Evocation: Damage spells, energy manipulation",
+      "Illusion: Deception, images, concealment",
+      "Necromancy: Death, undead, life drain",
+      "Transmutation: Change form, enhance abilities"
     ]
   }
 ];
