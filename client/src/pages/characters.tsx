@@ -1035,7 +1035,7 @@ export default function Characters() {
                                 )}
                               </div>
 
-                              <div className="flex justify-center gap-2">
+                              <div className="flex justify-center gap-2 flex-wrap">
                                 <Button 
                                   variant="outline" 
                                   size="sm" 
@@ -1045,6 +1045,23 @@ export default function Characters() {
                                   <Edit className="h-4 w-4 mr-2" />
                                   Edit Character
                                 </Button>
+                                {['wizard', 'sorcerer', 'cleric', 'bard', 'druid', 'warlock', 'paladin', 'ranger'].includes(character.class?.toLowerCase() || '') && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-700"
+                                    onClick={() => {
+                                      setSelectedCharacter(character);
+                                      setTimeout(() => {
+                                        const spellsTab = document.querySelector('[value="spells"]') as HTMLElement;
+                                        spellsTab?.click();
+                                      }, 100);
+                                    }}
+                                  >
+                                    <Sparkles className="h-4 w-4 mr-2" />
+                                    Spell Book
+                                  </Button>
+                                )}
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
                                     <Button 
