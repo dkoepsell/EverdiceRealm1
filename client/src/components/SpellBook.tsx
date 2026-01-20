@@ -115,6 +115,37 @@ const DAMAGE_TYPE_ICONS: Record<string, any> = {
   acid: Circle,
 };
 
+function getMinCasterLevel(characterClass: string, spellLevel: number): number {
+  if (spellLevel === 0) return 1;
+  
+  const halfCasters = ['paladin', 'ranger'];
+  const isHalfCaster = halfCasters.includes(characterClass.toLowerCase());
+  
+  if (isHalfCaster) {
+    const halfCasterLevels: Record<number, number> = {
+      1: 2, 2: 5, 3: 9, 4: 13, 5: 17
+    };
+    return halfCasterLevels[spellLevel] ?? -1;
+  }
+  
+  const warlockLevels: Record<number, number> = {
+    1: 1, 2: 3, 3: 5, 4: 7, 5: 9
+  };
+  if (characterClass.toLowerCase() === 'warlock') {
+    return warlockLevels[spellLevel] ?? -1;
+  }
+  
+  const fullCasterLevels: Record<number, number> = {
+    1: 1, 2: 3, 3: 5, 4: 7, 5: 9, 6: 11, 7: 13, 8: 15, 9: 17
+  };
+  return fullCasterLevels[spellLevel] ?? 1;
+}
+
+function isSpellLevelAvailable(characterClass: string, spellLevel: number): boolean {
+  const minLevel = getMinCasterLevel(characterClass, spellLevel);
+  return minLevel > 0;
+}
+
 function SpellCard({ 
   spell, 
   isKnown, 
@@ -277,11 +308,7 @@ function SpellSlotTracker({ slots, characterId, onSlotUsed }: {
 }) {
   const useSlotMutation = useMutation({
     mutationFn: async (slotLevel: number) => {
-      return apiRequest(`/api/characters/${characterId}/spell-slots/use`, {
-        method: 'POST',
-        body: JSON.stringify({ slotLevel }),
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return apiRequest('POST', `/api/characters/${characterId}/spell-slots/use`, { slotLevel });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/characters/${characterId}/spell-slots`] });
@@ -291,9 +318,7 @@ function SpellSlotTracker({ slots, characterId, onSlotUsed }: {
   
   const resetSlotsMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest(`/api/characters/${characterId}/spell-slots/reset`, {
-        method: 'POST'
-      });
+      return apiRequest('POST', `/api/characters/${characterId}/spell-slots/reset`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/characters/${characterId}/spell-slots`] });
@@ -377,9 +402,15 @@ export default function SpellBook({
   const [levelFilter, setLevelFilter] = useState<string>("all");
   const [schoolFilter, setSchoolFilter] = useState<string>("all");
   const [showLearnDialog, setShowLearnDialog] = useState(false);
+  const [showClassSpells, setShowClassSpells] = useState(false);
   
   const { data: knownSpells = [], isLoading: loadingKnown } = useQuery<CharacterSpell[]>({
     queryKey: [`/api/characters/${characterId}/spells`],
+  });
+  
+  const { data: allClassSpells = [], isLoading: loadingClassSpells } = useQuery<Spell[]>({
+    queryKey: [`/api/spells?className=${characterClass.toLowerCase()}`],
+    enabled: showClassSpells,
   });
   
   const { data: spellSlots } = useQuery<SpellSlots>({
@@ -396,11 +427,7 @@ export default function SpellBook({
   
   const learnSpellMutation = useMutation({
     mutationFn: async ({ spellId, source }: { spellId: number; source?: string }) => {
-      return apiRequest(`/api/characters/${characterId}/spells`, {
-        method: 'POST',
-        body: JSON.stringify({ spellId, source: source || 'class' }),
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return apiRequest('POST', `/api/characters/${characterId}/spells`, { spellId, source: source || 'class' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/characters/${characterId}/spells`] });
@@ -410,11 +437,7 @@ export default function SpellBook({
   
   const prepareSpellMutation = useMutation({
     mutationFn: async ({ spellId, prepared }: { spellId: number; prepared: boolean }) => {
-      return apiRequest(`/api/characters/${characterId}/spells/${spellId}/prepare`, {
-        method: 'PATCH',
-        body: JSON.stringify({ prepared }),
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return apiRequest('PATCH', `/api/characters/${characterId}/spells/${spellId}/prepare`, { prepared });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/characters/${characterId}/spells`] });
@@ -423,9 +446,7 @@ export default function SpellBook({
   
   const forgetSpellMutation = useMutation({
     mutationFn: async (spellId: number) => {
-      return apiRequest(`/api/characters/${characterId}/spells/${spellId}`, {
-        method: 'DELETE'
-      });
+      return apiRequest('DELETE', `/api/characters/${characterId}/spells/${spellId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/characters/${characterId}/spells`] });
@@ -579,11 +600,14 @@ export default function SpellBook({
             </div>
           )}
           
-          <Tabs defaultValue="all" className="w-full">
-            <TabsList className="mb-3">
+          <Tabs defaultValue="all" className="w-full" onValueChange={(val) => setShowClassSpells(val === 'class-spells')}>
+            <TabsList className="mb-3 flex-wrap h-auto gap-1">
               <TabsTrigger value="all">All ({filteredKnownSpells.length})</TabsTrigger>
               <TabsTrigger value="prepared">Prepared ({knownSpells.filter(cs => cs.isPrepared).length})</TabsTrigger>
               <TabsTrigger value="cantrips">Cantrips ({cantrips.length})</TabsTrigger>
+              <TabsTrigger value="class-spells" className="text-purple-600 dark:text-purple-400">
+                Class Spells
+              </TabsTrigger>
             </TabsList>
             
             <TabsContent value="all">
@@ -677,6 +701,129 @@ export default function SpellBook({
                   <div className="text-center py-8 text-gray-500">
                     No cantrips known
                   </div>
+                )}
+              </ScrollArea>
+            </TabsContent>
+            
+            <TabsContent value="class-spells">
+              <ScrollArea className="h-[400px] pr-4">
+                {loadingClassSpells ? (
+                  <div className="text-center py-8">Loading class spells...</div>
+                ) : (
+                  <>
+                    <div className="mb-4 p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                      <h4 className="font-semibold text-purple-800 dark:text-purple-200 text-sm mb-1">
+                        All {characterClass} Spells
+                      </h4>
+                      <p className="text-xs text-purple-600 dark:text-purple-400">
+                        Spells you haven't learned yet are greyed out. Requirements show what level you need to cast them.
+                      </p>
+                    </div>
+                    
+                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(level => {
+                      const levelSpells = allClassSpells.filter(s => s.level === level);
+                      if (levelSpells.length === 0) return null;
+                      
+                      const minCasterLevel = getMinCasterLevel(characterClass, level);
+                      const isAvailableForClass = minCasterLevel > 0;
+                      const canAccessLevel = isAvailableForClass && characterLevel >= minCasterLevel;
+                      
+                      return (
+                        <div key={level} className="mb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-sm font-semibold text-gray-500 flex items-center gap-1">
+                              {level === 0 ? (
+                                <><Star className="h-4 w-4" /> Cantrips</>
+                              ) : (
+                                <>Level {level} Spells</>
+                              )}
+                            </h3>
+                            {level > 0 && (
+                              <Badge 
+                                variant={canAccessLevel ? "default" : "secondary"}
+                                className={`text-xs ${canAccessLevel ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}
+                              >
+                                {canAccessLevel 
+                                  ? '✓ Available' 
+                                  : isAvailableForClass 
+                                    ? `Requires Level ${minCasterLevel}` 
+                                    : 'Not available for class'}
+                              </Badge>
+                            )}
+                          </div>
+                          
+                          <div className="space-y-1">
+                            {levelSpells.map(spell => {
+                              const isKnown = knownSpells.some(ks => ks.spell.name === spell.name);
+                              const SchoolIcon = SCHOOL_ICONS[spell.school] || Wand2;
+                              
+                              return (
+                                <div 
+                                  key={spell.id || spell.name}
+                                  className={`flex items-center gap-2 p-2 rounded border ${
+                                    isKnown 
+                                      ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
+                                      : canAccessLevel
+                                      ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                                      : 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 opacity-50'
+                                  }`}
+                                >
+                                  <SchoolIcon className={`h-4 w-4 ${isKnown ? 'text-green-500' : 'text-gray-400'}`} />
+                                  <span className={`flex-1 text-sm ${isKnown ? 'font-medium' : ''}`}>
+                                    {spell.name}
+                                  </span>
+                                  <Badge 
+                                    variant="outline" 
+                                    className={`text-xs ${SCHOOL_COLORS[spell.school] || ''}`}
+                                  >
+                                    {spell.school}
+                                  </Badge>
+                                  {spell.concentration && (
+                                    <Badge variant="outline" className="text-xs bg-purple-50 dark:bg-purple-950">C</Badge>
+                                  )}
+                                  {spell.ritual && (
+                                    <Badge variant="outline" className="text-xs bg-blue-50 dark:bg-blue-950">R</Badge>
+                                  )}
+                                  {isKnown ? (
+                                    <Badge className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                      <Check className="h-3 w-3 mr-1" />
+                                      Known
+                                    </Badge>
+                                  ) : !isAvailableForClass ? (
+                                    <span className="text-xs text-gray-400 italic">
+                                      N/A
+                                    </span>
+                                  ) : canAccessLevel ? (
+                                    !readOnly ? (
+                                      <Button 
+                                        size="sm" 
+                                        variant="ghost" 
+                                        className="h-6 px-2 text-xs"
+                                        onClick={() => {
+                                          learnSpellMutation.mutate({ spellId: spell.id });
+                                        }}
+                                      >
+                                        <Plus className="h-3 w-3 mr-1" />
+                                        Learn
+                                      </Button>
+                                    ) : (
+                                      <Badge variant="outline" className="text-xs">
+                                        Available
+                                      </Badge>
+                                    )
+                                  ) : (
+                                    <span className="text-xs text-gray-400">
+                                      Lv{minCasterLevel}+
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
                 )}
               </ScrollArea>
             </TabsContent>

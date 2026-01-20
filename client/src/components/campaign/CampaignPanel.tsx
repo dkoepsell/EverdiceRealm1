@@ -46,6 +46,7 @@ import CampaignParticipants from "./CampaignParticipants";
 import TurnManager from "./TurnManager";
 import CampaignDeploymentTab from "./CampaignDeploymentTab";
 import CampaignDashboard from "./CampaignDashboard";
+import CombatSpellPanel from "@/components/combat/CombatSpellPanel";
 import { LearningTip, useLearningTips } from "@/components/learning/LearningTip";
 import type { DungeonMapData, MapEntity } from "../dungeon/DungeonMap";
 import { generateDungeon } from "../dungeon/DungeonGenerator";
@@ -3147,6 +3148,23 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             </div>
                           </div>
                         </div>
+                        
+                        {/* Combat Spells for active character */}
+                        {activeCharacter && ['wizard', 'sorcerer', 'cleric', 'bard', 'druid', 'warlock', 'paladin', 'ranger'].includes(activeCharacter.class?.toLowerCase() || '') && (
+                          <div className="mt-3">
+                            <CombatSpellPanel
+                              characterId={activeCharacter.id}
+                              characterClass={activeCharacter.class || ''}
+                              characterLevel={activeCharacter.level || 1}
+                              onCastSpell={(spell, slotLevel) => {
+                                toast({
+                                  title: `${activeCharacter.name} casts ${spell.name}!`,
+                                  description: slotLevel > 0 ? `Used a level ${slotLevel} spell slot` : "Cantrip",
+                                });
+                              }}
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
 
