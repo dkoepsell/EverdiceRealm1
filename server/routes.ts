@@ -11103,8 +11103,17 @@ Respond with JSON:
             const npc = await storage.getNpc(cn.npcId);
             // Check isCompanion on the NPC record, not on campaign_npcs
             if (npc && npc.isCompanion) {
+              // Check if companion is already in partyMembers with flexible name matching
+              // (AI might use shortened names like "Grimshaw" for "Grimshaw the Guardian")
+              const npcNameLower = npc.name.toLowerCase();
+              const npcFirstName = npc.name.split(' ')[0].toLowerCase();
               const companionInParty = (mergedStoryState.partyMembers as any[]).some(
-                (m: any) => m.name === npc.name
+                (m: any) => {
+                  const memberNameLower = (m.name || '').toLowerCase();
+                  return memberNameLower === npcNameLower || 
+                         memberNameLower.includes(npcFirstName) ||
+                         npcNameLower.includes(memberNameLower.split(' ')[0]);
+                }
               );
               if (!companionInParty) {
                 const compStatus = (cn.currentHp || 0) <= 0 ? 'unconscious' :
