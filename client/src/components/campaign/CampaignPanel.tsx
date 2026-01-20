@@ -408,10 +408,20 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   }, [myParticipants, managedCharacterId, userCharacters]);
   
   // Get the selected NPC for management
+  // Merge base NPC data with campaign-specific data (consumables, inventory, status, HP)
   const selectedNpc = useMemo(() => {
     if (!selectedNpcId || !campaignNpcs) return null;
     const campaignNpc = campaignNpcs.find((cn: any) => cn.npcId === selectedNpcId);
-    return campaignNpc?.npc || null;
+    if (!campaignNpc?.npc) return null;
+    // Return merged object: base NPC + campaign-specific overrides (consumables, HP, status, inventory)
+    return {
+      ...campaignNpc.npc,
+      consumables: campaignNpc.consumables || [],
+      inventory: campaignNpc.inventory || [],
+      hitPoints: campaignNpc.currentHp ?? campaignNpc.npc.hitPoints,
+      maxHitPoints: campaignNpc.maxHp ?? campaignNpc.npc.maxHitPoints,
+      status: campaignNpc.status ?? campaignNpc.npc.status,
+    };
   }, [selectedNpcId, campaignNpcs]);
   
   // Helper to parse equipment item from string (may be JSON or plain string)
