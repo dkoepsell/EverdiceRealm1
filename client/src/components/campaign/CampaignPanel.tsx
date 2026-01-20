@@ -2843,7 +2843,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                       {isUnconscious ? '💀 unconscious' : actualStatus || 'healthy'}
                                     </span>
                                   </div>
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 mb-1">
                                     <span className="text-xs text-gray-600 dark:text-gray-400">HP:</span>
                                     <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
                                       <div 
@@ -2865,6 +2865,38 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                       {Math.max(0, actualHp)}/{actualMaxHp}
                                     </span>
                                   </div>
+                                  
+                                  {/* D&D Combat Stats for party members */}
+                                  {(() => {
+                                    // Get stats for companions from partyNpcs or from member data
+                                    const companionNpc = member.type !== 'player' ? partyNpcs?.find((npc: any) => npc.name === member.name) : null;
+                                    const memberAC = companionNpc?.armorClass || member.ac || participantChar?.armorClass;
+                                    const memberATK = companionNpc?.attackBonus || member.attackBonus;
+                                    const memberDMG = companionNpc?.damageRoll || member.damage;
+                                    
+                                    if (memberAC || memberATK || memberDMG) {
+                                      return (
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                          {memberAC && (
+                                            <span className="bg-stone-200 dark:bg-stone-600 text-stone-800 dark:text-stone-100 px-1.5 py-0.5 rounded text-xs" title="Armor Class - enemies need to roll this or higher to hit">
+                                              AC: {memberAC}
+                                            </span>
+                                          )}
+                                          {memberATK && (
+                                            <span className="bg-blue-200 dark:bg-blue-700 text-blue-800 dark:text-blue-100 px-1.5 py-0.5 rounded text-xs" title="Attack Bonus - added to d20 attack rolls">
+                                              ATK: +{memberATK}
+                                            </span>
+                                          )}
+                                          {memberDMG && (
+                                            <span className="bg-amber-200 dark:bg-amber-700 text-amber-800 dark:text-amber-100 px-1.5 py-0.5 rounded text-xs" title="Damage dice rolled on hit">
+                                              DMG: {memberDMG}
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
                                 </div>
                               );})}
                             </div>
