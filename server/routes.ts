@@ -10855,56 +10855,61 @@ Respond with JSON:
           // Declare companionCombatants outside the if block so it's accessible everywhere
           let companionCombatants: Combatant[] = [];
           
+          // ALWAYS fetch companions when in combat (not just when combatEffects exists)
+          // This ensures companion attacks are processed even if AI doesn't return combatEffects
+          const isInCombat = storyAdvancement.storyState?.inCombat === true;
+          
+          // Get companion NPCs for this campaign - needed for combat processing
+          const campaignNpcs = await storage.getCampaignNpcs(campaignId);
+          const npcDetails = await Promise.all(
+            campaignNpcs.map(async (cn) => {
+              const npc = await storage.getNpc(cn.npcId);
+              return { campaignNpc: cn, npc };
+            })
+          );
+          
+          // Build combatant list from companions (include 'ally' role as well)
+          companionCombatants = npcDetails
+            .filter(({ npc, campaignNpc }) => npc && campaignNpc.isActive && (campaignNpc.role === 'companion' || campaignNpc.role === 'ally'))
+            .map(({ npc, campaignNpc }) => {
+              const defaultStats = getCompanionDefaultStats(npc!.class || 'Fighter', 1);
+              return {
+                id: campaignNpc.id,
+                name: npc!.name,
+                type: 'companion' as const,
+                currentHp: campaignNpc.currentHp ?? npc!.hitPoints ?? defaultStats.maxHp,
+                maxHp: campaignNpc.maxHp ?? npc!.maxHitPoints ?? defaultStats.maxHp,
+                armorClass: campaignNpc.armorClass ?? npc!.armorClass ?? defaultStats.armorClass,
+                attackBonus: campaignNpc.attackBonus ?? defaultStats.attackBonus,
+                damageRoll: campaignNpc.damageRoll ?? defaultStats.damageRoll,
+                status: (campaignNpc.status as 'conscious' | 'unconscious' | 'dead' | 'stabilized') || 'conscious',
+                class: npc!.class || undefined
+              };
+            });
+          
+          // Build enemy list from storyState combatants
+          const storyEnemies = storyAdvancement.storyState?.combatants || [];
+          const enemyCombatants: Combatant[] = storyEnemies
+            .filter((e: any) => e.type === 'enemy' || e.type === 'boss')
+            .map((e: any, index: number) => ({
+              id: index + 1000,
+              name: e.name,
+              type: 'enemy' as const,
+              currentHp: e.currentHp || e.maxHp || 20,
+              maxHp: e.maxHp || 20,
+              armorClass: e.ac || 12,
+              attackBonus: e.attackBonus || 3,
+              damageRoll: e.damage || '1d6+2',
+              status: 'conscious' as const
+            }));
+          
           if (combatEffects) {
             damageTaken = combatEffects.playerDamageTaken || 0;
             damageDealt = combatEffects.playerDamageDealt || 0;
-            
-            // Get companion NPCs for this campaign to apply damage to them
-            const campaignNpcs = await storage.getCampaignNpcs(campaignId);
-            const npcDetails = await Promise.all(
-              campaignNpcs.map(async (cn) => {
-                const npc = await storage.getNpc(cn.npcId);
-                return { campaignNpc: cn, npc };
-              })
-            );
-            
-            // Build combatant list from companions (include 'ally' role as well)
-            companionCombatants = npcDetails
-              .filter(({ npc, campaignNpc }) => npc && campaignNpc.isActive && (campaignNpc.role === 'companion' || campaignNpc.role === 'ally'))
-              .map(({ npc, campaignNpc }) => {
-                const defaultStats = getCompanionDefaultStats(npc!.class || 'Fighter', 1);
-                return {
-                  id: campaignNpc.id,
-                  name: npc!.name,
-                  type: 'companion' as const,
-                  currentHp: campaignNpc.currentHp ?? npc!.hitPoints ?? defaultStats.maxHp,
-                  maxHp: campaignNpc.maxHp ?? npc!.maxHitPoints ?? defaultStats.maxHp,
-                  armorClass: campaignNpc.armorClass ?? npc!.armorClass ?? defaultStats.armorClass,
-                  attackBonus: campaignNpc.attackBonus ?? defaultStats.attackBonus,
-                  damageRoll: campaignNpc.damageRoll ?? defaultStats.damageRoll,
-                  status: (campaignNpc.status as 'conscious' | 'unconscious' | 'dead' | 'stabilized') || 'conscious',
-                  class: npc!.class || undefined
-                };
-              });
-            
-            // Build enemy list from storyState combatants
-            const storyEnemies = storyAdvancement.storyState?.combatants || [];
-            const enemyCombatants: Combatant[] = storyEnemies
-              .filter((e: any) => e.type === 'enemy' || e.type === 'boss')
-              .map((e: any, index: number) => ({
-                id: index + 1000,
-                name: e.name,
-                type: 'enemy' as const,
-                currentHp: e.currentHp || e.maxHp || 20,
-                maxHp: e.maxHp || 20,
-                armorClass: e.ac || 12,
-                attackBonus: e.attackBonus || 3,
-                damageRoll: e.damage || '1d6+2',
-                status: 'conscious' as const
-              }));
-            
-            // Process enemy attacks against party (player + companions)
-            if (enemyCombatants.length > 0 && storyAdvancement.storyState?.inCombat) {
+          }
+          
+          // Process enemy attacks against party (player + companions) - check inCombat regardless of combatEffects
+          if (enemyCombatants.length > 0 && isInCombat) {
               // Fetch equipment stats for the character to calculate combat stats
               const equippedItemNames: string[] = [];
               if ((character as any).equippedWeapon) equippedItemNames.push((character as any).equippedWeapon);
@@ -11056,7 +11061,6 @@ Respond with JSON:
                 }
               }
             }
-          }
           
           // Update skill progression
           let updatedSkillProgress = (character.skillProgress as Record<string, { uses: number, bonus: number }>) || {};
@@ -11206,19 +11210,20 @@ Respond with JSON:
             currentStatus: newStatus,
             deathSaveSuccesses,
             deathSaveFailures,
-            combatEffects: combatEffects ? {
+            // Return combat effects if we have combat data (from AI or from our internal processing)
+            combatEffects: (combatEffects || (isInCombat && detailedCombatLogs.length > 0)) ? {
               damageTaken,
               damageDealt,
               newHitPoints,
               maxHitPoints: newMaxHitPoints,
-              combatDescription: combatEffects.combatDescription,
-              enemyDamage: combatEffects.enemyDamage,
+              combatDescription: combatEffects?.combatDescription || (detailedCombatLogs.length > 0 ? "Combat continues!" : ""),
+              enemyDamage: combatEffects?.enemyDamage || [],
               // Use enhanced party damage with D&D mechanics if available, else fallback
-              partyDamage: enhancedPartyDamage.length > 0 ? enhancedPartyDamage : combatEffects.partyDamage,
+              partyDamage: enhancedPartyDamage.length > 0 ? enhancedPartyDamage : (combatEffects?.partyDamage || []),
               // Generate companion actions from combat logs (companions auto-attack in combat)
               companionActions: (() => {
                 // Get AI-generated companion actions
-                const aiActions = (combatEffects.companionActions || []).filter((action: any) => {
+                const aiActions = ((combatEffects?.companionActions) || []).filter((action: any) => {
                   const companion = companionCombatants.find(c => c.name === action.name);
                   if (companion && (companion.status === 'unconscious' || companion.status === 'dead' || companion.currentHp <= 0)) {
                     return false;
