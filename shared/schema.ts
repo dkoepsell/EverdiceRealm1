@@ -422,6 +422,7 @@ export const campaignNpcs = pgTable("campaign_npcs", {
   damageRoll: text("damage_roll").default("1d6+1"), // Damage dice (e.g., "1d6+1")
   status: text("status").default("conscious"), // conscious, unconscious, dead, stabilized
   inventory: text("inventory").array().default([]), // Items held by this NPC in this campaign
+  consumables: jsonb("consumables").default([]), // Consumable items (potions, scrolls) held by this NPC
   deathSaveSuccesses: integer("death_save_successes").default(0),
   deathSaveFailures: integer("death_save_failures").default(0),
   // Override NPC default behavior
