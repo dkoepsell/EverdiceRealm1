@@ -2874,31 +2874,55 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                     // Get stats for companions from partyNpcs or from member data
                                     const companionNpc = member.type !== 'player' ? partyNpcs?.find((npc: any) => npc.name === member.name) : null;
                                     const memberAC = companionNpc?.armorClass || member.ac || participantChar?.armorClass;
-                                    const memberATK = companionNpc?.attackBonus || member.attackBonus;
-                                    const memberDMG = companionNpc?.damageRoll || member.damage;
                                     
-                                    if (memberAC || memberATK || memberDMG) {
-                                      return (
-                                        <div className="flex flex-wrap gap-1 mt-1">
-                                          {memberAC && (
-                                            <span className="bg-stone-200 dark:bg-stone-600 text-stone-800 dark:text-stone-100 px-1.5 py-0.5 rounded text-xs" title="Armor Class - enemies need to roll this or higher to hit">
-                                              AC: {memberAC}
-                                            </span>
-                                          )}
-                                          {memberATK && (
-                                            <span className="bg-blue-200 dark:bg-blue-700 text-blue-800 dark:text-blue-100 px-1.5 py-0.5 rounded text-xs" title="Attack Bonus - added to d20 attack rolls">
-                                              ATK: +{memberATK}
-                                            </span>
-                                          )}
-                                          {memberDMG && (
-                                            <span className="bg-amber-200 dark:bg-amber-700 text-amber-800 dark:text-amber-100 px-1.5 py-0.5 rounded text-xs" title="Damage dice rolled on hit">
-                                              DMG: {memberDMG}
-                                            </span>
-                                          )}
-                                        </div>
-                                      );
+                                    // For player characters, calculate ATK from ability scores
+                                    // ATK = proficiency bonus + ability modifier (STR or DEX based on class)
+                                    let memberATK = companionNpc?.attackBonus || member.attackBonus;
+                                    let memberDMG = companionNpc?.damageRoll || member.damage;
+                                    
+                                    if (!memberATK && participantChar) {
+                                      const char = participantChar;
+                                      const level = char.level || 1;
+                                      const profBonus = Math.floor((level - 1) / 4) + 2; // D&D 5e proficiency bonus
+                                      const strMod = Math.floor(((char.strength || 10) - 10) / 2);
+                                      const dexMod = Math.floor(((char.dexterity || 10) - 10) / 2);
+                                      // Use DEX for finesse/ranged classes, STR otherwise
+                                      const isFinesse = ['Rogue', 'Ranger', 'Monk'].includes(char.class);
+                                      const abilityMod = isFinesse ? Math.max(strMod, dexMod) : strMod;
+                                      memberATK = profBonus + abilityMod;
                                     }
-                                    return null;
+                                    
+                                    if (!memberDMG && participantChar) {
+                                      const char = participantChar;
+                                      const strMod = Math.floor(((char.strength || 10) - 10) / 2);
+                                      const dexMod = Math.floor(((char.dexterity || 10) - 10) / 2);
+                                      const isFinesse = ['Rogue', 'Ranger', 'Monk'].includes(char.class);
+                                      const abilityMod = isFinesse ? Math.max(strMod, dexMod) : strMod;
+                                      // Base weapon damage by class
+                                      const baseDie = ['Wizard', 'Sorcerer', 'Warlock'].includes(char.class) ? '1d6' : '1d8';
+                                      const modStr = abilityMod >= 0 ? `+${abilityMod}` : `${abilityMod}`;
+                                      memberDMG = `${baseDie}${modStr}`;
+                                    }
+                                    
+                                    return (
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {memberAC && (
+                                          <span className="bg-stone-200 dark:bg-stone-600 text-stone-800 dark:text-stone-100 px-1.5 py-0.5 rounded text-xs" title="Armor Class - enemies need to roll this or higher to hit">
+                                            AC: {memberAC}
+                                          </span>
+                                        )}
+                                        {memberATK !== undefined && memberATK !== null && (
+                                          <span className="bg-blue-200 dark:bg-blue-700 text-blue-800 dark:text-blue-100 px-1.5 py-0.5 rounded text-xs" title="Attack Bonus - added to d20 attack rolls">
+                                            ATK: +{memberATK}
+                                          </span>
+                                        )}
+                                        {memberDMG && (
+                                          <span className="bg-amber-200 dark:bg-amber-700 text-amber-800 dark:text-amber-100 px-1.5 py-0.5 rounded text-xs" title="Damage dice rolled on hit">
+                                            DMG: {memberDMG}
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
                                   })()}
                                 </div>
                               );})}
