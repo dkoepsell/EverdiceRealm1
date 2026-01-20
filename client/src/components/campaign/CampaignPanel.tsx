@@ -1122,6 +1122,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           }
         }
         
+        // Refresh companion NPCs after any combat to update HP/status display
+        // Check multiple sources of combat activity
+        const hasPartyDamage = data.progression.combatEffects?.partyDamage?.length > 0;
+        const hasEnemyDamage = data.progression.combatEffects?.enemyDamage?.length > 0;
+        const isInCombat = data.storyState?.inCombat;
+        if (hasPartyDamage || hasEnemyDamage || isInCombat) {
+          queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
+        }
+        
         // Show progression toast
         if (data.progression.leveledUp) {
           toast({
