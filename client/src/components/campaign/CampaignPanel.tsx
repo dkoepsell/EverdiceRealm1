@@ -506,10 +506,20 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
   };
   
-  // Get all party NPCs for the dropdown
+  // Get all party NPCs for the dropdown - merge campaign-specific HP/status with base NPC data
   const partyNpcs = useMemo(() => {
     if (!campaignNpcs) return [];
-    return campaignNpcs.filter((cn: any) => cn.role === 'companion' || cn.role === 'ally').map((cn: any) => cn.npc);
+    return campaignNpcs
+      .filter((cn: any) => cn.role === 'companion' || cn.role === 'ally')
+      .map((cn: any) => ({
+        ...cn.npc,
+        // Use campaign-specific HP/status if available, fallback to base NPC values
+        hitPoints: cn.currentHp ?? cn.npc?.hitPoints ?? cn.npc?.hit_points,
+        maxHitPoints: cn.maxHp ?? cn.npc?.maxHitPoints ?? cn.npc?.max_hit_points,
+        status: cn.status || 'conscious',
+        // Keep campaign NPC id for updates
+        campaignNpcId: cn.id
+      }));
   }, [campaignNpcs]);
   
   // Parse storyState - it may be stored as JSON string or already parsed
