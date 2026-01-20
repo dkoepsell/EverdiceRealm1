@@ -500,7 +500,7 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
                   Level {participant.isNpc ? (participant.npc?.level || 1) : (participant.character?.level || 1)} {participant.isNpc ? participant.npc?.race : participant.character?.race} {participant.isNpc ? participant.npc?.occupation : participant.character?.class}
                 </p>
                 
-                {/* Combat Stats - HP, Weapon, AC */}
+                {/* Combat Stats - HP, Weapon, AC for Players */}
                 {!participant.isNpc && participant.character && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {/* HP Display */}
@@ -527,6 +527,44 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
                     <div className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
                       <Shield className="h-3 w-3" />
                       AC {participant.character.armorClass || 10}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Combat Stats - HP, Weapon, AC for NPC Companions */}
+                {participant.isNpc && participant.character && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {/* HP Display */}
+                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+                      (participant.character.hitPoints || 0) <= 0 
+                        ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300' 
+                        : (participant.character.hitPoints || 0) < (participant.character.maxHitPoints || 1) / 2
+                          ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300'
+                          : 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
+                    }`}>
+                      <Heart className="h-3 w-3" />
+                      {participant.character.hitPoints || 0}/{participant.character.maxHitPoints || 0}
+                    </div>
+                    
+                    {/* Equipped Weapon for NPC */}
+                    {(participant as any).npc?.equippedWeapon && (
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+                        <Sword className="h-3 w-3" />
+                        {(() => {
+                          try {
+                            const weapon = JSON.parse((participant as any).npc.equippedWeapon);
+                            return weapon.name || (participant as any).npc.equippedWeapon;
+                          } catch {
+                            return (participant as any).npc.equippedWeapon;
+                          }
+                        })()}
+                      </div>
+                    )}
+                    
+                    {/* Armor Class */}
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+                      <Shield className="h-3 w-3" />
+                      AC {participant.character.armorClass || (participant as any).npc?.armorClass || 10}
                     </div>
                   </div>
                 )}
