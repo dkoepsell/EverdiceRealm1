@@ -4638,13 +4638,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             <div className="space-y-3">
               {progressionRewards.itemsFound.map((item: any, index: number) => (
                 <div key={index} className="p-3 border rounded-lg bg-slate-100 dark:bg-slate-700">
-                  <div className="font-semibold text-primary">{item.name}</div>
-                  <div className="text-sm text-slate-600 dark:text-slate-400 mb-1">
+                  <div className="font-semibold text-amber-600 dark:text-amber-400">{item.name}</div>
+                  <div className="text-sm text-slate-600 dark:text-slate-300 mb-1">
                     {item.type} • {item.rarity}
                   </div>
-                  <div className="text-sm">{item.description}</div>
+                  <div className="text-sm text-slate-800 dark:text-slate-200">{item.description}</div>
                   {item.properties && (
-                    <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                    <div className="text-xs text-slate-600 dark:text-slate-300 mt-1 italic">
                       {item.properties}
                     </div>
                   )}
