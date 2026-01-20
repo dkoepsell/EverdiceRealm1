@@ -10213,6 +10213,25 @@ Respond with JSON:
               console.log(`Updated enemy ${damageEntry.name} HP: ${damageEntry.newHp}/${combatant.maxHp} (status: ${combatant.status})`);
             }
           }
+          
+          // CRITICAL FIX: Remove defeated enemies from combatants array to prevent reappearing
+          const activeEnemies = storyAdvancement.storyState.combatants.filter(
+            (c: any) => c.status !== 'defeated' && c.currentHp > 0
+          );
+          const defeatedCount = storyAdvancement.storyState.combatants.length - activeEnemies.length;
+          
+          if (defeatedCount > 0) {
+            console.log(`Removing ${defeatedCount} defeated enemies from combatants array`);
+            storyAdvancement.storyState.combatants = activeEnemies;
+            
+            // If all enemies are defeated, end combat
+            const remainingEnemies = activeEnemies.filter((c: any) => c.type === 'enemy' || c.type === 'boss');
+            if (remainingEnemies.length === 0) {
+              console.log("All enemies defeated - ending combat");
+              storyAdvancement.storyState.inCombat = false;
+              combatCompleted = true;
+            }
+          }
         }
       }
       

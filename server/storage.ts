@@ -1815,6 +1815,9 @@ export class DatabaseStorage implements IStorage {
       throw new Error("No active session found");
     }
 
+    // CRITICAL: Sync is_in_combat column with storyState.inCombat to prevent desync
+    const inCombat = storyData.storyState?.inCombat || false;
+
     const [updatedSession] = await db
       .update(campaignSessions)
       .set({
@@ -1824,6 +1827,7 @@ export class DatabaseStorage implements IStorage {
         storyState: storyData.storyState,
         npcInteractions: storyData.npcInteractions,
         playerChoicesMade: storyData.playerChoicesMade,
+        isInCombat: inCombat,
         updatedAt: new Date().toISOString()
       })
       .where(eq(campaignSessions.id, currentSession.id))
