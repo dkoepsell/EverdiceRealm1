@@ -10909,6 +10909,7 @@ Respond with JSON:
           }
           
           // Process enemy attacks against party (player + companions) - check inCombat regardless of combatEffects
+          console.log(`Combat processing check: isInCombat=${isInCombat}, enemyCount=${enemyCombatants.length}, companionCount=${companionCombatants.length}`);
           if (enemyCombatants.length > 0 && isInCombat) {
               // Fetch equipment stats for the character to calculate combat stats
               const equippedItemNames: string[] = [];
@@ -11001,12 +11002,16 @@ Respond with JSON:
               }
               
               // Apply damage to companions and update database
+              console.log(`Combat result - partyDamageDealt:`, JSON.stringify(combatResult.partyDamageDealt));
               for (const damageEntry of combatResult.partyDamageDealt) {
+                console.log(`Processing damage for: ${damageEntry.name}, isCompanion: ${damageEntry.isCompanion}, damage: ${damageEntry.damageTaken}`);
                 // Find the companion in our list
                 const companionMatch = npcDetails.find(({ npc }) => npc?.name === damageEntry.name);
                 if (companionMatch && companionMatch.campaignNpc) {
                   const cn = companionMatch.campaignNpc;
                   const newStatus = damageEntry.newHp <= 0 ? 'unconscious' : 'conscious';
+                  
+                  console.log(`Updating companion ${damageEntry.name} (campaign_npc id=${cn.id}): HP ${cn.currentHp} -> ${damageEntry.newHp}`);
                   
                   // Update companion HP in database
                   await db.execute(sql`
@@ -11015,6 +11020,7 @@ Respond with JSON:
                         status = ${newStatus}
                     WHERE id = ${cn.id}
                   `);
+                  console.log(`Database update complete for companion ${damageEntry.name}`);
                   
                   // Find the combat log for this companion to include mechanics
                   const logEntry = detailedCombatLogs.find(l => l.target === damageEntry.name);
