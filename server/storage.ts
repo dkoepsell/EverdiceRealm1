@@ -47,7 +47,11 @@ import {
   worldMemory, type WorldMemory, type InsertWorldMemory,
   unresolvedThreads, type UnresolvedThread, type InsertUnresolvedThread,
   characterArcInsights, type CharacterArcInsight, type InsertCharacterArcInsight,
-  userSessionTracking
+  userSessionTracking,
+  // Spell system
+  spells, type Spell, type InsertSpell,
+  characterSpells, type CharacterSpell, type InsertCharacterSpell,
+  characterSpellSlots, type CharacterSpellSlots, type InsertCharacterSpellSlots
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or, inArray } from "drizzle-orm";
@@ -354,6 +358,30 @@ export interface IStorage {
   getUserSessionTracking(userId: number, campaignId: number): Promise<any>;
   updateUserSessionTracking(userId: number, campaignId: number, bullets: any[]): Promise<any>;
   getSinceLastTimeBullets(userId: number, campaignId: number): Promise<string[]>;
+  
+  // Spell Library operations
+  getAllSpells(): Promise<Spell[]>;
+  getSpell(id: number): Promise<Spell | undefined>;
+  getSpellByName(name: string): Promise<Spell | undefined>;
+  getSpellsByLevel(level: number): Promise<Spell[]>;
+  getSpellsByClass(className: string): Promise<Spell[]>;
+  getSpellsBySchool(school: string): Promise<Spell[]>;
+  createSpell(spell: InsertSpell): Promise<Spell>;
+  seedSpells(spellsData: InsertSpell[]): Promise<number>;
+  
+  // Character Spell operations
+  getCharacterSpells(characterId: number): Promise<(CharacterSpell & { spell: Spell })[]>;
+  getCharacterSpell(characterId: number, spellId: number): Promise<CharacterSpell | undefined>;
+  learnSpell(characterSpell: InsertCharacterSpell): Promise<CharacterSpell>;
+  prepareSpell(characterId: number, spellId: number, prepared: boolean): Promise<CharacterSpell | undefined>;
+  forgetSpell(characterId: number, spellId: number): Promise<boolean>;
+  
+  // Character Spell Slots operations
+  getCharacterSpellSlots(characterId: number): Promise<CharacterSpellSlots | undefined>;
+  initializeSpellSlots(characterId: number, slots: InsertCharacterSpellSlots): Promise<CharacterSpellSlots>;
+  updateSpellSlots(characterId: number, updates: Partial<CharacterSpellSlots>): Promise<CharacterSpellSlots | undefined>;
+  useSpellSlot(characterId: number, slotLevel: number): Promise<boolean>;
+  resetSpellSlots(characterId: number): Promise<CharacterSpellSlots | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -3142,6 +3170,165 @@ export class DatabaseStorage implements IStorage {
     const tracking = await this.getUserSessionTracking(userId, campaignId);
     if (!tracking || !tracking.sinceThenBullets) return [];
     return tracking.sinceThenBullets as string[];
+  }
+  
+  // Spell Library operations
+  async getAllSpells(): Promise<Spell[]> {
+    return db.select().from(spells).orderBy(asc(spells.level), asc(spells.name));
+  }
+  
+  async getSpell(id: number): Promise<Spell | undefined> {
+    const [spell] = await db.select().from(spells).where(eq(spells.id, id));
+    return spell || undefined;
+  }
+  
+  async getSpellByName(name: string): Promise<Spell | undefined> {
+    const [spell] = await db.select().from(spells).where(eq(spells.name, name));
+    return spell || undefined;
+  }
+  
+  async getSpellsByLevel(level: number): Promise<Spell[]> {
+    return db.select().from(spells).where(eq(spells.level, level)).orderBy(asc(spells.name));
+  }
+  
+  async getSpellsByClass(className: string): Promise<Spell[]> {
+    return db.select().from(spells)
+      .where(sql`${className} = ANY(${spells.classes})`)
+      .orderBy(asc(spells.level), asc(spells.name));
+  }
+  
+  async getSpellsBySchool(school: string): Promise<Spell[]> {
+    return db.select().from(spells).where(eq(spells.school, school)).orderBy(asc(spells.level), asc(spells.name));
+  }
+  
+  async createSpell(spell: InsertSpell): Promise<Spell> {
+    const [created] = await db.insert(spells).values(spell).returning();
+    return created;
+  }
+  
+  async seedSpells(spellsData: InsertSpell[]): Promise<number> {
+    let count = 0;
+    for (const spellData of spellsData) {
+      const existing = await this.getSpellByName(spellData.name);
+      if (!existing) {
+        await this.createSpell(spellData);
+        count++;
+      }
+    }
+    return count;
+  }
+  
+  // Character Spell operations
+  async getCharacterSpells(characterId: number): Promise<(CharacterSpell & { spell: Spell })[]> {
+    const results = await db.select({
+      characterSpell: characterSpells,
+      spell: spells
+    })
+    .from(characterSpells)
+    .innerJoin(spells, eq(characterSpells.spellId, spells.id))
+    .where(eq(characterSpells.characterId, characterId))
+    .orderBy(asc(spells.level), asc(spells.name));
+    
+    return results.map(r => ({ ...r.characterSpell, spell: r.spell }));
+  }
+  
+  async getCharacterSpell(characterId: number, spellId: number): Promise<CharacterSpell | undefined> {
+    const [result] = await db.select().from(characterSpells)
+      .where(and(
+        eq(characterSpells.characterId, characterId),
+        eq(characterSpells.spellId, spellId)
+      ));
+    return result || undefined;
+  }
+  
+  async learnSpell(characterSpell: InsertCharacterSpell): Promise<CharacterSpell> {
+    const [created] = await db.insert(characterSpells).values(characterSpell).returning();
+    return created;
+  }
+  
+  async prepareSpell(characterId: number, spellId: number, prepared: boolean): Promise<CharacterSpell | undefined> {
+    const [updated] = await db.update(characterSpells)
+      .set({ isPrepared: prepared })
+      .where(and(
+        eq(characterSpells.characterId, characterId),
+        eq(characterSpells.spellId, spellId)
+      ))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async forgetSpell(characterId: number, spellId: number): Promise<boolean> {
+    await db.delete(characterSpells)
+      .where(and(
+        eq(characterSpells.characterId, characterId),
+        eq(characterSpells.spellId, spellId)
+      ));
+    return true;
+  }
+  
+  // Character Spell Slots operations
+  async getCharacterSpellSlots(characterId: number): Promise<CharacterSpellSlots | undefined> {
+    const [slots] = await db.select().from(characterSpellSlots)
+      .where(eq(characterSpellSlots.characterId, characterId));
+    return slots || undefined;
+  }
+  
+  async initializeSpellSlots(characterId: number, slots: InsertCharacterSpellSlots): Promise<CharacterSpellSlots> {
+    const existing = await this.getCharacterSpellSlots(characterId);
+    if (existing) {
+      const [updated] = await db.update(characterSpellSlots)
+        .set(slots)
+        .where(eq(characterSpellSlots.characterId, characterId))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(characterSpellSlots).values({ ...slots, characterId }).returning();
+    return created;
+  }
+  
+  async updateSpellSlots(characterId: number, updates: Partial<CharacterSpellSlots>): Promise<CharacterSpellSlots | undefined> {
+    const [updated] = await db.update(characterSpellSlots)
+      .set(updates)
+      .where(eq(characterSpellSlots.characterId, characterId))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async useSpellSlot(characterId: number, slotLevel: number): Promise<boolean> {
+    const slots = await this.getCharacterSpellSlots(characterId);
+    if (!slots) return false;
+    
+    const maxKey = `slotsLevel${slotLevel}Max` as keyof CharacterSpellSlots;
+    const usedKey = `slotsLevel${slotLevel}Used` as keyof CharacterSpellSlots;
+    
+    const maxSlots = (slots[maxKey] as number) || 0;
+    const usedSlots = (slots[usedKey] as number) || 0;
+    
+    if (usedSlots >= maxSlots) return false;
+    
+    await db.update(characterSpellSlots)
+      .set({ [usedKey]: usedSlots + 1 })
+      .where(eq(characterSpellSlots.characterId, characterId));
+    return true;
+  }
+  
+  async resetSpellSlots(characterId: number): Promise<CharacterSpellSlots | undefined> {
+    const [updated] = await db.update(characterSpellSlots)
+      .set({
+        slotsLevel1Used: 0,
+        slotsLevel2Used: 0,
+        slotsLevel3Used: 0,
+        slotsLevel4Used: 0,
+        slotsLevel5Used: 0,
+        slotsLevel6Used: 0,
+        slotsLevel7Used: 0,
+        slotsLevel8Used: 0,
+        slotsLevel9Used: 0,
+        lastLongRest: new Date().toISOString()
+      })
+      .where(eq(characterSpellSlots.characterId, characterId))
+      .returning();
+    return updated || undefined;
   }
 }
 

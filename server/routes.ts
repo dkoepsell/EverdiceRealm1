@@ -3559,6 +3559,271 @@ Return your response as a JSON object with these fields:
     }
   });
   
+  // ============================================
+  // SPELL BOOK API ROUTES
+  // ============================================
+  
+  // Get all spells (with optional filters)
+  app.get("/api/spells", async (req, res) => {
+    try {
+      const { level, className, school } = req.query;
+      
+      if (level !== undefined) {
+        const spells = await storage.getSpellsByLevel(parseInt(level as string));
+        return res.json(spells);
+      }
+      
+      if (className && typeof className === 'string') {
+        const spells = await storage.getSpellsByClass(className.toLowerCase());
+        return res.json(spells);
+      }
+      
+      if (school && typeof school === 'string') {
+        const spells = await storage.getSpellsBySchool(school.toLowerCase());
+        return res.json(spells);
+      }
+      
+      const spells = await storage.getAllSpells();
+      res.json(spells);
+    } catch (error) {
+      console.error("Error fetching spells:", error);
+      res.status(500).json({ message: "Failed to fetch spells" });
+    }
+  });
+  
+  // Get single spell by ID
+  app.get("/api/spells/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const spell = await storage.getSpell(id);
+      if (!spell) {
+        return res.status(404).json({ message: "Spell not found" });
+      }
+      res.json(spell);
+    } catch (error) {
+      console.error("Error fetching spell:", error);
+      res.status(500).json({ message: "Failed to fetch spell" });
+    }
+  });
+  
+  // Seed spell database from SRD data
+  app.post("/api/spells/seed", async (req, res) => {
+    try {
+      const { SRD_SPELLS } = await import("./spellData");
+      const count = await storage.seedSpells(SRD_SPELLS);
+      res.json({ success: true, seeded: count, message: `Seeded ${count} spells` });
+    } catch (error) {
+      console.error("Error seeding spells:", error);
+      res.status(500).json({ message: "Failed to seed spells" });
+    }
+  });
+  
+  // Get character's known spells
+  app.get("/api/characters/:characterId/spells", async (req, res) => {
+    try {
+      const characterId = parseInt(req.params.characterId);
+      const characterSpells = await storage.getCharacterSpells(characterId);
+      res.json(characterSpells);
+    } catch (error) {
+      console.error("Error fetching character spells:", error);
+      res.status(500).json({ message: "Failed to fetch character spells" });
+    }
+  });
+  
+  // Learn a new spell
+  app.post("/api/characters/:characterId/spells", async (req, res) => {
+    try {
+      const characterId = parseInt(req.params.characterId);
+      const { spellId, source, acquisitionStory } = req.body;
+      
+      // Check if character exists
+      const character = await storage.getCharacter(characterId);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      // Check if spell exists
+      const spell = await storage.getSpell(spellId);
+      if (!spell) {
+        return res.status(404).json({ message: "Spell not found" });
+      }
+      
+      // Check if already known
+      const existing = await storage.getCharacterSpell(characterId, spellId);
+      if (existing) {
+        return res.status(400).json({ message: "Character already knows this spell" });
+      }
+      
+      const characterSpell = await storage.learnSpell({
+        characterId,
+        spellId,
+        source: source || 'class',
+        acquiredAt: new Date().toISOString(),
+        acquiredLevel: character.level,
+        acquisitionStory,
+        isPrepared: spell.level === 0, // Cantrips are always prepared
+        inSpellbook: true
+      });
+      
+      res.json({ success: true, spell: characterSpell });
+    } catch (error) {
+      console.error("Error learning spell:", error);
+      res.status(500).json({ message: "Failed to learn spell" });
+    }
+  });
+  
+  // Prepare/unprepare a spell
+  app.patch("/api/characters/:characterId/spells/:spellId/prepare", async (req, res) => {
+    try {
+      const characterId = parseInt(req.params.characterId);
+      const spellId = parseInt(req.params.spellId);
+      const { prepared } = req.body;
+      
+      const updated = await storage.prepareSpell(characterId, spellId, prepared);
+      if (!updated) {
+        return res.status(404).json({ message: "Character spell not found" });
+      }
+      res.json({ success: true, spell: updated });
+    } catch (error) {
+      console.error("Error preparing spell:", error);
+      res.status(500).json({ message: "Failed to prepare spell" });
+    }
+  });
+  
+  // Forget a spell
+  app.delete("/api/characters/:characterId/spells/:spellId", async (req, res) => {
+    try {
+      const characterId = parseInt(req.params.characterId);
+      const spellId = parseInt(req.params.spellId);
+      
+      await storage.forgetSpell(characterId, spellId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error forgetting spell:", error);
+      res.status(500).json({ message: "Failed to forget spell" });
+    }
+  });
+  
+  // Get character's spell slots
+  app.get("/api/characters/:characterId/spell-slots", async (req, res) => {
+    try {
+      const characterId = parseInt(req.params.characterId);
+      const slots = await storage.getCharacterSpellSlots(characterId);
+      
+      if (!slots) {
+        // Initialize spell slots if not exists
+        const character = await storage.getCharacter(characterId);
+        if (!character) {
+          return res.status(404).json({ message: "Character not found" });
+        }
+        
+        // Import spell slot calculations
+        const { getSpellSlotsByLevel, isSpellcastingClass } = await import("./spellData");
+        
+        if (!isSpellcastingClass(character.class)) {
+          return res.json({ message: "Character is not a spellcasting class", slots: null });
+        }
+        
+        const slotsByLevel = getSpellSlotsByLevel(character.class, character.level);
+        const newSlots = await storage.initializeSpellSlots(characterId, {
+          characterId,
+          slotsLevel1Max: slotsByLevel[0],
+          slotsLevel2Max: slotsByLevel[1],
+          slotsLevel3Max: slotsByLevel[2],
+          slotsLevel4Max: slotsByLevel[3],
+          slotsLevel5Max: slotsByLevel[4],
+          slotsLevel6Max: slotsByLevel[5],
+          slotsLevel7Max: slotsByLevel[6],
+          slotsLevel8Max: slotsByLevel[7],
+          slotsLevel9Max: slotsByLevel[8],
+          lastLongRest: new Date().toISOString()
+        });
+        return res.json(newSlots);
+      }
+      
+      res.json(slots);
+    } catch (error) {
+      console.error("Error fetching spell slots:", error);
+      res.status(500).json({ message: "Failed to fetch spell slots" });
+    }
+  });
+  
+  // Use a spell slot
+  app.post("/api/characters/:characterId/spell-slots/use", async (req, res) => {
+    try {
+      const characterId = parseInt(req.params.characterId);
+      const { slotLevel } = req.body;
+      
+      if (!slotLevel || slotLevel < 1 || slotLevel > 9) {
+        return res.status(400).json({ message: "Invalid slot level (must be 1-9)" });
+      }
+      
+      const success = await storage.useSpellSlot(characterId, slotLevel);
+      if (!success) {
+        return res.status(400).json({ message: "No available spell slots at this level" });
+      }
+      
+      const slots = await storage.getCharacterSpellSlots(characterId);
+      res.json({ success: true, slots });
+    } catch (error) {
+      console.error("Error using spell slot:", error);
+      res.status(500).json({ message: "Failed to use spell slot" });
+    }
+  });
+  
+  // Reset spell slots (long rest)
+  app.post("/api/characters/:characterId/spell-slots/reset", async (req, res) => {
+    try {
+      const characterId = parseInt(req.params.characterId);
+      const slots = await storage.resetSpellSlots(characterId);
+      if (!slots) {
+        return res.status(404).json({ message: "Character spell slots not found" });
+      }
+      res.json({ success: true, slots, message: "Spell slots restored after long rest" });
+    } catch (error) {
+      console.error("Error resetting spell slots:", error);
+      res.status(500).json({ message: "Failed to reset spell slots" });
+    }
+  });
+  
+  // Get available spells for a character's class and level
+  app.get("/api/characters/:characterId/available-spells", async (req, res) => {
+    try {
+      const characterId = parseInt(req.params.characterId);
+      const character = await storage.getCharacter(characterId);
+      
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      const { getSpellsAvailableForCharacter, isSpellcastingClass } = await import("./spellData");
+      
+      if (!isSpellcastingClass(character.class)) {
+        return res.json({ spells: [], message: `${character.class} is not a spellcasting class` });
+      }
+      
+      // Get all spells available for this class
+      const allAvailable = getSpellsAvailableForCharacter(character.class, character.level);
+      
+      // Get already known spells
+      const knownSpells = await storage.getCharacterSpells(characterId);
+      const knownIds = new Set(knownSpells.map(cs => cs.spellId));
+      
+      // Filter out known spells
+      const available = allAvailable.filter(s => !knownIds.has((s as any).id || 0));
+      
+      res.json({
+        class: character.class,
+        level: character.level,
+        spells: available,
+        knownCount: knownSpells.length
+      });
+    } catch (error) {
+      console.error("Error fetching available spells:", error);
+      res.status(500).json({ message: "Failed to fetch available spells" });
+    }
+  });
+
   // Calculate character stats from equipped items
   app.get("/api/characters/:id/computed-stats", async (req, res) => {
     try {
