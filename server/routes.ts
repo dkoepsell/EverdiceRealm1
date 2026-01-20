@@ -10868,6 +10868,15 @@ Respond with JSON:
             })
           );
           
+          // DEBUG: Log companion detection
+          console.log(`[COMBAT DEBUG] Campaign ${campaignId}: isInCombat=${isInCombat}, campaignNpcs=${campaignNpcs.length}`);
+          console.log(`[COMBAT DEBUG] NPC details:`, npcDetails.map(({ campaignNpc, npc }) => ({
+            name: npc?.name,
+            role: campaignNpc.role,
+            isActive: campaignNpc.isActive,
+            status: campaignNpc.status
+          })));
+          
           // Build combatant list from companions (include 'ally' role as well)
           companionCombatants = npcDetails
             .filter(({ npc, campaignNpc }) => npc && campaignNpc.isActive && (campaignNpc.role === 'companion' || campaignNpc.role === 'ally'))
@@ -10902,6 +10911,11 @@ Respond with JSON:
               damageRoll: e.damage || '1d6+2',
               status: 'conscious' as const
             }));
+          
+          // DEBUG: Log combat setup
+          console.log(`[COMBAT DEBUG] companionCombatants=${companionCombatants.length}, enemyCombatants=${enemyCombatants.length}`);
+          console.log(`[COMBAT DEBUG] storyEnemies:`, storyEnemies.map((e: any) => ({ name: e.name, type: e.type, currentHp: e.currentHp })));
+          console.log(`[COMBAT DEBUG] Will process combat: ${enemyCombatants.length > 0 && isInCombat}`);
           
           if (combatEffects) {
             damageTaken = combatEffects.playerDamageTaken || 0;
