@@ -1292,3 +1292,96 @@ export const insertDailyStatsRollupSchema = createInsertSchema(dailyStatsRollup)
 
 export type InsertDailyStatsRollup = z.infer<typeof insertDailyStatsRollupSchema>;
 export type DailyStatsRollup = typeof dailyStatsRollup.$inferSelect;
+
+// Spells - Master spell library (SRD 5e spells)
+export const spells = pgTable("spells", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  level: integer("level").notNull(), // 0 = cantrip, 1-9 = spell levels
+  school: text("school").notNull(), // abjuration, conjuration, divination, enchantment, evocation, illusion, necromancy, transmutation
+  castingTime: text("casting_time").notNull(), // 1 action, 1 bonus action, 1 reaction, 1 minute, etc.
+  range: text("range").notNull(), // Self, Touch, 30 feet, 120 feet, etc.
+  components: text("components").notNull(), // V, S, M (material description)
+  duration: text("duration").notNull(), // Instantaneous, Concentration up to 1 minute, 1 hour, etc.
+  description: text("description").notNull(),
+  higherLevels: text("higher_levels"), // What happens when cast at higher level
+  // Class availability
+  classes: text("classes").array().notNull(), // wizard, sorcerer, cleric, druid, bard, paladin, ranger, warlock
+  // Damage/healing info for combat
+  damageType: text("damage_type"), // fire, cold, lightning, necrotic, radiant, etc.
+  damageDice: text("damage_dice"), // 1d10, 2d6, 8d6, etc.
+  healingDice: text("healing_dice"), // For healing spells
+  savingThrow: text("saving_throw"), // DEX, CON, WIS, etc.
+  // Flags
+  ritual: boolean("ritual").default(false),
+  concentration: boolean("concentration").default(false),
+  // SRD compliance
+  srdCompliant: boolean("srd_compliant").default(true),
+});
+
+export const insertSpellSchema = createInsertSchema(spells).omit({
+  id: true,
+});
+
+export type InsertSpell = z.infer<typeof insertSpellSchema>;
+export type Spell = typeof spells.$inferSelect;
+
+// Character Spells - Junction table for known/prepared spells
+export const characterSpells = pgTable("character_spells", {
+  id: serial("id").primaryKey(),
+  characterId: integer("character_id").notNull(),
+  spellId: integer("spell_id").notNull(),
+  // How the spell was acquired
+  source: text("source").default("class"), // class, race, item, quest, scroll
+  // For prepared casters (Cleric, Druid, Paladin, Wizard)
+  isPrepared: boolean("is_prepared").default(false),
+  // For spellbook casters (Wizard) - spells in spellbook vs just known
+  inSpellbook: boolean("in_spellbook").default(true),
+  // Acquisition tracking
+  acquiredAt: text("acquired_at").notNull(),
+  acquiredLevel: integer("acquired_level").default(1), // Character level when learned
+  // Story context
+  acquisitionStory: text("acquisition_story"), // How they learned it (quest reward, scroll study, etc.)
+});
+
+export const insertCharacterSpellSchema = createInsertSchema(characterSpells).omit({
+  id: true,
+});
+
+export type InsertCharacterSpell = z.infer<typeof insertCharacterSpellSchema>;
+export type CharacterSpell = typeof characterSpells.$inferSelect;
+
+// Character Spell Slots - Daily spell slot tracking
+export const characterSpellSlots = pgTable("character_spell_slots", {
+  id: serial("id").primaryKey(),
+  characterId: integer("character_id").notNull().unique(),
+  // Spell slots per level (max available based on class/level)
+  slotsLevel1Max: integer("slots_level_1_max").default(0),
+  slotsLevel2Max: integer("slots_level_2_max").default(0),
+  slotsLevel3Max: integer("slots_level_3_max").default(0),
+  slotsLevel4Max: integer("slots_level_4_max").default(0),
+  slotsLevel5Max: integer("slots_level_5_max").default(0),
+  slotsLevel6Max: integer("slots_level_6_max").default(0),
+  slotsLevel7Max: integer("slots_level_7_max").default(0),
+  slotsLevel8Max: integer("slots_level_8_max").default(0),
+  slotsLevel9Max: integer("slots_level_9_max").default(0),
+  // Currently available slots (decreases as spells are cast)
+  slotsLevel1Used: integer("slots_level_1_used").default(0),
+  slotsLevel2Used: integer("slots_level_2_used").default(0),
+  slotsLevel3Used: integer("slots_level_3_used").default(0),
+  slotsLevel4Used: integer("slots_level_4_used").default(0),
+  slotsLevel5Used: integer("slots_level_5_used").default(0),
+  slotsLevel6Used: integer("slots_level_6_used").default(0),
+  slotsLevel7Used: integer("slots_level_7_used").default(0),
+  slotsLevel8Used: integer("slots_level_8_used").default(0),
+  slotsLevel9Used: integer("slots_level_9_used").default(0),
+  // Last long rest (resets slots)
+  lastLongRest: text("last_long_rest"),
+})
+
+export const insertCharacterSpellSlotsSchema = createInsertSchema(characterSpellSlots).omit({
+  id: true,
+});
+
+export type InsertCharacterSpellSlots = z.infer<typeof insertCharacterSpellSlotsSchema>;
+export type CharacterSpellSlots = typeof characterSpellSlots.$inferSelect;
