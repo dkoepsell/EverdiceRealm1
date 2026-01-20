@@ -11813,6 +11813,16 @@ Respond with JSON:
       };
       
       const shouldAdvanceSession = (() => {
+        // CRITICAL: NEVER advance session while in active combat with living enemies
+        const combatants = mergedStoryState.combatants || [];
+        const hasLivingEnemies = combatants.some((c: any) => 
+          c.type === 'enemy' && c.status !== 'defeated' && (c.currentHp || 0) > 0
+        );
+        if (mergedStoryState.inCombat === true && hasLivingEnemies) {
+          console.log(`Session advance BLOCKED: Active combat with ${combatants.filter((c: any) => c.type === 'enemy' && c.status !== 'defeated').length} living enemies`);
+          return false;
+        }
+        
         // Get ALL active quests from story state (the full list, not just this turn's updates)
         const allQuests = mergedStoryState.activeQuests || [];
         
