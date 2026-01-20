@@ -6,10 +6,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronUp, Image, BookOpen, Shield, Users, Crown } from "lucide-react";
+import { ChevronDown, ChevronUp, Image, BookOpen, Shield, Users, Crown, Sparkles } from "lucide-react";
 import CharacterPortraitGenerator from "./CharacterPortraitGenerator";
 import CharacterStoryArc from "./CharacterStoryArc";
+import SpellBook from "@/components/SpellBook";
 import { getQueryFn } from "@/lib/queryClient";
+
+const SPELLCASTING_CLASSES = [
+  'wizard', 'sorcerer', 'cleric', 'bard', 'druid', 'warlock', 'paladin', 'ranger'
+];
 
 interface EnrichedMembership extends PlayerGroupMember {
   groupName?: string;
@@ -151,6 +156,14 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
                   Portrait
                 </div>
               </TabsTrigger>
+              {SPELLCASTING_CLASSES.includes(character.class.toLowerCase()) && (
+                <TabsTrigger value="spells">
+                  <div className="flex items-center">
+                    <Sparkles className="h-4 w-4 mr-1" />
+                    Spells
+                  </div>
+                </TabsTrigger>
+              )}
             </TabsList>
             
             <TabsContent value="main">
@@ -375,6 +388,19 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
             <TabsContent value="portrait">
               <CharacterPortraitGenerator character={character} />
             </TabsContent>
+            
+            {SPELLCASTING_CLASSES.includes(character.class.toLowerCase()) && (
+              <TabsContent value="spells">
+                <SpellBook
+                  characterId={character.id}
+                  characterClass={character.class}
+                  characterLevel={character.level}
+                  characterName={character.name}
+                  readOnly={false}
+                  compact={true}
+                />
+              </TabsContent>
+            )}
           </Tabs>
         </div>
       ) : (
