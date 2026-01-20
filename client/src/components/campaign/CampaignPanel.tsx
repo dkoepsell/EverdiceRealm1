@@ -5047,6 +5047,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       <LearningTip 
         type={currentTip.type}
         show={currentTip.show}
+        tipId={currentTip.tipId}
         onClose={hideTip}
         onLearnMore={() => {
           window.open('/learn', '_blank');

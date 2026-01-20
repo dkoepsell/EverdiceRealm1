@@ -115,12 +115,16 @@ interface LearningTipProps {
   show: boolean;
   onClose: () => void;
   onLearnMore?: () => void;
+  tipId?: string; // Optional specific tip ID to show
 }
 
-export function LearningTip({ type, show, onClose, onLearnMore }: LearningTipProps) {
-  const [currentTipIndex, setCurrentTipIndex] = useState(0);
+export function LearningTip({ type, show, onClose, onLearnMore, tipId }: LearningTipProps) {
   const tips = LEARNING_TIPS[type] || LEARNING_TIPS.general;
-  const tip = tips[currentTipIndex % tips.length];
+  
+  // If tipId is provided, find that specific tip; otherwise pick first one
+  const tip = tipId 
+    ? (tips.find(t => t.id === tipId) || tips[0])
+    : tips[0];
 
   const getIcon = () => {
     switch (type) {
@@ -131,13 +135,6 @@ export function LearningTip({ type, show, onClose, onLearnMore }: LearningTipPro
       default: return <Lightbulb className="h-5 w-5" />;
     }
   };
-
-  useEffect(() => {
-    if (show) {
-      const randomIndex = Math.floor(Math.random() * tips.length);
-      setCurrentTipIndex(randomIndex);
-    }
-  }, [show, tips.length]);
 
   return (
     <AnimatePresence>
@@ -219,21 +216,58 @@ export function LearningTip({ type, show, onClose, onLearnMore }: LearningTipPro
   );
 }
 
+// Session-based tracking to avoid repeating tips within a session
+const sessionShownTipIds = new Set<string>();
+let lastTipTime = 0;
+const TIP_COOLDOWN_MS = 60000; // 60 seconds minimum between tips
+const TIP_PROBABILITY = 0.3; // Only 30% chance to show a tip
+
 export function useLearningTips() {
   const [shownTips, setShownTips] = useState<Set<string>>(() => {
     const saved = localStorage.getItem('everdice_shown_tips');
     return saved ? new Set(JSON.parse(saved)) : new Set();
   });
   
-  const [currentTip, setCurrentTip] = useState<{ type: LearningTipType; show: boolean }>({
+  const [currentTip, setCurrentTip] = useState<{ type: LearningTipType; show: boolean; tipId?: string }>({
     type: 'general',
     show: false
   });
 
   const showTip = (type: LearningTipType) => {
-    const tipKey = `${type}_${Math.floor(shownTips.size / 3)}`;
-    if (shownTips.size < 10 || !shownTips.has(tipKey)) {
-      setCurrentTip({ type, show: true });
+    const now = Date.now();
+    
+    // Enforce cooldown between tips
+    if (now - lastTipTime < TIP_COOLDOWN_MS) {
+      return;
+    }
+    
+    // Probability check - only show tips 30% of the time
+    if (Math.random() > TIP_PROBABILITY) {
+      return;
+    }
+    
+    // Get available tips that haven't been shown this session
+    const availableTips = (LEARNING_TIPS[type] || LEARNING_TIPS.general)
+      .filter(tip => !sessionShownTipIds.has(tip.id));
+    
+    // If all tips of this type have been shown this session, skip
+    if (availableTips.length === 0) {
+      return;
+    }
+    
+    // Pick a random tip from available ones
+    const tip = availableTips[Math.floor(Math.random() * availableTips.length)];
+    
+    // Mark as shown in session
+    sessionShownTipIds.add(tip.id);
+    lastTipTime = now;
+    
+    // Show the tip
+    setCurrentTip({ type, show: true, tipId: tip.id });
+    
+    // Persist to localStorage for long-term tracking
+    const tipKey = `${type}_${tip.id}`;
+    if (!shownTips.has(tipKey)) {
       const newShown = new Set(shownTips).add(tipKey);
       setShownTips(newShown);
       localStorage.setItem('everdice_shown_tips', JSON.stringify(Array.from(newShown)));
@@ -244,5 +278,12 @@ export function useLearningTips() {
     setCurrentTip(prev => ({ ...prev, show: false }));
   };
 
-  return { currentTip, showTip, hideTip };
+  // Get the specific tip to display based on tipId
+  const getCurrentTip = () => {
+    if (!currentTip.tipId) return null;
+    const tips = LEARNING_TIPS[currentTip.type] || LEARNING_TIPS.general;
+    return tips.find(t => t.id === currentTip.tipId) || tips[0];
+  };
+
+  return { currentTip, showTip, hideTip, getCurrentTip };
 }
