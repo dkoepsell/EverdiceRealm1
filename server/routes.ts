@@ -11887,9 +11887,14 @@ Respond with JSON:
           // Early completion: all goals met AND (no quests OR all quests done) AND at least halfway through campaign
           const earlyCompletionTriggered = allGoalsComplete && allQuestsComplete && currentSession.sessionNumber >= Math.ceil(campaignTotalChapters * 0.5);
           
+          // CRITICAL: Never complete a session while combat is active
+          const isInActiveCombat = mergedStoryState.inCombat === true && 
+            (mergedStoryState.combatants || []).some((c: any) => c.type === 'enemy' && c.status !== 'defeated' && (c.currentHp || 0) > 0);
+          
           // === CAMPAIGN COMPLETE CONDITIONS ===
           // Complete if: on final chapter OR (all goals + all quests done AND at least halfway through)
-          if (isFinalChapter || earlyCompletionTriggered) {
+          // BUT NEVER during active combat
+          if ((isFinalChapter || earlyCompletionTriggered) && !isInActiveCombat) {
             console.log(`Campaign ${campaignId} COMPLETE! Session ${currentSession.sessionNumber} of ${campaignTotalChapters}. Reason: ${isFinalChapter ? 'Final chapter reached' : 'All goals & quests completed early'}`);
 
             
