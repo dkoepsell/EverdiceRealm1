@@ -519,7 +519,18 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
                     {participant.character.equipment && participant.character.equipment.length > 0 && (
                       <div className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
                         <Sword className="h-3 w-3" />
-                        {participant.character.equipment[0]}
+                        {(() => {
+                          const item = participant.character.equipment[0];
+                          if (typeof item === 'object' && item !== null) {
+                            return (item as any).name || 'Unknown';
+                          }
+                          try {
+                            const parsed = JSON.parse(item as string);
+                            return parsed.name || item;
+                          } catch {
+                            return item;
+                          }
+                        })()}
                       </div>
                     )}
                     

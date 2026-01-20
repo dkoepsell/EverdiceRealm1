@@ -349,19 +349,30 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
                 <ul className="bg-parchment-dark rounded-lg p-4 space-y-2">
                   {character.equipment && character.equipment.length > 0 ? (
                     character.equipment.map((item, index) => {
-                      let itemName = item;
+                      let itemName = "Unknown Item";
                       let itemType = "Item";
                       let itemDetails = "";
-                      try {
-                        const parsed = JSON.parse(item);
-                        itemName = parsed.name || item;
+                      
+                      if (typeof item === 'object' && item !== null) {
+                        const parsed = item as any;
+                        itemName = parsed.name || "Unknown Item";
                         itemType = parsed.type || "Item";
                         if (parsed.damage) itemDetails = parsed.damage;
-                        else if (parsed.armor) itemDetails = `AC +${parsed.armor}`;
+                        else if (parsed.armor) itemDetails = `AC ${parsed.armor}`;
                         else if (parsed.damageDice) itemDetails = parsed.damageDice;
-                      } catch {
-                        itemName = item;
+                      } else if (typeof item === 'string') {
+                        try {
+                          const parsed = JSON.parse(item);
+                          itemName = parsed.name || item;
+                          itemType = parsed.type || "Item";
+                          if (parsed.damage) itemDetails = parsed.damage;
+                          else if (parsed.armor) itemDetails = `AC ${parsed.armor}`;
+                          else if (parsed.damageDice) itemDetails = parsed.damageDice;
+                        } catch {
+                          itemName = item;
+                        }
                       }
+                      
                       return (
                         <li key={index} className="flex justify-between items-center pb-2 border-b border-gray-300">
                           <div>

@@ -793,18 +793,24 @@ export default function Dashboard() {
                             Equipment
                           </h4>
                           {(() => {
-                            const equipmentList: string[] = Array.isArray(activeCharacter.equipment) ? activeCharacter.equipment as string[] : [];
-                            const parseItem = (item: string) => {
-                              try {
-                                const parsed = JSON.parse(item);
-                                return parsed.name || item;
-                              } catch {
-                                return item;
+                            const equipmentList: any[] = Array.isArray(activeCharacter.equipment) ? activeCharacter.equipment : [];
+                            const parseItem = (item: any): string => {
+                              if (typeof item === 'object' && item !== null) {
+                                return item.name || 'Unknown Item';
                               }
+                              if (typeof item === 'string') {
+                                try {
+                                  const parsed = JSON.parse(item);
+                                  return parsed.name || item;
+                                } catch {
+                                  return item;
+                                }
+                              }
+                              return String(item);
                             };
                             return equipmentList.length > 0 ? (
                               <ul className="space-y-1 text-sm max-h-32 overflow-y-auto">
-                                {equipmentList.slice(0, 8).map((item: string, idx: number) => (
+                                {equipmentList.slice(0, 8).map((item: any, idx: number) => (
                                   <li key={idx} className="flex items-center gap-2 text-muted-foreground">
                                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                                     {parseItem(item)}
@@ -835,6 +841,25 @@ export default function Dashboard() {
                             <p className="text-sm text-muted-foreground italic">No background story</p>
                           )}
                         </div>
+
+                        {/* Spellcaster indicator */}
+                        {['wizard', 'sorcerer', 'cleric', 'bard', 'druid', 'warlock', 'paladin', 'ranger'].includes(activeCharacter.class?.toLowerCase() || '') && (
+                          <div className="bg-purple-100/50 dark:bg-purple-900/30 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
+                            <h4 className="font-fantasy text-sm font-bold text-purple-800 dark:text-purple-200 mb-2 flex items-center gap-2">
+                              <Sparkles className="h-4 w-4" />
+                              Spellcaster
+                            </h4>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              View your spells in the full character sheet.
+                            </p>
+                            <Link href="/characters">
+                              <Button variant="outline" size="sm" className="text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-700 text-xs">
+                                <Sparkles className="h-3 w-3 mr-1" />
+                                Open Spell Book
+                              </Button>
+                            </Link>
+                          </div>
+                        )}
 
                         <div className="text-center">
                           <Link href="/characters">
