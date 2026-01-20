@@ -79,6 +79,15 @@ Preferred communication style: Simple, everyday language.
     - **Rest & Inventory**: Short/Long rests, inventory management (view, add, remove), item equip/unequip, item transfer between party members.
     - **Death & Status**: Death saving throws (conscious, unconscious, stabilized, dead), critical rolls (Nat 20/1), stabilize/heal actions.
     - **Quests**: Structured quest system with status tracking, AI-generated initial quests, rewards (XP, gold, items), persistence, and UI display.
+- **Spell Book System**: Complete D&D 5e spellcasting for spellcaster classes (Wizard, Sorcerer, Cleric, Bard, Druid, Warlock, Paladin, Ranger):
+    - **Spell Database**: 77+ SRD 5e spells from cantrips to 9th level across all schools of magic
+    - **Spell Learning**: Learn spells based on class and level, with acquisition tracking
+    - **Spell Preparation**: Prepare/unprepare spells for daily use (cantrips always prepared)
+    - **Spell Slots**: Track spell slot usage per level with visual indicators
+    - **Long Rest Reset**: Restore all spell slots on long rest
+    - **Spell Details**: Full spell information including components (V/S/M), casting time, range, duration, school, damage/healing dice, concentration, ritual
+    - **Character Integration**: Spells tab appears only for spellcasting classes in character sheet
+    - **Learning Content**: Spellcasting educational path and quick references on Learn page
 
 ## External Dependencies
 
