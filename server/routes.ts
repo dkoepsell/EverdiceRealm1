@@ -2017,8 +2017,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let newHP = currentHP;
       let newStatus = character.status;
       
-      // Apply effect based on type
-      if (item.type === "healing" && item.healDice) {
+      // Apply effect based on healDice - check for healDice regardless of type
+      // (some potions may have type "consumable" instead of "healing")
+      if (item.healDice) {
         const diceRoll = rollDice(item.healDice);
         healedAmount = diceRoll + (item.healBonus || 0);
         newHP = Math.min(maxHP, currentHP + healedAmount);
@@ -5272,8 +5273,9 @@ Return your response as a JSON object with these fields:
       let newHP = currentHP;
       let newStatus = npc.status || "conscious";
       
-      // Apply effect based on type
-      if (item.type === "healing" && item.healDice) {
+      // Apply effect based on healDice - check for healDice regardless of type
+      // (some potions may have type "consumable" instead of "healing")
+      if (item.healDice) {
         const diceRoll = rollDice(item.healDice);
         healedAmount = diceRoll + (item.healBonus || 0);
         newHP = Math.min(maxHP, currentHP + healedAmount);
@@ -5585,8 +5587,9 @@ Return your response as a JSON object with these fields:
       let newHp = currentHp;
       let newStatus = status;
       
-      // Apply healing effect
-      if (item.type === "healing" && item.healDice) {
+      // Apply healing effect - check for healDice regardless of type
+      // (some potions may have type "consumable" instead of "healing")
+      if (item.healDice) {
         const diceRoll = rollDice(item.healDice);
         healedAmount = diceRoll + (item.healBonus || 0);
         newHp = Math.min(maxHp, currentHp + healedAmount);
