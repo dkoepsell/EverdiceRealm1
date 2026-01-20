@@ -40,7 +40,17 @@ import {
   Compass,
   Drama,
   Layers,
+  HelpCircle,
+  Check,
+  X,
 } from "lucide-react";
+
+interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+}
 
 interface TrainingModule {
   id: string;
@@ -61,6 +71,7 @@ interface TrainingLesson {
   commonMistakes: string[];
   practiceExercises: string[];
   platformTips?: string[];
+  quizQuestions?: QuizQuestion[];
 }
 
 const trainingModules: TrainingModule[] = [
@@ -107,6 +118,41 @@ const trainingModules: TrainingModule[] = [
           "Use the Campaign Builder to set up your first campaign with AI-generated hooks",
           "The AI Story Tools can help you improvise when players surprise you",
           "Keep the dice roller handy—players love seeing their results in real-time"
+        ],
+        quizQuestions: [
+          {
+            question: "What is the primary job of a Dungeon Master?",
+            options: [
+              "To beat the players in combat",
+              "To create a collaborative story where everyone has fun",
+              "To memorize every rule in the book",
+              "To force players down a specific path"
+            ],
+            correctIndex: 1,
+            explanation: "The DM's job is to facilitate fun and create engaging stories together with the players, not to compete against them."
+          },
+          {
+            question: "When a player comes up with a creative solution you didn't expect, you should:",
+            options: [
+              "Say 'no' because it wasn't in your plan",
+              "Make them roll with disadvantage to discourage it",
+              "Consider saying 'yes, and...' or 'yes, but...'",
+              "End the session to re-plan"
+            ],
+            correctIndex: 2,
+            explanation: "Good DMs encourage creativity! 'Yes, and...' builds on their idea, while 'yes, but...' adds interesting complications."
+          },
+          {
+            question: "Which statement best describes the DM's relationship with the rules?",
+            options: [
+              "Rules must be followed exactly as written, always",
+              "Rules are guidelines; fun comes first",
+              "Rules don't matter at all",
+              "Only the DM's interpretation of rules matters"
+            ],
+            correctIndex: 1,
+            explanation: "While rules provide structure, they're tools to enable fun. Great DMs know when to bend them for a better experience."
+          }
         ]
       },
       {
@@ -145,6 +191,30 @@ const trainingModules: TrainingModule[] = [
           "The Quest Generator can give you side content when players wander",
           "Save your NPCs to your campaign so you can reference them quickly",
           "Use Campaign Notes to track what happened and what players want to do"
+        ],
+        quizQuestions: [
+          {
+            question: "What's the best approach to session preparation?",
+            options: [
+              "Write a detailed script for exactly what will happen",
+              "Don't prepare at all—improvise everything",
+              "Prepare flexible elements like NPCs, locations, and encounters",
+              "Memorize the entire adventure module word-for-word"
+            ],
+            correctIndex: 2,
+            explanation: "Preparing flexible building blocks lets you adapt to any direction players take while still having content ready."
+          },
+          {
+            question: "How much time should you typically spend preparing per 3-4 hours of play?",
+            options: [
+              "5-10 minutes",
+              "30-60 minutes",
+              "2-3 hours",
+              "Equal time to play time"
+            ],
+            correctIndex: 1,
+            explanation: "30-60 minutes is a good balance. Focus on key elements rather than exhaustive detail."
+          }
         ]
       },
       {
@@ -182,6 +252,41 @@ const trainingModules: TrainingModule[] = [
           "Everdice handles dice math automatically—just click and roll",
           "Use the integrated dice roller during combat to keep things moving",
           "The platform tracks character stats so you can reference AC and HP quickly"
+        ],
+        quizQuestions: [
+          {
+            question: "What is the core mechanic of D&D 5e?",
+            options: [
+              "Roll 2d6 and compare to a chart",
+              "Roll d20 + modifier vs Difficulty Class (DC)",
+              "Flip a coin for success or failure",
+              "Roll d100 under your skill value"
+            ],
+            correctIndex: 1,
+            explanation: "D&D 5e uses the d20 + modifier vs DC as its universal resolution mechanic for almost everything."
+          },
+          {
+            question: "What DC would you set for a 'Hard' task?",
+            options: [
+              "DC 5",
+              "DC 10",
+              "DC 15",
+              "DC 20"
+            ],
+            correctIndex: 3,
+            explanation: "DC 20 is considered Hard. Easy = DC 10, Medium = DC 15, Hard = DC 20, Very Hard = DC 25."
+          },
+          {
+            question: "What should you do if looking up a rule is taking too long?",
+            options: [
+              "Keep searching until you find the exact answer",
+              "Make a fair ruling and look it up later",
+              "Skip the action entirely",
+              "Let the player decide what happens"
+            ],
+            correctIndex: 1,
+            explanation: "Making a quick ruling keeps the game moving. Note it down and look up the correct rule after the session."
+          }
         ]
       }
     ]
@@ -229,6 +334,30 @@ const trainingModules: TrainingModule[] = [
           "Use the Live Manager's initiative tracker to manage turn order",
           "The combat tracker shows everyone's HP so you know who's hurt",
           "Click on creatures to see their available actions"
+        ],
+        quizQuestions: [
+          {
+            question: "How is initiative calculated?",
+            options: [
+              "d20 + Strength modifier",
+              "d20 + Constitution modifier",
+              "d20 + Dexterity modifier",
+              "d20 + Wisdom modifier"
+            ],
+            correctIndex: 2,
+            explanation: "Initiative uses Dexterity because it represents how quickly a character can react to threats."
+          },
+          {
+            question: "How long does one round of combat represent in game time?",
+            options: [
+              "1 minute",
+              "30 seconds",
+              "6 seconds",
+              "1 second"
+            ],
+            correctIndex: 2,
+            explanation: "Each round is 6 seconds, meaning 10 rounds = 1 minute of in-game time."
+          }
         ]
       },
       {
@@ -266,6 +395,30 @@ const trainingModules: TrainingModule[] = [
           "Use the Monster section to browse pre-made creatures with balanced stats",
           "The Threat Archetypes help you understand how different monster types behave",
           "Import creatures to your campaign's encounter tracker for easy reference"
+        ],
+        quizQuestions: [
+          {
+            question: "What does Challenge Rating (CR) represent?",
+            options: [
+              "The exact number of players needed to fight a monster",
+              "A rough guide for encounter difficulty",
+              "The monster's hit points divided by 10",
+              "The number of rounds a fight will take"
+            ],
+            correctIndex: 1,
+            explanation: "CR is a guideline, not an exact science. A CR equal to party level is roughly a 'medium' challenge for 4 players."
+          },
+          {
+            question: "When should you adjust an encounter mid-fight?",
+            options: [
+              "Never—stick to your plan",
+              "Only when players are winning",
+              "When it's clearly too easy or too hard",
+              "After every round of combat"
+            ],
+            correctIndex: 2,
+            explanation: "Good DMs adjust on the fly to maintain tension. Add reinforcements if too easy, or have enemies retreat if too hard."
+          }
         ]
       },
       {
@@ -1132,6 +1285,8 @@ export default function DMTrainingCenterTab() {
   const [activeModule, setActiveModule] = useState<string | null>(null);
   const [activeLesson, setActiveLesson] = useState<string | null>(null);
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
+  const [quizSubmitted, setQuizSubmitted] = useState<Record<string, boolean>>({});
 
   const totalLessons = trainingModules.reduce((sum, m) => sum + m.lessons.length, 0);
   const completedCount = completedLessons.size;
@@ -1265,6 +1420,87 @@ export default function DMTrainingCenterTab() {
                       </li>
                     ))}
                   </ul>
+                </CardContent>
+              </Card>
+            )}
+
+            {currentLesson.quizQuestions && currentLesson.quizQuestions.length > 0 && (
+              <Card className="border-purple-200 bg-purple-50/50 dark:border-purple-800 dark:bg-purple-950/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2 text-base">
+                    <HelpCircle className="h-5 w-5 text-purple-600" />
+                    <span>Knowledge Check</span>
+                  </CardTitle>
+                  <CardDescription>Test your understanding of this lesson</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {currentLesson.quizQuestions.map((q, qIndex) => {
+                    const quizKey = `${currentLesson.id}-${qIndex}`;
+                    const selectedAnswer = quizAnswers[quizKey];
+                    const isSubmitted = quizSubmitted[quizKey];
+                    const isCorrect = selectedAnswer === q.correctIndex;
+                    
+                    return (
+                      <div key={qIndex} className="bg-white dark:bg-gray-800 p-4 rounded-lg border shadow-sm">
+                        <p className="font-medium text-sm mb-3">{qIndex + 1}. {q.question}</p>
+                        <div className="space-y-2">
+                          {q.options.map((opt, optIndex) => (
+                            <button
+                              key={optIndex}
+                              onClick={() => {
+                                if (!isSubmitted) {
+                                  setQuizAnswers(prev => ({ ...prev, [quizKey]: optIndex }));
+                                }
+                              }}
+                              disabled={isSubmitted}
+                              className={`w-full text-left p-3 rounded-lg text-sm transition-all ${
+                                isSubmitted
+                                  ? optIndex === q.correctIndex
+                                    ? 'bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200'
+                                    : selectedAnswer === optIndex
+                                    ? 'bg-red-100 dark:bg-red-900 border-red-500 text-red-800 dark:text-red-200'
+                                    : 'bg-gray-50 dark:bg-gray-700 text-gray-500'
+                                  : selectedAnswer === optIndex
+                                  ? 'bg-purple-100 dark:bg-purple-900 border-purple-500 ring-2 ring-purple-500'
+                                  : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600'
+                              } border`}
+                            >
+                              <span className="flex items-center gap-2">
+                                {isSubmitted && optIndex === q.correctIndex && (
+                                  <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                )}
+                                {isSubmitted && selectedAnswer === optIndex && optIndex !== q.correctIndex && (
+                                  <X className="h-4 w-4 text-red-600 flex-shrink-0" />
+                                )}
+                                {opt}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                        {!isSubmitted && selectedAnswer !== undefined && (
+                          <Button
+                            size="sm"
+                            className="mt-3"
+                            onClick={() => setQuizSubmitted(prev => ({ ...prev, [quizKey]: true }))}
+                          >
+                            Check Answer
+                          </Button>
+                        )}
+                        {isSubmitted && (
+                          <div className={`mt-3 p-3 rounded-lg text-sm ${
+                            isCorrect 
+                              ? 'bg-green-50 dark:bg-green-950 text-green-800 dark:text-green-200 border border-green-200' 
+                              : 'bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200 border border-amber-200'
+                          }`}>
+                            <p className="font-medium flex items-center gap-1">
+                              {isCorrect ? '✓ Correct!' : '✗ Not quite.'}
+                            </p>
+                            <p className="text-xs mt-1 opacity-90">{q.explanation}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
             )}

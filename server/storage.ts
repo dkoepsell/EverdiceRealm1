@@ -51,7 +51,10 @@ import {
   // Spell system
   spells, type Spell, type InsertSpell,
   characterSpells, type CharacterSpell, type InsertCharacterSpell,
-  characterSpellSlots, type CharacterSpellSlots, type InsertCharacterSpellSlots
+  characterSpellSlots, type CharacterSpellSlots, type InsertCharacterSpellSlots,
+  // Badge system
+  badges, type Badge, type InsertBadge,
+  userBadges, type UserBadge, type InsertUserBadge
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or, inArray } from "drizzle-orm";
@@ -382,6 +385,19 @@ export interface IStorage {
   updateSpellSlots(characterId: number, updates: Partial<CharacterSpellSlots>): Promise<CharacterSpellSlots | undefined>;
   useSpellSlot(characterId: number, slotLevel: number): Promise<boolean>;
   resetSpellSlots(characterId: number): Promise<CharacterSpellSlots | undefined>;
+  
+  // Badge operations
+  getAllBadges(): Promise<Badge[]>;
+  getBadge(id: number): Promise<Badge | undefined>;
+  getBadgeByName(name: string): Promise<Badge | undefined>;
+  getBadgesByCategory(category: string): Promise<Badge[]>;
+  createBadge(badge: InsertBadge): Promise<Badge>;
+  
+  // User Badge operations
+  getUserBadges(userId: number): Promise<(UserBadge & { badge: Badge })[]>;
+  awardBadge(userId: number, badgeId: number, context?: any): Promise<UserBadge>;
+  hasUserBadge(userId: number, badgeId: number): Promise<boolean>;
+  updateUserBadge(id: number, updates: Partial<UserBadge>): Promise<UserBadge | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -3327,6 +3343,83 @@ export class DatabaseStorage implements IStorage {
         lastLongRest: new Date().toISOString()
       })
       .where(eq(characterSpellSlots.characterId, characterId))
+      .returning();
+    return updated || undefined;
+  }
+  
+  // Badge operations
+  async getAllBadges(): Promise<Badge[]> {
+    return await db.select().from(badges).orderBy(asc(badges.name));
+  }
+  
+  async getBadge(id: number): Promise<Badge | undefined> {
+    const [badge] = await db.select().from(badges).where(eq(badges.id, id));
+    return badge || undefined;
+  }
+  
+  async getBadgeByName(name: string): Promise<Badge | undefined> {
+    const [badge] = await db.select().from(badges).where(eq(badges.name, name));
+    return badge || undefined;
+  }
+  
+  async getBadgesByCategory(category: string): Promise<Badge[]> {
+    return await db.select().from(badges)
+      .where(eq(badges.category, category))
+      .orderBy(asc(badges.name));
+  }
+  
+  async createBadge(badge: InsertBadge): Promise<Badge> {
+    const [created] = await db.insert(badges).values(badge).returning();
+    return created;
+  }
+  
+  // User Badge operations
+  async getUserBadges(userId: number): Promise<(UserBadge & { badge: Badge })[]> {
+    const results = await db.select({
+      userBadge: userBadges,
+      badge: badges
+    })
+    .from(userBadges)
+    .innerJoin(badges, eq(userBadges.badgeId, badges.id))
+    .where(eq(userBadges.userId, userId))
+    .orderBy(desc(userBadges.earnedAt));
+    
+    return results.map(r => ({ ...r.userBadge, badge: r.badge }));
+  }
+  
+  async awardBadge(userId: number, badgeId: number, context?: any): Promise<UserBadge> {
+    const [existing] = await db.select().from(userBadges)
+      .where(and(
+        eq(userBadges.userId, userId),
+        eq(userBadges.badgeId, badgeId)
+      ));
+    
+    if (existing) {
+      return existing;
+    }
+    
+    const [created] = await db.insert(userBadges).values({
+      userId,
+      badgeId,
+      earnedAt: new Date().toISOString(),
+      context: context || {}
+    }).returning();
+    return created;
+  }
+  
+  async hasUserBadge(userId: number, badgeId: number): Promise<boolean> {
+    const [result] = await db.select().from(userBadges)
+      .where(and(
+        eq(userBadges.userId, userId),
+        eq(userBadges.badgeId, badgeId)
+      ));
+    return !!result;
+  }
+  
+  async updateUserBadge(id: number, updates: Partial<UserBadge>): Promise<UserBadge | undefined> {
+    const [updated] = await db.update(userBadges)
+      .set(updates)
+      .where(eq(userBadges.id, id))
       .returning();
     return updated || undefined;
   }

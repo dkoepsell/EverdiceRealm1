@@ -15308,5 +15308,71 @@ ALWAYS generate:
     }
   });
 
+  // ============ Badge System Routes ============
+  
+  // Get all available badges
+  app.get("/api/badges", async (req, res) => {
+    try {
+      const allBadges = await storage.getAllBadges();
+      res.json(allBadges);
+    } catch (error) {
+      console.error("Failed to get badges:", error);
+      res.status(500).json({ message: "Failed to get badges" });
+    }
+  });
+  
+  // Get user's earned badges
+  app.get("/api/users/:userId/badges", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const userBadges = await storage.getUserBadges(userId);
+      res.json(userBadges);
+    } catch (error) {
+      console.error("Failed to get user badges:", error);
+      res.status(500).json({ message: "Failed to get user badges" });
+    }
+  });
+  
+  // Get current user's badges (authenticated)
+  app.get("/api/my-badges", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const userBadges = await storage.getUserBadges(userId);
+      res.json(userBadges);
+    } catch (error) {
+      console.error("Failed to get my badges:", error);
+      res.status(500).json({ message: "Failed to get badges" });
+    }
+  });
+  
+  // Award a badge to the current user (for learning path completion)
+  app.post("/api/badges/award", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { badgeName, context } = req.body;
+      
+      if (!badgeName) {
+        return res.status(400).json({ message: "Badge name is required" });
+      }
+      
+      const badge = await storage.getBadgeByName(badgeName);
+      if (!badge) {
+        return res.status(404).json({ message: "Badge not found" });
+      }
+      
+      // Check if user already has this badge
+      const hasBadge = await storage.hasUserBadge(userId, badge.id);
+      if (hasBadge) {
+        return res.json({ message: "Badge already earned", alreadyEarned: true });
+      }
+      
+      const userBadge = await storage.awardBadge(userId, badge.id, context);
+      res.json({ ...userBadge, badge, message: "Badge awarded!", alreadyEarned: false });
+    } catch (error) {
+      console.error("Failed to award badge:", error);
+      res.status(500).json({ message: "Failed to award badge" });
+    }
+  });
+
   return httpServer;
 }

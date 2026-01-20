@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { 
   BookOpen, 
   CheckCircle2, 
@@ -21,7 +23,12 @@ import {
   Sparkles,
   Target,
   Scroll,
-  Map
+  Map,
+  Wand2,
+  HelpCircle,
+  Check,
+  X,
+  Zap
 } from "lucide-react";
 
 interface Lesson {
@@ -31,12 +38,20 @@ interface Lesson {
   content: LessonSection[];
 }
 
+interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+}
+
 interface LessonSection {
-  type: "text" | "example" | "tip" | "table" | "practice";
+  type: "text" | "example" | "tip" | "table" | "practice" | "quiz";
   title?: string;
   content: string;
   items?: string[];
   tableData?: { headers: string[]; rows: string[][] };
+  quizQuestions?: QuizQuestion[];
 }
 
 interface LearningPath {
@@ -780,6 +795,319 @@ const ASPIRING_DM_LESSONS: Lesson[] = [
   }
 ];
 
+const SPELLCASTER_LESSONS: Lesson[] = [
+  {
+    id: "sc-1",
+    title: "Understanding Magic in D&D",
+    duration: "25 min",
+    content: [
+      {
+        type: "text",
+        title: "The Nature of Magic",
+        content: "Magic in D&D comes from many sources: the weave of arcane energy studied by Wizards, divine power granted by gods to Clerics and Paladins, innate sorcerous bloodlines, pacts with otherworldly beings, and the primal forces of nature channeled by Druids. Understanding your magic's source helps you roleplay your character and make thematic choices."
+      },
+      {
+        type: "table",
+        title: "Spellcasting Classes Overview",
+        content: "",
+        tableData: {
+          headers: ["Class", "Magic Source", "Spellcasting Ability", "Spell Recovery"],
+          rows: [
+            ["Wizard", "Arcane Study", "Intelligence", "Long rest + ritual casting"],
+            ["Sorcerer", "Innate Bloodline", "Charisma", "Long rest"],
+            ["Warlock", "Pact with Patron", "Charisma", "Short rest (limited slots)"],
+            ["Cleric", "Divine Deity", "Wisdom", "Long rest"],
+            ["Druid", "Primal Nature", "Wisdom", "Long rest"],
+            ["Bard", "Musical Magic", "Charisma", "Long rest"],
+            ["Paladin", "Sacred Oath (half-caster)", "Charisma", "Long rest (starts at Lv 2)"],
+            ["Ranger", "Nature Bond (half-caster)", "Wisdom", "Long rest (starts at Lv 2)"]
+          ]
+        }
+      },
+      {
+        type: "example",
+        title: "Spell Attack vs Spell Save",
+        content: "Spells use one of two mechanics: Spell Attack (you roll d20 + spellcasting mod + proficiency to hit the target's AC) or Spell Save (target rolls a save against your Spell Save DC = 8 + proficiency + spellcasting mod). Fire Bolt is a spell attack; Hold Person forces a Wisdom save."
+      },
+      {
+        type: "quiz",
+        title: "Knowledge Check",
+        content: "Test your understanding of magic basics!",
+        quizQuestions: [
+          {
+            question: "What ability score does a Wizard use for spellcasting?",
+            options: ["Strength", "Dexterity", "Intelligence", "Charisma"],
+            correctIndex: 2,
+            explanation: "Wizards use Intelligence because they learn magic through study and memorization of arcane formulas."
+          },
+          {
+            question: "Which spellcaster recovers spell slots on a short rest?",
+            options: ["Wizard", "Cleric", "Warlock", "Sorcerer"],
+            correctIndex: 2,
+            explanation: "Warlocks have fewer spell slots but recover them on a short rest, making them unique among spellcasters."
+          }
+        ]
+      },
+      {
+        type: "tip",
+        content: "Your spell save DC and spell attack bonus are on your character sheet. For a level 1 wizard with +3 INT, your spell save DC is 8+2+3=13, and your spell attack is +5."
+      }
+    ]
+  },
+  {
+    id: "sc-2",
+    title: "Spell Slots and Cantrips",
+    duration: "30 min",
+    content: [
+      {
+        type: "text",
+        title: "The Spell Slot System",
+        content: "Think of spell slots as 'magical energy tanks.' Each slot has a level (1st through 9th). When you cast a spell, you spend a slot of that spell's level or higher. Slots refill after a long rest (8 hours). You can cast a lower-level spell using a higher-level slot, often for increased effect (called 'upcasting')."
+      },
+      {
+        type: "table",
+        title: "Spell Slots by Level (Full Caster Example)",
+        content: "",
+        tableData: {
+          headers: ["Character Level", "1st", "2nd", "3rd", "4th", "5th"],
+          rows: [
+            ["1st", "2", "-", "-", "-", "-"],
+            ["3rd", "4", "2", "-", "-", "-"],
+            ["5th", "4", "3", "2", "-", "-"],
+            ["7th", "4", "3", "3", "1", "-"],
+            ["9th", "4", "3", "3", "3", "1"]
+          ]
+        }
+      },
+      {
+        type: "text",
+        title: "Cantrips: Free Magic",
+        content: "Cantrips are minor spells you can cast unlimited times without using spell slots. They're your magical 'basic attacks.' Examples include Fire Bolt (damage), Light (utility), and Mage Hand (manipulation). Cantrip damage scales with your character level, not class level."
+      },
+      {
+        type: "example",
+        title: "Upcasting Example: Cure Wounds",
+        content: "Cure Wounds heals 1d8 + spellcasting modifier at 1st level. Cast it with a 2nd-level slot? It heals 2d8 + modifier. 3rd-level slot? 3d8 + modifier. Not all spells benefit from upcasting - check the spell description for 'At Higher Levels.'"
+      },
+      {
+        type: "quiz",
+        title: "Spell Slot Quiz",
+        content: "Let's make sure you understand spell resources!",
+        quizQuestions: [
+          {
+            question: "Can you cast a 2nd-level spell using a 1st-level slot?",
+            options: ["Yes, with reduced effect", "Yes, normally", "No, never", "Only cantrips work this way"],
+            correctIndex: 2,
+            explanation: "You cannot cast a spell using a slot of lower level than the spell requires. You must use a slot of equal or higher level."
+          },
+          {
+            question: "How often can you cast cantrips?",
+            options: ["Once per short rest", "Once per long rest", "As many times as you want", "Equal to your level per day"],
+            correctIndex: 2,
+            explanation: "Cantrips are at-will spells - you can cast them unlimited times without expending any resources."
+          },
+          {
+            question: "A 5th-level Wizard has how many 1st-level spell slots?",
+            options: ["2", "3", "4", "5"],
+            correctIndex: 2,
+            explanation: "At 5th level, a full caster like a Wizard has 4 first-level spell slots."
+          }
+        ]
+      },
+      {
+        type: "practice",
+        title: "Resource Management Exercise",
+        content: "You're a 3rd-level Cleric with 4 first-level and 2 second-level slots. Plan your spells for: 1) A combat encounter (Guiding Bolt, Healing Word), 2) Exploration (Detect Magic), 3) Keeping reserves for emergencies. How would you allocate your 6 total slots?"
+      }
+    ]
+  },
+  {
+    id: "sc-3",
+    title: "Spell Components and Casting",
+    duration: "25 min",
+    content: [
+      {
+        type: "text",
+        title: "The Three Components",
+        content: "Most spells require specific components to cast: Verbal (V) - spoken words, Somatic (S) - hand gestures, and Material (M) - physical objects. If you're gagged, you can't use V spells. Bound hands prevent S spells. Without your component pouch or focus, you can't use M spells (unless you have the material in hand)."
+      },
+      {
+        type: "table",
+        title: "Component Requirements",
+        content: "",
+        tableData: {
+          headers: ["Component", "Requirement", "Blocked By"],
+          rows: [
+            ["Verbal (V)", "Speak the incantation", "Silence spell, gag, underwater"],
+            ["Somatic (S)", "Gesture with free hand", "Bound/restrained, hands full"],
+            ["Material (M)", "Hold component/focus", "No focus, component consumed"]
+          ]
+        }
+      },
+      {
+        type: "example",
+        title: "Focus Items Replace Materials",
+        content: "An arcane focus (wand, staff, crystal) or component pouch can replace any material component that doesn't have a gold cost and isn't consumed. So you don't need actual bat guano for Fireball - just hold your focus. But Chromatic Orb requires a 50gp diamond that you must actually have."
+      },
+      {
+        type: "text",
+        title: "Casting Time",
+        content: "Most combat spells take 1 action. Some quick spells like Healing Word or Misty Step are bonus actions. Ritual spells can be cast in 10 extra minutes without using a slot (if you have the ritual casting feature). Some powerful spells take 1 minute or longer."
+      },
+      {
+        type: "quiz",
+        title: "Components Quiz",
+        content: "Check your understanding of spell components!",
+        quizQuestions: [
+          {
+            question: "Your wizard is bound and gagged. Which spell can they still cast?",
+            options: ["Fireball (V, S, M)", "Counterspell (S)", "Neither of these", "Both of these"],
+            correctIndex: 2,
+            explanation: "Bound prevents Somatic components, gagged prevents Verbal. Neither spell can be cast without both conditions removed."
+          },
+          {
+            question: "Can an arcane focus replace a 100gp pearl for Identify?",
+            options: ["Yes, always", "No, materials with gold costs must be provided", "Only if the focus is worth 100gp", "Only Wizards can do this"],
+            correctIndex: 1,
+            explanation: "Focuses and component pouches only replace materials without a listed gold cost. Identify's pearl must be an actual 100gp pearl."
+          }
+        ]
+      },
+      {
+        type: "tip",
+        content: "Subtle Spell (Sorcerer metamagic) removes V and S components - perfect for casting in social situations without anyone noticing!"
+      }
+    ]
+  },
+  {
+    id: "sc-4",
+    title: "Concentration and Duration",
+    duration: "30 min",
+    content: [
+      {
+        type: "text",
+        title: "The Concentration Rule",
+        content: "Many powerful spells require concentration - you must maintain focus to keep the effect active. You can only concentrate on ONE spell at a time. If you cast another concentration spell, the first one ends immediately. Getting this wrong is the #1 spellcaster mistake!"
+      },
+      {
+        type: "table",
+        title: "Concentration Breakers",
+        content: "",
+        tableData: {
+          headers: ["Event", "Effect", "Save DC"],
+          rows: [
+            ["Take damage", "Constitution save", "10 or half damage, whichever is higher"],
+            ["Incapacitated/killed", "Automatic loss", "N/A"],
+            ["Cast another concentration spell", "Previous spell ends", "N/A"],
+            ["Environmental distraction (DM call)", "Constitution save", "Varies (usually 10-15)"]
+          ]
+        }
+      },
+      {
+        type: "example",
+        title: "Concentration in Practice",
+        content: "You're concentrating on Hold Person (enemy paralyzed). You take 22 damage from an arrow. Your Constitution save DC is max(10, 22/2) = 11. You roll Constitution save: d20 + CON mod. Beat 11? Spell continues. Fail? Enemy breaks free. War Caster feat gives advantage on these saves!"
+      },
+      {
+        type: "text",
+        title: "Spell Durations",
+        content: "Instantaneous: Effect happens once, then done (Fireball). Concentration, up to X: Lasts while you concentrate, maximum duration (Bless: 1 minute). Duration without concentration: Keeps going on its own (Mage Armor: 8 hours). Until dispelled: Permanent unless removed (Glyph of Warding)."
+      },
+      {
+        type: "quiz",
+        title: "Concentration Mastery",
+        content: "Can you handle concentration mechanics?",
+        quizQuestions: [
+          {
+            question: "You're concentrating on Bless. You cast Haste. What happens?",
+            options: ["Both spells are active", "Bless ends, Haste begins", "Haste fails, Bless continues", "You choose which to keep"],
+            correctIndex: 1,
+            explanation: "You can only concentrate on one spell. Casting Haste immediately ends Bless, then Haste begins."
+          },
+          {
+            question: "You take 8 damage while concentrating. What's the save DC?",
+            options: ["4", "8", "10", "16"],
+            correctIndex: 2,
+            explanation: "The DC is the higher of 10 or half the damage. Half of 8 is 4, which is less than 10, so the DC is 10."
+          },
+          {
+            question: "You're concentrating on Fly and become unconscious. What happens?",
+            options: ["Fly continues normally", "Fly ends immediately", "Make a save to maintain it", "Fly pauses until you wake"],
+            correctIndex: 1,
+            explanation: "Being incapacitated (including unconscious) automatically breaks concentration - no save allowed."
+          }
+        ]
+      },
+      {
+        type: "practice",
+        title: "Concentration Scenario",
+        content: "You're a Druid concentrating on Entangle (enemies restrained). Round 1: You take 14 damage. Round 2: You want to cast Moonbeam (also concentration). Round 3: An ally needs healing (Cure Wounds, not concentration). Work through what happens each round and what decisions you'd make."
+      }
+    ]
+  },
+  {
+    id: "sc-5",
+    title: "Spell Preparation and Management",
+    duration: "25 min",
+    content: [
+      {
+        type: "text",
+        title: "Prepared vs Known Spells",
+        content: "Spellcasters fall into two categories: Prepared casters (Clerics, Druids, Paladins, Wizards) choose which spells to prepare each day from their full spell list or spellbook. Known casters (Sorcerers, Warlocks, Bards, Rangers) know a fixed set of spells and can't change them except when leveling."
+      },
+      {
+        type: "table",
+        title: "Spell Preparation Rules",
+        content: "",
+        tableData: {
+          headers: ["Class", "Spells Known/Prepared", "Can Change Daily?"],
+          rows: [
+            ["Wizard", "INT mod + level prepared from spellbook", "Yes, after long rest"],
+            ["Cleric", "WIS mod + level from full cleric list", "Yes, after long rest"],
+            ["Druid", "WIS mod + level from full druid list", "Yes, after long rest"],
+            ["Sorcerer", "Fixed known spells (see table)", "No (swap 1 on level up)"],
+            ["Warlock", "Fixed known spells (see table)", "No (swap 1 on level up)"],
+            ["Bard", "Fixed known spells (see table)", "No (swap 1 on level up)"]
+          ]
+        }
+      },
+      {
+        type: "example",
+        title: "Daily Preparation Example",
+        content: "You're a 5th-level Cleric with +3 Wisdom. You can prepare 5 + 3 = 8 spells each day (plus your domain spells, which are always prepared). After a long rest, you review your spell list and choose 8 spells suited for today's challenges - maybe more healing if you expect combat, or more utility if exploring ruins."
+      },
+      {
+        type: "text",
+        title: "Building Your Spell Loadout",
+        content: "Balance your prepared spells across: Damage (combat ending), Control (battlefield shaping), Utility (problem solving), Healing/Support (keeping allies up), and Ritual spells (cast without slots when time allows). Don't prepare all damage spells - versatility wins adventures."
+      },
+      {
+        type: "quiz",
+        title: "Preparation Quiz",
+        content: "Master your spell management!",
+        quizQuestions: [
+          {
+            question: "A 4th-level Wizard with +3 INT can prepare how many spells?",
+            options: ["3 spells", "4 spells", "7 spells", "12 spells"],
+            correctIndex: 2,
+            explanation: "Wizards prepare INT modifier + Wizard level spells. That's 3 + 4 = 7 spells."
+          },
+          {
+            question: "A Sorcerer wants to change their prepared spells after a long rest. Can they?",
+            options: ["Yes, like any other caster", "No, Sorcerers have fixed known spells", "Only if they have a spell scroll", "Only one spell can change"],
+            correctIndex: 1,
+            explanation: "Sorcerers know a fixed set of spells. They can only swap one spell when they level up, not during rests."
+          }
+        ]
+      },
+      {
+        type: "tip",
+        content: "In Everdice, use the Spell Book feature to browse all spells available to your class, learn new ones, and prepare your daily loadout before adventuring!"
+      }
+    ]
+  }
+];
+
 const LEARNING_PATHS_DATA: LearningPath[] = [
   {
     id: "new-player",
@@ -787,6 +1115,13 @@ const LEARNING_PATHS_DATA: LearningPath[] = [
     description: "Start your D&D journey with the fundamentals",
     icon: GraduationCap,
     lessons: NEW_PLAYER_LESSONS
+  },
+  {
+    id: "spellcaster",
+    title: "Spellcaster's Path",
+    description: "Master the arcane arts and divine magic",
+    icon: Wand2,
+    lessons: SPELLCASTER_LESSONS
   },
   {
     id: "experienced-player",
@@ -808,21 +1143,53 @@ interface LearningPathContentProps {
   pathId?: string;
 }
 
+const PATH_TO_BADGE: Record<string, string> = {
+  "new-player": "New Player",
+  "spellcaster": "Spellcaster",
+  "experienced": "Experienced Player",
+  "aspiring-dm": "Dungeon Master"
+};
+
 export function LearningPathContent({ pathId }: LearningPathContentProps) {
   const [selectedPath, setSelectedPath] = useState<string | null>(pathId || null);
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
+  const [quizSubmitted, setQuizSubmitted] = useState<Record<string, boolean>>({});
+  const { toast } = useToast();
 
   const currentPath = LEARNING_PATHS_DATA.find(p => p.id === selectedPath);
   const currentLesson = currentPath?.lessons[currentLessonIndex];
 
-  const handleCompleteLesson = () => {
+  const handleCompleteLesson = async () => {
     if (currentLesson) {
-      setCompletedLessons(prev => {
-        const newSet = new Set(Array.from(prev));
-        newSet.add(currentLesson.id);
-        return newSet;
-      });
+      const newCompletedLessons = new Set(Array.from(completedLessons));
+      newCompletedLessons.add(currentLesson.id);
+      setCompletedLessons(newCompletedLessons);
+      
+      const isPathComplete = currentPath && newCompletedLessons.size === currentPath.lessons.length;
+      
+      if (isPathComplete && selectedPath) {
+        const badgeName = PATH_TO_BADGE[selectedPath];
+        if (badgeName) {
+          try {
+            const result = await apiRequest("POST", "/api/badges/award", {
+              badgeName,
+              context: { pathId: selectedPath, completedAt: new Date().toISOString() }
+            });
+            const data = await result.json();
+            if (!data.alreadyEarned) {
+              toast({
+                title: "🏆 Badge Earned!",
+                description: `Congratulations! You've earned the "${badgeName}" badge!`,
+              });
+            }
+          } catch (error) {
+            console.error("Failed to award badge:", error);
+          }
+        }
+      }
+      
       if (currentPath && currentLessonIndex < currentPath.lessons.length - 1) {
         setCurrentLessonIndex(prev => prev + 1);
       }
@@ -1006,6 +1373,85 @@ export function LearningPathContent({ pathId }: LearningPathContentProps) {
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                  </div>
+                )}
+
+                {section.type === "quiz" && section.quizQuestions && (
+                  <div className="bg-purple-50 dark:bg-purple-950/30 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
+                    {section.title && (
+                      <h4 className="font-semibold text-purple-800 dark:text-purple-200 mb-3 flex items-center gap-2">
+                        <HelpCircle className="h-4 w-4" />
+                        {section.title}
+                      </h4>
+                    )}
+                    <p className="text-purple-700 dark:text-purple-300 text-sm mb-4">{section.content}</p>
+                    <div className="space-y-4">
+                      {section.quizQuestions.map((q, qIndex) => {
+                        const quizKey = `${currentLesson?.id}-${index}-${qIndex}`;
+                        const selectedAnswer = quizAnswers[quizKey];
+                        const isSubmitted = quizSubmitted[quizKey];
+                        const isCorrect = selectedAnswer === q.correctIndex;
+                        
+                        return (
+                          <div key={qIndex} className="bg-white dark:bg-gray-800 p-3 rounded-md border">
+                            <p className="font-medium text-sm mb-2">{qIndex + 1}. {q.question}</p>
+                            <div className="space-y-2">
+                              {q.options.map((opt, optIndex) => (
+                                <button
+                                  key={optIndex}
+                                  onClick={() => {
+                                    if (!isSubmitted) {
+                                      setQuizAnswers(prev => ({ ...prev, [quizKey]: optIndex }));
+                                    }
+                                  }}
+                                  disabled={isSubmitted}
+                                  className={`w-full text-left p-2 rounded text-sm transition-colors ${
+                                    isSubmitted
+                                      ? optIndex === q.correctIndex
+                                        ? 'bg-green-100 dark:bg-green-900 border-green-500 text-green-800 dark:text-green-200'
+                                        : selectedAnswer === optIndex
+                                        ? 'bg-red-100 dark:bg-red-900 border-red-500 text-red-800 dark:text-red-200'
+                                        : 'bg-gray-50 dark:bg-gray-700 text-gray-500'
+                                      : selectedAnswer === optIndex
+                                      ? 'bg-purple-100 dark:bg-purple-900 border-purple-500'
+                                      : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600'
+                                  } border`}
+                                >
+                                  <span className="flex items-center gap-2">
+                                    {isSubmitted && optIndex === q.correctIndex && (
+                                      <Check className="h-4 w-4 text-green-600" />
+                                    )}
+                                    {isSubmitted && selectedAnswer === optIndex && optIndex !== q.correctIndex && (
+                                      <X className="h-4 w-4 text-red-600" />
+                                    )}
+                                    {opt}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                            {!isSubmitted && selectedAnswer !== undefined && (
+                              <Button
+                                size="sm"
+                                className="mt-2"
+                                onClick={() => setQuizSubmitted(prev => ({ ...prev, [quizKey]: true }))}
+                              >
+                                Check Answer
+                              </Button>
+                            )}
+                            {isSubmitted && (
+                              <div className={`mt-2 p-2 rounded text-sm ${
+                                isCorrect 
+                                  ? 'bg-green-50 dark:bg-green-950 text-green-800 dark:text-green-200' 
+                                  : 'bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200'
+                              }`}>
+                                <p className="font-medium">{isCorrect ? '✓ Correct!' : '✗ Not quite.'}</p>
+                                <p className="text-xs mt-1">{q.explanation}</p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

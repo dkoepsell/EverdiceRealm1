@@ -1385,3 +1385,46 @@ export const insertCharacterSpellSlotsSchema = createInsertSchema(characterSpell
 
 export type InsertCharacterSpellSlots = z.infer<typeof insertCharacterSpellSlotsSchema>;
 export type CharacterSpellSlots = typeof characterSpellSlots.$inferSelect;
+
+// Badge definitions - Achievement/skill badges users can earn
+export const badges = pgTable("badges", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description").notNull(),
+  icon: text("icon").notNull(), // Icon name or emoji
+  category: text("category").notNull(), // 'learning', 'gameplay', 'social', 'dm'
+  tier: text("tier").notNull().default("bronze"), // 'bronze', 'silver', 'gold', 'platinum'
+  // Criteria for earning this badge (e.g., pathId for learning badges)
+  criteria: jsonb("criteria").default({}),
+  // Display settings
+  color: text("color").default("#8B5CF6"), // Badge color theme
+  rarity: text("rarity").default("common"), // 'common', 'uncommon', 'rare', 'legendary'
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertBadgeSchema = createInsertSchema(badges).omit({
+  id: true,
+});
+
+export type InsertBadge = z.infer<typeof insertBadgeSchema>;
+export type Badge = typeof badges.$inferSelect;
+
+// User Badges - Tracks which badges users have earned
+export const userBadges = pgTable("user_badges", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  badgeId: integer("badge_id").notNull(),
+  earnedAt: text("earned_at").notNull(),
+  // Context about how they earned it
+  context: jsonb("context").default({}), // e.g., { campaignId: 5, characterName: "Thorin" }
+  // Display preferences
+  isFeatured: boolean("is_featured").default(false), // Show prominently on profile
+  isHidden: boolean("is_hidden").default(false), // Hide from public view
+});
+
+export const insertUserBadgeSchema = createInsertSchema(userBadges).omit({
+  id: true,
+});
+
+export type InsertUserBadge = z.infer<typeof insertUserBadgeSchema>;
+export type UserBadge = typeof userBadges.$inferSelect;

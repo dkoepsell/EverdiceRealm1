@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { RulesReference } from "@/components/education/RulesReference";
 import { DMGuide } from "@/components/education/DMGuide";
 import { LearningPathContent } from "@/components/education/LearningPathContent";
+import { BadgeShowcase } from "@/components/BadgeDisplay";
 import { 
   BookOpen, 
   Users, 
@@ -1291,6 +1292,15 @@ export default function LearnPage() {
                     );
                   })}
                 </div>
+              </section>
+
+              {/* Your Badges */}
+              <section>
+                <h2 className="text-2xl font-bold font-fantasy mb-4 flex items-center gap-2">
+                  <Star className="h-6 w-6 text-yellow-500" />
+                  Your Achievements
+                </h2>
+                <BadgeShowcase />
               </section>
 
               {/* Getting Started */}
