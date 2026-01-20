@@ -214,6 +214,9 @@ export function processEnemyAttacks(
     const attackRoll = makeAttackRoll(enemy.attackBonus);
     const isHit = doesAttackHit(attackRoll, target.armorClass);
     
+    console.log(`Enemy attack: ${enemy.name} (ATK +${enemy.attackBonus}) vs ${target.name} (AC ${target.armorClass}, type: ${target.type})`);
+    console.log(`  Roll: d20=${attackRoll.roll} + ${attackRoll.modifier} = ${attackRoll.total} vs AC ${target.armorClass} -> ${isHit ? 'HIT' : 'MISS'}`);
+    
     let damage: DamageRollResult | undefined;
     let newHp = target.currentHp;
     let newStatus = target.status;
