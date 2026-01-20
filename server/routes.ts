@@ -5259,6 +5259,316 @@ Return your response as a JSON object with these fields:
     }
   });
   
+  // Transfer consumable from character to campaign NPC companion
+  app.post("/api/campaigns/:campaignId/transfer-consumable", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const { fromCharacterId, toNpcId, consumableName } = req.body;
+      
+      if (!fromCharacterId || !toNpcId || !consumableName) {
+        return res.status(400).json({ message: "fromCharacterId, toNpcId, and consumableName are required" });
+      }
+      
+      // Get source character
+      const character = await storage.getCharacter(fromCharacterId);
+      if (!character) {
+        return res.status(404).json({ message: "Source character not found" });
+      }
+      
+      // Get campaign NPC
+      const campaignNpc = await storage.getCampaignNpc(campaignId, toNpcId);
+      if (!campaignNpc) {
+        return res.status(404).json({ message: "NPC not in this campaign" });
+      }
+      
+      if (campaignNpc.role !== 'companion' && campaignNpc.role !== 'ally') {
+        return res.status(400).json({ message: "Can only give items to companion or ally NPCs" });
+      }
+      
+      // Get the NPC details
+      const npc = await storage.getNpc(toNpcId);
+      if (!npc) {
+        return res.status(404).json({ message: "NPC not found" });
+      }
+      
+      // Check if character has the consumable
+      const characterConsumables: any[] = Array.isArray((character as any).consumables) 
+        ? (character as any).consumables 
+        : [];
+      const itemIndex = characterConsumables.findIndex(c => c.name === consumableName);
+      
+      if (itemIndex === -1) {
+        return res.status(400).json({ message: "Consumable not found in character inventory" });
+      }
+      
+      const item = { ...characterConsumables[itemIndex] };
+      
+      // Remove from character (reduce quantity or remove entirely)
+      if (item.quantity <= 1) {
+        characterConsumables.splice(itemIndex, 1);
+      } else {
+        characterConsumables[itemIndex].quantity -= 1;
+      }
+      
+      // Add to NPC (campaign NPC consumables)
+      const npcConsumables: any[] = Array.isArray(campaignNpc.consumables) 
+        ? [...campaignNpc.consumables as any[]] 
+        : [];
+      
+      const existingIndex = npcConsumables.findIndex(c => c.name === consumableName);
+      if (existingIndex >= 0) {
+        npcConsumables[existingIndex].quantity = (npcConsumables[existingIndex].quantity || 1) + 1;
+      } else {
+        npcConsumables.push({ ...item, quantity: 1 });
+      }
+      
+      // Update character
+      await storage.updateCharacter(fromCharacterId, {
+        consumables: characterConsumables,
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Update campaign NPC
+      await storage.updateCampaignNpc(campaignNpc.id, {
+        consumables: npcConsumables
+      });
+      
+      res.json({
+        success: true,
+        message: `Gave ${consumableName} to ${npc.name}`,
+        characterConsumables,
+        npcConsumables
+      });
+    } catch (error: any) {
+      console.error("Error transferring consumable:", error);
+      res.status(500).json({ message: "Failed to transfer consumable", error: error.message });
+    }
+  });
+  
+  // Campaign NPC Short Rest - heal 25% of max HP
+  app.post("/api/campaigns/:campaignId/npcs/:npcId/short-rest", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const npcId = parseInt(req.params.npcId);
+      
+      // Get campaign NPC
+      const campaignNpc = await storage.getCampaignNpc(campaignId, npcId);
+      if (!campaignNpc) {
+        return res.status(404).json({ message: "NPC not in this campaign" });
+      }
+      
+      // Check campaign is not in combat
+      const campaign = await storage.getCampaign(campaignId);
+      if (campaign) {
+        const storyState = typeof campaign.storyState === 'string' ? JSON.parse(campaign.storyState) : campaign.storyState;
+        if (storyState?.inCombat) {
+          return res.status(400).json({ message: "Cannot rest during combat" });
+        }
+      }
+      
+      const npc = await storage.getNpc(npcId);
+      if (!npc) {
+        return res.status(404).json({ message: "NPC not found" });
+      }
+      
+      const currentHp = campaignNpc.currentHp ?? npc.hitPoints ?? 0;
+      const maxHp = campaignNpc.maxHp ?? npc.maxHitPoints ?? 10;
+      const status = campaignNpc.status || "conscious";
+      
+      if (status === "dead") {
+        return res.status(400).json({ message: "Dead NPCs cannot rest." });
+      }
+      if (status === "unconscious") {
+        return res.status(400).json({ message: "Unconscious NPCs must be stabilized or healed first." });
+      }
+      
+      // Short rest: Heal 25% of max HP (minimum 1)
+      const healAmount = Math.max(1, Math.floor(maxHp * 0.25));
+      const newHp = Math.min(maxHp, currentHp + healAmount);
+      const actualHeal = newHp - currentHp;
+      
+      let newStatus = status;
+      if (newHp > 0 && status === "stabilized") {
+        newStatus = "conscious";
+      }
+      
+      await storage.updateCampaignNpc(campaignNpc.id, {
+        currentHp: newHp,
+        status: newStatus
+      });
+      
+      res.json({
+        npcId,
+        npcName: npc.name,
+        healedAmount: actualHeal,
+        currentHp: newHp,
+        maxHp,
+        status: newStatus,
+        message: `${npc.name} completed a short rest. Recovered ${actualHeal} HP.`
+      });
+    } catch (error: any) {
+      console.error("Error during NPC short rest:", error);
+      res.status(500).json({ message: "Failed to complete short rest", error: error.message });
+    }
+  });
+  
+  // Campaign NPC Long Rest - fully restore HP
+  app.post("/api/campaigns/:campaignId/npcs/:npcId/long-rest", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const npcId = parseInt(req.params.npcId);
+      
+      // Get campaign NPC
+      const campaignNpc = await storage.getCampaignNpc(campaignId, npcId);
+      if (!campaignNpc) {
+        return res.status(404).json({ message: "NPC not in this campaign" });
+      }
+      
+      // Check campaign is not in combat
+      const campaign = await storage.getCampaign(campaignId);
+      if (campaign) {
+        const storyState = typeof campaign.storyState === 'string' ? JSON.parse(campaign.storyState) : campaign.storyState;
+        if (storyState?.inCombat) {
+          return res.status(400).json({ message: "Cannot rest during combat" });
+        }
+      }
+      
+      const npc = await storage.getNpc(npcId);
+      if (!npc) {
+        return res.status(404).json({ message: "NPC not found" });
+      }
+      
+      const currentHp = campaignNpc.currentHp ?? npc.hitPoints ?? 0;
+      const maxHp = campaignNpc.maxHp ?? npc.maxHitPoints ?? 10;
+      const actualHeal = maxHp - currentHp;
+      
+      await storage.updateCampaignNpc(campaignNpc.id, {
+        currentHp: maxHp,
+        status: "conscious"
+      });
+      
+      res.json({
+        npcId,
+        npcName: npc.name,
+        healedAmount: actualHeal,
+        currentHp: maxHp,
+        maxHp,
+        status: "conscious",
+        message: `${npc.name} completed a long rest. Fully restored to ${maxHp} HP.`
+      });
+    } catch (error: any) {
+      console.error("Error during NPC long rest:", error);
+      res.status(500).json({ message: "Failed to complete long rest", error: error.message });
+    }
+  });
+  
+  // Use consumable for campaign NPC (uses campaign-specific HP)
+  app.post("/api/campaigns/:campaignId/npcs/:npcId/consumables/use", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const npcId = parseInt(req.params.npcId);
+      const { name } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ message: "Consumable name is required" });
+      }
+      
+      // Get campaign NPC
+      const campaignNpc = await storage.getCampaignNpc(campaignId, npcId);
+      if (!campaignNpc) {
+        return res.status(404).json({ message: "NPC not in this campaign" });
+      }
+      
+      const npc = await storage.getNpc(npcId);
+      if (!npc) {
+        return res.status(404).json({ message: "NPC not found" });
+      }
+      
+      const status = campaignNpc.status || "conscious";
+      if (status === "dead") {
+        return res.status(400).json({ message: "Dead NPCs cannot use items." });
+      }
+      
+      // Get consumables from campaign NPC
+      const consumables: any[] = Array.isArray(campaignNpc.consumables) 
+        ? [...campaignNpc.consumables as any[]] 
+        : [];
+      const itemIndex = consumables.findIndex(c => c.name === name);
+      
+      if (itemIndex === -1) {
+        return res.status(404).json({ message: "Consumable not found in NPC inventory" });
+      }
+      
+      const item = consumables[itemIndex];
+      let resultMessage = "";
+      let healedAmount = 0;
+      const currentHp = campaignNpc.currentHp ?? npc.hitPoints ?? 0;
+      const maxHp = campaignNpc.maxHp ?? npc.maxHitPoints ?? 10;
+      let newHp = currentHp;
+      let newStatus = status;
+      
+      // Apply healing effect
+      if (item.type === "healing" && item.healDice) {
+        const diceRoll = rollDice(item.healDice);
+        healedAmount = diceRoll + (item.healBonus || 0);
+        newHp = Math.min(maxHp, currentHp + healedAmount);
+        
+        if (newHp > 0 && (status === "unconscious" || status === "stabilized")) {
+          newStatus = "conscious";
+          resultMessage = `${npc.name} used ${name}! Healed ${healedAmount} HP and regained consciousness! (${currentHp} → ${newHp})`;
+        } else {
+          resultMessage = `${npc.name} used ${name}! Healed ${healedAmount} HP (${currentHp} → ${newHp}).`;
+        }
+      } else {
+        resultMessage = `${npc.name} used ${name}! ${item.effect || ''}`;
+      }
+      
+      // Reduce quantity or remove
+      if (item.quantity <= 1) {
+        consumables.splice(itemIndex, 1);
+      } else {
+        consumables[itemIndex].quantity -= 1;
+      }
+      
+      // Update campaign NPC
+      await storage.updateCampaignNpc(campaignNpc.id, {
+        consumables,
+        currentHp: newHp,
+        status: newStatus
+      });
+      
+      res.json({
+        npcId,
+        npcName: npc.name,
+        consumables,
+        healedAmount,
+        currentHp: newHp,
+        maxHp,
+        status: newStatus,
+        message: resultMessage
+      });
+    } catch (error: any) {
+      console.error("Error using campaign NPC consumable:", error);
+      res.status(500).json({ message: "Failed to use consumable", error: error.message });
+    }
+  });
+  
   // Equip item for NPC
   app.post("/api/npcs/:id/equip", async (req, res) => {
     try {

@@ -29,7 +29,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard, Coffee } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -1569,6 +1569,75 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     onError: (error: Error) => {
       toast({
         title: "Failed to Use Item",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Transfer consumable from character to NPC companion
+  const transferConsumableMutation = useMutation({
+    mutationFn: async ({ fromCharacterId, toNpcId, consumableName }: { fromCharacterId: number; toNpcId: number; consumableName: string }) => {
+      const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/transfer-consumable`, { fromCharacterId, toNpcId, consumableName });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: "Item Given",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Give Item",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // NPC Rest mutations
+  const npcShortRestMutation = useMutation({
+    mutationFn: async ({ npcId }: { npcId: number }) => {
+      const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/npcs/${npcId}/short-rest`, {});
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: "Short Rest Complete",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Rest Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const npcLongRestMutation = useMutation({
+    mutationFn: async ({ npcId }: { npcId: number }) => {
+      const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/npcs/${npcId}/long-rest`, {});
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: "Long Rest Complete",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Rest Failed",
         description: error.message,
         variant: "destructive"
       });
@@ -4014,15 +4083,37 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               </div>
                               <div className="text-xs text-slate-600 dark:text-slate-400">{item.effect}</div>
                             </div>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => useConsumableMutation.mutate({ characterId: activeCharacter.id, name: item.name })}
-                              disabled={useConsumableMutation.isPending || activeCharacter.status === "dead"}
-                              data-testid={`button-use-consumable-${index}`}
-                            >
-                              {useConsumableMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Use"}
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => useConsumableMutation.mutate({ characterId: activeCharacter.id, name: item.name })}
+                                disabled={useConsumableMutation.isPending || activeCharacter.status === "dead"}
+                                data-testid={`button-use-consumable-${index}`}
+                              >
+                                {useConsumableMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Use"}
+                              </Button>
+                              {partyNpcs.length > 0 && (
+                                <Select onValueChange={(npcId) => {
+                                  transferConsumableMutation.mutate({
+                                    fromCharacterId: activeCharacter.id,
+                                    toNpcId: parseInt(npcId),
+                                    consumableName: item.name
+                                  });
+                                }}>
+                                  <SelectTrigger className="w-20 h-8 text-xs" data-testid={`give-consumable-${index}`}>
+                                    <SelectValue placeholder="Give" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {partyNpcs.map((npc: any) => (
+                                      <SelectItem key={npc.id} value={npc.id.toString()}>
+                                        {npc.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            </div>
                           </div>
                         ))
                       ) : (
@@ -4337,6 +4428,54 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     <div className="p-2 border rounded bg-gradient-to-b from-yellow-100 to-yellow-200 dark:from-yellow-900/50 dark:to-yellow-800/50 text-center">
                       <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{selectedNpc.gold || 0} GP</div>
                     </div>
+                  </div>
+                )}
+
+                {/* NPC Rest Section */}
+                {selectedPartyMemberType === "npc" && selectedNpc && !parsedStoryState?.inCombat && (
+                  <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <Moon className="h-5 w-5 text-indigo-500" />
+                      Rest - {selectedNpc.name}
+                    </h3>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => npcShortRestMutation.mutate({ npcId: selectedNpc.id })}
+                        disabled={npcShortRestMutation.isPending || npcLongRestMutation.isPending || selectedNpc.status === "dead" || selectedNpc.status === "unconscious"}
+                        data-testid="button-npc-short-rest"
+                      >
+                        {npcShortRestMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Coffee className="h-4 w-4 mr-2" />
+                        )}
+                        Short Rest (25% HP)
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => npcLongRestMutation.mutate({ npcId: selectedNpc.id })}
+                        disabled={npcShortRestMutation.isPending || npcLongRestMutation.isPending || selectedNpc.status === "dead"}
+                        data-testid="button-npc-long-rest"
+                      >
+                        {npcLongRestMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Moon className="h-4 w-4 mr-2" />
+                        )}
+                        Long Rest (Full HP)
+                      </Button>
+                    </div>
+                    {selectedNpc.status === "dead" && (
+                      <p className="text-sm text-red-500 mt-2">Dead companions cannot rest.</p>
+                    )}
+                    {selectedNpc.status === "unconscious" && (
+                      <p className="text-sm text-orange-500 mt-2">Unconscious companions must be stabilized or healed first.</p>
+                    )}
                   </div>
                 )}
                 
