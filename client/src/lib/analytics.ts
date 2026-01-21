@@ -1,6 +1,7 @@
 import { apiRequest } from "./queryClient";
 
 const SESSION_ID_KEY = "everdice_session_id";
+const PAGE_ENTRY_KEY = "everdice_page_entry";
 
 function getSessionId(): string {
   let sessionId = sessionStorage.getItem(SESSION_ID_KEY);
@@ -9,6 +10,23 @@ function getSessionId(): string {
     sessionStorage.setItem(SESSION_ID_KEY, sessionId);
   }
   return sessionId;
+}
+
+interface PageEntry {
+  page: string;
+  enteredAt: number;
+}
+
+function getPageEntry(): PageEntry | null {
+  const entry = sessionStorage.getItem(PAGE_ENTRY_KEY);
+  return entry ? JSON.parse(entry) : null;
+}
+
+function setPageEntry(page: string): void {
+  sessionStorage.setItem(PAGE_ENTRY_KEY, JSON.stringify({
+    page,
+    enteredAt: Date.now()
+  }));
 }
 
 function getDeviceType(): string {
@@ -67,7 +85,53 @@ export async function trackEvent(
 }
 
 export async function trackPageView(pageName: string): Promise<void> {
+  // First, track time spent on previous page if any
+  const previousPage = getPageEntry();
+  if (previousPage && previousPage.page !== pageName) {
+    const timeSpent = Date.now() - previousPage.enteredAt;
+    if (timeSpent > 1000) { // Only track if spent more than 1 second
+      await trackEvent("navigation", "page_exit", { 
+        page: previousPage.page,
+        timeSpentMs: timeSpent,
+        timeSpentSeconds: Math.round(timeSpent / 1000)
+      }, { duration: timeSpent });
+    }
+  }
+  
+  // Set new page entry
+  setPageEntry(pageName);
+  
   return trackEvent("navigation", "page_view", { page: pageName });
+}
+
+export async function trackClick(
+  elementType: string,
+  elementId: string,
+  elementText?: string,
+  additionalData?: Record<string, any>
+): Promise<void> {
+  return trackEvent("interaction", "click", {
+    elementType,
+    elementId,
+    elementText: elementText?.substring(0, 100),
+    ...additionalData
+  });
+}
+
+export async function trackButtonClick(buttonId: string, buttonText?: string): Promise<void> {
+  return trackClick("button", buttonId, buttonText);
+}
+
+export async function trackLinkClick(linkHref: string, linkText?: string): Promise<void> {
+  return trackClick("link", linkHref, linkText);
+}
+
+export async function trackTabChange(tabId: string, tabName: string): Promise<void> {
+  return trackEvent("interaction", "tab_change", { tabId, tabName });
+}
+
+export async function trackScrollDepth(depth: number, pageName: string): Promise<void> {
+  return trackEvent("interaction", "scroll", { depth, page: pageName });
 }
 
 export async function trackFeatureUse(featureName: string, data?: Record<string, any>): Promise<void> {

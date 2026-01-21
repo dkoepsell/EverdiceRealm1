@@ -64,6 +64,31 @@ interface ActiveUser {
   displayName: string;
 }
 
+interface PageStat {
+  page: string;
+  views: number;
+  avgTimeSpentSeconds: number;
+  totalTimeSpentMinutes: number;
+  uniqueUsers: number;
+}
+
+interface ClickStat {
+  elementType: string;
+  elementId: string;
+  elementText: string;
+  clicks: number;
+  uniqueUsers: number;
+}
+
+interface DetailedEvent {
+  eventType: string;
+  category: string;
+  name: string;
+  count: number;
+  avgDurationMs: number;
+  uniqueUsers: number;
+}
+
 const COLORS = ['#f59e0b', '#ef4444', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
 
 export default function AdminPage() {
@@ -125,6 +150,33 @@ export default function AdminPage() {
     queryKey: ['/api/admin/analytics/active-users', timeRange],
     queryFn: async () => {
       const res = await fetch(`/api/admin/analytics/active-users?days=${timeRange}`);
+      return res.json();
+    },
+    enabled: !!user?.isAdmin,
+  });
+
+  const { data: pageStats = [] } = useQuery<PageStat[]>({
+    queryKey: ['/api/admin/analytics/page-stats', timeRange],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/analytics/page-stats?days=${timeRange}`);
+      return res.json();
+    },
+    enabled: !!user?.isAdmin,
+  });
+
+  const { data: clickStats = [] } = useQuery<ClickStat[]>({
+    queryKey: ['/api/admin/analytics/clicks', timeRange],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/analytics/clicks?days=${timeRange}`);
+      return res.json();
+    },
+    enabled: !!user?.isAdmin,
+  });
+
+  const { data: detailedEvents = [] } = useQuery<DetailedEvent[]>({
+    queryKey: ['/api/admin/analytics/detailed-events', timeRange],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/analytics/detailed-events?days=${timeRange}`);
       return res.json();
     },
     enabled: !!user?.isAdmin,
@@ -234,7 +286,7 @@ export default function AdminPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-primary">{adminUsers.length}</div>
+              <div className="text-2xl font-bold text-primary">{analyticsOverview?.users.total || adminUsers.length}</div>
               {analyticsOverview && (
                 <p className="text-xs text-emerald-500">+{analyticsOverview.users.newThisWeek} this week</p>
               )}
@@ -499,6 +551,144 @@ export default function AdminPage() {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Page Analytics Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                <Card className="border-primary/20 bg-card/50 backdrop-blur">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Eye className="h-5 w-5 text-cyan-500" />
+                      Time Spent Per Page
+                    </CardTitle>
+                    <CardDescription>Average time users spend on each page</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {pageStats.length > 0 ? (
+                      <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                        {pageStats.slice(0, 10).map((ps, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center text-xs font-mono">
+                                {ps.page.substring(0, 3)}
+                              </div>
+                              <div>
+                                <p className="font-medium text-sm">{ps.page || '/'}</p>
+                                <p className="text-xs text-muted-foreground">{ps.uniqueUsers} unique users</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold text-cyan-500">{ps.avgTimeSpentSeconds}s avg</p>
+                              <p className="text-xs text-muted-foreground">{ps.views} views</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                        <div className="text-center">
+                          <Clock className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                          <p>No page timing data yet</p>
+                          <p className="text-sm">Page analytics will appear here</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="border-primary/20 bg-card/50 backdrop-blur">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <MousePointer className="h-5 w-5 text-pink-500" />
+                      Click Analytics
+                    </CardTitle>
+                    <CardDescription>Most clicked elements and interactions</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {clickStats.length > 0 ? (
+                      <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                        {clickStats.slice(0, 10).map((cs, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-pink-500/20 to-rose-500/20 flex items-center justify-center">
+                                <Badge variant="outline" className="text-[10px] px-1">{cs.elementType}</Badge>
+                              </div>
+                              <div>
+                                <p className="font-medium text-sm truncate max-w-[150px]">{cs.elementText || cs.elementId}</p>
+                                <p className="text-xs text-muted-foreground truncate max-w-[150px]">{cs.elementId}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold text-pink-500">{cs.clicks} clicks</p>
+                              <p className="text-xs text-muted-foreground">{cs.uniqueUsers} users</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                        <div className="text-center">
+                          <MousePointer className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                          <p>No click data yet</p>
+                          <p className="text-sm">Click analytics will appear here</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Detailed Events Table */}
+              <Card className="border-primary/20 bg-card/50 backdrop-blur mt-6">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-violet-500" />
+                    Detailed Event Breakdown
+                  </CardTitle>
+                  <CardDescription>Granular view of all tracked events with timing data</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {detailedEvents.length > 0 ? (
+                    <ScrollArea className="h-[350px]">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/30">
+                            <TableHead>Event Type</TableHead>
+                            <TableHead>Category</TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead className="text-right">Count</TableHead>
+                            <TableHead className="text-right">Avg Duration</TableHead>
+                            <TableHead className="text-right">Unique Users</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {detailedEvents.map((event, idx) => (
+                            <TableRow key={idx} className="hover:bg-muted/20">
+                              <TableCell>
+                                <Badge variant="outline" className="text-xs">{event.eventType}</Badge>
+                              </TableCell>
+                              <TableCell className="text-sm">{event.category}</TableCell>
+                              <TableCell className="text-sm font-medium">{event.name}</TableCell>
+                              <TableCell className="text-right font-semibold text-violet-500">{event.count}</TableCell>
+                              <TableCell className="text-right text-muted-foreground">
+                                {event.avgDurationMs > 0 ? `${Math.round(event.avgDurationMs / 1000)}s` : '-'}
+                              </TableCell>
+                              <TableCell className="text-right">{event.uniqueUsers}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </ScrollArea>
+                  ) : (
+                    <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                      <div className="text-center">
+                        <Activity className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                        <p>No detailed event data yet</p>
+                        <p className="text-sm">Granular analytics will appear here</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </motion.div>
           </TabsContent>
 

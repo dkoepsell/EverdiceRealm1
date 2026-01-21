@@ -15308,6 +15308,141 @@ ALWAYS generate:
     }
   });
 
+  // Get page-level analytics (time spent per page)
+  app.get("/api/admin/analytics/page-stats", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 7;
+      const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      
+      // Get page view counts
+      const pageViews = await db.select({
+        page: sql<string>`(${userActivityEvents.eventData}->>'page')`,
+        views: sql<number>`count(*)`,
+        uniqueUsers: sql<number>`count(distinct ${userActivityEvents.userId})`
+      })
+        .from(userActivityEvents)
+        .where(and(
+          gte(userActivityEvents.createdAt, sinceDate),
+          eq(userActivityEvents.eventName, "page_view")
+        ))
+        .groupBy(sql`${userActivityEvents.eventData}->>'page'`)
+        .orderBy(sql`count(*) DESC`)
+        .limit(20);
+      
+      // Get time spent from page_exit events only (where duration is stored)
+      const pageDurations = await db.select({
+        page: sql<string>`(${userActivityEvents.eventData}->>'page')`,
+        avgTimeSpentMs: sql<number>`avg(${userActivityEvents.duration})`,
+        totalTimeSpentMs: sql<number>`sum(${userActivityEvents.duration})`
+      })
+        .from(userActivityEvents)
+        .where(and(
+          gte(userActivityEvents.createdAt, sinceDate),
+          eq(userActivityEvents.eventName, "page_exit"),
+          sql`${userActivityEvents.duration} IS NOT NULL AND ${userActivityEvents.duration} > 0`
+        ))
+        .groupBy(sql`${userActivityEvents.eventData}->>'page'`);
+      
+      // Merge the data
+      const durationMap = new Map(pageDurations.map(d => [d.page, d]));
+      
+      res.json(pageViews.map(p => {
+        const duration = durationMap.get(p.page);
+        return {
+          page: p.page || '/',
+          views: Number(p.views) || 0,
+          avgTimeSpentSeconds: duration ? Math.round((Number(duration.avgTimeSpentMs) || 0) / 1000) : 0,
+          totalTimeSpentMinutes: duration ? Math.round((Number(duration.totalTimeSpentMs) || 0) / 60000) : 0,
+          uniqueUsers: Number(p.uniqueUsers) || 0
+        };
+      }));
+    } catch (error) {
+      console.error("Admin Analytics: Failed to fetch page stats:", error);
+      res.status(500).json({ message: "Failed to fetch page stats" });
+    }
+  });
+
+  // Get click analytics
+  app.get("/api/admin/analytics/clicks", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 7;
+      const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      
+      // Only include clicks that have meaningful identifying info (ID or text)
+      const clickStats = await db.select({
+        elementType: sql<string>`(${userActivityEvents.eventData}->>'elementType')`,
+        elementId: sql<string>`(${userActivityEvents.eventData}->>'elementId')`,
+        elementText: sql<string>`(${userActivityEvents.eventData}->>'elementText')`,
+        clicks: sql<number>`count(*)`,
+        uniqueUsers: sql<number>`count(distinct ${userActivityEvents.userId})`
+      })
+        .from(userActivityEvents)
+        .where(and(
+          gte(userActivityEvents.createdAt, sinceDate),
+          eq(userActivityEvents.eventName, "click"),
+          sql`(${userActivityEvents.eventData}->>'elementId' IS NOT NULL AND ${userActivityEvents.eventData}->>'elementId' != '') OR (${userActivityEvents.eventData}->>'elementText' IS NOT NULL AND ${userActivityEvents.eventData}->>'elementText' != '')`
+        ))
+        .groupBy(
+          sql`${userActivityEvents.eventData}->>'elementType'`,
+          sql`${userActivityEvents.eventData}->>'elementId'`,
+          sql`${userActivityEvents.eventData}->>'elementText'`
+        )
+        .orderBy(sql`count(*) DESC`)
+        .limit(30);
+      
+      res.json(clickStats
+        .filter(c => c.elementId || c.elementText) // Extra filter to ensure we have meaningful data
+        .map(c => ({
+          elementType: c.elementType || 'element',
+          elementId: c.elementId || '-',
+          elementText: c.elementText?.substring(0, 50) || '-',
+          clicks: Number(c.clicks) || 0,
+          uniqueUsers: Number(c.uniqueUsers) || 0
+        })));
+    } catch (error) {
+      console.error("Admin Analytics: Failed to fetch click stats:", error);
+      res.status(500).json({ message: "Failed to fetch click stats" });
+    }
+  });
+
+  // Get detailed event breakdown with granular data
+  app.get("/api/admin/analytics/detailed-events", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 7;
+      const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      
+      const events = await db.select({
+        eventType: userActivityEvents.eventType,
+        eventCategory: userActivityEvents.eventCategory,
+        eventName: userActivityEvents.eventName,
+        count: sql<number>`count(*)`,
+        avgDuration: sql<number>`avg(${userActivityEvents.duration})`,
+        uniqueUsers: sql<number>`count(distinct ${userActivityEvents.userId})`
+      })
+        .from(userActivityEvents)
+        .where(gte(userActivityEvents.createdAt, sinceDate))
+        .groupBy(
+          userActivityEvents.eventType,
+          userActivityEvents.eventCategory,
+          userActivityEvents.eventName
+        )
+        .orderBy(sql`count(*) DESC`)
+        .limit(50);
+      
+      res.json(events.map(e => ({
+        eventType: e.eventType,
+        category: e.eventCategory,
+        name: e.eventName,
+        count: Number(e.count) || 0,
+        avgDurationMs: Number(e.avgDuration) || 0,
+        uniqueUsers: Number(e.uniqueUsers) || 0
+      })));
+    } catch (error) {
+      console.error("Admin Analytics: Failed to fetch detailed events:", error);
+      res.status(500).json({ message: "Failed to fetch detailed events" });
+    }
+  });
+
   // ============ Badge System Routes ============
   
   // Get all available badges
