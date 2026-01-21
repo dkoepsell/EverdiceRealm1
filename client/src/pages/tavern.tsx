@@ -29,8 +29,14 @@ import {
   Check,
   X,
   Weight,
-  AlertTriangle
+  AlertTriangle,
+  Scroll,
+  PenLine,
+  MessageSquare,
+  Clock
 } from "lucide-react";
+import { Link } from "wouter";
+import { formatDistanceToNow } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -319,6 +325,71 @@ function getRarityBadgeVariant(rarity: string): "default" | "secondary" | "destr
     default:
       return "outline";
   }
+}
+
+// Component to show recent bulletin board posts in the tavern
+function RecentBulletinPosts() {
+  const { data: posts, isLoading } = useQuery<any[]>({
+    queryKey: ['/api/bulletin'],
+  });
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-4 text-muted-foreground">
+        Loading party requests...
+      </div>
+    );
+  }
+
+  const recentPosts = posts?.slice(0, 4) || [];
+
+  if (recentPosts.length === 0) {
+    return (
+      <Card className="bg-slate-50 dark:bg-slate-800 p-6 text-center">
+        <MessageSquare className="h-10 w-10 mx-auto mb-3 text-slate-400" />
+        <p className="text-muted-foreground">No party requests yet.</p>
+        <p className="text-sm text-muted-foreground mt-1">Be the first to post!</p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="grid gap-3">
+      {recentPosts.map((post: any) => (
+        <Link key={post.id} href="/bulletin">
+          <Card className="bg-slate-50 dark:bg-slate-800 hover:border-amber-500/50 transition-colors cursor-pointer">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                {post.authorAvatarUrl ? (
+                  <img 
+                    src={post.authorAvatarUrl} 
+                    alt={post.authorName}
+                    className="w-10 h-10 rounded-full object-cover border-2 border-amber-500/50 flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-600 font-bold flex-shrink-0">
+                    {(post.authorName || 'U').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant="secondary" className="text-xs">
+                      {post.postType === 'lfg' ? 'LFG' : post.postType === 'lfp' ? 'LFP' : post.postType?.toUpperCase() || 'LFG'}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+                    </span>
+                  </div>
+                  <h4 className="font-semibold truncate">{post.title}</h4>
+                  <p className="text-sm text-muted-foreground">by {post.authorName || 'Unknown'}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      ))}
+    </div>
+  );
 }
 
 export default function TavernPage() {
@@ -1316,21 +1387,65 @@ export default function TavernPage() {
                   <div className="space-y-4">
                     <h3 className="text-lg font-bold flex items-center gap-2">
                       <Users className="h-5 w-5 text-amber-600" />
-                      Adventurers Looking for Company
+                      Find Adventuring Companions
                     </h3>
                     
-                    {/* Your gold display */}
-                    {activeCharacter && (
-                      <Card className="bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border-yellow-200 dark:border-yellow-800/50">
-                        <CardContent className="p-4 flex items-center justify-between">
+                    {/* Post to Bulletin Board CTA */}
+                    <Card className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200 dark:border-amber-700/50">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between gap-4">
                           <div className="flex items-center gap-3">
-                            <Coins className="h-6 w-6 text-yellow-600" />
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                              <Scroll className="h-5 w-5 text-white" />
+                            </div>
                             <div>
-                              <p className="text-sm text-muted-foreground">Your Gold</p>
-                              <p className="text-xl font-bold text-yellow-700 dark:text-yellow-400">{characterGold} gp</p>
+                              <p className="font-semibold text-amber-800 dark:text-amber-300">Looking for a party?</p>
+                              <p className="text-sm text-amber-600 dark:text-amber-400">Post on the Bulletin Board to find other adventurers</p>
                             </div>
                           </div>
-                          {characters.length > 1 && (
+                          <Link href="/bulletin">
+                            <Button className="bg-amber-600 hover:bg-amber-700 text-white">
+                              <PenLine className="h-4 w-4 mr-2" />
+                              Post LFG
+                            </Button>
+                          </Link>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    
+                    {/* Recent LFG Posts */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium text-muted-foreground flex items-center gap-2">
+                          <MessageSquare className="h-4 w-4" />
+                          Recent Party Requests
+                        </h4>
+                        <Link href="/bulletin">
+                          <Button variant="ghost" size="sm" className="text-amber-600">
+                            View All <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        </Link>
+                      </div>
+                      
+                      <RecentBulletinPosts />
+                    </div>
+                    
+                    {/* Gold Transfer Section - moved to secondary */}
+                    {characters.length > 1 && activeCharacter && (
+                      <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
+                        <h4 className="font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                          <Coins className="h-4 w-4" />
+                          Transfer Gold Between Your Characters
+                        </h4>
+                        <Card className="bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border-yellow-200 dark:border-yellow-800/50">
+                          <CardContent className="p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <Coins className="h-6 w-6 text-yellow-600" />
+                              <div>
+                                <p className="text-sm text-muted-foreground">Your Gold</p>
+                                <p className="text-xl font-bold text-yellow-700 dark:text-yellow-400">{characterGold} gp</p>
+                              </div>
+                            </div>
                             <Button 
                               variant="outline" 
                               onClick={() => setGoldTransferOpen(true)}
@@ -1339,53 +1454,9 @@ export default function TavernPage() {
                               <Coins className="h-4 w-4 mr-2" />
                               Send Gold
                             </Button>
-                          )}
-                        </CardContent>
-                      </Card>
-                    )}
-                    
-                    {characters.length > 1 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {characters.filter(c => c.id !== activeCharacter?.id).map(char => (
-                          <Card key={char.id} className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900">
-                            <CardContent className="p-4 flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center overflow-hidden">
-                                {char.portraitUrl ? (
-                                  <img src={char.portraitUrl} alt={char.name} className="w-full h-full object-cover" />
-                                ) : (
-                                  <Users className="h-6 w-6 text-white" />
-                                )}
-                              </div>
-                              <div className="flex-1">
-                                <h4 className="font-bold">{char.name}</h4>
-                                <p className="text-sm text-muted-foreground">Level {char.level} {char.race} {char.class}</p>
-                                <p className="text-xs text-yellow-600 flex items-center gap-1 mt-1">
-                                  <Coins className="h-3 w-3" />
-                                  {char.gold ?? 0} gp
-                                </p>
-                              </div>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => {
-                                  setTransferRecipient(char.id);
-                                  setGoldTransferOpen(true);
-                                }}
-                                disabled={characterGold < 1}
-                              >
-                                <Coins className="h-4 w-4 mr-1" />
-                                Give Gold
-                              </Button>
-                            </CardContent>
-                          </Card>
-                        ))}
+                          </CardContent>
+                        </Card>
                       </div>
-                    ) : (
-                      <Card className="bg-slate-50 dark:bg-slate-800 p-8 text-center">
-                        <Users className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-                        <p className="text-muted-foreground">No other adventurers are at the tavern tonight.</p>
-                        <p className="text-sm text-muted-foreground mt-2">Create more characters to see them here!</p>
-                      </Card>
                     )}
                   </div>
                 )}
