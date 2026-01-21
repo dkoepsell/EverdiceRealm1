@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -71,6 +72,22 @@ const reassuranceBlocks = [
 
 export default function LandingPage() {
   const { user } = useAuth();
+  const [userCount, setUserCount] = useState(0);
+  
+  useEffect(() => {
+    const fetchUserStats = async () => {
+      try {
+        const response = await fetch('/api/user-stats');
+        if (response.ok) {
+          const data = await response.json();
+          setUserCount(data.totalRegistered || 0);
+        }
+      } catch (error) {
+        console.error('Error fetching user stats:', error);
+      }
+    };
+    fetchUserStats();
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -144,10 +161,12 @@ export default function LandingPage() {
                 
                 {/* Community presence indicators */}
                 <div className="flex flex-wrap justify-center gap-3 mt-6">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">
-                    <Sparkles className="h-3 w-3" />
-                    <span>Join 100+ adventurers exploring Everdice</span>
-                  </div>
+                  {userCount > 0 && (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">
+                      <Users className="h-3 w-3" />
+                      <span>{userCount.toLocaleString()} adventurers have joined Everdice</span>
+                    </div>
+                  )}
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
                     <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                     <span>KoeppyLoco is online</span>
