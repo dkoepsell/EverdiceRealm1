@@ -106,6 +106,30 @@ const LEARNING_TIPS: Record<LearningTipType, LearningTip[]> = {
       content: "D&D is collaborative storytelling. There's no 'winning' - just great stories created together. Embrace the unexpected!",
       mechanic: "Collaborative Storytelling Game",
       groupPlayNote: "The magic happens when players build on each other's ideas."
+    },
+    {
+      id: 'tavern_hub',
+      type: 'general',
+      title: "Visit the Tavern!",
+      content: "Between adventures, stop by the Tavern to buy weapons and gear, repair damaged equipment, sell loot, and check the Bulletin Board for party members!",
+      mechanic: "Shop • Blacksmith • Bulletin Board",
+      groupPlayNote: "Use the Find Party tab to connect with other adventurers."
+    },
+    {
+      id: 'equipment_matters',
+      type: 'general',
+      title: "Gear Up at the Tavern",
+      content: "Your equipment wears down over time. Visit the Tavern's Blacksmith to repair gear before it breaks. Better equipment means better adventures!",
+      mechanic: "Equipment Durability & Repair",
+      groupPlayNote: "Pool gold with party members to afford better gear."
+    },
+    {
+      id: 'bulletin_board',
+      type: 'general',
+      title: "Looking for a Party?",
+      content: "Check the Tavern's Bulletin Board to find other players looking for groups. Post your own LFG to let others know you're ready to adventure!",
+      mechanic: "Community Party Finder",
+      groupPlayNote: "Great adventures await when you team up with fellow players."
     }
   ]
 };
