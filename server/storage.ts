@@ -67,6 +67,8 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(userId: number, updates: Partial<User>): Promise<User | undefined>;
+  updateUserProfile(userId: number, updates: { displayName?: string; email?: string | null }): Promise<User | undefined>;
   updateUserLastLogin(userId: number): Promise<void>;
   
   // User Session operations
@@ -947,6 +949,28 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
   
+  async updateUser(userId: number, updates: Partial<User>): Promise<User | undefined> {
+    const [updated] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, userId))
+      .returning();
+    return updated || undefined;
+  }
+
+  async updateUserProfile(userId: number, updates: { displayName?: string; email?: string | null }): Promise<User | undefined> {
+    const safeUpdates: { displayName?: string; email?: string | null } = {};
+    if (updates.displayName !== undefined) safeUpdates.displayName = updates.displayName;
+    if (updates.email !== undefined) safeUpdates.email = updates.email;
+    
+    const [updated] = await db
+      .update(users)
+      .set(safeUpdates)
+      .where(eq(users.id, userId))
+      .returning();
+    return updated || undefined;
+  }
+
   async updateUserLastLogin(userId: number): Promise<void> {
     await db
       .update(users)

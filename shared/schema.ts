@@ -12,6 +12,8 @@ export const users = pgTable("users", {
   lastLogin: text("last_login"),
   isAdmin: boolean("is_admin").notNull().default(false),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  twoFactorSecret: text("two_factor_secret"),
+  twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({

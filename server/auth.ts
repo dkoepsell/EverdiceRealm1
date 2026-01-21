@@ -9,6 +9,11 @@ import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
 import { randomUUID } from "crypto";
 import pg from "pg";
+import * as OTPAuth from "otplib";
+import QRCode from "qrcode";
+import { z } from "zod";
+
+const authenticator = OTPAuth.authenticator;
 
 declare global {
   namespace Express {
@@ -102,9 +107,9 @@ export function setupAuth(app: Express) {
 
       req.login(user, (err) => {
         if (err) return next(err);
-        // Don't send password back to client
-        const { password, ...userWithoutPassword } = user;
-        res.status(201).json(userWithoutPassword);
+        // Don't send sensitive data back to client
+        const { password, twoFactorSecret, ...userWithoutSensitive } = user;
+        res.status(201).json(userWithoutSensitive);
       });
     } catch (error) {
       console.error("Registration error:", error);
@@ -121,9 +126,9 @@ export function setupAuth(app: Express) {
       }
       req.login(user, (err) => {
         if (err) return next(err);
-        // Don't send password back to client
-        const { password, ...userWithoutPassword } = user;
-        res.status(200).json(userWithoutPassword);
+        // Don't send sensitive data back to client
+        const { password, twoFactorSecret, ...userWithoutSensitive } = user;
+        res.status(200).json(userWithoutSensitive);
       });
     })(req, res, next);
   });
@@ -141,9 +146,182 @@ export function setupAuth(app: Express) {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Not authenticated" });
     }
-    // Don't send password back to client
-    const { password, ...userWithoutPassword } = req.user as SelectUser;
-    res.json(userWithoutPassword);
+    // Don't send password and 2FA secret back to client
+    const { password, twoFactorSecret, ...userWithoutSensitive } = req.user as SelectUser;
+    res.json({ ...userWithoutSensitive, twoFactorEnabled: (req.user as SelectUser).twoFactorEnabled });
+  });
+
+  // Update profile endpoint
+  app.patch("/api/user/profile", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    try {
+      const userId = (req.user as SelectUser).id;
+      
+      const profileSchema = z.object({
+        displayName: z.string().min(1).max(100).optional(),
+        email: z.string().email().optional().nullable()
+      });
+      
+      const parseResult = profileSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ message: "Invalid input", errors: parseResult.error.flatten() });
+      }
+      
+      const { displayName, email } = parseResult.data;
+      
+      const updates: { displayName?: string; email?: string | null } = {};
+      if (displayName !== undefined) updates.displayName = displayName;
+      if (email !== undefined) updates.email = email;
+      
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ message: "No valid fields to update" });
+      }
+      
+      const updated = await storage.updateUserProfile(userId, updates);
+      if (!updated) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const { password, twoFactorSecret, ...userWithoutSensitive } = updated;
+      res.json(userWithoutSensitive);
+    } catch (error) {
+      console.error("Failed to update profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // Change password endpoint
+  app.post("/api/user/change-password", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    try {
+      const userId = (req.user as SelectUser).id;
+      const { currentPassword, newPassword } = req.body;
+      
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Current and new password are required" });
+      }
+      
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: "New password must be at least 6 characters" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const isValid = await comparePasswords(currentPassword, user.password);
+      if (!isValid) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+      
+      const hashedPassword = await hashPassword(newPassword);
+      await storage.updateUser(userId, { password: hashedPassword });
+      
+      res.json({ message: "Password changed successfully" });
+    } catch (error) {
+      console.error("Failed to change password:", error);
+      res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+
+  // 2FA Setup - Generate secret and QR code
+  app.post("/api/user/2fa/setup", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    try {
+      const user = req.user as SelectUser;
+      
+      if (user.twoFactorEnabled) {
+        return res.status(400).json({ message: "2FA is already enabled" });
+      }
+      
+      const secret = authenticator.generateSecret();
+      const otpauth = authenticator.keyuri(user.username, "Everdice", secret);
+      
+      // Store secret temporarily (not enabled yet)
+      await storage.updateUser(user.id, { twoFactorSecret: secret });
+      
+      const qrCodeDataUrl = await QRCode.toDataURL(otpauth);
+      
+      res.json({
+        qrCode: qrCodeDataUrl,
+        message: "Scan QR code with your authenticator app, then verify with a code"
+      });
+    } catch (error) {
+      console.error("Failed to setup 2FA:", error);
+      res.status(500).json({ message: "Failed to setup 2FA" });
+    }
+  });
+
+  // 2FA Enable - Verify code and enable
+  app.post("/api/user/2fa/enable", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    try {
+      const user = req.user as SelectUser;
+      const { code } = req.body;
+      
+      if (!code) {
+        return res.status(400).json({ message: "Verification code is required" });
+      }
+      
+      // Get the latest user data with secret
+      const currentUser = await storage.getUser(user.id);
+      if (!currentUser?.twoFactorSecret) {
+        return res.status(400).json({ message: "Please setup 2FA first" });
+      }
+      
+      const isValid = authenticator.verify({ token: code, secret: currentUser.twoFactorSecret });
+      if (!isValid) {
+        return res.status(400).json({ message: "Invalid verification code" });
+      }
+      
+      await storage.updateUser(user.id, { twoFactorEnabled: true });
+      
+      res.json({ message: "2FA enabled successfully" });
+    } catch (error) {
+      console.error("Failed to enable 2FA:", error);
+      res.status(500).json({ message: "Failed to enable 2FA" });
+    }
+  });
+
+  // 2FA Disable
+  app.post("/api/user/2fa/disable", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    try {
+      const user = req.user as SelectUser;
+      const { password } = req.body;
+      
+      if (!password) {
+        return res.status(400).json({ message: "Password is required to disable 2FA" });
+      }
+      
+      const currentUser = await storage.getUser(user.id);
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const isValid = await comparePasswords(password, currentUser.password);
+      if (!isValid) {
+        return res.status(400).json({ message: "Invalid password" });
+      }
+      
+      await storage.updateUser(user.id, { twoFactorEnabled: false, twoFactorSecret: null });
+      
+      res.json({ message: "2FA disabled successfully" });
+    } catch (error) {
+      console.error("Failed to disable 2FA:", error);
+      res.status(500).json({ message: "Failed to disable 2FA" });
+    }
   });
 }
 

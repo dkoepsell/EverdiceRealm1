@@ -28,6 +28,7 @@ import {
   MessageSquare,
   Shield,
   Menu,
+  Settings,
   X,
   Home,
   Beer
@@ -241,6 +242,12 @@ export default function Navbar() {
                         My Adventures
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile" className="flex items-center cursor-pointer">
+                        <Settings className="h-4 w-4 mr-2" />
+                        Profile Settings
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
                       onClick={handleLogout}
@@ -332,6 +339,16 @@ export default function Navbar() {
                     </div>
                     <span className="text-white font-medium">{user.username}</span>
                   </div>
+                  <Link href="/profile">
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start text-white/90 hover:text-white hover:bg-white/10"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Settings className="h-4 w-4 mr-3" />
+                      Profile Settings
+                    </Button>
+                  </Link>
                   <Button
                     variant="ghost"
                     className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-white/10 mt-1"

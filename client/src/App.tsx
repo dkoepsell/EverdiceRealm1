@@ -26,6 +26,7 @@ import AdminPage from "@/pages/admin";
 import LegalPage from "@/pages/legal";
 import TavernPage from "@/pages/tavern";
 import GroupsPage from "@/pages/groups";
+import ProfilePage from "@/pages/profile";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import InvitationAlert from "@/components/InvitationAlert";
@@ -63,6 +64,7 @@ function Router() {
           <Route path="/caml" component={CAMLPage} />
           <ProtectedRoute path="/test" component={TestPage} />
           <ProtectedRoute path="/admin" component={AdminPage} />
+          <ProtectedRoute path="/profile" component={ProfilePage} />
           <Route path="/how-it-works" component={HowItWorks} />
           <Route path="/legal" component={LegalPage} />
           <Route path="/auth" component={AuthPage} />
