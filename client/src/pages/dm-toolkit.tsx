@@ -300,29 +300,38 @@ export default function DMToolkit() {
               <p className="text-white/60">Craft worlds, tell stories, and bring adventures to life</p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Button
-                onClick={prepareForOffline}
-                disabled={offlineStatus === 'caching' || offlineStatus === 'cached'}
-                variant={offlineStatus === 'cached' ? 'outline' : 'secondary'}
-                className={offlineStatus === 'cached' ? 'border-purple-500 text-purple-400' : ''}
-              >
-                {offlineStatus === 'caching' ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Preparing...
-                  </>
-                ) : offlineStatus === 'cached' ? (
-                  <>
-                    <Check className="h-4 w-4 mr-2" />
-                    Ready for Offline
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4 mr-2" />
-                    Prepare for Offline
-                  </>
-                )}
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={prepareForOffline}
+                      disabled={offlineStatus === 'caching' || offlineStatus === 'cached'}
+                      variant={offlineStatus === 'cached' ? 'outline' : 'secondary'}
+                      className={offlineStatus === 'cached' ? 'border-purple-500 text-purple-400' : ''}
+                    >
+                      {offlineStatus === 'caching' ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Preparing...
+                        </>
+                      ) : offlineStatus === 'cached' ? (
+                        <>
+                          <Check className="h-4 w-4 mr-2" />
+                          Ready for Offline
+                        </>
+                      ) : (
+                        <>
+                          <Download className="h-4 w-4 mr-2" />
+                          Prepare for Offline
+                        </>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs text-center">
+                    <p>Download DM Training materials for offline study. Note: Running campaigns requires an internet connection, but you can study DM guides offline.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               {campaigns.length > 0 && (
                 <Select value={selectedCampaignId?.toString() || ""} onValueChange={(value) => setSelectedCampaignId(parseInt(value))}>
                   <SelectTrigger className="w-48 bg-white/10 border-white/20 text-white">

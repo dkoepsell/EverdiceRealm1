@@ -4,6 +4,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { RulesReference } from "@/components/education/RulesReference";
 import { DMGuide } from "@/components/education/DMGuide";
 import { LearningPathContent } from "@/components/education/LearningPathContent";
@@ -1265,29 +1271,38 @@ export default function LearnPage() {
             </div>
             
             <div className="flex-shrink-0">
-              <Button
-                onClick={prepareForOffline}
-                disabled={offlineStatus === 'caching' || offlineStatus === 'cached'}
-                variant={offlineStatus === 'cached' ? 'outline' : 'secondary'}
-                className={offlineStatus === 'cached' ? 'border-emerald-500 text-emerald-400' : ''}
-              >
-                {offlineStatus === 'caching' ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Preparing...
-                  </>
-                ) : offlineStatus === 'cached' ? (
-                  <>
-                    <Check className="h-4 w-4 mr-2" />
-                    Ready for Offline
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4 mr-2" />
-                    Prepare for Offline
-                  </>
-                )}
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={prepareForOffline}
+                      disabled={offlineStatus === 'caching' || offlineStatus === 'cached'}
+                      variant={offlineStatus === 'cached' ? 'outline' : 'secondary'}
+                      className={offlineStatus === 'cached' ? 'border-emerald-500 text-emerald-400' : ''}
+                    >
+                      {offlineStatus === 'caching' ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Preparing...
+                        </>
+                      ) : offlineStatus === 'cached' ? (
+                        <>
+                          <Check className="h-4 w-4 mr-2" />
+                          Ready for Offline
+                        </>
+                      ) : (
+                        <>
+                          <Download className="h-4 w-4 mr-2" />
+                          Prepare for Offline
+                        </>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs text-center">
+                    <p>Download learning materials for offline study. Note: Playing adventures requires an internet connection, but you can study rules and guides offline.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
         </div>
