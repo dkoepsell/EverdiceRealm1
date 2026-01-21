@@ -8,6 +8,14 @@
     <meta name="description" content="AI-enhanced tabletop RPG companion app for creating characters, managing campaigns, and learning game mechanics. Uses open rules from the SRD 5.1 under Creative Commons Attribution 4.0." />
     <meta name="keywords" content="tabletop RPG, fantasy roleplaying, character creation, campaign management, dice roller, SRD compatible, 5e compatible" />
     
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#d97706" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Everdice" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192.svg" />
+    
     <!-- Open Graph Tags -->
     <meta property="og:title" content="Everdice - Fantasy RPG Companion" />
     <meta property="og:description" content="Create characters, manage campaigns, and roll dice with our AI-powered tabletop RPG companion. SRD 5.1 compatible." />
@@ -20,6 +28,20 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered:', registration.scope);
+            })
+            .catch((error) => {
+              console.log('SW registration failed:', error);
+            });
+        });
+      }
+    </script>
     <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
     <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
   </body>

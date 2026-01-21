@@ -1,0 +1,19 @@
+{
+  "name": "Everdice - Fantasy RPG Companion",
+  "short_name": "Everdice",
+  "description": "AI-enhanced tabletop RPG companion app for creating characters, managing campaigns, and learning game mechanics.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e293b",
+  "theme_color": "#d97706",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "education", "entertainment"]
+}
