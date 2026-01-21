@@ -14226,7 +14226,16 @@ ALWAYS generate:
         isActive: true,
         limit: limit ? parseInt(limit as string) : 50
       });
-      res.json(posts);
+      // Enrich posts with author info
+      const enrichedPosts = await Promise.all(posts.map(async (post) => {
+        const author = await storage.getUser(post.userId);
+        return { 
+          ...post, 
+          authorName: author?.username || 'Unknown',
+          authorAvatarUrl: author?.avatarUrl || null 
+        };
+      }));
+      res.json(enrichedPosts);
     } catch (error) {
       console.error("Failed to get bulletin posts:", error);
       res.status(500).json({ message: "Failed to get bulletin posts" });

@@ -424,18 +424,32 @@ export default function BulletinBoardPage() {
                   >
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Badge className={postTypeBadgeColors[post.postType || 'lfg']}>
-                              {postTypeLabels[post.postType || 'lfg']}
-                            </Badge>
-                            {post.isOngoing && (
-                              <Badge variant="outline" className="border-slate-500 text-slate-300">
-                                Ongoing Campaign
+                        <div className="flex gap-3">
+                          {(post as any).authorAvatarUrl ? (
+                            <img 
+                              src={(post as any).authorAvatarUrl} 
+                              alt={(post as any).authorName}
+                              className="w-10 h-10 rounded-full object-cover border-2 border-amber-500/50 flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 font-bold flex-shrink-0">
+                              {((post as any).authorName || 'U').charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <Badge className={postTypeBadgeColors[post.postType || 'lfg']}>
+                                {postTypeLabels[post.postType || 'lfg']}
                               </Badge>
-                            )}
+                              {post.isOngoing && (
+                                <Badge variant="outline" className="border-slate-500 text-slate-300">
+                                  Ongoing Campaign
+                                </Badge>
+                              )}
+                            </div>
+                            <CardTitle className="text-white text-xl">{post.title}</CardTitle>
+                            <p className="text-slate-400 text-sm">by {(post as any).authorName || 'Unknown'}</p>
                           </div>
-                          <CardTitle className="text-white text-xl">{post.title}</CardTitle>
                         </div>
                         <div className="flex items-center gap-2 text-slate-400 text-sm">
                           <Clock className="h-4 w-4" />
