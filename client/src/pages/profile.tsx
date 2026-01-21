@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { User, Shield, Key, Smartphone, Loader2, Check, X, Calendar, Mail, UserCircle } from "lucide-react";
+import { User, Shield, Key, Smartphone, Loader2, Check, X, Calendar, Mail, UserCircle, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function ProfilePage() {
@@ -118,6 +118,20 @@ export default function ProfilePage() {
     }
   });
 
+  const generateAvatarMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/user/generate-avatar", {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      toast({ title: "Avatar generated!", description: "Your new profile avatar is ready" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to generate avatar", description: error.message, variant: "destructive" });
+    }
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -187,6 +201,50 @@ export default function ProfilePage() {
                 <CardDescription>Your basic account details</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                <div className="flex items-center gap-6 p-4 bg-muted/30 rounded-lg">
+                  <div className="relative">
+                    {user.avatarUrl ? (
+                      <img 
+                        src={user.avatarUrl} 
+                        alt="Profile avatar" 
+                        className="w-24 h-24 rounded-full object-cover border-4 border-primary/20"
+                      />
+                    ) : (
+                      <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary/20 to-amber-500/20 flex items-center justify-center border-4 border-primary/20">
+                        <span className="text-3xl font-bold text-primary uppercase">
+                          {user.username.charAt(0)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <h3 className="font-semibold">Profile Avatar</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Generate a unique fantasy avatar for your profile
+                    </p>
+                    <Button 
+                      onClick={() => generateAvatarMutation.mutate()}
+                      disabled={generateAvatarMutation.isPending}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {generateAvatarMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          {user.avatarUrl ? "Generate New Avatar" : "Generate Avatar"}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <Separator />
+
                 <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
                   <div>
                     <Label className="text-muted-foreground text-xs">Username</Label>

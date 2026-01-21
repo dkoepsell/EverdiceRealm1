@@ -48,6 +48,7 @@ import {
 import { setupAuth, isAuthenticated, requireAdmin } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";
 import { generateCharacterPortrait, generateCharacterBackground } from "./lib/characterImageGenerator";
+import { generateUserAvatar } from "./lib/avatarGenerator";
 import { registerCampaignDeploymentRoutes } from "./lib/campaignDeploy";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { db } from "./db";
@@ -7448,6 +7449,33 @@ Focus on:
     } catch (error) {
       console.error("Failed to fetch user statistics:", error);
       res.status(500).json({ message: "Failed to fetch user statistics" });
+    }
+  });
+
+  // Generate user avatar
+  app.post("/api/user/generate-avatar", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      const user = req.user as User;
+      const { style } = req.body;
+      
+      const avatarData = await generateUserAvatar({
+        username: user.username,
+        style: style || "fantasy"
+      });
+      
+      await storage.updateUser(user.id, { avatarUrl: avatarData.url });
+      
+      res.json({ avatarUrl: avatarData.url });
+    } catch (error: any) {
+      console.error("Error generating avatar:", error);
+      res.status(500).json({ 
+        message: "Failed to generate avatar",
+        error: error.message 
+      });
     }
   });
   
