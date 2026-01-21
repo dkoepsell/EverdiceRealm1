@@ -891,13 +891,25 @@ export default function GroupsPage() {
                     className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                        isFounder ? 'bg-amber-500/20 text-amber-500' : 
-                        isLeader ? 'bg-purple-500/20 text-purple-500' : 
-                        'bg-slate-500/20 text-slate-400'
-                      }`}>
-                        {member.username?.charAt(0)?.toUpperCase() || '?'}
-                      </div>
+                      {member.avatarUrl ? (
+                        <img 
+                          src={member.avatarUrl} 
+                          alt={member.username}
+                          className={`w-8 h-8 rounded-full object-cover border-2 ${
+                            isFounder ? 'border-amber-500' : 
+                            isLeader ? 'border-purple-500' : 
+                            'border-slate-500/50'
+                          }`}
+                        />
+                      ) : (
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                          isFounder ? 'bg-amber-500/20 text-amber-500' : 
+                          isLeader ? 'bg-purple-500/20 text-purple-500' : 
+                          'bg-slate-500/20 text-slate-400'
+                        }`}>
+                          {member.username?.charAt(0)?.toUpperCase() || '?'}
+                        </div>
+                      )}
                       <div>
                         <p className="font-medium text-sm">{member.username || 'Unknown'}</p>
                         {member.title && (

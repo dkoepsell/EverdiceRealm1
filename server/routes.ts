@@ -14390,10 +14390,10 @@ ALWAYS generate:
         return res.status(404).json({ message: "Group not found" });
       }
       const members = await storage.getPlayerGroupMembers(id);
-      // Enrich members with usernames
+      // Enrich members with usernames and avatars
       const enrichedMembers = await Promise.all(members.map(async (member) => {
         const user = await storage.getUser(member.userId);
-        return { ...member, username: user?.username || 'Unknown' };
+        return { ...member, username: user?.username || 'Unknown', avatarUrl: user?.avatarUrl || null };
       }));
       res.json({ ...group, members: enrichedMembers });
     } catch (error) {
