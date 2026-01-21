@@ -269,17 +269,33 @@ export default function Dashboard() {
           <div className="relative z-10">
           <div className="max-w-2xl">
             {/* Community stats badge */}
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex flex-wrap items-center gap-3 mb-4">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
                 <Users className="h-3 w-3" />
                 <span>{userStats.totalRegistered.toLocaleString()} adventurers have joined</span>
               </div>
-              {userStats.totalCharacters > 0 && (
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm">
-                  <Sword className="h-3 w-3" />
-                  <span>{userStats.totalCharacters.toLocaleString()} heroes created</span>
+              {userStats.totalCampaigns > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">
+                  <ScrollText className="h-3 w-3" />
+                  <span>{userStats.totalCampaigns.toLocaleString()} campaigns played so far</span>
                 </div>
               )}
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
+                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                <span>KoeppyLoco is online</span>
+              </div>
+            </div>
+            
+            {/* Feedback link */}
+            <div className="text-xs text-white/50 mb-3">
+              <span>Questions or ideas? </span>
+              <a 
+                href="mailto:feedback@everdice.app?subject=Everdice Feedback" 
+                className="text-amber-400/80 hover:text-amber-400 underline underline-offset-2"
+              >
+                Send feedback to KoeppyLoco
+              </a>
+              <span> — we read everything!</span>
             </div>
             
             <h1 className="text-3xl md:text-4xl font-fantasy font-bold text-white mb-3">

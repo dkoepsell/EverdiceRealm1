@@ -141,6 +141,18 @@ export default function LandingPage() {
                     Safe for families • You stay in control • Free during beta
                   </p>
                 )}
+                
+                {/* Community presence indicators */}
+                <div className="flex flex-wrap justify-center gap-3 mt-6">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">
+                    <Sparkles className="h-3 w-3" />
+                    <span>Join 100+ adventurers exploring Everdice</span>
+                  </div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
+                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                    <span>KoeppyLoco is online</span>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </div>
@@ -506,6 +518,18 @@ export default function LandingPage() {
               </Button>
             </Link>
           )}
+          
+          {/* Feedback line */}
+          <div className="mt-8 pt-6 border-t border-border/30 text-sm text-muted-foreground">
+            <span>Questions, bugs, or ideas? </span>
+            <a 
+              href="mailto:feedback@everdice.app?subject=Everdice Feedback" 
+              className="text-amber-500 hover:text-amber-400 underline underline-offset-2"
+            >
+              Send feedback to KoeppyLoco
+            </a>
+            <span> — I read every message!</span>
+          </div>
         </div>
       </section>
     </div>
