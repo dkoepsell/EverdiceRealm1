@@ -4,13 +4,13 @@ const LEARN_CACHE_NAME = 'everdice-learn-v1';
 const STATIC_ASSETS = [
   '/',
   '/learn',
-  '/dm-tools',
+  '/dm-toolkit',
   '/offline.html'
 ];
 
 const LEARN_ROUTES = [
   '/learn',
-  '/dm-tools'
+  '/dm-toolkit'
 ];
 
 self.addEventListener('install', (event) => {
@@ -90,7 +90,7 @@ self.addEventListener('message', (event) => {
         const urlsToCache = [
           '/',
           '/learn',
-          '/dm-tools'
+          '/dm-toolkit'
         ];
         
         for (const url of urlsToCache) {
