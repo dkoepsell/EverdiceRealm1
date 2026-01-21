@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -82,7 +82,8 @@ import {
   Wand2,
   Map,
   FileCode,
-  Download
+  Download,
+  WifiOff
 } from "lucide-react";
 
 // Import our tabs
@@ -108,6 +109,74 @@ export default function DMToolkit() {
   const [exportCampaignId, setExportCampaignId] = useState<number | null>(null);
   const [exportFormat, setExportFormat] = useState<"yaml" | "json">("yaml");
   const [isExporting, setIsExporting] = useState(false);
+  const [offlineStatus, setOfflineStatus] = useState<'idle' | 'caching' | 'cached' | 'error'>('idle');
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'LEARN_CONTENT_CACHED') {
+          if (event.data.success) {
+            setOfflineStatus('cached');
+            toast({
+              title: "Ready for Offline",
+              description: "DM Training content has been saved for offline use.",
+            });
+          } else {
+            setOfflineStatus('error');
+            toast({
+              title: "Caching Failed",
+              description: "Unable to save content for offline use.",
+              variant: "destructive",
+            });
+          }
+        }
+      });
+    }
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [toast]);
+
+  const prepareForOffline = useCallback(async () => {
+    if ('serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        if (registration.active) {
+          setOfflineStatus('caching');
+          registration.active.postMessage({ type: 'CACHE_LEARN_CONTENT' });
+        } else {
+          toast({
+            title: "Please Refresh",
+            description: "The offline feature is loading. Please refresh the page and try again.",
+            variant: "destructive",
+          });
+        }
+      } catch (err) {
+        toast({
+          title: "Not Available",
+          description: "Offline mode requires a modern browser with service worker support.",
+          variant: "destructive",
+        });
+      }
+    } else {
+      toast({
+        title: "Not Supported",
+        description: "Your browser doesn't support offline mode.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
   
   // Fetch campaigns
   const { data: campaigns = [] } = useQuery<any[]>({
@@ -220,11 +289,40 @@ export default function DMToolkit() {
                   <Users className="h-3 w-3" />
                   <span>Create & Share Adventures</span>
                 </div>
+                {!isOnline && (
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-400 text-sm">
+                    <WifiOff className="h-3 w-3" />
+                    <span>Offline Mode</span>
+                  </div>
+                )}
               </div>
               <h1 className="text-2xl md:text-3xl font-fantasy font-bold text-white mb-2">Dungeon Master Toolkit</h1>
               <p className="text-white/60">Craft worlds, tell stories, and bring adventures to life</p>
             </div>
             <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={prepareForOffline}
+                disabled={offlineStatus === 'caching' || offlineStatus === 'cached'}
+                variant={offlineStatus === 'cached' ? 'outline' : 'secondary'}
+                className={offlineStatus === 'cached' ? 'border-purple-500 text-purple-400' : ''}
+              >
+                {offlineStatus === 'caching' ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Preparing...
+                  </>
+                ) : offlineStatus === 'cached' ? (
+                  <>
+                    <Check className="h-4 w-4 mr-2" />
+                    Ready for Offline
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Prepare for Offline
+                  </>
+                )}
+              </Button>
               {campaigns.length > 0 && (
                 <Select value={selectedCampaignId?.toString() || ""} onValueChange={(value) => setSelectedCampaignId(parseInt(value))}>
                   <SelectTrigger className="w-48 bg-white/10 border-white/20 text-white">
