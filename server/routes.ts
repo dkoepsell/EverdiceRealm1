@@ -533,8 +533,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingEquipment = (characterData as any).equipment || [];
       const mergedEquipment = [...starterEquipment, ...existingEquipment];
       
-      // Add starter gold
+      // Add starter gold and silver
       const starterGold = 50;
+      const starterSilver = 50;
       
       const character = await storage.createCharacter({
         ...characterData,
@@ -542,7 +543,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         equipment: mergedEquipment,
         equippedWeapon: starterWeapon,
         equippedArmor: starterArmor,
-        gold: ((characterData as any).gold || 0) + starterGold
+        gold: ((characterData as any).gold || 0) + starterGold,
+        silver: ((characterData as any).silver || 0) + starterSilver
       } as any);
       res.status(201).json(character);
     } catch (error) {
@@ -4615,6 +4617,7 @@ Return your response as a JSON object with these fields:
   - questTitle: Title of the completed quest
   - xpReward: XP to award (50-300 for milestones)
   - goldReward: Gold to award (10-100)
+  - silverReward: Silver to award (10-50, for smaller rewards or change)
   - lootItems: Array of item names found (1-3 items like "Health Potion", "Shortsword +1", "Ruby Ring")
 - treasureFound: Optional array of treasure/items discovered in this scene (only if exploration reveals treasure)
 `;
@@ -7022,7 +7025,7 @@ Return your response as a JSON object with these fields:
       }
       
       const campaignId = parseInt(req.params.campaignId);
-      const { title, description, questType, xpReward, goldReward, lootRewards, objectives } = req.body;
+      const { title, description, questType, xpReward, goldReward, silverReward, lootRewards, objectives } = req.body;
       
       const quest = await storage.createCampaignQuest({
         campaignId,
@@ -7032,6 +7035,7 @@ Return your response as a JSON object with these fields:
         status: "active",
         xpReward: xpReward || 100,
         goldReward: goldReward || 0,
+        silverReward: silverReward || 0,
         lootRewards: lootRewards || [],
         objectives: objectives || [],
         createdAt: new Date().toISOString()
@@ -7099,6 +7103,14 @@ Return your response as a JSON object with these fields:
             });
           }
           
+          // Award silver
+          if ((completedQuest as any).silverReward) {
+            const currentSilver = character.silver || 0;
+            await storage.updateCharacter(characterId, {
+              silver: currentSilver + (completedQuest as any).silverReward
+            });
+          }
+          
           // Add loot items to inventory
           const lootRewards = completedQuest.lootRewards as string[] || [];
           if (lootRewards.length > 0) {
@@ -7115,6 +7127,7 @@ Return your response as a JSON object with these fields:
         rewards: {
           xp: completedQuest.xpReward,
           gold: completedQuest.goldReward,
+          silver: (completedQuest as any).silverReward || 0,
           items: completedQuest.lootRewards
         }
       });
@@ -12233,6 +12246,7 @@ Respond with JSON:
             // Generate completion rewards
             const completionXP = campaignTotalChapters * 150; // 150 XP per chapter
             const goldReward = campaignTotalChapters * 50; // 50 gold per chapter
+            const silverReward = campaignTotalChapters * 25; // 25 silver per chapter
             
             // Generate loot chest items based on difficulty
             const lootChestItems = [];
@@ -12258,10 +12272,11 @@ Respond with JSON:
               });
             }
             
-            // Award XP, gold, and items to character
+            // Award XP, gold, silver, and items to character
             if (character) {
               const newCharXP = (character.experience || 0) + completionXP;
               const newGold = (character.gold || 0) + goldReward;
+              const newSilver = (character.silver || 0) + silverReward;
               
               // Get current inventory and add loot items
               const currentInventory = (character.inventory as any[]) || [];
@@ -12275,17 +12290,18 @@ Respond with JSON:
                 }))
               ];
               
-              // Update character with XP, gold, and items
+              // Update character with XP, gold, silver, and items
               await db
                 .update(characters)
                 .set({ 
                   experience: newCharXP,
                   gold: newGold,
+                  silver: newSilver,
                   inventory: updatedInventory
                 })
                 .where(eq(characters.id, character.id));
               
-              console.log(`Character ${character.name} awarded: ${completionXP} XP, ${goldReward} gold, ${lootChestItems.length} items`);
+              console.log(`Character ${character.name} awarded: ${completionXP} XP, ${goldReward} gold, ${silverReward} silver, ${lootChestItems.length} items`);
             }
             
             // Record campaign completion trace
@@ -12293,6 +12309,7 @@ Respond with JSON:
               totalChapters: campaignTotalChapters,
               completionXP,
               goldReward,
+              silverReward,
               lootItems: lootChestItems.map(i => i.name)
             }, {
               sessionId: `session.${currentSession.sessionNumber}`,
@@ -12316,7 +12333,7 @@ Respond with JSON:
             console.log(`Campaign completion rewards: ${completionXP} XP, ${goldReward} gold, ${lootChestItems.length} items`);
             
             // Return early from the advancement block
-            throw { type: 'campaign_complete', rewards: { xp: completionXP, gold: goldReward, items: lootChestItems } };
+            throw { type: 'campaign_complete', rewards: { xp: completionXP, gold: goldReward, silver: silverReward, items: lootChestItems } };
           }
           
           // Get all previous sessions to understand the story arc so far

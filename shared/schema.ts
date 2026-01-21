@@ -663,6 +663,7 @@ export const campaignQuests = pgTable("campaign_quests", {
   objectives: jsonb("objectives").default([]), // Array of {text, completed} objectives
   xpReward: integer("xp_reward").default(100),
   goldReward: integer("gold_reward").default(0),
+  silverReward: integer("silver_reward").default(0),
   lootRewards: jsonb("loot_rewards").default([]), // Array of item names/objects
   completedAt: text("completed_at"),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
