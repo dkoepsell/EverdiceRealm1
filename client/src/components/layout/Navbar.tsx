@@ -218,9 +218,17 @@ export default function Navbar() {
               ) : user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger className="focus:outline-none">
-                    <div className="w-10 h-10 rounded-full border-2 border-amber-400 bg-primary-light flex items-center justify-center text-white font-semibold text-lg uppercase hover:border-amber-300 transition-colors cursor-pointer">
-                      {user.username.charAt(0)}
-                    </div>
+                    {user.avatarUrl ? (
+                      <img 
+                        src={user.avatarUrl} 
+                        alt={user.username}
+                        className="w-10 h-10 rounded-full border-2 border-amber-400 object-cover hover:border-amber-300 transition-colors cursor-pointer"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full border-2 border-amber-400 bg-primary-light flex items-center justify-center text-white font-semibold text-lg uppercase hover:border-amber-300 transition-colors cursor-pointer">
+                        {user.username.charAt(0)}
+                      </div>
+                    )}
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuLabel className="font-normal">
@@ -334,9 +342,17 @@ export default function Navbar() {
                 
                 <div className="border-t border-white/10 my-2 pt-2">
                   <div className="flex items-center px-3 py-2 space-x-3">
-                    <div className="w-8 h-8 rounded-full bg-primary-light flex items-center justify-center text-white font-semibold uppercase border border-amber-400">
-                      {user.username.charAt(0)}
-                    </div>
+                    {user.avatarUrl ? (
+                      <img 
+                        src={user.avatarUrl} 
+                        alt={user.username}
+                        className="w-8 h-8 rounded-full object-cover border border-amber-400"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-primary-light flex items-center justify-center text-white font-semibold uppercase border border-amber-400">
+                        {user.username.charAt(0)}
+                      </div>
+                    )}
                     <span className="text-white font-medium">{user.username}</span>
                   </div>
                   <Link href="/profile">
