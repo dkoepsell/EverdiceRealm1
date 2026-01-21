@@ -1001,6 +1001,13 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+      
+      {/* Gentle reassurance for new users */}
+      <div className="container mx-auto px-4 mt-12 mb-4">
+        <p className="text-center text-sm text-muted-foreground/70 italic">
+          Most tables play weekly. Everything you set up here will be waiting when game night comes.
+        </p>
+      </div>
     </div>
   );
 }
