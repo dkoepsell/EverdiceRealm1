@@ -54,7 +54,13 @@ Preferred communication style: Simple, everyday language.
 - **World Map System**: Persistent realm-wide map showing all regions of Everdice. Tracks user exploration progress across regions and locations. Adventures/campaigns link to world locations, automatically updating user progress when playing. Public visibility for all users to envision the realm. Visit counts persist across sessions.
 - **Dice Rolling Engine**: Standard RPG dice, real-time WebSocket rolls, history, critical hit/fumble detection, advantage/disadvantage mechanics.
 - **AI-Powered Features**: Campaign/story generation, dynamic narrative, character backgrounds/portraits, DM assistance (NPCs, locations, quests, monsters). AI focuses on exploration, discovery, mystery, and social encounters.
-- **DM Toolkit**: NPC/location/quest/monster generators, campaign notes, invitation system.
+- **DM Toolkit**: NPC/location/quest/monster generators, campaign notes, invitation system, Discord integration.
+- **Discord Integration**: Full bot integration (Everdice#1320) enabling D&D campaigns playable through Discord channels:
+    - **Slash Commands**: `/everdice link`, `/everdice roll`, `/everdice recap`, `/everdice status`, `/everdice unlink`
+    - **Campaign Linking**: Deploy campaigns to Discord channels using deployment codes
+    - **Dice Rolling**: Support for standard notation (1d20+5, 2d6), advantage/disadvantage, critical detection
+    - **Auto-posting**: Session events automatically posted to linked Discord channels
+    - **Campaign Recaps**: AI-generated story recaps accessible via Discord commands
 - **Campaign Dashboard**: DM-only tab in campaign panel with AI-powered narrative insights, quest tracking, party status overview, and story hook suggestions. Uses GPT-4o to analyze campaign state and highlight critical junctures.
 - **Tavern System**: Between-campaign hub at `/tavern` for:
     - **Shop**: Buy weapons, armor, potions, and adventuring gear with gold/silver
