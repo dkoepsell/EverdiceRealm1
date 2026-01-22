@@ -1,80 +1,26 @@
 // Everdice Discord Bot Integration
-// Uses Replit's Discord connection for authentication
+// Uses DISCORD_BOT_TOKEN environment variable for bot authentication
 // This module is designed to fail gracefully without crashing the main app
 
 import { Client, GatewayIntentBits, TextChannel, EmbedBuilder } from 'discord.js';
 
 let discordClient: Client | null = null;
-let connectionSettings: any = null;
 let isConnected = false;
 let connectionError: string | null = null;
-
-// Get access token from Replit connector
-async function getAccessToken(): Promise<string | null> {
-  try {
-    if (connectionSettings?.settings?.expires_at && 
-        new Date(connectionSettings.settings.expires_at).getTime() > Date.now()) {
-      return connectionSettings.settings.access_token;
-    }
-    
-    const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-    if (!hostname) {
-      console.log('[Discord] No REPLIT_CONNECTORS_HOSTNAME - Discord integration disabled');
-      return null;
-    }
-
-    const xReplitToken = process.env.REPL_IDENTITY 
-      ? 'repl ' + process.env.REPL_IDENTITY 
-      : process.env.WEB_REPL_RENEWAL 
-      ? 'depl ' + process.env.WEB_REPL_RENEWAL 
-      : null;
-
-    if (!xReplitToken) {
-      console.log('[Discord] No Replit token available - Discord integration disabled');
-      return null;
-    }
-
-    const response = await fetch(
-      'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=discord',
-      {
-        headers: {
-          'Accept': 'application/json',
-          'X_REPLIT_TOKEN': xReplitToken
-        }
-      }
-    );
-
-    const data = await response.json();
-    connectionSettings = data.items?.[0];
-
-    const accessToken = connectionSettings?.settings?.access_token || 
-                        connectionSettings?.settings?.oauth?.credentials?.access_token;
-
-    if (!connectionSettings || !accessToken) {
-      console.log('[Discord] No Discord connection configured');
-      return null;
-    }
-    
-    return accessToken;
-  } catch (error) {
-    console.error('[Discord] Failed to get access token:', error);
-    return null;
-  }
-}
 
 // Initialize Discord client (called on startup, fails gracefully)
 export async function initDiscord(): Promise<boolean> {
   try {
-    const token = await getAccessToken();
+    const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) {
-      connectionError = 'Discord not connected - add Discord integration in Replit';
+      connectionError = 'Discord bot token not configured - add DISCORD_BOT_TOKEN secret';
+      console.log('[Discord] No bot token found');
       return false;
     }
 
     discordClient = new Client({
       intents: [
-        GatewayIntentBits.Guilds, 
-        GatewayIntentBits.GuildMessages
+        GatewayIntentBits.Guilds
       ]
     });
 
