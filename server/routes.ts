@@ -12668,7 +12668,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
       if (campaignForDiscord?.isDiscordDeployed && campaignForDiscord.discordChannelId) {
         // Post player choice first
         postCampaignEvent(campaignForDiscord, 'player_choice', {
-          characterName: character?.name || 'A hero',
+          characterName: playerCharacter?.name || 'A hero',
           choice: choice,
           rollResult: rollResult
         }).catch(err => console.log('[Discord] Failed to post player choice:', err.message));
