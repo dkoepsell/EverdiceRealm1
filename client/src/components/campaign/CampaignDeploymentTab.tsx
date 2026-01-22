@@ -529,27 +529,27 @@ export default function CampaignDeploymentTab({ campaign, isCreator }: CampaignD
                     
                     <div className="p-4 bg-muted rounded-lg">
                       <h4 className="font-medium mb-3">Available Slash Commands</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                        <div><code className="px-1 bg-background rounded font-mono text-xs">/everdice help</code> - All commands</div>
-                        <div><code className="px-1 bg-background rounded font-mono text-xs">/everdice roll</code> - Roll dice</div>
-                        <div><code className="px-1 bg-background rounded font-mono text-xs">/everdice save</code> - Saving throw</div>
-                        <div><code className="px-1 bg-background rounded font-mono text-xs">/everdice skill</code> - Skill check</div>
-                        <div><code className="px-1 bg-background rounded font-mono text-xs">/everdice initiative</code> - Combat order</div>
-                        <div><code className="px-1 bg-background rounded font-mono text-xs">/everdice damage</code> - Apply damage</div>
-                        <div><code className="px-1 bg-background rounded font-mono text-xs">/everdice my-character</code> - View sheet</div>
-                        <div><code className="px-1 bg-background rounded font-mono text-xs">/everdice inventory</code> - View items</div>
-                        <div><code className="px-1 bg-background rounded font-mono text-xs">/everdice hp</code> - Check/adjust HP</div>
-                        <div><code className="px-1 bg-background rounded font-mono text-xs">/everdice scene</code> - Current scene</div>
-                        <div><code className="px-1 bg-background rounded font-mono text-xs">/everdice npc</code> - View NPCs</div>
-                        <div><code className="px-1 bg-background rounded font-mono text-xs">/everdice recap</code> - Story recap</div>
-                        <div><code className="px-1 bg-background rounded font-mono text-xs">/everdice status</code> - Campaign info</div>
-                        <div><code className="px-1 bg-background rounded font-mono text-xs">/everdice start-session</code> - Begin (DM)</div>
-                        <div><code className="px-1 bg-background rounded font-mono text-xs">/everdice end-session</code> - End (DM)</div>
-                        <div><code className="px-1 bg-background rounded font-mono text-xs">/everdice config</code> - Settings (DM)</div>
+                      <div className="space-y-3 text-sm">
+                        <div className="flex flex-col gap-1">
+                          <code className="px-2 py-1 bg-background rounded font-mono w-fit">/everdice roll dice:1d20+5</code>
+                          <span className="text-muted-foreground pl-2">Roll dice with D&D notation. Supports advantage/disadvantage.</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <code className="px-2 py-1 bg-background rounded font-mono w-fit">/everdice recap</code>
+                          <span className="text-muted-foreground pl-2">Get the latest story summary and session recap.</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <code className="px-2 py-1 bg-background rounded font-mono w-fit">/everdice status</code>
+                          <span className="text-muted-foreground pl-2">Show campaign details and active adventurers.</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <code className="px-2 py-1 bg-background rounded font-mono w-fit">/everdice unlink</code>
+                          <span className="text-muted-foreground pl-2">Disconnect this channel from the campaign.</span>
+                        </div>
                       </div>
                       <Separator className="my-3" />
                       <p className="text-xs text-muted-foreground">
-                        <strong>20+ commands</strong> for dice, combat, character management, and session control
+                        <strong>Dice examples:</strong> <code className="bg-background px-1 rounded">1d20+5</code>, <code className="bg-background px-1 rounded">2d6</code>, <code className="bg-background px-1 rounded">1d20 advantage</code>, <code className="bg-background px-1 rounded">4d6 drop lowest</code>
                       </p>
                     </div>
                   </div>
