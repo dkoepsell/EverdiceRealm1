@@ -527,6 +527,35 @@ export default function CampaignDeploymentTab({ campaign, isCreator }: CampaignD
                       </p>
                     </div>
                     
+                    {deploymentCode && (
+                      <div className="p-4 bg-[#5865F2]/10 border border-[#5865F2]/30 rounded-lg">
+                        <h4 className="font-medium mb-2">Link to Another Discord Channel</h4>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Use this command to link your campaign to additional Discord channels:
+                        </p>
+                        <div className="flex">
+                          <Input
+                            readOnly
+                            value={`/everdice link code:${deploymentCode}`}
+                            className="rounded-r-none font-mono bg-background"
+                          />
+                          <Button
+                            onClick={() => {
+                              navigator.clipboard.writeText(`/everdice link code:${deploymentCode}`);
+                              toast({
+                                title: "Command copied!",
+                                description: "Paste this command in your Discord channel."
+                              });
+                            }}
+                            variant="secondary"
+                            className="rounded-l-none"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="p-4 bg-muted rounded-lg">
                       <h4 className="font-medium mb-2">Available Commands</h4>
                       <div className="space-y-2 font-mono text-sm">
