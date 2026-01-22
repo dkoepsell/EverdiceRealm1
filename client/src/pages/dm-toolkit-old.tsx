@@ -2438,7 +2438,7 @@ function CompanionsTab() {
             </div>
           </div>
         )
-      }
+      ) : null}
       
       {/* D&D Instruction Component */}
       <Card className="mt-8 border-primary/20 bg-secondary/10">
