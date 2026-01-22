@@ -152,6 +152,43 @@ export function registerCampaignDeploymentRoutes(app: Express) {
     }
   });
 
+  // Unlink campaign from Discord
+  app.post('/api/campaigns/:id/unlink-discord', async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    const { id } = req.params;
+    const userId = req.user!.id;
+
+    try {
+      // Get the campaign
+      const campaign = await storage.getCampaign(parseInt(id));
+
+      // Verify ownership
+      if (!campaign || campaign.userId !== userId) {
+        return res.status(403).json({ message: 'Not authorized to unlink this campaign' });
+      }
+
+      // Check if campaign is deployed to Discord
+      if (!campaign.isDiscordDeployed) {
+        return res.status(400).json({ message: 'Campaign is not deployed to Discord' });
+      }
+
+      // Unlink from Discord
+      const updatedCampaign = await storage.updateCampaign(parseInt(id), {
+        discordGuildId: null,
+        discordChannelId: null,
+        isDiscordDeployed: false
+      });
+
+      res.status(200).json(updatedCampaign!);
+    } catch (error) {
+      console.error('Error unlinking campaign from Discord:', error);
+      res.status(500).json({ message: 'Failed to unlink campaign from Discord' });
+    }
+  });
+
   // Get campaign by deployment code
   app.get('/api/campaigns/by-code/:code', async (req, res) => {
     const { code } = req.params;

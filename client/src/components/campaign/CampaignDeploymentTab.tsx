@@ -158,6 +158,30 @@ export default function CampaignDeploymentTab({ campaign, isCreator }: CampaignD
     }
   });
   
+  // Unlink from Discord mutation
+  const unlinkDiscordMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', `/api/campaigns/${campaign.id}/unlink-discord`);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
+      
+      toast({
+        title: "Unlinked from Discord",
+        description: "Your campaign has been unlinked from Discord. You can now link it to a new channel."
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to unlink from Discord",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+  
   // Handle copy join link to clipboard
   const copyJoinLink = () => {
     const baseUrl = window.location.origin;
@@ -573,6 +597,29 @@ export default function CampaignDeploymentTab({ campaign, isCreator }: CampaignD
                         </div>
                       </div>
                     </div>
+                    
+                    <Button
+                      variant="outline"
+                      className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => {
+                        if (window.confirm("Are you sure you want to unlink this campaign from Discord? You can re-link it later using the deploy command.")) {
+                          unlinkDiscordMutation.mutate();
+                        }
+                      }}
+                      disabled={unlinkDiscordMutation.isPending}
+                    >
+                      {unlinkDiscordMutation.isPending ? (
+                        <span className="flex items-center">
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Unlinking...
+                        </span>
+                      ) : (
+                        <span className="flex items-center">
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Unlink from Discord
+                        </span>
+                      )}
+                    </Button>
                   </div>
                 ) : campaign.isPublished && deploymentCode ? (
                   <div className="space-y-4">
