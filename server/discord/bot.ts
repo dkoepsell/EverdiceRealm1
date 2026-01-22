@@ -436,3 +436,109 @@ export function getDiscordClient() {
 export function isDiscordReady() {
   return isReady;
 }
+
+// Event posting functions for live session updates
+export async function postChapterStarted(channelId: string, campaignTitle: string, chapterNumber: number, chapterTitle: string, narrative: string): Promise<boolean> {
+  const embed = new EmbedBuilder()
+    .setColor(Colors.Green)
+    .setTitle(`Chapter ${chapterNumber}: ${chapterTitle}`)
+    .setDescription(`**${campaignTitle}**\n\n${narrative.slice(0, 400)}${narrative.length > 400 ? '...' : ''}`)
+    .addFields(
+      { name: 'Status', value: 'In Progress', inline: true }
+    )
+    .setFooter({ text: 'A new chapter begins!' })
+    .setTimestamp();
+
+  return postToDiscordChannel(channelId, embed);
+}
+
+export async function postChapterCompleted(channelId: string, campaignTitle: string, chapterNumber: number, chapterTitle: string, xpAwarded: number, silverAwarded: number): Promise<boolean> {
+  const embed = new EmbedBuilder()
+    .setColor(Colors.Gold)
+    .setTitle(`Chapter ${chapterNumber} Complete!`)
+    .setDescription(`**${campaignTitle}**\n\nThe party has completed "${chapterTitle}"`)
+    .addFields(
+      { name: 'XP Earned', value: `${xpAwarded} XP`, inline: true },
+      { name: 'Silver Earned', value: `${silverAwarded} silver`, inline: true }
+    )
+    .setFooter({ text: 'Well done, adventurers!' })
+    .setTimestamp();
+
+  return postToDiscordChannel(channelId, embed);
+}
+
+export async function postCombatStarted(channelId: string, campaignTitle: string, enemies: string[], location?: string): Promise<boolean> {
+  const embed = new EmbedBuilder()
+    .setColor(Colors.Red)
+    .setTitle('Combat Initiated!')
+    .setDescription(`**${campaignTitle}**${location ? `\n*Location: ${location}*` : ''}\n\nThe party faces:\n${enemies.map(e => `- ${e}`).join('\n')}`)
+    .setFooter({ text: 'Roll for initiative!' })
+    .setTimestamp();
+
+  return postToDiscordChannel(channelId, embed);
+}
+
+export async function postCombatEnded(channelId: string, campaignTitle: string, victory: boolean, xpGained?: number): Promise<boolean> {
+  const embed = new EmbedBuilder()
+    .setColor(victory ? Colors.Green : Colors.DarkRed)
+    .setTitle(victory ? 'Victory!' : 'Retreat!')
+    .setDescription(`**${campaignTitle}**\n\n${victory ? 'The party emerges victorious from battle!' : 'The party has been forced to retreat...'}${xpGained ? `\n\n**XP Earned:** ${xpGained}` : ''}`)
+    .setFooter({ text: victory ? 'The heroes prevail!' : 'Live to fight another day...' })
+    .setTimestamp();
+
+  return postToDiscordChannel(channelId, embed);
+}
+
+export async function postQuestUpdate(channelId: string, campaignTitle: string, questTitle: string, status: 'accepted' | 'completed' | 'failed', rewards?: { xp?: number; gold?: number; silver?: number }): Promise<boolean> {
+  const statusColors = {
+    accepted: Colors.Blue,
+    completed: Colors.Green,
+    failed: Colors.Red
+  };
+  
+  const statusText = {
+    accepted: 'Quest Accepted',
+    completed: 'Quest Completed!',
+    failed: 'Quest Failed'
+  };
+
+  const embed = new EmbedBuilder()
+    .setColor(statusColors[status])
+    .setTitle(statusText[status])
+    .setDescription(`**${campaignTitle}**\n\n*${questTitle}*`);
+
+  if (rewards && status === 'completed') {
+    const rewardParts = [];
+    if (rewards.xp) rewardParts.push(`${rewards.xp} XP`);
+    if (rewards.gold) rewardParts.push(`${rewards.gold} gold`);
+    if (rewards.silver) rewardParts.push(`${rewards.silver} silver`);
+    if (rewardParts.length > 0) {
+      embed.addFields({ name: 'Rewards', value: rewardParts.join(' | '), inline: false });
+    }
+  }
+
+  embed.setFooter({ text: 'Everdice Campaign Companion' }).setTimestamp();
+  return postToDiscordChannel(channelId, embed);
+}
+
+export async function postCharacterDeath(channelId: string, campaignTitle: string, characterName: string, characterClass: string): Promise<boolean> {
+  const embed = new EmbedBuilder()
+    .setColor(Colors.DarkRed)
+    .setTitle('A Hero Has Fallen')
+    .setDescription(`**${campaignTitle}**\n\n${characterName}, the ${characterClass}, has fallen in battle.`)
+    .setFooter({ text: 'May their memory live on...' })
+    .setTimestamp();
+
+  return postToDiscordChannel(channelId, embed);
+}
+
+export async function postLevelUp(channelId: string, campaignTitle: string, characterName: string, newLevel: number): Promise<boolean> {
+  const embed = new EmbedBuilder()
+    .setColor(Colors.Gold)
+    .setTitle('Level Up!')
+    .setDescription(`**${campaignTitle}**\n\n${characterName} has reached **Level ${newLevel}**!`)
+    .setFooter({ text: 'Growing stronger!' })
+    .setTimestamp();
+
+  return postToDiscordChannel(channelId, embed);
+}
