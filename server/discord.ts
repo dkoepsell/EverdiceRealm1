@@ -329,7 +329,7 @@ async function handleInteraction(interaction: ChatInputCommandInteraction, stora
         // Check if campaign is already deployed
         if (campaign.isDiscordDeployed && campaign.discordChannelId) {
           await interaction.reply({
-            content: `⚠️ This campaign is already deployed to Discord! Check <#${campaign.discordChannelId}> or unlink it first.`,
+            content: `⚠️ This campaign is already deployed to Discord! Use \`/everdice unlink\` in the linked channel first, or continue using the existing deployment.`,
             ephemeral: true
           });
           return;
