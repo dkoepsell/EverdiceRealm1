@@ -1,0 +1,377 @@
+lockdown-install.js:1 SES Removing unpermitted intrinsics
+VM105:8 [Coframe] Replit Enterprise watcher loaded
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+/~:1 The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+/~:1 The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+/~:1 The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+92dfaaee3a3a1965.js:2 
+      /////////////////////
+   ///////////////////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////        Curious and driven?
+  ///////////////@@@@@@@///////        Work with us!
+  ///////////////@@@@@@@///////
+  ///////////////@@@@@@@///////        https://join.replit.com/hack.with.us
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@#//////////////
+   ///////////////////////////
+      /////////////////////
+      
+92dfaaee3a3a1965.js:2 Download the Apollo DevTools for a better development experience: https://chrome.google.com/webstore/detail/apollo-client-developer-t/jdkknkkbebbapilgoeccciglkfbmbnfm
+92dfaaee3a3a1965.js:2 [ai-chat] Creating connection with chat proxy enabled
+(anonymous) @ 92dfaaee3a3a1965.js:2
+92dfaaee3a3a1965.js:2 [LaunchDarkly] LaunchDarkly client initialized
+/~:1 Unchecked runtime.lastError: Could not establish connection. Receiving end does not exist.
+lockdown-install.js:1 SES Removing unpermitted intrinsics
+lockdown-install.js:1 SES Removing unpermitted intrinsics
+ SES Removing unpermitted intrinsics
+92dfaaee3a3a1965.js:2 [ai-chat] Creating connection with chat proxy enabled
+(anonymous) @ 92dfaaee3a3a1965.js:2
+lockdown-install.js:1 SES Removing unpermitted intrinsics
+lockdown-install.js:1 SES Removing unpermitted intrinsics
+EverdiceRealm:1 Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+ed1e693c96a75807.js:2 Unrecognized feature: 'ambient-light-sensor'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'battery'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'execution-while-not-rendered'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'execution-while-out-of-viewport'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'layout-animations'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'legacy-image-formats'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'navigation-override'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'oversized-images'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'publickey-credentials'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'speaker-selection'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'unoptimized-images'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'unsized-media'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'pointer-lock'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Allow attribute will take precedence over 'allowfullscreen'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Allow attribute will take precedence over 'allowpaymentrequest'.
+z @ ed1e693c96a75807.js:2
+sw.js:69 Uncaught (in promise) TypeError: Failed to execute 'put' on 'Cache': Request scheme 'chrome-extension' is unsupported
+    at sw.js:69:19
+chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/lockdown-install.js:1 SES Removing unpermitted intrinsics
+workspace_iframe.html?initialPath=%2F&id=%3Ark1%3A:32 Unrecognized feature: 'ambient-light-sensor'.
+workspace_iframe.html?initialPath=%2F&id=%3Ark1%3A:32 Unrecognized feature: 'battery'.
+workspace_iframe.html?initialPath=%2F&id=%3Ark1%3A:32 Unrecognized feature: 'execution-while-not-rendered'.
+workspace_iframe.html?initialPath=%2F&id=%3Ark1%3A:32 Unrecognized feature: 'execution-while-out-of-viewport'.
+workspace_iframe.html?initialPath=%2F&id=%3Ark1%3A:32 Unrecognized feature: 'layout-animations'.
+workspace_iframe.html?initialPath=%2F&id=%3Ark1%3A:32 Unrecognized feature: 'legacy-image-formats'.
+workspace_iframe.html?initialPath=%2F&id=%3Ark1%3A:32 Unrecognized feature: 'navigation-override'.
+workspace_iframe.html?initialPath=%2F&id=%3Ark1%3A:32 Unrecognized feature: 'oversized-images'.
+workspace_iframe.html?initialPath=%2F&id=%3Ark1%3A:32 Unrecognized feature: 'publickey-credentials'.
+workspace_iframe.html?initialPath=%2F&id=%3Ark1%3A:32 Unrecognized feature: 'speaker-selection'.
+workspace_iframe.html?initialPath=%2F&id=%3Ark1%3A:32 Unrecognized feature: 'unoptimized-images'.
+workspace_iframe.html?initialPath=%2F&id=%3Ark1%3A:32 Unrecognized feature: 'unsized-media'.
+workspace_iframe.html?initialPath=%2F&id=%3Ark1%3A:32 Allow attribute will take precedence over 'allowfullscreen'.
+workspace_iframe.html?initialPath=%2F&id=%3Ark1%3A:32 Allow attribute will take precedence over 'allowpaymentrequest'.
+sw.js:69 Uncaught (in promise) TypeError: Failed to execute 'put' on 'Cache': Request scheme 'chrome-extension' is unsupported
+    at sw.js:69:19
+chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/lockdown-install.js:1 SES Removing unpermitted intrinsics
+client:536 WebSocket connection to 'wss://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/?token=PKm7MzFziUgD' failed: 
+setupWebSocket @ VM139 client:536
+(anonymous) @ VM139 client:531
+client:536 Uncaught (in promise) SyntaxError: Failed to construct 'WebSocket': The URL 'wss://localhost:undefined/?token=PKm7MzFziUgD' is invalid.
+    at setupWebSocket (client:536:19)
+    at fallback (client:509:16)
+    at WebSocket.<anonymous> (client:555:7)
+setupWebSocket @ VM139 client:536
+fallback @ VM139 client:509
+(anonymous) @ VM139 client:555
+chunk-QCHXOAYK.js?v=be1f4314:136 Warning: Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem.
+printWarning @ VM144 chunk-QCHXOAYK.js:136
+error @ VM144 chunk-QCHXOAYK.js:120
+resolveDispatcher @ VM144 chunk-QCHXOAYK.js:1045
+useRef @ VM144 chunk-QCHXOAYK.js:1073
+TooltipProvider @ VM156 @radix-ui_react-tooltip.js:70
+renderWithHooks @ VM132 chunk-RPCDYKBN.js:11548
+mountIndeterminateComponent @ VM132 chunk-RPCDYKBN.js:14926
+beginWork @ VM132 chunk-RPCDYKBN.js:15914
+beginWork$1 @ VM132 chunk-RPCDYKBN.js:19753
+performUnitOfWork @ VM132 chunk-RPCDYKBN.js:19198
+workLoopSync @ VM132 chunk-RPCDYKBN.js:19137
+renderRootSync @ VM132 chunk-RPCDYKBN.js:19116
+performConcurrentWorkOnRoot @ VM132 chunk-RPCDYKBN.js:18678
+workLoop @ VM132 chunk-RPCDYKBN.js:197
+flushWork @ VM132 chunk-RPCDYKBN.js:176
+performWorkUntilDeadline @ VM132 chunk-RPCDYKBN.js:384
+chunk-QCHXOAYK.js?v=be1f4314:136 Warning: Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem.
+printWarning @ VM144 chunk-QCHXOAYK.js:136
+error @ VM144 chunk-QCHXOAYK.js:120
+resolveDispatcher @ VM144 chunk-QCHXOAYK.js:1045
+useRef @ VM144 chunk-QCHXOAYK.js:1073
+TooltipProvider @ VM156 @radix-ui_react-tooltip.js:70
+renderWithHooks @ VM132 chunk-RPCDYKBN.js:11548
+mountIndeterminateComponent @ VM132 chunk-RPCDYKBN.js:14926
+beginWork @ VM132 chunk-RPCDYKBN.js:15914
+callCallback2 @ VM132 chunk-RPCDYKBN.js:3674
+invokeGuardedCallbackDev @ VM132 chunk-RPCDYKBN.js:3699
+invokeGuardedCallback @ VM132 chunk-RPCDYKBN.js:3733
+beginWork$1 @ VM132 chunk-RPCDYKBN.js:19765
+performUnitOfWork @ VM132 chunk-RPCDYKBN.js:19198
+workLoopSync @ VM132 chunk-RPCDYKBN.js:19137
+renderRootSync @ VM132 chunk-RPCDYKBN.js:19116
+performConcurrentWorkOnRoot @ VM132 chunk-RPCDYKBN.js:18678
+workLoop @ VM132 chunk-RPCDYKBN.js:197
+flushWork @ VM132 chunk-RPCDYKBN.js:176
+performWorkUntilDeadline @ VM132 chunk-RPCDYKBN.js:384
+chunk-QCHXOAYK.js?v=be1f4314:1074 Uncaught TypeError: Cannot read properties of null (reading 'useRef')
+    at Object.useRef (chunk-QCHXOAYK.js?v=be1f4314:1074:29)
+    at TooltipProvider (@radix-ui_react-tooltip.js?v=be1f4314:70:34)
+    at renderWithHooks (chunk-RPCDYKBN.js?v=134c93b1:11548:26)
+    at mountIndeterminateComponent (chunk-RPCDYKBN.js?v=134c93b1:14926:21)
+    at beginWork (chunk-RPCDYKBN.js?v=134c93b1:15914:22)
+    at HTMLUnknownElement.callCallback2 (chunk-RPCDYKBN.js?v=134c93b1:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-RPCDYKBN.js?v=134c93b1:3699:24)
+    at invokeGuardedCallback (chunk-RPCDYKBN.js?v=134c93b1:3733:39)
+    at beginWork$1 (chunk-RPCDYKBN.js?v=134c93b1:19765:15)
+    at performUnitOfWork (chunk-RPCDYKBN.js?v=134c93b1:19198:20)
+useRef @ VM144 chunk-QCHXOAYK.js:1074
+TooltipProvider @ VM156 @radix-ui_react-tooltip.js:70
+renderWithHooks @ VM132 chunk-RPCDYKBN.js:11548
+mountIndeterminateComponent @ VM132 chunk-RPCDYKBN.js:14926
+beginWork @ VM132 chunk-RPCDYKBN.js:15914
+callCallback2 @ VM132 chunk-RPCDYKBN.js:3674
+invokeGuardedCallbackDev @ VM132 chunk-RPCDYKBN.js:3699
+invokeGuardedCallback @ VM132 chunk-RPCDYKBN.js:3733
+beginWork$1 @ VM132 chunk-RPCDYKBN.js:19765
+performUnitOfWork @ VM132 chunk-RPCDYKBN.js:19198
+workLoopSync @ VM132 chunk-RPCDYKBN.js:19137
+renderRootSync @ VM132 chunk-RPCDYKBN.js:19116
+performConcurrentWorkOnRoot @ VM132 chunk-RPCDYKBN.js:18678
+workLoop @ VM132 chunk-RPCDYKBN.js:197
+flushWork @ VM132 chunk-RPCDYKBN.js:176
+performWorkUntilDeadline @ VM132 chunk-RPCDYKBN.js:384
+chunk-QCHXOAYK.js?v=be1f4314:136 Warning: Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem.
+printWarning @ VM144 chunk-QCHXOAYK.js:136
+error @ VM144 chunk-QCHXOAYK.js:120
+resolveDispatcher @ VM144 chunk-QCHXOAYK.js:1045
+useRef @ VM144 chunk-QCHXOAYK.js:1073
+TooltipProvider @ VM156 @radix-ui_react-tooltip.js:70
+renderWithHooks @ VM132 chunk-RPCDYKBN.js:11548
+mountIndeterminateComponent @ VM132 chunk-RPCDYKBN.js:14926
+beginWork @ VM132 chunk-RPCDYKBN.js:15914
+beginWork$1 @ VM132 chunk-RPCDYKBN.js:19753
+performUnitOfWork @ VM132 chunk-RPCDYKBN.js:19198
+workLoopSync @ VM132 chunk-RPCDYKBN.js:19137
+renderRootSync @ VM132 chunk-RPCDYKBN.js:19116
+recoverFromConcurrentError @ VM132 chunk-RPCDYKBN.js:18736
+performConcurrentWorkOnRoot @ VM132 chunk-RPCDYKBN.js:18684
+workLoop @ VM132 chunk-RPCDYKBN.js:197
+flushWork @ VM132 chunk-RPCDYKBN.js:176
+performWorkUntilDeadline @ VM132 chunk-RPCDYKBN.js:384
+chunk-QCHXOAYK.js?v=be1f4314:136 Warning: Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem.
+printWarning @ VM144 chunk-QCHXOAYK.js:136
+error @ VM144 chunk-QCHXOAYK.js:120
+resolveDispatcher @ VM144 chunk-QCHXOAYK.js:1045
+useRef @ VM144 chunk-QCHXOAYK.js:1073
+TooltipProvider @ VM156 @radix-ui_react-tooltip.js:70
+renderWithHooks @ VM132 chunk-RPCDYKBN.js:11548
+mountIndeterminateComponent @ VM132 chunk-RPCDYKBN.js:14926
+beginWork @ VM132 chunk-RPCDYKBN.js:15914
+callCallback2 @ VM132 chunk-RPCDYKBN.js:3674
+invokeGuardedCallbackDev @ VM132 chunk-RPCDYKBN.js:3699
+invokeGuardedCallback @ VM132 chunk-RPCDYKBN.js:3733
+beginWork$1 @ VM132 chunk-RPCDYKBN.js:19765
+performUnitOfWork @ VM132 chunk-RPCDYKBN.js:19198
+workLoopSync @ VM132 chunk-RPCDYKBN.js:19137
+renderRootSync @ VM132 chunk-RPCDYKBN.js:19116
+recoverFromConcurrentError @ VM132 chunk-RPCDYKBN.js:18736
+performConcurrentWorkOnRoot @ VM132 chunk-RPCDYKBN.js:18684
+workLoop @ VM132 chunk-RPCDYKBN.js:197
+flushWork @ VM132 chunk-RPCDYKBN.js:176
+performWorkUntilDeadline @ VM132 chunk-RPCDYKBN.js:384
+chunk-QCHXOAYK.js?v=be1f4314:1074 Uncaught TypeError: Cannot read properties of null (reading 'useRef')
+    at Object.useRef (chunk-QCHXOAYK.js?v=be1f4314:1074:29)
+    at TooltipProvider (@radix-ui_react-tooltip.js?v=be1f4314:70:34)
+    at renderWithHooks (chunk-RPCDYKBN.js?v=134c93b1:11548:26)
+    at mountIndeterminateComponent (chunk-RPCDYKBN.js?v=134c93b1:14926:21)
+    at beginWork (chunk-RPCDYKBN.js?v=134c93b1:15914:22)
+    at HTMLUnknownElement.callCallback2 (chunk-RPCDYKBN.js?v=134c93b1:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-RPCDYKBN.js?v=134c93b1:3699:24)
+    at invokeGuardedCallback (chunk-RPCDYKBN.js?v=134c93b1:3733:39)
+    at beginWork$1 (chunk-RPCDYKBN.js?v=134c93b1:19765:15)
+    at performUnitOfWork (chunk-RPCDYKBN.js?v=134c93b1:19198:20)
+useRef @ VM144 chunk-QCHXOAYK.js:1074
+TooltipProvider @ VM156 @radix-ui_react-tooltip.js:70
+renderWithHooks @ VM132 chunk-RPCDYKBN.js:11548
+mountIndeterminateComponent @ VM132 chunk-RPCDYKBN.js:14926
+beginWork @ VM132 chunk-RPCDYKBN.js:15914
+callCallback2 @ VM132 chunk-RPCDYKBN.js:3674
+invokeGuardedCallbackDev @ VM132 chunk-RPCDYKBN.js:3699
+invokeGuardedCallback @ VM132 chunk-RPCDYKBN.js:3733
+beginWork$1 @ VM132 chunk-RPCDYKBN.js:19765
+performUnitOfWork @ VM132 chunk-RPCDYKBN.js:19198
+workLoopSync @ VM132 chunk-RPCDYKBN.js:19137
+renderRootSync @ VM132 chunk-RPCDYKBN.js:19116
+recoverFromConcurrentError @ VM132 chunk-RPCDYKBN.js:18736
+performConcurrentWorkOnRoot @ VM132 chunk-RPCDYKBN.js:18684
+workLoop @ VM132 chunk-RPCDYKBN.js:197
+flushWork @ VM132 chunk-RPCDYKBN.js:176
+performWorkUntilDeadline @ VM132 chunk-RPCDYKBN.js:384
+chunk-RPCDYKBN.js?v=134c93b1:14032 The above error occurred in the <TooltipProvider> component:
+
+    at TooltipProvider (https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=be1f4314:64:5)
+    at V (https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/next-themes.js?v=134c93b1:44:25)
+    at J (https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/next-themes.js?v=134c93b1:42:18)
+    at QueryClientProvider (https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=134c93b1:2805:3)
+    at App (https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/src/App.tsx?v=GzA3aroCePhEurBhv07er:210:3)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+logCapturedError @ VM132 chunk-RPCDYKBN.js:14032
+update.callback @ VM132 chunk-RPCDYKBN.js:14052
+callCallback @ VM132 chunk-RPCDYKBN.js:11248
+commitUpdateQueue @ VM132 chunk-RPCDYKBN.js:11265
+commitLayoutEffectOnFiber @ VM132 chunk-RPCDYKBN.js:17093
+commitLayoutMountEffects_complete @ VM132 chunk-RPCDYKBN.js:17980
+commitLayoutEffects_begin @ VM132 chunk-RPCDYKBN.js:17969
+commitLayoutEffects @ VM132 chunk-RPCDYKBN.js:17920
+commitRootImpl @ VM132 chunk-RPCDYKBN.js:19353
+commitRoot @ VM132 chunk-RPCDYKBN.js:19277
+finishConcurrentRender @ VM132 chunk-RPCDYKBN.js:18760
+performConcurrentWorkOnRoot @ VM132 chunk-RPCDYKBN.js:18718
+workLoop @ VM132 chunk-RPCDYKBN.js:197
+flushWork @ VM132 chunk-RPCDYKBN.js:176
+performWorkUntilDeadline @ VM132 chunk-RPCDYKBN.js:384
+chunk-RPCDYKBN.js?v=134c93b1:19413 Uncaught TypeError: Cannot read properties of null (reading 'useRef')
+    at Object.useRef (chunk-QCHXOAYK.js?v=be1f4314:1074:29)
+    at TooltipProvider (@radix-ui_react-tooltip.js?v=be1f4314:70:34)
+    at renderWithHooks (chunk-RPCDYKBN.js?v=134c93b1:11548:26)
+    at mountIndeterminateComponent (chunk-RPCDYKBN.js?v=134c93b1:14926:21)
+    at beginWork (chunk-RPCDYKBN.js?v=134c93b1:15914:22)
+    at beginWork$1 (chunk-RPCDYKBN.js?v=134c93b1:19753:22)
+    at performUnitOfWork (chunk-RPCDYKBN.js?v=134c93b1:19198:20)
+    at workLoopSync (chunk-RPCDYKBN.js?v=134c93b1:19137:13)
+    at renderRootSync (chunk-RPCDYKBN.js?v=134c93b1:19116:15)
+    at recoverFromConcurrentError (chunk-RPCDYKBN.js?v=134c93b1:18736:28)
+useRef @ VM144 chunk-QCHXOAYK.js:1074
+TooltipProvider @ VM156 @radix-ui_react-tooltip.js:70
+renderWithHooks @ VM132 chunk-RPCDYKBN.js:11548
+mountIndeterminateComponent @ VM132 chunk-RPCDYKBN.js:14926
+beginWork @ VM132 chunk-RPCDYKBN.js:15914
+beginWork$1 @ VM132 chunk-RPCDYKBN.js:19753
+performUnitOfWork @ VM132 chunk-RPCDYKBN.js:19198
+workLoopSync @ VM132 chunk-RPCDYKBN.js:19137
+renderRootSync @ VM132 chunk-RPCDYKBN.js:19116
+recoverFromConcurrentError @ VM132 chunk-RPCDYKBN.js:18736
+performConcurrentWorkOnRoot @ VM132 chunk-RPCDYKBN.js:18684
+workLoop @ VM132 chunk-RPCDYKBN.js:197
+flushWork @ VM132 chunk-RPCDYKBN.js:176
+performWorkUntilDeadline @ VM132 chunk-RPCDYKBN.js:384
+(index):86 SW registered: https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/
+EverdiceRealm:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+EverdiceRealm:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+EverdiceRealm:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+EverdiceRealm:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+EverdiceRealm:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+EverdiceRealm:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+sw.js:69 Uncaught (in promise) 
+(anonymous) @ sw.js:69
+Promise.then
+(anonymous) @ sw.js:68
+Promise.then
+(anonymous) @ sw.js:61
+Promise.then
+(anonymous) @ sw.js:56
+lockdown-install.js:1 SES Removing unpermitted intrinsics
+workspace_iframe.html?initialPath=%2F&id=%3Arkn%3A:32 Unrecognized feature: 'ambient-light-sensor'.
+workspace_iframe.html?initialPath=%2F&id=%3Arkn%3A:32 Unrecognized feature: 'battery'.
+workspace_iframe.html?initialPath=%2F&id=%3Arkn%3A:32 Unrecognized feature: 'execution-while-not-rendered'.
+workspace_iframe.html?initialPath=%2F&id=%3Arkn%3A:32 Unrecognized feature: 'execution-while-out-of-viewport'.
+workspace_iframe.html?initialPath=%2F&id=%3Arkn%3A:32 Unrecognized feature: 'layout-animations'.
+workspace_iframe.html?initialPath=%2F&id=%3Arkn%3A:32 Unrecognized feature: 'legacy-image-formats'.
+workspace_iframe.html?initialPath=%2F&id=%3Arkn%3A:32 Unrecognized feature: 'navigation-override'.
+workspace_iframe.html?initialPath=%2F&id=%3Arkn%3A:32 Unrecognized feature: 'oversized-images'.
+workspace_iframe.html?initialPath=%2F&id=%3Arkn%3A:32 Unrecognized feature: 'publickey-credentials'.
+workspace_iframe.html?initialPath=%2F&id=%3Arkn%3A:32 Unrecognized feature: 'speaker-selection'.
+workspace_iframe.html?initialPath=%2F&id=%3Arkn%3A:32 Unrecognized feature: 'unoptimized-images'.
+workspace_iframe.html?initialPath=%2F&id=%3Arkn%3A:32 Unrecognized feature: 'unsized-media'.
+workspace_iframe.html?initialPath=%2F&id=%3Arkn%3A:32 Allow attribute will take precedence over 'allowfullscreen'.
+workspace_iframe.html?initialPath=%2F&id=%3Arkn%3A:32 Allow attribute will take precedence over 'allowpaymentrequest'.
+sw.js:69 Uncaught (in promise) TypeError: Failed to execute 'put' on 'Cache': Request scheme 'chrome-extension' is unsupported
+    at sw.js:69:19
+(anonymous) @ sw.js:69
+Promise.then
+(anonymous) @ sw.js:68
+Promise.then
+(anonymous) @ sw.js:61
+Promise.then
+(anonymous) @ sw.js:56
+lockdown-install.js:1 SES Removing unpermitted intrinsics
