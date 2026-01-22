@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { z } from "zod";
-import { getDiscordStatus, sendToChannel, createSessionStartEmbed, createRecapEmbed, createRollEmbed } from "./discord";
+import { getDiscordStatus, sendToChannel, createSessionStartEmbed, createRecapEmbed, createRollEmbed, postCampaignEvent } from "./discord";
 import { 
   insertUserSchema, 
   insertCharacterSchema, 
@@ -12662,6 +12662,14 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         rollResult,
         progression: characterProgression
       });
+      
+      // Post narrative to Discord if campaign is deployed there
+      const campaignForDiscord = await storage.getCampaign(campaignId);
+      if (campaignForDiscord?.isDiscordDeployed && campaignForDiscord.discordChannelId) {
+        postCampaignEvent(campaignForDiscord, 'story_update', {
+          content: storyAdvancement.narrative
+        }).catch(err => console.log('[Discord] Failed to post story update:', err.message));
+      }
 
       // Build movement response - use actual movement result, not just intent
       const movementResponse = effectiveDirection ? {
