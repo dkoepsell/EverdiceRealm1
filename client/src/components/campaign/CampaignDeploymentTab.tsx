@@ -29,7 +29,12 @@ import {
   Lock,
   Globe,
   ShieldAlert,
+  MessageSquare,
+  ExternalLink,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
+import { SiDiscord } from "react-icons/si";
 import { Switch } from "@/components/ui/switch";
 
 interface CampaignDeploymentTabProps {
@@ -269,9 +274,13 @@ export default function CampaignDeploymentTab({ campaign, isCreator }: CampaignD
       <Separator />
       
       <Tabs defaultValue="settings" className="w-full">
-        <TabsList className="w-full grid grid-cols-2 mb-4">
+        <TabsList className="w-full grid grid-cols-3 mb-4">
           <TabsTrigger value="settings">Deployment Settings</TabsTrigger>
           <TabsTrigger value="share">Share Campaign</TabsTrigger>
+          <TabsTrigger value="discord" className="flex items-center gap-1.5">
+            <SiDiscord className="h-4 w-4" />
+            Discord
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="settings" className="space-y-4">
@@ -486,6 +495,136 @@ export default function CampaignDeploymentTab({ campaign, isCreator }: CampaignD
               </Button>
             </div>
           )}
+        </TabsContent>
+        
+        <TabsContent value="discord" className="space-y-4">
+          <Card>
+            <CardContent className="p-6">
+              <div className="space-y-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-[#5865F2]/10 rounded-lg">
+                    <SiDiscord className="h-8 w-8 text-[#5865F2]" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-medium">Discord Integration</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Deploy your campaign to Discord and let players roll dice, check recaps, and follow the adventure without leaving their server.
+                    </p>
+                  </div>
+                </div>
+                
+                <Separator />
+                
+                {campaign.isDiscordDeployed ? (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle className="h-5 w-5 text-green-500" />
+                        <span className="font-medium text-green-700">Campaign Deployed to Discord</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        This campaign is currently linked to a Discord channel. Players can use slash commands to interact.
+                      </p>
+                    </div>
+                    
+                    <div className="p-4 bg-muted rounded-lg">
+                      <h4 className="font-medium mb-2">Available Commands</h4>
+                      <div className="space-y-2 font-mono text-sm">
+                        <div className="flex items-center gap-2">
+                          <code className="px-2 py-1 bg-background rounded">/everdice roll 1d20+5</code>
+                          <span className="text-muted-foreground">- Roll dice</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <code className="px-2 py-1 bg-background rounded">/everdice recap</code>
+                          <span className="text-muted-foreground">- Get campaign recap</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <code className="px-2 py-1 bg-background rounded">/everdice status</code>
+                          <span className="text-muted-foreground">- Show campaign status</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : campaign.isPublished && deploymentCode ? (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-[#5865F2]/10 border border-[#5865F2]/30 rounded-lg">
+                      <h4 className="font-medium mb-2">Link to Discord</h4>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        In your Discord server, type this command in the channel where you want to run the campaign:
+                      </p>
+                      <div className="flex">
+                        <Input
+                          readOnly
+                          value={`/everdice link code:${deploymentCode}`}
+                          className="rounded-r-none font-mono bg-background"
+                        />
+                        <Button
+                          onClick={() => {
+                            navigator.clipboard.writeText(`/everdice link code:${deploymentCode}`);
+                            toast({
+                              title: "Command copied!",
+                              description: "Paste this command in your Discord channel."
+                            });
+                          }}
+                          variant="secondary"
+                          className="rounded-l-none"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="p-4 bg-muted rounded-lg">
+                      <h4 className="font-medium mb-2 flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4" />
+                        Setup Instructions
+                      </h4>
+                      <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
+                        <li>Invite the Everdice bot to your Discord server (if not already)</li>
+                        <li>Go to the text channel where you want to run your campaign</li>
+                        <li>Type <code className="px-1 bg-background rounded">/everdice link</code> and paste the code above</li>
+                        <li>The campaign will be linked! Players can now use slash commands</li>
+                      </ol>
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => window.open('https://discord.com/oauth2/authorize?client_id=1463731212848992426&scope=bot+applications.commands&permissions=2048', '_blank')}
+                    >
+                      <SiDiscord className="h-4 w-4 mr-2" />
+                      Invite Everdice Bot to Your Server
+                      <ExternalLink className="h-4 w-4 ml-2" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 px-4 border-2 border-dashed border-muted rounded-lg">
+                    <SiDiscord className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Publish Campaign First</h3>
+                    <p className="text-center text-muted-foreground mb-4">
+                      Your campaign needs to be published before you can deploy it to Discord.
+                    </p>
+                    <Button
+                      onClick={() => publishCampaignMutation.mutate()}
+                      disabled={publishCampaignMutation.isPending}
+                    >
+                      {publishCampaignMutation.isPending ? (
+                        <span className="flex items-center">
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Publishing...
+                        </span>
+                      ) : (
+                        <span className="flex items-center">
+                          <Share2 className="h-4 w-4 mr-2" />
+                          Publish Campaign
+                        </span>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
