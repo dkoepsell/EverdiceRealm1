@@ -9,6 +9,63 @@ const DISCORD_APP_ID = '1463731212848992426';
 let discordClient: Client | null = null;
 let isConnected = false;
 let connectionError: string | null = null;
+let reconnectAttempts = 0;
+let reconnectTimeout: NodeJS.Timeout | null = null;
+let cachedStorage: any = null; // Store reference for reconnection
+const MAX_RECONNECT_ATTEMPTS = 10;
+const BASE_RECONNECT_DELAY = 1000; // 1 second
+
+// Forward declaration for reconnection
+let initializeDiscordFn: ((storage: any) => Promise<boolean>) | null = null;
+
+// Reconnect with exponential backoff
+async function attemptReconnect(): Promise<void> {
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
+  }
+
+  if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    console.error('[Discord] Max reconnection attempts reached. Manual restart required.');
+    return;
+  }
+
+  const delay = Math.min(BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttempts), 60000); // Cap at 60 seconds
+  reconnectAttempts++;
+  
+  console.log(`[Discord] Reconnecting in ${delay / 1000}s (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+  
+  reconnectTimeout = setTimeout(async () => {
+    try {
+      const token = process.env.DISCORD_BOT_TOKEN;
+      if (!token) {
+        console.error('[Discord] Cannot reconnect - no token');
+        return;
+      }
+
+      // Destroy existing connection
+      if (discordClient) {
+        try {
+          discordClient.destroy();
+        } catch (e) {
+          // Ignore destroy errors
+        }
+        discordClient = null;
+      }
+      
+      // Re-initialize using stored function reference
+      if (initializeDiscordFn) {
+        await initializeDiscordFn(cachedStorage);
+      } else {
+        console.error('[Discord] Cannot reconnect - no initialization function stored');
+      }
+      
+    } catch (error: any) {
+      console.error('[Discord] Reconnection failed:', error.message);
+      attemptReconnect(); // Try again
+    }
+  }, delay);
+}
 
 // Slash commands definition
 const commands = [
@@ -506,15 +563,33 @@ async function handleInteraction(interaction: ChatInputCommandInteraction, stora
     }
   } catch (error: any) {
     console.error('[Discord] Command error:', error);
-    await interaction.reply({
-      content: '❌ Something went wrong. Please try again.',
-      ephemeral: true
-    });
+    try {
+      // Check if interaction was already replied to or deferred
+      if (interaction.replied || interaction.deferred) {
+        await interaction.editReply({
+          content: '❌ Something went wrong. Please try again.',
+        });
+      } else {
+        await interaction.reply({
+          content: '❌ Something went wrong. Please try again.',
+          ephemeral: true
+        });
+      }
+    } catch (replyError: any) {
+      // Silently fail if we can't respond (interaction may have expired)
+      console.error('[Discord] Failed to send error response:', replyError.message);
+    }
   }
 }
 
 // Initialize Discord client with slash command support
 export async function initDiscord(storage?: any): Promise<boolean> {
+  // Store references for reconnection
+  initializeDiscordFn = initDiscord;
+  if (storage) {
+    cachedStorage = storage;
+  }
+  
   try {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) {
@@ -533,6 +608,13 @@ export async function initDiscord(storage?: any): Promise<boolean> {
       console.log(`[Discord] Bot connected as ${discordClient?.user?.tag}`);
       isConnected = true;
       connectionError = null;
+      reconnectAttempts = 0; // Reset reconnection counter on successful connect
+      
+      // Clear any pending reconnect timeout
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
+      }
       
       // Register slash commands on startup
       await registerCommands();
@@ -637,11 +719,30 @@ export async function initDiscord(storage?: any): Promise<boolean> {
       console.error('[Discord] Client error:', error.message);
       connectionError = error.message;
       isConnected = false;
+      attemptReconnect();
     });
 
     discordClient.on('disconnect', () => {
       console.log('[Discord] Disconnected');
       isConnected = false;
+      attemptReconnect();
+    });
+
+    // Handle shard disconnect/reconnect events
+    discordClient.on('shardDisconnect', (event, shardId) => {
+      console.log(`[Discord] Shard ${shardId} disconnected`);
+      isConnected = false;
+      attemptReconnect();
+    });
+
+    discordClient.on('shardReconnecting', (shardId) => {
+      console.log(`[Discord] Shard ${shardId} reconnecting...`);
+    });
+
+    discordClient.on('shardResume', (shardId) => {
+      console.log(`[Discord] Shard ${shardId} resumed`);
+      isConnected = true;
+      reconnectAttempts = 0; // Reset on successful reconnection
     });
 
     await discordClient.login(token);
