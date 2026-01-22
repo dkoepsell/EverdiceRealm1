@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage, DatabaseStorage } from "./storage";
+import { initDiscordBot } from "./discord/bot";
 
 const app = express();
 app.use(express.json());
@@ -47,6 +48,13 @@ app.use((req, res, next) => {
       console.error('Error initializing sample data:', error);
     }
   }
+  
+  // Initialize Discord bot (non-blocking)
+  initDiscordBot().then(() => {
+    log('Discord bot initialization attempted');
+  }).catch(error => {
+    console.error('Discord bot initialization error:', error);
+  });
   
   const server = await registerRoutes(app);
 
