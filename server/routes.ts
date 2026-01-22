@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { z } from "zod";
+import { getDiscordStatus, sendToChannel, createSessionStartEmbed, createRecapEmbed, createRollEmbed } from "./discord";
 import { 
   insertUserSchema, 
   insertCharacterSchema, 
@@ -15560,6 +15561,120 @@ ALWAYS generate:
     } catch (error) {
       console.error("Failed to award badge:", error);
       res.status(500).json({ message: "Failed to award badge" });
+    }
+  });
+
+  // ============================================
+  // Discord Integration Routes
+  // ============================================
+  
+  // Get Discord bot status
+  app.get("/api/discord/status", isAuthenticated, async (req, res) => {
+    try {
+      const status = getDiscordStatus();
+      res.json(status);
+    } catch (error) {
+      console.error("Failed to get Discord status:", error);
+      res.status(500).json({ message: "Failed to get Discord status" });
+    }
+  });
+  
+  // Send session start notification to Discord
+  app.post("/api/discord/session-start", isAuthenticated, async (req, res) => {
+    try {
+      const { channelId, campaignTitle, sessionNumber, dmName } = req.body;
+      
+      if (!channelId || !campaignTitle) {
+        return res.status(400).json({ message: "Channel ID and campaign title are required" });
+      }
+      
+      const embed = createSessionStartEmbed(
+        campaignTitle, 
+        sessionNumber || 1, 
+        dmName || "Dungeon Master"
+      );
+      
+      const success = await sendToChannel(channelId, embed);
+      if (success) {
+        res.json({ message: "Session start notification sent!" });
+      } else {
+        res.status(500).json({ message: "Failed to send notification - Discord not connected" });
+      }
+    } catch (error) {
+      console.error("Failed to send session start:", error);
+      res.status(500).json({ message: "Failed to send session notification" });
+    }
+  });
+  
+  // Send recap to Discord
+  app.post("/api/discord/recap", isAuthenticated, async (req, res) => {
+    try {
+      const { channelId, campaignTitle, sessionNumber, recap } = req.body;
+      
+      if (!channelId || !campaignTitle || !recap) {
+        return res.status(400).json({ message: "Channel ID, campaign title, and recap are required" });
+      }
+      
+      const embed = createRecapEmbed(campaignTitle, sessionNumber || 1, recap);
+      const success = await sendToChannel(channelId, embed);
+      
+      if (success) {
+        res.json({ message: "Recap sent to Discord!" });
+      } else {
+        res.status(500).json({ message: "Failed to send recap - Discord not connected" });
+      }
+    } catch (error) {
+      console.error("Failed to send recap:", error);
+      res.status(500).json({ message: "Failed to send recap" });
+    }
+  });
+  
+  // Send dice roll to Discord
+  app.post("/api/discord/roll", isAuthenticated, async (req, res) => {
+    try {
+      const { channelId, characterName, rollType, result, breakdown } = req.body;
+      
+      if (!channelId || !characterName || result === undefined) {
+        return res.status(400).json({ message: "Channel ID, character name, and result are required" });
+      }
+      
+      const embed = createRollEmbed(
+        characterName, 
+        rollType || "Dice Roll", 
+        result, 
+        breakdown || `${result}`
+      );
+      
+      const success = await sendToChannel(channelId, embed);
+      if (success) {
+        res.json({ message: "Roll sent to Discord!" });
+      } else {
+        res.status(500).json({ message: "Failed to send roll - Discord not connected" });
+      }
+    } catch (error) {
+      console.error("Failed to send roll:", error);
+      res.status(500).json({ message: "Failed to send roll" });
+    }
+  });
+  
+  // Send custom message to Discord
+  app.post("/api/discord/message", isAuthenticated, async (req, res) => {
+    try {
+      const { channelId, message } = req.body;
+      
+      if (!channelId || !message) {
+        return res.status(400).json({ message: "Channel ID and message are required" });
+      }
+      
+      const success = await sendToChannel(channelId, message);
+      if (success) {
+        res.json({ message: "Message sent to Discord!" });
+      } else {
+        res.status(500).json({ message: "Failed to send message - Discord not connected" });
+      }
+    } catch (error) {
+      console.error("Failed to send message:", error);
+      res.status(500).json({ message: "Failed to send message" });
     }
   });
 

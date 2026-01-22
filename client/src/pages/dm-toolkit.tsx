@@ -83,8 +83,10 @@ import {
   Map,
   FileCode,
   Download,
-  WifiOff
+  WifiOff,
+  MessageCircle
 } from "lucide-react";
+import { SiDiscord } from "react-icons/si";
 
 // Import our tabs
 import InvitationsTab from "@/components/dm-toolkit/InvitationsTab";
@@ -552,6 +554,14 @@ export default function DMToolkit() {
                 <StickyNote className="h-4 w-4" />
                 Notes
               </Button>
+              <Button
+                variant={activeTab === 'discord' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('discord')}
+                className="gap-2"
+              >
+                <SiDiscord className="h-4 w-4" />
+                Discord
+              </Button>
             </div>
           </div>
         </div>
@@ -572,6 +582,7 @@ export default function DMToolkit() {
             <TabsTrigger value="notes">Notes</TabsTrigger>
             <TabsTrigger value="generators">Generators</TabsTrigger>
             <TabsTrigger value="deploy">Deploy</TabsTrigger>
+            <TabsTrigger value="discord">Discord</TabsTrigger>
           </TabsList>
         </div>
         
@@ -898,6 +909,10 @@ export default function DMToolkit() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+        
+        <TabsContent value="discord" className="space-y-6">
+          <DiscordIntegrationTab />
         </TabsContent>
         </Tabs>
       </div>
@@ -4674,6 +4689,224 @@ function CampaignBuilderTab() {
                 <p className="text-sm text-muted-foreground">Tips and advice for running each element effectively</p>
               </div>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Discord Integration Tab Component
+function DiscordIntegrationTab() {
+  const { toast } = useToast();
+  const [testChannelId, setTestChannelId] = useState("");
+  const [testMessage, setTestMessage] = useState("");
+  
+  const { data: discordStatus, isLoading: statusLoading, refetch: refetchStatus } = useQuery<{
+    connected: boolean;
+    error: string | null;
+    username: string | null;
+    guilds: { id: string; name: string; memberCount: number }[];
+  }>({
+    queryKey: ['/api/discord/status'],
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+  
+  const sendMessageMutation = useMutation({
+    mutationFn: async ({ channelId, message }: { channelId: string; message: string }) => {
+      const response = await apiRequest("POST", "/api/discord/message", { channelId, message });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Message Sent!",
+        description: "Your message was posted to Discord.",
+      });
+      setTestMessage("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Send",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-fantasy font-semibold flex items-center">
+            <SiDiscord className="h-6 w-6 mr-2 text-[#5865F2]" />
+            Discord Integration
+          </h2>
+          <p className="text-muted-foreground">Connect Everdice to your Discord server for session announcements</p>
+        </div>
+        <Button variant="outline" onClick={() => refetchStatus()}>
+          Refresh Status
+        </Button>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Connection Status */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {discordStatus?.connected ? (
+                <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
+              ) : (
+                <span className="w-3 h-3 rounded-full bg-red-500" />
+              )}
+              Connection Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {statusLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Checking connection...
+              </div>
+            ) : discordStatus?.connected ? (
+              <>
+                <div className="flex items-center gap-2 text-green-600">
+                  <Check className="h-5 w-5" />
+                  <span className="font-medium">Connected as {discordStatus.username}</span>
+                </div>
+                {discordStatus.guilds && discordStatus.guilds.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Available Servers</Label>
+                    <div className="space-y-1">
+                      {discordStatus.guilds.map((guild) => (
+                        <div key={guild.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+                          <span className="font-medium">{guild.name}</span>
+                          <Badge variant="secondary">{guild.memberCount} members</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-amber-600">
+                  <AlertCircle className="h-5 w-5" />
+                  <span>Discord not connected</span>
+                </div>
+                {discordStatus?.error && (
+                  <p className="text-sm text-muted-foreground">{discordStatus.error}</p>
+                )}
+                <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                  <p className="text-sm font-medium">To connect Discord:</p>
+                  <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>Go to the Replit Tools panel</li>
+                    <li>Find "Discord" under Integrations</li>
+                    <li>Click "Connect" and authorize with your Discord account</li>
+                    <li>Refresh this page to see the connection status</li>
+                  </ol>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* Test Message */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-primary" />
+              Send Test Message
+            </CardTitle>
+            <CardDescription>
+              Test the Discord connection by sending a message to a channel
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="channel-id">Channel ID</Label>
+              <Input
+                id="channel-id"
+                value={testChannelId}
+                onChange={(e) => setTestChannelId(e.target.value)}
+                placeholder="e.g., 1234567890123456789"
+              />
+              <p className="text-xs text-muted-foreground">
+                Right-click a channel in Discord → Copy Channel ID
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="test-message">Message</Label>
+              <Textarea
+                id="test-message"
+                value={testMessage}
+                onChange={(e) => setTestMessage(e.target.value)}
+                placeholder="Hello from Everdice!"
+                rows={3}
+              />
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button
+              onClick={() => sendMessageMutation.mutate({ channelId: testChannelId, message: testMessage })}
+              disabled={!discordStatus?.connected || !testChannelId || !testMessage || sendMessageMutation.isPending}
+              className="w-full gap-2"
+            >
+              {sendMessageMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+              Send Message
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+      
+      {/* How It Works */}
+      <Card className="bg-gradient-to-br from-[#5865F2]/5 to-purple-500/5 border-[#5865F2]/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Info className="h-5 w-5 text-[#5865F2]" />
+            How Discord Integration Works
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-[#5865F2] font-medium">
+                <Play className="h-4 w-4" />
+                Session Announcements
+              </div>
+              <p className="text-sm text-muted-foreground">
+                When you start a session, Everdice can post an announcement to your Discord channel.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-[#5865F2] font-medium">
+                <Scroll className="h-4 w-4" />
+                Session Recaps
+              </div>
+              <p className="text-sm text-muted-foreground">
+                At the end of each session, automatically post a recap summary for players to review.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-[#5865F2] font-medium">
+                <Swords className="h-4 w-4" />
+                Dice Rolls
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Share important dice rolls with your Discord community in real-time.
+              </p>
+            </div>
+          </div>
+          
+          <Separator />
+          
+          <div className="text-sm text-muted-foreground">
+            <strong>Discord stays your table.</strong> Voice chat, real-time conversation, and player interaction 
+            happen in Discord. Everdice acts as the DM's notebook and game engine, posting structured updates 
+            without replacing Discord's community features.
           </div>
         </CardContent>
       </Card>

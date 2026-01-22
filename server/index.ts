@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage, DatabaseStorage } from "./storage";
+import { initDiscord, shutdownDiscord } from "./discord";
 
 const app = express();
 app.use(express.json());
@@ -77,5 +78,31 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Initialize Discord bot in background (non-blocking, graceful failure)
+    initDiscord()
+      .then((success: boolean) => {
+        if (success) {
+          log('Discord bot connected successfully');
+        } else {
+          log('Discord bot not available - integration optional');
+        }
+      })
+      .catch((err: Error) => {
+        log(`Discord initialization skipped: ${err.message}`);
+      });
+  });
+  
+  // Graceful shutdown handlers
+  process.on('SIGTERM', async () => {
+    log('Shutting down...');
+    await shutdownDiscord();
+    process.exit(0);
+  });
+  
+  process.on('SIGINT', async () => {
+    log('Shutting down...');
+    await shutdownDiscord();
+    process.exit(0);
   });
 })();
