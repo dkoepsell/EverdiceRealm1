@@ -80,7 +80,8 @@ app.use((req, res, next) => {
     log(`serving on port ${port}`);
     
     // Initialize Discord bot in background (non-blocking, graceful failure)
-    initDiscord()
+    // Pass storage to enable slash command handling
+    initDiscord(storage)
       .then((success: boolean) => {
         if (success) {
           log('Discord bot connected successfully');

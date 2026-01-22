@@ -93,6 +93,8 @@ export interface IStorage {
   getAllCampaigns(): Promise<Campaign[]>;
   getArchivedCampaigns(): Promise<Campaign[]>;
   getCampaign(id: number): Promise<Campaign | undefined>;
+  getCampaignByDeploymentCode(code: string): Promise<Campaign | undefined>;
+  getCampaignByDiscordChannel(channelId: string): Promise<Campaign | undefined>;
   createCampaign(campaign: InsertCampaign): Promise<Campaign>;
   updateCampaign(id: number, campaign: Partial<Campaign>): Promise<Campaign | undefined>;
   updateCampaignSession(id: number, sessionNumber: number): Promise<Campaign | undefined>;
@@ -486,6 +488,14 @@ export class MemStorage implements IStorage {
   
   async getCampaign(id: number): Promise<Campaign | undefined> {
     return this.campaignStore.get(id);
+  }
+  
+  async getCampaignByDeploymentCode(code: string): Promise<Campaign | undefined> {
+    return Array.from(this.campaignStore.values()).find(c => c.deploymentCode === code);
+  }
+  
+  async getCampaignByDiscordChannel(channelId: string): Promise<Campaign | undefined> {
+    return Array.from(this.campaignStore.values()).find(c => c.discordChannelId === channelId && c.isDiscordDeployed);
   }
   
   async createCampaign(insertCampaign: InsertCampaign): Promise<Campaign> {
@@ -1090,6 +1100,17 @@ export class DatabaseStorage implements IStorage {
   
   async getCampaign(id: number): Promise<Campaign | undefined> {
     const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, id));
+    return campaign || undefined;
+  }
+  
+  async getCampaignByDeploymentCode(code: string): Promise<Campaign | undefined> {
+    const [campaign] = await db.select().from(campaigns).where(eq(campaigns.deploymentCode, code));
+    return campaign || undefined;
+  }
+  
+  async getCampaignByDiscordChannel(channelId: string): Promise<Campaign | undefined> {
+    const [campaign] = await db.select().from(campaigns)
+      .where(and(eq(campaigns.discordChannelId, channelId), eq(campaigns.isDiscordDeployed, true)));
     return campaign || undefined;
   }
   

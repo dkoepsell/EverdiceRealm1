@@ -169,6 +169,11 @@ export const campaigns = pgTable("campaigns", {
   // World map linkage - where this adventure takes place
   worldLocationId: integer("world_location_id"), // Link to world_locations table
   worldRegionId: integer("world_region_id"), // Link to world_regions table
+  // Discord integration - deploy campaigns to Discord channels
+  discordGuildId: text("discord_guild_id"), // Discord server ID
+  discordChannelId: text("discord_channel_id"), // Main channel for this campaign
+  discordThreadId: text("discord_thread_id"), // Optional thread for session logs
+  isDiscordDeployed: boolean("is_discord_deployed").default(false), // Whether campaign is active on Discord
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at"),
 });
