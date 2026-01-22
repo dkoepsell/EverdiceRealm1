@@ -646,10 +646,10 @@ export class MemStorage implements IStorage {
   
   // Initialize sample data for demonstration
   private async initializeSampleData() {
-    // Create sample user
+    // Create sample user with demo credentials (not a real secret - just sample data)
     const user = await this.createUser({
       username: "demo_user",
-      password: "password123"
+      password: "demo_sample_data"
     });
     
     // Create sample character
