@@ -483,7 +483,11 @@ export function createRollEmbed(characterName: string, rollType: string, result:
 }
 
 // Post campaign event to Discord (for auto-posting from Everdice)
-export async function postCampaignEvent(campaign: any, eventType: 'session_start' | 'session_end' | 'story_update', data?: any): Promise<boolean> {
+export async function postCampaignEvent(
+  campaign: any, 
+  eventType: 'session_start' | 'session_end' | 'story_update' | 'player_choice' | 'combat_round', 
+  data?: any
+): Promise<boolean> {
   if (!campaign.discordChannelId || !campaign.isDiscordDeployed) {
     return false;
   }
@@ -503,6 +507,38 @@ export async function postCampaignEvent(campaign: any, eventType: 'session_start
           .setColor(0x3B82F6)
           .setDescription(data?.content?.slice(0, 4000) || 'The adventure continues...')
           .setFooter({ text: 'Everdice • Live Update' });
+        break;
+      case 'player_choice':
+        embed = new EmbedBuilder()
+          .setColor(0xD4A574) // Amber for player actions
+          .setTitle(`⚔️ ${data?.characterName || 'A hero'} takes action`)
+          .setDescription(data?.choice?.slice(0, 500) || 'Made a decision...');
+        if (data?.rollResult) {
+          const isNat20 = data.rollResult === 20;
+          const isNat1 = data.rollResult === 1;
+          embed.addFields({
+            name: isNat20 ? '✨ Natural 20!' : isNat1 ? '💀 Natural 1!' : '🎲 Roll Result',
+            value: `**${data.rollResult}**`,
+            inline: true
+          });
+          if (isNat20) embed.setColor(0x22C55E);
+          if (isNat1) embed.setColor(0xEF4444);
+        }
+        embed.setFooter({ text: 'Everdice • Player Action' });
+        break;
+      case 'combat_round':
+        embed = new EmbedBuilder()
+          .setColor(0xEF4444) // Red for combat
+          .setTitle(`⚔️ Combat Round ${data?.round || ''}`)
+          .setDescription(data?.description?.slice(0, 1000) || 'The battle rages on...');
+        if (data?.combatants && data.combatants.length > 0) {
+          const combatantList = data.combatants
+            .slice(0, 10)
+            .map((c: any) => `${c.type === 'enemy' ? '👹' : '🛡️'} ${c.name}: ${c.currentHp}/${c.maxHp} HP`)
+            .join('\n');
+          embed.addFields({ name: 'Combatants', value: combatantList, inline: false });
+        }
+        embed.setFooter({ text: 'Everdice • Combat Update' });
         break;
       default:
         return false;

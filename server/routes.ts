@@ -12663,12 +12663,30 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         progression: characterProgression
       });
       
-      // Post narrative to Discord if campaign is deployed there
+      // Post to Discord if campaign is deployed there
       const campaignForDiscord = await storage.getCampaign(campaignId);
       if (campaignForDiscord?.isDiscordDeployed && campaignForDiscord.discordChannelId) {
+        // Post player choice first
+        postCampaignEvent(campaignForDiscord, 'player_choice', {
+          characterName: character?.name || 'A hero',
+          choice: choice,
+          rollResult: rollResult
+        }).catch(err => console.log('[Discord] Failed to post player choice:', err.message));
+        
+        // Post narrative update
         postCampaignEvent(campaignForDiscord, 'story_update', {
           content: storyAdvancement.narrative
         }).catch(err => console.log('[Discord] Failed to post story update:', err.message));
+        
+        // Post combat round if in combat
+        const inCombat = storyAdvancement.storyState?.inCombat || mergedStoryState?.inCombat;
+        if (inCombat && storyAdvancement.storyState?.combatants?.length > 0) {
+          postCampaignEvent(campaignForDiscord, 'combat_round', {
+            round: storyAdvancement.storyState?.combatRound || 1,
+            description: storyAdvancement.narrative?.slice(0, 500),
+            combatants: storyAdvancement.storyState?.combatants
+          }).catch(err => console.log('[Discord] Failed to post combat update:', err.message));
+        }
       }
 
       // Build movement response - use actual movement result, not just intent
