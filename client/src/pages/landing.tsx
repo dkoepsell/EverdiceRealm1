@@ -21,7 +21,10 @@ import {
   GraduationCap,
   Heart,
   Compass,
-  Crown
+  Crown,
+  MessageCircle,
+  Link2,
+  Headphones
 } from "lucide-react";
 import { motion } from "framer-motion";
 import everdiceBackground from "@assets/image_1768599782346.png";
@@ -43,9 +46,9 @@ const features = [
     description: "Keep track of characters, choices, and story arcs so everyone can pick up right where they left off."
   },
   {
-    icon: Home,
-    title: "Safe for Families & Classrooms",
-    description: "No ads, no public chat, no hidden monetization. Designed for parents, teachers, and young players."
+    icon: MessageCircle,
+    title: "Play Where Your Group Already Is",
+    description: "Deploy your campaign to Discord so DMs and players can access sessions, notes, and rolls inside their server."
   }
 ];
 
@@ -134,10 +137,18 @@ export default function LandingPage() {
 
               {/* Authority Line for Experienced Players */}
               <p 
-                className="text-sm italic mb-8 max-w-[580px] mx-auto"
+                className="text-sm italic mb-4 max-w-[580px] mx-auto"
                 style={{ color: '#C9B896' }}
               >
                 For experienced tables: Everdice stays out of your way and keeps long campaigns coherent.
+              </p>
+
+              {/* Discord Integration Line */}
+              <p 
+                className="text-sm mb-8 max-w-[520px] mx-auto"
+                style={{ color: 'rgba(255,255,255,0.65)' }}
+              >
+                Now with Discord integration. Deploy campaigns to your server for session play, coordination, and continuity.
               </p>
 
               {/* CTA Button */}
@@ -362,6 +373,68 @@ export default function LandingPage() {
             </motion.div>
           ))}
         </div>
+      </section>
+
+      {/* Discord Integration - How It Works */}
+      <section className="container mx-auto px-4 py-16">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="max-w-4xl mx-auto"
+        >
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center gap-2 bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full text-sm font-medium mb-4">
+              <MessageCircle className="h-4 w-4" />
+              Optional, Not Required
+            </div>
+            <h2 className="text-2xl md:text-3xl font-bold mb-3">
+              Everdice + Discord
+            </h2>
+            <p className="text-muted-foreground max-w-lg mx-auto">
+              If your group already uses Discord, Everdice can meet you there.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Step 1 */}
+            <div className="text-center p-6 rounded-xl bg-card/50 border border-border/50">
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-bold text-lg">
+                1
+              </div>
+              <h3 className="font-semibold mb-2">Build in Everdice</h3>
+              <p className="text-sm text-muted-foreground">
+                World notes, sessions, NPCs, and story continuity live here.
+              </p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="text-center p-6 rounded-xl bg-card/50 border border-border/50">
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-bold text-lg">
+                2
+              </div>
+              <h3 className="font-semibold mb-2">Deploy to Discord</h3>
+              <p className="text-sm text-muted-foreground">
+                Link your campaign to a Discord server with slash commands and session channels.
+              </p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="text-center p-6 rounded-xl bg-card/50 border border-border/50">
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-bold text-lg">
+                3
+              </div>
+              <h3 className="font-semibold mb-2">Run Sessions Naturally</h3>
+              <p className="text-sm text-muted-foreground">
+                Chat, voice, and dice stay in Discord. Everdice keeps the campaign coherent.
+              </p>
+            </div>
+          </div>
+
+          <p className="text-center text-sm text-muted-foreground mt-8">
+            No lock-in. No forced workflow change. Use Discord for what it's good at.
+          </p>
+        </motion.div>
       </section>
 
       {/* Reassurance Strip - Parents / Teachers / First-Time DMs */}
