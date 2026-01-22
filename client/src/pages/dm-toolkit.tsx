@@ -84,7 +84,8 @@ import {
   FileCode,
   Download,
   WifiOff,
-  MessageCircle
+  MessageCircle,
+  Terminal
 } from "lucide-react";
 import { SiDiscord } from "react-icons/si";
 
@@ -4861,6 +4862,92 @@ function DiscordIntegrationTab() {
           </CardFooter>
         </Card>
       </div>
+      
+      {/* Slash Commands Reference */}
+      <Card className="border-[#5865F2]/30">
+        <CardHeader className="bg-gradient-to-r from-[#5865F2]/10 to-purple-500/10">
+          <CardTitle className="flex items-center gap-2">
+            <Terminal className="h-5 w-5 text-[#5865F2]" />
+            Discord Slash Commands
+          </CardTitle>
+          <CardDescription>
+            Players can use these commands in any channel linked to an Everdice campaign
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="divide-y">
+            <div className="p-4 hover:bg-muted/50 transition-colors">
+              <div className="flex items-start gap-3">
+                <code className="px-2 py-1 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-sm whitespace-nowrap">
+                  /everdice link code:&lt;code&gt;
+                </code>
+                <div className="flex-1">
+                  <p className="font-medium">Link a Campaign</p>
+                  <p className="text-sm text-muted-foreground">
+                    Connect an Everdice campaign to the current Discord channel using its deployment code.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-4 hover:bg-muted/50 transition-colors">
+              <div className="flex items-start gap-3">
+                <code className="px-2 py-1 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-sm whitespace-nowrap">
+                  /everdice roll dice:&lt;notation&gt;
+                </code>
+                <div className="flex-1">
+                  <p className="font-medium">Roll Dice</p>
+                  <p className="text-sm text-muted-foreground">
+                    Roll dice using D&D notation. Examples: <code className="text-xs bg-muted px-1 rounded">1d20+5</code>, <code className="text-xs bg-muted px-1 rounded">2d6</code>, <code className="text-xs bg-muted px-1 rounded">1d20 advantage</code>, <code className="text-xs bg-muted px-1 rounded">1d20 disadvantage</code>
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-4 hover:bg-muted/50 transition-colors">
+              <div className="flex items-start gap-3">
+                <code className="px-2 py-1 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-sm whitespace-nowrap">
+                  /everdice recap
+                </code>
+                <div className="flex-1">
+                  <p className="font-medium">Get Campaign Recap</p>
+                  <p className="text-sm text-muted-foreground">
+                    Retrieve the latest story summary and session recap for the linked campaign.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-4 hover:bg-muted/50 transition-colors">
+              <div className="flex items-start gap-3">
+                <code className="px-2 py-1 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-sm whitespace-nowrap">
+                  /everdice status
+                </code>
+                <div className="flex-1">
+                  <p className="font-medium">Campaign Status</p>
+                  <p className="text-sm text-muted-foreground">
+                    Show current session number, difficulty, narrative style, and active adventurers.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-4 hover:bg-muted/50 transition-colors">
+              <div className="flex items-start gap-3">
+                <code className="px-2 py-1 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-sm whitespace-nowrap">
+                  /everdice unlink
+                </code>
+                <div className="flex-1">
+                  <p className="font-medium">Unlink Campaign</p>
+                  <p className="text-sm text-muted-foreground">
+                    Disconnect this channel from its linked campaign.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       
       {/* How It Works */}
       <Card className="bg-gradient-to-br from-[#5865F2]/5 to-purple-500/5 border-[#5865F2]/20">

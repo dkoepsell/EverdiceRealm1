@@ -528,21 +528,29 @@ export default function CampaignDeploymentTab({ campaign, isCreator }: CampaignD
                     </div>
                     
                     <div className="p-4 bg-muted rounded-lg">
-                      <h4 className="font-medium mb-2">Available Commands</h4>
-                      <div className="space-y-2 font-mono text-sm">
-                        <div className="flex items-center gap-2">
-                          <code className="px-2 py-1 bg-background rounded">/everdice roll 1d20+5</code>
-                          <span className="text-muted-foreground">- Roll dice</span>
+                      <h4 className="font-medium mb-3">Available Slash Commands</h4>
+                      <div className="space-y-3 text-sm">
+                        <div className="flex flex-col gap-1">
+                          <code className="px-2 py-1 bg-background rounded font-mono w-fit">/everdice roll dice:1d20+5</code>
+                          <span className="text-muted-foreground pl-2">Roll dice with D&D notation. Supports advantage/disadvantage.</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <code className="px-2 py-1 bg-background rounded">/everdice recap</code>
-                          <span className="text-muted-foreground">- Get campaign recap</span>
+                        <div className="flex flex-col gap-1">
+                          <code className="px-2 py-1 bg-background rounded font-mono w-fit">/everdice recap</code>
+                          <span className="text-muted-foreground pl-2">Get the latest story summary and session recap.</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <code className="px-2 py-1 bg-background rounded">/everdice status</code>
-                          <span className="text-muted-foreground">- Show campaign status</span>
+                        <div className="flex flex-col gap-1">
+                          <code className="px-2 py-1 bg-background rounded font-mono w-fit">/everdice status</code>
+                          <span className="text-muted-foreground pl-2">Show campaign details and active adventurers.</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <code className="px-2 py-1 bg-background rounded font-mono w-fit">/everdice unlink</code>
+                          <span className="text-muted-foreground pl-2">Disconnect this channel from the campaign.</span>
                         </div>
                       </div>
+                      <Separator className="my-3" />
+                      <p className="text-xs text-muted-foreground">
+                        <strong>Dice examples:</strong> <code className="bg-background px-1 rounded">1d20+5</code>, <code className="bg-background px-1 rounded">2d6</code>, <code className="bg-background px-1 rounded">1d20 advantage</code>, <code className="bg-background px-1 rounded">4d6 drop lowest</code>
+                      </p>
                     </div>
                   </div>
                 ) : campaign.isPublished && deploymentCode ? (
