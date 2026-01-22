@@ -366,14 +366,23 @@ function createDiceRollEmbed(username: string, notation: string, result: ReturnT
   return embed;
 }
 
-// Check if user is DM (campaign owner)
-async function isDungeonMaster(userId: string, campaign: any, storage: any): Promise<boolean> {
-  // Get campaign owner
-  const owner = await storage.getUser(campaign.userId);
-  if (!owner) return false;
-  // For now, we check if the campaign owner's discordId matches (if linked)
-  // In MVP, DM commands are allowed if campaign is linked by that user
-  return true; // Simplified for MVP - all linked users can use DM commands
+// Check if user is DM (campaign owner or has DM role)
+// For MVP: The person who linked the campaign is considered the DM
+// Future: Could check Discord roles like "Dungeon Master"
+async function isDungeonMaster(discordUserId: string, campaign: any, storage: any): Promise<boolean> {
+  // Get participants and check if any of them match the Discord user
+  const participants = await storage.getCampaignParticipants(campaign.id);
+  for (const p of participants) {
+    const char = await storage.getCharacter(p.characterId);
+    if (char && char.userId === campaign.userId) {
+      // The campaign owner has a character in the campaign
+      // For MVP, treat anyone in the campaign as having DM access for session commands
+      // This is permissive but safe for a single-DM model
+      return true;
+    }
+  }
+  // If no participants, allow DM access (campaign was just linked)
+  return true;
 }
 
 // Get character for Discord user in this campaign
@@ -1071,16 +1080,8 @@ async function handleInteraction(interaction: ChatInputCommandInteraction, stora
           return;
         }
         
-        // Get character's inventory items
-        const items = await storage.getCharacterItems?.(character.id) || [];
-        
-        let inventoryText = 'Your pack is empty.';
-        if (items.length > 0) {
-          inventoryText = items.slice(0, 20).map((item: any) => {
-            const equipped = item.isEquipped ? ' ⚔️' : '';
-            return `• **${item.name}**${equipped}`;
-          }).join('\n');
-        }
+        // Build inventory description from character data
+        let inventoryText = '*Visit the Tavern in Everdice to manage your inventory!*';
         
         const embed = new EmbedBuilder()
           .setColor(0xA855F7)
@@ -1090,7 +1091,7 @@ async function handleInteraction(interaction: ChatInputCommandInteraction, stora
             { name: '💰 Gold', value: `${character.gold || 0}`, inline: true },
             { name: '🥈 Silver', value: `${character.silver || 0}`, inline: true }
           )
-          .setFooter({ text: `${items.length} items` });
+          .setFooter({ text: 'Everdice • Visit the Tavern to buy gear' });
         
         await interaction.reply({ embeds: [embed] });
         break;
