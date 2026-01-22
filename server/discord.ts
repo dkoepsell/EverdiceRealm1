@@ -488,7 +488,10 @@ export async function postCampaignEvent(
   eventType: 'session_start' | 'session_end' | 'story_update' | 'player_choice' | 'combat_round', 
   data?: any
 ): Promise<boolean> {
+  console.log('[Discord postCampaignEvent] Called with:', { eventType, channelId: campaign.discordChannelId, isDeployed: campaign.isDiscordDeployed });
+  
   if (!campaign.discordChannelId || !campaign.isDiscordDeployed) {
+    console.log('[Discord postCampaignEvent] Skipping - campaign not deployed');
     return false;
   }
 
@@ -544,7 +547,10 @@ export async function postCampaignEvent(
         return false;
     }
     
-    return await sendToChannel(campaign.discordChannelId, embed);
+    console.log('[Discord postCampaignEvent] Sending to channel...');
+    const result = await sendToChannel(campaign.discordChannelId, embed);
+    console.log('[Discord postCampaignEvent] Send result:', result);
+    return result;
   } catch (error: any) {
     console.error('[Discord] Failed to post campaign event:', error.message);
     return false;
