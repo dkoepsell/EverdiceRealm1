@@ -12665,13 +12665,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
       
       // Post to Discord if campaign is deployed there
       const campaignForDiscord = await storage.getCampaign(campaignId);
-      console.log('[Discord Debug] Campaign for Discord posting:', { 
-        id: campaignForDiscord?.id, 
-        isDiscordDeployed: campaignForDiscord?.isDiscordDeployed, 
-        discordChannelId: campaignForDiscord?.discordChannelId 
-      });
       if (campaignForDiscord?.isDiscordDeployed && campaignForDiscord.discordChannelId) {
-        console.log('[Discord] Posting player choice to channel:', campaignForDiscord.discordChannelId);
         // Post player choice first
         postCampaignEvent(campaignForDiscord, 'player_choice', {
           characterName: playerCharacter?.name || 'A hero',
@@ -12679,9 +12673,10 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           rollResult: rollResult
         }).catch(err => console.log('[Discord] Failed to post player choice:', err.message));
         
-        // Post narrative update
+        // Post narrative update with choices for interactive play
         postCampaignEvent(campaignForDiscord, 'story_update', {
-          content: storyAdvancement.narrative
+          content: storyAdvancement.narrative,
+          choices: storyAdvancement.choices
         }).catch(err => console.log('[Discord] Failed to post story update:', err.message));
         
         // Post combat round if in combat

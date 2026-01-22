@@ -18,11 +18,15 @@ const commands = [
     .addSubcommand(subcommand =>
       subcommand
         .setName('link')
-        .setDescription('Link an Everdice campaign to this channel')
+        .setDescription('Deploy an Everdice campaign - creates a dedicated channel')
         .addStringOption(option =>
           option.setName('code')
             .setDescription('Campaign deployment code from Everdice')
             .setRequired(true)))
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('connect')
+        .setDescription('Connect your Discord account to your Everdice character'))
     .addSubcommand(subcommand =>
       subcommand
         .setName('roll')
@@ -43,6 +47,14 @@ const commands = [
       subcommand
         .setName('status')
         .setDescription('Show current campaign status'))
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('dm')
+        .setDescription('Send a DM narration to the campaign')
+        .addStringOption(option =>
+          option.setName('message')
+            .setDescription('Your narration or response to players')
+            .setRequired(true)))
     .addSubcommand(subcommand =>
       subcommand
         .setName('unlink')
@@ -169,6 +181,69 @@ function createDiceRollEmbed(username: string, notation: string, result: ReturnT
   return embed;
 }
 
+// Create a campaign channel in a "Campaigns" category
+async function createCampaignChannel(guildId: string, campaignTitle: string): Promise<{ channelId: string; categoryId: string } | null> {
+  if (!discordClient || !isConnected) {
+    console.log('[Discord] Cannot create channel - not connected');
+    return null;
+  }
+
+  try {
+    const guild = await discordClient.guilds.fetch(guildId);
+    if (!guild) {
+      console.error('[Discord] Guild not found:', guildId);
+      return null;
+    }
+
+    // Find or create "Everdice Campaigns" category
+    let category = guild.channels.cache.find(
+      (c) => c.type === ChannelType.GuildCategory && c.name === 'Everdice Campaigns'
+    );
+
+    if (!category) {
+      category = await guild.channels.create({
+        name: 'Everdice Campaigns',
+        type: ChannelType.GuildCategory,
+        reason: 'Everdice campaign channels'
+      });
+      console.log('[Discord] Created Everdice Campaigns category');
+    }
+
+    // Create channel name from campaign title (lowercase, dashes, no special chars)
+    const channelName = campaignTitle
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .slice(0, 90) + '-campaign';
+
+    // Create the campaign channel under the category with restricted permissions
+    // Deny @everyone view access, allow bot full access
+    const channel = await guild.channels.create({
+      name: channelName,
+      type: ChannelType.GuildText,
+      parent: category.id,
+      topic: `Everdice Campaign: ${campaignTitle} | Use /everdice connect to join`,
+      reason: `Everdice campaign deployment: ${campaignTitle}`,
+      permissionOverwrites: [
+        {
+          id: guild.roles.everyone.id,
+          deny: ['ViewChannel', 'SendMessages']
+        },
+        {
+          id: discordClient!.user!.id,
+          allow: ['ViewChannel', 'SendMessages', 'EmbedLinks', 'ManageMessages']
+        }
+      ]
+    });
+
+    console.log('[Discord] Created campaign channel:', channel.id);
+    return { channelId: channel.id, categoryId: category.id };
+  } catch (error: any) {
+    console.error('[Discord] Failed to create campaign channel:', error.message);
+    return null;
+  }
+}
+
 // Handle slash command interactions
 async function handleInteraction(interaction: ChatInputCommandInteraction, storage: any) {
   if (!interaction.isCommand()) return;
@@ -193,25 +268,89 @@ async function handleInteraction(interaction: ChatInputCommandInteraction, stora
           });
           return;
         }
+
+        // Check if campaign is already deployed
+        if (campaign.isDiscordDeployed && campaign.discordChannelId) {
+          await interaction.reply({
+            content: `⚠️ This campaign is already deployed to Discord! Check <#${campaign.discordChannelId}> or unlink it first.`,
+            ephemeral: true
+          });
+          return;
+        }
+
+        await interaction.deferReply();
+
+        // Create a dedicated channel for this campaign
+        const channelResult = await createCampaignChannel(guildId!, campaign.title);
+        
+        if (!channelResult) {
+          await interaction.editReply({
+            content: '❌ Failed to create campaign channel. Make sure the bot has "Manage Channels" permission.',
+          });
+          return;
+        }
         
         // Update campaign with Discord channel info
         await storage.updateCampaign(campaign.id, {
           discordGuildId: guildId,
-          discordChannelId: channelId,
+          discordChannelId: channelResult.channelId,
           isDiscordDeployed: true
         });
         
         const embed = new EmbedBuilder()
           .setColor(0xD4A574)
-          .setTitle('🗡️ Campaign Linked!')
-          .setDescription(`**${campaign.title}** is now connected to this channel.`)
+          .setTitle('🗡️ Campaign Deployed!')
+          .setDescription(`**${campaign.title}** now has its own channel!`)
           .addFields(
+            { name: 'Campaign Channel', value: `<#${channelResult.channelId}>`, inline: true },
             { name: 'Session', value: `#${campaign.currentSession}`, inline: true },
             { name: 'Difficulty', value: campaign.difficulty, inline: true }
           )
           .setFooter({ text: 'Everdice • Your Adventure Awaits' });
         
-        await interaction.reply({ embeds: [embed] });
+        await interaction.editReply({ embeds: [embed] });
+
+        // Send welcome message in the new channel
+        const newChannel = await discordClient!.channels.fetch(channelResult.channelId) as TextChannel;
+        if (newChannel) {
+          const welcomeEmbed = new EmbedBuilder()
+            .setColor(0xD4A574)
+            .setTitle(`⚔️ Welcome to ${campaign.title}`)
+            .setDescription('This channel is linked to your Everdice campaign. All game events will be posted here automatically.\n\n**Commands:**\n• `/everdice connect` - Link your Discord to your Everdice character\n• `/everdice roll 1d20` - Roll dice\n• `/everdice recap` - Get story recap\n• `/everdice status` - Campaign status')
+            .setFooter({ text: 'Everdice • Let the adventure begin!' });
+          await newChannel.send({ embeds: [welcomeEmbed] });
+        }
+        break;
+      }
+
+      case 'connect': {
+        // Generate a connection code for the user
+        const discordUserId = interaction.user.id;
+        const discordUsername = interaction.user.username;
+        
+        // Check if already connected
+        const existingUser = await storage.getUserByDiscordId(discordUserId);
+        if (existingUser) {
+          await interaction.reply({
+            content: `✅ You're already connected as **${existingUser.username}** on Everdice!`,
+            ephemeral: true
+          });
+          return;
+        }
+
+        // Create a connection code
+        const connectionCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        
+        // Store the pending connection
+        await storage.createDiscordConnection(discordUserId, discordUsername, connectionCode);
+
+        const embed = new EmbedBuilder()
+          .setColor(0x8B5CF6)
+          .setTitle('🔗 Connect Your Account')
+          .setDescription(`To link your Discord account to Everdice:\n\n1. Go to your **Everdice Profile**\n2. Click **Connect Discord**\n3. Enter this code: **\`${connectionCode}\`**\n\n*This code expires in 10 minutes.*`)
+          .setFooter({ text: 'Everdice • Account Connection' });
+
+        await interaction.reply({ embeds: [embed], ephemeral: true });
         break;
       }
       
@@ -304,6 +443,42 @@ async function handleInteraction(interaction: ChatInputCommandInteraction, stora
         await interaction.reply({ embeds: [embed] });
         break;
       }
+
+      case 'dm': {
+        const message = interaction.options.getString('message', true);
+        const campaign = await storage.getCampaignByDiscordChannel(channelId);
+        
+        if (!campaign) {
+          await interaction.reply({
+            content: '❌ No campaign is linked to this channel.',
+            ephemeral: true
+          });
+          return;
+        }
+
+        // Check if user is the campaign owner (DM)
+        const discordUserId = interaction.user.id;
+        const everdiceUser = await storage.getUserByDiscordId(discordUserId);
+        
+        if (!everdiceUser || everdiceUser.id !== campaign.userId) {
+          await interaction.reply({
+            content: '❌ Only the Dungeon Master can use this command.',
+            ephemeral: true
+          });
+          return;
+        }
+
+        // Post the DM narration
+        const embed = new EmbedBuilder()
+          .setColor(0x8B5CF6)
+          .setTitle('📖 The Dungeon Master Speaks')
+          .setDescription(message.slice(0, 4000))
+          .setFooter({ text: `DM: ${interaction.user.displayName}` })
+          .setTimestamp();
+
+        await interaction.reply({ embeds: [embed] });
+        break;
+      }
       
       case 'unlink': {
         const campaign = await storage.getCampaignByDiscordChannel(channelId);
@@ -366,8 +541,95 @@ export async function initDiscord(storage?: any): Promise<boolean> {
     // Handle slash command interactions
     if (storage) {
       discordClient.on(Events.InteractionCreate, async (interaction) => {
-        if (!interaction.isChatInputCommand()) return;
-        await handleInteraction(interaction, storage);
+        // Handle slash commands
+        if (interaction.isChatInputCommand()) {
+          await handleInteraction(interaction, storage);
+          return;
+        }
+        
+        // Handle button clicks for campaign choices
+        if (interaction.isButton()) {
+          const customId = interaction.customId;
+          
+          // Parse choice button: choice_<campaignId>_<choiceIndex>
+          if (customId.startsWith('choice_')) {
+            const parts = customId.split('_');
+            const campaignId = parseInt(parts[1]);
+            const choiceIndex = parseInt(parts[2]);
+            
+            if (isNaN(campaignId) || isNaN(choiceIndex)) {
+              await interaction.reply({ content: '❌ Invalid choice.', ephemeral: true });
+              return;
+            }
+
+            // Check if user is connected to Everdice
+            const everdiceUser = await storage.getUserByDiscordId(interaction.user.id);
+            if (!everdiceUser) {
+              await interaction.reply({ 
+                content: '❌ Connect your Discord account first with `/everdice connect`', 
+                ephemeral: true 
+              });
+              return;
+            }
+
+            // Check if user is a participant in this campaign
+            const participants = await storage.getCampaignParticipants(campaignId);
+            const isParticipant = participants.some((p: any) => p.userId === everdiceUser.id);
+            
+            if (!isParticipant) {
+              await interaction.reply({ 
+                content: '❌ You are not a participant in this campaign.', 
+                ephemeral: true 
+              });
+              return;
+            }
+
+            // Get the current session to find the available choices
+            const campaign = await storage.getCampaign(campaignId);
+            if (!campaign) {
+              await interaction.reply({ content: '❌ Campaign not found.', ephemeral: true });
+              return;
+            }
+
+            const sessions = await storage.getCampaignSessions(campaignId);
+            const currentSession = sessions.find((s: any) => s.sessionNumber === campaign.currentSession);
+            
+            if (!currentSession?.storyState) {
+              await interaction.reply({ content: '❌ No active story to make choices in.', ephemeral: true });
+              return;
+            }
+
+            const storyState = typeof currentSession.storyState === 'string' 
+              ? JSON.parse(currentSession.storyState) 
+              : currentSession.storyState;
+
+            const choices = storyState.choices || [];
+            if (choiceIndex >= choices.length) {
+              await interaction.reply({ content: '❌ That choice is no longer available.', ephemeral: true });
+              return;
+            }
+
+            const selectedChoice = choices[choiceIndex];
+            
+            // Store the pending choice for the web app to pick up
+            await storage.createPendingDiscordChoice({
+              campaignId: campaignId,
+              sessionNumber: campaign.currentSession,
+              discordUserId: interaction.user.id,
+              userId: everdiceUser.id,
+              choiceIndex: choiceIndex,
+              choiceText: selectedChoice
+            });
+
+            // Acknowledge the choice
+            await interaction.reply({ 
+              content: `✅ **${interaction.user.displayName}** chose: "${selectedChoice}"\n\n*The story will advance when processed in Everdice.*`,
+              ephemeral: false
+            });
+
+            console.log(`[Discord] Choice stored: Campaign ${campaignId}, Choice ${choiceIndex}: "${selectedChoice}" by ${interaction.user.displayName}`);
+          }
+        }
       });
     }
 
@@ -407,8 +669,37 @@ export function getDiscordStatus() {
   };
 }
 
+// Grant a Discord user access to a campaign channel
+export async function grantChannelAccess(channelId: string, discordUserId: string): Promise<boolean> {
+  if (!discordClient || !isConnected) {
+    console.log('[Discord] Cannot grant access - not connected');
+    return false;
+  }
+
+  try {
+    const channel = await discordClient.channels.fetch(channelId);
+    if (!channel || !(channel instanceof TextChannel)) {
+      console.error('[Discord] Channel not found:', channelId);
+      return false;
+    }
+
+    // Grant view and send permissions to the user
+    await channel.permissionOverwrites.create(discordUserId, {
+      ViewChannel: true,
+      SendMessages: true,
+      ReadMessageHistory: true
+    });
+
+    console.log(`[Discord] Granted channel access to user ${discordUserId}`);
+    return true;
+  } catch (error: any) {
+    console.error('[Discord] Failed to grant channel access:', error.message);
+    return false;
+  }
+}
+
 // Send a message to a Discord channel
-export async function sendToChannel(channelId: string, message: string | EmbedBuilder): Promise<boolean> {
+export async function sendToChannel(channelId: string, message: string | EmbedBuilder, components?: ActionRowBuilder<ButtonBuilder>[]): Promise<boolean> {
   if (!discordClient || !isConnected) {
     console.log('[Discord] Cannot send message - not connected');
     return false;
@@ -422,9 +713,9 @@ export async function sendToChannel(channelId: string, message: string | EmbedBu
     }
 
     if (typeof message === 'string') {
-      await channel.send(message);
+      await channel.send({ content: message, components: components || [] });
     } else {
-      await channel.send({ embeds: [message] });
+      await channel.send({ embeds: [message], components: components || [] });
     }
     return true;
   } catch (error: any) {
@@ -488,10 +779,7 @@ export async function postCampaignEvent(
   eventType: 'session_start' | 'session_end' | 'story_update' | 'player_choice' | 'combat_round', 
   data?: any
 ): Promise<boolean> {
-  console.log('[Discord postCampaignEvent] Called with:', { eventType, channelId: campaign.discordChannelId, isDeployed: campaign.isDiscordDeployed });
-  
   if (!campaign.discordChannelId || !campaign.isDiscordDeployed) {
-    console.log('[Discord postCampaignEvent] Skipping - campaign not deployed');
     return false;
   }
 
@@ -510,6 +798,19 @@ export async function postCampaignEvent(
           .setColor(0x3B82F6)
           .setDescription(data?.content?.slice(0, 4000) || 'The adventure continues...')
           .setFooter({ text: 'Everdice • Live Update' });
+        
+        // Add choice buttons if choices are provided
+        if (data?.choices && Array.isArray(data.choices) && data.choices.length > 0) {
+          const buttons = data.choices.slice(0, 5).map((choice: string, index: number) => 
+            new ButtonBuilder()
+              .setCustomId(`choice_${campaign.id}_${index}`)
+              .setLabel(choice.slice(0, 80))
+              .setStyle(ButtonStyle.Primary)
+          );
+          
+          const row = new ActionRowBuilder<ButtonBuilder>().addComponents(buttons);
+          return await sendToChannel(campaign.discordChannelId, embed, [row]);
+        }
         break;
       case 'player_choice':
         embed = new EmbedBuilder()
@@ -547,10 +848,7 @@ export async function postCampaignEvent(
         return false;
     }
     
-    console.log('[Discord postCampaignEvent] Sending to channel...');
-    const result = await sendToChannel(campaign.discordChannelId, embed);
-    console.log('[Discord postCampaignEvent] Send result:', result);
-    return result;
+    return await sendToChannel(campaign.discordChannelId, embed);
   } catch (error: any) {
     console.error('[Discord] Failed to post campaign event:', error.message);
     return false;

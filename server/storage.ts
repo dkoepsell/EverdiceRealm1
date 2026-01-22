@@ -1,5 +1,7 @@
 import { 
   users, type User, type InsertUser,
+  discordConnections,
+  pendingDiscordChoices,
   characters, type Character, type InsertCharacter,
   campaigns, type Campaign, type InsertCampaign,
   campaignSessions, type CampaignSession, type InsertCampaignSession,
@@ -66,10 +68,22 @@ export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByDiscordId(discordUserId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(userId: number, updates: Partial<User>): Promise<User | undefined>;
   updateUserProfile(userId: number, updates: { displayName?: string; email?: string | null }): Promise<User | undefined>;
   updateUserLastLogin(userId: number): Promise<void>;
+  linkDiscordAccount(userId: number, discordUserId: string, discordUsername: string): Promise<User | undefined>;
+  
+  // Discord connection operations
+  createDiscordConnection(discordUserId: string, discordUsername: string, connectionCode: string): Promise<any>;
+  getDiscordConnectionByCode(code: string): Promise<any>;
+  deleteDiscordConnection(id: number): Promise<boolean>;
+  
+  // Pending Discord choices operations
+  createPendingDiscordChoice(data: { campaignId: number; sessionNumber: number; discordUserId: string; userId: number; choiceIndex: number; choiceText: string }): Promise<any>;
+  getPendingDiscordChoice(campaignId: number): Promise<any>;
+  markPendingChoiceProcessed(id: number): Promise<boolean>;
   
   // User Session operations
   createUserSession(session: InsertUserSession): Promise<UserSession>;
@@ -450,6 +464,57 @@ export class MemStorage implements IStorage {
     const user: User = { ...insertUser, id };
     this.users.set(id, user);
     return user;
+  }
+
+  async getUserByDiscordId(discordUserId: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(u => u.discordUserId === discordUserId);
+  }
+
+  async updateUser(userId: number, updates: Partial<User>): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (!user) return undefined;
+    const updated = { ...user, ...updates };
+    this.users.set(userId, updated);
+    return updated;
+  }
+
+  async updateUserProfile(userId: number, updates: { displayName?: string; email?: string | null }): Promise<User | undefined> {
+    return this.updateUser(userId, updates);
+  }
+
+  async updateUserLastLogin(userId: number): Promise<void> {
+    const user = this.users.get(userId);
+    if (user) {
+      this.users.set(userId, { ...user, lastLogin: new Date().toISOString() });
+    }
+  }
+
+  async linkDiscordAccount(userId: number, discordUserId: string, discordUsername: string): Promise<User | undefined> {
+    return this.updateUser(userId, { discordUserId, discordUsername });
+  }
+
+  async createDiscordConnection(discordUserId: string, discordUsername: string, connectionCode: string): Promise<any> {
+    return { id: 1, discordUserId, discordUsername, connectionCode, expiresAt: new Date(Date.now() + 600000).toISOString() };
+  }
+
+  async getDiscordConnectionByCode(code: string): Promise<any> {
+    return undefined;
+  }
+
+  async deleteDiscordConnection(id: number): Promise<boolean> {
+    return true;
+  }
+
+  async createPendingDiscordChoice(data: { campaignId: number; sessionNumber: number; discordUserId: string; userId: number; choiceIndex: number; choiceText: string }): Promise<any> {
+    return { id: 1, ...data };
+  }
+
+  async getPendingDiscordChoice(campaignId: number): Promise<any> {
+    return undefined;
+  }
+
+  async markPendingChoiceProcessed(id: number): Promise<boolean> {
+    return true;
   }
   
   // Character operations
@@ -986,6 +1051,75 @@ export class DatabaseStorage implements IStorage {
       .update(users)
       .set({ lastLogin: new Date().toISOString() })
       .where(eq(users.id, userId));
+  }
+
+  async getUserByDiscordId(discordUserId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.discordUserId, discordUserId));
+    return user || undefined;
+  }
+
+  async linkDiscordAccount(userId: number, discordUserId: string, discordUsername: string): Promise<User | undefined> {
+    const [updated] = await db
+      .update(users)
+      .set({ discordUserId, discordUsername })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated || undefined;
+  }
+
+  // Discord connection operations
+  async createDiscordConnection(discordUserId: string, discordUsername: string, connectionCode: string): Promise<any> {
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
+    const [connection] = await db
+      .insert(discordConnections)
+      .values({ discordUserId, discordUsername, connectionCode, expiresAt })
+      .returning();
+    return connection;
+  }
+
+  async getDiscordConnectionByCode(code: string): Promise<any> {
+    const [connection] = await db
+      .select()
+      .from(discordConnections)
+      .where(eq(discordConnections.connectionCode, code));
+    return connection || undefined;
+  }
+
+  async deleteDiscordConnection(id: number): Promise<boolean> {
+    const result = await db.delete(discordConnections).where(eq(discordConnections.id, id));
+    return true;
+  }
+
+  // Pending Discord choices operations
+  async createPendingDiscordChoice(data: { campaignId: number; sessionNumber: number; discordUserId: string; userId: number; choiceIndex: number; choiceText: string }): Promise<any> {
+    const [choice] = await db
+      .insert(pendingDiscordChoices)
+      .values({
+        campaignId: data.campaignId,
+        sessionNumber: data.sessionNumber,
+        discordUserId: data.discordUserId,
+        userId: data.userId,
+        choiceIndex: data.choiceIndex,
+        choiceText: data.choiceText,
+        createdAt: new Date().toISOString(),
+        processed: false
+      })
+      .returning();
+    return choice;
+  }
+
+  async getPendingDiscordChoice(campaignId: number): Promise<any> {
+    const [choice] = await db
+      .select()
+      .from(pendingDiscordChoices)
+      .where(and(eq(pendingDiscordChoices.campaignId, campaignId), eq(pendingDiscordChoices.processed, false)))
+      .orderBy(pendingDiscordChoices.createdAt);
+    return choice || undefined;
+  }
+
+  async markPendingChoiceProcessed(id: number): Promise<boolean> {
+    await db.update(pendingDiscordChoices).set({ processed: true }).where(eq(pendingDiscordChoices.id, id));
+    return true;
   }
   
   // User Session operations

@@ -15,6 +15,31 @@ export const users = pgTable("users", {
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
   twoFactorSecret: text("two_factor_secret"),
   twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
+  discordUserId: text("discord_user_id"),
+  discordUsername: text("discord_username"),
+});
+
+// Discord connection codes for linking accounts
+export const discordConnections = pgTable("discord_connections", {
+  id: serial("id").primaryKey(),
+  discordUserId: text("discord_user_id").notNull(),
+  discordUsername: text("discord_username").notNull(),
+  connectionCode: text("connection_code").notNull().unique(),
+  expiresAt: text("expires_at").notNull(),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+// Pending Discord choices - stores choices made via Discord buttons for web app to pick up
+export const pendingDiscordChoices = pgTable("pending_discord_choices", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  sessionNumber: integer("session_number").notNull(),
+  discordUserId: text("discord_user_id").notNull(),
+  userId: integer("user_id").notNull(),
+  choiceIndex: integer("choice_index").notNull(),
+  choiceText: text("choice_text").notNull(),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  processed: boolean("processed").notNull().default(false),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
