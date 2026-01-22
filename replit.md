@@ -56,11 +56,20 @@ Preferred communication style: Simple, everyday language.
 - **AI-Powered Features**: Campaign/story generation, dynamic narrative, character backgrounds/portraits, DM assistance (NPCs, locations, quests, monsters). AI focuses on exploration, discovery, mystery, and social encounters.
 - **DM Toolkit**: NPC/location/quest/monster generators, campaign notes, invitation system, Discord integration.
 - **Discord Integration**: Full bot integration (Everdice#1320) enabling D&D campaigns playable through Discord channels:
-    - **Slash Commands**: `/everdice link`, `/everdice roll`, `/everdice recap`, `/everdice status`, `/everdice unlink`
+    - **20+ Slash Commands** organized into categories:
+      - Core: `/everdice help`, `/everdice ping`
+      - Campaign: `/everdice link`, `/everdice unlink`, `/everdice status`, `/everdice recap`
+      - Session (DM): `/everdice start-session`, `/everdice pause-session`, `/everdice end-session`
+      - Dice & Mechanics: `/everdice roll`, `/everdice save`, `/everdice skill`, `/everdice initiative`, `/everdice damage`
+      - Scene & NPCs: `/everdice scene`, `/everdice npc list`, `/everdice npc show`
+      - Player: `/everdice my-character`, `/everdice inventory`, `/everdice hp`
+      - Configuration: `/everdice config`
     - **Campaign Linking**: Deploy campaigns to Discord channels using deployment codes
-    - **Dice Rolling**: Support for standard notation (1d20+5, 2d6), advantage/disadvantage, critical detection
+    - **Dice Rolling**: Support for standard notation (1d20+5, 2d6), advantage/disadvantage, critical detection, saving throws, skill checks
+    - **Character Integration**: View character sheets, stats, HP, and inventory directly in Discord
+    - **Session Management**: Start/pause/end sessions with automatic recap generation
+    - **Scene & NPC Display**: View current scene and NPC information from campaign data
     - **Auto-posting**: Session events automatically posted to linked Discord channels
-    - **Campaign Recaps**: AI-generated story recaps accessible via Discord commands
 - **Campaign Dashboard**: DM-only tab in campaign panel with AI-powered narrative insights, quest tracking, party status overview, and story hook suggestions. Uses GPT-4o to analyze campaign state and highlight critical junctures.
 - **Tavern System**: Between-campaign hub at `/tavern` for:
     - **Shop**: Buy weapons, armor, potions, and adventuring gear with gold/silver

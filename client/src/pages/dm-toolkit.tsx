@@ -4871,79 +4871,121 @@ function DiscordIntegrationTab() {
             Discord Slash Commands
           </CardTitle>
           <CardDescription>
-            Players can use these commands in any channel linked to an Everdice campaign
+            Full list of commands available in Discord channels linked to Everdice campaigns
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y">
-            <div className="p-4 hover:bg-muted/50 transition-colors">
-              <div className="flex items-start gap-3">
-                <code className="px-2 py-1 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-sm whitespace-nowrap">
-                  /everdice link code:&lt;code&gt;
-                </code>
-                <div className="flex-1">
-                  <p className="font-medium">Link a Campaign</p>
-                  <p className="text-sm text-muted-foreground">
-                    Connect an Everdice campaign to the current Discord channel using its deployment code.
-                  </p>
-                </div>
-              </div>
+            <div className="p-4 bg-muted/30">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Core Commands</p>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice help</code>
+              <span className="text-sm text-muted-foreground ml-2">Show all available commands</span>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice ping</code>
+              <span className="text-sm text-muted-foreground ml-2">Check bot latency</span>
             </div>
             
-            <div className="p-4 hover:bg-muted/50 transition-colors">
-              <div className="flex items-start gap-3">
-                <code className="px-2 py-1 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-sm whitespace-nowrap">
-                  /everdice roll dice:&lt;notation&gt;
-                </code>
-                <div className="flex-1">
-                  <p className="font-medium">Roll Dice</p>
-                  <p className="text-sm text-muted-foreground">
-                    Roll dice using D&D notation. Examples: <code className="text-xs bg-muted px-1 rounded">1d20+5</code>, <code className="text-xs bg-muted px-1 rounded">2d6</code>, <code className="text-xs bg-muted px-1 rounded">1d20 advantage</code>, <code className="text-xs bg-muted px-1 rounded">1d20 disadvantage</code>
-                  </p>
-                </div>
-              </div>
+            <div className="p-4 bg-muted/30">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Campaign Commands</p>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice link code:&lt;code&gt;</code>
+              <span className="text-sm text-muted-foreground ml-2">Link campaign to this channel</span>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice unlink</code>
+              <span className="text-sm text-muted-foreground ml-2">Disconnect channel from campaign</span>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice status</code>
+              <span className="text-sm text-muted-foreground ml-2">Show campaign info and adventurers</span>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice recap</code>
+              <span className="text-sm text-muted-foreground ml-2">Get story summary</span>
             </div>
             
-            <div className="p-4 hover:bg-muted/50 transition-colors">
-              <div className="flex items-start gap-3">
-                <code className="px-2 py-1 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-sm whitespace-nowrap">
-                  /everdice recap
-                </code>
-                <div className="flex-1">
-                  <p className="font-medium">Get Campaign Recap</p>
-                  <p className="text-sm text-muted-foreground">
-                    Retrieve the latest story summary and session recap for the linked campaign.
-                  </p>
-                </div>
-              </div>
+            <div className="p-4 bg-muted/30">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Session Commands (DM Only)</p>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice start-session</code>
+              <span className="text-sm text-muted-foreground ml-2">Begin a new game session</span>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice pause-session</code>
+              <span className="text-sm text-muted-foreground ml-2">Pause the current session</span>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice end-session</code>
+              <span className="text-sm text-muted-foreground ml-2">End session with recap</span>
             </div>
             
-            <div className="p-4 hover:bg-muted/50 transition-colors">
-              <div className="flex items-start gap-3">
-                <code className="px-2 py-1 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-sm whitespace-nowrap">
-                  /everdice status
-                </code>
-                <div className="flex-1">
-                  <p className="font-medium">Campaign Status</p>
-                  <p className="text-sm text-muted-foreground">
-                    Show current session number, difficulty, narrative style, and active adventurers.
-                  </p>
-                </div>
-              </div>
+            <div className="p-4 bg-muted/30">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Dice & Mechanics</p>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice roll dice:&lt;notation&gt;</code>
+              <span className="text-sm text-muted-foreground ml-2">Roll dice (1d20+5, 2d6 advantage)</span>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice save stat:&lt;stat&gt;</code>
+              <span className="text-sm text-muted-foreground ml-2">Make a saving throw (str, dex, con, int, wis, cha)</span>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice skill skill:&lt;skill&gt;</code>
+              <span className="text-sm text-muted-foreground ml-2">Make a skill check (perception, stealth, etc.)</span>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice initiative</code>
+              <span className="text-sm text-muted-foreground ml-2">Roll initiative for combat</span>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice damage amount:&lt;n&gt;</code>
+              <span className="text-sm text-muted-foreground ml-2">Apply damage to a character</span>
             </div>
             
-            <div className="p-4 hover:bg-muted/50 transition-colors">
-              <div className="flex items-start gap-3">
-                <code className="px-2 py-1 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-sm whitespace-nowrap">
-                  /everdice unlink
-                </code>
-                <div className="flex-1">
-                  <p className="font-medium">Unlink Campaign</p>
-                  <p className="text-sm text-muted-foreground">
-                    Disconnect this channel from its linked campaign.
-                  </p>
-                </div>
-              </div>
+            <div className="p-4 bg-muted/30">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Scene & NPCs</p>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice scene</code>
+              <span className="text-sm text-muted-foreground ml-2">View the current scene</span>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice npc action:list</code>
+              <span className="text-sm text-muted-foreground ml-2">List all known NPCs</span>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice npc action:show name:&lt;name&gt;</code>
+              <span className="text-sm text-muted-foreground ml-2">View NPC details</span>
+            </div>
+            
+            <div className="p-4 bg-muted/30">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Player Commands</p>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice my-character</code>
+              <span className="text-sm text-muted-foreground ml-2">View your character sheet</span>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice inventory</code>
+              <span className="text-sm text-muted-foreground ml-2">Show your inventory and gold</span>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice hp [change:&lt;n&gt;]</code>
+              <span className="text-sm text-muted-foreground ml-2">View or adjust hit points</span>
+            </div>
+            
+            <div className="p-4 bg-muted/30">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Configuration (DM Only)</p>
+            </div>
+            <div className="p-3 hover:bg-muted/50 transition-colors">
+              <code className="px-2 py-0.5 bg-[#5865F2]/10 text-[#5865F2] rounded font-mono text-xs">/everdice config setting:&lt;name&gt; value:&lt;on|off&gt;</code>
+              <span className="text-sm text-muted-foreground ml-2">Configure bot settings</span>
             </div>
           </div>
         </CardContent>
