@@ -15563,5 +15563,85 @@ ALWAYS generate:
     }
   });
 
+  // ============ Discord Integration Routes ============
+  
+  // Get Discord connection status and guilds
+  app.get("/api/discord/status", requireAdmin, async (req, res) => {
+    try {
+      const { getDiscordGuilds } = await import("./discord");
+      const guilds = await getDiscordGuilds();
+      res.json({ connected: true, guilds });
+    } catch (error: any) {
+      console.error("Discord connection error:", error);
+      res.json({ connected: false, error: error.message });
+    }
+  });
+  
+  // Send announcement to Discord
+  app.post("/api/discord/announce", requireAdmin, async (req, res) => {
+    try {
+      const { title, content, channelId } = req.body;
+      
+      if (!title || !content) {
+        return res.status(400).json({ message: "Title and content are required" });
+      }
+      
+      const { postAnnouncement } = await import("./discord");
+      const result = await postAnnouncement(title, content, channelId);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Discord announcement error:", error);
+      res.status(500).json({ message: error.message || "Failed to post announcement" });
+    }
+  });
+  
+  // Post LFG to Discord (for users posting to bulletin board)
+  app.post("/api/discord/lfg", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { characterName, characterClass, characterLevel, message, channelId } = req.body;
+      
+      if (!characterName || !message) {
+        return res.status(400).json({ message: "Character name and message are required" });
+      }
+      
+      const { postLFGToDiscord } = await import("./discord");
+      const result = await postLFGToDiscord(
+        user.username,
+        characterName,
+        characterClass || "Adventurer",
+        characterLevel || 1,
+        message,
+        channelId
+      );
+      res.json(result);
+    } catch (error: any) {
+      console.error("Discord LFG error:", error);
+      res.status(500).json({ message: error.message || "Failed to post LFG" });
+    }
+  });
+  
+  // Post campaign event to Discord
+  app.post("/api/discord/campaign-event", isAuthenticated, async (req, res) => {
+    try {
+      const { campaignTitle, eventType, details, channelId } = req.body;
+      
+      if (!campaignTitle || !eventType) {
+        return res.status(400).json({ message: "Campaign title and event type are required" });
+      }
+      
+      if (!['started', 'completed', 'session_ended'].includes(eventType)) {
+        return res.status(400).json({ message: "Invalid event type" });
+      }
+      
+      const { postCampaignEvent } = await import("./discord");
+      const result = await postCampaignEvent(campaignTitle, eventType, details, channelId);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Discord campaign event error:", error);
+      res.status(500).json({ message: error.message || "Failed to post campaign event" });
+    }
+  });
+
   return httpServer;
 }
