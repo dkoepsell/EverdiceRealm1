@@ -1923,8 +1923,8 @@ export class DatabaseStorage implements IStorage {
     
     // Create sample user
     const user = await this.createUser({
-      username: "demo_user",
-      password: "password123"
+      username: process.env.DEMO_USER_NAME || "demo_user",
+      password: process.env.DEMO_USER_PASSWORD || "demo_password"
     });
     
     // Create stock companion NPCs
