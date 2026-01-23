@@ -12666,11 +12666,14 @@ Choices should include 4 options with at least 2 requiring dice rolls.
       // Post to Discord if campaign is deployed there
       const campaignForDiscord = await storage.getCampaign(campaignId);
       if (campaignForDiscord?.isDiscordDeployed && campaignForDiscord.discordChannelId) {
-        // Post player choice first
+        // Post player choice first - extract numeric roll value from rollResult object
+        const rollValue = rollResult?.total ?? rollResult?.result ?? (typeof rollResult === 'number' ? rollResult : null);
+        const rollBreakdown = rollResult ? `${rollResult.diceType || 'd20'}(${rollResult.result || '?'}) + ${rollResult.modifier || 0} = ${rollResult.total || rollResult.result || '?'}` : null;
         postCampaignEvent(campaignForDiscord, 'player_choice', {
           characterName: playerCharacter?.name || 'A hero',
           choice: choice,
-          rollResult: rollResult
+          rollResult: rollValue,
+          rollBreakdown: rollBreakdown
         }).catch(err => console.log('[Discord] Failed to post player choice:', err.message));
         
         // Post narrative update with choices for interactive play

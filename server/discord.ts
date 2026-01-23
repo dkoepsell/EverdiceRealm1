@@ -932,12 +932,13 @@ export async function postCampaignEvent(
           .setColor(0xD4A574) // Amber for player actions
           .setTitle(`⚔️ ${data?.characterName || 'A hero'} takes action`)
           .setDescription(data?.choice?.slice(0, 500) || 'Made a decision...');
-        if (data?.rollResult) {
+        if (data?.rollResult != null && typeof data.rollResult === 'number') {
           const isNat20 = data.rollResult === 20;
           const isNat1 = data.rollResult === 1;
+          const rollDisplay = data.rollBreakdown || `**${data.rollResult}**`;
           embed.addFields({
             name: isNat20 ? '✨ Natural 20!' : isNat1 ? '💀 Natural 1!' : '🎲 Roll Result',
-            value: `**${data.rollResult}**`,
+            value: rollDisplay,
             inline: true
           });
           if (isNat20) embed.setColor(0x22C55E);
