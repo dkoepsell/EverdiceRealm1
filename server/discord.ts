@@ -902,16 +902,30 @@ export async function postCampaignEvent(
         
         // Add choice buttons if choices are provided
         if (data?.choices && Array.isArray(data.choices) && data.choices.length > 0) {
-          const buttons = data.choices.slice(0, 5).map((choice: string, index: number) => 
-            new ButtonBuilder()
-              .setCustomId(`choice_${campaign.id}_${index}`)
-              .setLabel(choice.slice(0, 80))
-              .setStyle(ButtonStyle.Primary)
-          );
-          
-          const row = new ActionRowBuilder<ButtonBuilder>().addComponents(buttons);
-          return await sendToChannel(campaign.discordChannelId, embed, [row]);
+          try {
+            // Filter out empty/invalid choices and create buttons
+            const validChoices = data.choices
+              .filter((choice: any) => typeof choice === 'string' && choice.trim().length > 0)
+              .slice(0, 5);
+            
+            if (validChoices.length > 0) {
+              const buttons = validChoices.map((choice: string, index: number) => 
+                new ButtonBuilder()
+                  .setCustomId(`choice_${campaign.id}_${index}`)
+                  .setLabel(choice.trim().slice(0, 80) || `Option ${index + 1}`)
+                  .setStyle(ButtonStyle.Primary)
+              );
+              
+              const row = new ActionRowBuilder<ButtonBuilder>().addComponents(buttons);
+              return await sendToChannel(campaign.discordChannelId, embed, [row]);
+            }
+          } catch (buttonError: any) {
+            console.error('[Discord] Failed to create choice buttons:', buttonError.message);
+            // Fall through to send without buttons
+          }
         }
+        // Send without buttons if no valid choices or button creation failed
+        return await sendToChannel(campaign.discordChannelId, embed);
         break;
       case 'player_choice':
         embed = new EmbedBuilder()
