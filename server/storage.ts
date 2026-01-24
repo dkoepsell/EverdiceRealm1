@@ -2046,8 +2046,71 @@ export class DatabaseStorage implements IStorage {
   async migrateDungeonMapsWithNarrative() {
     console.log("Migrating existing dungeon maps to include narrative data...");
     
+    // Environment-specific tile descriptions
+    const ENVIRONMENT_TILE_NARRATIVES: Record<string, Record<string, { short: string; atmosphere: string }>> = {
+      dungeon: {
+        floor: { short: 'Stone floor worn by ages', atmosphere: 'Cold stone echoes your footsteps' },
+        wall: { short: 'Ancient stonework', atmosphere: 'Massive blocks fitted without mortar' },
+        corridor: { short: 'Narrow passage', atmosphere: 'Shadows dance in the torchlight' },
+        default: { short: 'Dark chamber', atmosphere: 'Shadows cling to every corner' }
+      },
+      forest: {
+        grass: { short: 'Forest clearing', atmosphere: 'Dappled sunlight filters through leaves' },
+        path: { short: 'Winding trail', atmosphere: 'A well-worn path through the trees' },
+        tree: { short: 'Dense foliage', atmosphere: 'Ancient oaks tower above' },
+        dense_forest: { short: 'Impenetrable thicket', atmosphere: 'Thorns and brambles block the way' },
+        clearing: { short: 'Sunlit glade', atmosphere: 'A peaceful break in the canopy' },
+        default: { short: 'Forest floor', atmosphere: 'Birds sing in the branches above' }
+      },
+      cave: {
+        floor: { short: 'Cavern floor', atmosphere: 'Smooth stone worn by water' },
+        rock: { short: 'Solid rock wall', atmosphere: 'Natural stone formations' },
+        stalactite: { short: 'Crystal formations', atmosphere: 'Minerals glitter faintly' },
+        underground_lake: { short: 'Dark waters', atmosphere: 'Still black water reflects nothing' },
+        default: { short: 'Cave passage', atmosphere: 'Echoes reverberate in the darkness' }
+      },
+      town: {
+        road: { short: 'Cobblestone street', atmosphere: 'Busy market sounds surround you' },
+        building: { short: 'Stone structure', atmosphere: 'Smoke rises from chimneys' },
+        market: { short: 'Market square', atmosphere: 'Merchants hawk their wares' },
+        tavern: { short: 'Welcoming tavern', atmosphere: 'Warmth and laughter spill out' },
+        well: { short: 'Town well', atmosphere: 'Fresh water bubbles up' },
+        default: { short: 'Town center', atmosphere: 'Citizens go about their day' }
+      },
+      swamp: {
+        mud: { short: 'Squelching mud', atmosphere: 'Your boots sink with each step' },
+        bog: { short: 'Treacherous bog', atmosphere: 'Murky water conceals dangers' },
+        reeds: { short: 'Tall reeds', atmosphere: 'Things rustle unseen' },
+        bridge: { short: 'Rickety crossing', atmosphere: 'Rotting planks creak ominously' },
+        default: { short: 'Fetid marsh', atmosphere: 'Mist clings to everything' }
+      },
+      desert: {
+        sand: { short: 'Endless sands', atmosphere: 'Heat shimmers on the horizon' },
+        dune: { short: 'Towering dune', atmosphere: 'Wind-sculpted sand rises high' },
+        oasis: { short: 'Blessed oasis', atmosphere: 'Palm trees offer shade' },
+        default: { short: 'Scorched earth', atmosphere: 'The sun beats down mercilessly' }
+      },
+      mountain: {
+        path: { short: 'Rocky trail', atmosphere: 'Loose stones shift underfoot' },
+        rock: { short: 'Sheer cliff', atmosphere: 'Jagged peaks pierce the sky' },
+        clearing: { short: 'Mountain plateau', atmosphere: 'Wind howls across the heights' },
+        default: { short: 'High ground', atmosphere: 'The world spreads below you' }
+      }
+    };
+    
+    // Detect environment from map name
+    function detectEnvironment(name?: string): string {
+      const text = (name || '').toLowerCase();
+      if (text.includes('forest') || text.includes('glade') || text.includes('grove') || text.includes('wood')) return 'forest';
+      if (text.includes('cave') || text.includes('cavern')) return 'cave';
+      if (text.includes('swamp') || text.includes('marsh') || text.includes('bog')) return 'swamp';
+      if (text.includes('mountain') || text.includes('peak') || text.includes('cliff')) return 'mountain';
+      if (text.includes('desert') || text.includes('dune') || text.includes('sand')) return 'desert';
+      if (text.includes('town') || text.includes('city') || text.includes('village')) return 'town';
+      return 'dungeon';
+    }
+    
     try {
-      // Get all dungeon maps
       const allMaps = await db.select().from(campaignDungeonMaps);
       let migratedCount = 0;
       
@@ -2062,73 +2125,85 @@ export class DatabaseStorage implements IStorage {
         
         let needsUpdate = false;
         
-        // Check if tiles already have narrative data
         const firstTileRow = mapData.tiles[0];
         if (firstTileRow && firstTileRow[0] && firstTileRow[0].narrative !== undefined) {
-          continue; // Already migrated
+          continue;
         }
         
-        // Add narrative structure to each tile
+        // Detect environment and set on map data
+        const environment = mapData.environment || detectEnvironment(mapData.name);
+        mapData.environment = environment;
+        const envNarratives = ENVIRONMENT_TILE_NARRATIVES[environment] || ENVIRONMENT_TILE_NARRATIVES.dungeon;
+        
         mapData.tiles = mapData.tiles.map((row: any[], y: number) => 
           row.map((tile: any, x: number) => {
-            // Generate basic narrative based on tile type
+            const tileNarrative = envNarratives[tile.type] || envNarratives.default;
+            
             let narrative: any = {
               discovered: tile.explored || tile.visible || false,
               dangerLevel: 'safe',
-              interactable: false
+              interactable: false,
+              shortDescription: tileNarrative?.short
             };
             
-            // Add contextual descriptions based on tile type
             switch (tile.type) {
               case 'treasure':
-                narrative.shortDescription = 'A glittering treasure awaits';
+                narrative.shortDescription = environment === 'forest' ? 'Hidden cache beneath roots' : 
+                                             environment === 'desert' ? 'Buried treasure glints' : 
+                                             'A glittering treasure awaits';
                 narrative.items = ['Treasure chest'];
                 narrative.interactable = true;
                 break;
               case 'trap':
-                narrative.shortDescription = 'Danger lurks here';
+                narrative.shortDescription = environment === 'forest' ? 'Concealed snare' : 
+                                             environment === 'swamp' ? 'Quicksand pit' : 
+                                             'Danger lurks here';
                 narrative.dangerLevel = 'medium';
                 narrative.events = ['Trap detected'];
                 break;
+              case 'pit':
+                narrative.shortDescription = environment === 'cave' ? 'Bottomless chasm' : 
+                                             environment === 'mountain' ? 'Sheer drop' : 
+                                             'Dark pit';
+                narrative.dangerLevel = 'high';
+                break;
               case 'secret_door':
-                narrative.secretInfo = 'A hidden passage lies concealed';
+                narrative.secretInfo = environment === 'forest' ? 'Vines conceal a hidden path' : 
+                                       environment === 'cave' ? 'A crack in the wall opens' : 
+                                       'A hidden passage lies concealed';
                 narrative.discovered = false;
                 break;
               case 'stairs_up':
               case 'stairs_down':
-                narrative.shortDescription = tile.type === 'stairs_up' ? 'Stairs leading up' : 'Stairs leading down';
+                narrative.shortDescription = environment === 'forest' ? (tile.type === 'stairs_up' ? 'Uphill trail' : 'Downhill path') :
+                                             environment === 'cave' ? (tile.type === 'stairs_up' ? 'Ascending tunnel' : 'Descending passage') :
+                                             (tile.type === 'stairs_up' ? 'Stairs leading up' : 'Stairs leading down');
                 narrative.interactable = true;
                 break;
               case 'door':
               case 'door_locked':
-                narrative.shortDescription = tile.type === 'door_locked' ? 'A locked door' : 'An open doorway';
+                narrative.shortDescription = environment === 'forest' ? (tile.type === 'door_locked' ? 'Blocked path' : 'Forest clearing') :
+                                             environment === 'cave' ? (tile.type === 'door_locked' ? 'Collapsed passage' : 'Cave opening') :
+                                             (tile.type === 'door_locked' ? 'A locked door' : 'An open doorway');
                 narrative.interactable = true;
-                break;
-              case 'floor':
-              case 'corridor':
-                // Only set description for player's position or special rooms
-                if (mapData.playerPosition && 
-                    mapData.playerPosition.x === x && 
-                    mapData.playerPosition.y === y) {
-                  narrative.shortDescription = mapData.currentRoom?.description || 'Current location';
-                  narrative.description = mapData.currentRoom?.description;
-                }
                 break;
             }
             
+            if (mapData.playerPosition && mapData.playerPosition.x === x && mapData.playerPosition.y === y) {
+              narrative.shortDescription = mapData.currentRoom?.description || narrative.shortDescription || 'Current location';
+              narrative.description = mapData.currentRoom?.description;
+            }
+            
             needsUpdate = true;
-            return {
-              ...tile,
-              narrative
-            };
+            return { ...tile, narrative };
           })
         );
         
-        // Add narrative context to map level if not present
         if (!mapData.narrativeContext) {
+          const envAtmosphere = envNarratives.default?.atmosphere || 'An air of mystery surrounds you';
           mapData.narrativeContext = {
-            theme: mapData.name || 'Mysterious dungeon',
-            atmosphere: mapData.lighting === 'dark' ? 'Shadows cling to every corner' : 'Dim torchlight flickers',
+            theme: mapData.name || 'Mysterious location',
+            atmosphere: mapData.lighting === 'dark' ? 'Darkness engulfs everything' : envAtmosphere,
             discoveredLore: [],
             storyHooks: []
           };
@@ -2143,7 +2218,7 @@ export class DatabaseStorage implements IStorage {
         }
       }
       
-      console.log(`Migrated ${migratedCount} dungeon maps with narrative data`);
+      console.log(`Migrated ${migratedCount} dungeon maps with environment-aware narrative data`);
     } catch (error) {
       console.error("Error migrating dungeon maps:", error);
     }

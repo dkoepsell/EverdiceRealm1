@@ -36,7 +36,34 @@ export type TileType =
   | "water"
   | "lava"
   | "pit"
-  | "fog";
+  | "fog"
+  // Nature/Forest tiles
+  | "grass"
+  | "tree"
+  | "dense_forest"
+  | "path"
+  | "bridge"
+  | "clearing"
+  // Town/Settlement tiles
+  | "road"
+  | "building"
+  | "market"
+  | "tavern"
+  | "well"
+  | "fence"
+  // Cave/Mountain tiles
+  | "rock"
+  | "rubble"
+  | "stalactite"
+  | "underground_lake"
+  // Desert tiles
+  | "sand"
+  | "dune"
+  | "oasis"
+  // Swamp tiles
+  | "mud"
+  | "reeds"
+  | "bog";
 
 export type EntityType = 
   | "player" 
@@ -122,6 +149,8 @@ export interface MapModification {
   };
 }
 
+export type MapEnvironment = "dungeon" | "forest" | "cave" | "castle" | "ruins" | "swamp" | "mountain" | "desert" | "town" | "underground";
+
 export interface DungeonMapData {
   width: number;
   height: number;
@@ -130,6 +159,7 @@ export interface DungeonMapData {
   playerPosition: { x: number; y: number };
   name?: string;
   level?: number;
+  environment?: MapEnvironment;  // Environment type for tile styling
   currentRoom?: DungeonRoomInfo;
   exits?: DungeonExit[];
   lighting?: string;
@@ -154,6 +184,33 @@ const TILE_COLORS: Record<TileType, { bg: string; border: string }> = {
   lava: { bg: "bg-orange-500 dark:bg-orange-600", border: "border-orange-600 dark:border-orange-400" },
   pit: { bg: "bg-gray-800 dark:bg-black", border: "border-gray-600 dark:border-gray-800" },
   fog: { bg: "bg-slate-300 dark:bg-slate-600", border: "border-slate-400 dark:border-slate-500" },
+  // Nature/Forest tiles
+  grass: { bg: "bg-green-300 dark:bg-green-600", border: "border-green-400 dark:border-green-500" },
+  tree: { bg: "bg-green-700 dark:bg-green-900", border: "border-green-600 dark:border-green-700" },
+  dense_forest: { bg: "bg-green-900 dark:bg-green-950", border: "border-green-700 dark:border-green-800" },
+  path: { bg: "bg-amber-300 dark:bg-amber-700", border: "border-amber-400 dark:border-amber-600" },
+  bridge: { bg: "bg-amber-600 dark:bg-amber-800", border: "border-amber-500 dark:border-amber-600" },
+  clearing: { bg: "bg-lime-200 dark:bg-lime-700", border: "border-lime-300 dark:border-lime-600" },
+  // Town/Settlement tiles
+  road: { bg: "bg-stone-400 dark:bg-stone-600", border: "border-stone-500 dark:border-stone-500" },
+  building: { bg: "bg-slate-600 dark:bg-slate-800", border: "border-slate-500 dark:border-slate-600" },
+  market: { bg: "bg-orange-300 dark:bg-orange-600", border: "border-orange-400 dark:border-orange-500" },
+  tavern: { bg: "bg-amber-500 dark:bg-amber-700", border: "border-amber-400 dark:border-amber-600" },
+  well: { bg: "bg-cyan-300 dark:bg-cyan-600", border: "border-cyan-400 dark:border-cyan-500" },
+  fence: { bg: "bg-amber-700 dark:bg-amber-900", border: "border-amber-600 dark:border-amber-700" },
+  // Cave/Mountain tiles
+  rock: { bg: "bg-gray-500 dark:bg-gray-700", border: "border-gray-400 dark:border-gray-600" },
+  rubble: { bg: "bg-stone-500 dark:bg-stone-700", border: "border-stone-400 dark:border-stone-600" },
+  stalactite: { bg: "bg-slate-500 dark:bg-slate-700", border: "border-slate-400 dark:border-slate-600" },
+  underground_lake: { bg: "bg-indigo-500 dark:bg-indigo-700", border: "border-indigo-400 dark:border-indigo-600" },
+  // Desert tiles
+  sand: { bg: "bg-yellow-200 dark:bg-yellow-600", border: "border-yellow-300 dark:border-yellow-500" },
+  dune: { bg: "bg-yellow-400 dark:bg-yellow-700", border: "border-yellow-500 dark:border-yellow-600" },
+  oasis: { bg: "bg-teal-400 dark:bg-teal-600", border: "border-teal-300 dark:border-teal-500" },
+  // Swamp tiles
+  mud: { bg: "bg-amber-800 dark:bg-amber-900", border: "border-amber-700 dark:border-amber-800" },
+  reeds: { bg: "bg-lime-600 dark:bg-lime-800", border: "border-lime-500 dark:border-lime-700" },
+  bog: { bg: "bg-emerald-800 dark:bg-emerald-900", border: "border-emerald-700 dark:border-emerald-800" },
 };
 
 const ENTITY_COLORS: Record<EntityType, string> = {

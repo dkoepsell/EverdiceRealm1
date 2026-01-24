@@ -1,4 +1,4 @@
-import type { DungeonMapData, MapTile, MapEntity, TileType } from "./DungeonMap";
+import type { DungeonMapData, MapTile, MapEntity, TileType, MapEnvironment } from "./DungeonMap";
 
 interface Room {
   x: number;
@@ -18,10 +18,126 @@ interface DungeonConfig {
   maxRooms: number;
   dungeonName?: string;
   dungeonLevel?: number;
+  environment?: MapEnvironment;
   enemyDensity?: number; // 0-1
   treasureDensity?: number; // 0-1
   trapDensity?: number; // 0-1
   secretDoorChance?: number; // 0-1
+}
+
+// Environment-specific tile mappings
+const ENVIRONMENT_TILES: Record<MapEnvironment, {
+  impassable: TileType;       // What blocks movement (walls, trees, buildings)
+  passable: TileType;         // Main walkable area (floor, grass, road)
+  corridor: TileType;         // Connection paths
+  door: TileType;             // Entrance/exit points
+  hazard?: TileType;          // Environmental hazard
+  feature?: TileType;         // Special environmental feature
+  decoration?: TileType[];    // Random decorative elements
+}> = {
+  dungeon: {
+    impassable: "wall",
+    passable: "floor",
+    corridor: "corridor",
+    door: "door",
+    hazard: "trap",
+    feature: "treasure",
+  },
+  forest: {
+    impassable: "dense_forest",
+    passable: "grass",
+    corridor: "path",
+    door: "clearing",
+    hazard: "trap",
+    feature: "treasure",
+    decoration: ["tree", "water"],
+  },
+  cave: {
+    impassable: "rock",
+    passable: "floor",
+    corridor: "corridor",
+    door: "door",
+    hazard: "pit",
+    feature: "stalactite",
+    decoration: ["rubble", "underground_lake"],
+  },
+  castle: {
+    impassable: "wall",
+    passable: "floor",
+    corridor: "corridor",
+    door: "door",
+    hazard: "trap",
+    feature: "treasure",
+  },
+  ruins: {
+    impassable: "rubble",
+    passable: "floor",
+    corridor: "corridor",
+    door: "door",
+    hazard: "pit",
+    feature: "treasure",
+    decoration: ["rubble"],
+  },
+  swamp: {
+    impassable: "bog",
+    passable: "mud",
+    corridor: "path",
+    door: "bridge",
+    hazard: "trap",
+    feature: "treasure",
+    decoration: ["reeds", "water"],
+  },
+  mountain: {
+    impassable: "rock",
+    passable: "path",
+    corridor: "path",
+    door: "clearing",
+    hazard: "pit",
+    feature: "treasure",
+    decoration: ["rubble"],
+  },
+  desert: {
+    impassable: "dune",
+    passable: "sand",
+    corridor: "path",
+    door: "oasis",
+    hazard: "pit",
+    feature: "oasis",
+    decoration: ["sand"],
+  },
+  town: {
+    impassable: "building",
+    passable: "road",
+    corridor: "road",
+    door: "door",
+    hazard: "fence",
+    feature: "well",
+    decoration: ["market", "tavern"],
+  },
+  underground: {
+    impassable: "rock",
+    passable: "floor",
+    corridor: "corridor",
+    door: "door",
+    hazard: "pit",
+    feature: "underground_lake",
+    decoration: ["stalactite", "rubble"],
+  },
+};
+
+// Helper to detect environment from name
+function detectEnvironmentFromName(name?: string): MapEnvironment {
+  const text = (name || "").toLowerCase();
+  if (text.includes("forest") || text.includes("glade") || text.includes("grove") || text.includes("wood")) return "forest";
+  if (text.includes("cave") || text.includes("cavern")) return "cave";
+  if (text.includes("castle") || text.includes("fortress") || text.includes("keep")) return "castle";
+  if (text.includes("ruin") || text.includes("temple") || text.includes("shrine")) return "ruins";
+  if (text.includes("swamp") || text.includes("marsh") || text.includes("bog")) return "swamp";
+  if (text.includes("mountain") || text.includes("peak") || text.includes("cliff")) return "mountain";
+  if (text.includes("desert") || text.includes("dune") || text.includes("sand")) return "desert";
+  if (text.includes("town") || text.includes("city") || text.includes("village")) return "town";
+  if (text.includes("underground") || text.includes("underdark") || text.includes("depths")) return "underground";
+  return "dungeon";
 }
 
 const DEFAULT_CONFIG: DungeonConfig = {
@@ -30,6 +146,7 @@ const DEFAULT_CONFIG: DungeonConfig = {
   minRoomSize: 4,
   maxRoomSize: 8,
   maxRooms: 8,
+  environment: "dungeon",
   enemyDensity: 0.4,
   treasureDensity: 0.2,
   trapDensity: 0.1,
@@ -39,13 +156,17 @@ const DEFAULT_CONFIG: DungeonConfig = {
 export function generateDungeon(config: Partial<DungeonConfig> = {}): DungeonMapData {
   const cfg = { ...DEFAULT_CONFIG, ...config };
   
-  // Initialize tiles with walls
+  // Detect environment from name if not specified
+  const environment = cfg.environment || detectEnvironmentFromName(cfg.dungeonName);
+  const envTiles = ENVIRONMENT_TILES[environment];
+  
+  // Initialize tiles with environment-appropriate impassable tiles
   const tiles: MapTile[][] = [];
   for (let y = 0; y < cfg.height; y++) {
     const row: MapTile[] = [];
     for (let x = 0; x < cfg.width; x++) {
       row.push({
-        type: "wall",
+        type: envTiles.impassable,
         explored: false,
         visible: false,
       });
@@ -89,7 +210,7 @@ export function generateDungeon(config: Partial<DungeonConfig> = {}): DungeonMap
       };
       
       rooms.push(newRoom);
-      carveRoom(tiles, newRoom);
+      carveRoom(tiles, newRoom, envTiles.passable);
     }
   }
   
@@ -132,26 +253,29 @@ export function generateDungeon(config: Partial<DungeonConfig> = {}): DungeonMap
     // Use L-shaped corridors
     if (Math.random() < 0.5) {
       // Horizontal first, then vertical
-      carveHorizontalCorridor(tiles, prevRoom.centerX, currentRoom.centerX, prevRoom.centerY);
-      carveVerticalCorridor(tiles, prevRoom.centerY, currentRoom.centerY, currentRoom.centerX);
+      carveHorizontalCorridor(tiles, prevRoom.centerX, currentRoom.centerX, prevRoom.centerY, envTiles);
+      carveVerticalCorridor(tiles, prevRoom.centerY, currentRoom.centerY, currentRoom.centerX, envTiles);
     } else {
       // Vertical first, then horizontal
-      carveVerticalCorridor(tiles, prevRoom.centerY, currentRoom.centerY, prevRoom.centerX);
-      carveHorizontalCorridor(tiles, prevRoom.centerX, currentRoom.centerX, currentRoom.centerY);
+      carveVerticalCorridor(tiles, prevRoom.centerY, currentRoom.centerY, prevRoom.centerX, envTiles);
+      carveHorizontalCorridor(tiles, prevRoom.centerX, currentRoom.centerX, currentRoom.centerY, envTiles);
     }
   }
   
   // Add doors at room entrances
-  placeDoors(tiles, rooms, cfg.secretDoorChance || 0.1);
+  placeDoors(tiles, rooms, cfg.secretDoorChance || 0.1, envTiles.door);
   
-  // Add traps
-  placeTraps(tiles, rooms, cfg.trapDensity || 0.1);
+  // Add traps/hazards using environment-specific hazard
+  placeTraps(tiles, rooms, cfg.trapDensity || 0.1, envTiles.hazard || "trap");
   
   // Add treasure
   placeTreasure(tiles, rooms);
   
-  // Generate entities
-  const entities = generateEntities(rooms, cfg);
+  // Add environmental decorations
+  addEnvironmentalDecorations(tiles, rooms, envTiles);
+  
+  // Generate entities with environment context
+  const entities = generateEntities(rooms, cfg, environment);
   
   // Player starts in entrance room
   const startRoom = rooms[0];
@@ -166,8 +290,9 @@ export function generateDungeon(config: Partial<DungeonConfig> = {}): DungeonMap
     tiles,
     entities,
     playerPosition,
-    name: cfg.dungeonName || generateDungeonName(),
+    name: cfg.dungeonName || generateDungeonName(environment),
     level: cfg.dungeonLevel || 1,
+    environment,
   };
 }
 
@@ -188,11 +313,11 @@ function distance(a: Room, b: Room): number {
   return Math.sqrt(Math.pow(a.centerX - b.centerX, 2) + Math.pow(a.centerY - b.centerY, 2));
 }
 
-function carveRoom(tiles: MapTile[][], room: Room): void {
+function carveRoom(tiles: MapTile[][], room: Room, floorType: TileType): void {
   for (let y = room.y; y < room.y + room.height; y++) {
     for (let x = room.x; x < room.x + room.width; x++) {
       tiles[y][x] = {
-        type: "floor",
+        type: floorType,
         explored: false,
         visible: false,
       };
@@ -200,13 +325,15 @@ function carveRoom(tiles: MapTile[][], room: Room): void {
   }
 }
 
-function carveHorizontalCorridor(tiles: MapTile[][], x1: number, x2: number, y: number): void {
+function carveHorizontalCorridor(tiles: MapTile[][], x1: number, x2: number, y: number, envTiles: typeof ENVIRONMENT_TILES[MapEnvironment]): void {
   const start = Math.min(x1, x2);
   const end = Math.max(x1, x2);
+  const impassableTypes: TileType[] = ["wall", "rock", "dense_forest", "building", "rubble", "bog", "dune"];
+  
   for (let x = start; x <= end; x++) {
-    if (tiles[y][x].type === "wall") {
+    if (impassableTypes.includes(tiles[y][x].type)) {
       tiles[y][x] = {
-        type: "floor",
+        type: envTiles.corridor,
         explored: false,
         visible: false,
       };
@@ -214,13 +341,15 @@ function carveHorizontalCorridor(tiles: MapTile[][], x1: number, x2: number, y: 
   }
 }
 
-function carveVerticalCorridor(tiles: MapTile[][], y1: number, y2: number, x: number): void {
+function carveVerticalCorridor(tiles: MapTile[][], y1: number, y2: number, x: number, envTiles: typeof ENVIRONMENT_TILES[MapEnvironment]): void {
   const start = Math.min(y1, y2);
   const end = Math.max(y1, y2);
+  const impassableTypes: TileType[] = ["wall", "rock", "dense_forest", "building", "rubble", "bog", "dune"];
+  
   for (let y = start; y <= end; y++) {
-    if (tiles[y][x].type === "wall") {
+    if (impassableTypes.includes(tiles[y][x].type)) {
       tiles[y][x] = {
-        type: "floor",
+        type: envTiles.corridor,
         explored: false,
         visible: false,
       };
@@ -228,9 +357,10 @@ function carveVerticalCorridor(tiles: MapTile[][], y1: number, y2: number, x: nu
   }
 }
 
-function placeDoors(tiles: MapTile[][], rooms: Room[], secretDoorChance: number): void {
+function placeDoors(tiles: MapTile[][], rooms: Room[], secretDoorChance: number, doorType: TileType): void {
+  const passableTypes: TileType[] = ["floor", "grass", "road", "path", "sand", "mud", "corridor"];
+  
   for (const room of rooms) {
-    // Check all border cells for corridor connections
     const borders = [
       ...Array.from({ length: room.width }, (_, i) => ({ x: room.x + i, y: room.y - 1 })), // Top
       ...Array.from({ length: room.width }, (_, i) => ({ x: room.x + i, y: room.y + room.height })), // Bottom
@@ -241,12 +371,11 @@ function placeDoors(tiles: MapTile[][], rooms: Room[], secretDoorChance: number)
     for (const pos of borders) {
       if (pos.x > 0 && pos.x < tiles[0].length - 1 && pos.y > 0 && pos.y < tiles.length - 1) {
         const tile = tiles[pos.y][pos.x];
-        if (tile.type === "floor") {
-          // This is a corridor entrance - place a door
+        if (passableTypes.includes(tile.type)) {
           if (Math.random() < 0.5) {
-            const doorType: TileType = Math.random() < secretDoorChance ? "secret_door" : "door";
+            const finalDoorType: TileType = Math.random() < secretDoorChance ? "secret_door" : doorType;
             tiles[pos.y][pos.x] = {
-              type: doorType,
+              type: finalDoorType,
               explored: false,
               visible: false,
             };
@@ -257,7 +386,9 @@ function placeDoors(tiles: MapTile[][], rooms: Room[], secretDoorChance: number)
   }
 }
 
-function placeTraps(tiles: MapTile[][], rooms: Room[], trapDensity: number): void {
+function placeTraps(tiles: MapTile[][], rooms: Room[], trapDensity: number, hazardType: TileType): void {
+  const passableTypes: TileType[] = ["floor", "grass", "road", "path", "sand", "mud", "corridor"];
+  
   for (const room of rooms) {
     if (room.type === "entrance" || room.type === "exit") continue;
     
@@ -266,10 +397,10 @@ function placeTraps(tiles: MapTile[][], rooms: Room[], trapDensity: number): voi
       const x = randomInt(room.x + 1, room.x + room.width - 2);
       const y = randomInt(room.y + 1, room.y + room.height - 2);
       
-      if (tiles[y][x].type === "floor" && 
+      if (passableTypes.includes(tiles[y][x].type) && 
           !(x === room.centerX && y === room.centerY)) {
         tiles[y][x] = {
-          type: "trap",
+          type: hazardType,
           explored: false,
           visible: false,
         };
@@ -278,10 +409,39 @@ function placeTraps(tiles: MapTile[][], rooms: Room[], trapDensity: number): voi
   }
 }
 
+function addEnvironmentalDecorations(tiles: MapTile[][], rooms: Room[], envTiles: typeof ENVIRONMENT_TILES[MapEnvironment]): void {
+  if (!envTiles.decoration || envTiles.decoration.length === 0) return;
+  
+  const passableTypes: TileType[] = ["floor", "grass", "road", "path", "sand", "mud", "corridor"];
+  
+  for (const room of rooms) {
+    if (room.type === "entrance") continue;
+    
+    const numDecorations = randomInt(1, 3);
+    for (let i = 0; i < numDecorations; i++) {
+      const x = randomInt(room.x, room.x + room.width - 1);
+      const y = randomInt(room.y, room.y + room.height - 1);
+      
+      if (passableTypes.includes(tiles[y][x].type) && 
+          !(x === room.centerX && y === room.centerY)) {
+        const decoration = envTiles.decoration[randomInt(0, envTiles.decoration.length - 1)];
+        if (decoration !== "water" && decoration !== "underground_lake") {
+          tiles[y][x] = {
+            type: decoration,
+            explored: false,
+            visible: false,
+          };
+        }
+      }
+    }
+  }
+}
+
 function placeTreasure(tiles: MapTile[][], rooms: Room[]): void {
+  const passableTypes: TileType[] = ["floor", "grass", "road", "path", "sand", "mud", "corridor"];
+  
   for (const room of rooms) {
     if (room.type === "treasure" || room.type === "boss") {
-      // Place treasure in corner
       const corners = [
         { x: room.x + 1, y: room.y + 1 },
         { x: room.x + room.width - 2, y: room.y + 1 },
@@ -290,7 +450,7 @@ function placeTreasure(tiles: MapTile[][], rooms: Room[]): void {
       ];
       
       const corner = corners[randomInt(0, corners.length - 1)];
-      if (tiles[corner.y][corner.x].type === "floor") {
+      if (passableTypes.includes(tiles[corner.y][corner.x].type)) {
         tiles[corner.y][corner.x] = {
           type: "treasure",
           explored: false,
@@ -301,41 +461,79 @@ function placeTreasure(tiles: MapTile[][], rooms: Room[]): void {
   }
 }
 
-function generateEntities(rooms: Room[], cfg: DungeonConfig): MapEntity[] {
+// Environment-specific enemy names
+const ENVIRONMENT_ENEMIES: Record<MapEnvironment, { regular: string[]; boss: string[] }> = {
+  dungeon: {
+    regular: ["Goblin", "Orc", "Skeleton", "Zombie", "Kobold", "Hobgoblin", "Bugbear", "Gnoll"],
+    boss: ["Ogre", "Vampire", "Lich", "Mummy Lord", "Wight Lord", "Young Dragon"],
+  },
+  forest: {
+    regular: ["Wolf", "Giant Spider", "Owlbear Cub", "Satyr", "Dryad", "Pixie", "Bandit", "Dire Wolf"],
+    boss: ["Owlbear", "Treant", "Giant Eagle", "Unicorn", "Green Hag"],
+  },
+  cave: {
+    regular: ["Bat Swarm", "Giant Rat", "Cave Fisher", "Troglodyte", "Piercer", "Darkmantle"],
+    boss: ["Cave Bear", "Cloaker", "Roper", "Purple Worm", "Xorn"],
+  },
+  castle: {
+    regular: ["Guard", "Knight", "Cultist", "Animated Armor", "Flying Sword", "Specter"],
+    boss: ["Death Knight", "Wraith Lord", "Vampire Spawn", "Banshee"],
+  },
+  ruins: {
+    regular: ["Skeleton", "Ghoul", "Shadow", "Specter", "Will-o-Wisp", "Gargoyle"],
+    boss: ["Mummy Lord", "Wraith", "Bone Naga", "Stone Golem"],
+  },
+  swamp: {
+    regular: ["Giant Frog", "Crocodile", "Lizardfolk", "Poisonous Snake", "Shambling Mound"],
+    boss: ["Black Dragon Wyrmling", "Hydra", "Froghemoth", "Green Hag"],
+  },
+  mountain: {
+    regular: ["Harpy", "Griffon", "Giant Goat", "Peryton", "Stone Giant"],
+    boss: ["Roc", "Cloud Giant", "Adult Dragon", "Storm Giant"],
+  },
+  desert: {
+    regular: ["Giant Scorpion", "Dust Mephit", "Jackalwere", "Mummy", "Sphinx"],
+    boss: ["Blue Dragon Wyrmling", "Mummy Lord", "Giant Sandworm", "Lamia"],
+  },
+  town: {
+    regular: ["Thug", "Bandit", "Spy", "Assassin", "Cultist", "Wererat"],
+    boss: ["Bandit Captain", "Assassin Leader", "Crime Lord", "Vampire Spawn"],
+  },
+  underground: {
+    regular: ["Duergar", "Myconid", "Hook Horror", "Grick", "Grimlock"],
+    boss: ["Elder Brain", "Drow Matron", "Aboleth", "Purple Worm"],
+  },
+};
+
+function generateEntities(rooms: Room[], cfg: DungeonConfig, environment: MapEnvironment): MapEntity[] {
   const entities: MapEntity[] = [];
-  // SRD 5.1 compatible creature names (Creative Commons Attribution 4.0)
-  // All creatures listed here are from the SRD 5.1 or are generic fantasy terms
-  const enemyNames = ["Goblin", "Orc", "Skeleton", "Zombie", "Kobold", "Hobgoblin", "Bugbear", "Gnoll"];
-  const bossNames = ["Ogre", "Vampire", "Lich", "Mummy Lord", "Wight Lord", "Young Dragon"];
+  const envEnemies = ENVIRONMENT_ENEMIES[environment];
   
   for (const room of rooms) {
     if (room.type === "entrance") continue;
     
     if (room.type === "boss") {
-      // Place boss enemy
       entities.push({
         id: `boss-${room.centerX}-${room.centerY}`,
         type: "boss",
-        name: bossNames[randomInt(0, bossNames.length - 1)],
+        name: envEnemies.boss[randomInt(0, envEnemies.boss.length - 1)],
         x: room.centerX,
         y: room.centerY,
         hp: randomInt(50, 80),
         maxHp: 80,
       });
     } else if (room.type !== "treasure") {
-      // Regular enemies
       const numEnemies = Math.random() < (cfg.enemyDensity || 0.4) ? randomInt(1, 3) : 0;
       
       for (let i = 0; i < numEnemies; i++) {
         const x = randomInt(room.x + 1, room.x + room.width - 2);
         const y = randomInt(room.y + 1, room.y + room.height - 2);
         
-        // Don't place enemy in center (reserved for player movement)
         if (x !== room.centerX || y !== room.centerY) {
           entities.push({
             id: `enemy-${x}-${y}`,
             type: "enemy",
-            name: enemyNames[randomInt(0, enemyNames.length - 1)],
+            name: envEnemies.regular[randomInt(0, envEnemies.regular.length - 1)],
             x,
             y,
             hp: randomInt(10, 25),
@@ -361,14 +559,66 @@ function revealArea(tiles: MapTile[][], centerX: number, centerY: number, radius
   }
 }
 
-function generateDungeonName(): string {
-  const prefixes = ["Forgotten", "Ancient", "Dark", "Cursed", "Haunted", "Lost", "Hidden", "Abandoned"];
-  const types = ["Crypt", "Dungeon", "Lair", "Cavern", "Catacombs", "Vault", "Tomb", "Maze"];
-  const suffixes = ["of Shadows", "of the Dead", "of Doom", "of the Damned", "of Despair", "of Secrets"];
+// Environment-specific location names
+const ENVIRONMENT_NAMES: Record<MapEnvironment, { prefixes: string[]; types: string[]; suffixes: string[] }> = {
+  dungeon: {
+    prefixes: ["Forgotten", "Ancient", "Dark", "Cursed", "Haunted", "Lost", "Hidden", "Abandoned"],
+    types: ["Crypt", "Dungeon", "Lair", "Catacombs", "Vault", "Tomb", "Maze"],
+    suffixes: ["of Shadows", "of the Dead", "of Doom", "of the Damned", "of Despair", "of Secrets"],
+  },
+  forest: {
+    prefixes: ["Whispering", "Enchanted", "Ancient", "Shadowed", "Misty", "Twilight", "Wild"],
+    types: ["Woods", "Grove", "Glade", "Thicket", "Forest", "Woodland", "Copse"],
+    suffixes: ["of Whispers", "of the Fey", "of Eternal Night", "of the Ancients", "of Lost Souls"],
+  },
+  cave: {
+    prefixes: ["Deep", "Crystal", "Echoing", "Dark", "Hidden", "Frozen", "Glowing"],
+    types: ["Cavern", "Grotto", "Cave", "Hollow", "Chasm", "Tunnel", "Den"],
+    suffixes: ["of Echoes", "of the Deep", "of Crystals", "of Shadows", "of the Lost"],
+  },
+  castle: {
+    prefixes: ["Fallen", "Haunted", "Ancient", "Crumbling", "Iron", "Shadow", "Storm"],
+    types: ["Castle", "Keep", "Fortress", "Citadel", "Stronghold", "Tower", "Bastion"],
+    suffixes: ["of Kings", "of Sorrow", "of the Damned", "of Storms", "of Shadows"],
+  },
+  ruins: {
+    prefixes: ["Forgotten", "Crumbling", "Ancient", "Cursed", "Lost", "Sacred", "Sunken"],
+    types: ["Ruins", "Temple", "Shrine", "Monastery", "Cathedral", "Palace", "Altar"],
+    suffixes: ["of the Fallen", "of Ages Past", "of the Gods", "of Sacrifice", "of Power"],
+  },
+  swamp: {
+    prefixes: ["Murky", "Festering", "Haunted", "Black", "Rotting", "Misty", "Cursed"],
+    types: ["Swamp", "Marsh", "Bog", "Mire", "Fen", "Wetlands", "Bayou"],
+    suffixes: ["of Decay", "of Shadows", "of Lost Souls", "of the Hag", "of Pestilence"],
+  },
+  mountain: {
+    prefixes: ["Frozen", "Storm", "Thunder", "Cloud", "Iron", "Wind-swept", "Jagged"],
+    types: ["Peak", "Summit", "Pass", "Ridge", "Cliff", "Heights", "Spire"],
+    suffixes: ["of Giants", "of the Eagle", "of the Gods", "of Storms", "of the Winds"],
+  },
+  desert: {
+    prefixes: ["Burning", "Lost", "Endless", "Scorching", "Golden", "Silent", "Ancient"],
+    types: ["Sands", "Dunes", "Wastes", "Expanse", "Desert", "Badlands", "Oasis"],
+    suffixes: ["of the Sun", "of Mirages", "of the Pharaoh", "of Bones", "of Fire"],
+  },
+  town: {
+    prefixes: ["Shadowy", "Bustling", "Quiet", "Hidden", "Old", "Midnight", "Forgotten"],
+    types: ["District", "Quarter", "Streets", "Market", "Ward", "Alley", "Square"],
+    suffixes: ["of Thieves", "of Whispers", "of the Night", "of Secrets", "of Intrigue"],
+  },
+  underground: {
+    prefixes: ["Deep", "Dark", "Forgotten", "Eternal", "Abyssal", "Shadow", "Lost"],
+    types: ["Depths", "Underdark", "Tunnels", "Abyss", "Underworld", "Caverns", "Labyrinth"],
+    suffixes: ["of Darkness", "of the Void", "of Nightmares", "of the Deep", "of Silence"],
+  },
+};
+
+function generateDungeonName(environment: MapEnvironment): string {
+  const names = ENVIRONMENT_NAMES[environment];
   
-  const prefix = prefixes[randomInt(0, prefixes.length - 1)];
-  const type = types[randomInt(0, types.length - 1)];
-  const suffix = Math.random() < 0.5 ? ` ${suffixes[randomInt(0, suffixes.length - 1)]}` : "";
+  const prefix = names.prefixes[randomInt(0, names.prefixes.length - 1)];
+  const type = names.types[randomInt(0, names.types.length - 1)];
+  const suffix = Math.random() < 0.5 ? ` ${names.suffixes[randomInt(0, names.suffixes.length - 1)]}` : "";
   
   return `The ${prefix} ${type}${suffix}`;
 }
@@ -399,7 +649,11 @@ export function canMoveTo(mapData: DungeonMapData, x: number, y: number): boolea
   }
   
   const tile = mapData.tiles[y][x];
-  const blockingTypes: TileType[] = ["wall", "pit", "lava"];
+  const blockingTypes: TileType[] = [
+    "wall", "pit", "lava",
+    "dense_forest", "building", "rock", "dune", "bog",
+    "fence", "tree"
+  ];
   
   return !blockingTypes.includes(tile.type);
 }
