@@ -10717,9 +10717,17 @@ Respond with JSON:
       // CRITICAL FIX: Apply player-initiated damage from rollResult directly to enemy HP
       // This ensures magic item attacks, spell attacks, and weapon attacks from the client
       // actually update enemy HP even if AI doesn't include it in enemyDamage
+      console.log('[Combat Debug] Processing rollResult:', JSON.stringify({
+        hasDamage: !!rollResult?.damage,
+        damageTotal: rollResult?.damage?.total,
+        isHit: rollResult?.isHit,
+        target: rollResult?.target
+      }));
+      
       if (rollResult?.damage?.total && rollResult?.isHit && rollResult?.target) {
         const targetName = rollResult.target;
         const damageDealt = rollResult.damage.total;
+        console.log(`[Combat Debug] Applying ${damageDealt} damage to ${targetName}`);
         
         // Find target in combatants
         const combatants = storyAdvancement.storyState?.combatants || [];
@@ -10816,14 +10824,17 @@ Respond with JSON:
           );
           const defeatedCount = storyAdvancement.storyState.combatants.length - activeEnemies.length;
           
+          console.log(`[Combat Debug] Active enemies: ${activeEnemies.length}, Defeated: ${defeatedCount}`);
+          
           if (defeatedCount > 0) {
-            console.log(`Removing ${defeatedCount} defeated enemies from combatants array`);
+            console.log(`[Combat Debug] Removing ${defeatedCount} defeated enemies from combatants array`);
             storyAdvancement.storyState.combatants = activeEnemies;
             
             // If all enemies are defeated, end combat
             const remainingEnemies = activeEnemies.filter((c: any) => c.type === 'enemy' || c.type === 'boss');
+            console.log(`[Combat Debug] Remaining enemy combatants: ${remainingEnemies.length}`);
             if (remainingEnemies.length === 0) {
-              console.log("All enemies defeated - ending combat");
+              console.log("[Combat Debug] All enemies defeated - ending combat");
               storyAdvancement.storyState.inCombat = false;
               combatCompleted = true;
             }
