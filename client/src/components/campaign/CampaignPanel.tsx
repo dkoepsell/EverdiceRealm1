@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Campaign, CampaignSession, Character, Npc, WorldRegion, WorldLocation } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { generateStory, StoryRequest } from "@/lib/openai";
-import { DiceType, DiceRoll, DiceRollResult, rollDice, clientRollDice } from "@/lib/dice";
+import { DiceType, DiceRoll, DiceRollResult, rollDice, clientRollDice, parseAndRollDice, rollSpellAttack, SpellDamageResult, SpellAttackResult } from "@/lib/dice";
 import { getSkillModifier, parseDCFromText, calculateSuccessProbability, getLikelihoodDescription } from "@/lib/skills";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -3174,10 +3174,153 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               characterClass={activeCharacter.class || ''}
                               characterLevel={activeCharacter.level || 1}
                               onCastSpell={(spell, slotLevel) => {
-                                toast({
-                                  title: `${activeCharacter.name} casts ${spell.name}!`,
-                                  description: slotLevel > 0 ? `Used a level ${slotLevel} spell slot` : "Cantrip",
-                                });
+                                // Calculate spellcasting modifier based on class
+                                const getSpellcastingAbility = (charClass: string): 'intelligence' | 'wisdom' | 'charisma' => {
+                                  const lowerClass = charClass.toLowerCase();
+                                  if (['wizard'].includes(lowerClass)) return 'intelligence';
+                                  if (['cleric', 'druid', 'ranger'].includes(lowerClass)) return 'wisdom';
+                                  return 'charisma'; // sorcerer, bard, warlock, paladin
+                                };
+                                
+                                const ability = getSpellcastingAbility(activeCharacter.class || '');
+                                const abilityScore = (activeCharacter as any)[ability] || 10;
+                                const abilityMod = Math.floor((abilityScore - 10) / 2);
+                                // D&D 5e proficiency bonus: 2 at levels 1-4, 3 at 5-8, 4 at 9-12, etc.
+                                const profBonus = Math.floor(((activeCharacter.level || 1) - 1) / 4) + 2;
+                                const spellMod = abilityMod + profBonus;
+                                
+                                // Check if we're in combat and have valid enemies
+                                const inCombat = parsedStoryState?.inCombat;
+                                const enemies = (parsedStoryState?.combatants as any[] || []).filter((e: any) => e.status !== 'defeated');
+                                const targetEnemy = enemies.length > 0 ? enemies[0] : null;
+                                
+                                // If spell has damage dice and we're in combat with enemies, handle combat spell
+                                if (spell.damageDice && inCombat && targetEnemy) {
+                                  // Roll spell attack
+                                  const attackResult = rollSpellAttack(spellMod);
+                                  const targetAC = targetEnemy.ac || 12;
+                                  const isHit = attackResult.isCritical || (!attackResult.isCriticalMiss && attackResult.total >= targetAC);
+                                  
+                                  let damageResult: SpellDamageResult | null = null;
+                                  
+                                  if (isHit) {
+                                    damageResult = parseAndRollDice(spell.damageDice, attackResult.isCritical, spell.damageType);
+                                  }
+                                  
+                                  // Create combat log entry
+                                  const combatLog = {
+                                    attacker: activeCharacter.name || 'Hero',
+                                    attackerType: 'player',
+                                    target: targetEnemy.name,
+                                    targetType: 'enemy',
+                                    attackRoll: attackResult,
+                                    targetAC,
+                                    isHit,
+                                    damage: damageResult ? {
+                                      diceRolls: damageResult.diceRolls,
+                                      diceType: damageResult.diceType,
+                                      modifier: damageResult.modifier,
+                                      total: damageResult.total,
+                                      isCritical: damageResult.isCritical
+                                    } : null,
+                                    targetNewHp: isHit && damageResult ? Math.max(0, targetEnemy.currentHp - damageResult.total) : targetEnemy.currentHp,
+                                    targetMaxHp: targetEnemy.maxHp,
+                                    targetStatus: isHit && damageResult && (targetEnemy.currentHp - damageResult.total) <= 0 ? 'defeated' : targetEnemy.status,
+                                    description: isHit 
+                                      ? `${activeCharacter.name} casts ${spell.name}${attackResult.isCritical ? ' with devastating effect' : ''}! The spell strikes ${targetEnemy.name} for ${damageResult?.total} ${spell.damageType || ''} damage!`
+                                      : `${activeCharacter.name} casts ${spell.name} but ${targetEnemy.name} evades the spell!`,
+                                    mechanicsBreakdown: `Spell Attack: d20(${attackResult.roll}) + ${attackResult.modifier} = ${attackResult.total} vs AC ${targetAC}`
+                                      + (damageResult ? `\nDamage: ${damageResult.diceRolls.join('+')}${damageResult.modifier !== 0 ? (damageResult.modifier > 0 ? '+' : '') + damageResult.modifier : ''} = ${damageResult.total} ${spell.damageType || ''}${damageResult.isCritical ? ' (CRITICAL!)' : ''}` : '')
+                                  };
+                                  
+                                  // Show the combat log dialog
+                                  setDetailedCombatLogs([combatLog]);
+                                  setShowCombatLogDialog(true);
+                                  
+                                  // Toast notification
+                                  toast({
+                                    title: attackResult.isCritical 
+                                      ? `🎯 Critical ${spell.name}!` 
+                                      : isHit 
+                                        ? `✨ ${spell.name} hits!`
+                                        : `❌ ${spell.name} missed!`,
+                                    description: isHit && damageResult
+                                      ? `Dealt ${damageResult.total} ${spell.damageType || ''} damage to ${targetEnemy.name}!`
+                                      : attackResult.isCriticalMiss 
+                                        ? 'Natural 1! The spell fizzles...'
+                                        : `Attack roll ${attackResult.total} vs AC ${targetAC}`,
+                                    variant: isHit ? undefined : "destructive",
+                                  });
+                                  
+                                  // Send spell action to server to update game state
+                                  advanceStory.mutate({
+                                    choice: `Cast ${spell.name} on ${targetEnemy.name}${isHit ? ` dealing ${damageResult?.total} ${spell.damageType || ''} damage` : ' but missed'}`,
+                                    rollResult: {
+                                      type: 'spell_attack',
+                                      spellName: spell.name,
+                                      slotLevel,
+                                      attackRoll: attackResult,
+                                      damage: damageResult,
+                                      target: targetEnemy.name,
+                                      isHit
+                                    }
+                                  });
+                                  
+                                } else if (spell.healingDice) {
+                                  // Handle healing spell
+                                  const healResult = parseAndRollDice(spell.healingDice, false);
+                                  
+                                  toast({
+                                    title: `💚 ${spell.name}!`,
+                                    description: `Healed for ${healResult.total} HP!`,
+                                  });
+                                  
+                                  // Send healing action to server
+                                  advanceStory.mutate({
+                                    choice: `Cast ${spell.name} to heal for ${healResult.total} HP`,
+                                    rollResult: {
+                                      type: 'spell_heal',
+                                      spellName: spell.name,
+                                      slotLevel,
+                                      healing: healResult.total
+                                    }
+                                  });
+                                  
+                                } else if (spell.damageDice && !inCombat) {
+                                  // Damage spell cast outside combat - roll damage and let server handle narrative
+                                  const damageResult = parseAndRollDice(spell.damageDice, false, spell.damageType);
+                                  
+                                  toast({
+                                    title: `✨ ${activeCharacter.name} casts ${spell.name}!`,
+                                    description: `${damageResult.diceRolls.join(' + ')} = ${damageResult.total} ${spell.damageType || ''} damage${!inCombat ? ' (not in combat)' : ''}`,
+                                  });
+                                  
+                                  advanceStory.mutate({
+                                    choice: `Cast ${spell.name} dealing ${damageResult.total} ${spell.damageType || ''} damage`,
+                                    rollResult: {
+                                      type: 'spell_attack',
+                                      spellName: spell.name,
+                                      slotLevel,
+                                      damage: damageResult
+                                    }
+                                  });
+                                  
+                                } else {
+                                  // Utility spell - just send action to server
+                                  toast({
+                                    title: `✨ ${activeCharacter.name} casts ${spell.name}!`,
+                                    description: slotLevel > 0 ? `Used a level ${slotLevel} spell slot` : "Cantrip",
+                                  });
+                                  
+                                  advanceStory.mutate({
+                                    choice: `Cast ${spell.name}`,
+                                    rollResult: {
+                                      type: 'spell_utility',
+                                      spellName: spell.name,
+                                      slotLevel
+                                    }
+                                  });
+                                }
                               }}
                             />
                           </div>

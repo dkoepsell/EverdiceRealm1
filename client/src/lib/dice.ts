@@ -47,6 +47,88 @@ export const rollDice = async (diceRoll: DiceRoll): Promise<DiceRollResult> => {
   }
 };
 
+// Parse dice notation like "3d6", "2d8+2", "1d10" and roll
+export interface SpellDamageResult {
+  diceRolls: number[];
+  diceType: string;
+  modifier: number;
+  total: number;
+  isCritical: boolean;
+  damageType?: string;
+}
+
+export const parseAndRollDice = (
+  diceNotation: string, 
+  isCritical: boolean = false,
+  damageType?: string
+): SpellDamageResult => {
+  // Normalize: remove all spaces and handle common formats
+  const normalized = diceNotation.replace(/\s+/g, '').toLowerCase();
+  
+  // Parse notation like "3d6", "2d8+2", "1d10-1", "2d6+3"
+  const match = normalized.match(/^(\d+)d(\d+)([+-]\d+)?$/i);
+  
+  if (!match) {
+    // Fallback for invalid notation
+    console.warn(`Invalid dice notation: ${diceNotation}`);
+    return {
+      diceRolls: [0],
+      diceType: 'd6',
+      modifier: 0,
+      total: 0,
+      isCritical,
+      damageType
+    };
+  }
+  
+  let numDice = parseInt(match[1]);
+  const diceSize = parseInt(match[2]);
+  const modifier = match[3] ? parseInt(match[3]) : 0;
+  
+  // Double dice on critical hit (D&D 5e rules)
+  if (isCritical) {
+    numDice *= 2;
+  }
+  
+  // Roll the dice
+  const diceRolls: number[] = [];
+  for (let i = 0; i < numDice; i++) {
+    diceRolls.push(Math.floor(Math.random() * diceSize) + 1);
+  }
+  
+  const rollSum = diceRolls.reduce((sum, roll) => sum + roll, 0);
+  const total = rollSum + modifier;
+  
+  return {
+    diceRolls,
+    diceType: `d${diceSize}`,
+    modifier,
+    total: Math.max(0, total), // Damage can't be negative
+    isCritical,
+    damageType
+  };
+};
+
+// Roll a spell attack (d20 + spellcasting modifier)
+export interface SpellAttackResult {
+  roll: number;
+  modifier: number;
+  total: number;
+  isCritical: boolean;
+  isCriticalMiss: boolean;
+}
+
+export const rollSpellAttack = (spellcastingModifier: number): SpellAttackResult => {
+  const roll = Math.floor(Math.random() * 20) + 1;
+  return {
+    roll,
+    modifier: spellcastingModifier,
+    total: roll + spellcastingModifier,
+    isCritical: roll === 20,
+    isCriticalMiss: roll === 1
+  };
+};
+
 // Client-side dice rolling utility (for animation only)
 // The real result will come from the server
 export const clientRollDice = (diceRoll: DiceRoll): DiceRollResult => {
