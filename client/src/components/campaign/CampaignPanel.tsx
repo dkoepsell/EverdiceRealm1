@@ -29,7 +29,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard, Coffee } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard, Coffee, Star } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -424,6 +424,18 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       status: campaignNpc.status ?? campaignNpc.npc.status,
     };
   }, [selectedNpcId, campaignNpcs]);
+  
+  // Fetch magical inventory from character_inventory table
+  const { data: magicalInventory = [] } = useQuery<any[]>({
+    queryKey: ['/api/characters', activeCharacter?.id, 'magical-inventory'],
+    queryFn: async () => {
+      if (!activeCharacter?.id) return [];
+      const response = await fetch(`/api/characters/${activeCharacter.id}/magical-inventory`, { credentials: 'include' });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!activeCharacter?.id
+  });
   
   // Helper to parse equipment item from string (may be JSON or plain string)
   const parseEquipmentItem = (item: string): { name: string; type?: string; damage?: string; armor?: number; rarity?: string; description?: string } => {
@@ -4083,8 +4095,75 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
                     {/* Inventory Items */}
                     <div className="space-y-2">
-                      <div className="text-sm font-medium">Items ({activeCharacter.equipment?.length || 0})</div>
+                      <div className="text-sm font-medium">Items ({(activeCharacter.equipment?.length || 0) + (magicalInventory?.length || 0)})</div>
                       <div className="max-h-48 overflow-y-auto space-y-1">
+                        {/* Magical Items from character_inventory table */}
+                        {magicalInventory && magicalInventory.length > 0 && magicalInventory.map((magicItem: any) => (
+                          <div key={`magic-${magicItem.id}`} className={`flex flex-col p-2 rounded text-sm ${magicItem.is_equipped ? 'bg-purple-100 dark:bg-purple-900/30 border border-purple-400' : 'bg-purple-50 dark:bg-purple-900/20'}`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1 min-w-0">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className={`font-medium truncate block cursor-help ${getRarityColor(magicItem.rarity)}`}>
+                                      <Sparkles className="h-3 w-3 inline mr-1 text-purple-500" />
+                                      {magicItem.name}
+                                      {magicItem.magic_bonus > 0 && ` +${magicItem.magic_bonus}`}
+                                      {magicItem.is_equipped && <Star className="h-3 w-3 inline ml-1 text-amber-500" />}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left" className="max-w-xs">
+                                    <div className="space-y-1">
+                                      <div className="font-bold">{magicItem.name}</div>
+                                      <div className={`text-xs ${getRarityColor(magicItem.rarity)}`}>{magicItem.rarity} {magicItem.type}</div>
+                                      {magicItem.damage_dice && <div className="text-xs">Damage: {magicItem.damage_dice} {magicItem.damage_type}</div>}
+                                      {magicItem.base_ac && <div className="text-xs">Base AC: {magicItem.base_ac}</div>}
+                                      {magicItem.special_effect && <div className="text-xs italic text-purple-400">✨ {magicItem.special_effect}</div>}
+                                      {magicItem.requires_attunement && <div className="text-xs text-orange-500">{magicItem.is_attuned ? '🔮 Attuned' : '⚠️ Requires attunement'}</div>}
+                                      {magicItem.description && <div className="text-xs text-slate-400 mt-1">{magicItem.description}</div>}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                                {magicItem.damage_dice && (
+                                  <span className="text-xs text-red-600 dark:text-red-400 block">
+                                    <Sword className="h-3 w-3 inline mr-1" />
+                                    {magicItem.damage_dice} {magicItem.damage_type}
+                                  </span>
+                                )}
+                                {magicItem.base_ac && (
+                                  <span className="text-xs text-blue-600 dark:text-blue-400 block">
+                                    <Shield className="h-3 w-3 inline mr-1" />
+                                    AC +{magicItem.base_ac}
+                                  </span>
+                                )}
+                                {magicItem.special_effect && (
+                                  <span className="text-xs text-purple-600 dark:text-purple-400 block truncate italic">
+                                    ✨ {magicItem.special_effect}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                                <Button
+                                  size="sm"
+                                  variant={magicItem.is_equipped ? "secondary" : "default"}
+                                  className="h-6 text-xs px-2"
+                                  onClick={async () => {
+                                    try {
+                                      await apiRequest('POST', `/api/characters/${activeCharacter.id}/inventory/${magicItem.id}/equip`, {
+                                        slot: magicItem.is_equipped ? undefined : (magicItem.equip_slot || magicItem.type || 'accessory')
+                                      });
+                                      queryClient.invalidateQueries({ queryKey: ['/api/characters', activeCharacter.id, 'magical-inventory'] });
+                                    } catch (err) {
+                                      console.error('Failed to equip/unequip:', err);
+                                    }
+                                  }}
+                                >
+                                  {magicItem.is_equipped ? 'Unequip' : 'Equip'}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {/* Regular equipment items */}
                         {activeCharacter.equipment && activeCharacter.equipment.length > 0 ? (
                           activeCharacter.equipment.map((itemRaw: string, index: number) => {
                             const parsedItem = parseEquipmentItem(itemRaw);
@@ -4233,7 +4312,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             </div>
                           );
                           })
-                        ) : (
+                        ) : (!magicalInventory || magicalInventory.length === 0) && (
                           <p className="text-sm text-slate-600 dark:text-slate-400 py-2">No items in inventory</p>
                         )}
                       </div>
