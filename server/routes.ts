@@ -11723,26 +11723,57 @@ Respond with JSON:
       const turnsInChapter = previousTurnsInChapter + 1;
       
       // CRITICAL: Preserve existing combatants if in combat - don't let AI rename enemies
-      // BUT: Use storyAdvancement.storyState.combatants as source since player damage was already applied there
+      // BUT: Use combatEffects.enemyDamage as the source of truth for HP updates
       let preservedCombatants = storyAdvancement.storyState?.combatants;
       const wasInCombatBefore = currentStoryState.inCombat;
       
+      // Build a map of defeated enemies from combatEffects.enemyDamage (most accurate source)
+      const defeatedEnemyNames = new Set<string>();
+      const enemyHpUpdates = new Map<string, { newHp: number; status: string }>();
+      
+      if (combatEffects?.enemyDamage) {
+        for (const enemy of combatEffects.enemyDamage) {
+          if (enemy.defeated || enemy.newHp <= 0) {
+            defeatedEnemyNames.add(enemy.name);
+            console.log(`[Combat Debug] Enemy ${enemy.name} marked as defeated in enemyDamage`);
+          } else {
+            enemyHpUpdates.set(enemy.name, { 
+              newHp: enemy.newHp, 
+              status: enemy.newHp <= (enemy.maxHp * 0.25) ? 'bloodied' : 
+                      enemy.newHp <= (enemy.maxHp * 0.5) ? 'wounded' : 'healthy'
+            });
+          }
+        }
+      }
+      
       if (currentStoryState.inCombat && currentStoryState.combatants?.length > 0) {
-        // Start with storyAdvancement combatants (which have player damage applied), merge with existing for any missing
         const advancementCombatants = storyAdvancement.storyState?.combatants || [];
         
-        console.log(`[Combat Debug] Merging combatants: ${currentStoryState.combatants.length} existing, ${advancementCombatants.length} from advancement`);
+        console.log(`[Combat Debug] Merging combatants: ${currentStoryState.combatants.length} existing, ${advancementCombatants.length} from advancement, ${defeatedEnemyNames.size} defeated`);
         
         preservedCombatants = currentStoryState.combatants.map((existingEnemy: any) => {
-          // Find this enemy in storyAdvancement (where player damage was applied)
+          // Check if this enemy was defeated in this turn (from enemyDamage)
+          if (defeatedEnemyNames.has(existingEnemy.name)) {
+            console.log(`[Combat Debug] ${existingEnemy.name}: DEFEATED - removing from combatants`);
+            return { ...existingEnemy, currentHp: 0, status: 'defeated' };
+          }
+          
+          // Check if this enemy has HP updates from enemyDamage
+          const hpUpdate = enemyHpUpdates.get(existingEnemy.name);
+          if (hpUpdate) {
+            console.log(`[Combat Debug] ${existingEnemy.name}: HP ${existingEnemy.currentHp} -> ${hpUpdate.newHp}, status: ${hpUpdate.status}`);
+            return { ...existingEnemy, currentHp: hpUpdate.newHp, status: hpUpdate.status };
+          }
+          
+          // Check if this enemy has updates in storyAdvancement
           const advancementEnemy = advancementCombatants.find(
             (ae: any) => ae.name === existingEnemy.name
           );
-          if (advancementEnemy) {
-            // Use the updated HP/status from storyAdvancement (has player damage applied)
-            console.log(`[Combat Debug] ${existingEnemy.name}: HP ${existingEnemy.currentHp} -> ${advancementEnemy.currentHp}, status: ${advancementEnemy.status}`);
-            return { ...existingEnemy, currentHp: advancementEnemy.currentHp, status: advancementEnemy.status };
+          if (advancementEnemy && advancementEnemy.currentHp !== undefined) {
+            console.log(`[Combat Debug] ${existingEnemy.name}: HP ${existingEnemy.currentHp} -> ${advancementEnemy.currentHp} (from advancement)`);
+            return { ...existingEnemy, currentHp: advancementEnemy.currentHp, status: advancementEnemy.status || existingEnemy.status };
           }
+          
           return existingEnemy;
         }).filter((e: any) => e.status !== 'defeated' && (e.currentHp === undefined || e.currentHp > 0));
         
