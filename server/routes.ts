@@ -1612,18 +1612,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      if (foundIndex === -1 || !foundItem) {
-        return res.status(404).json({ message: "Item not found in inventory or is equipped" });
-      }
-      
       // Calculate sell price (half of buy price, based on rarity)
       const SELL_PRICES: Record<string, number> = {
         common: 5,
         uncommon: 25,
         rare: 100,
         "very rare": 500,
+        very_rare: 500,
         legendary: 2500
       };
+      
+      // If item not found in regular equipment, check magical inventory
+      if (foundIndex === -1 || !foundItem) {
+        // Check character_inventory table for magical items
+        const magicalInventory = await storage.getCharacterInventory(id);
+        const magicalItem = magicalInventory.find((mi: any) => 
+          mi.name === itemName && !mi.isEquipped
+        );
+        
+        if (magicalItem) {
+          // Found in magical inventory - delete it from the table
+          const rarity = (magicalItem.rarity || 'common').toLowerCase().replace(' ', '_');
+          const goldReceived = SELL_PRICES[rarity] || 25; // Default to uncommon price for magic items
+          
+          // Delete from character_inventory table
+          await storage.removeInventoryItem(magicalItem.id);
+          
+          // Add gold to character
+          const currentGold = (character as any).gold ?? 0;
+          const newGold = currentGold + goldReceived;
+          
+          console.log(`Selling magical item: ${itemName}, current gold: ${currentGold}, received: ${goldReceived}, new gold: ${newGold}`);
+          
+          const updatedCharacter = await storage.updateCharacter(id, {
+            gold: newGold,
+            updatedAt: new Date().toISOString()
+          } as any);
+          
+          return res.json({
+            success: true,
+            goldReceived,
+            character: updatedCharacter,
+            message: `Sold ${itemName} for ${goldReceived} gp`
+          });
+        }
+        
+        return res.status(404).json({ message: "Item not found in inventory or is equipped" });
+      }
       
       const rarity = (foundItem.rarity || 'common').toLowerCase();
       const goldReceived = SELL_PRICES[rarity] || 5;

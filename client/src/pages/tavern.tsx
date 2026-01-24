@@ -926,8 +926,11 @@ export default function TavernPage() {
       return response.json();
     },
     onSuccess: async (data) => {
-      // Force immediate refetch to update inventory display
+      // Force immediate refetch to update inventory display (both regular and magical)
       await queryClient.refetchQueries({ queryKey: ["/api/characters"] });
+      if (activeCharacter) {
+        await queryClient.invalidateQueries({ queryKey: ['/api/characters', activeCharacter.id, 'magical-inventory'] });
+      }
       toast({
         title: "Item Sold!",
         description: `You received ${data.goldReceived}gp for ${selectedInventoryItem?.name}.`
