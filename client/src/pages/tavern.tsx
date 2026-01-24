@@ -395,7 +395,7 @@ function MagicItemShop({
       queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
       queryClient.invalidateQueries({ queryKey: ["/api/magic-items/shop", characterId] });
       // Invalidate magical inventory query so new item shows up
-      queryClient.invalidateQueries({ queryKey: ['/api/characters', characterId, 'inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/characters', characterId, 'magical-inventory'] });
       toast({
         title: "Purchase Complete!",
         description: `You acquired ${data.item?.name || 'a magical item'}!`
@@ -873,10 +873,10 @@ export default function TavernPage() {
   
   // Fetch magical inventory from character_inventory table
   const { data: magicalInventory = [] } = useQuery<any[]>({
-    queryKey: ['/api/characters', activeCharacter?.id, 'inventory'],
+    queryKey: ['/api/characters', activeCharacter?.id, 'magical-inventory'],
     queryFn: async () => {
       if (!activeCharacter?.id) return [];
-      const response = await fetch(`/api/characters/${activeCharacter.id}/inventory`, { credentials: 'include' });
+      const response = await fetch(`/api/characters/${activeCharacter.id}/magical-inventory`, { credentials: 'include' });
       if (!response.ok) return [];
       return response.json();
     },
@@ -1003,7 +1003,7 @@ export default function TavernPage() {
       return response.json();
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/characters', variables.characterId, 'inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/characters', variables.characterId, 'magical-inventory'] });
       queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
       toast({
         title: variables.slot ? "Item Equipped!" : "Item Unequipped!",

@@ -16011,8 +16011,8 @@ ALWAYS generate:
     }
   });
   
-  // Get character's magical inventory
-  app.get("/api/characters/:characterId/inventory", isAuthenticated, async (req, res) => {
+  // Get character's magical inventory (from character_inventory table)
+  app.get("/api/characters/:characterId/magical-inventory", isAuthenticated, async (req, res) => {
     try {
       const inventory = await storage.getCharacterInventory(parseInt(req.params.characterId));
       res.json(inventory);
