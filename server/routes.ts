@@ -10737,13 +10737,14 @@ Respond with JSON:
         );
         
         // If not found in AI response, check current session state and copy combatants
-        if (targetIndex === -1 && currentStoryState?.combatants?.length > 0) {
-          console.log(`[Combat Debug] Target not in AI response, checking currentStoryState`);
+        const sessionStoryState = currentSession?.storyState as any || {};
+        if (targetIndex === -1 && sessionStoryState?.combatants?.length > 0) {
+          console.log(`[Combat Debug] Target not in AI response, checking session storyState`);
           // Copy combatants from current session to storyAdvancement so we can modify them
           if (!storyAdvancement.storyState) {
             storyAdvancement.storyState = {};
           }
-          storyAdvancement.storyState.combatants = JSON.parse(JSON.stringify(currentStoryState.combatants));
+          storyAdvancement.storyState.combatants = JSON.parse(JSON.stringify(sessionStoryState.combatants));
           combatants = storyAdvancement.storyState.combatants;
           targetIndex = combatants.findIndex(
             (c: any) => c.name === targetName && (c.type === 'enemy' || c.type === 'boss')
