@@ -128,7 +128,19 @@ export default function CombatSpellPanel({
   });
 
   // Filter for usable magic items (wands, staves, rods, items with special effects)
-  const usableMagicItems = magicalInventory.filter((item: MagicItem) => {
+  // Note: DB returns snake_case, so we normalize to camelCase
+  const usableMagicItems = magicalInventory.map((item: any) => ({
+    id: item.id,
+    name: item.name,
+    type: item.type,
+    rarity: item.rarity,
+    specialEffect: item.special_effect || item.specialEffect,
+    damageDice: item.damage_dice || item.damageDice,
+    damageType: item.damage_type || item.damageType,
+    isEquipped: item.is_equipped || item.isEquipped,
+    charges: item.charges,
+    maxCharges: item.max_charges || item.maxCharges
+  })).filter((item: MagicItem) => {
     const usableTypes = ['wand', 'staff', 'rod', 'scroll', 'potion'];
     const isUsableType = usableTypes.some(t => item.type?.toLowerCase().includes(t) || item.name?.toLowerCase().includes(t));
     const hasSpellEffect = item.specialEffect && (
