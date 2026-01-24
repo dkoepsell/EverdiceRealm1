@@ -10729,11 +10729,26 @@ Respond with JSON:
         const damageDealt = rollResult.damage.total;
         console.log(`[Combat Debug] Applying ${damageDealt} damage to ${targetName}`);
         
-        // Find target in combatants
-        const combatants = storyAdvancement.storyState?.combatants || [];
-        const targetIndex = combatants.findIndex(
+        // Find target in combatants - check BOTH AI response and current session state
+        // AI might not include combatants in response, so we need to check currentStoryState too
+        let combatants = storyAdvancement.storyState?.combatants || [];
+        let targetIndex = combatants.findIndex(
           (c: any) => c.name === targetName && (c.type === 'enemy' || c.type === 'boss')
         );
+        
+        // If not found in AI response, check current session state and copy combatants
+        if (targetIndex === -1 && currentStoryState?.combatants?.length > 0) {
+          console.log(`[Combat Debug] Target not in AI response, checking currentStoryState`);
+          // Copy combatants from current session to storyAdvancement so we can modify them
+          if (!storyAdvancement.storyState) {
+            storyAdvancement.storyState = {};
+          }
+          storyAdvancement.storyState.combatants = JSON.parse(JSON.stringify(currentStoryState.combatants));
+          combatants = storyAdvancement.storyState.combatants;
+          targetIndex = combatants.findIndex(
+            (c: any) => c.name === targetName && (c.type === 'enemy' || c.type === 'boss')
+          );
+        }
         
         if (targetIndex !== -1) {
           const target = combatants[targetIndex];
@@ -11710,9 +11725,13 @@ Respond with JSON:
       // CRITICAL: Preserve existing combatants if in combat - don't let AI rename enemies
       // BUT: Use storyAdvancement.storyState.combatants as source since player damage was already applied there
       let preservedCombatants = storyAdvancement.storyState?.combatants;
+      const wasInCombatBefore = currentStoryState.inCombat;
+      
       if (currentStoryState.inCombat && currentStoryState.combatants?.length > 0) {
         // Start with storyAdvancement combatants (which have player damage applied), merge with existing for any missing
         const advancementCombatants = storyAdvancement.storyState?.combatants || [];
+        
+        console.log(`[Combat Debug] Merging combatants: ${currentStoryState.combatants.length} existing, ${advancementCombatants.length} from advancement`);
         
         preservedCombatants = currentStoryState.combatants.map((existingEnemy: any) => {
           // Find this enemy in storyAdvancement (where player damage was applied)
@@ -11721,11 +11740,22 @@ Respond with JSON:
           );
           if (advancementEnemy) {
             // Use the updated HP/status from storyAdvancement (has player damage applied)
+            console.log(`[Combat Debug] ${existingEnemy.name}: HP ${existingEnemy.currentHp} -> ${advancementEnemy.currentHp}, status: ${advancementEnemy.status}`);
             return { ...existingEnemy, currentHp: advancementEnemy.currentHp, status: advancementEnemy.status };
           }
           return existingEnemy;
         }).filter((e: any) => e.status !== 'defeated' && (e.currentHp === undefined || e.currentHp > 0));
-        console.log(`Preserved ${preservedCombatants.length} existing combatants from session (with damage applied)`);
+        
+        console.log(`[Combat Debug] After filtering: ${preservedCombatants.length} active combatants remain`);
+        
+        // Check if all enemies are defeated - if so, end combat
+        const remainingEnemies = preservedCombatants.filter((c: any) => c.type === 'enemy' || c.type === 'boss');
+        if (remainingEnemies.length === 0 && wasInCombatBefore) {
+          console.log(`[Combat Debug] All enemies defeated during merge - ending combat`);
+          if (!storyAdvancement.storyState) storyAdvancement.storyState = {};
+          storyAdvancement.storyState.inCombat = false;
+          combatCompleted = true;
+        }
       }
       
       // Merge the new exploration limit with the AI-generated story state
