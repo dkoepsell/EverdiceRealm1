@@ -327,6 +327,350 @@ function getRarityBadgeVariant(rarity: string): "default" | "secondary" | "destr
   }
 }
 
+interface MagicShopItem {
+  id: number;
+  name: string;
+  description: string;
+  type: string;
+  rarity: string;
+  min_level: number;
+  max_level: number;
+  class_affinity: string[] | null;
+  magic_bonus: number;
+  damage_dice: string | null;
+  damage_type: string | null;
+  base_ac: number | null;
+  properties: string[] | null;
+  special_effect: string | null;
+  requires_attunement: boolean;
+  shop_price: number;
+  lore: string | null;
+}
+
+function MagicItemShop({ 
+  characterId, 
+  characterLevel, 
+  characterClass, 
+  characterGold 
+}: { 
+  characterId?: number;
+  characterLevel: number;
+  characterClass: string;
+  characterGold: number;
+}) {
+  const { toast } = useToast();
+  const [selectedItem, setSelectedItem] = useState<MagicShopItem | null>(null);
+  const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
+  const [rarityFilter, setRarityFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+
+  const { data: shopItems = [], isLoading } = useQuery<MagicShopItem[]>({
+    queryKey: ['/api/magic-items/shop', characterId],
+    queryFn: async () => {
+      const url = characterId 
+        ? `/api/magic-items/shop?characterId=${characterId}`
+        : '/api/magic-items/shop';
+      const response = await fetch(url, { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch shop items');
+      return response.json();
+    },
+  });
+
+  const purchaseMutation = useMutation({
+    mutationFn: async ({ charId, templateId }: { charId: number; templateId: number }) => {
+      const response = await apiRequest("POST", "/api/magic-items/shop/purchase", {
+        characterId: charId,
+        templateId
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/magic-items/shop", characterId] });
+      toast({
+        title: "Purchase Complete!",
+        description: `You acquired ${data.item?.name || 'a magical item'}!`
+      });
+      setPurchaseDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Purchase Failed",
+        description: error.message || "Could not purchase item",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const filteredItems = shopItems.filter(item => {
+    if (rarityFilter !== 'all' && item.rarity !== rarityFilter) return false;
+    if (typeFilter !== 'all' && item.type !== typeFilter) return false;
+    return true;
+  });
+
+  const getRarityGradient = (rarity: string) => {
+    switch (rarity) {
+      case 'uncommon': return 'from-green-500/20 to-green-600/10 border-green-500/50';
+      case 'rare': return 'from-blue-500/20 to-blue-600/10 border-blue-500/50';
+      case 'very_rare': return 'from-purple-500/20 to-purple-600/10 border-purple-500/50';
+      case 'legendary': return 'from-orange-500/20 to-orange-600/10 border-orange-500/50';
+      default: return 'from-slate-500/20 to-slate-600/10 border-slate-500/50';
+    }
+  };
+
+  const formatRarity = (rarity: string) => {
+    return rarity.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+  };
+
+  const canAffordItem = (price: number) => characterGold >= price;
+
+  const isClassMatch = (classAffinity: string[] | null) => {
+    if (!classAffinity || classAffinity.length === 0) return true;
+    return classAffinity.some(c => c.toLowerCase() === characterClass.toLowerCase());
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <RefreshCw className="h-8 w-8 mx-auto animate-spin text-amber-600 mb-4" />
+          <p className="text-muted-foreground">Loading magical wares...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-purple-500" />
+          Enchanted Emporium
+        </CardTitle>
+        <CardDescription>
+          Rare and powerful magical items for discerning adventurers. Items are adjusted for your level and class.
+        </CardDescription>
+        <div className="flex flex-wrap gap-2 mt-4">
+          <Select value={rarityFilter} onValueChange={setRarityFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Rarity" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Rarities</SelectItem>
+              <SelectItem value="uncommon">Uncommon</SelectItem>
+              <SelectItem value="rare">Rare</SelectItem>
+              <SelectItem value="very_rare">Very Rare</SelectItem>
+              <SelectItem value="legendary">Legendary</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="weapon">Weapons</SelectItem>
+              <SelectItem value="armor">Armor</SelectItem>
+              <SelectItem value="accessory">Accessories</SelectItem>
+              <SelectItem value="wondrous">Wondrous</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {filteredItems.length === 0 ? (
+          <div className="text-center py-8">
+            <Sparkles className="h-12 w-12 mx-auto text-slate-400 mb-4" />
+            <p className="text-muted-foreground">No magical items match your criteria.</p>
+            <p className="text-sm text-muted-foreground mt-1">Try adjusting the filters or check back at a higher level.</p>
+          </div>
+        ) : (
+          <ScrollArea className="h-[500px] pr-4">
+            <div className="grid gap-4">
+              {filteredItems.map((item) => (
+                <Card 
+                  key={item.id} 
+                  className={`bg-gradient-to-r ${getRarityGradient(item.rarity)} cursor-pointer hover:shadow-lg transition-all`}
+                  onClick={() => {
+                    setSelectedItem(item);
+                    setPurchaseDialogOpen(true);
+                  }}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-bold text-lg">{item.name}</h4>
+                          {item.magic_bonus > 0 && (
+                            <Badge variant="secondary" className="text-xs">+{item.magic_bonus}</Badge>
+                          )}
+                          {item.requires_attunement && (
+                            <Badge variant="outline" className="text-xs">Attunement</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge className={getRarityColor(item.rarity)}>
+                            {formatRarity(item.rarity)}
+                          </Badge>
+                          <span className="text-sm text-muted-foreground capitalize">{item.type}</span>
+                          {isClassMatch(item.class_affinity) && (
+                            <Badge variant="outline" className="text-xs text-green-600 border-green-500">
+                              <Check className="h-3 w-3 mr-1" /> Class Match
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">{item.description}</p>
+                        {item.special_effect && (
+                          <p className="text-sm text-purple-600 dark:text-purple-400 italic">
+                            <Sparkles className="h-3 w-3 inline mr-1" />
+                            {item.special_effect}
+                          </p>
+                        )}
+                        {item.damage_dice && (
+                          <p className="text-sm mt-1">
+                            <Sword className="h-3 w-3 inline mr-1" />
+                            {item.damage_dice} {item.damage_type}
+                          </p>
+                        )}
+                        {item.base_ac && (
+                          <p className="text-sm mt-1">
+                            <Shield className="h-3 w-3 inline mr-1" />
+                            AC {item.base_ac}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <div className={`text-lg font-bold ${canAffordItem(item.shop_price) ? 'text-yellow-600' : 'text-red-500'}`}>
+                          <Coins className="h-4 w-4 inline mr-1" />
+                          {item.shop_price.toLocaleString()} gp
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Level {item.min_level}-{item.max_level}
+                        </p>
+                        {!canAffordItem(item.shop_price) && (
+                          <p className="text-xs text-red-500 mt-1">Not enough gold</p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </ScrollArea>
+        )}
+      </CardContent>
+
+      <Dialog open={purchaseDialogOpen} onOpenChange={setPurchaseDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-500" />
+              {selectedItem?.name}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedItem?.description}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedItem && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <Badge className={getRarityColor(selectedItem.rarity)}>
+                  {formatRarity(selectedItem.rarity)}
+                </Badge>
+                <Badge variant="outline">{selectedItem.type}</Badge>
+                {selectedItem.magic_bonus > 0 && (
+                  <Badge variant="secondary">+{selectedItem.magic_bonus}</Badge>
+                )}
+                {selectedItem.requires_attunement && (
+                  <Badge variant="outline">Requires Attunement</Badge>
+                )}
+              </div>
+
+              {selectedItem.special_effect && (
+                <div className="p-3 bg-purple-500/10 rounded-lg border border-purple-500/30">
+                  <p className="text-sm text-purple-700 dark:text-purple-300">
+                    <Sparkles className="h-4 w-4 inline mr-2" />
+                    {selectedItem.special_effect}
+                  </p>
+                </div>
+              )}
+
+              {selectedItem.lore && (
+                <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                  <p className="text-sm italic text-muted-foreground">"{selectedItem.lore}"</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                {selectedItem.damage_dice && (
+                  <div>
+                    <span className="text-muted-foreground">Damage:</span>
+                    <span className="ml-2 font-medium">{selectedItem.damage_dice} {selectedItem.damage_type}</span>
+                  </div>
+                )}
+                {selectedItem.base_ac && (
+                  <div>
+                    <span className="text-muted-foreground">AC:</span>
+                    <span className="ml-2 font-medium">{selectedItem.base_ac}</span>
+                  </div>
+                )}
+                <div>
+                  <span className="text-muted-foreground">Level Range:</span>
+                  <span className="ml-2 font-medium">{selectedItem.min_level}-{selectedItem.max_level}</span>
+                </div>
+                {selectedItem.class_affinity && selectedItem.class_affinity.length > 0 && (
+                  <div>
+                    <span className="text-muted-foreground">Best For:</span>
+                    <span className="ml-2 font-medium">{selectedItem.class_affinity.join(', ')}</span>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-2xl font-bold text-yellow-600">
+                    <Coins className="h-5 w-5 inline mr-2" />
+                    {selectedItem.shop_price.toLocaleString()} gp
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Your gold: {characterGold.toLocaleString()} gp
+                  </p>
+                </div>
+                <Button
+                  size="lg"
+                  disabled={!characterId || !canAffordItem(selectedItem.shop_price) || purchaseMutation.isPending}
+                  onClick={() => {
+                    if (characterId) {
+                      purchaseMutation.mutate({ charId: characterId, templateId: selectedItem.id });
+                    }
+                  }}
+                >
+                  {purchaseMutation.isPending ? (
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <ShoppingBag className="h-4 w-4 mr-2" />
+                  )}
+                  Purchase
+                </Button>
+              </div>
+
+              {!canAffordItem(selectedItem.shop_price) && (
+                <div className="flex items-center gap-2 text-red-500 text-sm">
+                  <AlertTriangle className="h-4 w-4" />
+                  You need {(selectedItem.shop_price - characterGold).toLocaleString()} more gold
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
 // Component to show recent bulletin board posts in the tavern
 function RecentBulletinPosts() {
   const { data: posts, isLoading } = useQuery<any[]>({
@@ -852,10 +1196,14 @@ export default function TavernPage() {
         )}
 
         <Tabs defaultValue="shop" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-5 mb-6">
             <TabsTrigger value="shop" className="flex items-center gap-2">
               <ShoppingBag className="h-4 w-4" />
               <span className="hidden sm:inline">Shop</span>
+            </TabsTrigger>
+            <TabsTrigger value="magic-shop" className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              <span className="hidden sm:inline">Magic Items</span>
             </TabsTrigger>
             <TabsTrigger value="inventory" className="flex items-center gap-2">
               <Package className="h-4 w-4" />
@@ -997,6 +1345,15 @@ export default function TavernPage() {
                 </ScrollArea>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="magic-shop">
+            <MagicItemShop 
+              characterId={activeCharacter?.id}
+              characterLevel={activeCharacter?.level || 1}
+              characterClass={activeCharacter?.class || 'Fighter'}
+              characterGold={characterGold}
+            />
           </TabsContent>
 
           <TabsContent value="inventory">
