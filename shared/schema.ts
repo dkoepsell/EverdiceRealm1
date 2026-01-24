@@ -1462,3 +1462,113 @@ export const insertUserBadgeSchema = createInsertSchema(userBadges).omit({
 
 export type InsertUserBadge = z.infer<typeof insertUserBadgeSchema>;
 export type UserBadge = typeof userBadges.$inferSelect;
+
+// Magic Item Templates - Templates for magical items that can drop from milestones or be purchased
+export const magicItemTemplates = pgTable("magic_item_templates", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  type: text("type").notNull(), // weapon, armor, accessory, wondrous, consumable
+  rarity: text("rarity").notNull().default("uncommon"), // uncommon, rare, very_rare, legendary
+  // Level requirements - item is appropriate for these levels
+  minLevel: integer("min_level").default(1),
+  maxLevel: integer("max_level").default(20),
+  // Class affinity - classes that benefit most from this item (null = any class)
+  classAffinity: text("class_affinity").array(), // Fighter, Wizard, Cleric, etc.
+  // Item stats
+  magicBonus: integer("magic_bonus").default(0), // +1, +2, +3
+  damageDice: text("damage_dice"), // e.g., "1d8", "2d6"
+  damageType: text("damage_type"), // fire, ice, lightning, etc.
+  baseAC: integer("base_ac"), // For armor
+  properties: text("properties").array(), // finesse, versatile, etc.
+  specialEffect: text("special_effect"), // Unique magical ability
+  requiresAttunement: boolean("requires_attunement").default(false),
+  attunementRequirements: text("attunement_requirements"), // e.g., "by a spellcaster"
+  // Milestone drop settings
+  milestoneType: text("milestone_type"), // boss_defeat, quest_complete, chapter_end, exploration, etc.
+  dropWeight: integer("drop_weight").default(10), // Higher = more likely to drop
+  // Shop settings
+  isShoppable: boolean("is_shoppable").default(false), // Can be purchased in tavern
+  shopPrice: integer("shop_price"), // Price in gold if purchasable
+  // Flavor
+  lore: text("lore"), // Background story of the item
+  imageUrl: text("image_url"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertMagicItemTemplateSchema = createInsertSchema(magicItemTemplates).omit({
+  id: true,
+});
+
+export type InsertMagicItemTemplate = z.infer<typeof insertMagicItemTemplateSchema>;
+export type MagicItemTemplate = typeof magicItemTemplates.$inferSelect;
+
+// Character Inventory - Actual items owned by characters (including bound magical items)
+export const characterInventory = pgTable("character_inventory", {
+  id: serial("id").primaryKey(),
+  characterId: integer("character_id").notNull(),
+  templateId: integer("template_id"), // Reference to magic_item_templates (null for non-magical items)
+  // Item identity
+  name: text("name").notNull(),
+  description: text("description"),
+  type: text("type").notNull(), // weapon, armor, accessory, wondrous, consumable
+  rarity: text("rarity").default("common"),
+  // Binding and ownership
+  isBound: boolean("is_bound").default(false), // Soulbound to character
+  boundAt: text("bound_at"), // When item was bound
+  acquiredFrom: text("acquired_from"), // "milestone", "shop", "quest", "loot"
+  acquiredAt: text("acquired_at").notNull(),
+  // Stats (copied from template or set manually)
+  magicBonus: integer("magic_bonus").default(0),
+  damageDice: text("damage_dice"),
+  damageType: text("damage_type"),
+  baseAC: integer("base_ac"),
+  properties: text("properties").array(),
+  specialEffect: text("special_effect"),
+  requiresAttunement: boolean("requires_attunement").default(false),
+  isAttuned: boolean("is_attuned").default(false),
+  // Equipment status
+  isEquipped: boolean("is_equipped").default(false),
+  equipSlot: text("equip_slot"), // weapon, armor, shield, accessory
+  // Quantity for stackable items
+  quantity: integer("quantity").default(1),
+  // Value
+  value: integer("value").default(0), // Gold value
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertCharacterInventorySchema = createInsertSchema(characterInventory).omit({
+  id: true,
+});
+
+export type InsertCharacterInventory = z.infer<typeof insertCharacterInventorySchema>;
+export type CharacterInventory = typeof characterInventory.$inferSelect;
+
+// Milestone Rewards - Tracks milestone rewards earned by characters
+export const milestoneRewards = pgTable("milestone_rewards", {
+  id: serial("id").primaryKey(),
+  characterId: integer("character_id").notNull(),
+  campaignId: integer("campaign_id").notNull(),
+  // Milestone info
+  milestoneType: text("milestone_type").notNull(), // boss_defeat, quest_complete, chapter_end, exploration
+  milestoneName: text("milestone_name").notNull(), // e.g., "Defeated the Dragon", "Completed Chapter 3"
+  sessionNumber: integer("session_number"), // Which session this occurred in
+  // Reward info
+  itemTemplateId: integer("item_template_id"), // Reference to magic_item_templates
+  inventoryItemId: integer("inventory_item_id"), // Reference to the actual item created
+  xpAwarded: integer("xp_awarded").default(0),
+  goldAwarded: integer("gold_awarded").default(0),
+  // Status
+  isClaimed: boolean("is_claimed").default(false),
+  claimedAt: text("claimed_at"),
+  // Timestamps
+  earnedAt: text("earned_at").notNull(),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertMilestoneRewardSchema = createInsertSchema(milestoneRewards).omit({
+  id: true,
+});
+
+export type InsertMilestoneReward = z.infer<typeof insertMilestoneRewardSchema>;
+export type MilestoneReward = typeof milestoneRewards.$inferSelect;
