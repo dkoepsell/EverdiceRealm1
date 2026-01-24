@@ -60,11 +60,25 @@ interface SpellSlots {
   slotsLevel9Used: number;
 }
 
+interface MagicItem {
+  id: number;
+  name: string;
+  type: string;
+  rarity: string;
+  specialEffect?: string;
+  damageDice?: string;
+  damageType?: string;
+  isEquipped?: boolean;
+  charges?: number;
+  maxCharges?: number;
+}
+
 interface CombatSpellPanelProps {
   characterId: number;
   characterClass: string;
   characterLevel: number;
   onCastSpell?: (spell: Spell, slotLevel: number) => void;
+  onUseMagicItem?: (item: MagicItem) => void;
 }
 
 const SCHOOL_ICONS: Record<string, any> = {
@@ -90,7 +104,8 @@ export default function CombatSpellPanel({
   characterId, 
   characterClass, 
   characterLevel,
-  onCastSpell 
+  onCastSpell,
+  onUseMagicItem
 }: CombatSpellPanelProps) {
   const [showAllSpells, setShowAllSpells] = useState(false);
 
@@ -100,6 +115,29 @@ export default function CombatSpellPanel({
   
   const { data: spellSlots } = useQuery<SpellSlots>({
     queryKey: [`/api/characters/${characterId}/spell-slots`],
+  });
+
+  // Fetch magical inventory for usable items (wands, staves, etc.)
+  const { data: magicalInventory = [] } = useQuery<MagicItem[]>({
+    queryKey: ['/api/characters', characterId, 'magical-inventory'],
+    queryFn: async () => {
+      const response = await fetch(`/api/characters/${characterId}/magical-inventory`, { credentials: 'include' });
+      if (!response.ok) return [];
+      return response.json();
+    },
+  });
+
+  // Filter for usable magic items (wands, staves, rods, items with special effects)
+  const usableMagicItems = magicalInventory.filter((item: MagicItem) => {
+    const usableTypes = ['wand', 'staff', 'rod', 'scroll', 'potion'];
+    const isUsableType = usableTypes.some(t => item.type?.toLowerCase().includes(t) || item.name?.toLowerCase().includes(t));
+    const hasSpellEffect = item.specialEffect && (
+      item.specialEffect.toLowerCase().includes('cast') ||
+      item.specialEffect.toLowerCase().includes('spell') ||
+      item.specialEffect.toLowerCase().includes('damage') ||
+      item.specialEffect.toLowerCase().includes('missile')
+    );
+    return isUsableType || hasSpellEffect;
   });
 
   const useSlotMutation = useMutation({
@@ -160,7 +198,8 @@ export default function CombatSpellPanel({
   const spellcastingClasses = ['wizard', 'sorcerer', 'cleric', 'bard', 'druid', 'warlock', 'paladin', 'ranger'];
   const isSpellcaster = spellcastingClasses.includes(characterClass.toLowerCase());
 
-  if (!isSpellcaster) return null;
+  // Show panel if spellcaster OR has usable magic items
+  if (!isSpellcaster && usableMagicItems.length === 0) return null;
 
   return (
     <Card className="border-purple-300 dark:border-purple-700 bg-purple-50/50 dark:bg-purple-950/30">
@@ -211,14 +250,24 @@ export default function CombatSpellPanel({
           </Label>
         </div>
 
-        <Tabs defaultValue="cantrips" className="w-full">
+        <Tabs defaultValue={usableMagicItems.length > 0 && !isSpellcaster ? "items" : "cantrips"} className="w-full">
           <TabsList className="w-full h-7 mb-2">
-            <TabsTrigger value="cantrips" className="text-xs flex-1">
-              Cantrips ({cantrips.length})
-            </TabsTrigger>
-            <TabsTrigger value="spells" className="text-xs flex-1">
-              Spells ({leveledSpells.length})
-            </TabsTrigger>
+            {isSpellcaster && (
+              <>
+                <TabsTrigger value="cantrips" className="text-xs flex-1">
+                  Cantrips ({cantrips.length})
+                </TabsTrigger>
+                <TabsTrigger value="spells" className="text-xs flex-1">
+                  Spells ({leveledSpells.length})
+                </TabsTrigger>
+              </>
+            )}
+            {usableMagicItems.length > 0 && (
+              <TabsTrigger value="items" className="text-xs flex-1">
+                <Wand2 className="h-3 w-3 mr-1" />
+                Items ({usableMagicItems.length})
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="cantrips" className="mt-0">
@@ -314,6 +363,55 @@ export default function CombatSpellPanel({
                   <p className="text-xs text-center text-gray-500 py-2">
                     {showAllSpells ? "No spells known" : "No spells prepared"}
                   </p>
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* Magic Items Tab */}
+          <TabsContent value="items" className="mt-0">
+            <ScrollArea className="h-[120px]">
+              <div className="space-y-1">
+                {usableMagicItems.map((item: MagicItem) => {
+                  const DamageIcon = item.damageType ? DAMAGE_ICONS[item.damageType.toLowerCase()] : null;
+                  
+                  return (
+                    <TooltipProvider key={item.id}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full justify-start h-7 text-xs px-2 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50"
+                            onClick={() => onUseMagicItem?.(item)}
+                          >
+                            <Wand2 className="h-3 w-3 mr-1.5 text-purple-500" />
+                            <span className="flex-1 text-left truncate">{item.name}</span>
+                            {DamageIcon && <DamageIcon className="h-3 w-3 text-red-500" />}
+                            <Badge variant="outline" className="h-4 px-1 text-[10px] bg-purple-100 dark:bg-purple-800">
+                              Magic
+                            </Badge>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-xs">
+                          <p className="font-bold">{item.name}</p>
+                          <p className="text-xs capitalize text-purple-400">{item.rarity} {item.type}</p>
+                          {item.damageDice && (
+                            <p className="text-xs text-red-400">{item.damageDice} {item.damageType}</p>
+                          )}
+                          {item.specialEffect && (
+                            <p className="text-xs mt-1 text-purple-300 italic">{item.specialEffect}</p>
+                          )}
+                          {item.charges !== undefined && (
+                            <p className="text-xs text-amber-400">Charges: {item.charges}/{item.maxCharges || '?'}</p>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  );
+                })}
+                {usableMagicItems.length === 0 && (
+                  <p className="text-xs text-center text-gray-500 py-2">No magic items available</p>
                 )}
               </div>
             </ScrollArea>

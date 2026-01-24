@@ -3178,13 +3178,148 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           </div>
                         </div>
                         
-                        {/* Combat Spells for active character */}
-                        {activeCharacter && ['wizard', 'sorcerer', 'cleric', 'bard', 'druid', 'warlock', 'paladin', 'ranger'].includes(activeCharacter.class?.toLowerCase() || '') && (
+                        {/* Combat Spells & Magic Items for active character */}
+                        {activeCharacter && (
                           <div className="mt-3">
                             <CombatSpellPanel
                               characterId={activeCharacter.id}
                               characterClass={activeCharacter.class || ''}
                               characterLevel={activeCharacter.level || 1}
+                              onUseMagicItem={(item) => {
+                                // Handle using a magic item in combat
+                                const inCombat = parsedStoryState?.inCombat;
+                                const enemies = (parsedStoryState?.combatants as any[] || []).filter((e: any) => e.status !== 'defeated');
+                                const targetEnemy = enemies.length > 0 ? enemies[0] : null;
+                                
+                                // Parse damage dice from item if available
+                                const damageDice = item.damageDice || (item.specialEffect?.match(/(\d+d\d+(?:\s*\+\s*\d+)?)/i)?.[1]) || '3d4+3'; // Default to Magic Missile
+                                const damageType = item.damageType || 'force';
+                                
+                                if (inCombat && targetEnemy) {
+                                  // Magic items like wands typically auto-hit (Magic Missile) or require spell attack
+                                  const isMagicMissile = item.name.toLowerCase().includes('magic missile');
+                                  
+                                  if (isMagicMissile) {
+                                    // Magic Missile auto-hits
+                                    const damageResult = parseAndRollDice(damageDice, false, damageType);
+                                    
+                                    const combatLog = {
+                                      attacker: activeCharacter.name || 'Hero',
+                                      attackerType: 'player',
+                                      target: targetEnemy.name,
+                                      targetType: 'enemy',
+                                      attackRoll: null,
+                                      targetAC: targetEnemy.ac || 12,
+                                      isHit: true,
+                                      damage: {
+                                        diceRolls: damageResult.diceRolls,
+                                        diceType: damageResult.diceType,
+                                        modifier: damageResult.modifier,
+                                        total: damageResult.total,
+                                        isCritical: false
+                                      },
+                                      targetNewHp: Math.max(0, targetEnemy.currentHp - damageResult.total),
+                                      targetMaxHp: targetEnemy.maxHp,
+                                      targetStatus: (targetEnemy.currentHp - damageResult.total) <= 0 ? 'defeated' : targetEnemy.status,
+                                      description: `${activeCharacter.name} waves the ${item.name}! Glowing darts of magical force streak toward ${targetEnemy.name}, dealing ${damageResult.total} force damage!`,
+                                      mechanicsBreakdown: `Magic Missile (auto-hit)\nDamage: ${damageResult.diceRolls.join('+')} = ${damageResult.total} force`
+                                    };
+                                    
+                                    setDetailedCombatLogs([combatLog]);
+                                    setShowCombatLogDialog(true);
+                                    
+                                    toast({
+                                      title: `✨ ${item.name}!`,
+                                      description: `Dealt ${damageResult.total} force damage to ${targetEnemy.name}!`,
+                                    });
+                                    
+                                    advanceStory.mutate({
+                                      choice: `Use ${item.name} on ${targetEnemy.name}, dealing ${damageResult.total} force damage`,
+                                      rollResult: {
+                                        type: 'magic_item',
+                                        itemName: item.name,
+                                        damage: damageResult,
+                                        target: targetEnemy.name,
+                                        isHit: true
+                                      }
+                                    });
+                                  } else {
+                                    // Other magic items may require attack roll
+                                    const profBonus = Math.floor(((activeCharacter.level || 1) - 1) / 4) + 2;
+                                    const intMod = Math.floor(((activeCharacter as any).intelligence || 10 - 10) / 2);
+                                    const attackResult = rollSpellAttack(profBonus + intMod);
+                                    const targetAC = targetEnemy.ac || 12;
+                                    const isHit = attackResult.isCritical || (!attackResult.isCriticalMiss && attackResult.total >= targetAC);
+                                    
+                                    let damageResult = null;
+                                    if (isHit) {
+                                      damageResult = parseAndRollDice(damageDice, attackResult.isCritical, damageType);
+                                    }
+                                    
+                                    const combatLog = {
+                                      attacker: activeCharacter.name || 'Hero',
+                                      attackerType: 'player',
+                                      target: targetEnemy.name,
+                                      targetType: 'enemy',
+                                      attackRoll: attackResult,
+                                      targetAC,
+                                      isHit,
+                                      damage: damageResult ? {
+                                        diceRolls: damageResult.diceRolls,
+                                        diceType: damageResult.diceType,
+                                        modifier: damageResult.modifier,
+                                        total: damageResult.total,
+                                        isCritical: damageResult.isCritical
+                                      } : null,
+                                      targetNewHp: isHit && damageResult ? Math.max(0, targetEnemy.currentHp - damageResult.total) : targetEnemy.currentHp,
+                                      targetMaxHp: targetEnemy.maxHp,
+                                      targetStatus: isHit && damageResult && (targetEnemy.currentHp - damageResult.total) <= 0 ? 'defeated' : targetEnemy.status,
+                                      description: isHit 
+                                        ? `${activeCharacter.name} activates the ${item.name}! ${targetEnemy.name} takes ${damageResult?.total} ${damageType} damage!`
+                                        : `${activeCharacter.name} uses the ${item.name} but ${targetEnemy.name} evades!`,
+                                      mechanicsBreakdown: `Attack: d20(${attackResult.roll}) + ${attackResult.modifier} = ${attackResult.total} vs AC ${targetAC}`
+                                        + (damageResult ? `\nDamage: ${damageResult.diceRolls.join('+')} = ${damageResult.total} ${damageType}` : '')
+                                    };
+                                    
+                                    setDetailedCombatLogs([combatLog]);
+                                    setShowCombatLogDialog(true);
+                                    
+                                    toast({
+                                      title: isHit ? `✨ ${item.name} hits!` : `❌ ${item.name} missed!`,
+                                      description: isHit && damageResult
+                                        ? `Dealt ${damageResult.total} ${damageType} damage to ${targetEnemy.name}!`
+                                        : `Attack roll ${attackResult.total} vs AC ${targetAC}`,
+                                      variant: isHit ? undefined : "destructive",
+                                    });
+                                    
+                                    advanceStory.mutate({
+                                      choice: `Use ${item.name} on ${targetEnemy.name}${isHit ? `, dealing ${damageResult?.total} ${damageType} damage` : ' but missed'}`,
+                                      rollResult: {
+                                        type: 'magic_item',
+                                        itemName: item.name,
+                                        attackRoll: attackResult,
+                                        damage: damageResult,
+                                        target: targetEnemy.name,
+                                        isHit
+                                      }
+                                    });
+                                  }
+                                } else {
+                                  // Outside combat - just describe using the item
+                                  toast({
+                                    title: `✨ Used ${item.name}!`,
+                                    description: item.specialEffect || `You activate the magical item.`,
+                                  });
+                                  
+                                  advanceStory.mutate({
+                                    choice: `Use ${item.name}`,
+                                    rollResult: {
+                                      type: 'magic_item',
+                                      itemName: item.name
+                                    }
+                                  });
+                                }
+                              }}
                               onCastSpell={(spell, slotLevel) => {
                                 // Calculate spellcasting modifier based on class
                                 const getSpellcastingAbility = (charClass: string): 'intelligence' | 'wisdom' | 'charisma' => {
