@@ -2396,7 +2396,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="max-w-xs">
                     <p className="font-medium">DM Command Center</p>
-                    <p className="text-xs text-muted-foreground">AI-powered insights about your campaign: story analysis, quest tracking, party status, and suggestions for what to do next.</p>
+                    <p className="text-xs text-muted-foreground">Campaign insights: story analysis, quest tracking, party status, and suggestions for what to do next.</p>
                   </TooltipContent>
                 </Tooltip>
               )}

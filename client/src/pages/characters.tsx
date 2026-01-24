@@ -1496,7 +1496,7 @@ export default function Characters() {
                     onClick={handleGenerateCharacter}
                     disabled={isGenerating}
                   >
-                    {isGenerating ? "Generating..." : "AI Generate"}
+                    {isGenerating ? "Generating..." : "Generate"}
                   </Button>
                 </div>
               </CardHeader>

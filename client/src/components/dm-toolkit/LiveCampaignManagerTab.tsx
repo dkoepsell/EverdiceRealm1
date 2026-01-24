@@ -727,7 +727,7 @@ export default function LiveCampaignManagerTab({
                 <div className="space-y-2 text-sm text-muted-foreground">
                   <p>• Prepare 2-3 backup encounters</p>
                   <p>• Keep player backstories handy</p>
-                  <p>• Use the AI assistant for guidance</p>
+                  <p>• Use the generators for quick content</p>
                   <p>• Take notes during sessions</p>
                 </div>
               </CardContent>
@@ -1157,7 +1157,7 @@ export default function LiveCampaignManagerTab({
                   <h4 className="font-medium">During the Session:</h4>
                   <ul className="text-sm text-muted-foreground space-y-1">
                     <li>• Start with a recap</li>
-                    <li>• Use the AI assistant for guidance</li>
+                    <li>• Use the generators for quick content</li>
                     <li>• Take notes on player actions</li>
                     <li>• Keep combat moving quickly</li>
                   </ul>
@@ -1176,7 +1176,7 @@ export default function LiveCampaignManagerTab({
                 <div className="space-y-2">
                   <h4 className="font-medium">Players Go Off-Script:</h4>
                   <p className="text-sm text-muted-foreground">
-                    Embrace it! Use the AI assistant to generate new content on the fly.
+                    Embrace it! Use the generators to create new content on the fly.
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -1653,8 +1653,8 @@ export default function LiveCampaignManagerTab({
                   
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-medium">AI Assistance</h4>
-                      <p className="text-sm text-muted-foreground">Enable AI-powered DM assistance during sessions</p>
+                      <h4 className="font-medium">Content Generators</h4>
+                      <p className="text-sm text-muted-foreground">Enable quick content generation during sessions</p>
                     </div>
                     <input type="checkbox" defaultChecked className="rounded" />
                   </div>

@@ -45,7 +45,7 @@ export default function HowItWorks() {
               <li>Learning the mechanics of D&D in a guided, interactive way</li>
               <li>Creating and managing characters with visual representation</li>
               <li>Collaborating on adventures with friends</li>
-              <li>Developing Dungeon Master skills through AI assistance</li>
+              <li>Developing Dungeon Master skills with guided training and tools</li>
               <li>Casual play when gathering in person isn't possible</li>
             </ul>
           </CardContent>
@@ -193,7 +193,7 @@ export default function HowItWorks() {
             </CardHeader>
             <CardContent>
               <p className="text-sm">
-                Learn to become a Dungeon Master with our AI-assisted tools that help create balanced encounters, compelling NPCs, and dynamic story arcs.
+                Learn to become a Dungeon Master with tools that help you create balanced encounters, compelling NPCs, and dynamic story arcs.
               </p>
             </CardContent>
           </Card>

@@ -418,7 +418,7 @@ export default function Campaigns() {
                 <div>
                   <CardTitle className="text-xl">Create New Campaign</CardTitle>
                   <CardDescription>
-                    Start a new adventure with AI-powered storytelling
+                    Start a new adventure with built-in story continuity
                   </CardDescription>
                 </div>
               </div>
@@ -427,7 +427,7 @@ export default function Campaigns() {
               <Form {...form}>
                 <div className="mb-6 pb-4 border-b border-gray-200">
                   <div className="flex items-center space-x-2 mb-4">
-                    <FormLabel className="text-lg font-semibold !m-0">AI-Assisted Campaign Generation</FormLabel>
+                    <FormLabel className="text-lg font-semibold !m-0">Quick Campaign Setup</FormLabel>
                     <Switch
                       checked={useAIGeneration}
                       onCheckedChange={setUseAIGeneration}

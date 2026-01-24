@@ -325,7 +325,7 @@ export default function CampaignDashboard({
               </div>
             </CollapsibleTrigger>
             <CardDescription>
-              AI-powered analysis highlighting critical narrative junctures
+              Story analysis highlighting critical narrative moments and opportunities
             </CardDescription>
           </CardHeader>
           <CollapsibleContent>

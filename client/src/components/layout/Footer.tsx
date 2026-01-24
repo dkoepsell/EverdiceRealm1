@@ -31,7 +31,7 @@ export default function Footer() {
               <h2 className="font-fantasy text-xl font-bold text-gold">Everdice</h2>
             </div>
             <p className="text-gray-300 mb-4">
-              Your AI-powered companion for tabletop roleplaying adventures. Create characters, roll dice, and embark on epic quests.
+              Your companion for tabletop adventures. We handle the bookkeeping so you can focus on roleplaying and fun.
             </p>
           </div>
           

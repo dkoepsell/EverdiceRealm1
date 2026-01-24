@@ -1401,7 +1401,7 @@ function LocationsTab() {
       setShowCreateDialog(true);
       toast({
         title: "Success",
-        description: "AI generated location ready for review",
+        description: "Generated location ready for review",
       });
     },
     onError: (error: Error) => {
@@ -1431,7 +1431,7 @@ function LocationsTab() {
             <Plus className="h-4 w-4 mr-2" /> Create Location
           </Button>
           <Button variant="outline" onClick={() => handleAIGenerate('location')}>
-            <Sparkles className="h-4 w-4 mr-2" /> AI Generate
+            <Sparkles className="h-4 w-4 mr-2" /> Generate
           </Button>
         </div>
       </div>
@@ -1789,7 +1789,7 @@ function QuestsTab() {
       setShowCreateDialog(true);
       toast({
         title: "Success",
-        description: "AI generated quest ready for review",
+        description: "Generated quest ready for review",
       });
     },
     onError: (error: Error) => {
@@ -1819,7 +1819,7 @@ function QuestsTab() {
             <Plus className="h-4 w-4 mr-2" /> Create Quest
           </Button>
           <Button variant="outline" onClick={() => handleAIGenerate('quest')}>
-            <Sparkles className="h-4 w-4 mr-2" /> AI Generate
+            <Sparkles className="h-4 w-4 mr-2" /> Generate
           </Button>
         </div>
       </div>
@@ -2359,7 +2359,7 @@ function MagicItemsTab() {
       setShowCreateDialog(true);
       toast({
         title: "Success",
-        description: "AI generated magic item ready for review",
+        description: "Generated magic item ready for review",
       });
     },
     onError: (error: Error) => {
@@ -2389,7 +2389,7 @@ function MagicItemsTab() {
             <Plus className="h-4 w-4 mr-2" /> Create Magic Item
           </Button>
           <Button variant="outline" onClick={() => handleAIGenerate('magic-item')}>
-            <Sparkles className="h-4 w-4 mr-2" /> AI Generate
+            <Sparkles className="h-4 w-4 mr-2" /> Generate
           </Button>
         </div>
       </div>
@@ -2920,7 +2920,7 @@ function MonstersTab() {
       setShowCreateDialog(true);
       toast({
         title: "Success",
-        description: "AI generated monster ready for review",
+        description: "Generated monster ready for review",
       });
     },
     onError: (error: Error) => {
@@ -2950,7 +2950,7 @@ function MonstersTab() {
             <Plus className="h-4 w-4 mr-2" /> Create Monster
           </Button>
           <Button variant="outline" onClick={() => handleAIGenerate('monster')}>
-            <Sparkles className="h-4 w-4 mr-2" /> AI Generate
+            <Sparkles className="h-4 w-4 mr-2" /> Generate
           </Button>
         </div>
       </div>

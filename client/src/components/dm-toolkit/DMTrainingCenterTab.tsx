@@ -115,8 +115,8 @@ const trainingModules: TrainingModule[] = [
           "Write down 5 things that would make YOUR ideal D&D session"
         ],
         platformTips: [
-          "Use the Campaign Builder to set up your first campaign with AI-generated hooks",
-          "The AI Story Tools can help you improvise when players surprise you",
+          "Use the Campaign Builder to set up your first campaign with story hooks",
+          "The Story Tools can help you improvise when players surprise you",
           "Keep the dice roller handy—players love seeing their results in real-time"
         ],
         quizQuestions: [
@@ -453,7 +453,7 @@ const trainingModules: TrainingModule[] = [
           "Describe a killing blow for a fighter, a wizard, and a rogue"
         ],
         platformTips: [
-          "Use the AI Story Tools for inspiration on dramatic descriptions",
+          "Use the Story Tools for inspiration on dramatic descriptions",
           "The dice roller shows critical hits and misses—perfect moments for big narration"
         ]
       },
@@ -609,7 +609,7 @@ const trainingModules: TrainingModule[] = [
           "Practice describing a random room with only 5 seconds of thought"
         ],
         platformTips: [
-          "The AI Story Tools can generate content on the fly when you're stuck",
+          "The Story Tools can generate content on the fly when you're stuck",
           "Use the Quest Generator for instant side content",
           "The NPC Generator creates full characters in seconds for improvised encounters"
         ]
@@ -693,7 +693,7 @@ const trainingModules: TrainingModule[] = [
         ],
         platformTips: [
           "Use the Campaign Builder to set up your campaign structure",
-          "AI-generated campaign hooks can inspire your starting scenario",
+          "Generated campaign hooks can inspire your starting scenario",
           "Track campaign progress through the Chapter system"
         ]
       },
@@ -768,7 +768,7 @@ const trainingModules: TrainingModule[] = [
         platformTips: [
           "Use the Quest Generator for adventure ideas",
           "The Campaign Builder can create adventure hooks tied to locations",
-          "AI Story Tools can flesh out your adventure outline"
+          "Story Tools can flesh out your adventure outline"
         ]
       },
       {
@@ -887,7 +887,7 @@ const trainingModules: TrainingModule[] = [
           "Write the first line you'll say to start the game"
         ],
         platformTips: [
-          "Use the AI narrative tools to help craft compelling opening descriptions",
+          "Use the narrative tools to help craft compelling opening descriptions",
           "The Live Manager can set the scene with location and NPC details ready"
         ]
       },
@@ -976,17 +976,17 @@ const trainingModules: TrainingModule[] = [
       {
         id: "campaign-management",
         title: "Campaign Management Basics",
-        content: "Everdice is designed to reduce your prep time and enhance your sessions. The Campaign Builder helps you structure your adventure with AI-generated hooks and story elements. Create campaigns, invite players, and let the platform handle the bookkeeping while you focus on the fun parts: storytelling and running encounters.",
+        content: "Everdice is designed to reduce your prep time and enhance your sessions. The Campaign Builder helps you structure your adventure with story hooks and campaign memory. Create campaigns, invite players, and let the platform handle the bookkeeping while you focus on the fun parts: storytelling and running encounters.",
         keyPoints: [
           "Campaigns are your central hub—all content lives within them",
-          "AI-generated hooks can inspire or fully build adventure structure",
+          "Generated hooks can inspire or fully build adventure structure",
           "Invite players with shareable links or codes",
           "The platform tracks character progress automatically",
           "All dice rolls are logged for reference"
         ],
         tips: [
           "Start a campaign before your first session to explore features",
-          "Use AI generation as a starting point, then customize",
+          "Use generated content as a starting point, then customize",
           "Keep Campaign Notes updated after each session",
           "Export CAML files for backup or use with other tools",
           "Review the Campaign Dashboard before each session for insights"
@@ -995,35 +995,35 @@ const trainingModules: TrainingModule[] = [
           "Not exploring platform features before game day",
           "Forgetting to invite players to the campaign",
           "Not using Campaign Notes to track important details",
-          "Ignoring AI suggestions that could help",
+          "Ignoring suggestions that could help",
           "Trying to use every feature at once—start simple"
         ],
         practiceExercises: [
           "Create a test campaign and explore all the menu options",
-          "Generate an AI adventure hook and modify it",
+          "Generate an adventure hook and modify it",
           "Invite a friend to test player joining",
           "Practice using the dice roller in different scenarios"
         ],
         platformTips: [
           "The Campaign Builder wizard walks you through setup step by step",
-          "AI-generated content is always editable—make it yours",
+          "Generated content is always editable—make it yours",
           "Use chapter markers to organize your campaign timeline"
         ]
       },
       {
         id: "live-session-tools",
         title: "Running Live Sessions with Everdice",
-        content: "During live play, Everdice becomes your command center. The Live Manager tracks initiative, HP, and turn order. Dice rolls broadcast to all players automatically. The AI can help you improvise NPC dialogue or generate quick descriptions when you're stuck. Use these tools to keep sessions flowing smoothly.",
+        content: "During live play, Everdice becomes your command center. The Live Manager tracks initiative, HP, and turn order. Dice rolls broadcast to all players automatically. Story Tools can help you improvise NPC dialogue or generate quick descriptions when you're stuck. Use these tools to keep sessions flowing smoothly.",
         keyPoints: [
           "Live Manager is your combat command center",
           "Initiative tracker keeps combat organized",
           "HP tracking for party and enemies in one view",
           "Real-time dice rolls visible to everyone",
-          "AI Story Tools for on-the-fly inspiration"
+          "Story Tools for on-the-fly inspiration"
         ],
         tips: [
           "Open Live Manager at session start, even for roleplay-heavy sessions",
-          "Use the AI for quick NPC responses when improvising",
+          "Use generators for quick NPC responses when improvising",
           "Keep the party stats visible for quick reference",
           "Let players roll their own dice for engagement",
           "Use the notes section for real-time session logging"
@@ -1031,13 +1031,13 @@ const trainingModules: TrainingModule[] = [
         commonMistakes: [
           "Trying to learn the tools during your session",
           "Not having the Live Manager open during combat",
-          "Forgetting that AI is available for inspiration",
+          "Forgetting that generators are available for inspiration",
           "Over-relying on tools instead of engaging players directly",
           "Not practicing with the interface beforehand"
         ],
         practiceExercises: [
           "Run a mock combat using the Live Manager",
-          "Practice generating AI NPC dialogue",
+          "Practice generating NPC dialogue",
           "Test the initiative tracker with sample combatants",
           "Use the dice roller for various skill checks"
         ],
@@ -1049,8 +1049,8 @@ const trainingModules: TrainingModule[] = [
       },
       {
         id: "content-creation",
-        title: "Creating Content with AI Assistance",
-        content: "The DM Toolkit provides generators for NPCs, locations, quests, items, and monsters. Use these to quickly populate your world or spark ideas. The AI understands D&D conventions and creates balanced, interesting content. You can generate, edit, and save content to your campaign for later use.",
+        title: "Creating Content with Generators",
+        content: "The DM Toolkit provides generators for NPCs, locations, quests, items, and monsters. Use these to quickly populate your world or spark ideas. The generators follow D&D conventions and create balanced, interesting content. You can generate, edit, and save content to your campaign for later use.",
         keyPoints: [
           "NPC Generator creates characters with motivations and personalities",
           "Location Generator builds places with interesting features",
@@ -1089,7 +1089,7 @@ const trainingModules: TrainingModule[] = [
         title: "Between Session Workflow",
         content: "Everdice helps you prep efficiently between sessions. Review the Campaign Dashboard for story insights. Check character progression and player notes. Use generators to create content for next session. Update your campaign notes with what happened and what's coming. A good between-session workflow makes running sessions easier.",
         keyPoints: [
-          "Campaign Dashboard shows AI analysis of your story",
+          "Campaign Dashboard shows analysis of your story",
           "Review player character sheets for story hooks",
           "Generate and save content for upcoming sessions",
           "Update notes with session summary and plans",
@@ -1097,13 +1097,13 @@ const trainingModules: TrainingModule[] = [
         ],
         tips: [
           "Spend 15 minutes reviewing the Dashboard before prepping",
-          "Use AI story insights to spot opportunities you might miss",
+          "Use story insights to spot opportunities you might miss",
           "Generate backup content for likely player directions",
           "Update character notes with new developments",
           "Plan next session's key moments based on Dashboard suggestions"
         ],
         commonMistakes: [
-          "Not using the Dashboard's AI insights",
+          "Not using the Dashboard's insights",
           "Forgetting to update notes after sessions",
           "Not preparing content for likely player choices",
           "Ignoring unresolved Story Threads",
@@ -1116,7 +1116,7 @@ const trainingModules: TrainingModule[] = [
           "Identify 2 unresolved threads to address next time"
         ],
         platformTips: [
-          "The Campaign Dashboard's AI analysis improves with each session",
+          "The Campaign Dashboard's analysis improves with each session",
           "Story Threads help you track promises you've made to players",
           "Use the CAML export for detailed campaign backups"
         ]
@@ -1802,7 +1802,7 @@ export default function DMTrainingCenterTab() {
                   <p className="font-medium">When you're truly stuck:</p>
                   <ul className="ml-4 text-muted-foreground space-y-1">
                     <li>• Call a 5-minute break</li>
-                    <li>• Use Everdice's AI Story Tools for inspiration</li>
+                    <li>• Use Everdice's Story Tools for inspiration</li>
                     <li>• It's okay to say "Let's pause here and pick up next time"</li>
                   </ul>
                 </div>
@@ -1815,9 +1815,9 @@ export default function DMTrainingCenterTab() {
                 <div className="text-sm">
                   <p className="font-medium">For Session Prep:</p>
                   <ul className="ml-4 text-muted-foreground space-y-1">
-                    <li>• Use Campaign Builder to set up structure with AI assistance</li>
+                    <li>• Use Campaign Builder to set up structure</li>
                     <li>• Generate backup NPCs with the NPC Generator before each session</li>
-                    <li>• Check Campaign Dashboard for AI story insights</li>
+                    <li>• Check Campaign Dashboard for story insights</li>
                   </ul>
                 </div>
                 <div className="text-sm mt-3">
@@ -1825,7 +1825,7 @@ export default function DMTrainingCenterTab() {
                   <ul className="ml-4 text-muted-foreground space-y-1">
                     <li>• Live Manager tracks initiative and HP in one view</li>
                     <li>• Dice roller broadcasts results to all players</li>
-                    <li>• AI Story Tools can generate descriptions when you're stuck</li>
+                    <li>• Story Tools can generate descriptions when you're stuck</li>
                   </ul>
                 </div>
                 <div className="text-sm mt-3">

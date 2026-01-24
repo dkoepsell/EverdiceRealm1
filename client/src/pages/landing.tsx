@@ -479,7 +479,7 @@ export default function LandingPage() {
             viewport={{ once: true }}
             className="text-center text-sm text-muted-foreground mt-8"
           >
-            No accounts required to explore. AI assists, you decide. No public exposure.
+            No accounts required to explore. You stay in control. No public exposure.
           </motion.p>
 
           {/* For Tinkerers Accordion */}
