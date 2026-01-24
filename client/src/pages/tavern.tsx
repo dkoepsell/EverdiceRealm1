@@ -80,6 +80,13 @@ interface InventoryItem {
   durability?: number;
   maxDurability?: number;
   equipped?: boolean;
+  // Magical item fields
+  isMagical?: boolean;
+  magicItemId?: number;
+  equipSlot?: string;
+  specialEffect?: string;
+  requiresAttunement?: boolean;
+  isAttuned?: boolean;
 }
 
 const SHOP_INVENTORY: ShopItem[] = [
@@ -387,6 +394,8 @@ function MagicItemShop({
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
       queryClient.invalidateQueries({ queryKey: ["/api/magic-items/shop", characterId] });
+      // Invalidate magical inventory query so new item shows up
+      queryClient.invalidateQueries({ queryKey: ['/api/characters', characterId, 'inventory'] });
       toast({
         title: "Purchase Complete!",
         description: `You acquired ${data.item?.name || 'a magical item'}!`
@@ -861,6 +870,18 @@ export default function TavernPage() {
   });
 
   const activeCharacter = characters.find(c => c.id === selectedCharacter) || characters[0];
+  
+  // Fetch magical inventory from character_inventory table
+  const { data: magicalInventory = [] } = useQuery<any[]>({
+    queryKey: ['/api/characters', activeCharacter?.id, 'inventory'],
+    queryFn: async () => {
+      if (!activeCharacter?.id) return [];
+      const response = await fetch(`/api/characters/${activeCharacter.id}/inventory`, { credentials: 'include' });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!activeCharacter?.id
+  });
 
   const buyItemMutation = useMutation({
     mutationFn: async ({ characterId, item, qty }: { characterId: number; item: ShopItem; qty: number }) => {
@@ -973,6 +994,31 @@ export default function TavernPage() {
     }
   });
   
+  // Equip/unequip magical item mutation
+  const equipMagicalItemMutation = useMutation({
+    mutationFn: async ({ characterId, itemId, slot }: { characterId: number; itemId: number; slot?: string }) => {
+      const response = await apiRequest("POST", `/api/characters/${characterId}/inventory/${itemId}/equip`, {
+        slot
+      });
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters', variables.characterId, 'inventory'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+      toast({
+        title: variables.slot ? "Item Equipped!" : "Item Unequipped!",
+        description: variables.slot ? "Your magical item is now equipped." : "Your magical item has been unequipped."
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Equip Failed",
+        description: error.message || "Could not equip/unequip item.",
+        variant: "destructive"
+      });
+    }
+  });
+  
   // Drink purchase mutation
   const buyDrinkMutation = useMutation({
     mutationFn: async ({ characterId, drink }: { characterId: number; drink: TavernDrink }) => {
@@ -1037,7 +1083,7 @@ export default function TavernPage() {
   const characterGold = activeCharacter?.gold || 0;
   const characterSilver = activeCharacter?.silver || 0;
   // Parse equipment items - they may be stored as JSON strings or plain strings
-  const characterEquipment: InventoryItem[] = (activeCharacter?.equipment || []).map((item: string | InventoryItem) => {
+  const basicEquipment: InventoryItem[] = (activeCharacter?.equipment || []).map((item: string | InventoryItem) => {
     if (typeof item === 'string') {
       // Try to parse as JSON, otherwise treat as simple item name
       try {
@@ -1048,6 +1094,27 @@ export default function TavernPage() {
     }
     return item;
   });
+  
+  // Convert magical inventory items to InventoryItem format and merge with basic equipment
+  const magicalItems: InventoryItem[] = magicalInventory.map((item: any) => ({
+    name: item.name,
+    type: item.type,
+    rarity: item.rarity || 'common',
+    description: item.description,
+    equipped: item.is_equipped,
+    damage: item.damage_dice ? `${item.damage_dice}${item.magic_bonus ? ` +${item.magic_bonus}` : ''} ${item.damage_type || ''}`.trim() : undefined,
+    armor: item.base_ac,
+    properties: item.properties,
+    isMagical: true,
+    magicItemId: item.id,
+    equipSlot: item.equip_slot,
+    specialEffect: item.special_effect,
+    requiresAttunement: item.requires_attunement,
+    isAttuned: item.is_attuned
+  }));
+  
+  // Combine both inventories
+  const characterEquipment: InventoryItem[] = [...basicEquipment, ...magicalItems];
 
   // Encumbrance system (D&D 5e: Carrying Capacity = Strength × 15)
   const getItemWeight = (item: InventoryItem): number => {
@@ -1437,18 +1504,26 @@ export default function TavernPage() {
                   <ScrollArea className="h-[500px]">
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {characterEquipment.map((item, index) => (
-                        <Card key={index} className={item.equipped ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20' : ''}>
+                        <Card key={item.isMagical ? `magic-${item.magicItemId}` : index} className={`${item.equipped ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20' : ''} ${item.isMagical ? 'border-purple-400/50' : ''}`}>
                           <CardContent className="p-4">
                             <div className="flex justify-between items-start mb-2">
                               <h4 className="font-bold flex items-center gap-2">
+                                {item.isMagical && <Sparkles className="h-4 w-4 text-purple-500" />}
                                 {typeof item === 'string' ? item : item.name}
                                 {item.equipped && <Star className="h-4 w-4 text-amber-500" />}
                               </h4>
-                              {typeof item !== 'string' && item.rarity && (
-                                <Badge variant={getRarityBadgeVariant(item.rarity)} className={getRarityColor(item.rarity)}>
-                                  {item.rarity}
-                                </Badge>
-                              )}
+                              <div className="flex items-center gap-1">
+                                {item.isMagical && (
+                                  <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-xs">
+                                    Magic
+                                  </Badge>
+                                )}
+                                {typeof item !== 'string' && item.rarity && (
+                                  <Badge variant={getRarityBadgeVariant(item.rarity)} className={getRarityColor(item.rarity)}>
+                                    {item.rarity}
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                             {typeof item !== 'string' && (
                               <>
@@ -1479,6 +1554,16 @@ export default function TavernPage() {
                                 {item.properties && (
                                   <p className="text-xs text-slate-500 dark:text-slate-400 italic mb-1">
                                     {item.properties}
+                                  </p>
+                                )}
+                                {item.specialEffect && (
+                                  <p className="text-xs text-purple-600 dark:text-purple-400 italic mb-1">
+                                    ✨ {item.specialEffect}
+                                  </p>
+                                )}
+                                {item.requiresAttunement && (
+                                  <p className={`text-xs mb-1 ${item.isAttuned ? 'text-green-600' : 'text-orange-500'}`}>
+                                    {item.isAttuned ? '🔮 Attuned' : '⚠️ Requires attunement'}
                                   </p>
                                 )}
                                 {item.durability !== undefined && (
@@ -1532,16 +1617,35 @@ export default function TavernPage() {
                                   Sell: {getSellPrice(typeof item === 'string' ? { name: item, rarity: 'common', type: 'misc', description: '' } : item)} gp
                                 </span>
                               </div>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => {
-                                  setSelectedInventoryItem(typeof item === 'string' ? { name: item, rarity: 'common', type: 'misc', description: '' } : item);
-                                  setSellDialogOpen(true);
-                                }}
-                              >
-                                Sell
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                {item.isMagical && item.magicItemId && (
+                                  <Button 
+                                    size="sm" 
+                                    variant={item.equipped ? "secondary" : "default"}
+                                    disabled={equipMagicalItemMutation.isPending}
+                                    onClick={() => {
+                                      if (!activeCharacter) return;
+                                      equipMagicalItemMutation.mutate({
+                                        characterId: activeCharacter.id,
+                                        itemId: item.magicItemId!,
+                                        slot: item.equipped ? undefined : (item.equipSlot || item.type || 'main_hand')
+                                      });
+                                    }}
+                                  >
+                                    {item.equipped ? 'Unequip' : 'Equip'}
+                                  </Button>
+                                )}
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedInventoryItem(typeof item === 'string' ? { name: item, rarity: 'common', type: 'misc', description: '' } : item);
+                                    setSellDialogOpen(true);
+                                  }}
+                                >
+                                  Sell
+                                </Button>
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
