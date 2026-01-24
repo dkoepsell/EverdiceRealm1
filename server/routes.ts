@@ -11708,20 +11708,24 @@ Respond with JSON:
       const turnsInChapter = previousTurnsInChapter + 1;
       
       // CRITICAL: Preserve existing combatants if in combat - don't let AI rename enemies
+      // BUT: Use storyAdvancement.storyState.combatants as source since player damage was already applied there
       let preservedCombatants = storyAdvancement.storyState?.combatants;
       if (currentStoryState.inCombat && currentStoryState.combatants?.length > 0) {
-        // Use existing combatants, but update HP from AI if provided
+        // Start with storyAdvancement combatants (which have player damage applied), merge with existing for any missing
+        const advancementCombatants = storyAdvancement.storyState?.combatants || [];
+        
         preservedCombatants = currentStoryState.combatants.map((existingEnemy: any) => {
-          const aiEnemy = storyAdvancement.storyState?.combatants?.find(
+          // Find this enemy in storyAdvancement (where player damage was applied)
+          const advancementEnemy = advancementCombatants.find(
             (ae: any) => ae.name === existingEnemy.name
           );
-          if (aiEnemy) {
-            // Merge AI updates (HP, status) but keep original name
-            return { ...existingEnemy, currentHp: aiEnemy.currentHp ?? existingEnemy.currentHp, status: aiEnemy.status ?? existingEnemy.status };
+          if (advancementEnemy) {
+            // Use the updated HP/status from storyAdvancement (has player damage applied)
+            return { ...existingEnemy, currentHp: advancementEnemy.currentHp, status: advancementEnemy.status };
           }
           return existingEnemy;
         }).filter((e: any) => e.status !== 'defeated' && (e.currentHp === undefined || e.currentHp > 0));
-        console.log(`Preserved ${preservedCombatants.length} existing combatants from session`);
+        console.log(`Preserved ${preservedCombatants.length} existing combatants from session (with damage applied)`);
       }
       
       // Merge the new exploration limit with the AI-generated story state
