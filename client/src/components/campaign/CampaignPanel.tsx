@@ -3208,7 +3208,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                       attackerType: 'player',
                                       target: targetEnemy.name,
                                       targetType: 'enemy',
-                                      attackRoll: null,
+                                      attackRoll: { roll: 0, modifier: 0, total: 0, isCritical: false, isCriticalMiss: false }, // Magic Missile auto-hits, no roll needed
                                       targetAC: targetEnemy.ac || 12,
                                       isHit: true,
                                       damage: {
@@ -3222,7 +3222,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                       targetMaxHp: targetEnemy.maxHp,
                                       targetStatus: (targetEnemy.currentHp - damageResult.total) <= 0 ? 'defeated' : targetEnemy.status,
                                       description: `${activeCharacter.name} waves the ${item.name}! Glowing darts of magical force streak toward ${targetEnemy.name}, dealing ${damageResult.total} force damage!`,
-                                      mechanicsBreakdown: `Magic Missile (auto-hit)\nDamage: ${damageResult.diceRolls.join('+')} = ${damageResult.total} force`
+                                      mechanicsBreakdown: `Magic Missile (auto-hit - no attack roll needed)\nDamage: ${damageResult.diceRolls.join('+')} = ${damageResult.total} force`
                                     };
                                     
                                     setDetailedCombatLogs([combatLog]);
