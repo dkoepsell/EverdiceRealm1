@@ -5952,6 +5952,102 @@ Return your response as a JSON object with these fields:
     }
   });
   
+  // Add consumable to NPC (quick-buy) - deducts from NPC gold
+  app.post("/api/campaigns/:campaignId/npcs/:npcId/consumables/add", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const npcId = parseInt(req.params.npcId);
+      const { name, quantity = 1 } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ message: "Consumable name is required" });
+      }
+      
+      // Get campaign NPC
+      const campaignNpc = await storage.getCampaignNpc(campaignId, npcId);
+      if (!campaignNpc) {
+        return res.status(404).json({ message: "NPC not in this campaign" });
+      }
+      
+      const npc = await storage.getNpc(npcId);
+      if (!npc) {
+        return res.status(404).json({ message: "NPC not found" });
+      }
+      
+      // Get the consumable info - reuse CONSUMABLE_EFFECTS from player endpoint (defined earlier in this file)
+      const effectInfo = CONSUMABLE_EFFECTS[name];
+      if (!effectInfo) {
+        return res.status(400).json({ message: "Unknown consumable type" });
+      }
+      
+      // Calculate total cost and check NPC gold
+      const totalCost = effectInfo.price * quantity;
+      const npcGold = (campaignNpc as any).gold ?? (npc as any).gold ?? 0;
+      
+      if (npcGold < totalCost) {
+        return res.status(400).json({ 
+          message: `Not enough gold! ${npc.name} needs ${totalCost} gp but only has ${npcGold} gp.`,
+          required: totalCost,
+          available: npcGold
+        });
+      }
+      
+      // Get current consumables from campaign NPC
+      const consumables: any[] = Array.isArray(campaignNpc.consumables) 
+        ? [...campaignNpc.consumables as any[]] 
+        : [];
+      
+      const existing = consumables.find(c => c.name === name);
+      
+      if (existing) {
+        existing.quantity += quantity;
+        if (effectInfo.healDice && !existing.healDice) {
+          existing.healDice = effectInfo.healDice;
+        }
+        if (effectInfo.healBonus !== undefined && existing.healBonus === undefined) {
+          existing.healBonus = effectInfo.healBonus;
+        }
+      } else {
+        const newConsumable: any = {
+          name,
+          quantity,
+          type: effectInfo.type,
+          effect: effectInfo.effect
+        };
+        if (effectInfo.healDice) {
+          newConsumable.healDice = effectInfo.healDice;
+        }
+        if (effectInfo.healBonus !== undefined) {
+          newConsumable.healBonus = effectInfo.healBonus;
+        }
+        consumables.push(newConsumable);
+      }
+      
+      // Deduct gold and update campaign NPC
+      const newGold = npcGold - totalCost;
+      await storage.updateCampaignNpc(campaignNpc.id, {
+        consumables,
+        gold: newGold
+      });
+      
+      res.json({
+        npcId,
+        npcName: npc.name,
+        consumables,
+        goldSpent: totalCost,
+        goldRemaining: newGold,
+        message: `${npc.name} purchased ${quantity}x ${name} for ${totalCost} gp. (${newGold} gp remaining)`
+      });
+    } catch (error: any) {
+      console.error("Error adding consumable to campaign NPC:", error);
+      res.status(500).json({ message: "Failed to add consumable", error: error.message });
+    }
+  });
+
   // Equip item for NPC
   app.post("/api/npcs/:id/equip", async (req, res) => {
     try {

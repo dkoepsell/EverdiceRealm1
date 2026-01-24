@@ -1678,6 +1678,87 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
   });
 
+  // NPC Quick-Buy consumable mutation
+  const addNpcConsumableMutation = useMutation({
+    mutationFn: async ({ npcId, name }: { npcId: number; name: string }) => {
+      const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/npcs/${npcId}/consumables/add`, { name, quantity: 1 });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData([`/api/campaigns/${campaign.id}/npcs`], (old: any[] | undefined) => {
+        if (!old) return old;
+        return old.map((cn: any) => {
+          if (cn.npcId === data.npcId) {
+            return { 
+              ...cn, 
+              consumables: data.consumables,
+              gold: data.goldRemaining
+            };
+          }
+          return cn;
+        });
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: "Purchased!",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Purchase Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // NPC Quick-Buy AND Use mutation - buys and immediately uses healing items
+  const npcQuickBuyAndUseMutation = useMutation({
+    mutationFn: async ({ npcId, name }: { npcId: number; name: string }) => {
+      // First add the consumable
+      const addResponse = await apiRequest('POST', `/api/campaigns/${campaign.id}/npcs/${npcId}/consumables/add`, { name, quantity: 1 });
+      const addData = await addResponse.json();
+      if (!addResponse.ok) throw new Error(addData.message || "Failed to purchase");
+      
+      // Then immediately use it
+      const useResponse = await apiRequest('POST', `/api/campaigns/${campaign.id}/npcs/${npcId}/consumables/use`, { name });
+      const useData = await useResponse.json();
+      if (!useResponse.ok) throw new Error(useData.message || "Failed to use");
+      
+      return { ...useData, goldRemaining: addData.goldRemaining, goldSpent: addData.goldSpent };
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData([`/api/campaigns/${campaign.id}/npcs`], (old: any[] | undefined) => {
+        if (!old) return old;
+        return old.map((cn: any) => {
+          if (cn.npcId === data.npcId) {
+            return { 
+              ...cn, 
+              consumables: data.consumables,
+              currentHp: data.currentHp,
+              status: data.status,
+              gold: data.goldRemaining
+            };
+          }
+          return cn;
+        });
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: "Quick Heal!",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Quick Heal Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
   // NPC Rest mutations
   const npcShortRestMutation = useMutation({
     mutationFn: async ({ npcId }: { npcId: number }) => {
@@ -4898,6 +4979,47 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             <p className="text-sm text-slate-600 dark:text-slate-400 py-2">No consumables. Add healing potions!</p>
                           );
                         })()}
+                      </div>
+                      
+                      {/* NPC Quick-Buy Consumables */}
+                      <div className="mt-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Quick-Buy</span>
+                          <span className="text-sm font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                            <Coins className="h-3 w-3" />
+                            {selectedNpc.gold || 0} gp
+                          </span>
+                        </div>
+                        <Select onValueChange={(value) => {
+                          if (!value || !selectedNpc) return;
+                          const isHealingItem = value.includes("Healing") || value.includes("Cure Wounds");
+                          if (isHealingItem) {
+                            npcQuickBuyAndUseMutation.mutate({ npcId: selectedNpc.id, name: value });
+                          } else {
+                            addNpcConsumableMutation.mutate({ npcId: selectedNpc.id, name: value });
+                          }
+                        }}>
+                          <SelectTrigger className="w-full" data-testid="select-npc-quick-buy">
+                            <SelectValue placeholder="Buy consumable..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Healing Potion">Healing Potion (10 gp) - 2d4+2 HP</SelectItem>
+                            <SelectItem value="Greater Healing Potion">Greater Healing Potion (25 gp) - 4d4+4 HP</SelectItem>
+                            <SelectItem value="Superior Healing Potion">Superior Healing Potion (50 gp) - 8d4+8 HP</SelectItem>
+                            <SelectItem value="Supreme Healing Potion">Supreme Healing Potion (100 gp) - 10d4+20 HP</SelectItem>
+                            <SelectItem value="Scroll of Cure Wounds">Scroll of Cure Wounds (12 gp) - 1d8+3 HP</SelectItem>
+                            <SelectItem value="Potion of Resistance">Potion of Resistance (35 gp) - Damage resist 1hr</SelectItem>
+                            <SelectItem value="Antitoxin">Antitoxin (8 gp) - Poison Advantage</SelectItem>
+                            <SelectItem value="Scroll of Lesser Restoration">Lesser Restoration (20 gp) - End condition</SelectItem>
+                            <SelectItem value="Scroll of Revivify">Scroll of Revivify (75 gp) - Resurrect</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {(npcQuickBuyAndUseMutation.isPending || addNpcConsumableMutation.isPending) && (
+                          <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Purchasing...
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
