@@ -2042,6 +2042,113 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  // Migration: Add narrative structure to existing dungeon map tiles
+  async migrateDungeonMapsWithNarrative() {
+    console.log("Migrating existing dungeon maps to include narrative data...");
+    
+    try {
+      // Get all dungeon maps
+      const allMaps = await db.select().from(campaignDungeonMaps);
+      let migratedCount = 0;
+      
+      for (const dungeonMap of allMaps) {
+        if (!dungeonMap.mapData) continue;
+        
+        const mapData = typeof dungeonMap.mapData === 'string' 
+          ? JSON.parse(dungeonMap.mapData) 
+          : dungeonMap.mapData;
+        
+        if (!mapData.tiles || !Array.isArray(mapData.tiles)) continue;
+        
+        let needsUpdate = false;
+        
+        // Check if tiles already have narrative data
+        const firstTileRow = mapData.tiles[0];
+        if (firstTileRow && firstTileRow[0] && firstTileRow[0].narrative !== undefined) {
+          continue; // Already migrated
+        }
+        
+        // Add narrative structure to each tile
+        mapData.tiles = mapData.tiles.map((row: any[], y: number) => 
+          row.map((tile: any, x: number) => {
+            // Generate basic narrative based on tile type
+            let narrative: any = {
+              discovered: tile.explored || tile.visible || false,
+              dangerLevel: 'safe',
+              interactable: false
+            };
+            
+            // Add contextual descriptions based on tile type
+            switch (tile.type) {
+              case 'treasure':
+                narrative.shortDescription = 'A glittering treasure awaits';
+                narrative.items = ['Treasure chest'];
+                narrative.interactable = true;
+                break;
+              case 'trap':
+                narrative.shortDescription = 'Danger lurks here';
+                narrative.dangerLevel = 'medium';
+                narrative.events = ['Trap detected'];
+                break;
+              case 'secret_door':
+                narrative.secretInfo = 'A hidden passage lies concealed';
+                narrative.discovered = false;
+                break;
+              case 'stairs_up':
+              case 'stairs_down':
+                narrative.shortDescription = tile.type === 'stairs_up' ? 'Stairs leading up' : 'Stairs leading down';
+                narrative.interactable = true;
+                break;
+              case 'door':
+              case 'door_locked':
+                narrative.shortDescription = tile.type === 'door_locked' ? 'A locked door' : 'An open doorway';
+                narrative.interactable = true;
+                break;
+              case 'floor':
+              case 'corridor':
+                // Only set description for player's position or special rooms
+                if (mapData.playerPosition && 
+                    mapData.playerPosition.x === x && 
+                    mapData.playerPosition.y === y) {
+                  narrative.shortDescription = mapData.currentRoom?.description || 'Current location';
+                  narrative.description = mapData.currentRoom?.description;
+                }
+                break;
+            }
+            
+            needsUpdate = true;
+            return {
+              ...tile,
+              narrative
+            };
+          })
+        );
+        
+        // Add narrative context to map level if not present
+        if (!mapData.narrativeContext) {
+          mapData.narrativeContext = {
+            theme: mapData.name || 'Mysterious dungeon',
+            atmosphere: mapData.lighting === 'dark' ? 'Shadows cling to every corner' : 'Dim torchlight flickers',
+            discoveredLore: [],
+            storyHooks: []
+          };
+          needsUpdate = true;
+        }
+        
+        if (needsUpdate) {
+          await db.update(campaignDungeonMaps)
+            .set({ mapData })
+            .where(eq(campaignDungeonMaps.id, dungeonMap.id));
+          migratedCount++;
+        }
+      }
+      
+      console.log(`Migrated ${migratedCount} dungeon maps with narrative data`);
+    } catch (error) {
+      console.error("Error migrating dungeon maps:", error);
+    }
+  }
+
   // Enhanced live session management methods
   async getCurrentSession(campaignId: number): Promise<CampaignSession | undefined> {
     const [session] = await db

@@ -44,6 +44,9 @@ app.use((req, res, next) => {
     try {
       await storage.initializeSampleData();
       log('Sample data initialization completed successfully');
+      
+      // Run migration to add narrative data to existing dungeon maps
+      await storage.migrateDungeonMapsWithNarrative();
     } catch (error) {
       console.error('Error initializing sample data:', error);
     }
