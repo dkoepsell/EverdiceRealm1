@@ -1204,6 +1204,23 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             description: data.movement.description || `You moved ${data.movement.direction}.`,
           });
         }
+        
+        // Show tile narrative info if available (narrative-map integration)
+        if (data.tileNarrative) {
+          const tn = data.tileNarrative;
+          // Show contextual info about what's in this tile
+          const contextParts: string[] = [];
+          if (tn.npcs?.length) contextParts.push(`NPCs: ${tn.npcs.join(', ')}`);
+          if (tn.items?.length) contextParts.push(`Items: ${tn.items.join(', ')}`);
+          if (tn.enemies?.length) contextParts.push(`Threats: ${tn.enemies.join(', ')}`);
+          
+          if (contextParts.length > 0) {
+            toast({
+              title: tn.shortDescription || "Location Details",
+              description: contextParts.join(' | '),
+            });
+          }
+        }
       }
       
       // Handle automatic session advancement with detailed summary

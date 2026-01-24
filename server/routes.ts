@@ -10386,6 +10386,18 @@ DUNGEON MAP SYNCHRONIZATION (CRITICAL):
 - Add features (chests, altars, etc) that you describe in the narrative to the features array
 - This ensures the dungeon map visually matches your storytelling
 
+MAP NARRATIVE INTEGRATION (IMPORTANT):
+- Use mapModifications to add narrative context to map tiles that players can see
+- When describing a new room/area, add an "update_narrative" modification at the player's current position
+- Include NPCs, items, enemies, and events in the mapModifications data to display markers on the map
+- Use "add_secret" when describing hidden passages or secret doors (mark discovered: false)
+- Use "place_enemy" when enemies appear in a specific location
+- Use "add_treasure" when treasure or loot is found
+- Use "add_npc" when an NPC is present at a location
+- The map will display icons for NPCs (green), items (cyan), enemies (red), and danger levels
+- Set dangerLevel to reflect the threat: safe, low, medium, high, or deadly
+- shortDescription appears as tooltip when hovering over tiles
+
 ENVIRONMENTAL CONSTRAINTS (CRITICAL):
 - ALL narratives MUST respect the physical environment: ${themeContext || 'standard dungeon setting'}
 - Descriptions MUST match the campaign setting (if nautical: use ship terms, sea weather, maritime threats)
@@ -10495,7 +10507,24 @@ Respond with JSON:
     ],
     "lighting": "bright/dim/dark",
     "dangerLevel": "safe/low/medium/high/deadly"
-  }
+  },
+  "mapModifications": [
+    {
+      "type": "update_narrative",
+      "x": 4,
+      "y": 4,
+      "data": {
+        "description": "Full narrative description of what is in this room/tile",
+        "shortDescription": "One-line summary for map tooltip",
+        "npcs": ["NPC names present here"],
+        "items": ["Item names that can be found"],
+        "enemies": ["Enemy names lurking here"],
+        "events": ["Story triggers or events"],
+        "dangerLevel": "safe/low/medium/high/deadly",
+        "interactable": true
+      }
+    }
+  ]
 }`;
 
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -11053,6 +11082,128 @@ Respond with JSON:
           }
         } catch (dungeonStateError) {
           console.error("Failed to process dungeonState:", dungeonStateError);
+        }
+      }
+      
+      // Process AI's mapModifications to update tile narrative data
+      const mapModifications = storyAdvancement.mapModifications;
+      if (mapModifications && Array.isArray(mapModifications) && mapModifications.length > 0) {
+        try {
+          const allMaps = await storage.getCampaignDungeonMaps(campaignId);
+          let dungeonMap = allMaps.find(m => m.isActive) || allMaps[0];
+          
+          if (dungeonMap && dungeonMap.mapData) {
+            const mapData = typeof dungeonMap.mapData === 'string' 
+              ? JSON.parse(dungeonMap.mapData) 
+              : dungeonMap.mapData;
+            
+            let modificationsApplied = 0;
+            
+            for (const mod of mapModifications) {
+              const { type, x, y, data } = mod;
+              
+              // Validate coordinates
+              if (x < 0 || y < 0 || y >= mapData.height || x >= mapData.width) {
+                console.log(`Map modification skipped: coordinates (${x}, ${y}) out of bounds`);
+                continue;
+              }
+              
+              // Ensure tile exists
+              if (!mapData.tiles || !mapData.tiles[y] || !mapData.tiles[y][x]) {
+                continue;
+              }
+              
+              const tile = mapData.tiles[y][x];
+              
+              switch (type) {
+                case 'update_narrative':
+                  // Update tile's narrative data
+                  tile.narrative = {
+                    ...tile.narrative,
+                    description: data.description || tile.narrative?.description,
+                    shortDescription: data.shortDescription || tile.narrative?.shortDescription,
+                    npcs: data.npcs || tile.narrative?.npcs || [],
+                    items: data.items || tile.narrative?.items || [],
+                    enemies: data.enemies || tile.narrative?.enemies || [],
+                    events: data.events || tile.narrative?.events || [],
+                    dangerLevel: data.dangerLevel || tile.narrative?.dangerLevel || 'safe',
+                    interactable: data.interactable !== undefined ? data.interactable : tile.narrative?.interactable,
+                    discovered: true // Mark as discovered since AI is describing it
+                  };
+                  modificationsApplied++;
+                  break;
+                  
+                case 'add_secret':
+                  // Change tile type to secret door and add narrative
+                  tile.type = 'secret_door';
+                  tile.narrative = {
+                    ...tile.narrative,
+                    secretInfo: data.description,
+                    discovered: false // Secret not yet found
+                  };
+                  modificationsApplied++;
+                  break;
+                  
+                case 'place_enemy':
+                  // Add enemy to tile's narrative
+                  tile.narrative = {
+                    ...tile.narrative,
+                    enemies: [...(tile.narrative?.enemies || []), data.name || 'Unknown Enemy'],
+                    dangerLevel: data.dangerLevel || 'medium',
+                    discovered: true
+                  };
+                  modificationsApplied++;
+                  break;
+                  
+                case 'add_treasure':
+                  // Mark tile as having treasure
+                  if (tile.type === 'floor' || tile.type === 'corridor') {
+                    tile.type = 'treasure';
+                  }
+                  tile.narrative = {
+                    ...tile.narrative,
+                    items: [...(tile.narrative?.items || []), data.name || 'Treasure'],
+                    shortDescription: data.description || 'A glittering treasure awaits',
+                    interactable: true,
+                    discovered: true
+                  };
+                  modificationsApplied++;
+                  break;
+                  
+                case 'add_npc':
+                  // Add NPC to tile's narrative
+                  tile.narrative = {
+                    ...tile.narrative,
+                    npcs: [...(tile.narrative?.npcs || []), data.name || 'Mysterious Figure'],
+                    shortDescription: data.description || tile.narrative?.shortDescription,
+                    interactable: true,
+                    discovered: true
+                  };
+                  modificationsApplied++;
+                  break;
+                  
+                case 'trigger_event':
+                  // Add event to tile
+                  tile.narrative = {
+                    ...tile.narrative,
+                    events: [...(tile.narrative?.events || []), data.name || 'Story Event'],
+                    shortDescription: data.description || tile.narrative?.shortDescription,
+                    discovered: true
+                  };
+                  modificationsApplied++;
+                  break;
+              }
+            }
+            
+            if (modificationsApplied > 0) {
+              await storage.updateCampaignDungeonMap(dungeonMap.id, { mapData });
+              updatedMapData = mapData;
+              updatedMapId = dungeonMap.id;
+              console.log(`Applied ${modificationsApplied} map modifications from AI narrative`);
+            }
+          }
+        } catch (modError) {
+          console.error("Failed to process mapModifications:", modError);
         }
       }
       
@@ -12723,6 +12874,29 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         blockedReason: movementBlockedReason
       } : null;
       
+      // Extract tile narrative for the player's current position
+      let currentTileNarrative = null;
+      if (updatedMapData && updatedMapData.playerPosition && updatedMapData.tiles) {
+        const pos = updatedMapData.playerPosition;
+        if (pos.y >= 0 && pos.y < updatedMapData.height && 
+            pos.x >= 0 && pos.x < updatedMapData.width &&
+            updatedMapData.tiles[pos.y] && updatedMapData.tiles[pos.y][pos.x]) {
+          const tile = updatedMapData.tiles[pos.y][pos.x];
+          if (tile.narrative && tile.narrative.discovered) {
+            currentTileNarrative = {
+              description: tile.narrative.description,
+              shortDescription: tile.narrative.shortDescription,
+              npcs: tile.narrative.npcs || [],
+              items: tile.narrative.items || [],
+              enemies: tile.narrative.enemies || [],
+              events: tile.narrative.events || [],
+              dangerLevel: tile.narrative.dangerLevel,
+              interactable: tile.narrative.interactable
+            };
+          }
+        }
+      }
+      
       res.json({
         ...(sessionAdvanced && newSessionData ? newSessionData : updatedSession),
         progression: characterProgression,
@@ -12730,6 +12904,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         dungeonMapId: updatedMapId,
         dungeonState: storyAdvancement.dungeonState || null,
         movement: movementResponse,
+        tileNarrative: currentTileNarrative,
         sessionAdvanced,
         newSessionNumber: sessionAdvanced ? newSessionData?.sessionNumber : null,
         chapterProgress: chapterProgressBreakdown,

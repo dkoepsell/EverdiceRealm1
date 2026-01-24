@@ -56,11 +56,26 @@ export interface MapEntity {
   maxHp?: number;
 }
 
+// Narrative data stored per tile for story-map integration
+export interface TileNarrativeData {
+  description?: string;           // AI-generated room/tile description
+  shortDescription?: string;      // One-line summary for tooltips
+  npcs?: string[];                // NPC names present in this tile
+  items?: string[];               // Items/loot that can be found
+  enemies?: string[];             // Enemy types present
+  events?: string[];              // Story events/triggers
+  secretInfo?: string;            // Hidden info revealed on discovery
+  dangerLevel?: 'safe' | 'low' | 'medium' | 'high' | 'deadly';
+  interactable?: boolean;         // Can the player interact here
+  discovered?: boolean;           // Has narrative been revealed
+}
+
 export interface MapTile {
   type: TileType;
   explored: boolean;
   visible: boolean;
   content?: string;
+  narrative?: TileNarrativeData;  // Narrative data for this cell
 }
 
 export interface DungeonRoomInfo {
@@ -78,6 +93,35 @@ export interface DungeonExit {
   leadsTo?: string;
 }
 
+// Map-level narrative context
+export interface MapNarrativeContext {
+  theme?: string;                 // Overall theme (e.g., "ancient temple", "goblin lair")
+  atmosphere?: string;            // Current mood/atmosphere description
+  storyHooks?: string[];          // Active story threads in this area
+  discoveredLore?: string[];      // Lore pieces the party has found
+  pendingReveals?: string[];      // Narrative reveals waiting to happen
+}
+
+// AI-generated map modification commands
+export interface MapModification {
+  type: 'add_secret' | 'place_enemy' | 'add_treasure' | 'add_npc' | 'update_narrative' | 'trigger_event';
+  x: number;
+  y: number;
+  data: {
+    name?: string;
+    description?: string;
+    shortDescription?: string;
+    tileType?: TileType;
+    narrative?: TileNarrativeData;
+    npcs?: string[];
+    items?: string[];
+    enemies?: string[];
+    events?: string[];
+    dangerLevel?: 'safe' | 'low' | 'medium' | 'high' | 'deadly';
+    interactable?: boolean;
+  };
+}
+
 export interface DungeonMapData {
   width: number;
   height: number;
@@ -90,6 +134,8 @@ export interface DungeonMapData {
   exits?: DungeonExit[];
   lighting?: string;
   dangerLevel?: string;
+  narrativeContext?: MapNarrativeContext;  // Map-level narrative
+  pendingModifications?: MapModification[]; // AI-requested changes
 }
 
 // High contrast tile colors for better visibility - with dark mode support
@@ -326,6 +372,9 @@ export function DungeonMap({
   const getTileIcon = (tile: MapTile) => {
     if (!tile.visible && !tile.explored) return null;
     
+    // First check for narrative markers (these overlay on top of tile type icons)
+    const narrative = tile.narrative;
+    
     switch (tile.type) {
       case "door":
         return <DoorOpen className="w-4 h-4 text-amber-400" />;
@@ -340,8 +389,61 @@ export function DungeonMap({
       case "stairs_down":
         return <ChevronDown className="w-4 h-4 text-purple-400" />;
       default:
+        // Show narrative markers for floor/corridor tiles
+        if (narrative?.discovered && (tile.type === "floor" || tile.type === "corridor")) {
+          // Priority: enemies > events > items > NPCs
+          if (narrative.enemies && narrative.enemies.length > 0) {
+            return <Skull className="w-3 h-3 text-red-400" />;
+          }
+          if (narrative.events && narrative.events.length > 0) {
+            return <span className="text-xs">⚡</span>;
+          }
+          if (narrative.items && narrative.items.length > 0) {
+            return <Gem className="w-3 h-3 text-cyan-400" />;
+          }
+          if (narrative.npcs && narrative.npcs.length > 0) {
+            return <User className="w-3 h-3 text-green-400" />;
+          }
+        }
         return null;
     }
+  };
+  
+  // Get narrative markers to display as overlay icons
+  const getNarrativeMarkers = (tile: MapTile) => {
+    if (!tile.visible && !tile.explored) return null;
+    const narrative = tile.narrative;
+    if (!narrative?.discovered) return null;
+    
+    const markers: React.ReactNode[] = [];
+    
+    // Danger level indicator (corner badge)
+    if (narrative.dangerLevel && narrative.dangerLevel !== 'safe') {
+      const dangerColors: Record<string, string> = {
+        low: 'bg-yellow-500',
+        medium: 'bg-orange-500', 
+        high: 'bg-red-500',
+        deadly: 'bg-purple-600'
+      };
+      markers.push(
+        <div 
+          key="danger"
+          className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${dangerColors[narrative.dangerLevel]} animate-pulse`}
+        />
+      );
+    }
+    
+    // Interactable indicator
+    if (narrative.interactable) {
+      markers.push(
+        <div 
+          key="interact"
+          className="absolute -bottom-1 -right-1 w-2 h-2 rounded-full bg-cyan-400 border border-white"
+        />
+      );
+    }
+    
+    return markers.length > 0 ? markers : null;
   };
 
   // D&D Mini-style figurine component
@@ -649,8 +751,10 @@ export function DungeonMap({
                         }
                       }}
                       data-testid={`tile-${x}-${y}`}
+                      title={tile.narrative?.discovered ? tile.narrative.shortDescription : undefined}
                     >
                       {getTileIcon(tile)}
+                      {getNarrativeMarkers(tile)}
                       {entity && !isPlayerHere && (
                         <div className="absolute inset-0 flex items-center justify-center">
                           {getEntityIcon(entity)}
