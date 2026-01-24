@@ -11759,6 +11759,8 @@ Respond with JSON:
       }
       
       // Merge the new exploration limit with the AI-generated story state
+      console.log(`[Combat Debug] Final preservedCombatants before merge:`, JSON.stringify(preservedCombatants?.map((c: any) => ({ name: c.name, currentHp: c.currentHp, status: c.status })) || []));
+      
       const mergedStoryState = {
         ...storyAdvancement.storyState,
         combatants: preservedCombatants, // Use preserved combatants to prevent AI renaming
@@ -11920,6 +11922,8 @@ Respond with JSON:
       }
       
       // Update session with story advancement
+      console.log(`[Combat Debug] Saving session with combatants:`, JSON.stringify(mergedStoryState.combatants?.map((c: any) => ({ name: c.name, currentHp: c.currentHp, status: c.status })) || []));
+      
       const updatedSession = await storage.advanceSessionStory(campaignId, {
         narrative: storyAdvancement.narrative,
         dmNarrative: storyAdvancement.dmNarrative,
