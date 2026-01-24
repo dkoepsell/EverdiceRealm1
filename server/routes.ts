@@ -10613,9 +10613,69 @@ Respond with JSON:
       }
       
       // Collect loot drops from defeated enemies
-      const combatEffects = storyAdvancement.combatEffects;
+      const combatEffects = storyAdvancement.combatEffects || {};
       if (combatEffects?.lootDrops && combatEffects.lootDrops.length > 0) {
         itemsFound.push(...combatEffects.lootDrops);
+      }
+      
+      // CRITICAL FIX: Apply player-initiated damage from rollResult directly to enemy HP
+      // This ensures magic item attacks, spell attacks, and weapon attacks from the client
+      // actually update enemy HP even if AI doesn't include it in enemyDamage
+      if (rollResult?.damage?.total && rollResult?.isHit && rollResult?.target) {
+        const targetName = rollResult.target;
+        const damageDealt = rollResult.damage.total;
+        
+        // Find target in combatants
+        const combatants = storyAdvancement.storyState?.combatants || [];
+        const targetIndex = combatants.findIndex(
+          (c: any) => c.name === targetName && (c.type === 'enemy' || c.type === 'boss')
+        );
+        
+        if (targetIndex !== -1) {
+          const target = combatants[targetIndex];
+          const oldHp = target.currentHp ?? target.maxHp ?? 30;
+          const newHp = Math.max(0, oldHp - damageDealt);
+          const isDefeated = newHp <= 0;
+          
+          // Update enemy HP directly in storyState
+          target.currentHp = newHp;
+          const maxHp = target.maxHp ?? 30; // Default maxHp if undefined to avoid NaN comparisons
+          if (isDefeated) {
+            target.status = 'defeated';
+          } else if (maxHp > 0 && newHp <= (maxHp * 0.25)) {
+            target.status = 'bloodied';
+          } else if (maxHp > 0 && newHp <= (maxHp * 0.5)) {
+            target.status = 'wounded';
+          }
+          
+          console.log(`[Player Attack] Applied ${damageDealt} damage to ${targetName}: HP ${oldHp} -> ${newHp} (status: ${target.status})`);
+          
+          // Add to enemyDamage array for XP calculation and frontend display
+          if (!combatEffects.enemyDamage) {
+            combatEffects.enemyDamage = [];
+          }
+          
+          // Check if this enemy is already in enemyDamage (AI might have also reported it)
+          const existingEntry = combatEffects.enemyDamage.find((e: any) => e.name === targetName);
+          if (existingEntry) {
+            // Update with accurate values from direct calculation
+            existingEntry.newHp = newHp;
+            existingEntry.damageTaken = (existingEntry.damageTaken || 0) + damageDealt;
+            existingEntry.defeated = isDefeated;
+          } else {
+            combatEffects.enemyDamage.push({
+              name: targetName,
+              cr: target.cr || "1/4",
+              damageTaken: damageDealt,
+              newHp: newHp,
+              maxHp: target.maxHp,
+              defeated: isDefeated
+            });
+          }
+          
+          // Update storyAdvancement.combatEffects with our changes
+          storyAdvancement.combatEffects = combatEffects;
+        }
       }
       
       // Check for defeated enemies and award XP based on D&D 5e CR table

@@ -193,6 +193,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     mechanicsBreakdown: string;
   }[]>([]);
   const [showCombatLogDialog, setShowCombatLogDialog] = useState(false);
+  const [selectedTargetIndex, setSelectedTargetIndex] = useState(0); // Combat target selection
   const [narrativeStyle, setNarrativeStyle] = useState(campaign.narrativeStyle);
   const [difficulty, setDifficulty] = useState(campaign.difficulty);
   const [worldRegionId, setWorldRegionId] = useState<number | null>(campaign.worldRegionId || null);
@@ -598,6 +599,25 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
     prevInCombat.current = inCombat;
   }, [parsedStoryState?.inCombat, showTip]);
+  
+  // Reset target selection when enemies change (defeated, new combat, etc.)
+  const prevEnemyCount = useRef(0);
+  useEffect(() => {
+    const enemies = ((parsedStoryState?.combatants as any[]) || []).filter(
+      (c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated' && (c.currentHp > 0 || c.currentHp === undefined)
+    );
+    const enemyCount = enemies.length;
+    
+    // Reset to first enemy if count decreased (enemy was defeated) or combat reset
+    if (enemyCount < prevEnemyCount.current || enemyCount === 0) {
+      setSelectedTargetIndex(0);
+    }
+    // Also reset if selected index is now out of bounds
+    if (selectedTargetIndex >= enemyCount && enemyCount > 0) {
+      setSelectedTargetIndex(0);
+    }
+    prevEnemyCount.current = enemyCount;
+  }, [parsedStoryState?.combatants, selectedTargetIndex]);
   
   // Get current location from story state
   const currentLocation = useMemo(() => {
@@ -3178,6 +3198,42 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           </div>
                         </div>
                         
+                        {/* Target Selection for multi-enemy combat */}
+                        {(() => {
+                          const enemies = (parsedStoryState?.combatants as any[] || []).filter(
+                            (c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated' && (c.currentHp > 0 || c.currentHp === undefined)
+                          );
+                          if (enemies.length > 1) {
+                            return (
+                              <div className="mb-3 p-2 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Target className="h-4 w-4 text-red-600" />
+                                  <span className="text-sm font-medium text-red-800 dark:text-red-200">Select Target</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {enemies.map((enemy: any, idx: number) => (
+                                    <button
+                                      key={idx}
+                                      onClick={() => setSelectedTargetIndex(idx)}
+                                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                                        selectedTargetIndex === idx
+                                          ? 'bg-red-600 text-white ring-2 ring-red-400'
+                                          : 'bg-white dark:bg-gray-800 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50'
+                                      }`}
+                                    >
+                                      {enemy.name}
+                                      <span className="ml-1 text-xs opacity-75">
+                                        ({enemy.currentHp ?? enemy.maxHp ?? '?'}/{enemy.maxHp ?? '?'} HP)
+                                      </span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                        
                         {/* Combat Spells & Magic Items for active character */}
                         {activeCharacter && (
                           <div className="mt-3">
@@ -3188,8 +3244,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               onUseMagicItem={(item) => {
                                 // Handle using a magic item in combat
                                 const inCombat = parsedStoryState?.inCombat;
-                                const enemies = (parsedStoryState?.combatants as any[] || []).filter((e: any) => e.status !== 'defeated');
-                                const targetEnemy = enemies.length > 0 ? enemies[0] : null;
+                                const enemies = (parsedStoryState?.combatants as any[] || []).filter(
+                                  (c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated' && (c.currentHp > 0 || c.currentHp === undefined)
+                                );
+                                // Use selected target or fall back to first enemy
+                                const validIndex = selectedTargetIndex < enemies.length ? selectedTargetIndex : 0;
+                                const targetEnemy = enemies.length > 0 ? enemies[validIndex] : null;
                                 
                                 // Parse damage dice from item if available
                                 const damageDice = item.damageDice || (item.specialEffect?.match(/(\d+d\d+(?:\s*\+\s*\d+)?)/i)?.[1]) || '3d4+3'; // Default to Magic Missile
@@ -3338,8 +3398,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 
                                 // Check if we're in combat and have valid enemies
                                 const inCombat = parsedStoryState?.inCombat;
-                                const enemies = (parsedStoryState?.combatants as any[] || []).filter((e: any) => e.status !== 'defeated');
-                                const targetEnemy = enemies.length > 0 ? enemies[0] : null;
+                                const enemies = (parsedStoryState?.combatants as any[] || []).filter(
+                                  (c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated' && (c.currentHp > 0 || c.currentHp === undefined)
+                                );
+                                // Use selected target or fall back to first enemy
+                                const validIndex = selectedTargetIndex < enemies.length ? selectedTargetIndex : 0;
+                                const targetEnemy = enemies.length > 0 ? enemies[validIndex] : null;
                                 
                                 // If spell has damage dice and we're in combat with enemies, handle combat spell
                                 if (spell.damageDice && inCombat && targetEnemy) {
