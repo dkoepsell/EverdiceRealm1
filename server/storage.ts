@@ -416,6 +416,30 @@ export interface IStorage {
   awardBadge(userId: number, badgeId: number, context?: any): Promise<UserBadge>;
   hasUserBadge(userId: number, badgeId: number): Promise<boolean>;
   updateUserBadge(id: number, updates: Partial<UserBadge>): Promise<UserBadge | undefined>;
+  
+  // Magic Item Template operations
+  getMagicItemTemplates(filters?: { rarity?: string; type?: string; minLevel?: number; maxLevel?: number; classAffinity?: string; isShoppable?: boolean }): Promise<any[]>;
+  getMagicItemTemplate(id: number): Promise<any | undefined>;
+  getMilestoneDrops(milestoneType: string, characterLevel: number, characterClass: string): Promise<any[]>;
+  
+  // Character Inventory operations (magical items)
+  getCharacterInventory(characterId: number): Promise<any[]>;
+  addItemToInventory(item: any): Promise<any>;
+  updateInventoryItem(id: number, updates: any): Promise<any | undefined>;
+  removeInventoryItem(id: number): Promise<boolean>;
+  equipItem(itemId: number, slot: string): Promise<any | undefined>;
+  unequipItem(itemId: number): Promise<any | undefined>;
+  bindItem(itemId: number): Promise<any | undefined>;
+  
+  // Milestone Reward operations
+  getMilestoneRewards(characterId: number, campaignId?: number): Promise<any[]>;
+  getUnclaimedRewards(characterId: number): Promise<any[]>;
+  createMilestoneReward(reward: any): Promise<any>;
+  claimMilestoneReward(rewardId: number): Promise<any | undefined>;
+  
+  // Tavern Magic Shop operations
+  getShopMagicItems(characterLevel?: number, characterClass?: string): Promise<any[]>;
+  purchaseMagicItem(characterId: number, templateId: number): Promise<{ success: boolean; item?: any; error?: string }>;
 }
 
 export class MemStorage implements IStorage {
@@ -3601,6 +3625,290 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userBadges.id, id))
       .returning();
     return updated || undefined;
+  }
+  
+  // Magic Item Template operations
+  async getMagicItemTemplates(filters?: { rarity?: string; type?: string; minLevel?: number; maxLevel?: number; classAffinity?: string; isShoppable?: boolean }): Promise<any[]> {
+    let query = `SELECT * FROM magic_item_templates WHERE 1=1`;
+    const params: any[] = [];
+    
+    if (filters?.rarity) {
+      params.push(filters.rarity);
+      query += ` AND rarity = $${params.length}`;
+    }
+    if (filters?.type) {
+      params.push(filters.type);
+      query += ` AND type = $${params.length}`;
+    }
+    if (filters?.minLevel !== undefined) {
+      params.push(filters.minLevel);
+      query += ` AND max_level >= $${params.length}`;
+    }
+    if (filters?.maxLevel !== undefined) {
+      params.push(filters.maxLevel);
+      query += ` AND min_level <= $${params.length}`;
+    }
+    if (filters?.classAffinity) {
+      params.push(filters.classAffinity);
+      query += ` AND ($${params.length} = ANY(class_affinity) OR class_affinity IS NULL)`;
+    }
+    if (filters?.isShoppable !== undefined) {
+      params.push(filters.isShoppable);
+      query += ` AND is_shoppable = $${params.length}`;
+    }
+    
+    query += ` ORDER BY rarity DESC, name ASC`;
+    
+    const result = await db.execute(sql.raw(query));
+    return result.rows as any[];
+  }
+  
+  async getMagicItemTemplate(id: number): Promise<any | undefined> {
+    const result = await db.execute(sql`SELECT * FROM magic_item_templates WHERE id = ${id}`);
+    return result.rows[0] || undefined;
+  }
+  
+  async getMilestoneDrops(milestoneType: string, characterLevel: number, characterClass: string): Promise<any[]> {
+    const result = await db.execute(sql`
+      SELECT * FROM magic_item_templates 
+      WHERE milestone_type = ${milestoneType}
+        AND min_level <= ${characterLevel}
+        AND max_level >= ${characterLevel}
+        AND (${characterClass} = ANY(class_affinity) OR class_affinity IS NULL)
+      ORDER BY drop_weight DESC, RANDOM()
+    `);
+    return result.rows as any[];
+  }
+  
+  // Character Inventory operations (magical items)
+  async getCharacterInventory(characterId: number): Promise<any[]> {
+    const result = await db.execute(sql`
+      SELECT * FROM character_inventory 
+      WHERE character_id = ${characterId}
+      ORDER BY is_equipped DESC, rarity DESC, name ASC
+    `);
+    return result.rows as any[];
+  }
+  
+  async addItemToInventory(item: any): Promise<any> {
+    const result = await db.execute(sql`
+      INSERT INTO character_inventory (
+        character_id, template_id, name, description, type, rarity,
+        is_bound, bound_at, acquired_from, acquired_at,
+        magic_bonus, damage_dice, damage_type, base_ac, properties,
+        special_effect, requires_attunement, is_attuned,
+        is_equipped, equip_slot, quantity, value
+      ) VALUES (
+        ${item.characterId}, ${item.templateId || null}, ${item.name}, ${item.description || null},
+        ${item.type}, ${item.rarity || 'common'},
+        ${item.isBound || false}, ${item.boundAt || null}, ${item.acquiredFrom || null}, ${item.acquiredAt || new Date().toISOString()},
+        ${item.magicBonus || 0}, ${item.damageDice || null}, ${item.damageType || null}, ${item.baseAC || null}, ${item.properties || null},
+        ${item.specialEffect || null}, ${item.requiresAttunement || false}, ${item.isAttuned || false},
+        ${item.isEquipped || false}, ${item.equipSlot || null}, ${item.quantity || 1}, ${item.value || 0}
+      ) RETURNING *
+    `);
+    return result.rows[0];
+  }
+  
+  async updateInventoryItem(id: number, updates: any): Promise<any | undefined> {
+    const setClause = Object.entries(updates)
+      .map(([key, _], i) => `${key.replace(/([A-Z])/g, '_$1').toLowerCase()} = $${i + 2}`)
+      .join(', ');
+    
+    const result = await db.execute(sql`
+      UPDATE character_inventory 
+      SET ${sql.raw(setClause)}
+      WHERE id = ${id}
+      RETURNING *
+    `);
+    return result.rows[0] || undefined;
+  }
+  
+  async removeInventoryItem(id: number): Promise<boolean> {
+    const result = await db.execute(sql`DELETE FROM character_inventory WHERE id = ${id}`);
+    return (result.rowCount || 0) > 0;
+  }
+  
+  async equipItem(itemId: number, slot: string): Promise<any | undefined> {
+    const result = await db.execute(sql`
+      UPDATE character_inventory 
+      SET is_equipped = true, equip_slot = ${slot}
+      WHERE id = ${itemId}
+      RETURNING *
+    `);
+    return result.rows[0] || undefined;
+  }
+  
+  async unequipItem(itemId: number): Promise<any | undefined> {
+    const result = await db.execute(sql`
+      UPDATE character_inventory 
+      SET is_equipped = false, equip_slot = null
+      WHERE id = ${itemId}
+      RETURNING *
+    `);
+    return result.rows[0] || undefined;
+  }
+  
+  async bindItem(itemId: number): Promise<any | undefined> {
+    const result = await db.execute(sql`
+      UPDATE character_inventory 
+      SET is_bound = true, bound_at = ${new Date().toISOString()}
+      WHERE id = ${itemId}
+      RETURNING *
+    `);
+    return result.rows[0] || undefined;
+  }
+  
+  // Milestone Reward operations
+  async getMilestoneRewards(characterId: number, campaignId?: number): Promise<any[]> {
+    if (campaignId) {
+      const result = await db.execute(sql`
+        SELECT mr.*, mit.name as item_name, mit.rarity as item_rarity, mit.description as item_description
+        FROM milestone_rewards mr
+        LEFT JOIN magic_item_templates mit ON mr.item_template_id = mit.id
+        WHERE mr.character_id = ${characterId} AND mr.campaign_id = ${campaignId}
+        ORDER BY mr.earned_at DESC
+      `);
+      return result.rows as any[];
+    }
+    const result = await db.execute(sql`
+      SELECT mr.*, mit.name as item_name, mit.rarity as item_rarity, mit.description as item_description
+      FROM milestone_rewards mr
+      LEFT JOIN magic_item_templates mit ON mr.item_template_id = mit.id
+      WHERE mr.character_id = ${characterId}
+      ORDER BY mr.earned_at DESC
+    `);
+    return result.rows as any[];
+  }
+  
+  async getUnclaimedRewards(characterId: number): Promise<any[]> {
+    const result = await db.execute(sql`
+      SELECT mr.*, mit.name as item_name, mit.rarity as item_rarity, mit.description as item_description,
+             mit.type as item_type, mit.special_effect, mit.magic_bonus
+      FROM milestone_rewards mr
+      LEFT JOIN magic_item_templates mit ON mr.item_template_id = mit.id
+      WHERE mr.character_id = ${characterId} AND mr.is_claimed = false
+      ORDER BY mr.earned_at DESC
+    `);
+    return result.rows as any[];
+  }
+  
+  async createMilestoneReward(reward: any): Promise<any> {
+    const result = await db.execute(sql`
+      INSERT INTO milestone_rewards (
+        character_id, campaign_id, milestone_type, milestone_name,
+        session_number, item_template_id, xp_awarded, gold_awarded, earned_at
+      ) VALUES (
+        ${reward.characterId}, ${reward.campaignId}, ${reward.milestoneType}, ${reward.milestoneName},
+        ${reward.sessionNumber || null}, ${reward.itemTemplateId || null},
+        ${reward.xpAwarded || 0}, ${reward.goldAwarded || 0}, ${reward.earnedAt || new Date().toISOString()}
+      ) RETURNING *
+    `);
+    return result.rows[0];
+  }
+  
+  async claimMilestoneReward(rewardId: number): Promise<any | undefined> {
+    // First get the reward details
+    const rewardResult = await db.execute(sql`SELECT * FROM milestone_rewards WHERE id = ${rewardId} AND is_claimed = false`);
+    const reward = rewardResult.rows[0] as any;
+    if (!reward) return undefined;
+    
+    // If there's an item template, create the inventory item
+    if (reward.item_template_id) {
+      const templateResult = await db.execute(sql`SELECT * FROM magic_item_templates WHERE id = ${reward.item_template_id}`);
+      const template = templateResult.rows[0] as any;
+      
+      if (template) {
+        // Create the inventory item (bound by default for milestone drops)
+        await db.execute(sql`
+          INSERT INTO character_inventory (
+            character_id, template_id, name, description, type, rarity,
+            is_bound, bound_at, acquired_from, acquired_at,
+            magic_bonus, damage_dice, damage_type, base_ac, properties,
+            special_effect, requires_attunement, value
+          ) VALUES (
+            ${reward.character_id}, ${template.id}, ${template.name}, ${template.description},
+            ${template.type}, ${template.rarity},
+            true, ${new Date().toISOString()}, 'milestone', ${new Date().toISOString()},
+            ${template.magic_bonus || 0}, ${template.damage_dice}, ${template.damage_type}, ${template.base_ac}, ${template.properties},
+            ${template.special_effect}, ${template.requires_attunement || false}, ${template.shop_price || 0}
+          )
+        `);
+      }
+    }
+    
+    // Mark the reward as claimed
+    const result = await db.execute(sql`
+      UPDATE milestone_rewards 
+      SET is_claimed = true, claimed_at = ${new Date().toISOString()}
+      WHERE id = ${rewardId}
+      RETURNING *
+    `);
+    return result.rows[0] || undefined;
+  }
+  
+  // Tavern Magic Shop operations
+  async getShopMagicItems(characterLevel?: number, characterClass?: string): Promise<any[]> {
+    let query = `SELECT * FROM magic_item_templates WHERE is_shoppable = true`;
+    
+    if (characterLevel) {
+      query += ` AND min_level <= ${characterLevel} AND max_level >= ${characterLevel}`;
+    }
+    if (characterClass) {
+      query += ` AND ('${characterClass}' = ANY(class_affinity) OR class_affinity IS NULL)`;
+    }
+    
+    query += ` ORDER BY shop_price ASC, name ASC`;
+    
+    const result = await db.execute(sql.raw(query));
+    return result.rows as any[];
+  }
+  
+  async purchaseMagicItem(characterId: number, templateId: number): Promise<{ success: boolean; item?: any; error?: string }> {
+    // Get character gold
+    const charResult = await db.execute(sql`SELECT gold, level, class FROM characters WHERE id = ${characterId}`);
+    const character = charResult.rows[0] as any;
+    if (!character) {
+      return { success: false, error: 'Character not found' };
+    }
+    
+    // Get item template
+    const templateResult = await db.execute(sql`SELECT * FROM magic_item_templates WHERE id = ${templateId} AND is_shoppable = true`);
+    const template = templateResult.rows[0] as any;
+    if (!template) {
+      return { success: false, error: 'Item not available for purchase' };
+    }
+    
+    // Check gold
+    if ((character.gold || 0) < (template.shop_price || 0)) {
+      return { success: false, error: 'Not enough gold' };
+    }
+    
+    // Check level requirements
+    if (character.level < template.min_level) {
+      return { success: false, error: `Requires level ${template.min_level}` };
+    }
+    
+    // Deduct gold
+    await db.execute(sql`UPDATE characters SET gold = gold - ${template.shop_price} WHERE id = ${characterId}`);
+    
+    // Add item to inventory (not bound - purchased items can be traded)
+    const itemResult = await db.execute(sql`
+      INSERT INTO character_inventory (
+        character_id, template_id, name, description, type, rarity,
+        is_bound, acquired_from, acquired_at,
+        magic_bonus, damage_dice, damage_type, base_ac, properties,
+        special_effect, requires_attunement, value
+      ) VALUES (
+        ${characterId}, ${template.id}, ${template.name}, ${template.description},
+        ${template.type}, ${template.rarity},
+        false, 'shop', ${new Date().toISOString()},
+        ${template.magic_bonus || 0}, ${template.damage_dice}, ${template.damage_type}, ${template.base_ac}, ${template.properties},
+        ${template.special_effect}, ${template.requires_attunement || false}, ${template.shop_price}
+      ) RETURNING *
+    `);
+    
+    return { success: true, item: itemResult.rows[0] };
   }
 }
 

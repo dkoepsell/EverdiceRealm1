@@ -15727,5 +15727,251 @@ ALWAYS generate:
     }
   });
 
+  // ============================================
+  // MAGIC ITEM SHOP & MILESTONE REWARDS ROUTES
+  // ============================================
+  
+  // Get magic item templates (filtered)
+  app.get("/api/magic-items/templates", isAuthenticated, async (req, res) => {
+    try {
+      const { rarity, type, minLevel, maxLevel, classAffinity, isShoppable } = req.query;
+      const filters: any = {};
+      
+      if (rarity) filters.rarity = rarity as string;
+      if (type) filters.type = type as string;
+      if (minLevel) filters.minLevel = parseInt(minLevel as string);
+      if (maxLevel) filters.maxLevel = parseInt(maxLevel as string);
+      if (classAffinity) filters.classAffinity = classAffinity as string;
+      if (isShoppable !== undefined) filters.isShoppable = isShoppable === 'true';
+      
+      const items = await storage.getMagicItemTemplates(filters);
+      res.json(items);
+    } catch (error) {
+      console.error("Failed to get magic items:", error);
+      res.status(500).json({ message: "Failed to get magic items" });
+    }
+  });
+  
+  // Get single magic item template
+  app.get("/api/magic-items/templates/:id", isAuthenticated, async (req, res) => {
+    try {
+      const item = await storage.getMagicItemTemplate(parseInt(req.params.id));
+      if (!item) {
+        return res.status(404).json({ message: "Item not found" });
+      }
+      res.json(item);
+    } catch (error) {
+      console.error("Failed to get magic item:", error);
+      res.status(500).json({ message: "Failed to get magic item" });
+    }
+  });
+  
+  // Get milestone drops for a character
+  app.get("/api/magic-items/milestone-drops", isAuthenticated, async (req, res) => {
+    try {
+      const { milestoneType, characterId } = req.query;
+      
+      if (!milestoneType || !characterId) {
+        return res.status(400).json({ message: "Milestone type and character ID required" });
+      }
+      
+      const character = await storage.getCharacter(parseInt(characterId as string));
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      const drops = await storage.getMilestoneDrops(
+        milestoneType as string,
+        character.level,
+        character.class
+      );
+      res.json(drops);
+    } catch (error) {
+      console.error("Failed to get milestone drops:", error);
+      res.status(500).json({ message: "Failed to get milestone drops" });
+    }
+  });
+  
+  // Get tavern magic shop items (level/class adjusted)
+  app.get("/api/magic-items/shop", isAuthenticated, async (req, res) => {
+    try {
+      const { characterId } = req.query;
+      let characterLevel: number | undefined;
+      let characterClass: string | undefined;
+      
+      if (characterId) {
+        const character = await storage.getCharacter(parseInt(characterId as string));
+        if (character) {
+          characterLevel = character.level;
+          characterClass = character.class;
+        }
+      }
+      
+      const items = await storage.getShopMagicItems(characterLevel, characterClass);
+      res.json(items);
+    } catch (error) {
+      console.error("Failed to get shop items:", error);
+      res.status(500).json({ message: "Failed to get shop items" });
+    }
+  });
+  
+  // Purchase magic item from tavern shop
+  app.post("/api/magic-items/shop/purchase", isAuthenticated, async (req, res) => {
+    try {
+      const { characterId, templateId } = req.body;
+      
+      if (!characterId || !templateId) {
+        return res.status(400).json({ message: "Character ID and template ID required" });
+      }
+      
+      const result = await storage.purchaseMagicItem(characterId, templateId);
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+      
+      res.json({ message: "Item purchased successfully!", item: result.item });
+    } catch (error) {
+      console.error("Failed to purchase item:", error);
+      res.status(500).json({ message: "Failed to purchase item" });
+    }
+  });
+  
+  // Get character's magical inventory
+  app.get("/api/characters/:characterId/inventory", isAuthenticated, async (req, res) => {
+    try {
+      const inventory = await storage.getCharacterInventory(parseInt(req.params.characterId));
+      res.json(inventory);
+    } catch (error) {
+      console.error("Failed to get inventory:", error);
+      res.status(500).json({ message: "Failed to get inventory" });
+    }
+  });
+  
+  // Equip/unequip item
+  app.post("/api/characters/:characterId/inventory/:itemId/equip", isAuthenticated, async (req, res) => {
+    try {
+      const { slot } = req.body;
+      const itemId = parseInt(req.params.itemId);
+      
+      if (slot) {
+        const item = await storage.equipItem(itemId, slot);
+        res.json({ message: "Item equipped!", item });
+      } else {
+        const item = await storage.unequipItem(itemId);
+        res.json({ message: "Item unequipped!", item });
+      }
+    } catch (error) {
+      console.error("Failed to equip/unequip item:", error);
+      res.status(500).json({ message: "Failed to equip/unequip item" });
+    }
+  });
+  
+  // Bind item to character
+  app.post("/api/characters/:characterId/inventory/:itemId/bind", isAuthenticated, async (req, res) => {
+    try {
+      const item = await storage.bindItem(parseInt(req.params.itemId));
+      res.json({ message: "Item bound to character!", item });
+    } catch (error) {
+      console.error("Failed to bind item:", error);
+      res.status(500).json({ message: "Failed to bind item" });
+    }
+  });
+  
+  // Get milestone rewards for character
+  app.get("/api/characters/:characterId/milestone-rewards", isAuthenticated, async (req, res) => {
+    try {
+      const { campaignId } = req.query;
+      const rewards = await storage.getMilestoneRewards(
+        parseInt(req.params.characterId),
+        campaignId ? parseInt(campaignId as string) : undefined
+      );
+      res.json(rewards);
+    } catch (error) {
+      console.error("Failed to get rewards:", error);
+      res.status(500).json({ message: "Failed to get rewards" });
+    }
+  });
+  
+  // Get unclaimed rewards
+  app.get("/api/characters/:characterId/unclaimed-rewards", isAuthenticated, async (req, res) => {
+    try {
+      const rewards = await storage.getUnclaimedRewards(parseInt(req.params.characterId));
+      res.json(rewards);
+    } catch (error) {
+      console.error("Failed to get unclaimed rewards:", error);
+      res.status(500).json({ message: "Failed to get unclaimed rewards" });
+    }
+  });
+  
+  // Claim milestone reward
+  app.post("/api/milestone-rewards/:rewardId/claim", isAuthenticated, async (req, res) => {
+    try {
+      const reward = await storage.claimMilestoneReward(parseInt(req.params.rewardId));
+      if (!reward) {
+        return res.status(400).json({ message: "Reward not found or already claimed" });
+      }
+      res.json({ message: "Reward claimed!", reward });
+    } catch (error) {
+      console.error("Failed to claim reward:", error);
+      res.status(500).json({ message: "Failed to claim reward" });
+    }
+  });
+  
+  // Create milestone reward (for DM use when milestones are achieved)
+  app.post("/api/milestone-rewards", isAuthenticated, async (req, res) => {
+    try {
+      const { characterId, campaignId, milestoneType, milestoneName, sessionNumber, xpAwarded, goldAwarded } = req.body;
+      
+      if (!characterId || !campaignId || !milestoneType || !milestoneName) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      // Get character to determine level/class for item drop
+      const character = await storage.getCharacter(characterId);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      
+      // Find appropriate milestone drop
+      const possibleDrops = await storage.getMilestoneDrops(milestoneType, character.level, character.class);
+      let selectedItem = null;
+      
+      if (possibleDrops.length > 0) {
+        // Weight-based random selection
+        const totalWeight = possibleDrops.reduce((sum, item) => sum + (item.drop_weight || 10), 0);
+        let random = Math.random() * totalWeight;
+        
+        for (const item of possibleDrops) {
+          random -= (item.drop_weight || 10);
+          if (random <= 0) {
+            selectedItem = item;
+            break;
+          }
+        }
+      }
+      
+      const reward = await storage.createMilestoneReward({
+        characterId,
+        campaignId,
+        milestoneType,
+        milestoneName,
+        sessionNumber,
+        itemTemplateId: selectedItem?.id || null,
+        xpAwarded: xpAwarded || 0,
+        goldAwarded: goldAwarded || 0,
+        earnedAt: new Date().toISOString()
+      });
+      
+      res.json({ 
+        message: "Milestone reward created!", 
+        reward,
+        itemDrop: selectedItem ? { name: selectedItem.name, rarity: selectedItem.rarity } : null
+      });
+    } catch (error) {
+      console.error("Failed to create milestone reward:", error);
+      res.status(500).json({ message: "Failed to create milestone reward" });
+    }
+  });
+
   return httpServer;
 }
