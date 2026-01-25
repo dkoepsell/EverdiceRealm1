@@ -538,8 +538,8 @@ export function DungeonMap({
       markers.push(
         <div 
           key="tone"
-          className={`absolute -top-0.5 -left-0.5 text-xs ${toneData.color} font-bold drop-shadow-md`}
-          style={{ fontSize: '8px', lineHeight: '1' }}
+          className={`absolute top-0 left-0 ${toneData.color} font-bold z-20 bg-black/60 rounded-full flex items-center justify-center`}
+          style={{ fontSize: '10px', width: '14px', height: '14px' }}
           title={narrative.tooltipNote || narrative.narrativeTone}
         >
           {toneData.icon}
