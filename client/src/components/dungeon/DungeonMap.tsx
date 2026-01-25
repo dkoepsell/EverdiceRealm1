@@ -933,10 +933,11 @@ export function DungeonMap({
                       }}
                     >
                       {/* Narrative markers outside clipPath so they're visible */}
-                      {isExplored && tile.narrative?.discovered && (
-                        <div className="absolute inset-0 z-30 pointer-events-none">
-                          {getNarrativeMarkers(tile)}
-                        </div>
+                      {isExplored && tile.type === "floor" && (
+                        <div 
+                          className="absolute z-50 bg-red-500 rounded-full border-2 border-white"
+                          style={{ top: 0, left: 0, width: '12px', height: '12px' }}
+                        />
                       )}
                       
                       {/* Main hex tile with clipPath */}
