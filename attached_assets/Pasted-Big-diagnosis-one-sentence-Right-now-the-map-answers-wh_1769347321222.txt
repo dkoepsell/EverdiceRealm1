@@ -1,0 +1,518 @@
+Big diagnosis (one sentence)
+
+Right now the map answers “where can I go?”
+You want it to also answer “what kind of story will happen if I go there?”
+
+Everything below serves that goal.
+
+1. Give every visible hex a narrative promise
+What I see now
+
+Hexes are functionally identical except for walls, chambers, portals
+
+Yellow hexes signal “important” but not why
+
+The player has no reason to anticipate narrative differences
+
+Actionable fix
+
+Add micro-tags to hexes that surface on hover or click.
+
+Example schema:
+
+hex.narrativeTags = ["Whispering", "Sacred", "Unstable", "Watched"]
+
+
+UI treatment (minimal):
+
+Small icon or single-word label on hover
+
+No extra text box needed
+
+Example:
+
+North corridor hex: 🜂 Watched
+
+Chamber hex: ✧ Whispering
+
+Portal hex: ⚠ Unstable
+
+Result:
+The map starts foreshadowing story, not just enabling movement.
+
+2. Tie current choices explicitly to map locations
+What I see now
+
+Narrative:
+
+“The hidden compartment begins to glow dimly…”
+
+Choices:
+
+Persuasion
+
+Investigation
+
+Arcana
+
+Explore north corridor
+
+Only one choice refers to the map.
+
+Actionable fix
+
+Every non-check choice should reference a specific hex or region.
+
+Example rewrite (purely narrative-layer):
+
+Explore the north corridor (Watched Passage)
+You may find tools—or draw attention.
+
+Examine the glowing compartment (Whispering Chamber)
+The chamber itself seems to respond.
+
+You don’t need new mechanics.
+Just name the place in the choice text.
+
+Result:
+Players mentally bind story beats to locations.
+
+3. Add “Map Consequence” lines after narrative beats
+What I see now
+
+Narrative text is rich, but spatially inert.
+
+Actionable fix
+
+After any narrative resolution, add a single line:
+
+Map consequence: The Whispering Chamber grows unstable.
+
+This can mechanically do very little at first:
+
++10 tension
+
+Change hex color slightly
+
+Add/remove a tag
+
+Even a visual pulse is enough.
+
+Result:
+Players learn: what I do changes the map’s meaning.
+
+4. Make yellow hexes morally or narratively ambiguous
+What I see now
+
+Yellow = important (likely objective-related)
+
+That trains players to think:
+
+“That’s where the fight or reward is.”
+
+Actionable fix
+
+Split “importance” into type, not just color.
+
+Examples:
+
+Gold outline = Revelation
+
+Fractured outline = Risk
+
+Faded glow = Lost knowledge
+
+Same hex count. Same layout. Different expectations.
+
+Result:
+The map suggests story texture, not just progress.
+
+5. Add one non-combat map objective at a time
+What I see now
+
+Objective:
+
+Face the Accursed Dragon
+
+That’s a combat-shaped objective, even if narratively rich.
+
+Actionable fix
+
+Introduce map-bound sub-objectives that are explicitly non-combat.
+
+Example:
+
+“Stabilize the Forbidden Sanctuary”
+
+“Learn why the spirits are bound”
+
+“Map the hidden corridors”
+
+UI placement:
+
+Under the main objective
+
+Linked to specific regions (small map icon)
+
+Result:
+Exploration feels like advancement, not delay.
+
+6. Let failure change where, not just what
+What I see now
+
+Failure deepens mood, but location stays static.
+
+Actionable fix
+
+On failed checks:
+
+Lock a nearby hex temporarily
+
+Add a danger tag
+
+Shift the “You” marker slightly (forced retreat)
+
+Example:
+
+Allegro fails to decipher the engravings…
+Map change: The chamber seals; the northern path stirs.
+
+No new systems. Just state mutation.
+
+Result:
+The map becomes a responsive narrative surface.
+
+7. Surface “Why go there now?” subtly
+What I see now
+
+Players can explore freely, but urgency is abstract.
+
+Actionable fix
+
+Add soft temporal pressure via map text:
+
+“The glow is fading.”
+
+“Footsteps echo nearby.”
+
+“The portal hum grows louder.”
+
+Attach these to regions, not scenes.
+
+Result:
+Exploration becomes a strategic narrative choice.
+
+8. One small but powerful UI tweak
+
+Under the map title:
+
+Forbidden Sanctuary
+A place of sealed knowledge and restless spirits
+
+This is not flavor.
+It’s a thematic constraint that primes expectations for every hex.
+
+What NOT to do (important)
+
+Don’t add random encounters to hexes
+
+Don’t overload tooltips with lore
+
+Don’t turn the map into a quest log
+
+You want:
+
+Interpretive pressure, not exposition
+
+The key shift (conceptually)
+
+Right now:
+
+Map = navigation layer
+
+What you want:
+
+Map = argument about the story space
+
+Each region should silently answer:
+
+Is this place safe?
+
+Is it honest?
+
+Is it listening?
+
+Is it decaying?
+
+Once the map starts answering questions, combat will naturally stop being the default way to ask them.
+
+If you want next, I can:
+
+Propose a Hex Metadata v2 schema aligned to this UI
+
+Rewrite your current scene text to better “echo” the map
+
+Show a before/after of this exact sanctuary with 3 small changes
+
+You’ve built a strong chassis. Now it just needs a voice.
+
+please do this: Propose a Hex Metadata v2 schema aligned to this UI
+
+Perfect. I’ll keep this UI-aligned, incremental, and code-friendly, not a blue-sky redesign.
+
+What follows is a Hex Metadata v2 schema whose sole job is to give the map narrative authority without bloating mechanics.
+
+Think of this as adding semantic weight to each hex, not systems.
+
+Hex Metadata v2 (Narrative-Driven, UI-Light)
+Design constraints (based on your UI)
+
+Must work with hover + click (no modal overload)
+
+Must visually layer onto your existing hex grid
+
+Must explain why a hex matters right now
+
+Must support non-combat storytelling
+
+Must mutate over time
+
+Core Hex Metadata v2
+export interface HexMetaV2 {
+  id: string;
+
+  terrain: "Chamber" | "Corridor" | "Portal" | "Wall" | "Open";
+
+  // 1. Narrative Promise (what kind of story this hex invites)
+  narrativeTone: NarrativeTone;
+
+  // 2. Why this hex matters right now
+  currentState: HexState;
+
+  // 3. What interacting with this hex tends to do
+  affordances: HexAffordances;
+
+  // 4. Pressure the hex exerts over time
+  tension: number; // 0–100
+
+  // 5. How the hex reacts to failure, delay, or noise
+  escalation?: HexEscalation;
+
+  // 6. What the player can learn here
+  knowledgeHooks?: KnowledgeHook[];
+
+  // 7. Visual hints for UI
+  uiHints?: UIHints;
+}
+
+1. Narrative Tone (the promise)
+
+This is the single most important addition.
+
+export type NarrativeTone =
+  | "Whispering"
+  | "Sacred"
+  | "Watched"
+  | "Unstable"
+  | "Forgotten"
+  | "Hostile"
+  | "Benevolent"
+  | "Sealed";
+
+
+Rules:
+
+One tone per hex
+
+Shown subtly on hover
+
+Never explained in full
+
+UI use:
+
+Tooltip subtitle
+
+Small icon or color pulse
+
+Player takeaway:
+“This place wants this kind of interaction.”
+
+2. Current State (why now matters)
+export type HexState =
+  | "Dormant"
+  | "Stirring"
+  | "Active"
+  | "Fading"
+  | "Sealed"
+  | "Compromised";
+
+
+This is what changes when:
+
+A check fails
+
+Time passes
+
+Noise is made
+
+Another hex escalates
+
+Example:
+A Whispering Chamber can move from Dormant → Stirring → Active.
+
+3. Affordances (what play it supports)
+
+These directly bias scene generation and choices.
+
+export interface HexAffordances {
+  exploration: number; // 0–5
+  social: number;
+  investigation: number;
+  puzzle: number;
+  combat: number;
+}
+
+
+Important:
+Combat does not need to be zero.
+It just shouldn’t be the default.
+
+4. Escalation (how the hex pushes back)
+export interface HexEscalation {
+  trigger: "Failure" | "Delay" | "Noise" | "RepeatedUse";
+  effect: HexEscalationEffect;
+}
+
+export type HexEscalationEffect =
+  | "IncreaseTension"
+  | "ChangeTone"
+  | "SealAdjacentHex"
+  | "SummonThreat"
+  | "TransformIntoCombatScene";
+
+
+This is how:
+
+Exploration turns dangerous
+
+Social mistakes ripple outward
+
+Combat emerges organically
+
+5. Knowledge Hooks (reward exploration)
+export interface KnowledgeHook {
+  id: string;
+  category: "Lore" | "Warning" | "Leverage" | "MapInsight";
+  description: string;
+  consumedOnUse?: boolean;
+}
+
+
+These replace some XP rewards without removing XP.
+
+Example:
+
+“The spirits are bound to the eastern portal.”
+
+“The dragon avoids consecrated ground.”
+
+6. UI Hints (light, not verbose)
+export interface UIHints {
+  icon?: string;           // e.g. "eye", "rune", "crack"
+  glowIntensity?: number;  // 0–1
+  pulse?: boolean;
+  tooltipNote?: string;    // one short sentence
+}
+
+
+Strict rule:
+One sentence max.
+
+Example tooltip:
+
+Something here is listening.
+
+Concrete Example (from your screenshot)
+The glowing chamber hex
+{
+  id: "hex_chamber_glow",
+  terrain: "Chamber",
+
+  narrativeTone: "Whispering",
+  currentState: "Stirring",
+
+  affordances: {
+    exploration: 3,
+    investigation: 4,
+    social: 2,
+    puzzle: 3,
+    combat: 1
+  },
+
+  tension: 35,
+
+  escalation: {
+    trigger: "Failure",
+    effect: "IncreaseTension"
+  },
+
+  knowledgeHooks: [
+    {
+      id: "spirit_binding",
+      category: "Lore",
+      description: "The spirits are bound by ritual, not force."
+    }
+  ],
+
+  uiHints: {
+    icon: "rune",
+    glowIntensity: 0.6,
+    tooltipNote: "The chamber responds to attention."
+  }
+}
+
+How this aligns with your existing UI
+
+Hex grid stays exactly the same
+
+Yellow hexes become meaningful, not just “important”
+
+Hover text becomes story guidance
+
+Choices start referencing places, not abstractions
+
+Combat emerges when tension crosses thresholds
+
+Implementation priority (low effort → high payoff)
+
+Add narrativeTone + tooltip
+
+Add affordances to bias scene selection
+
+Track tension per hex
+
+Escalation rules (simple at first)
+
+Even just steps 1 and 2 will noticeably shift play.
+
+The conceptual upgrade (why this works)
+
+You’re turning the map from:
+
+a spatial layout
+
+into:
+
+a distributed narrative agent
+
+Each hex:
+
+Suggests
+
+Warns
+
+Reacts
+
+Remembers
+
+That’s why exploration, puzzles, and social play start to feel inevitable, not optional.
