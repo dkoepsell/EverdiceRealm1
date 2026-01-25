@@ -2182,6 +2182,63 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         
         console.log(`Roll total: ${result.total}, DC: ${rollDC}, Success: ${success}`);
         
+        // HexMetaV2: Mutate hex state on failed checks
+        if (!success && dungeonMapData) {
+          const updatedMap = (() => {
+            const newTiles = [...dungeonMapData.tiles.map(row => [...row.map(tile => ({ ...tile, narrative: tile.narrative ? { ...tile.narrative } : undefined }))])];
+            const playerTile = newTiles[dungeonMapData.playerPosition.y]?.[dungeonMapData.playerPosition.x];
+            
+            if (playerTile?.narrative) {
+              // Increase tension on failure (use new tension for state calculation)
+              const currentTension = playerTile.narrative.tension || 20;
+              const newTension = Math.min(100, currentTension + 15);
+              playerTile.narrative = {
+                ...playerTile.narrative,
+                tension: newTension,
+                hexState: newTension >= 70 ? "Active" : newTension >= 40 ? "Stirring" : playerTile.narrative.hexState,
+              };
+              
+              // If new tension is very high, increase adjacent hex tension
+              if (newTension >= 80) {
+                const adjacentOffsets = [
+                  { dx: -1, dy: 0 }, { dx: 1, dy: 0 },
+                  { dx: 0, dy: -1 }, { dx: 0, dy: 1 }
+                ];
+                for (const { dx, dy } of adjacentOffsets) {
+                  const ax = dungeonMapData.playerPosition.x + dx;
+                  const ay = dungeonMapData.playerPosition.y + dy;
+                  const adjTile = newTiles[ay]?.[ax];
+                  if (adjTile?.narrative) {
+                    const adjTension = adjTile.narrative.tension || 20;
+                    if (adjTension < 60) {
+                      adjTile.narrative = {
+                        ...adjTile.narrative,
+                        tension: Math.min(100, adjTension + 10),
+                      };
+                    }
+                  }
+                }
+              }
+            }
+            return { ...dungeonMapData, tiles: newTiles };
+          })();
+          
+          setDungeonMapData(updatedMap);
+          
+          // Persist hex state changes to backend
+          if (dungeonMapId && campaign?.id) {
+            fetch(`/api/campaigns/${campaign.id}/dungeon-map/${dungeonMapId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ 
+                mapData: updatedMap,
+                playerPosition: updatedMap.playerPosition 
+              }),
+            }).catch(err => console.warn('Failed to persist hex tension change:', err));
+          }
+        }
+        
         // Show loading state first
         setIsAdvancingStory(true);
         

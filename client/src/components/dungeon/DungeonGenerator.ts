@@ -1,4 +1,7 @@
-import type { DungeonMapData, MapTile, MapEntity, TileType, MapEnvironment } from "./DungeonMap";
+import type { 
+  DungeonMapData, MapTile, MapEntity, TileType, MapEnvironment,
+  NarrativeTone, HexState, HexImportanceType, HexAffordances, EnvironmentTag, TileNarrativeData
+} from "./DungeonMap";
 
 interface Room {
   x: number;
@@ -153,6 +156,207 @@ const DEFAULT_CONFIG: DungeonConfig = {
   secretDoorChance: 0.1,
 };
 
+// HexMetaV2: Narrative tone assignments by room type and environment
+const ROOM_NARRATIVE_TONES: Record<Room["type"], NarrativeTone[]> = {
+  entrance: ["Benevolent", "Sacred", "Ancient"],
+  exit: ["Unstable", "Sealed", "Watched"],
+  treasure: ["Watched", "Sealed", "Ancient"],
+  boss: ["Hostile", "Cursed", "Watched"],
+  standard: ["Forgotten", "Whispering", "Ancient", "Unstable"],
+};
+
+const ENVIRONMENT_TONES: Record<MapEnvironment, NarrativeTone[]> = {
+  dungeon: ["Whispering", "Cursed", "Forgotten", "Watched"],
+  forest: ["Whispering", "Sacred", "Benevolent", "Ancient"],
+  cave: ["Unstable", "Forgotten", "Sealed", "Cursed"],
+  castle: ["Watched", "Ancient", "Hostile", "Sacred"],
+  ruins: ["Forgotten", "Ancient", "Cursed", "Whispering"],
+  swamp: ["Cursed", "Hostile", "Unstable", "Whispering"],
+  mountain: ["Sacred", "Ancient", "Unstable", "Watched"],
+  desert: ["Forgotten", "Ancient", "Sealed", "Cursed"],
+  town: ["Watched", "Benevolent", "Whispering", "Hostile"],
+  underground: ["Sealed", "Cursed", "Forgotten", "Whispering"],
+};
+
+// Environment tags by environment type
+const ENVIRONMENT_TAG_POOLS: Record<MapEnvironment, EnvironmentTag[]> = {
+  dungeon: ["dusty", "torch-lit", "ancient-stone", "blood-stained", "rune-carved"],
+  forest: ["overgrown", "sunlit", "living-wood", "moss-covered", "moonlit"],
+  cave: ["crystalline", "dark", "waterlogged", "ancient-stone", "moss-covered"],
+  castle: ["ancient-stone", "torch-lit", "dusty", "rune-carved", "blood-stained"],
+  ruins: ["overgrown", "ancient-stone", "dusty", "moss-covered", "corrupted"],
+  swamp: ["waterlogged", "overgrown", "corrupted", "dark", "moss-covered"],
+  mountain: ["frost-touched", "sunlit", "ancient-stone", "dark", "crystalline"],
+  desert: ["sunlit", "dusty", "ash-covered", "ancient-stone", "rune-carved"],
+  town: ["torch-lit", "dusty", "ancient-stone", "sunlit", "moonlit"],
+  underground: ["dark", "crystalline", "corrupted", "waterlogged", "rune-carved"],
+};
+
+// Generate region names by environment
+const REGION_NAME_PARTS: Record<MapEnvironment, { prefixes: string[]; suffixes: string[] }> = {
+  dungeon: { prefixes: ["The", "Old", "Dark"], suffixes: ["Hall", "Chamber", "Vault", "Passage", "Gallery"] },
+  forest: { prefixes: ["The", "Ancient", "Twilight"], suffixes: ["Glade", "Grove", "Clearing", "Hollow", "Dell"] },
+  cave: { prefixes: ["The", "Deep", "Crystal"], suffixes: ["Grotto", "Hollow", "Pool", "Chamber", "Chasm"] },
+  castle: { prefixes: ["The", "Royal", "Great"], suffixes: ["Hall", "Chamber", "Gallery", "Throne Room", "Armory"] },
+  ruins: { prefixes: ["The", "Fallen", "Lost"], suffixes: ["Sanctuary", "Altar", "Hall", "Archive", "Shrine"] },
+  swamp: { prefixes: ["The", "Murky", "Still"], suffixes: ["Pool", "Mire", "Crossing", "Shallows", "Bog"] },
+  mountain: { prefixes: ["The", "High", "Wind-swept"], suffixes: ["Ledge", "Peak", "Pass", "Outlook", "Ridge"] },
+  desert: { prefixes: ["The", "Burning", "Lost"], suffixes: ["Oasis", "Dunes", "Wastes", "Sands", "Plateau"] },
+  town: { prefixes: ["The", "Old", "Hidden"], suffixes: ["Square", "Alley", "Market", "Quarter", "Lane"] },
+  underground: { prefixes: ["The", "Deep", "Forgotten"], suffixes: ["Depths", "Passage", "Cavern", "Abyss", "Void"] },
+};
+
+// Generate affordances based on room type
+function generateAffordances(roomType: Room["type"], tileType: TileType): HexAffordances {
+  const base: HexAffordances = { exploration: 2, social: 1, investigation: 2, puzzle: 1, combat: 2 };
+  
+  switch (roomType) {
+    case "entrance":
+      return { exploration: 3, social: 4, investigation: 2, puzzle: 1, combat: 1 };
+    case "exit":
+      return { exploration: 4, social: 2, investigation: 3, puzzle: 2, combat: 2 };
+    case "treasure":
+      return { exploration: 2, social: 1, investigation: 5, puzzle: 4, combat: 2 };
+    case "boss":
+      return { exploration: 1, social: 2, investigation: 2, puzzle: 1, combat: 5 };
+    case "standard":
+    default:
+      // Vary based on tile type
+      if (tileType === "treasure") return { exploration: 2, social: 1, investigation: 5, puzzle: 3, combat: 1 };
+      if (tileType === "trap") return { exploration: 3, social: 0, investigation: 4, puzzle: 4, combat: 1 };
+      if (tileType === "door" || tileType === "door_locked") return { exploration: 4, social: 2, investigation: 3, puzzle: 2, combat: 1 };
+      return base;
+  }
+}
+
+// Assign importance type based on room and position
+function assignImportanceType(room: Room, isCenter: boolean, tileType: TileType): HexImportanceType {
+  if (room.type === "boss" && isCenter) return "Risk";
+  if (room.type === "treasure" && (tileType === "treasure" || isCenter)) return "Revelation";
+  if (room.type === "exit" && isCenter) return "Convergence";
+  if (room.type === "entrance" && isCenter) return "Sanctuary";
+  if (tileType === "secret_door") return "LostKnowledge";
+  if (tileType === "treasure") return "Revelation";
+  return "None";
+}
+
+// Generate tooltip note based on narrative properties
+function generateTooltipNote(tone: NarrativeTone, roomType: Room["type"], environment: MapEnvironment): string {
+  const toneNotes: Record<NarrativeTone, string[]> = {
+    "Whispering": ["Echoes of old secrets linger here.", "Something stirs at the edge of hearing.", "The shadows seem to murmur."],
+    "Sacred": ["An air of reverence pervades this space.", "Old prayers still hang in the air.", "This place was once held holy."],
+    "Watched": ["Unseen eyes follow your movements.", "You feel observed.", "Something is aware of your presence."],
+    "Unstable": ["The ground feels uncertain.", "Reality seems thin here.", "Danger lurks in the stonework."],
+    "Forgotten": ["Time has erased much from this place.", "Dust and silence reign here.", "This area has been abandoned long."],
+    "Hostile": ["Malevolence permeates the air.", "This place means you harm.", "Danger is imminent."],
+    "Benevolent": ["A sense of safety pervades.", "This space feels protective.", "Warmth lingers despite the cold."],
+    "Sealed": ["Something was locked away here.", "Wards still hold, barely.", "An old binding persists."],
+    "Cursed": ["A dark enchantment taints this place.", "Foul magic lingers.", "Something went terribly wrong here."],
+    "Ancient": ["These stones have stood for ages.", "History weighs heavily here.", "The past is palpable."],
+  };
+  
+  const notes = toneNotes[tone] || toneNotes["Forgotten"];
+  return notes[randomInt(0, notes.length - 1)];
+}
+
+// Generate region name
+function generateRegionName(room: Room, roomIndex: number, environment: MapEnvironment): string {
+  const parts = REGION_NAME_PARTS[environment];
+  const prefix = parts.prefixes[roomIndex % parts.prefixes.length];
+  const suffix = parts.suffixes[randomInt(0, parts.suffixes.length - 1)];
+  return `${prefix} ${suffix}`;
+}
+
+// Find which room contains a given coordinate
+function findRoomContaining(rooms: Room[], x: number, y: number): { room: Room; index: number } | null {
+  for (let i = 0; i < rooms.length; i++) {
+    const room = rooms[i];
+    if (x >= room.x && x < room.x + room.width && y >= room.y && y < room.y + room.height) {
+      return { room, index: i };
+    }
+  }
+  return null;
+}
+
+// Assign narrative metadata to all tiles in the map
+function assignNarrativeMetadataToMap(tiles: MapTile[][], rooms: Room[], environment: MapEnvironment): void {
+  const impassableTypes: TileType[] = ["wall", "rock", "dense_forest", "building", "rubble", "bog", "dune"];
+  
+  for (let y = 0; y < tiles.length; y++) {
+    for (let x = 0; x < tiles[y].length; x++) {
+      const tile = tiles[y][x];
+      
+      // Skip impassable tiles
+      if (impassableTypes.includes(tile.type)) continue;
+      
+      const roomData = findRoomContaining(rooms, x, y);
+      assignNarrativeMetadata(tile, roomData?.room || null, roomData?.index || 0, environment, x, y);
+    }
+  }
+}
+
+// Assign narrative metadata to a tile
+function assignNarrativeMetadata(
+  tile: MapTile, 
+  room: Room | null, 
+  roomIndex: number,
+  environment: MapEnvironment,
+  x: number, 
+  y: number
+): void {
+  if (!room) {
+    // Corridor tiles get simpler metadata
+    tile.narrative = {
+      narrativeTone: ENVIRONMENT_TONES[environment][randomInt(0, ENVIRONMENT_TONES[environment].length - 1)],
+      hexState: "Dormant",
+      importanceType: "None",
+      affordances: { exploration: 3, social: 1, investigation: 2, puzzle: 1, combat: 2 },
+      tension: randomInt(10, 30),
+      environmentTags: [ENVIRONMENT_TAG_POOLS[environment][randomInt(0, ENVIRONMENT_TAG_POOLS[environment].length - 1)]],
+    };
+    return;
+  }
+  
+  const isCenter = x === room.centerX && y === room.centerY;
+  const distFromCenter = Math.sqrt(Math.pow(x - room.centerX, 2) + Math.pow(y - room.centerY, 2));
+  
+  // Blend room type tones with environment tones
+  const roomTones = ROOM_NARRATIVE_TONES[room.type];
+  const envTones = ENVIRONMENT_TONES[environment];
+  const allTones = [...roomTones, ...envTones];
+  const tone = allTones[randomInt(0, allTones.length - 1)];
+  
+  // Assign environment tags (1-2 per tile)
+  const numTags = randomInt(1, 2);
+  const tagPool = ENVIRONMENT_TAG_POOLS[environment];
+  const tags: EnvironmentTag[] = [];
+  for (let i = 0; i < numTags; i++) {
+    const tag = tagPool[randomInt(0, tagPool.length - 1)];
+    if (!tags.includes(tag)) tags.push(tag);
+  }
+  
+  // Calculate tension based on room type and distance from center
+  let baseTension = 20;
+  if (room.type === "boss") baseTension = 70;
+  else if (room.type === "treasure") baseTension = 50;
+  else if (room.type === "exit") baseTension = 40;
+  else if (room.type === "entrance") baseTension = 10;
+  
+  const tension = Math.min(100, Math.max(0, baseTension + randomInt(-10, 10) + Math.floor(distFromCenter * 5)));
+  
+  tile.narrative = {
+    narrativeTone: tone,
+    hexState: room.type === "boss" ? "Active" : (room.type === "entrance" ? "Dormant" : "Stirring"),
+    importanceType: assignImportanceType(room, isCenter, tile.type),
+    affordances: generateAffordances(room.type, tile.type),
+    tension,
+    environmentTags: tags,
+    regionName: isCenter ? generateRegionName(room, roomIndex, environment) : undefined,
+    tooltipNote: isCenter || distFromCenter < 2 ? generateTooltipNote(tone, room.type, environment) : undefined,
+    glowIntensity: isCenter ? 0.6 : (distFromCenter < 2 ? 0.3 : 0),
+  };
+}
+
 export function generateDungeon(config: Partial<DungeonConfig> = {}): DungeonMapData {
   const cfg = { ...DEFAULT_CONFIG, ...config };
   
@@ -273,6 +477,9 @@ export function generateDungeon(config: Partial<DungeonConfig> = {}): DungeonMap
   
   // Add environmental decorations
   addEnvironmentalDecorations(tiles, rooms, envTiles);
+  
+  // HexMetaV2: Assign narrative metadata to all tiles
+  assignNarrativeMetadataToMap(tiles, rooms, environment);
   
   // Generate entities with environment context
   const entities = generateEntities(rooms, cfg, environment);

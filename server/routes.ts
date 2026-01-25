@@ -4508,10 +4508,34 @@ Return your response as a JSON object with these fields:
   app.post("/api/campaigns/:id/generate-scene", async (req, res) => {
     try {
       const campaignId = parseInt(req.params.id);
-      const { context, playerAction, currentLocation } = req.body;
+      const { context, playerAction, currentLocation, hexMetadata } = req.body;
 
       if (!context || !playerAction) {
         return res.status(400).json({ message: "Context and player action are required" });
+      }
+      
+      // HexMetaV2: Build environment context from hex metadata
+      let hexEnvironmentContext = "";
+      if (hexMetadata) {
+        const parts: string[] = [];
+        if (hexMetadata.regionName) parts.push(`Region: ${hexMetadata.regionName}`);
+        if (hexMetadata.narrativeTone) parts.push(`Atmosphere: ${hexMetadata.narrativeTone}`);
+        if (hexMetadata.environmentTags?.length > 0) {
+          parts.push(`Environment: ${hexMetadata.environmentTags.join(", ")}`);
+        }
+        if (hexMetadata.tension) parts.push(`Tension Level: ${hexMetadata.tension}%`);
+        if (hexMetadata.tooltipNote) parts.push(`Note: ${hexMetadata.tooltipNote}`);
+        if (hexMetadata.affordances) {
+          const aff = hexMetadata.affordances;
+          const topAffordances = Object.entries(aff)
+            .sort(([,a], [,b]) => (b as number) - (a as number))
+            .slice(0, 2)
+            .map(([k]) => k);
+          parts.push(`This location favors: ${topAffordances.join(", ")} scenes`);
+        }
+        if (parts.length > 0) {
+          hexEnvironmentContext = `\nHEX ENVIRONMENT (the player's current map tile):\n${parts.join("\n")}\nIMPORTANT: Your scene description MUST reflect these environmental details. If the hex is "frost-touched", describe icy surfaces. If the atmosphere is "Watched", hint at unseen observers. Match your narrative to the hex properties.`;
+        }
       }
 
       // Get campaign information for context
@@ -4547,6 +4571,7 @@ Campaign Context:
 - Difficulty: ${campaign.difficulty}
 - Narrative Style: ${campaign.narrativeStyle}
 - Current Location: ${currentLocation || "Unknown Location"}
+${hexEnvironmentContext}
 
 Current Situation: ${context}
 Last Player Action: ${actionDescription}
@@ -4577,21 +4602,24 @@ Respond in structured JSON format for structured consequence tracking:
   "npc_reactions": {
     "npc_name": "reaction description showing how they respond to the skill check result"
   },
-  "environment": "Updated environment description showing changes from player actions",
+  "environment": "Updated environment description showing changes from player actions (MUST reference hex environment tags if provided)",
+  "currentRegion": "Name of the current map region (use from HEX ENVIRONMENT if provided)",
   "options": [
     {
-      "label": "Action description",
+      "label": "Action description that references the physical space (e.g., 'Examine the frost-touched altar' not 'Look around')",
       "path_type": "Exploration|Investigation|Stealth|Combat|Dialogue|Ingenuity",
       "resolutionMode": "Dialogue|Investigation|Ingenuity|Stealth|Endurance|Violence",
       "risk": "Low|Medium|High",
       "effect": "Brief description of potential outcome",
       "consequence": "Specific result of choosing this path",
+      "hexDirection": "Optional: direction to adjacent hex (north|south|east|west|deeper|back) if this choice involves movement",
       "requiresDiceRoll": boolean,
       "diceType": "d20|d6|etc (if dice roll required)",
       "rollDC": number,
       "rollPurpose": "What the roll is for"
     }
   ],
+  "atmosphereShift": "Optional: if the scene changes the hex atmosphere, describe the new feeling (e.g., 'The chamber grows colder')",
   "dmNotes": "Private notes for the DM about consequences, hidden information, or plot hooks arising from the skill check"
 }`;
 
@@ -4637,11 +4665,35 @@ Respond in structured JSON format for structured consequence tracking:
   // OpenAI integration routes
   app.post("/api/openai/generate-story", async (req, res) => {
     try {
-      const { prompt, narrativeStyle, difficulty, storyDirection, campaignId, currentLocation } = req.body;
+      const { prompt, narrativeStyle, difficulty, storyDirection, campaignId, currentLocation, hexMetadata } = req.body;
 
       // Get campaign and character information for context if provided
       let campaignContext = "";
       let locationContext = "";
+      
+      // HexMetaV2: Build environment context from hex metadata
+      let hexEnvironmentContext = "";
+      if (hexMetadata) {
+        const parts: string[] = [];
+        if (hexMetadata.regionName) parts.push(`Region: ${hexMetadata.regionName}`);
+        if (hexMetadata.narrativeTone) parts.push(`Atmosphere: ${hexMetadata.narrativeTone}`);
+        if (hexMetadata.environmentTags?.length > 0) {
+          parts.push(`Environment: ${hexMetadata.environmentTags.join(", ")}`);
+        }
+        if (hexMetadata.tension) parts.push(`Tension Level: ${hexMetadata.tension}%`);
+        if (hexMetadata.tooltipNote) parts.push(`Note: ${hexMetadata.tooltipNote}`);
+        if (hexMetadata.affordances) {
+          const aff = hexMetadata.affordances;
+          const topAffordances = Object.entries(aff)
+            .sort(([,a], [,b]) => (b as number) - (a as number))
+            .slice(0, 2)
+            .map(([k]) => k);
+          parts.push(`This location favors: ${topAffordances.join(", ")} scenes`);
+        }
+        if (parts.length > 0) {
+          hexEnvironmentContext = `\nHEX ENVIRONMENT:\n${parts.join("\n")}\nIMPORTANT: Your narrative MUST reflect these environmental details. Match your description to the hex properties.`;
+        }
+      }
       
       if (currentLocation) {
         locationContext = `Current location: ${currentLocation}.`;
@@ -4689,6 +4741,7 @@ Respond in structured JSON format for structured consequence tracking:
 You are an expert Dungeon Master for a D&D game with a ${narrativeStyle || "descriptive"} storytelling style.
 ${campaignContext}
 ${locationContext}
+${hexEnvironmentContext}
 ${questContext}
 Difficulty level: ${difficulty || "Normal - Balanced Challenge"}
 Story direction preference: ${storyDirection || "balanced mix of combat, roleplay, and exploration"}

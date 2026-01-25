@@ -707,15 +707,38 @@ export function DungeonMap({
     <Card className="bg-card border-border">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-primary" />
-            {mapData.name || "Dungeon Map"}
-            {mapData.level && (
-              <Badge variant="outline" className="ml-2">
-                Level {mapData.level}
-              </Badge>
-            )}
-          </CardTitle>
+          <div className="flex flex-col">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-primary" />
+              {mapData.name || "Dungeon Map"}
+              {mapData.level && (
+                <Badge variant="outline" className="ml-2">
+                  Level {mapData.level}
+                </Badge>
+              )}
+            </CardTitle>
+            {/* HexMetaV2: Show current region subtitle based on player position */}
+            {(() => {
+              const playerTile = mapData.tiles[mapData.playerPosition.y]?.[mapData.playerPosition.x];
+              const regionName = playerTile?.narrative?.regionName;
+              const tone = playerTile?.narrative?.narrativeTone;
+              const toneIcon = tone ? NARRATIVE_TONE_ICONS[tone]?.icon : null;
+              if (regionName || tone) {
+                return (
+                  <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                    {toneIcon && <span className={NARRATIVE_TONE_ICONS[tone!]?.color}>{toneIcon}</span>}
+                    <span className="italic">
+                      {regionName || (tone ? `A ${tone.toLowerCase()} place` : '')}
+                      {playerTile?.narrative?.tooltipNote && (
+                        <span className="ml-1 opacity-70">— {playerTile.narrative.tooltipNote}</span>
+                      )}
+                    </span>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+          </div>
           {showControls && (
             <div className="flex items-center gap-1">
               <Button 

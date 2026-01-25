@@ -262,14 +262,26 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
     },
   });
 
-  // AI scene generation mutation
+  // AI scene generation mutation (supports HexMetaV2 environment context)
   const generateSceneMutation = useMutation({
-    mutationFn: async ({ context, playerAction, currentLocation }: { context: string; playerAction: string; currentLocation?: string }) => {
+    mutationFn: async ({ context, playerAction, currentLocation, hexMetadata }: { 
+      context: string; 
+      playerAction: string; 
+      currentLocation?: string;
+      hexMetadata?: {
+        regionName?: string;
+        narrativeTone?: string;
+        environmentTags?: string[];
+        tension?: number;
+        tooltipNote?: string;
+        affordances?: { exploration: number; social: number; investigation: number; puzzle: number; combat: number };
+      };
+    }) => {
       const response = await fetch(`/api/campaigns/${selectedCampaignId}/generate-scene`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ context, playerAction, currentLocation }),
+        body: JSON.stringify({ context, playerAction, currentLocation, hexMetadata }),
       });
       
       if (!response.ok) {
