@@ -51,6 +51,14 @@ Preferred communication style: Simple, everyday language.
 - **User Management**: Registration, authentication, profile management.
 - **Character Management**: D&D 5e character creation, XP tracking, progression, AI-powered portrait generation (DALL-E 3), computed stats (AC, attack/damage bonuses).
 - **Campaign System**: Creation, management, session tracking, AI-generated storylines, turn-based support, archiving, deployment. Persistent dungeon maps with interactive grid, fog of war, and generator. Enhanced chapter progression with AI-generated chapter titles, narratives, and objectives tied to campaign arc. Story continuity preserved through previous chapter context in AI prompts. Dynamic chapter pacing prevents premature final chapters.
+- **HexMetaV2 Dungeon System**: Narrative-aware hex maps where each tile carries semantic metadata that influences AI scene generation:
+    - **Narrative Tones**: 10 atmospheric types (Whispering, Menacing, Sacred, Cursed, Ancient, Corrupted, Peaceful, Treacherous, Mysterious, Echoing) displayed as icons on hex corners
+    - **Importance Types**: Visual distinction with color-coded outlines - Revelation (gold), Risk (dashed red), LostKnowledge (faded), Sanctuary (green), Convergence (purple pulse)
+    - **Environment Tags**: frost-touched, overgrown, flooded, dust-choked, blood-stained, arcane-residue synced between map visuals and AI narrative
+    - **Hex Affordances**: 0-5 ratings for exploration/social/investigation/puzzle/combat that guide AI away from combat-default
+    - **Tension System**: Starts 10-70 based on room type, increases on failed skill checks, changes hexState (Dormant→Stirring→Active), propagates to adjacent hexes when ≥80
+    - **Region Names**: Map subtitle updates based on player location within themed environmental zones
+    - **Persistence**: Hex state mutations (tension, hexState) saved to backend to survive refresh
 - **World Map System**: Persistent realm-wide map showing all regions of Everdice. Tracks user exploration progress across regions and locations. Adventures/campaigns link to world locations, automatically updating user progress when playing. Public visibility for all users to envision the realm. Visit counts persist across sessions.
 - **Dice Rolling Engine**: Standard RPG dice, real-time WebSocket rolls, history, critical hit/fumble detection, advantage/disadvantage mechanics.
 - **AI-Powered Features**: Campaign/story generation, dynamic narrative, character backgrounds/portraits, DM assistance (NPCs, locations, quests, monsters). AI focuses on exploration, discovery, mystery, and social encounters.
