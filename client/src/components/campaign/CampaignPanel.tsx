@@ -2791,7 +2791,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                           };
                                           const narrativeTone = tile?.narrative?.narrativeTone;
                                           const toneData = narrativeTone ? toneIcons[narrativeTone] : null;
-                                          const showNarrative = tile?.narrative?.discovered && (tile?.type === 'floor' || tile?.type === 'corridor');
+                                          // Show markers on floor/corridor tiles that have narrative data
+                                          const showNarrative = toneData && (tile?.type === 'floor' || tile?.type === 'corridor');
                                           
                                           return (
                                             <div 
@@ -5909,7 +5910,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         };
                         const narrativeTone = tile?.narrative?.narrativeTone;
                         const toneData = narrativeTone ? toneIcons[narrativeTone] : null;
-                        const showNarrative = tile?.narrative?.discovered && (tile?.type === 'floor' || tile?.type === 'corridor');
+                        // Show markers on floor/corridor tiles that have narrative data
+                        const showNarrative = toneData && (tile?.type === 'floor' || tile?.type === 'corridor');
+                        
+                        // Debug: log first tile with narrative
+                        if (x === 0 && y === 0 && dungeonMapData.tiles[0]?.[0]?.narrative) {
+                          console.log('HexMetaV2 sample tile:', dungeonMapData.tiles[0][0]);
+                        }
                         
                         return (
                           <div 
