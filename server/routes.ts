@@ -102,6 +102,60 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 
+// ============================================
+// SCENE SCHEMA v2 - ANTI-COMBAT-TREADMILL RULES
+// ============================================
+// These constraints ensure varied scene types and prevent repetitive combat
+
+const SCENE_GENERATION_CONSTRAINTS = `
+SCENE GENERATION CONSTRAINTS (FOLLOW STRICTLY):
+
+1. DO NOT generate combat as the default solution. Combat is expensive and world-altering.
+
+2. NEVER generate two Combat scenes in a row unless the player explicitly chooses violence.
+
+3. Every scene MUST have a goal that can be resolved WITHOUT violence. Include at least:
+   - One Dialogue/Social option
+   - One Investigation/Exploration option  
+   - One risky or forceful option (which may lead to combat as escalation)
+
+4. Combat may appear ONLY as:
+   - An escalation from failed checks or player aggression
+   - A consequence of failure (ambush, reinforcements)
+   - A deliberate player choice when other options existed
+
+5. Scene types should vary. Prefer this distribution:
+   - Exploration (25%): Discover environments, find clues, uncover secrets
+   - Social (20%): Negotiate, persuade, gather information, roleplay
+   - Discovery (18%): Reveal lore, find treasures, learn about the world
+   - Travel (12%): Journey between locations, random encounters, atmosphere
+   - Puzzle (10%): Solve riddles, navigate traps, overcome obstacles cleverly
+   - Downtime (8%): Rest, craft, shop, personal character moments
+   - Combat (7%): Meaningful battles with stakes, not routine encounters
+
+6. When presenting choices:
+   - Frame combat as costly and dangerous ("Attack - risky, may alert others")
+   - Frame non-combat options as rewarding ("Investigate - learn valuable secrets")
+   - Ensure at least one option advances the story without fighting
+
+7. Resolution modes beyond violence include:
+   - Dialogue: Persuasion, deception, intimidation, negotiation
+   - Investigation: Perception, arcana, history, tracking clues
+   - Ingenuity: Creative problem-solving, using environment, crafting solutions
+   - Stealth: Sneaking, hiding, avoiding detection
+   - Endurance: Survival, endurance challenges, resisting effects
+`;
+
+const SCENE_CHOICE_FRAMING = `
+CHOICE FRAMING REQUIREMENTS:
+- Each scene must present 3-4 meaningful options
+- At least ONE option must be non-violent (dialogue, investigation, stealth)
+- At least ONE option must be investigative or exploratory
+- Combat options should note risk level and potential consequences
+- Frame choices to encourage player creativity and varied approaches
+- Include skill variety: social (persuasion, insight), mental (investigation, arcana), physical (athletics, stealth)
+`;
+
 async function recordTrace(
   campaignId: number,
   kind: TraceEventKind,
@@ -2720,11 +2774,17 @@ Difficulty level: ${campaign.difficulty || "Normal - Balanced Challenge"}
 
 DM PHILOSOPHY: You are a facilitator rooting for the player's success, not an adversary. Use the "yes, and..." approach to player creativity. Create cinematic descriptions using all five senses. Make NPCs feel real with their own motivations. Present challenges that feel heroic to overcome.
 
-Generate the opening scene for this campaign. Include:
+${SCENE_GENERATION_CONSTRAINTS}
+
+${SCENE_CHOICE_FRAMING}
+
+Generate the opening scene for this campaign. The opening should be an EXPLORATION or DISCOVERY scene, not combat.
+Include:
 1. A descriptive narrative of the initial setting and situation (2-3 paragraphs, keep it concise)
-2. A title for this opening scene
-3. Four possible actions the players can take next, with at least 2 actions requiring dice rolls
-4. Initial quests/objectives for the players to complete
+2. A title for this opening scene  
+3. A sceneType from: Exploration, Social, Discovery, Travel, Puzzle, Downtime (NOT Combat for openings)
+4. Four possible actions the players can take next, with varied resolution modes (Dialogue, Investigation, Ingenuity, Stealth, not just Violence)
+5. Initial quests/objectives for the players to complete
 
 Return your response as a JSON object with these fields:
 - narrative: The descriptive text of the opening scene (keep under 150 words)
@@ -4497,6 +4557,10 @@ ${currentSession ? `Previous Scene: ${currentSession.narrative}` : ''}
 
 ${participants?.length > 0 ? `Active NPCs/Characters: ${participants.map(p => p.character?.name || 'Unknown').join(', ')}` : ''}
 
+${SCENE_GENERATION_CONSTRAINTS}
+
+${SCENE_CHOICE_FRAMING}
+
 CRITICAL INSTRUCTIONS:
 You must carry forward the effects of player skill checks or major decisions. If players succeeded in a skill check, those effects should influence NPC behavior, environment changes, or story progression. Do not ignore previous choices. Refer to the result and build new tension from it.
 
@@ -4504,11 +4568,12 @@ TASK: Generate the next scene for the DM to describe, including:
 - Vivid location description
 - NPC emotional reactions (if applicable)
 - Narrative development based on the player action
-- Three meaningful player options or events
+- Three meaningful player options with VARIED resolution modes (not just combat)
 
 Respond in structured JSON format for structured consequence tracking:
 {
   "scene": "Detailed description of what happens next reflecting the skill check outcome (3-4 paragraphs)",
+  "sceneType": "Exploration|Social|Discovery|Travel|Puzzle|Downtime|Combat",
   "npc_reactions": {
     "npc_name": "reaction description showing how they respond to the skill check result"
   },
@@ -4516,7 +4581,9 @@ Respond in structured JSON format for structured consequence tracking:
   "options": [
     {
       "label": "Action description",
-      "path_type": "Exploration|Magic|Stealth|Combat|Dialogue",
+      "path_type": "Exploration|Investigation|Stealth|Combat|Dialogue|Ingenuity",
+      "resolutionMode": "Dialogue|Investigation|Ingenuity|Stealth|Endurance|Violence",
+      "risk": "Low|Medium|High",
       "effect": "Brief description of potential outcome",
       "consequence": "Specific result of choosing this path",
       "requiresDiceRoll": boolean,
@@ -10733,12 +10800,23 @@ ${detectedTheme === 'forest' ? '- Use dappled sunlight, rustling leaves, animal 
 ${detectedTheme === 'urban' ? '- Use city sounds, crowds, buildings, streets, social environments\n- Enemies should be criminals, corrupt officials, or urban monsters' : ''}
 `;
       
+      // Get previous scene type to prevent combat repetition
+      const previousSceneType = (currentSession as any).previousSceneType || (currentSession as any).sceneType || null;
+      const antiCombatRepeatNote = previousSceneType === 'Combat' 
+        ? '\n\nIMPORTANT: The previous scene was Combat. This scene MUST be a different type (Exploration, Social, Discovery, Travel, Puzzle, or Downtime) unless the player explicitly initiates another fight.\n'
+        : '';
+      
       // Generate story continuation based on choice and previous context
       const prompt = `
 You are an expert Dungeon Master for a D&D game with a ${narrativeStyle} storytelling style.
 ${narrativeStyleInstructions}
 Difficulty: ${difficulty}
 ${themeContext}
+
+${SCENE_GENERATION_CONSTRAINTS}
+${antiCombatRepeatNote}
+
+${SCENE_CHOICE_FRAMING}
 
 DM PHILOSOPHY (CRITICAL - Follow these core principles):
 1. FACILITATOR, NOT ADVERSARY: You are rooting for the player to succeed and have fun. Create challenges that are exciting to overcome, not frustrating roadblocks. The player should feel heroic.
@@ -10756,6 +10834,8 @@ DM PHILOSOPHY (CRITICAL - Follow these core principles):
 7. PACING RHYTHM: Alternate between high-tension action and moments to breathe. After intense combat, give the player a moment of triumph or discovery. Don't make every single moment life-or-death.
 
 8. NPCs HAVE MOTIVATIONS: Every NPC wants something, even minor ones. The guard wants to finish their shift. The merchant wants to make a sale. This makes interactions feel real.
+
+9. COMBAT IS EXPENSIVE: Treat combat as narratively expensive and world-altering. Fights have consequences - noise attracts attention, blood leaves evidence, survivors spread word. Non-combat solutions often work better.
 
 Continue this D&D story based on the player's choice and maintain story continuity.
 
@@ -10967,11 +11047,14 @@ CHOICE REQUIREMENTS:
 Respond with JSON:
 {
   "narrative": "CONCISE story segment focused on immediate action results and character reactions (2-3 sentences maximum)",
+  "sceneType": "Exploration/Social/Discovery/Travel/Puzzle/Downtime/Combat - the type of scene this is",
   "dmNarrative": "Behind-the-scenes context for DM about consequences and what NPCs are thinking/planning",
   "choices": [
     {
       "text": "Action-focused choice description", 
       "type": "action/dialogue/exploration/magic/stealth/combat",
+      "resolutionMode": "Dialogue/Investigation/Ingenuity/Stealth/Endurance/Violence",
+      "risk": "Low/Medium/High",
       "difficulty": "easy/medium/hard",
       "requiresDiceRoll": true/false,
       "diceType": "d20/d6/etc (if roll required)",
@@ -12357,6 +12440,7 @@ Respond with JSON:
         choices: finalChoices,
         storyState: mergedStoryState,
         npcInteractions: storyAdvancement.npcInteractions,
+        sceneType: storyAdvancement.sceneType || (mergedStoryState?.inCombat ? 'Combat' : 'Exploration'),
         playerChoicesMade: [...(currentSession.playerChoicesMade || []), {
           choice,
           rollResult,

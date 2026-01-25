@@ -140,7 +140,7 @@ export interface IStorage {
   addQuickContentToSession(campaignId: number, content: any): Promise<void>;
   startCombat(campaignId: number, combatState: any): Promise<void>;
   updateCombatState(campaignId: number, combatState: any): Promise<void>;
-  updateSessionStoryState(campaignId: number, sessionNumber: number, storyState: any): Promise<CampaignSession | undefined>;
+  updateSessionStoryState(campaignId: number, sessionNumber: number, storyState: any, sceneType?: string): Promise<CampaignSession | undefined>;
   
   // Dice Roll operations
   createDiceRoll(diceRoll: InsertDiceRoll): Promise<DiceRoll>;
@@ -643,11 +643,15 @@ export class MemStorage implements IStorage {
     return session;
   }
   
-  async updateSessionStoryState(campaignId: number, sessionNumber: number, storyState: any): Promise<CampaignSession | undefined> {
+  async updateSessionStoryState(campaignId: number, sessionNumber: number, storyState: any, sceneType?: string): Promise<CampaignSession | undefined> {
     const key = `${campaignId}:${sessionNumber}`;
     const session = this.sessionStore.get(key);
     if (!session) return undefined;
-    const updatedSession = { ...session, storyState };
+    const updatedSession: any = { ...session, storyState };
+    if (sceneType) {
+      updatedSession.previousSceneType = session.sceneType || null;
+      updatedSession.sceneType = sceneType;
+    }
     this.sessionStore.set(key, updatedSession);
     return updatedSession;
   }
@@ -2246,19 +2250,31 @@ export class DatabaseStorage implements IStorage {
 
     // CRITICAL: Sync is_in_combat column with storyState.inCombat to prevent desync
     const inCombat = storyData.storyState?.inCombat || false;
+    
+    // Scene Schema v2: Track scene type for anti-combat-treadmill
+    const previousSceneType = (currentSession as any).sceneType || null;
+    const newSceneType = storyData.sceneType || (inCombat ? 'Combat' : null);
+
+    const updateData: any = {
+      narrative: storyData.narrative,
+      dmNarrative: storyData.dmNarrative,
+      choices: storyData.choices,
+      storyState: storyData.storyState,
+      npcInteractions: storyData.npcInteractions,
+      playerChoicesMade: storyData.playerChoicesMade,
+      isInCombat: inCombat,
+      updatedAt: new Date().toISOString()
+    };
+    
+    // Update scene type tracking if we have a new scene type
+    if (newSceneType) {
+      updateData.sceneType = newSceneType;
+      updateData.previousSceneType = previousSceneType;
+    }
 
     const [updatedSession] = await db
       .update(campaignSessions)
-      .set({
-        narrative: storyData.narrative,
-        dmNarrative: storyData.dmNarrative,
-        choices: storyData.choices,
-        storyState: storyData.storyState,
-        npcInteractions: storyData.npcInteractions,
-        playerChoicesMade: storyData.playerChoicesMade,
-        isInCombat: inCombat,
-        updatedAt: new Date().toISOString()
-      })
+      .set(updateData)
       .where(eq(campaignSessions.id, currentSession.id))
       .returning();
 
@@ -2367,13 +2383,25 @@ export class DatabaseStorage implements IStorage {
       .where(eq(campaignSessions.id, currentSession.id));
   }
   
-  async updateSessionStoryState(campaignId: number, sessionNumber: number, storyState: any): Promise<CampaignSession | undefined> {
+  async updateSessionStoryState(campaignId: number, sessionNumber: number, storyState: any, sceneType?: string): Promise<CampaignSession | undefined> {
+    // Get current session to track previous scene type for anti-combat-treadmill
+    const currentSession = await this.getCampaignSession(campaignId, sessionNumber);
+    const previousSceneType = currentSession?.sceneType || null;
+    
+    const updateData: any = {
+      storyState: storyState,
+      updatedAt: new Date().toISOString()
+    };
+    
+    // Update scene type tracking if provided
+    if (sceneType) {
+      updateData.sceneType = sceneType;
+      updateData.previousSceneType = previousSceneType;
+    }
+    
     const [updatedSession] = await db
       .update(campaignSessions)
-      .set({
-        storyState: storyState,
-        updatedAt: new Date().toISOString()
-      })
+      .set(updateData)
       .where(and(
         eq(campaignSessions.campaignId, campaignId),
         eq(campaignSessions.sessionNumber, sessionNumber)
