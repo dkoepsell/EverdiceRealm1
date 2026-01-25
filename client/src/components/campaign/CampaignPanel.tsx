@@ -5913,11 +5913,6 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         // Show markers on floor/corridor tiles that have narrative data
                         const showNarrative = toneData && (tile?.type === 'floor' || tile?.type === 'corridor');
                         
-                        // Debug: log first tile with narrative
-                        if (x === 0 && y === 0 && dungeonMapData.tiles[0]?.[0]?.narrative) {
-                          console.log('HexMetaV2 sample tile:', dungeonMapData.tiles[0][0]);
-                        }
-                        
                         return (
                           <div 
                             key={`expanded-${x}-${y}`} 
@@ -5988,6 +5983,22 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     <span className="w-3 h-4" style={{ backgroundColor: mapEnvironment.wall, clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}></span> 
                     <span className="font-medium">Wall</span>
                   </span>
+                  {/* Regenerate Map Button */}
+                  <button
+                    onClick={() => {
+                      setIsMapExpanded(false);
+                      handleGenerateMap();
+                    }}
+                    disabled={isGeneratingMap}
+                    className="ml-4 px-3 py-1 text-xs font-medium rounded-md transition-colors"
+                    style={{
+                      background: 'linear-gradient(to bottom, #8B4513, #6B3E0C)',
+                      color: '#f5deb3',
+                      border: '1px solid #5c3d1e',
+                    }}
+                  >
+                    {isGeneratingMap ? 'Generating...' : '↻ Regenerate Map'}
+                  </button>
                 </div>
               </div>
             );
