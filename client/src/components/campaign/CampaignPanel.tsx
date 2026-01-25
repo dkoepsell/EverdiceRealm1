@@ -2776,22 +2776,61 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                             bgColor = '#eab308';
                                           }
                                           
+                                          // HexMetaV2: Narrative tone icons
+                                          const toneIcons: Record<string, { icon: string; color: string }> = {
+                                            "Whispering": { icon: "👁", color: "#c084fc" },
+                                            "Sacred": { icon: "✧", color: "#fbbf24" },
+                                            "Watched": { icon: "◉", color: "#f87171" },
+                                            "Unstable": { icon: "⚠", color: "#fb923c" },
+                                            "Forgotten": { icon: "◇", color: "#94a3b8" },
+                                            "Hostile": { icon: "☠", color: "#ef4444" },
+                                            "Benevolent": { icon: "♥", color: "#4ade80" },
+                                            "Sealed": { icon: "🔒", color: "#60a5fa" },
+                                            "Cursed": { icon: "☽", color: "#a78bfa" },
+                                            "Ancient": { icon: "⌘", color: "#d97706" },
+                                          };
+                                          const narrativeTone = tile?.narrative?.narrativeTone;
+                                          const toneData = narrativeTone ? toneIcons[narrativeTone] : null;
+                                          const showNarrative = tile?.narrative?.discovered && (tile?.type === 'floor' || tile?.type === 'corridor');
+                                          
                                           return (
                                             <div 
                                               key={`${x}-${y}`} 
                                               className="absolute"
                                               style={{ 
-                                                backgroundColor: isPlayer ? '#22c55e' : bgColor,
                                                 width: hexWidth,
                                                 height: hexHeight,
                                                 left: hexX,
                                                 top: hexY,
-                                                clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
-                                                boxShadow: isPlayer 
-                                                  ? '0 0 8px 2px rgba(34,197,94,0.6)' 
-                                                  : 'inset 0 0 0 1px rgba(0,0,0,0.15)',
-                                              }} 
-                                            />
+                                              }}
+                                            >
+                                              {/* Narrative marker outside clipPath */}
+                                              {showNarrative && toneData && (
+                                                <div 
+                                                  className="absolute z-10 rounded-full flex items-center justify-center"
+                                                  style={{ 
+                                                    top: 0, left: 0, width: '12px', height: '12px',
+                                                    backgroundColor: 'rgba(0,0,0,0.7)',
+                                                    color: toneData.color,
+                                                    fontSize: '8px',
+                                                  }}
+                                                  title={tile?.narrative?.tooltipNote || narrativeTone}
+                                                >
+                                                  {toneData.icon}
+                                                </div>
+                                              )}
+                                              {/* Main hex tile */}
+                                              <div
+                                                className="absolute inset-0"
+                                                style={{ 
+                                                  backgroundColor: isPlayer ? '#22c55e' : bgColor,
+                                                  clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+                                                  boxShadow: isPlayer 
+                                                    ? '0 0 8px 2px rgba(34,197,94,0.6)' 
+                                                    : 'inset 0 0 0 1px rgba(0,0,0,0.15)',
+                                                }} 
+                                              />
+                                            </div>
                                           );
                                         })
                                       )}
@@ -5855,29 +5894,68 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           bgColor = '#eab308';
                         }
                         
+                        // HexMetaV2: Narrative tone icons for expanded map
+                        const toneIcons: Record<string, { icon: string; color: string }> = {
+                          "Whispering": { icon: "👁", color: "#c084fc" },
+                          "Sacred": { icon: "✧", color: "#fbbf24" },
+                          "Watched": { icon: "◉", color: "#f87171" },
+                          "Unstable": { icon: "⚠", color: "#fb923c" },
+                          "Forgotten": { icon: "◇", color: "#94a3b8" },
+                          "Hostile": { icon: "☠", color: "#ef4444" },
+                          "Benevolent": { icon: "♥", color: "#4ade80" },
+                          "Sealed": { icon: "🔒", color: "#60a5fa" },
+                          "Cursed": { icon: "☽", color: "#a78bfa" },
+                          "Ancient": { icon: "⌘", color: "#d97706" },
+                        };
+                        const narrativeTone = tile?.narrative?.narrativeTone;
+                        const toneData = narrativeTone ? toneIcons[narrativeTone] : null;
+                        const showNarrative = tile?.narrative?.discovered && (tile?.type === 'floor' || tile?.type === 'corridor');
+                        
                         return (
                           <div 
                             key={`expanded-${x}-${y}`} 
-                            className="absolute transition-all hover:brightness-110"
+                            className="absolute"
                             style={{ 
-                              backgroundColor: isPlayer ? '#22c55e' : bgColor,
                               width: hexWidth,
                               height: hexHeight,
                               left: hexX,
                               top: hexY,
-                              clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
-                              boxShadow: isPlayer 
-                                ? '0 0 12px 4px rgba(34,197,94,0.7)' 
-                                : 'inset 0 0 0 2px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.2)',
-                            }} 
+                            }}
                           >
-                            {isPlayer && (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <div className="w-4 h-4 bg-white rounded-full flex items-center justify-center animate-pulse">
-                                  <User className="w-3 h-3 text-green-600" />
-                                </div>
+                            {/* Narrative marker outside clipPath */}
+                            {showNarrative && toneData && (
+                              <div 
+                                className="absolute z-10 rounded-full flex items-center justify-center"
+                                style={{ 
+                                  top: 0, left: 0, width: '14px', height: '14px',
+                                  backgroundColor: 'rgba(0,0,0,0.7)',
+                                  color: toneData.color,
+                                  fontSize: '10px',
+                                }}
+                                title={tile?.narrative?.tooltipNote || narrativeTone}
+                              >
+                                {toneData.icon}
                               </div>
                             )}
+                            {/* Main hex tile */}
+                            <div 
+                              className="absolute inset-0 transition-all hover:brightness-110"
+                              style={{ 
+                                backgroundColor: isPlayer ? '#22c55e' : bgColor,
+                                clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+                                boxShadow: isPlayer 
+                                  ? '0 0 12px 4px rgba(34,197,94,0.7)' 
+                                  : 'inset 0 0 0 2px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.2)',
+                              }} 
+                            >
+                              {isPlayer && (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <div className="w-4 h-4 bg-white rounded-full flex items-center justify-center animate-pulse">
+                                    <User className="w-3 h-3 text-green-600" />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         );
                       })
