@@ -44,7 +44,13 @@ import {
   worldRegions,
   diceRolls,
   userActivityEvents,
-  userSessionsAnalytics
+  userSessionsAnalytics,
+  hearthPresence,
+  hearthEvents,
+  hearthBoardPosts,
+  hearthUserState,
+  hearthMurmur,
+  insertHearthBoardPostSchema
 } from "@shared/schema";
 import { setupAuth, isAuthenticated, requireAdmin } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";
@@ -16808,6 +16814,388 @@ ALWAYS generate:
       res.status(500).json({ message: "Failed to create milestone reward" });
     }
   });
+
+  // =====================================================
+  // HEARTH ENDPOINTS - Persistent Social Hub
+  // =====================================================
+
+  // Arrival line options for personalization
+  const arrivalLines = [
+    "You step back into the Lantern Hall. Your usual spot is still open.",
+    "The fire is low tonight. Someone has been here recently.",
+    "Rain taps the windows. The noticeboard has fresh ink.",
+    "The Hearth kept your seat. Welcome back.",
+    "It has been a little while. The Hall still remembers you."
+  ];
+
+  const seatZoneStatuses: Record<string, string> = {
+    fire: "by the fire",
+    board: "at the board",
+    window: "watching the rain",
+    table: "packing gear"
+  };
+
+  // GET /api/hearth/snapshot - Main page data
+  app.get("/api/hearth/snapshot", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const now = new Date().toISOString();
+      const today = new Date().toISOString().split('T')[0];
+
+      // Get current murmur
+      const murmurs = await db.select().from(hearthMurmur)
+        .where(and(
+          sql`${hearthMurmur.activeFrom} <= ${today}`,
+          sql`${hearthMurmur.activeTo} >= ${today}`
+        ))
+        .limit(5);
+      const currentMurmur = murmurs.length > 0 
+        ? murmurs[Math.floor(Math.random() * murmurs.length)]
+        : { text: "The Hall is quiet tonight." };
+
+      // Get user's hearth state
+      let userState = await db.select().from(hearthUserState)
+        .where(eq(hearthUserState.userId, userId))
+        .limit(1);
+      
+      let isReturning = false;
+      if (userState.length === 0) {
+        // First visit - create state
+        await db.insert(hearthUserState).values({
+          userId,
+          seatZone: "fire",
+          lastVisitAt: now,
+          returnStreak: 1
+        });
+        userState = [{ userId, seatZone: "fire", lastVisitAt: now, quietModeDefault: false, returnStreak: 1, lastDepartureNote: null }];
+      } else {
+        isReturning = true;
+        // Update visit
+        const lastVisit = userState[0].lastVisitAt ? new Date(userState[0].lastVisitAt) : new Date();
+        const daysSince = Math.floor((Date.now() - lastVisit.getTime()) / (1000 * 60 * 60 * 24));
+        const newStreak = daysSince <= 1 ? (userState[0].returnStreak || 0) + 1 : 1;
+        
+        await db.update(hearthUserState)
+          .set({ lastVisitAt: now, returnStreak: newStreak })
+          .where(eq(hearthUserState.userId, userId));
+      }
+
+      // Get presence list (active users)
+      const activePresence = await db.select({
+        presence: hearthPresence,
+        user: { id: users.id, displayName: users.displayName, username: users.username }
+      })
+        .from(hearthPresence)
+        .leftJoin(users, eq(hearthPresence.userId, users.id))
+        .where(sql`${hearthPresence.expiresAt} > ${now}`)
+        .limit(12);
+
+      // Get board posts (non-deleted, recent first)
+      const boardPosts = await db.select({
+        post: hearthBoardPosts,
+        user: { id: users.id, displayName: users.displayName, username: users.username }
+      })
+        .from(hearthBoardPosts)
+        .leftJoin(users, eq(hearthBoardPosts.userId, users.id))
+        .where(sql`${hearthBoardPosts.deletedAt} IS NULL`)
+        .orderBy(desc(hearthBoardPosts.pinned), desc(hearthBoardPosts.createdAt))
+        .limit(20);
+
+      // Get recent hearth events (memories)
+      const events = await db.select({
+        event: hearthEvents,
+        user: { id: users.id, displayName: users.displayName, username: users.username }
+      })
+        .from(hearthEvents)
+        .leftJoin(users, eq(hearthEvents.userId, users.id))
+        .orderBy(desc(hearthEvents.createdAt))
+        .limit(20);
+
+      // Select an arrival line
+      const arrivalLine = isReturning && userState[0].returnStreak && userState[0].returnStreak > 3
+        ? "The Hearth kept your seat. Welcome back."
+        : arrivalLines[Math.floor(Math.random() * arrivalLines.length)];
+
+      res.json({
+        location: {
+          name: "The Lantern Hall",
+          murmur: currentMurmur.text
+        },
+        me: {
+          userId,
+          seatZone: userState[0].seatZone || "fire",
+          quietMode: userState[0].quietModeDefault || false,
+          arrivalLine,
+          returnStreak: userState[0].returnStreak || 1
+        },
+        presence: activePresence.map(p => ({
+          userId: p.presence.userId,
+          displayName: p.user?.displayName || p.user?.username || "Anonymous",
+          seatZone: p.presence.seatZone,
+          statusText: p.presence.statusText || seatZoneStatuses[p.presence.seatZone] || "resting"
+        })),
+        board: {
+          pinned: boardPosts.filter(p => p.post.pinned).map(p => ({
+            id: p.post.id,
+            category: p.post.category,
+            title: p.post.title,
+            body: p.post.body,
+            userId: p.post.userId,
+            displayName: p.user?.displayName || p.user?.username || "Anonymous",
+            createdAt: p.post.createdAt
+          })),
+          recent: boardPosts.filter(p => !p.post.pinned).slice(0, 10).map(p => ({
+            id: p.post.id,
+            category: p.post.category,
+            title: p.post.title,
+            body: p.post.body,
+            userId: p.post.userId,
+            displayName: p.user?.displayName || p.user?.username || "Anonymous",
+            createdAt: p.post.createdAt
+          }))
+        },
+        events: events.map(e => ({
+          id: e.event.id,
+          type: e.event.type,
+          displayName: e.user?.displayName || e.user?.username || "The Hall",
+          payload: e.event.payload,
+          createdAt: e.event.createdAt,
+          text: formatHearthEvent(e.event, e.user?.displayName || e.user?.username)
+        }))
+      });
+    } catch (error) {
+      console.error("Failed to get hearth snapshot:", error);
+      res.status(500).json({ message: "Failed to load the Hearth" });
+    }
+  });
+
+  // POST /api/hearth/presence/ping - Update presence
+  app.post("/api/hearth/presence/ping", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { seatZone, statusText } = req.body;
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 2 * 60 * 1000).toISOString(); // 2 minutes
+
+      // Upsert presence
+      await db.insert(hearthPresence)
+        .values({
+          userId,
+          seatZone: seatZone || "fire",
+          statusText: statusText || seatZoneStatuses[seatZone] || "by the fire",
+          lastPingAt: now.toISOString(),
+          expiresAt
+        })
+        .onConflictDoUpdate({
+          target: hearthPresence.userId,
+          set: {
+            seatZone: seatZone || "fire",
+            statusText: statusText || seatZoneStatuses[seatZone] || "by the fire",
+            lastPingAt: now.toISOString(),
+            expiresAt
+          }
+        });
+
+      res.json({ success: true, expiresAt });
+    } catch (error) {
+      console.error("Failed to update presence:", error);
+      res.status(500).json({ message: "Failed to update presence" });
+    }
+  });
+
+  // POST /api/hearth/board - Create a board post
+  app.post("/api/hearth/board", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { category, title, body } = req.body;
+
+      if (!category || !title) {
+        return res.status(400).json({ message: "Category and title are required" });
+      }
+
+      const validCategories = ["message", "hook", "lfg", "dm_call", "gift"];
+      if (!validCategories.includes(category)) {
+        return res.status(400).json({ message: "Invalid category" });
+      }
+
+      const [post] = await db.insert(hearthBoardPosts).values({
+        userId,
+        category,
+        title: title.slice(0, 80),
+        body: body?.slice(0, 500),
+        createdAt: new Date().toISOString()
+      }).returning();
+
+      // Log board post event
+      await db.insert(hearthEvents).values({
+        type: "board_post",
+        userId,
+        payload: { postId: post.id, category, title: title.slice(0, 40) },
+        createdAt: new Date().toISOString()
+      });
+
+      res.json({ success: true, post });
+    } catch (error) {
+      console.error("Failed to create board post:", error);
+      res.status(500).json({ message: "Failed to post to board" });
+    }
+  });
+
+  // DELETE /api/hearth/board/:postId - Delete own post
+  app.delete("/api/hearth/board/:postId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const postId = parseInt(req.params.postId);
+
+      const [post] = await db.select().from(hearthBoardPosts)
+        .where(eq(hearthBoardPosts.id, postId))
+        .limit(1);
+
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+
+      if (post.userId !== userId) {
+        return res.status(403).json({ message: "Cannot delete another's post" });
+      }
+
+      await db.update(hearthBoardPosts)
+        .set({ deletedAt: new Date().toISOString() })
+        .where(eq(hearthBoardPosts.id, postId));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete post:", error);
+      res.status(500).json({ message: "Failed to delete post" });
+    }
+  });
+
+  // POST /api/hearth/toast - Raise a toast
+  app.post("/api/hearth/toast", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { text } = req.body;
+
+      if (!text || text.length > 120) {
+        return res.status(400).json({ message: "Toast must be 1-120 characters" });
+      }
+
+      await db.insert(hearthEvents).values({
+        type: "toast",
+        userId,
+        payload: { text: text.slice(0, 120) },
+        createdAt: new Date().toISOString()
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to create toast:", error);
+      res.status(500).json({ message: "Failed to raise toast" });
+    }
+  });
+
+  // POST /api/hearth/mark - Leave a mark
+  app.post("/api/hearth/mark", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { mark } = req.body;
+
+      const validMarks = ["d6", "candle", "bootprint", "tankard", "quill"];
+      if (!mark || !validMarks.includes(mark)) {
+        return res.status(400).json({ message: "Invalid mark type" });
+      }
+
+      await db.insert(hearthEvents).values({
+        type: "mark",
+        userId,
+        payload: { mark },
+        createdAt: new Date().toISOString()
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to leave mark:", error);
+      res.status(500).json({ message: "Failed to leave mark" });
+    }
+  });
+
+  // POST /api/hearth/departure - Leave a departure note
+  app.post("/api/hearth/departure", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { note } = req.body;
+
+      // Update user state with departure note
+      await db.update(hearthUserState)
+        .set({ lastDepartureNote: note?.slice(0, 120) || null })
+        .where(eq(hearthUserState.userId, userId));
+
+      // Log departure event
+      await db.insert(hearthEvents).values({
+        type: "departure",
+        userId,
+        payload: { note: note?.slice(0, 60) },
+        createdAt: new Date().toISOString()
+      });
+
+      // Remove presence
+      await db.delete(hearthPresence)
+        .where(eq(hearthPresence.userId, userId));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to record departure:", error);
+      res.status(500).json({ message: "Failed to record departure" });
+    }
+  });
+
+  // POST /api/hearth/seat - Update preferred seat
+  app.post("/api/hearth/seat", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { seatZone } = req.body;
+
+      const validZones = ["fire", "board", "window", "table"];
+      if (!seatZone || !validZones.includes(seatZone)) {
+        return res.status(400).json({ message: "Invalid seat zone" });
+      }
+
+      await db.update(hearthUserState)
+        .set({ seatZone })
+        .where(eq(hearthUserState.userId, userId));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to update seat:", error);
+      res.status(500).json({ message: "Failed to update seat" });
+    }
+  });
+
+  // Helper to format hearth events for display
+  function formatHearthEvent(event: any, displayName?: string): string {
+    const name = displayName || "Someone";
+    const payload = event.payload as any;
+    
+    switch (event.type) {
+      case "arrival":
+        return `${name} stepped into the Hall.`;
+      case "departure":
+        return payload?.note ? `${name} left: "${payload.note}"` : `${name} stepped out.`;
+      case "toast":
+        return `${name} raised a toast: "${payload?.text}"`;
+      case "mark":
+        const markEmoji: Record<string, string> = { d6: "🎲", candle: "🕯️", bootprint: "👢", tankard: "🍺", quill: "🪶" };
+        return `${name} left a ${markEmoji[payload?.mark] || "mark"} behind.`;
+      case "board_post":
+        return `${name} pinned a note to the board: "${payload?.title}"`;
+      case "milestone":
+        return payload?.summary || "An adventure concluded.";
+      case "system_murmur":
+        return payload?.text || "";
+      default:
+        return "";
+    }
+  }
 
   return httpServer;
 }

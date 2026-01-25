@@ -1572,3 +1572,83 @@ export const insertMilestoneRewardSchema = createInsertSchema(milestoneRewards).
 
 export type InsertMilestoneReward = z.infer<typeof insertMilestoneRewardSchema>;
 export type MilestoneReward = typeof milestoneRewards.$inferSelect;
+
+// =====================================================
+// HEARTH - Persistent Social Hub
+// =====================================================
+
+// Hearth Presence - Who is currently "in the Hall"
+export const hearthPresence = pgTable("hearth_presence", {
+  userId: integer("user_id").primaryKey(),
+  seatZone: text("seat_zone").notNull().default("fire"), // fire, board, window, table
+  statusText: text("status_text"), // "by the fire", "packing gear", etc.
+  lastPingAt: text("last_ping_at").notNull(),
+  expiresAt: text("expires_at").notNull(),
+});
+
+export const insertHearthPresenceSchema = createInsertSchema(hearthPresence);
+export type InsertHearthPresence = z.infer<typeof insertHearthPresenceSchema>;
+export type HearthPresence = typeof hearthPresence.$inferSelect;
+
+// Hearth Events - Append-only log for Memories feed
+export const hearthEvents = pgTable("hearth_events", {
+  id: serial("id").primaryKey(),
+  type: text("type").notNull(), // arrival, departure, toast, mark, board_post, milestone, system_murmur
+  userId: integer("user_id"), // nullable for system events
+  payload: jsonb("payload"), // { text, campaignId, summary, etc. }
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertHearthEventSchema = createInsertSchema(hearthEvents).omit({
+  id: true,
+});
+export type InsertHearthEvent = z.infer<typeof insertHearthEventSchema>;
+export type HearthEvent = typeof hearthEvents.$inferSelect;
+
+// Hearth Board Posts - Noticeboard
+export const hearthBoardPosts = pgTable("hearth_board_posts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  category: text("category").notNull(), // message, hook, lfg, dm_call, gift
+  title: text("title").notNull(),
+  body: text("body"),
+  pinned: boolean("pinned").default(false),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  expiresAt: text("expires_at"),
+  deletedAt: text("deleted_at"),
+});
+
+export const insertHearthBoardPostSchema = createInsertSchema(hearthBoardPosts).omit({
+  id: true,
+});
+export type InsertHearthBoardPost = z.infer<typeof insertHearthBoardPostSchema>;
+export type HearthBoardPost = typeof hearthBoardPosts.$inferSelect;
+
+// Hearth User State - Personal seat and return behavior
+export const hearthUserState = pgTable("hearth_user_state", {
+  userId: integer("user_id").primaryKey(),
+  seatZone: text("seat_zone").default("fire"),
+  lastVisitAt: text("last_visit_at"),
+  lastDepartureNote: text("last_departure_note"),
+  quietModeDefault: boolean("quiet_mode_default").default(false),
+  returnStreak: integer("return_streak").default(0),
+});
+
+export const insertHearthUserStateSchema = createInsertSchema(hearthUserState);
+export type InsertHearthUserState = z.infer<typeof insertHearthUserStateSchema>;
+export type HearthUserState = typeof hearthUserState.$inferSelect;
+
+// Hearth Murmur - System message of the day/week
+export const hearthMurmur = pgTable("hearth_murmur", {
+  id: serial("id").primaryKey(),
+  text: text("text").notNull(),
+  activeFrom: text("active_from").notNull(),
+  activeTo: text("active_to").notNull(),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertHearthMurmurSchema = createInsertSchema(hearthMurmur).omit({
+  id: true,
+});
+export type InsertHearthMurmur = z.infer<typeof insertHearthMurmurSchema>;
+export type HearthMurmur = typeof hearthMurmur.$inferSelect;
