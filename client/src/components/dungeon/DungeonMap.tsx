@@ -899,6 +899,11 @@ export function DungeonMap({
                   const isPlayerHere = mapData.playerPosition.x === x && mapData.playerPosition.y === y;
                   const tileColor = TILE_COLORS[tile.type];
                   const isExplored = tile.explored || tile.visible;
+                  
+                  // Debug log for first few floor tiles
+                  if (tile.type === "floor" && x < 3 && y < 15) {
+                    console.log(`Tile (${x},${y}): explored=${tile.explored}, visible=${tile.visible}, isExplored=${isExplored}`);
+                  }
                   const isVisible = tile.visible;
                   const isSelected = entity && entity.id === selectedEntity;
                   
