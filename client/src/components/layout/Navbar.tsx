@@ -31,7 +31,8 @@ import {
   Settings,
   X,
   Home,
-  Beer
+  Beer,
+  Flame
 } from "lucide-react";
 
 export default function Navbar() {
@@ -58,6 +59,7 @@ export default function Navbar() {
   const pendingInvitationCount = pendingInvitations?.length || 0;
   
   const mainNavLinks = user ? [
+    { name: "Hearth", path: "/hearth", icon: Flame },
     { name: "Play", path: "/dashboard", icon: Play },
     { name: "Characters", path: "/characters", icon: Users },
     { name: "Learn", path: "/learn", icon: BookOpen },

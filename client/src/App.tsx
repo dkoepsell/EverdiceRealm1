@@ -27,6 +27,7 @@ import LegalPage from "@/pages/legal";
 import TavernPage from "@/pages/tavern";
 import GroupsPage from "@/pages/groups";
 import ProfilePage from "@/pages/profile";
+import HearthPage from "@/pages/hearth";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import InvitationAlert from "@/components/InvitationAlert";
@@ -60,6 +61,7 @@ function Router() {
           <Route path="/world-map" component={WorldMapPage} />
           <ProtectedRoute path="/bulletin" component={BulletinBoardPage} />
           <ProtectedRoute path="/tavern" component={TavernPage} />
+          <ProtectedRoute path="/hearth" component={HearthPage} />
           <ProtectedRoute path="/groups" component={GroupsPage} />
           <Route path="/caml" component={CAMLPage} />
           <ProtectedRoute path="/test" component={TestPage} />
