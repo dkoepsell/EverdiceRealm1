@@ -924,67 +924,76 @@ export function DungeonMap({
                   return (
                     <div
                       key={`${x}-${y}`}
-                      className={`
-                        absolute flex items-center justify-center
-                        ${!isExplored ? 'bg-indigo-900/40 dark:bg-indigo-950/60' : tileColor.bg}
-                        ${!isExplored ? "opacity-70" : isVisible ? "opacity-100" : "opacity-80"}
-                        ${interactive && tile.type !== "wall" ? "cursor-pointer hover:brightness-110 hover:scale-105" : ""}
-                        ${isSelected ? "ring-2 ring-yellow-400 ring-offset-1" : importanceStyles}
-                        transition-all duration-200
-                      `}
+                      className="absolute"
                       style={{ 
                         width: hexWidth, 
                         height: hexHeight,
                         left: hexX,
                         top: hexY,
-                        clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
-                        boxShadow: isExplored ? 'inset 0 0 0 2px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.2)' : 'none',
                       }}
-                      onClick={() => {
-                        if (!interactive) return;
-                        if (entity && onEntityClick) {
-                          onEntityClick(entity);
-                        } else if (onTileClick && tile.type !== "wall") {
-                          onTileClick(x, y);
-                        }
-                      }}
-                      data-testid={`tile-${x}-${y}`}
-                      title={buildTooltip()}
                     >
-                      {getTileIcon(tile)}
-                      {getNarrativeMarkers(tile)}
-                      {entity && !isPlayerHere && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          {getEntityIcon(entity)}
-                        </div>
-                      )}
-                      {isPlayerHere && (
-                        <div className="absolute inset-0 flex items-center justify-center z-10">
-                          {/* Party mini with glowing base - tabletop D&D style */}
-                          <div className="relative flex flex-col items-center animate-pulse">
-                            <div 
-                              className="relative z-10 bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 rounded-t-full shadow-lg"
-                              style={{ 
-                                width: '18px', 
-                                height: '20px',
-                                boxShadow: '0 0 12px 4px rgba(52,211,153,0.6), inset 0 1px 2px rgba(255,255,255,0.3)'
-                              }}
-                            >
-                              <Navigation className="w-3.5 h-3.5 text-white absolute top-1.5 left-1/2 -translate-x-1/2 drop-shadow-sm" />
-                            </div>
-                            {/* Glowing mini base */}
-                            <div 
-                              className="rounded-full bg-gradient-to-b from-amber-500 to-amber-700 border-2 border-amber-400"
-                              style={{ 
-                                width: '22px', 
-                                height: '7px', 
-                                marginTop: '-2px',
-                                boxShadow: '0 0 8px 2px rgba(251,191,36,0.5), 0 2px 4px rgba(0,0,0,0.4)'
-                              }}
-                            />
+                      {/* Narrative markers outside clipPath so they're visible */}
+                      {isExplored && getNarrativeMarkers(tile)}
+                      
+                      {/* Main hex tile with clipPath */}
+                      <div
+                        className={`
+                          absolute inset-0 flex items-center justify-center
+                          ${!isExplored ? 'bg-indigo-900/40 dark:bg-indigo-950/60' : tileColor.bg}
+                          ${!isExplored ? "opacity-70" : isVisible ? "opacity-100" : "opacity-80"}
+                          ${interactive && tile.type !== "wall" ? "cursor-pointer hover:brightness-110 hover:scale-105" : ""}
+                          ${isSelected ? "ring-2 ring-yellow-400 ring-offset-1" : importanceStyles}
+                          transition-all duration-200
+                        `}
+                        style={{ 
+                          clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+                          boxShadow: isExplored ? 'inset 0 0 0 2px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.2)' : 'none',
+                        }}
+                        onClick={() => {
+                          if (!interactive) return;
+                          if (entity && onEntityClick) {
+                            onEntityClick(entity);
+                          } else if (onTileClick && tile.type !== "wall") {
+                            onTileClick(x, y);
+                          }
+                        }}
+                        data-testid={`tile-${x}-${y}`}
+                        title={buildTooltip()}
+                      >
+                        {getTileIcon(tile)}
+                        {entity && !isPlayerHere && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            {getEntityIcon(entity)}
                           </div>
-                        </div>
-                      )}
+                        )}
+                        {isPlayerHere && (
+                          <div className="absolute inset-0 flex items-center justify-center z-10">
+                            {/* Party mini with glowing base - tabletop D&D style */}
+                            <div className="relative flex flex-col items-center animate-pulse">
+                              <div 
+                                className="relative z-10 bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 rounded-t-full shadow-lg"
+                                style={{ 
+                                  width: '18px', 
+                                  height: '20px',
+                                  boxShadow: '0 0 12px 4px rgba(52,211,153,0.6), inset 0 1px 2px rgba(255,255,255,0.3)'
+                                }}
+                              >
+                                <Navigation className="w-3.5 h-3.5 text-white absolute top-1.5 left-1/2 -translate-x-1/2 drop-shadow-sm" />
+                              </div>
+                              {/* Glowing mini base */}
+                              <div 
+                                className="rounded-full bg-gradient-to-b from-amber-500 to-amber-700 border-2 border-amber-400"
+                                style={{ 
+                                  width: '22px', 
+                                  height: '7px', 
+                                  marginTop: '-2px',
+                                  boxShadow: '0 0 8px 2px rgba(251,191,36,0.5), 0 2px 4px rgba(0,0,0,0.4)'
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })
