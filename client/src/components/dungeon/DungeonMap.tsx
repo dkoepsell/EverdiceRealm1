@@ -938,10 +938,10 @@ export function DungeonMap({
                       }}
                     >
                       {/* Narrative markers outside clipPath so they're visible */}
-                      {isExplored && tile.type === "floor" && (
+                      {tile.type === "floor" && (
                         <div 
-                          className="absolute z-50 bg-red-500 rounded-full border-2 border-white"
-                          style={{ top: 0, left: 0, width: '12px', height: '12px' }}
+                          className="absolute z-50 bg-red-500 rounded-full border-2 border-yellow-400"
+                          style={{ top: '2px', left: '2px', width: '10px', height: '10px' }}
                         />
                       )}
                       
