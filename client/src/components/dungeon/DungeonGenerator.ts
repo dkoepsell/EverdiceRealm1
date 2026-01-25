@@ -313,6 +313,7 @@ function assignNarrativeMetadata(
       affordances: { exploration: 3, social: 1, investigation: 2, puzzle: 1, combat: 2 },
       tension: randomInt(10, 30),
       environmentTags: [ENVIRONMENT_TAG_POOLS[environment][randomInt(0, ENVIRONMENT_TAG_POOLS[environment].length - 1)]],
+      discovered: true,
     };
     return;
   }
@@ -354,6 +355,7 @@ function assignNarrativeMetadata(
     regionName: isCenter ? generateRegionName(room, roomIndex, environment) : undefined,
     tooltipNote: isCenter || distFromCenter < 2 ? generateTooltipNote(tone, room.type, environment) : undefined,
     glowIntensity: isCenter ? 0.6 : (distFromCenter < 2 ? 0.3 : 0),
+    discovered: true,
   };
 }
 
