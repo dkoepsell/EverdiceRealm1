@@ -2791,13 +2791,17 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                           };
                                           const narrativeTone = tile?.narrative?.narrativeTone;
                                           const toneData = narrativeTone ? toneIcons[narrativeTone] : null;
-                                          // Show markers on floor/corridor tiles that have narrative data
-                                          const showNarrative = toneData && (tile?.type === 'floor' || tile?.type === 'corridor');
+                                          // Only show markers within 4 tiles of the player
+                                          const playerX = dungeonMapData.playerPosition?.x || 0;
+                                          const playerY = dungeonMapData.playerPosition?.y || 0;
+                                          const distance = Math.abs(x - playerX) + Math.abs(y - playerY);
+                                          const isNearPlayer = distance <= 4;
+                                          const hasNarrative = toneData && (tile?.type === 'floor' || tile?.type === 'corridor') && isNearPlayer;
                                           
                                           return (
                                             <div 
                                               key={`${x}-${y}`} 
-                                              className="absolute"
+                                              className="absolute group"
                                               style={{ 
                                                 width: hexWidth,
                                                 height: hexHeight,
@@ -2805,15 +2809,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                                 top: hexY,
                                               }}
                                             >
-                                              {/* Narrative marker outside clipPath */}
-                                              {showNarrative && toneData && (
+                                              {/* Narrative marker - only visible on hover */}
+                                              {hasNarrative && toneData && (
                                                 <div 
-                                                  className="absolute z-10 rounded-full flex items-center justify-center"
+                                                  className="absolute z-10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                                                   style={{ 
-                                                    top: 0, left: 0, width: '12px', height: '12px',
-                                                    backgroundColor: 'rgba(0,0,0,0.7)',
+                                                    top: -3, left: -3, width: '12px', height: '12px',
+                                                    backgroundColor: 'rgba(0,0,0,0.85)',
                                                     color: toneData.color,
                                                     fontSize: '8px',
+                                                    border: `1px solid ${toneData.color}`,
                                                   }}
                                                   title={tile?.narrative?.tooltipNote || narrativeTone}
                                                 >
@@ -5910,13 +5915,17 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         };
                         const narrativeTone = tile?.narrative?.narrativeTone;
                         const toneData = narrativeTone ? toneIcons[narrativeTone] : null;
-                        // Show markers on floor/corridor tiles that have narrative data
-                        const showNarrative = toneData && (tile?.type === 'floor' || tile?.type === 'corridor');
+                        // Only show markers within 3 tiles of the player
+                        const playerX = dungeonMapData.playerPosition?.x || 0;
+                        const playerY = dungeonMapData.playerPosition?.y || 0;
+                        const distance = Math.abs(x - playerX) + Math.abs(y - playerY);
+                        const isNearPlayer = distance <= 4;
+                        const hasNarrative = toneData && (tile?.type === 'floor' || tile?.type === 'corridor') && isNearPlayer;
                         
                         return (
                           <div 
                             key={`expanded-${x}-${y}`} 
-                            className="absolute"
+                            className="absolute group"
                             style={{ 
                               width: hexWidth,
                               height: hexHeight,
@@ -5924,15 +5933,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               top: hexY,
                             }}
                           >
-                            {/* Narrative marker outside clipPath */}
-                            {showNarrative && toneData && (
+                            {/* Narrative marker - only visible on hover */}
+                            {hasNarrative && toneData && (
                               <div 
-                                className="absolute z-10 rounded-full flex items-center justify-center"
+                                className="absolute z-10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                                 style={{ 
-                                  top: 0, left: 0, width: '14px', height: '14px',
-                                  backgroundColor: 'rgba(0,0,0,0.7)',
+                                  top: -4, left: -4, width: '16px', height: '16px',
+                                  backgroundColor: 'rgba(0,0,0,0.85)',
                                   color: toneData.color,
                                   fontSize: '10px',
+                                  border: `1px solid ${toneData.color}`,
                                 }}
                                 title={tile?.narrative?.tooltipNote || narrativeTone}
                               >
