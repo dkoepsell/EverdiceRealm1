@@ -1,0 +1,480 @@
+Everdice Hearth
+
+Concept: Every user returns to one persistent, shared in-world location first. This is where continuity lives. Campaigns are doors you step through from the Hearth.
+
+Core UX Loop
+
+User logs in.
+
+App loads Hearth snapshot (who is “in the Hall,” latest world murmur, noticeboard notes, recent shared memories).
+
+User can:
+
+Sit quietly (read-only view).
+
+Leave a small trace (a note, a toast, a “mark” that they were here).
+
+Jump into a campaign (solo, co-op, DM mode, Discord-deployed).
+
+On exit, user optionally leaves a one-line “leaving note” that appears briefly for others.
+
+The goal is “home” through repetition:
+
+Always the same place.
+
+Always familiar UI layout.
+
+Always small signs of life.
+
+Atmosphere and Voice
+Tone rules
+
+Warm, low-pressure, non-performative.
+
+Short sentences. Concrete sensory details. No lore dumps.
+
+Avoid “epic” language unless the user is already in an epic campaign.
+
+Arrival line examples
+
+Pick one per login, with light personalization:
+
+“You step back into the Lantern Hall. Your usual spot is still open.”
+
+“The fire is low tonight. Someone has been here recently.”
+
+“Rain taps the windows. The noticeboard has fresh ink.”
+
+If returning after inactivity:
+
+“The Hearth kept your seat. Welcome back.”
+
+“It has been a little while. The Hall still remembers you.”
+
+World Murmur examples
+
+Weekly or daily, purely atmospheric:
+
+“A cold wind rides in from the west. Travelers speak less than usual.”
+
+“Merchants are cheerful today. Something good happened on the road.”
+
+“The roads are muddy. Boots leave tracks that last.”
+
+Feature Set
+
+Implement in this order. Each feature is small but composes into “place.”
+
+1. Hearth Snapshot (read-only foundation)
+
+What user sees on arrival:
+
+Background illustration and ambient layout
+
+A “Room” panel showing familiar names
+
+Recent shared memories
+
+Noticeboard highlights
+
+Buttons to enter campaigns
+
+Data needed:
+
+active presence list
+
+last 20 hearth events
+
+pinned notices
+
+latest world murmur
+
+user’s last-visit record
+
+2. Presence without pressure (soft online list)
+
+Presence is not “chat.” It is “people in the room.”
+
+Show up to 12 names with tiny status text:
+
+“by the fire”
+
+“at the board”
+
+“packing gear”
+
+Users can choose an optional status, or default is auto.
+
+Presence expires automatically (TTL). No obligation to talk.
+
+3. The Noticeboard (leave notes, find hooks)
+
+Notes are the main “social glue,” but still asynchronous.
+
+Note types:
+
+Message: “If anyone wants a quick dungeon crawl this weekend, I’m free.”
+
+Hook: “Looking for 2 players for The Mire Lantern, level 3.”
+
+Gift: “Left a healing potion token for whoever needs it.”
+
+DM Call: “Need a DM for a one-shot, beginner friendly.”
+
+Moderation: flag, report, delete your own.
+
+4. Hearth Memories (shared continuity feed)
+
+A small feed of “things that happened” across Everdice, phrased as memory.
+
+Sources:
+
+campaign completions
+
+notable outcomes (boss defeated, party wipe avoided, artifact found)
+
+DM-created “milestone” entries
+
+system events (new season, weekly murmur)
+
+Format example:
+
+“Three nights ago, a party returned from Blackroot Pass, battered but laughing.”
+
+“A new map was pinned to the board: ‘The Shattered Causeway.’”
+
+5. Ritual actions (tiny, cozy interactions)
+
+Non-gameplay actions that create familiarity:
+
+Toast (one-line): “To good dice and better friends.”
+
+Leave a mark (emoji-like token): a d6 icon, a candle, a bootprint
+
+Sign the log: adds “X was here” in a soft way
+
+These generate Hearth events, not spammy chat.
+
+6. “Your Seat” (personal home feeling)
+
+Each user has:
+
+preferred corner (fire, board, window, table)
+
+last seen timestamp
+
+last leaving note
+
+“returning line” selection
+
+This is the “coming home” mechanic.
+
+Information Architecture and UI Layout
+
+Single page route: /hearth
+
+Layout sections
+
+Header
+
+“The Lantern Hall”
+
+small subtext: “A shared place between adventures”
+
+user quick actions: Set status, Leave note
+
+Center panel: The Room
+
+names + status
+
+“You are by the fire” indicator
+
+“Set your seat” button
+
+Right panel: Noticeboard
+
+pinned posts at top
+
+filters: All, Hooks, Looking for group, DM Calls, Gifts
+
+“Post to the board” button
+
+Bottom panel: Memories
+
+chronological feed
+
+“Mark as favorite” (personal)
+
+Primary CTA
+
+“Continue your adventure” (returns to last campaign)
+
+Secondary: “Start a solo journey,” “Host a table,” “Deploy to Discord”
+
+“Sit quietly” mode
+
+A toggle that:
+
+hides post composer
+
+shows more memories
+
+disables presence status changes
+This supports anxious users.
+
+Data Model (Drizzle-ready)
+
+Tables are minimal and safe. You can implement everything with these.
+
+hearth_presence
+
+Tracks who is “in the Hall.” TTL based.
+
+user_id (pk, fk users)
+
+seat_zone (enum: fire, board, window, table)
+
+status_text (varchar 60, nullable)
+
+last_ping_at (timestamp)
+
+expires_at (timestamp, indexed)
+
+Presence update is a heartbeat every 30 to 60 seconds while on /hearth.
+
+hearth_events
+
+Append-only event log for the Memories feed.
+
+id (pk)
+
+type (enum: arrival, departure, toast, mark, board_post, milestone, system_murmur)
+
+user_id (nullable for system)
+
+payload (jsonb)
+
+created_at (timestamp indexed)
+
+Payload examples:
+
+toast: { "text": "To good dice and better friends." }
+
+arrival: { "line": "You step back into the Lantern Hall..." }
+
+milestone: { "campaignId": "...", "summary": "Returned from..." }
+
+hearth_board_posts
+
+Noticeboard posts.
+
+id (pk)
+
+user_id (fk)
+
+category (enum: message, hook, lfg, dm_call, gift)
+
+title (varchar 80)
+
+body (text)
+
+pinned (boolean default false)
+
+created_at (timestamp indexed)
+
+expires_at (timestamp nullable)
+
+deleted_at (timestamp nullable)
+
+hearth_user_state
+
+Personal “seat” and return behavior.
+
+user_id (pk)
+
+seat_zone (enum)
+
+last_visit_at (timestamp)
+
+last_departure_note (varchar 120 nullable)
+
+quiet_mode_default (boolean)
+
+return_streak (int default 0) optional
+
+hearth_murmur
+
+System message of the day/week.
+
+id (pk)
+
+text (varchar 180)
+
+active_from (date)
+
+active_to (date)
+
+created_at
+
+API Endpoints (Express)
+
+All responses should be fast and cacheable where possible.
+
+GET /api/hearth/snapshot
+
+Returns everything needed to render the page.
+
+Response:
+
+{
+  "location": { "name": "The Lantern Hall", "murmur": "Rain taps the windows..." },
+  "me": { "seatZone": "fire", "quietMode": false, "arrivalLine": "..." },
+  "presence": [{ "userId": "...", "displayName": "KoeppyLoco", "seatZone": "board", "statusText": "packing gear" }],
+  "board": { "pinned": [], "recent": [] },
+  "events": [{ "id": 1, "type": "milestone", "text": "Three nights ago..." }]
+}
+
+POST /api/hearth/presence/ping
+
+Body:
+
+{ "seatZone": "fire", "statusText": "by the fire" }
+
+
+Server sets expires_at = now + 2 minutes, updates last_ping_at.
+
+POST /api/hearth/board
+
+Create a board post.
+
+{ "category": "hook", "title": "The Mire Lantern", "body": "Looking for 2 level 3s..." }
+
+POST /api/hearth/toast
+{ "text": "To brave fools and lucky rolls." }
+
+
+Creates a hearth_events row.
+
+POST /api/hearth/mark
+{ "mark": "candle" }
+
+POST /api/hearth/departure
+{ "note": "Back soon. Save me a spot." }
+
+
+Writes to hearth_user_state.last_departure_note and logs event.
+
+Real-Time Option (WebSocket)
+
+Not required, but it makes the room feel alive.
+
+Events to broadcast on /hearth channel:
+
+presence_updated
+
+board_post_created
+
+hearth_event_created
+
+If you do not want websockets yet, poll /snapshot every 30 seconds.
+
+Rendering Rules That Create “Home”
+
+These are small but matter.
+
+Stable ordering of names in presence list.
+
+First: people you have encountered before.
+
+Then: others.
+This produces familiarity.
+
+Show “seen before” badges only for the current user, subtle:
+
+“familiar” icon, no gamification.
+
+Keep the UI layout identical every visit.
+
+Avoid seasonal redesigns that break the “home” effect.
+
+Change only the murmur and background lighting (optional).
+
+Soft scarcity
+
+The Room shows “tables” with a limited number of visible seats.
+
+Even if 200 are online, show 12 and a “and others in back rooms” line.
+This mimics a cozy room instead of a crowded lobby.
+
+Example UI Copy
+
+Use these verbatim if you want.
+
+Buttons:
+
+“Warm up by the fire”
+
+“Check the noticeboard”
+
+“Leave a note”
+
+“Continue your adventure”
+
+“Start a quiet solo journey”
+
+“Host a table”
+
+“Deploy to Discord”
+
+Empty states:
+
+Board empty: “No notes right now. The board is clean, for once.”
+
+Room empty: “The Hall is quiet. You could be the first to light the mood.”
+
+Minimal Implementation Plan (2 to 4 coding sessions)
+Session 1
+
+DB tables: presence, events, board, user_state, murmur
+
+/snapshot endpoint
+
+/hearth page renders snapshot
+
+Session 2
+
+Presence ping heartbeat
+
+Room panel UI updates via polling
+
+Departure note
+
+Session 3
+
+Noticeboard create and list
+
+Basic moderation: delete own post
+
+Session 4
+
+Toast and mark actions
+
+Events feed rendering
+
+Familiarity ordering (seen-before)
+
+“Unique to Everdice” hook
+
+Discord servers can do “shared world,” but they cannot do this well:
+
+a stable in-app place
+
+return lines
+
+personal seat
+
+meaningful memory feed generated from play
+
+continuity without social performance
+
+That combination is the Everdice signature.
