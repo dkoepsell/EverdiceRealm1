@@ -6642,9 +6642,260 @@ Return your response as a JSON object with these fields:
         };
       }
       
+      // Interactive riddle encounter chance - requires TYPED answers, not skill checks
+      // These are verbal puzzles that test player knowledge and thinking
+      if (!encounterTriggered && Math.random() < 0.15) {
+        const riddleEncounters = [
+          {
+            description: 'A stone guardian blocks the passage. Its eyes glow as it speaks: "I have cities, but no houses live there. I have mountains, but no trees grow there. I have water, but no fish swim there. What am I?"',
+            answer: 'map',
+            alternateAnswers: ['a map', 'maps'],
+            hint: 'Think about what shows places without being the places themselves...',
+            successNarrative: 'The guardian nods slowly. "Wisdom opens doors that strength cannot." The stone figure steps aside, revealing a hidden alcove with treasure.',
+            failureNarrative: 'The guardian shakes its head. "Ponder more deeply, traveler. You may try again." The passage remains blocked.',
+            reward: { gold: 50, xp: 40, items: ['Ring of Minor Protection'] }
+          },
+          {
+            description: 'An ancient spirit materializes before you, speaking in a hollow voice: "The more you take, the more you leave behind. What am I?"',
+            answer: 'footsteps',
+            alternateAnswers: ['steps', 'footprints', 'tracks'],
+            hint: 'Consider what happens when you walk...',
+            successNarrative: 'The spirit smiles warmly. "You understand the journey matters as much as the destination." It fades, leaving behind a glowing orb of knowledge.',
+            failureNarrative: 'The spirit looks disappointed. "The answer walks with you always. Think on it." The spirit waits patiently.',
+            reward: { xp: 35, items: ['Orb of Insight'] }
+          },
+          {
+            description: 'A sphinx-like statue animates and poses: "I speak without a mouth and hear without ears. I have no body, but I come alive with the wind. What am I?"',
+            answer: 'echo',
+            alternateAnswers: ['an echo', 'echoes'],
+            hint: 'Listen to the mountains...',
+            successNarrative: 'The sphinx purrs with satisfaction. "Your mind is sharp. May your echoes carry far." A compartment opens in its base.',
+            failureNarrative: 'The sphinx closes its eyes. "Listen more carefully to the world around you."',
+            reward: { gold: 30, xp: 45 }
+          },
+          {
+            description: 'Glowing runes on the door pulse with each heartbeat. A voice whispers: "I fly without wings. I cry without eyes. Wherever I go, darkness dies. What am I?"',
+            answer: 'cloud',
+            alternateAnswers: ['a cloud', 'clouds', 'rain cloud'],
+            hint: 'Look to the sky when storms gather...',
+            successNarrative: 'The runes flash brilliantly and the door swings open. Rain begins to fall gently, blessing your passage.',
+            failureNarrative: 'The runes dim slightly. "The sky holds many secrets. Look up and think again."',
+            reward: { xp: 40, items: ['Cloak of the Storm'] }
+          },
+          {
+            description: 'A mischievous fey creature appears, giggling: "What can travel around the world while staying in a corner?"',
+            answer: 'stamp',
+            alternateAnswers: ['a stamp', 'postage stamp', 'stamps'],
+            hint: 'Think about letters and messages...',
+            successNarrative: 'The fey claps delightedly! "Oh, clever, clever! Here, take this for your wit!" It tosses you a pouch of gold.',
+            failureNarrative: 'The fey pouts. "No no no! Think smaller, think paper!" It crosses its arms, waiting.',
+            reward: { gold: 40, xp: 30 }
+          }
+        ];
+        const riddle = riddleEncounters[Math.floor(Math.random() * riddleEncounters.length)];
+        encounterTriggered = true;
+        encounterData = {
+          type: 'riddle',
+          description: riddle.description,
+          answer: riddle.answer.toLowerCase(),
+          alternateAnswers: riddle.alternateAnswers.map((a: string) => a.toLowerCase()),
+          hint: riddle.hint,
+          successNarrative: riddle.successNarrative,
+          failureNarrative: riddle.failureNarrative,
+          reward: riddle.reward,
+          choices: [
+            { id: 'answer_riddle', text: 'Type your answer...', type: 'text_input', rollRequired: null },
+            { id: 'request_hint', text: 'Ask for a hint', rollRequired: null },
+            { id: 'skip_riddle', text: 'Leave without answering', rollRequired: null }
+          ],
+          resolved: false,
+          hintGiven: false,
+          attempts: 0
+        };
+      }
+      
+      // Dialogue/conversation encounter - branching conversations with consequences
+      if (!encounterTriggered && Math.random() < 0.18) {
+        const dialogueEncounters = [
+          {
+            npcName: 'Wounded Knight',
+            description: 'A badly wounded knight in dented armor leans against the wall, clutching a bleeding wound. They look up at you with desperate eyes.',
+            initialDialogue: '"Please... I was ambushed. The cultists... they took something important. A sacred relic. You look capable - will you hear my plea?"',
+            branches: [
+              {
+                id: 'help',
+                text: '"Tell me everything. I will help you."',
+                response: '"Bless you, adventurer! The cultists went deeper into the ruins. They seek to corrupt the Moonstone Chalice. Here, take my family ring - it will prove I sent you. And this healing potion... I was saving it, but you need your strength."',
+                consequence: 'gained_trust',
+                reward: { items: ['Knight\'s Signet Ring', 'Potion of Healing'], xp: 25 },
+                followUp: { questHook: 'Find the cultists and recover the Moonstone Chalice' }
+              },
+              {
+                id: 'payment',
+                text: '"What\'s in it for me? I don\'t work for free."',
+                response: '"I... I understand. I have little, but I can offer my family ring. It\'s valuable, and I give you my word - recover the chalice and my family will reward you handsomely."',
+                consequence: 'mercenary',
+                reward: { items: ['Knight\'s Signet Ring'], xp: 15 },
+                followUp: { questHook: 'The knight promised gold for recovering the chalice' }
+              },
+              {
+                id: 'interrogate',
+                text: '"How do I know this isn\'t a trap? Tell me more about these cultists first."',
+                response: '"Fair caution. They wear robes of deep purple, marked with a bleeding eye. They worship something old and hungry. I overheard them speak of a ritual at moonrise. Please... I have no strength left to lie."',
+                consequence: 'informed',
+                reward: { xp: 20 },
+                followUp: { intel: 'Purple-robed cultists, Bleeding Eye symbol, ritual at moonrise' }
+              },
+              {
+                id: 'refuse',
+                text: '"I have my own problems. Good luck with yours."',
+                response: '"I... I understand. These are dark times. May your path be safer than mine was." *The knight slumps back, hope fading from their eyes.*',
+                consequence: 'abandoned',
+                reward: null,
+                followUp: null
+              }
+            ]
+          },
+          {
+            npcName: 'Suspicious Merchant',
+            description: 'A hooded figure has set up a small display of curious items on a worn blanket. Their eyes gleam with intelligence... and perhaps something else.',
+            initialDialogue: '"Ah, a fellow traveler in these forgotten places! I deal in... rarities. Things found in the dark. Perhaps we can help each other? I seek information about what lies ahead."',
+            branches: [
+              {
+                id: 'trade_info',
+                text: '"I\'ll share what I know - if your prices are fair."',
+                response: '"A pragmatist! Excellent. I heard sounds of combat and screaming from the north passage. In exchange, I offer you this scroll - it reveals hidden doors. And a word of warning: trust nothing that speaks in riddles down here."',
+                consequence: 'fair_trade',
+                reward: { items: ['Scroll of Detect Secret Doors'], xp: 20 },
+                followUp: { intel: 'Dangers in the north passage, something that speaks in riddles' }
+              },
+              {
+                id: 'intimidate',
+                text: '"Drop the act. Who are you really, and what are you doing down here?"',
+                response: '*The merchant\'s demeanor shifts, becoming cold.* "Careful, adventurer. I am more than I appear. But... I respect directness. I\'m a collector of forbidden knowledge. And I know things about this place that could save your life - or end it."',
+                consequence: 'tense_respect',
+                reward: { xp: 15 },
+                followUp: { intel: 'The merchant knows dangerous secrets about this place' }
+              },
+              {
+                id: 'browse',
+                text: '"Let me see what you\'re selling."',
+                response: '"Of course! I have potions that heal wounds, daggers that never dull, and... ah, this." *They produce a strange amulet.* "Found it on a corpse two levels down. It radiates magic, but I cannot discern its purpose. Interested?"',
+                consequence: 'browsing',
+                reward: null,
+                followUp: { shopAvailable: true }
+              },
+              {
+                id: 'ignore',
+                text: '"I don\'t deal with strangers in dark places."',
+                response: '"A pity. Caution is wise, but it can also mean missed opportunities. Should you change your mind, I will be here... for a time." *They return to arranging their wares.*',
+                consequence: 'cautious',
+                reward: null,
+                followUp: null
+              }
+            ]
+          },
+          {
+            npcName: 'Captured Prisoner',
+            description: 'Behind rusty bars, a gaunt figure in tattered robes reaches toward you. Their eyes are haunted but lucid.',
+            initialDialogue: '"Please, you must help me! I am a scholar from the Academy. I was captured while researching these ruins. The creatures here... they\'re not what they seem. I have vital information!"',
+            branches: [
+              {
+                id: 'free_them',
+                text: '"Stand back from the bars. I\'ll get you out."',
+                response: '"Thank the gods! The key... the jailer carries it. A twisted creature that patrols the eastern hall. Once I\'m free, I can tell you everything I\'ve learned about the curse affecting this place."',
+                consequence: 'rescue_mission',
+                reward: { xp: 30 },
+                followUp: { questHook: 'Find the jailer and get the key to free the scholar' }
+              },
+              {
+                id: 'information_first',
+                text: '"Tell me what you know first. Then we\'ll discuss your freedom."',
+                response: '"Understandable. Listen: the lord of these ruins was betrayed by his own court wizard. The wizard\'s ghost still lingers, protecting a treasure room. But the ghost can be reasoned with - it seeks proof of the betrayer\'s guilt."',
+                consequence: 'informed',
+                reward: { xp: 25 },
+                followUp: { intel: 'Ghost of betrayed lord guards treasure, can be reasoned with using proof of betrayal' }
+              },
+              {
+                id: 'suspicious',
+                text: '"How do I know you\'re not one of the monsters, wearing a person\'s face?"',
+                response: '"A... fair question in this place. Ask me something only a living person would know. Test me. I was once a lecturer at the Academy in Waterdeep. I can name the deans, the subjects, the architecture..."',
+                consequence: 'testing',
+                reward: null,
+                followUp: { dialogueContinues: true }
+              },
+              {
+                id: 'leave_them',
+                text: '"Sorry, I can\'t risk it. You could be bait for a trap."',
+                response: '"No! Wait! Please... *sob* ...at least tell someone I\'m here. Please. I have a daughter. Her name is Elara. Please..." *Their voice breaks.*',
+                consequence: 'abandoned',
+                reward: null,
+                followUp: { moralWeight: 'You left someone to suffer' }
+              }
+            ]
+          },
+          {
+            npcName: 'Ghostly Noble',
+            description: 'A translucent figure in fine but ancient clothing materializes before you. Unlike most specters, this one seems composed, even regal.',
+            initialDialogue: '"Hold, mortal. I am Lord Aldric, master of these halls in life. I sense you are not with the defilers who now infest my home. Perhaps we can aid each other?"',
+            branches: [
+              {
+                id: 'ally',
+                text: '"I mean no disrespect to your home, Lord Aldric. What aid do you offer?"',
+                response: '"Courtesy! How refreshing. My traitorous advisor hid my family\'s treasures before poisoning me. Bring me his confession - a letter he kept as a trophy - and I shall reveal the vault\'s location to you."',
+                consequence: 'ghostly_alliance',
+                reward: { xp: 35 },
+                followUp: { questHook: 'Find the traitor\'s confession letter for Lord Aldric' }
+              },
+              {
+                id: 'comfort',
+                text: '"You have suffered a great injustice. Perhaps it is time to find peace?"',
+                response: '"Peace... I had forgotten the word. But no, I cannot rest until my betrayer\'s crimes are exposed. Yet your words are kind. Take this blessing - it will shield you from the lesser dead here."',
+                consequence: 'compassion',
+                reward: { items: ['Blessing of the Departed'], xp: 30 },
+                followUp: { protection: 'Lesser undead will not attack unprovoked' }
+              },
+              {
+                id: 'banish',
+                text: '"Begone, spirit! I\'ll not bargain with the dead!"',
+                response: '"Fool! I was offering you aid!" *The ghost\'s form flickers with anger.* "Very well. Navigate my halls without my guidance. But know this - the living are not the only dangers here." *The ghost vanishes.*',
+                consequence: 'hostile_ghost',
+                reward: null,
+                followUp: { consequence: 'Lord Aldric may interfere with your exploration' }
+              },
+              {
+                id: 'question',
+                text: '"Tell me about this betrayer. What happened to you?"',
+                response: '"My advisor, Malachar. He coveted my wife, my wealth, my title. When I refused to grant him more power, he poisoned my wine. I watched helplessly as he took everything. His spirit lingers too, in the east wing, gloating even in death."',
+                consequence: 'informed',
+                reward: { xp: 25 },
+                followUp: { intel: 'Malachar\'s ghost haunts the east wing, motivated by jealousy' }
+              }
+            ]
+          }
+        ];
+        const dialogue = dialogueEncounters[Math.floor(Math.random() * dialogueEncounters.length)];
+        encounterTriggered = true;
+        encounterData = {
+          type: 'dialogue',
+          npcName: dialogue.npcName,
+          description: dialogue.description,
+          initialDialogue: dialogue.initialDialogue,
+          branches: dialogue.branches,
+          choices: dialogue.branches.map((b: any) => ({
+            id: b.id,
+            text: b.text,
+            type: 'dialogue',
+            rollRequired: null
+          })),
+          resolved: false,
+          currentBranch: null
+        };
+      }
+      
       // Random puzzle encounter chance (if no other encounter triggered)
-      // Increased from 15% to 22% for more variety
-      if (!encounterTriggered && Math.random() < 0.22) {
+      // Reduced from 22% to 12% since we added riddles and dialogue
+      if (!encounterTriggered && Math.random() < 0.12) {
         const puzzleTypes = [
           {
             description: 'Ancient runes glow on the wall, forming a cryptic riddle. The answer may unlock hidden secrets.',
@@ -6689,8 +6940,8 @@ Return your response as a JSON object with these fields:
         };
       }
       
-      // Social encounter chance - increased from 10% to 18% for more NPC interactions
-      if (!encounterTriggered && Math.random() < 0.18) {
+      // Social encounter chance - increased for more NPC interactions and verbal gameplay
+      if (!encounterTriggered && Math.random() < 0.20) {
         const socialEncounters = [
           {
             description: 'A weary traveler sits by a small fire, offering to share information about the dangers ahead.',
@@ -6722,6 +6973,42 @@ Return your response as a JSON object with these fields:
               { id: 'arcana', text: 'Speak in the old tongue (Arcana DC 13)', rollRequired: { type: 'd20', skill: 'arcana' } },
               { id: 'performance', text: 'Entertain with a song or tale (Performance DC 12)', rollRequired: { type: 'd20', skill: 'performance' } },
               { id: 'decline', text: 'Politely decline and continue', rollRequired: null }
+            ]
+          },
+          {
+            description: 'A captured cultist cowers in the corner, clearly terrified. They know something about what lies ahead.',
+            choices: [
+              { id: 'interrogate', text: '"Tell me everything you know." (Intimidation DC 13)', rollRequired: { type: 'd20', skill: 'intimidation' } },
+              { id: 'sympathize', text: '"I can help you if you help me." (Persuasion DC 12)', rollRequired: { type: 'd20', skill: 'persuasion' } },
+              { id: 'insight_check', text: 'Study their body language for lies (Insight DC 14)', rollRequired: { type: 'd20', skill: 'insight' } },
+              { id: 'leave_them', text: 'Leave them alone', rollRequired: null }
+            ]
+          },
+          {
+            description: 'Two rival factions have representatives here, each trying to recruit you to their cause.',
+            choices: [
+              { id: 'negotiate', text: 'Try to broker a truce between them (Persuasion DC 15)', rollRequired: { type: 'd20', skill: 'persuasion' } },
+              { id: 'play_both', text: 'Pretend to support both sides (Deception DC 14)', rollRequired: { type: 'd20', skill: 'deception' } },
+              { id: 'insight_motives', text: 'Determine which side is more trustworthy (Insight DC 13)', rollRequired: { type: 'd20', skill: 'insight' } },
+              { id: 'refuse_both', text: 'Refuse to get involved', rollRequired: null }
+            ]
+          },
+          {
+            description: 'A dying messenger clutches a sealed letter. With their last breath, they whisper about a conspiracy.',
+            choices: [
+              { id: 'comfort', text: 'Comfort them and ask questions (Medicine DC 12)', rollRequired: { type: 'd20', skill: 'medicine' } },
+              { id: 'read_letter', text: 'Read the sealed letter carefully (Investigation DC 11)', rollRequired: { type: 'd20', skill: 'investigation' } },
+              { id: 'search', text: 'Search them for more clues (Investigation DC 13)', rollRequired: { type: 'd20', skill: 'investigation' } },
+              { id: 'respect', text: 'Respect their final moments and move on', rollRequired: null }
+            ]
+          },
+          {
+            description: 'A powerful being appears and offers you a bargain: information you seek in exchange for a favor later.',
+            choices: [
+              { id: 'accept', text: 'Accept the bargain - knowledge is power', rollRequired: null },
+              { id: 'negotiate_terms', text: 'Try to negotiate better terms (Persuasion DC 16)', rollRequired: { type: 'd20', skill: 'persuasion' } },
+              { id: 'detect_trap', text: 'Sense if this is a trap (Insight DC 15)', rollRequired: { type: 'd20', skill: 'insight' } },
+              { id: 'refuse_deal', text: 'Refuse - such bargains always have a price', rollRequired: null }
             ]
           }
         ];
@@ -6959,17 +7246,48 @@ Return your response as a JSON object with these fields:
           }
         } else if (encounter.type === 'social') {
           if (outcome.success) {
-            const socialRewards = [
-              { narrative: "The traveler shares valuable information about the dangers ahead and gives you a healing potion for your kindness.", reward: { items: ['Potion of Healing'], xp: 30 } },
-              { narrative: "The merchant is impressed by your insight and offers you a discount on their finest wares.", reward: { gold: 20, xp: 25 } },
-              { narrative: "You successfully mediate the dispute. The grateful adventurers share their map with you.", reward: { xp: 40 } },
-              { narrative: "The sprite is delighted by your knowledge and grants you a minor blessing.", reward: { xp: 35 } }
-            ];
-            const reward = socialRewards[Math.floor(Math.random() * socialRewards.length)];
+            // Match reward to specific choice types for more meaningful outcomes
+            const choiceType = choiceId;
+            let reward;
+            if (choiceType === 'interrogate' || choiceType === 'intimidate') {
+              reward = { narrative: "Fear loosens their tongue. They reveal crucial information about what lies ahead - secret passages, hidden dangers, and enemy weaknesses.", reward: { xp: 40 }, intel: 'Enemy weaknesses and secret passages revealed' };
+            } else if (choiceType === 'sympathize' || choiceType === 'persuade') {
+              reward = { narrative: "Your kindness earns their trust. They share not just information, but a token of gratitude - a healing potion from their pack.", reward: { items: ['Potion of Healing'], xp: 30 } };
+            } else if (choiceType === 'negotiate' || choiceType === 'diplomacy') {
+              reward = { narrative: "Your diplomatic skills forge an unlikely alliance. Both parties agree to a truce, and offer you a reward for your mediation.", reward: { gold: 35, xp: 45 } };
+            } else if (choiceType === 'play_both' || choiceType === 'deception') {
+              reward = { narrative: "Your silver tongue weaves a convincing tale. Each side believes you're their ally, giving you advantages with both factions.", reward: { xp: 40 }, consequence: 'Gained favor with both factions (for now)' };
+            } else if (choiceType === 'insight' || choiceType === 'insight_check' || choiceType === 'insight_motives' || choiceType === 'detect_trap') {
+              reward = { narrative: "Your keen perception reveals their true intentions. You now know what they really want, giving you a crucial advantage.", reward: { xp: 35 }, intel: 'Hidden motives revealed' };
+            } else if (choiceType === 'comfort' || choiceType === 'read_letter') {
+              reward = { narrative: "Their final words reveal a conspiracy of great importance. This knowledge could change everything.", reward: { xp: 45 }, intel: 'A dangerous conspiracy revealed' };
+            } else if (choiceType === 'negotiate_terms') {
+              reward = { narrative: "Against all odds, you bargain with this powerful being and secure better terms. Your cleverness impresses even them.", reward: { xp: 50 } };
+            } else {
+              const socialRewards = [
+                { narrative: "The traveler shares valuable information about the dangers ahead and gives you a healing potion for your kindness.", reward: { items: ['Potion of Healing'], xp: 30 } },
+                { narrative: "The merchant is impressed by your insight and offers you a discount on their finest wares.", reward: { gold: 20, xp: 25 } },
+                { narrative: "You successfully mediate the dispute. The grateful adventurers share their map with you.", reward: { xp: 40 } },
+                { narrative: "The sprite is delighted by your knowledge and grants you a minor blessing.", reward: { xp: 35 } },
+                { narrative: "The conversation reveals hidden truths. You've gained valuable insight into the mysteries of this place.", reward: { xp: 35 } }
+              ];
+              reward = socialRewards[Math.floor(Math.random() * socialRewards.length)];
+            }
             outcome.narrative = reward.narrative;
             outcome.rewards = reward.reward;
+            if ((reward as any).intel) outcome.intel = (reward as any).intel;
+            if ((reward as any).consequence) outcome.consequence = (reward as any).consequence;
           } else {
-            outcome.narrative = "Your social approach doesn't quite work out, but no harm is done. The interaction ends awkwardly.";
+            // Specific failure messages based on approach
+            if (choiceId === 'interrogate' || choiceId === 'intimidate') {
+              outcome.narrative = "They clam up, refusing to speak. Your aggressive approach has closed this door - for now.";
+            } else if (choiceId === 'negotiate' || choiceId === 'negotiate_terms') {
+              outcome.narrative = "The negotiation falls apart. Neither side trusts your mediation, and the tension remains.";
+            } else if (choiceId === 'play_both' || choiceId === 'deception') {
+              outcome.narrative = "Your deception is seen through! They eye you with suspicion, but let you go... this time.";
+            } else {
+              outcome.narrative = "Your social approach doesn't quite work out, but no harm is done. The interaction ends awkwardly.";
+            }
           }
         } else if (encounter.type === 'exploration') {
           if (outcome.success) {
@@ -7042,6 +7360,63 @@ Return your response as a JSON object with these fields:
             outcome.narrative = "You gather the scattered documents. They might prove useful later.";
             outcome.success = true;
           }
+        } else if (encounter.type === 'riddle') {
+          // Interactive riddle encounters - requires typed answer
+          if (choiceId === 'answer_riddle') {
+            const playerAnswer = (req.body.riddleAnswer || '').toLowerCase().trim();
+            const correctAnswer = encounter.answer?.toLowerCase();
+            const alternateAnswers = (encounter.alternateAnswers || []).map((a: string) => a.toLowerCase());
+            
+            const isCorrect = playerAnswer === correctAnswer || alternateAnswers.includes(playerAnswer);
+            
+            if (isCorrect) {
+              outcome.narrative = encounter.successNarrative || "You solved the riddle!";
+              outcome.success = true;
+              outcome.rewards = encounter.reward;
+            } else {
+              const attempts = (encounter.attempts || 0) + 1;
+              if (attempts >= 3) {
+                outcome.narrative = "After three attempts, the guardian shakes its head sadly. 'Perhaps another time, traveler.' The riddle fades, but you may encounter it again in your journey.";
+                outcome.success = false;
+              } else {
+                outcome.narrative = encounter.failureNarrative || "That is not correct. Think carefully...";
+                outcome.success = false;
+                outcome.canRetry = true;
+                encounter.attempts = attempts;
+              }
+            }
+          } else if (choiceId === 'request_hint') {
+            outcome.narrative = encounter.hint || "No hint is available.";
+            outcome.success = false;
+            outcome.canRetry = true;
+            encounter.hintGiven = true;
+          } else if (choiceId === 'skip_riddle') {
+            outcome.narrative = "You leave the riddle unsolved and continue on your way. Perhaps you will encounter it again.";
+            outcome.success = false;
+          }
+        } else if (encounter.type === 'dialogue') {
+          // Branching dialogue encounters
+          const selectedBranch = encounter.branches?.find((b: any) => b.id === choiceId);
+          if (selectedBranch) {
+            outcome.narrative = `${selectedBranch.response}`;
+            outcome.success = true;
+            outcome.rewards = selectedBranch.reward;
+            outcome.consequence = selectedBranch.consequence;
+            outcome.followUp = selectedBranch.followUp;
+            outcome.npcName = encounter.npcName;
+            
+            // Add quest hooks from dialogue
+            if (selectedBranch.followUp?.questHook) {
+              outcome.questHook = selectedBranch.followUp.questHook;
+            }
+            // Add intel from dialogue
+            if (selectedBranch.followUp?.intel) {
+              outcome.intel = selectedBranch.followUp.intel;
+            }
+          } else {
+            outcome.narrative = "The conversation reaches a natural end.";
+            outcome.success = true;
+          }
         }
       }
       
@@ -7066,8 +7441,8 @@ Return your response as a JSON object with these fields:
       
       // Increment the appropriate encounter counter based on type
       const encounterType = encounter.type as string;
-      if (encounterType === 'puzzle') {
-        // Puzzles are tracked separately from encounters
+      if (encounterType === 'puzzle' || encounterType === 'riddle') {
+        // Puzzles and riddles are tracked together
         adventureProgress = {
           ...adventureProgress,
           puzzles: (adventureProgress.puzzles || 0) + 1
@@ -7082,8 +7457,8 @@ Return your response as a JSON object with these fields:
             total: (adventureProgress.encounters?.total || 0) + 1
           }
         };
-      } else if (['social', 'exploration'].includes(encounterType)) {
-        // Social and exploration encounters count as discoveries
+      } else if (['social', 'exploration', 'dialogue'].includes(encounterType)) {
+        // Social, dialogue, and exploration encounters count as discoveries
         adventureProgress = {
           ...adventureProgress,
           discoveries: (adventureProgress.discoveries || 0) + 1
@@ -10553,14 +10928,28 @@ Generate the next story segment that:
 3. Advances plot through character reactions and new developments
 4. Provides 4-5 diverse choices that build directly on what just occurred
 
+VERBAL INTERACTION EMPHASIS - These are CRITICAL for good D&D:
+- Include NPCs that the player can TALK TO (not just fight)
+- Create situations where WHAT YOU SAY matters for story progression
+- Add interrogations, negotiations, and conversations that reveal secrets
+- Present moral dilemmas resolved through dialogue, not combat
+- Include riddles, puzzles, and mysteries that require thinking
+- Make social skills as important as combat: persuasion, deception, insight, intimidation
+- NPCs should have their own goals and can be reasoned with
+- Some encounters SHOULD be avoided through clever talking
+- Information from conversations should unlock new paths or reveal hidden truths
+
 CHOICE REQUIREMENTS:
 - At least 4 choices, up to 5 maximum
+- AT LEAST 2 CHOICES should be DIALOGUE/SOCIAL options (talking to someone, asking questions, negotiating)
 - Include variety: dialogue, exploration, action, stealth, magic/investigation
 - At least 2 choices should require dice rolls
 - Make choices specific to the current situation, not generic
-- USE VARIED SKILLS: Don't default to Athletics/Strength. Match skills to actions:
+- PRIORITIZE verbal/social choices when NPCs are present
+- USE VARIED SKILLS - especially SOCIAL skills:
   * Talking/convincing NPCs: persuasion, deception, intimidation
   * Reading emotions/detecting lies: insight
+  * Asking questions/gathering info: investigation
   * Looking for clues/hidden things: investigation, perception
   * Sneaking/hiding: stealth
   * Climbing/jumping/swimming: athletics

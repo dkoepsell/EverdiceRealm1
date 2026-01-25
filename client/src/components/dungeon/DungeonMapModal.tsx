@@ -9,7 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Map, AlertTriangle, Swords, Package, Loader2 } from "lucide-react";
+import { Map, AlertTriangle, Swords, Package, Loader2, MessageCircle, HelpCircle, Scroll } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { DungeonMap, type DungeonMapData, type MapEntity } from "./DungeonMap";
 import { generateDungeon, movePlayer } from "./DungeonGenerator";
 import { useToast } from "@/hooks/use-toast";
@@ -19,15 +20,35 @@ import { apiRequest } from "@/lib/queryClient";
 interface EncounterChoice {
   id: string;
   text: string;
+  type?: string;
   rollRequired: { type: string; skill: string } | null;
 }
 
+interface DialogueBranch {
+  id: string;
+  text: string;
+  response: string;
+  consequence: string;
+  reward?: any;
+}
+
 interface PendingEncounter {
-  type: 'trap' | 'treasure' | 'combat';
+  type: 'trap' | 'treasure' | 'combat' | 'puzzle' | 'social' | 'exploration' | 'riddle' | 'dialogue';
   description: string;
   choices: EncounterChoice[];
   enemies?: any[];
   resolved: boolean;
+  answer?: string;
+  alternateAnswers?: string[];
+  hint?: string;
+  successNarrative?: string;
+  failureNarrative?: string;
+  reward?: any;
+  hintGiven?: boolean;
+  attempts?: number;
+  npcName?: string;
+  initialDialogue?: string;
+  branches?: DialogueBranch[];
 }
 
 interface DungeonMapModalProps {
@@ -62,6 +83,9 @@ export function DungeonMapModal({
   const [selectedEntity, setSelectedEntity] = useState<string | null>(null);
   const [pendingEncounter, setPendingEncounter] = useState<PendingEncounter | null>(null);
   const [narrativeMessage, setNarrativeMessage] = useState<string | null>(null);
+  const [riddleAnswer, setRiddleAnswer] = useState("");
+  const [riddleHint, setRiddleHint] = useState<string | null>(null);
+  const [dialogueResponse, setDialogueResponse] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -74,6 +98,10 @@ export function DungeonMapModal({
   useEffect(() => {
     if (externalPendingEncounter) {
       setPendingEncounter(externalPendingEncounter);
+      // Clear riddle/dialogue state when new encounter starts
+      setRiddleHint(null);
+      setRiddleAnswer("");
+      setDialogueResponse(null);
     }
   }, [externalPendingEncounter]);
 
@@ -126,22 +154,77 @@ export function DungeonMapModal({
     }
   });
 
+  // Track the last submitted choice for riddle state updates
+  const [lastChoiceId, setLastChoiceId] = useState<string | null>(null);
+  
   const resolveMutation = useMutation({
-    mutationFn: async (data: { choiceId: string; rollResult?: number }) => {
+    mutationFn: async (data: { choiceId: string; rollResult?: number; riddleAnswer?: string }) => {
+      setLastChoiceId(data.choiceId); // Track what we're submitting
       const res = await apiRequest('POST', `/api/campaigns/${campaignId}/dungeon-resolve`, data);
       return res.json();
     },
     onSuccess: (data) => {
-      setPendingEncounter(null);
+      const submittedChoiceId = lastChoiceId;
+      
+      // Check if this is a riddle that can be retried
+      if (data.outcome.canRetry && pendingEncounter?.type === 'riddle') {
+        // Update the pendingEncounter with new state (hintGiven, attempts)
+        const wasHintRequest = submittedChoiceId === 'request_hint';
+        const wasAnswerAttempt = submittedChoiceId === 'answer_riddle';
+        
+        setPendingEncounter(prev => prev ? {
+          ...prev,
+          hintGiven: wasHintRequest ? true : prev.hintGiven,
+          attempts: wasAnswerAttempt ? (prev.attempts || 0) + 1 : prev.attempts
+        } : null);
+        
+        // If this was a hint request, display the hint in the UI
+        if (wasHintRequest) {
+          setRiddleHint(data.outcome.narrative);
+        }
+        
+        setRiddleAnswer(""); // Clear input for retry
+        toast({
+          title: wasHintRequest ? "Hint" : (data.outcome.success ? "Correct!" : "Not quite..."),
+          description: data.outcome.narrative,
+          variant: wasHintRequest ? "default" : (data.outcome.success ? "default" : "destructive"),
+        });
+        return;
+      }
+      
+      // Handle dialogue responses - show NPC response before clearing
+      if (pendingEncounter?.type === 'dialogue' && data.outcome.narrative) {
+        setDialogueResponse(data.outcome.narrative);
+        // Delay clearing the encounter to show the response
+        setTimeout(() => {
+          setDialogueResponse(null);
+          setPendingEncounter(null);
+        }, 100);
+      } else {
+        setPendingEncounter(null);
+      }
+      
       setNarrativeMessage(data.outcome.narrative);
+      setRiddleAnswer("");
+      setRiddleHint(null);
+      setLastChoiceId(null);
+      
+      // Show quest hooks or intel from dialogue
+      const description = data.outcome.questHook 
+        ? `${data.outcome.narrative}\n\nNew objective: ${data.outcome.questHook}`
+        : data.outcome.intel
+          ? `${data.outcome.narrative}\n\nYou learned: ${data.outcome.intel}`
+          : data.outcome.narrative;
+      
       toast({
-        title: data.outcome.success ? "Success!" : "Failed!",
-        description: data.outcome.narrative,
+        title: data.outcome.success ? "Success!" : "Outcome",
+        description,
         variant: data.outcome.success ? "default" : "destructive",
       });
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaignId}/sessions`] });
     },
     onError: (error: any) => {
+      setLastChoiceId(null);
       toast({
         title: "Error",
         description: error.message || "Failed to resolve encounter",
@@ -398,38 +481,137 @@ export function DungeonMapModal({
               
               <div className="space-y-4">
                 {pendingEncounter && !pendingEncounter.resolved && (
-                  <Card className="border-red-700 bg-red-950/30">
+                  <Card className={`border ${
+                    pendingEncounter.type === 'combat' ? 'border-red-700 bg-red-950/30' :
+                    pendingEncounter.type === 'trap' ? 'border-orange-700 bg-orange-950/30' :
+                    pendingEncounter.type === 'riddle' ? 'border-purple-700 bg-purple-950/30' :
+                    pendingEncounter.type === 'dialogue' ? 'border-blue-700 bg-blue-950/30' :
+                    pendingEncounter.type === 'social' ? 'border-green-700 bg-green-950/30' :
+                    'border-amber-700 bg-amber-950/30'
+                  }`}>
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-lg flex items-center gap-2 text-red-300">
+                      <CardTitle className={`text-lg flex items-center gap-2 ${
+                        pendingEncounter.type === 'combat' ? 'text-red-300' :
+                        pendingEncounter.type === 'trap' ? 'text-orange-300' :
+                        pendingEncounter.type === 'riddle' ? 'text-purple-300' :
+                        pendingEncounter.type === 'dialogue' ? 'text-blue-300' :
+                        pendingEncounter.type === 'social' ? 'text-green-300' :
+                        'text-amber-300'
+                      }`}>
                         {pendingEncounter.type === 'combat' && <Swords className="w-5 h-5" />}
                         {pendingEncounter.type === 'trap' && <AlertTriangle className="w-5 h-5" />}
                         {pendingEncounter.type === 'treasure' && <Package className="w-5 h-5" />}
+                        {pendingEncounter.type === 'riddle' && <HelpCircle className="w-5 h-5" />}
+                        {pendingEncounter.type === 'dialogue' && <MessageCircle className="w-5 h-5" />}
+                        {pendingEncounter.type === 'social' && <MessageCircle className="w-5 h-5" />}
+                        {pendingEncounter.type === 'puzzle' && <Scroll className="w-5 h-5" />}
+                        {pendingEncounter.type === 'exploration' && <Map className="w-5 h-5" />}
                         {pendingEncounter.type === 'combat' ? 'Combat!' : 
-                         pendingEncounter.type === 'trap' ? 'Trap!' : 'Discovery!'}
+                         pendingEncounter.type === 'trap' ? 'Trap!' :
+                         pendingEncounter.type === 'riddle' ? 'Riddle' :
+                         pendingEncounter.type === 'dialogue' ? (pendingEncounter.npcName || 'Encounter') :
+                         pendingEncounter.type === 'social' ? 'Social Encounter' :
+                         pendingEncounter.type === 'puzzle' ? 'Puzzle' :
+                         pendingEncounter.type === 'exploration' ? 'Discovery' : 'Discovery!'}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <p className="text-sm text-gray-300">{pendingEncounter.description}</p>
                       
-                      <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground font-medium">What do you do?</p>
-                        {pendingEncounter.choices.map((choice) => (
-                          <Button
-                            key={choice.id}
-                            variant="outline"
-                            size="sm"
-                            className="w-full justify-start text-left h-auto py-2"
-                            onClick={() => handleChoiceClick(choice)}
-                            disabled={resolveMutation.isPending}
-                            data-testid={`choice-${choice.id}`}
-                          >
-                            {resolveMutation.isPending ? (
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            ) : null}
-                            <span className="text-sm">{choice.text}</span>
-                          </Button>
-                        ))}
-                      </div>
+                      {pendingEncounter.type === 'dialogue' && pendingEncounter.initialDialogue && (
+                        <div className="p-3 bg-blue-900/20 border border-blue-700/50 rounded italic text-blue-200 text-sm">
+                          {pendingEncounter.initialDialogue}
+                        </div>
+                      )}
+                      
+                      {dialogueResponse && pendingEncounter.type === 'dialogue' && (
+                        <div className="p-3 bg-green-900/20 border border-green-700/50 rounded text-green-200 text-sm">
+                          <span className="font-semibold">{pendingEncounter.npcName || 'NPC'}:</span> {dialogueResponse}
+                        </div>
+                      )}
+                      
+                      {pendingEncounter.type === 'riddle' && (
+                        <div className="space-y-3">
+                          {riddleHint && (
+                            <div className="p-3 bg-purple-900/30 border border-purple-600/50 rounded text-purple-200 text-sm italic">
+                              <span className="font-semibold">Hint:</span> {riddleHint}
+                            </div>
+                          )}
+                          {pendingEncounter.attempts && pendingEncounter.attempts > 0 && (
+                            <div className="text-xs text-purple-400">
+                              Attempts: {pendingEncounter.attempts}/3
+                            </div>
+                          )}
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Type your answer..."
+                              value={riddleAnswer}
+                              onChange={(e) => setRiddleAnswer(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && riddleAnswer.trim()) {
+                                  resolveMutation.mutate({ choiceId: 'answer_riddle', riddleAnswer: riddleAnswer.trim() });
+                                }
+                              }}
+                              className="bg-purple-900/20 border-purple-700/50"
+                              disabled={resolveMutation.isPending}
+                            />
+                            <Button
+                              onClick={() => resolveMutation.mutate({ choiceId: 'answer_riddle', riddleAnswer: riddleAnswer.trim() })}
+                              disabled={!riddleAnswer.trim() || resolveMutation.isPending}
+                              className="bg-purple-600 hover:bg-purple-700"
+                            >
+                              {resolveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Submit'}
+                            </Button>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => resolveMutation.mutate({ choiceId: 'request_hint' })}
+                              disabled={resolveMutation.isPending || pendingEncounter.hintGiven}
+                              className="flex-1"
+                            >
+                              <HelpCircle className="w-4 h-4 mr-1" />
+                              {pendingEncounter.hintGiven ? 'Hint Used' : 'Ask for Hint'}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => resolveMutation.mutate({ choiceId: 'skip_riddle' })}
+                              disabled={resolveMutation.isPending}
+                              className="flex-1"
+                            >
+                              Leave
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {pendingEncounter.type !== 'riddle' && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-muted-foreground font-medium">
+                            {pendingEncounter.type === 'dialogue' ? 'How do you respond?' : 'What do you do?'}
+                          </p>
+                          {pendingEncounter.choices.map((choice) => (
+                            <Button
+                              key={choice.id}
+                              variant="outline"
+                              size="sm"
+                              className={`w-full justify-start text-left h-auto py-2 ${
+                                pendingEncounter.type === 'dialogue' ? 'border-blue-700/50 hover:bg-blue-900/30' : ''
+                              }`}
+                              onClick={() => handleChoiceClick(choice)}
+                              disabled={resolveMutation.isPending}
+                              data-testid={`choice-${choice.id}`}
+                            >
+                              {resolveMutation.isPending ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              ) : null}
+                              <span className="text-sm">{choice.text}</span>
+                            </Button>
+                          ))}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 )}
