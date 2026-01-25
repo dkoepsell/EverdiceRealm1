@@ -12271,6 +12271,44 @@ Respond with JSON:
       // Merge the new exploration limit with the AI-generated story state
       console.log(`[Combat Debug] Final preservedCombatants before merge:`, JSON.stringify(preservedCombatants?.map((c: any) => ({ name: c.name, currentHp: c.currentHp, status: c.status })) || []));
       
+      // CRITICAL: Enforce correct status based on HP for all combatants
+      // This fixes cases where AI returns incorrect status (e.g., "healthy" with 2/30 HP)
+      if (preservedCombatants && Array.isArray(preservedCombatants)) {
+        preservedCombatants = preservedCombatants.map((c: any) => {
+          const hp = c.currentHp ?? 0;
+          const maxHp = c.maxHp ?? 1;
+          const hpRatio = hp / maxHp;
+          
+          let correctStatus: string;
+          if (hp <= 0) {
+            correctStatus = 'defeated';
+          } else if (hpRatio <= 0.25) {
+            correctStatus = 'bloodied';
+          } else if (hpRatio <= 0.5) {
+            correctStatus = 'wounded';
+          } else {
+            correctStatus = 'healthy';
+          }
+          
+          if (c.status !== correctStatus) {
+            console.log(`[Combat Debug] Correcting ${c.name} status: ${c.status} -> ${correctStatus} (HP: ${hp}/${maxHp})`);
+          }
+          
+          return { ...c, status: correctStatus };
+        }).filter((c: any) => c.status !== 'defeated' && c.currentHp > 0);
+        
+        // Check if all enemies defeated after status correction
+        const remainingEnemiesAfterCorrection = preservedCombatants.filter(
+          (c: any) => c.type === 'enemy' || c.type === 'boss'
+        );
+        if (remainingEnemiesAfterCorrection.length === 0 && wasInCombatBefore) {
+          console.log(`[Combat Debug] All enemies defeated after status correction - ending combat`);
+          if (!storyAdvancement.storyState) storyAdvancement.storyState = {};
+          storyAdvancement.storyState.inCombat = false;
+          combatCompleted = true;
+        }
+      }
+      
       const mergedStoryState = {
         ...storyAdvancement.storyState,
         combatants: preservedCombatants, // Use preserved combatants to prevent AI renaming
