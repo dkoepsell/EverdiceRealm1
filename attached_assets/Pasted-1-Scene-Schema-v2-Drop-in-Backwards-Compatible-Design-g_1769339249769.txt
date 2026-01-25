@@ -1,0 +1,244 @@
+1. Scene Schema v2 (Drop-in, Backwards-Compatible)
+Design goals
+
+No rewrite of combat
+
+No new subsystems required
+
+Scenes become about resolution, not encounters
+
+Non-combat becomes structurally equal to combat
+
+You likely already have something like a Scene or Encounter.
+This extends it, rather than replaces it.
+
+SceneSchema v2
+export type SceneType =
+  | "Combat"
+  | "Exploration"
+  | "Social"
+  | "Puzzle"
+  | "Discovery"
+  | "Travel"
+  | "Downtime";
+
+export type ResolutionMode =
+  | "Violence"
+  | "Dialogue"
+  | "Investigation"
+  | "Ingenuity"
+  | "Stealth"
+  | "Endurance";
+
+export interface SceneGoal {
+  description: string;
+  resolvableBy: ResolutionMode[];
+  successState: string;
+  failureState?: string;
+  partialSuccessState?: string;
+}
+
+Core Scene Object (v2)
+export interface SceneV2 {
+  id: string;
+  type: SceneType;
+
+  summary: string; // 1–2 sentences for UI + logs
+
+  goal: SceneGoal;
+
+  obstacles: string[]; // guards, terrain, suspicion, arcane locks
+
+  stakes: {
+    onSuccess: string[];
+    onFailure: string[];
+    onEscalation?: string[]; // what happens if players stall or push
+  };
+
+  availableActions: {
+    label: string;
+    resolutionMode: ResolutionMode;
+    risk: "Low" | "Medium" | "High";
+    description: string;
+  }[];
+
+  escalationTrigger?: {
+    condition: string; // "noise", "delay", "failure"
+    effect: string;    // may convert scene into Combat
+  };
+
+  rewards?: {
+    information?: string[];
+    reputation?: string[];
+    items?: string[];
+  };
+
+  nextSceneHints?: SceneType[];
+}
+
+Why this works with your existing code
+
+Combat scenes still work: they simply have type: "Combat" and resolvableBy: ["Violence"]
+
+Your engine can keep resolving “turns”
+
+Non-combat scenes still feel gamey, not freeform
+
+Escalation allows combat without defaulting to it
+
+Combat becomes a failure mode or consequence, not the premise.
+
+Example: Exploration Scene (Concrete)
+{
+  id: "scene_ruined_waystation",
+  type: "Exploration",
+
+  summary: "A burned-out waystation lies silent along the old trade road.",
+
+  goal: {
+    description: "Determine what destroyed the waystation",
+    resolvableBy: ["Investigation", "Dialogue"],
+    successState: "The cause is understood",
+    partialSuccessState: "Some clues recovered, but danger remains",
+    failureState: "Noise or delay attracts hostile attention"
+  },
+
+  obstacles: [
+    "Collapsed roof",
+    "Faint magical residue",
+    "Untrusting local scavenger"
+  ],
+
+  stakes: {
+    onSuccess: ["Gain knowledge of regional threat"],
+    onFailure: ["Ambush triggered"],
+    onEscalation: ["Combat scene begins"]
+  },
+
+  availableActions: [
+    {
+      label: "Search the ruins carefully",
+      resolutionMode: "Investigation",
+      risk: "Low",
+      description: "Examine debris for clues"
+    },
+    {
+      label: "Question the scavenger",
+      resolutionMode: "Dialogue",
+      risk: "Medium",
+      description: "Attempt to earn their trust"
+    },
+    {
+      label: "Force entry into the locked cellar",
+      resolutionMode: "Ingenuity",
+      risk: "High",
+      description: "May cause collapse or noise"
+    }
+  ],
+
+  rewards: {
+    information: ["Tracks suggest organized raiders, not monsters"]
+  },
+
+  nextSceneHints: ["Social", "Travel"]
+}
+
+
+This slots directly into Everdice’s existing flow.
+
+2. Prompt Patch (Minimal, High Leverage)
+
+This is the single most important fix for the “battle treadmill”.
+
+You do not need a rewrite.
+You need a behavioral constraint layer.
+
+Prompt Patch: Scene Generation Rules
+
+Insert this above your existing generation instructions.
+
+Scene Generation Constraints
+
+You are generating scenes for a narrative tabletop RPG system.
+
+Follow these rules strictly:
+
+Do not generate combat as the default solution.
+
+Never generate two Combat scenes in a row unless explicitly instructed.
+
+Every scene must have a goal that can be resolved without violence.
+
+Combat may appear only as:
+
+an escalation
+
+a consequence of failure
+
+a deliberate player choice
+
+Each scene must present at least three options, including:
+
+one non-violent
+
+one investigative or social
+
+one risky or forceful
+
+Prefer exploration, discovery, dialogue, and problem-solving over combat.
+
+The goal of the system is to create varied campaign texture, not constant action.
+
+That alone will change behavior noticeably.
+
+Prompt Patch: Choice Framing
+
+Add this after your choice-generation instruction:
+
+When presenting choices:
+
+Frame combat as costly or dangerous
+
+Frame non-combat options as meaningful and rewarding
+
+Ensure that at least one option advances the story without fighting
+
+Optional (but very effective): Combat Soft Bias
+
+Add this single line near the end:
+
+Treat combat as narratively expensive and world-altering.
+
+That sentence does an absurd amount of work.
+
+Why this fixes the problem immediately
+
+Right now, the AI:
+
+Resolves tension by fighting
+
+Advances state by killing enemies
+
+Feels productive through damage
+
+After these patches, it:
+
+Resolves tension by understanding
+
+Advances state by revealing
+
+Uses combat as pressure, not payoff
+
+The result feels like:
+
+Travel
+
+Mystery
+
+Negotiation
+
+Risk management
+
+Occasional, meaningful fights
+
+Which is exactly what you said you want.

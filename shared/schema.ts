@@ -254,6 +254,10 @@ export const campaignSessions = pgTable("campaign_sessions", {
   isInCombat: boolean("is_in_combat").default(false),
   combatState: jsonb("combat_state"), // Initiative order, HP, conditions
   quickContentGenerated: jsonb("quick_content_generated"), // DM-generated content for this session
+  // Scene Schema v2 fields
+  sceneType: text("scene_type"), // Current scene type: Combat, Exploration, Social, Puzzle, Discovery, Travel, Downtime
+  sceneData: jsonb("scene_data"), // Full SceneV2 object with goal, obstacles, stakes, actions
+  previousSceneType: text("previous_scene_type"), // For anti-combat-treadmill tracking
 });
 
 export const insertCampaignSessionSchema = createInsertSchema(campaignSessions).omit({
@@ -1652,3 +1656,101 @@ export const insertHearthMurmurSchema = createInsertSchema(hearthMurmur).omit({
 });
 export type InsertHearthMurmur = z.infer<typeof insertHearthMurmurSchema>;
 export type HearthMurmur = typeof hearthMurmur.$inferSelect;
+
+// ============================================
+// Scene Schema v2 - Varied Scene Resolution
+// ============================================
+// Design: Scenes focus on resolution, not encounters
+// Combat becomes a consequence/escalation, not the default
+
+export type SceneType =
+  | "Combat"
+  | "Exploration"
+  | "Social"
+  | "Puzzle"
+  | "Discovery"
+  | "Travel"
+  | "Downtime";
+
+export type ResolutionMode =
+  | "Violence"
+  | "Dialogue"
+  | "Investigation"
+  | "Ingenuity"
+  | "Stealth"
+  | "Endurance";
+
+export interface SceneGoal {
+  description: string;
+  resolvableBy: ResolutionMode[];
+  successState: string;
+  failureState?: string;
+  partialSuccessState?: string;
+}
+
+export interface SceneAction {
+  label: string;
+  resolutionMode: ResolutionMode;
+  risk: "Low" | "Medium" | "High";
+  description: string;
+  requiresDiceRoll?: boolean;
+  diceType?: string;
+  rollDC?: number;
+  skillType?: string;
+  rollPurpose?: string;
+  successText?: string;
+  failureText?: string;
+}
+
+export interface SceneEscalation {
+  condition: string;
+  effect: string;
+}
+
+export interface SceneRewards {
+  information?: string[];
+  reputation?: string[];
+  items?: string[];
+  xp?: number;
+  gold?: number;
+}
+
+export interface SceneStakes {
+  onSuccess: string[];
+  onFailure: string[];
+  onEscalation?: string[];
+}
+
+export interface SceneV2 {
+  id: string;
+  type: SceneType;
+  summary: string;
+  goal: SceneGoal;
+  obstacles: string[];
+  stakes: SceneStakes;
+  availableActions: SceneAction[];
+  escalationTrigger?: SceneEscalation;
+  rewards?: SceneRewards;
+  nextSceneHints?: SceneType[];
+}
+
+// Scene type weights for varied generation
+export const sceneTypeWeights: Record<SceneType, number> = {
+  Exploration: 25,
+  Social: 20,
+  Discovery: 18,
+  Travel: 12,
+  Puzzle: 10,
+  Downtime: 8,
+  Combat: 7
+};
+
+// Resolution mode to skill mapping
+export const resolutionSkillMap: Record<ResolutionMode, string[]> = {
+  Violence: ["athletics", "acrobatics"],
+  Dialogue: ["persuasion", "deception", "intimidation", "insight"],
+  Investigation: ["investigation", "perception", "arcana", "history", "nature", "religion"],
+  Ingenuity: ["sleight_of_hand", "arcana", "investigation", "survival"],
+  Stealth: ["stealth", "deception", "sleight_of_hand"],
+  Endurance: ["constitution", "athletics", "survival", "medicine"]
+};
