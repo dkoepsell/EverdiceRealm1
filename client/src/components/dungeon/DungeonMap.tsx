@@ -83,6 +83,29 @@ export interface MapEntity {
   maxHp?: number;
 }
 
+// HexMetaV2 types for narrative-driven map tiles
+export type NarrativeTone = 
+  | "Whispering" | "Sacred" | "Watched" | "Unstable" 
+  | "Forgotten" | "Hostile" | "Benevolent" | "Sealed" | "Cursed" | "Ancient";
+
+export type HexState = "Dormant" | "Stirring" | "Active" | "Fading" | "Sealed" | "Compromised";
+
+export type HexImportanceType = "Revelation" | "Risk" | "LostKnowledge" | "Sanctuary" | "Convergence" | "None";
+
+export type EnvironmentTag = 
+  | "frost-touched" | "overgrown" | "waterlogged" | "ash-covered"
+  | "sunlit" | "moonlit" | "torch-lit" | "dark"
+  | "ancient-stone" | "living-wood" | "crystalline" | "corrupted"
+  | "blood-stained" | "rune-carved" | "moss-covered" | "dusty";
+
+export interface HexAffordances {
+  exploration: number;
+  social: number;
+  investigation: number;
+  puzzle: number;
+  combat: number;
+}
+
 // Narrative data stored per tile for story-map integration
 export interface TileNarrativeData {
   description?: string;           // AI-generated room/tile description
@@ -95,6 +118,17 @@ export interface TileNarrativeData {
   dangerLevel?: 'safe' | 'low' | 'medium' | 'high' | 'deadly';
   interactable?: boolean;         // Can the player interact here
   discovered?: boolean;           // Has narrative been revealed
+  // HexMetaV2 fields
+  narrativeTone?: NarrativeTone;  // The promise this hex makes
+  hexState?: HexState;            // Current activity level
+  importanceType?: HexImportanceType; // Type of importance (not just "important")
+  affordances?: HexAffordances;   // What play styles this hex supports
+  tension?: number;               // 0-100 tension level
+  environmentTags?: EnvironmentTag[]; // Visual/atmospheric descriptors
+  regionName?: string;            // Named area for choice text
+  tooltipNote?: string;           // One short sentence for hover
+  glowIntensity?: number;         // 0-1 for UI glow effect
+  outlineStyle?: "solid" | "dashed" | "fractured" | "glowing";
 }
 
 export interface MapTile {
@@ -219,6 +253,30 @@ const ENTITY_COLORS: Record<EntityType, string> = {
   enemy: "text-red-400",
   npc: "text-yellow-400",
   boss: "text-purple-400",
+};
+
+// Narrative tone icons and colors for HexMetaV2
+const NARRATIVE_TONE_ICONS: Record<NarrativeTone, { icon: string; color: string }> = {
+  "Whispering": { icon: "👁", color: "text-purple-400" },
+  "Sacred": { icon: "✧", color: "text-amber-400" },
+  "Watched": { icon: "◉", color: "text-red-400" },
+  "Unstable": { icon: "⚠", color: "text-orange-400" },
+  "Forgotten": { icon: "◇", color: "text-slate-400" },
+  "Hostile": { icon: "☠", color: "text-red-500" },
+  "Benevolent": { icon: "♥", color: "text-green-400" },
+  "Sealed": { icon: "🔒", color: "text-blue-400" },
+  "Cursed": { icon: "☽", color: "text-violet-500" },
+  "Ancient": { icon: "⌘", color: "text-amber-600" },
+};
+
+// Importance type outline styles
+const IMPORTANCE_STYLES: Record<HexImportanceType, { outline: string; glow: string }> = {
+  "Revelation": { outline: "ring-2 ring-amber-400", glow: "shadow-amber-400/50 shadow-md" },
+  "Risk": { outline: "ring-2 ring-red-400 ring-dashed", glow: "shadow-red-400/40 shadow-md" },
+  "LostKnowledge": { outline: "ring-1 ring-slate-400 opacity-80", glow: "shadow-slate-400/30 shadow-sm" },
+  "Sanctuary": { outline: "ring-2 ring-green-400", glow: "shadow-green-400/40 shadow-md" },
+  "Convergence": { outline: "ring-2 ring-purple-400 animate-pulse", glow: "shadow-purple-400/50 shadow-lg" },
+  "None": { outline: "", glow: "" },
 };
 
 // Environment-specific labels for map elements
@@ -474,6 +532,21 @@ export function DungeonMap({
     
     const markers: React.ReactNode[] = [];
     
+    // HexMetaV2: Narrative tone icon (top-left corner)
+    if (narrative.narrativeTone && NARRATIVE_TONE_ICONS[narrative.narrativeTone]) {
+      const toneData = NARRATIVE_TONE_ICONS[narrative.narrativeTone];
+      markers.push(
+        <div 
+          key="tone"
+          className={`absolute -top-0.5 -left-0.5 text-xs ${toneData.color} font-bold drop-shadow-md`}
+          style={{ fontSize: '8px', lineHeight: '1' }}
+          title={narrative.tooltipNote || narrative.narrativeTone}
+        >
+          {toneData.icon}
+        </div>
+      );
+    }
+    
     // Danger level indicator (corner badge)
     if (narrative.dangerLevel && narrative.dangerLevel !== 'safe') {
       const dangerColors: Record<string, string> = {
@@ -490,6 +563,18 @@ export function DungeonMap({
       );
     }
     
+    // HexMetaV2: Tension indicator (bottom-left, if high tension)
+    if (narrative.tension && narrative.tension >= 50) {
+      const tensionColor = narrative.tension >= 80 ? 'bg-red-500' : 'bg-orange-400';
+      markers.push(
+        <div 
+          key="tension"
+          className={`absolute -bottom-0.5 -left-0.5 w-1.5 h-1.5 rounded-full ${tensionColor} animate-pulse`}
+          title={`Tension: ${narrative.tension}%`}
+        />
+      );
+    }
+    
     // Interactable indicator
     if (narrative.interactable) {
       markers.push(
@@ -500,7 +585,26 @@ export function DungeonMap({
       );
     }
     
+    // HexMetaV2: Region name overlay (when zoomed in)
+    if (narrative.regionName && zoom >= 1.2) {
+      markers.push(
+        <div 
+          key="region"
+          className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[6px] text-white/80 whitespace-nowrap font-medium drop-shadow-md"
+        >
+          {narrative.regionName}
+        </div>
+      );
+    }
+    
     return markers.length > 0 ? markers : null;
+  };
+  
+  // Get importance style classes for a tile
+  const getImportanceStyles = (tile: MapTile): string => {
+    const importanceType = tile.narrative?.importanceType || "None";
+    const styles = IMPORTANCE_STYLES[importanceType];
+    return `${styles.outline} ${styles.glow}`;
   };
 
   // D&D Mini-style figurine component
@@ -779,6 +883,20 @@ export function DungeonMap({
                   const isOddRow = y % 2 === 1;
                   const hexX = x * hexHorizontalSpacing + (isOddRow ? hexHorizontalOffset : 0);
                   const hexY = y * hexVerticalSpacing;
+                  
+                  // HexMetaV2: Build enhanced tooltip
+                  const buildTooltip = (): string | undefined => {
+                    if (!tile.narrative?.discovered) return undefined;
+                    const parts: string[] = [];
+                    if (tile.narrative.regionName) parts.push(tile.narrative.regionName);
+                    if (tile.narrative.tooltipNote) parts.push(tile.narrative.tooltipNote);
+                    else if (tile.narrative.shortDescription) parts.push(tile.narrative.shortDescription);
+                    if (tile.narrative.narrativeTone) parts.push(`[${tile.narrative.narrativeTone}]`);
+                    return parts.join(' — ') || undefined;
+                  };
+                  
+                  // HexMetaV2: Get importance styling
+                  const importanceStyles = isExplored ? getImportanceStyles(tile) : '';
 
                   return (
                     <div
@@ -788,7 +906,7 @@ export function DungeonMap({
                         ${!isExplored ? 'bg-indigo-900/40 dark:bg-indigo-950/60' : tileColor.bg}
                         ${!isExplored ? "opacity-70" : isVisible ? "opacity-100" : "opacity-80"}
                         ${interactive && tile.type !== "wall" ? "cursor-pointer hover:brightness-110 hover:scale-105" : ""}
-                        ${isSelected ? "ring-2 ring-yellow-400 ring-offset-1" : ""}
+                        ${isSelected ? "ring-2 ring-yellow-400 ring-offset-1" : importanceStyles}
                         transition-all duration-200
                       `}
                       style={{ 
@@ -808,7 +926,7 @@ export function DungeonMap({
                         }
                       }}
                       data-testid={`tile-${x}-${y}`}
-                      title={tile.narrative?.discovered ? tile.narrative.shortDescription : undefined}
+                      title={buildTooltip()}
                     >
                       {getTileIcon(tile)}
                       {getNarrativeMarkers(tile)}

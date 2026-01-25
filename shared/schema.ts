@@ -1754,3 +1754,120 @@ export const resolutionSkillMap: Record<ResolutionMode, string[]> = {
   Stealth: ["stealth", "deception", "sleight_of_hand"],
   Endurance: ["constitution", "athletics", "survival", "medicine"]
 };
+
+// ==================== Hex Metadata V2 Schema ====================
+// Semantic narrative layer for dungeon map tiles
+
+export type NarrativeTone = 
+  | "Whispering"   // Something wants to communicate
+  | "Sacred"       // Holy/consecrated ground
+  | "Watched"      // Something is observing
+  | "Unstable"     // Reality/structure is fragile
+  | "Forgotten"    // Lost to time, secrets buried
+  | "Hostile"      // Actively dangerous
+  | "Benevolent"   // Safe haven, healing
+  | "Sealed"       // Locked away, requires unlocking
+  | "Cursed"       // Dark magic lingers
+  | "Ancient";     // Pre-dates current civilization
+
+export type HexState =
+  | "Dormant"      // Quiet, nothing happening
+  | "Stirring"     // Something is waking
+  | "Active"       // Fully engaged
+  | "Fading"       // Power diminishing
+  | "Sealed"       // Locked/inaccessible
+  | "Compromised"; // Damaged/corrupted
+
+export type HexImportanceType =
+  | "Revelation"   // Knowledge awaits (gold outline)
+  | "Risk"         // Danger ahead (fractured outline)
+  | "LostKnowledge" // Forgotten secrets (faded glow)
+  | "Sanctuary"    // Safe zone (soft glow)
+  | "Convergence"  // Multiple story threads meet
+  | "None";        // Standard hex
+
+export interface HexAffordances {
+  exploration: number;   // 0-5: How much exploration this hex supports
+  social: number;        // 0-5: Social interaction opportunities
+  investigation: number; // 0-5: Clues and mysteries to uncover
+  puzzle: number;        // 0-5: Logic/mechanical challenges
+  combat: number;        // 0-5: Combat likelihood
+}
+
+export type HexEscalationTrigger = "Failure" | "Delay" | "Noise" | "Violence" | "Magic";
+
+export type HexEscalationEffect = 
+  | "IncreaseTension"
+  | "ChangeTone"
+  | "SealAdjacentHex"
+  | "SummonThreat"
+  | "RevealSecret"
+  | "TriggerTrap";
+
+export interface HexEscalation {
+  trigger: HexEscalationTrigger;
+  effect: HexEscalationEffect;
+  threshold?: number; // Tension threshold to trigger
+}
+
+export type KnowledgeCategory = "Lore" | "Warning" | "Leverage" | "MapInsight" | "Weakness";
+
+export interface KnowledgeHook {
+  id: string;
+  category: KnowledgeCategory;
+  description: string;
+  consumedOnUse?: boolean;
+  revealedBy?: ResolutionMode; // What action reveals this
+}
+
+export interface HexUIHints {
+  icon?: string;           // lucide icon name
+  glowIntensity?: number;  // 0-1
+  pulse?: boolean;
+  tooltipNote?: string;    // One short sentence max
+  outlineStyle?: "solid" | "dashed" | "fractured" | "glowing";
+}
+
+export type EnvironmentTag = 
+  | "frost-touched" | "overgrown" | "waterlogged" | "ash-covered"
+  | "sunlit" | "moonlit" | "torch-lit" | "dark"
+  | "ancient-stone" | "living-wood" | "crystalline" | "corrupted"
+  | "blood-stained" | "rune-carved" | "moss-covered" | "dusty";
+
+export interface HexMetaV2 {
+  narrativeTone: NarrativeTone;
+  currentState: HexState;
+  importanceType: HexImportanceType;
+  affordances: HexAffordances;
+  tension: number; // 0-100
+  environmentTags: EnvironmentTag[];
+  escalation?: HexEscalation;
+  knowledgeHooks?: KnowledgeHook[];
+  uiHints?: HexUIHints;
+  regionName?: string;      // Named area for choice text
+  regionDescription?: string; // Thematic one-liner
+}
+
+// Default affordances for different terrain types
+export const defaultAffordancesByTerrain: Record<string, HexAffordances> = {
+  "Chamber": { exploration: 3, social: 2, investigation: 4, puzzle: 3, combat: 2 },
+  "Corridor": { exploration: 4, social: 1, investigation: 2, puzzle: 1, combat: 3 },
+  "Portal": { exploration: 2, social: 0, investigation: 3, puzzle: 4, combat: 1 },
+  "Shrine": { exploration: 2, social: 3, investigation: 4, puzzle: 2, combat: 1 },
+  "Entrance": { exploration: 3, social: 2, investigation: 2, puzzle: 1, combat: 2 },
+  "default": { exploration: 2, social: 1, investigation: 2, puzzle: 1, combat: 2 }
+};
+
+// Narrative tone icons for UI
+export const narrativeToneIcons: Record<NarrativeTone, string> = {
+  "Whispering": "ear",
+  "Sacred": "sparkles",
+  "Watched": "eye",
+  "Unstable": "alert-triangle",
+  "Forgotten": "clock",
+  "Hostile": "skull",
+  "Benevolent": "heart",
+  "Sealed": "lock",
+  "Cursed": "ghost",
+  "Ancient": "landmark"
+};
