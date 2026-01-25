@@ -62,6 +62,14 @@ Preferred communication style: Simple, everyday language.
     - **Auto-posting**: Session events automatically posted to linked Discord channels
     - **Campaign Recaps**: AI-generated story recaps accessible via Discord commands
 - **Campaign Dashboard**: DM-only tab in campaign panel with AI-powered narrative insights, quest tracking, party status overview, and story hook suggestions. Uses GPT-4o to analyze campaign state and highlight critical junctures.
+- **Hearth System**: Persistent social hub at `/hearth` ("The Lantern Hall"):
+    - **Arrival Experience**: Personalized welcome lines, return streak tracking, warm atmosphere
+    - **The Room**: See who's "in the Hall" (up to 12 adventurers) with seat zones (fire, board, window, table)
+    - **Noticeboard**: Post notes with categories (Message, Hook, LFG, DM Call, Gift), filter and delete own posts
+    - **Hearth Memories**: Feed of shared continuity - toasts raised, marks left, milestones achieved
+    - **Ritual Actions**: Raise a toast, leave a mark (d6, candle, bootprint, tankard, quill)
+    - **World Murmur**: Rotating atmospheric text creating a living world feel
+    - **Cozy UX**: Tavern background art, warm amber colors, non-performative social presence
 - **Tavern System**: Between-campaign hub at `/tavern` for:
     - **Shop**: Buy weapons, armor, potions, and adventuring gear with gold/silver
     - **Inventory Management**: View equipment with damage/armor stats, sell unwanted items
