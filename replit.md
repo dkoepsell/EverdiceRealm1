@@ -87,6 +87,12 @@ Preferred communication style: Simple, everyday language.
     - AI-generated structured adventures in CAML 2.0 format
     - Adventure graph visualization showing entity relationships
     - Flagship examples: `caml-2.0/examples/the-lost-temple-ethereal.caml2.json`, `caml-2.0/examples/the-lost-temple-whispers.caml2.json`, `caml-2.0/examples/whispers-in-the-shadows.caml2.json`, `caml-2.0/examples/the-lost-temple-history.caml2.json`
+- **Scene Schema v2**: Anti-combat-treadmill system ensuring varied gameplay experiences:
+    - **Scene Types**: Combat, Exploration, Social, Puzzle, Discovery, Travel, Downtime (weighted toward non-combat)
+    - **Resolution Modes**: Violence, Dialogue, Investigation, Ingenuity, Stealth, Endurance (choices include mode hints)
+    - **AI Constraints**: Consecutive combat prevention, required non-violent options, scene variety enforcement
+    - **Session Tracking**: sceneType and previousSceneType columns track progression to prevent repetitive encounters
+    - **Choice Framing**: Every scene includes at least one Dialogue/Social option and one Investigation option
 - **RPG Systems**:
     - **Progression**: Automatic XP, random item drops, character progression tracking, skill progression (+1 bonus every 5 uses, max +5).
     - **Combat**: D&D mechanics, HP tracking (party/enemies), visual health bars, tactical options, combat end detection, bonus XP for defeating enemies.
