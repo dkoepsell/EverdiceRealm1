@@ -1,0 +1,255 @@
+The Actual Design Mistake (Name It So You Can Fix It)
+
+The mistake is this:
+
+You designed DM Tools as a menu of affordances, not as a situated workspace.
+
+Menus imply choice.
+Workspaces imply commitment.
+
+A DM does not want to choose tools.
+A DM wants to enter a state.
+
+Right now, “DM Tools” is a destination.
+It needs to be a place you inhabit.
+
+3. The Recraft: From “DM Tools” to “Running a Session”
+Rename the Mental Model First (This Is Critical)
+
+Internally and in code comments, stop thinking:
+
+DM Tools
+
+Start thinking:
+
+Session Workspace
+
+Running Tonight
+
+At the Table
+
+You don’t need to change the public label immediately, but your layout logic must change.
+
+4. The New DM Session Layout (Canonical)
+
+This is the layout DMs should see every time they enter DM Tools.
+
+High-Level Structure (Three Zones, Always Visible)
+┌──────────────────────────────────────────┐
+│ SESSION CONTEXT (Who / Where / Why Now)  │  ← thin, persistent
+├──────────────────────────────────────────┤
+│                                          │
+│   LIVE TABLE (What is happening now)     │  ← dominant center
+│                                          │
+├──────────────────────────────────────────┤
+│ SUPPORT DRAWERS (Only when needed)       │  ← collapsible
+└──────────────────────────────────────────┘
+
+
+Everything you already built fits into this.
+The problem is placement, not features.
+
+5. Zone 1: Session Context Strip (Non-Negotiable)
+
+This must exist. It is the psychological anchor.
+
+Format
+
+Horizontal strip at top
+
+Always visible
+
+Editable inline
+
+No modals
+
+Contents (minimal, opinionated)
+
+Session Name
+
+Session Focus (1–2 sentences, required)
+
+“Escort the caravan through hostile territory”
+
+Active Pressures
+
+2–3 short phrases: “Storm closing in”, “Rival scouts nearby”
+
+Unresolved Thread
+
+exactly one (forces discipline)
+
+Why this works
+
+Tells the DM “you’re doing the right thing”
+
+Enforces session-level thinking
+
+Makes Everdice visibly solve the problem you identified
+
+If this strip is empty, Everdice should nudge, not block:
+
+“You can run without this, but DMs usually find it helpful.”
+
+6. Zone 2: Live Table (This Is Home)
+
+This is where DMs spend 90% of their time.
+
+Center Column (Dominant)
+
+Current Scene
+
+NPCs present
+
+Threats present
+
+Locations in play
+
+This should feel like:
+
+“This is what exists right now.”
+
+No future content.
+No lore.
+
+Right Column (DM Thinking Aids)
+
+Likely Player Moves (you already have this, good)
+
+DM Signals / Notes to Self
+
+Soft timers or beats (optional)
+
+This column is not for content creation.
+It’s for anticipation.
+
+Left Column (Controlled Access)
+
+Drag-in NPCs
+
+Drag-in threats
+
+Drag-in locations
+
+Important:
+
+These are sources, not destinations
+
+You don’t “go to NPCs”
+
+You pull NPCs into the scene
+
+That mental shift is huge.
+
+7. Zone 3: Support Drawers (Demoted, Not Deleted)
+
+Everything else goes here:
+
+NPC editor
+
+Quest editor
+
+Locations
+
+Items
+
+Monsters
+
+Campaign Builder
+
+Rules for drawers
+
+Closed by default
+
+Slide in, don’t navigate away
+
+Always contextual to the current session
+
+This tells the DM:
+
+“You are not leaving the table.”
+
+That’s what makes them come back.
+
+8. Campaign Builder: Reframe, Don’t Remove
+
+The Campaign Builder is not wrong.
+Its entry point is wrong.
+
+Where it should live
+
+Under a section called:
+
+“Between Sessions”
+
+or “When You Have Time”
+
+What it should say
+
+Replace:
+
+“Create your story”
+
+With:
+
+“Set up future situations”
+
+This aligns with how experienced DMs think and how beginners should think.
+
+9. Navigation Changes (Yes, You’re Right)
+
+You are absolutely correct:
+
+DM Tools should not live in a dropdown.
+
+That signals “optional” and “advanced.”
+
+Instead
+
+Give DMs a persistent top-level entry
+
+Only visible when the user has DM permissions
+
+Something like:
+
+“Run”
+
+“Session”
+
+“At the Table”
+
+This is not about prominence.
+It’s about identity.
+
+10. Diagrams You Should Build (Literally)
+
+I strongly recommend you sketch or implement these explicitly:
+
+Session State Diagram
+
+Session → Scene → Actors → Pressures
+
+Content Flow Diagram
+
+NPC / Threat → Scene (not Campaign)
+
+Temporal Diagram
+
+Now / Next / Later (three buckets only)
+
+These diagrams will keep you honest as you recode.
+
+11. Why This Will Make DMs Come Back
+
+DMs return when:
+
+the tool reduces decision fatigue
+
+the tool feels opinionated but not bossy
+
+the tool reflects how they already think when calm
+
+Right now, Everdice is kind.
+After this change, it becomes steady.
+
+That’s what DMs trust.
