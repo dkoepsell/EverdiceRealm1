@@ -3216,6 +3216,87 @@ Return your response as a JSON object with these fields:
     }
   });
 
+  // Session Context for DM Workspace
+  app.get("/api/campaigns/:campaignId/session-context", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const campaignId = parseInt(req.params.campaignId);
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      // Only campaign owner (DM) can access session context
+      if (campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can access session context" });
+      }
+      res.json({
+        sessionName: campaign.sessionName || `Session ${campaign.currentSession}`,
+        sessionFocus: campaign.sessionFocus || "",
+        activePressures: campaign.activePressures || [],
+        unresolvedThread: campaign.unresolvedThread || "",
+        sessionNumber: campaign.currentSession,
+      });
+    } catch (error) {
+      console.error("Error fetching session context:", error);
+      res.status(500).json({ message: "Failed to fetch session context" });
+    }
+  });
+
+  app.patch("/api/campaigns/:campaignId/session-context", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const campaignId = parseInt(req.params.campaignId);
+      
+      // Verify campaign ownership
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      if (campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can update session context" });
+      }
+      
+      // Validate request body
+      const sessionContextSchema = z.object({
+        sessionName: z.string().max(100).optional(),
+        sessionFocus: z.string().max(500).optional(),
+        activePressures: z.array(z.string().max(100)).max(3).optional(),
+        unresolvedThread: z.string().max(500).optional(),
+      });
+      
+      const validationResult = sessionContextSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ message: "Invalid session context data", errors: validationResult.error.errors });
+      }
+      
+      const { sessionName, sessionFocus, activePressures, unresolvedThread } = validationResult.data;
+      
+      const updates: any = { updatedAt: new Date().toISOString() };
+      if (sessionName !== undefined) updates.sessionName = sessionName;
+      if (sessionFocus !== undefined) updates.sessionFocus = sessionFocus;
+      if (activePressures !== undefined) updates.activePressures = activePressures;
+      if (unresolvedThread !== undefined) updates.unresolvedThread = unresolvedThread;
+      
+      const updatedCampaign = await storage.updateCampaign(campaignId, updates);
+      if (!updatedCampaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      res.json({
+        sessionName: updatedCampaign.sessionName,
+        sessionFocus: updatedCampaign.sessionFocus,
+        activePressures: updatedCampaign.activePressures,
+        unresolvedThread: updatedCampaign.unresolvedThread,
+      });
+    } catch (error) {
+      console.error("Error updating session context:", error);
+      res.status(500).json({ message: "Failed to update session context" });
+    }
+  });
+
   // Campaign Session routes
   app.get("/api/campaigns/:campaignId/sessions/:sessionNumber", async (req, res) => {
     try {

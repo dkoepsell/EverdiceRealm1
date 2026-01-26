@@ -199,6 +199,11 @@ export const campaigns = pgTable("campaigns", {
   discordChannelId: text("discord_channel_id"), // Main channel for this campaign
   discordThreadId: text("discord_thread_id"), // Optional thread for session logs
   isDiscordDeployed: boolean("is_discord_deployed").default(false), // Whether campaign is active on Discord
+  // Session context - DM workspace state
+  sessionName: text("session_name"), // Tonight's session name
+  sessionFocus: text("session_focus"), // 1-2 sentence goal for this session
+  activePressures: text("active_pressures").array(), // 2-3 short phrases (max)
+  unresolvedThread: text("unresolved_thread"), // One dangling question
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at"),
 });

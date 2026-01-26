@@ -58,11 +58,23 @@ export default function Navbar() {
   
   const pendingInvitationCount = pendingInvitations?.length || 0;
   
+  // Fetch campaigns to check if user has DM permissions
+  const { data: campaigns = [] } = useQuery<any[]>({
+    queryKey: ['/api/campaigns'],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    enabled: !!user,
+  });
+  
+  // Check if user owns any campaigns (is a DM)
+  const hasDMCampaigns = campaigns.length > 0;
+  
   const mainNavLinks = user ? [
     { name: "Hearth", path: "/hearth", icon: Flame },
     { name: "Play", path: "/dashboard", icon: Play },
     { name: "Characters", path: "/characters", icon: Users },
     { name: "Learn", path: "/learn", icon: BookOpen },
+    // Show DM link if user has campaigns
+    ...(hasDMCampaigns ? [{ name: "Run Session", path: "/dm-toolkit", icon: Wrench }] : []),
   ] : [];
   
   const moreLinks = [

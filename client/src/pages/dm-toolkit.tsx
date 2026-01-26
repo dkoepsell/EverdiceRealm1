@@ -99,6 +99,7 @@ import LiveManagerPanel from "@/components/dm-toolkit/LiveManagerPanel";
 import DMQuickStart from "@/components/dm-toolkit/DMQuickStart";
 import WorldDevelopmentsPanel from "@/components/dm-toolkit/WorldDevelopmentsPanel";
 import ThreatArchetypes from "@/components/dm-toolkit/ThreatArchetypes";
+import SessionContextStrip from "@/components/dm-toolkit/SessionContextStrip";
 import parchmentFrame from "@assets/image_1768600727955.png";
 
 export default function DMToolkit() {
@@ -454,21 +455,6 @@ export default function DMToolkit() {
 
               <Card 
                 className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${
-                  activeTab === 'campaign-builder' ? 'ring-2 ring-purple-500 bg-purple-500/5' : 'hover:bg-muted/50'
-                }`}
-                onClick={() => setActiveTab('campaign-builder')}
-              >
-                <CardContent className="p-5 text-center">
-                  <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/25">
-                    <Sparkles className="h-6 w-6 text-white" />
-                  </div>
-                  <h4 className="font-semibold text-sm">Campaign Builder</h4>
-                  <p className="text-xs text-muted-foreground mt-1">Create your story</p>
-                </CardContent>
-              </Card>
-
-              <Card 
-                className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${
                   activeTab === 'live-manager' ? 'ring-2 ring-green-500 bg-green-500/5' : 'hover:bg-muted/50'
                 }`}
                 onClick={() => setActiveTab('live-manager')}
@@ -477,8 +463,23 @@ export default function DMToolkit() {
                   <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg shadow-green-500/25">
                     <PlayIcon className="h-6 w-6 text-white" />
                   </div>
-                  <h4 className="font-semibold text-sm">Live Manager</h4>
-                  <p className="text-xs text-muted-foreground mt-1">Run sessions</p>
+                  <h4 className="font-semibold text-sm">Run Session</h4>
+                  <p className="text-xs text-muted-foreground mt-1">At the table</p>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${
+                  activeTab === 'campaign-builder' ? 'ring-2 ring-purple-500 bg-purple-500/5' : 'hover:bg-muted/50'
+                }`}
+                onClick={() => setActiveTab('campaign-builder')}
+              >
+                <CardContent className="p-5 text-center">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/25">
+                    <Sparkles className="h-6 w-6 text-white" />
+                  </div>
+                  <h4 className="font-semibold text-sm">Between Sessions</h4>
+                  <p className="text-xs text-muted-foreground mt-1">Plan future situations</p>
                 </CardContent>
               </Card>
 
@@ -499,11 +500,12 @@ export default function DMToolkit() {
             </div>
           </div>
 
-          {/* Content Creation - Compact grid */}
+          {/* Content Creation - Between Sessions work */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <Lightbulb className="h-5 w-5 text-purple-500" />
-              Create Content
+              Between Sessions
+              <span className="text-xs font-normal text-muted-foreground ml-1">Set up future situations</span>
             </h3>
             <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
               {[
@@ -599,10 +601,10 @@ export default function DMToolkit() {
             <div>
               <h2 className="text-xl font-semibold flex items-center gap-2">
                 <Play className="h-5 w-5 text-primary" />
-                Live Session Manager
+                Session Workspace
               </h2>
               <p className="text-sm text-muted-foreground">
-                Real-time control panel for managing your campaign session
+                Your control center for running tonight's session
               </p>
             </div>
             {campaigns.length > 0 && (
@@ -623,6 +625,13 @@ export default function DMToolkit() {
               </Select>
             )}
           </div>
+          
+          {/* Zone 1: Session Context Strip - psychological anchor */}
+          <SessionContextStrip 
+            campaignId={selectedCampaignId}
+            campaignTitle={campaigns.find((c: any) => c.id === selectedCampaignId)?.title}
+          />
+          
           <Tabs defaultValue="control-panel" className="w-full">
             <TabsList className="mb-4">
               <TabsTrigger value="control-panel">Control Panel</TabsTrigger>
