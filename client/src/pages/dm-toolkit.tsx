@@ -122,6 +122,7 @@ export default function DMToolkit() {
   const [offlineStatus, setOfflineStatus] = useState<'idle' | 'caching' | 'cached' | 'error'>('idle');
   const [isOnline, setIsOnline] = useState(true);
   const [openDrawer, setOpenDrawer] = useState<string | null>(null);
+  const [quickGenerateExpanded, setQuickGenerateExpanded] = useState(false);
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -478,66 +479,51 @@ export default function DMToolkit() {
 
               <Card 
                 className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${
-                  activeTab === 'campaign-builder' ? 'ring-2 ring-purple-500 bg-purple-500/5' : 'hover:bg-muted/50'
+                  quickGenerateExpanded ? 'ring-2 ring-amber-500 bg-amber-500/5' : 'hover:bg-muted/50'
                 }`}
-                onClick={() => setActiveTab('campaign-builder')}
-              >
-                <CardContent className="p-5 text-center">
-                  <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/25">
-                    <Sparkles className="h-6 w-6 text-white" />
-                  </div>
-                  <h4 className="font-semibold text-sm">Between Sessions</h4>
-                  <p className="text-xs text-muted-foreground mt-1">Plan future situations</p>
-                </CardContent>
-              </Card>
-
-              <Card 
-                className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${
-                  activeTab === 'generators' ? 'ring-2 ring-amber-500 bg-amber-500/5' : 'hover:bg-muted/50'
-                }`}
-                onClick={() => setActiveTab('generators')}
+                onClick={() => setQuickGenerateExpanded(!quickGenerateExpanded)}
               >
                 <CardContent className="p-5 text-center">
                   <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
                     <Zap className="h-6 w-6 text-white" />
                   </div>
                   <h4 className="font-semibold text-sm">Quick Generate</h4>
-                  <p className="text-xs text-muted-foreground mt-1">Instant content</p>
+                  <p className="text-xs text-muted-foreground mt-1">Create content</p>
+                  <ChevronRight className={`h-4 w-4 mx-auto mt-1 text-muted-foreground transition-transform ${quickGenerateExpanded ? 'rotate-90' : ''}`} />
                 </CardContent>
               </Card>
             </div>
-          </div>
 
-          {/* Content Creation - Between Sessions work (opens in slide-out drawers) */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Lightbulb className="h-5 w-5 text-purple-500" />
-              Between Sessions
-            </h3>
-            <div className="grid grid-cols-4 md:grid-cols-7 gap-2">
-              {[
-                { id: 'companions', icon: Users, label: 'NPCs', color: 'text-rose-500' },
-                { id: 'locations', icon: MapPin, label: 'Locations', color: 'text-emerald-500' },
-                { id: 'quests', icon: Scroll, label: 'Quests', color: 'text-amber-500' },
-                { id: 'items', icon: Package, label: 'Items', color: 'text-cyan-500' },
-                { id: 'monsters', icon: Swords, label: 'Monsters', color: 'text-red-500' },
-                { id: 'threats', icon: Target, label: 'Threats', color: 'text-orange-500' },
-                { id: 'deploy', icon: Globe, label: 'Deploy', color: 'text-indigo-500' },
-              ].map(({ id, icon: Icon, label, color }) => (
-                <Button
-                  key={id}
-                  variant={openDrawer === id ? 'secondary' : 'ghost'}
-                  className={`h-auto py-2 px-3 flex flex-col items-center gap-1 ${
-                    openDrawer === id ? 'ring-2 ring-primary bg-primary/10' : 'hover:bg-muted/50'
-                  }`}
-                  onClick={() => setOpenDrawer(id)}
-                >
-                  <Icon className={`h-5 w-5 ${color}`} />
-                  <span className="text-xs font-medium">{label}</span>
-                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                </Button>
-              ))}
-            </div>
+            {/* Quick Generate - Unfolding section */}
+            {quickGenerateExpanded && (
+              <div className="mt-4 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 animate-in slide-in-from-top-2 duration-200">
+                <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+                  {[
+                    { id: 'generators', icon: Sparkles, label: 'Campaign', color: 'text-purple-500', isTab: true },
+                    { id: 'companions', icon: Users, label: 'NPCs', color: 'text-rose-500' },
+                    { id: 'locations', icon: MapPin, label: 'Locations', color: 'text-emerald-500' },
+                    { id: 'quests', icon: Scroll, label: 'Quests', color: 'text-amber-500' },
+                    { id: 'items', icon: Package, label: 'Items', color: 'text-cyan-500' },
+                    { id: 'monsters', icon: Swords, label: 'Monsters', color: 'text-red-500' },
+                    { id: 'threats', icon: Target, label: 'Threats', color: 'text-orange-500' },
+                    { id: 'deploy', icon: Globe, label: 'Deploy', color: 'text-indigo-500' },
+                  ].map(({ id, icon: Icon, label, color, isTab }) => (
+                    <Button
+                      key={id}
+                      variant={(isTab ? activeTab === id : openDrawer === id) ? 'secondary' : 'ghost'}
+                      className={`h-auto py-3 px-3 flex flex-col items-center gap-1.5 ${
+                        (isTab ? activeTab === id : openDrawer === id) ? 'ring-2 ring-amber-500 bg-amber-500/10' : 'hover:bg-amber-500/10'
+                      }`}
+                      onClick={() => isTab ? setActiveTab(id) : setOpenDrawer(id)}
+                    >
+                      <Icon className={`h-5 w-5 ${color}`} />
+                      <span className="text-xs font-medium">{label}</span>
+                      {!isTab && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Utilities - Simple row */}
