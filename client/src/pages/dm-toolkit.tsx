@@ -433,10 +433,10 @@ export default function DMToolkit() {
               <Star className="h-5 w-5 text-amber-500" />
               Essential Tools
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              {/* Quick Start Card - Always visible */}
+            <div className="flex justify-center gap-4 flex-wrap">
+              {/* Quick Start Card */}
               <Card 
-                className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-orange-500/5 hover:from-amber-500/10 hover:to-orange-500/10"
+                className="w-36 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-orange-500/5 hover:from-amber-500/10 hover:to-orange-500/10"
                 onClick={() => setShowQuickStart(true)}
               >
                 <CardContent className="p-5 text-center">
@@ -448,7 +448,7 @@ export default function DMToolkit() {
                 </CardContent>
               </Card>
               <Card 
-                className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${
+                className={`w-36 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${
                   activeTab === 'training' ? 'ring-2 ring-blue-500 bg-blue-500/5' : 'hover:bg-muted/50'
                 }`}
                 onClick={() => setActiveTab('training')}
@@ -463,7 +463,7 @@ export default function DMToolkit() {
               </Card>
 
               <Card 
-                className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${
+                className={`w-36 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${
                   activeTab === 'live-manager' ? 'ring-2 ring-green-500 bg-green-500/5' : 'hover:bg-muted/50'
                 }`}
                 onClick={() => setActiveTab('live-manager')}
@@ -478,7 +478,7 @@ export default function DMToolkit() {
               </Card>
 
               <Card 
-                className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${
+                className={`w-36 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${
                   quickGenerateExpanded ? 'ring-2 ring-amber-500 bg-amber-500/5' : 'hover:bg-muted/50'
                 }`}
                 onClick={() => setQuickGenerateExpanded(!quickGenerateExpanded)}
@@ -500,11 +500,11 @@ export default function DMToolkit() {
                 {/* Create Campaign - Featured first */}
                 <div className="mb-4">
                   <Button
-                    variant={activeTab === 'generators' ? 'secondary' : 'outline'}
+                    variant={activeTab === 'campaign-builder' ? 'secondary' : 'outline'}
                     className={`w-full h-auto py-4 flex items-center gap-3 ${
-                      activeTab === 'generators' ? 'ring-2 ring-purple-500 bg-purple-500/10' : 'hover:bg-purple-500/10 border-purple-500/30'
+                      activeTab === 'campaign-builder' ? 'ring-2 ring-purple-500 bg-purple-500/10' : 'hover:bg-purple-500/10 border-purple-500/30'
                     }`}
-                    onClick={() => setActiveTab('generators')}
+                    onClick={() => setActiveTab('campaign-builder')}
                   >
                     <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600">
                       <Sparkles className="h-5 w-5 text-white" />
