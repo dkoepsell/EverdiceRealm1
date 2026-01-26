@@ -1101,6 +1101,26 @@ function CompanionsTab() {
       role: selectedRole,
     });
   };
+
+  const deleteCompanionMutation = useMutation({
+    mutationFn: async (npcId: number) => {
+      return await apiRequest("DELETE", `/api/npcs/${npcId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Deleted",
+        description: "Companion removed successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/npcs/companions"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
   
   return (
     <div className="space-y-6">
@@ -1253,120 +1273,103 @@ function CompanionsTab() {
       )}
       
       {activeViewTab === "stock-companions" && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {isLoadingStockCompanions ? (
-              <div className="col-span-full flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : stockCompanions.length === 0 ? (
-              <div className="col-span-full text-center py-12">
-                <Users className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-muted-foreground">No stock companions available</p>
-              </div>
-            ) : (
-              stockCompanions.map((companion: any) => (
-                <Card key={companion.id} className="overflow-hidden">
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between">
-                      <CardTitle className="font-fantasy">{companion.name}</CardTitle>
-                      <Badge>{companion.race}</Badge>
+        <div className="space-y-4">
+          {isLoadingStockCompanions ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : stockCompanions.length === 0 ? (
+            <div className="text-center py-12">
+              <Users className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
+              <p className="text-muted-foreground">No stock companions available</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {stockCompanions.map((companion: any) => (
+                <div key={companion.id} className="border rounded-lg p-3 hover:bg-muted/30 transition-colors">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-fantasy font-semibold truncate">{companion.name}</h4>
+                      <p className="text-xs text-muted-foreground">
+                        {companion.race} {companion.class} · Level {companion.level}
+                      </p>
                     </div>
-                    <CardDescription>{companion.class}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pb-0">
-                    <p className="text-sm mb-3">{companion.backstory?.substring(0, 120)}...</p>
-                    <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>Level {companion.level}</span>
-                      <span>{companion.alignment}</span>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="pt-2">
-                    <div className="flex justify-between w-full">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          setSelectedCompanion(companion);
-                          setShowDetailsDialog(true);
-                        }}
-                      >
-                        View Details
-                      </Button>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button 
-                            size="sm"
-                            onClick={() => setSelectedNpcId(companion.id)}
-                          >
-                            Add to Campaign
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Add to Campaign</DialogTitle>
-                            <DialogDescription>
-                              Select a campaign to add {companion.name} to as a companion
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4 py-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="campaign">Campaign</Label>
-                              <Select
-                                value={selectedCampaignId}
-                                onValueChange={setSelectedCampaignId}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select campaign" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {campaigns.map((campaign: any) => (
-                                    <SelectItem key={campaign.id} value={campaign.id.toString()}>
-                                      {campaign.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            
-                            <div className="space-y-2">
-                              <Label htmlFor="role">Role</Label>
-                              <Select
-                                value={selectedRole}
-                                onValueChange={setSelectedRole}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select role" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="companion">Companion</SelectItem>
-                                  <SelectItem value="ally">Ally</SelectItem>
-                                  <SelectItem value="quest-giver">Quest Giver</SelectItem>
-                                  <SelectItem value="merchant">Merchant</SelectItem>
-                                  <SelectItem value="antagonist">Antagonist</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
+                  </div>
+                  {companion.backstory && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                      {companion.backstory}
+                    </p>
+                  )}
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="text-xs h-7 flex-1"
+                      onClick={() => {
+                        setSelectedCompanion(companion);
+                        setShowDetailsDialog(true);
+                      }}
+                    >
+                      Details
+                    </Button>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button 
+                          size="sm"
+                          className="text-xs h-7 flex-1"
+                          onClick={() => setSelectedNpcId(companion.id)}
+                        >
+                          Add to Campaign
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Add to Campaign</DialogTitle>
+                          <DialogDescription>
+                            Select a campaign to add {companion.name} to
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div className="space-y-2">
+                            <Label>Campaign</Label>
+                            <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
+                              <SelectTrigger><SelectValue placeholder="Select campaign" /></SelectTrigger>
+                              <SelectContent>
+                                {campaigns.map((campaign: any) => (
+                                  <SelectItem key={campaign.id} value={campaign.id.toString()}>
+                                    {campaign.name || campaign.title}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                          <DialogFooter>
-                            <Button
-                              onClick={handleAddToCampaign}
-                              disabled={addToCampaignMutation.isPending}
-                            >
-                              {addToCampaignMutation.isPending && (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              )}
-                              Add to Campaign
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  </CardFooter>
-                </Card>
-              ))
-            )}
-          </div>
+                          <div className="space-y-2">
+                            <Label>Role</Label>
+                            <Select value={selectedRole} onValueChange={setSelectedRole}>
+                              <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="companion">Companion</SelectItem>
+                                <SelectItem value="ally">Ally</SelectItem>
+                                <SelectItem value="quest-giver">Quest Giver</SelectItem>
+                                <SelectItem value="merchant">Merchant</SelectItem>
+                                <SelectItem value="antagonist">Antagonist</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button onClick={handleAddToCampaign} disabled={addToCampaignMutation.isPending}>
+                            {addToCampaignMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                            Add
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
       
