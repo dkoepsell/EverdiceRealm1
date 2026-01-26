@@ -244,7 +244,7 @@ function ArcSignalsPanel({ campaignId }: { campaignId: number | null }) {
 export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPanelProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Collapsed by default - "Summon Drawer"
   const [sidebarTab, setSidebarTab] = useState("npcs");
   const [dmMessage, setDmMessage] = useState("");
   const [messageType, setMessageType] = useState<"narration" | "ooc" | "system">("narration");
@@ -255,7 +255,24 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
   const [newInitiativeHp, setNewInitiativeHp] = useState(20);
   const [newInitiativeAc, setNewInitiativeAc] = useState(12);
   const [newInitiativeIsPlayer, setNewInitiativeIsPlayer] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [sessionFocus, setSessionFocus] = useState("");
+  const [editingFocus, setEditingFocus] = useState(false);
+  
+  // Tutorial banner - show only first time (stored in localStorage)
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('dm-onboarding-dismissed') !== 'true';
+    }
+    return true;
+  });
+  const [onboardingCollapsed, setOnboardingCollapsed] = useState(false);
+  
+  const dismissOnboarding = () => {
+    setShowOnboarding(false);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('dm-onboarding-dismissed', 'true');
+    }
+  };
 
   const { data: dmSessionState, refetch: refetchSession } = useQuery<{
     id?: number;
@@ -520,91 +537,97 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      {/* Onboarding Hint - First Time Help */}
-      {showOnboarding && sessionArtifacts.length === 0 && (
-        <div className="mb-4 p-4 rounded-lg bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-blue-500/10 border border-amber-500/20 relative">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="absolute top-2 right-2 h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-            onClick={() => setShowOnboarding(false)}
-          >
-            ×
-          </Button>
-          <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-amber-500" />
-            Running Your First Scene
-          </h3>
-          <div className="grid grid-cols-3 gap-4 text-xs text-muted-foreground">
-            <div className="flex items-start gap-2">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center font-bold">1</span>
-              <span>Drag characters or locations into the <strong className="text-amber-500">Current Scene</strong></span>
+      {/* Onboarding Hint - Collapsible, dismissable, first-time only */}
+      {showOnboarding && (
+        onboardingCollapsed ? (
+          <div className="mb-2 flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+              onClick={() => setOnboardingCollapsed(false)}
+            >
+              <Sparkles className="h-3 w-3 text-amber-500" />
+              Show Guide
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+              onClick={dismissOnboarding}
+            >
+              ×
+            </Button>
+          </div>
+        ) : (
+          <div className="mb-3 p-3 rounded-lg bg-muted/30 border border-muted-foreground/10 relative">
+            <div className="absolute top-2 right-2 flex gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                onClick={() => setOnboardingCollapsed(true)}
+                title="Collapse"
+              >
+                <ChevronLeft className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                onClick={dismissOnboarding}
+                title="Dismiss forever"
+              >
+                ×
+              </Button>
             </div>
-            <div className="flex items-start gap-2">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-purple-500/20 text-purple-500 flex items-center justify-center font-bold">2</span>
-              <span>Check what players might do in <strong className="text-purple-500">Likely Moves</strong></span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center font-bold">3</span>
-              <span>Write your narration and <strong className="text-amber-500">Send to Players</strong></span>
+            <div className="flex items-center gap-4 text-xs text-muted-foreground pr-16">
+              <span className="flex items-center gap-1"><span className="text-amber-500 font-bold">1</span> Drag → Scene</span>
+              <span className="flex items-center gap-1"><span className="text-purple-500 font-bold">2</span> Check Moves</span>
+              <span className="flex items-center gap-1"><span className="text-amber-500 font-bold">3</span> Send</span>
             </div>
           </div>
-        </div>
+        )
       )}
 
-      <div className="flex h-[calc(100vh-280px)] gap-4 pb-8">
-        {/* Collapsible Sidebar with Entity Sources */}
+      <div className="flex h-[calc(100vh-260px)] gap-3 pb-8">
+        {/* Collapsible Summon Drawer - Collapsed by default */}
         <div
           className={`transition-all duration-300 ${
-            sidebarOpen ? "w-72" : "w-12"
+            sidebarOpen ? "w-64" : "w-10"
           } flex-shrink-0`}
         >
-          <Card className="h-full">
-            <CardHeader className="p-3 flex flex-row items-center justify-between">
+          <Card className={`h-full ${sidebarOpen ? '' : 'bg-muted/30 border-dashed'}`}>
+            <CardHeader className={`p-2 flex flex-row items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
               {sidebarOpen && (
                 <div>
-                  <CardTitle className="text-sm">Cast & World</CardTitle>
-                  <CardDescription className="text-xs">Drag to bring into the scene</CardDescription>
+                  <CardTitle className="text-xs font-medium">Summon</CardTitle>
                 </div>
               )}
               <Button
                 variant="ghost"
                 size="sm"
+                className="h-7 w-7 p-0"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
+                title={sidebarOpen ? "Collapse" : "Open Cast & World"}
               >
-                {sidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                {sidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <Users className="h-4 w-4" />}
               </Button>
             </CardHeader>
             
             {sidebarOpen && (
-              <CardContent className="p-2 h-[calc(100%-80px)]">
+              <CardContent className="p-2 h-[calc(100%-50px)]">
                 <Tabs value={sidebarTab} onValueChange={setSidebarTab}>
-                  <TabsList className="grid w-full grid-cols-3 h-8 mb-2">
+                  {/* Core tabs only: People, Places, Threats - hide Items/Events/Quests by default */}
+                  <TabsList className="grid w-full grid-cols-3 h-7 mb-2">
                     <TabsTrigger value="npcs" className="text-xs p-1 gap-1" title="People">
                       <Users className="h-3 w-3" />
-                      <span className="hidden sm:inline">People</span>
                     </TabsTrigger>
                     <TabsTrigger value="locations" className="text-xs p-1 gap-1" title="Places">
                       <MapPin className="h-3 w-3" />
-                      <span className="hidden sm:inline">Places</span>
                     </TabsTrigger>
                     <TabsTrigger value="monsters" className="text-xs p-1 gap-1" title="Threats">
                       <Skull className="h-3 w-3" />
-                      <span className="hidden sm:inline">Threats</span>
-                    </TabsTrigger>
-                  </TabsList>
-                  <TabsList className="grid w-full grid-cols-3 h-8">
-                    <TabsTrigger value="items" className="text-xs p-1 gap-1" title="Items">
-                      <Package className="h-3 w-3" />
-                      <span className="hidden sm:inline">Items</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="encounters" className="text-xs p-1 gap-1" title="Events">
-                      <Sword className="h-3 w-3" />
-                      <span className="hidden sm:inline">Events</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="quests" className="text-xs p-1 gap-1" title="Quests">
-                      <Target className="h-3 w-3" />
-                      <span className="hidden sm:inline">Quests</span>
                     </TabsTrigger>
                   </TabsList>
 
@@ -688,290 +711,220 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
           </Card>
         </div>
 
-        {/* Main Content Area */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Left Column: Presence & Stats */}
-          <div className="space-y-4">
-            {/* Presence Panel */}
-            <Card>
-              <CardHeader className="p-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Players Online
+        {/* Main Content Area - Current Scene is dominant */}
+        <div className="flex-1 flex flex-col lg:flex-row gap-3">
+          {/* Left Reference Column - Peripheral stats (muted, compact) */}
+          <div className="lg:w-48 flex-shrink-0 space-y-2">
+            {/* Compact Party Stats - muted colors */}
+            <Card className="border-muted bg-muted/20">
+              <CardHeader className="p-2">
+                <CardTitle className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Heart className="h-3 w-3" />
+                  Party
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="ml-auto h-6 w-6 p-0"
+                    className="ml-auto h-5 w-5 p-0"
                     onClick={() => refetchSession()}
                   >
-                    <RefreshCw className="h-3 w-3" />
+                    <RefreshCw className="h-2.5 w-2.5" />
                   </Button>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-3 pt-0">
-                <ScrollArea className="h-[150px]">
-                  {participants && participants.length > 0 ? (
-                    <div className="space-y-2">
-                      {participants.map((p: any) => (
+              <CardContent className="p-2 pt-0">
+                <ScrollArea className="h-[120px]">
+                  {participants && participants.filter((p: any) => p.character).length > 0 ? (
+                    <div className="space-y-1">
+                      {participants.filter((p: any) => p.character).map((p: any) => (
                         <div
                           key={p.id}
-                          className="flex items-center gap-2 p-2 rounded-lg bg-muted/50"
+                          className="flex items-center gap-1.5 p-1 rounded text-xs"
                         >
                           <div
-                            className={`h-2 w-2 rounded-full ${
+                            className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${
                               presence.find((pr) => pr.userId === p.userId)?.isOnline
                                 ? "bg-green-500"
                                 : "bg-gray-400"
                             }`}
                           />
-                          <span className="text-sm font-medium flex-1">
-                            {p.character?.name || `Player ${p.userId}`}
-                          </span>
-                          <Badge variant="outline" className="text-xs">
-                            {p.role}
-                          </Badge>
+                          <span className="truncate flex-1 text-muted-foreground">{p.character.name}</span>
+                          <span className="text-[10px] text-muted-foreground/60">{p.character.hitPoints}/{p.character.maxHitPoints}</span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      No players in session
+                    <p className="text-[10px] text-muted-foreground text-center py-2">
+                      No party
                     </p>
                   )}
                 </ScrollArea>
               </CardContent>
             </Card>
 
-            {/* Player Stats */}
-            <Card>
-              <CardHeader className="p-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Heart className="h-4 w-4" />
-                  Party Stats
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-3 pt-0">
-                <ScrollArea className="h-[200px]">
-                  {participants && participants.length > 0 ? (
-                    <div className="space-y-2">
-                      {participants.filter((p: any) => p.character).map((p: any) => (
-                        <div
-                          key={p.id}
-                          className="p-2 rounded-lg border bg-card"
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium">{p.character.name}</span>
-                            <Badge variant="secondary" className="text-xs">
-                              Lvl {p.character.level}
-                            </Badge>
-                          </div>
-                          <div className="grid grid-cols-3 gap-2 text-xs">
-                            <div className="flex items-center gap-1">
-                              <Heart className="h-3 w-3 text-red-500" />
-                              <span>{p.character.hitPoints}/{p.character.maxHitPoints}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Shield className="h-3 w-3 text-blue-500" />
-                              <span>AC {p.character.armorClass}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Zap className="h-3 w-3 text-amber-500" />
-                              <span>{p.character.class}</span>
-                            </div>
-                          </div>
-                          {p.character.status !== "conscious" && (
-                            <Badge variant="destructive" className="mt-1 text-xs">
-                              {p.character.status}
-                            </Badge>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      No character data
-                    </p>
-                  )}
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Center Column: Initiative & Session Canvas */}
-          <div className="space-y-4">
-            {/* Initiative Tracker */}
-            <Card>
-              <CardHeader className="p-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Initiative (Round {roundNumber})
-                  <Dialog open={showInitiativeDialog} onOpenChange={setShowInitiativeDialog}>
-                    <DialogTrigger asChild>
-                      <Button variant="ghost" size="sm" className="ml-auto h-6 w-6 p-0">
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add to Initiative</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label>Name</Label>
-                          <Input
-                            value={newInitiativeName}
-                            onChange={(e) => setNewInitiativeName(e.target.value)}
-                            placeholder="Character or Monster name"
-                          />
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <Label>Initiative</Label>
-                            <Input
-                              type="number"
-                              value={newInitiativeRoll}
-                              onChange={(e) => setNewInitiativeRoll(parseInt(e.target.value) || 0)}
-                            />
-                          </div>
-                          <div>
-                            <Label>HP</Label>
-                            <Input
-                              type="number"
-                              value={newInitiativeHp}
-                              onChange={(e) => setNewInitiativeHp(parseInt(e.target.value) || 1)}
-                            />
-                          </div>
-                          <div>
-                            <Label>AC</Label>
-                            <Input
-                              type="number"
-                              value={newInitiativeAc}
-                              onChange={(e) => setNewInitiativeAc(parseInt(e.target.value) || 10)}
-                            />
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            id="isPlayer"
-                            checked={newInitiativeIsPlayer}
-                            onChange={(e) => setNewInitiativeIsPlayer(e.target.checked)}
-                          />
-                          <Label htmlFor="isPlayer">Is Player Character</Label>
-                        </div>
-                        <Button onClick={addToInitiative} className="w-full">
-                          Add to Initiative
+            {/* Initiative - Collapsed until combat, muted styling */}
+            {initiativeOrder.length > 0 && (
+              <Card className="border-muted bg-muted/20">
+                <CardHeader className="p-2">
+                  <CardTitle className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Turn {currentTurnIndex + 1}
+                    <Dialog open={showInitiativeDialog} onOpenChange={setShowInitiativeDialog}>
+                      <DialogTrigger asChild>
+                        <Button variant="ghost" size="sm" className="ml-auto h-5 w-5 p-0">
+                          <Plus className="h-2.5 w-2.5" />
                         </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-3 pt-0">
-                <ScrollArea className="h-[180px]">
-                  {initiativeOrder.length > 0 ? (
-                    <div className="space-y-1">
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Add to Initiative</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <Label>Name</Label>
+                            <Input
+                              value={newInitiativeName}
+                              onChange={(e) => setNewInitiativeName(e.target.value)}
+                              placeholder="Character or Monster name"
+                            />
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <Label>Initiative</Label>
+                              <Input
+                                type="number"
+                                value={newInitiativeRoll}
+                                onChange={(e) => setNewInitiativeRoll(parseInt(e.target.value) || 0)}
+                              />
+                            </div>
+                            <div>
+                              <Label>HP</Label>
+                              <Input
+                                type="number"
+                                value={newInitiativeHp}
+                                onChange={(e) => setNewInitiativeHp(parseInt(e.target.value) || 1)}
+                              />
+                            </div>
+                            <div>
+                              <Label>AC</Label>
+                              <Input
+                                type="number"
+                                value={newInitiativeAc}
+                                onChange={(e) => setNewInitiativeAc(parseInt(e.target.value) || 10)}
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              id="isPlayer"
+                              checked={newInitiativeIsPlayer}
+                              onChange={(e) => setNewInitiativeIsPlayer(e.target.checked)}
+                            />
+                            <Label htmlFor="isPlayer">Is Player Character</Label>
+                          </div>
+                          <Button onClick={addToInitiative} className="w-full">
+                            Add to Initiative
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-2 pt-0">
+                  <ScrollArea className="h-[100px]">
+                    <div className="space-y-0.5">
                       {initiativeOrder.map((entry, idx) => (
                         <div
                           key={entry.id}
-                          className={`flex items-center gap-2 p-2 rounded-lg transition-colors ${
+                          className={`flex items-center gap-1 p-1 rounded text-xs ${
                             idx === currentTurnIndex
-                              ? "bg-primary/20 border-2 border-primary"
-                              : "bg-muted/50"
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground"
                           }`}
                         >
                           {idx === currentTurnIndex && (
-                            <ChevronRight className="h-4 w-4 text-primary animate-pulse" />
+                            <ChevronRight className="h-2.5 w-2.5 animate-pulse" />
                           )}
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-muted-foreground w-5">
-                                {entry.initiative}
-                              </span>
-                              <span className="text-sm font-medium">{entry.name}</span>
-                              {entry.isPlayer && (
-                                <Badge variant="secondary" className="text-xs">PC</Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span>HP: {entry.hp}/{entry.maxHp}</span>
-                              <span>AC: {entry.ac}</span>
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 text-destructive"
-                            onClick={() => removeFromInitiative(entry.id)}
-                          >
-                            ×
-                          </Button>
+                          <span className="truncate flex-1">{entry.name}</span>
+                          <span className="text-[10px]">{entry.hp}</span>
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
-                      <Clock className="h-6 w-6 mb-2 opacity-50" />
-                      <p className="text-sm font-medium">No combat yet</p>
-                      <p className="text-xs text-center mt-1">
-                        Drag creatures to the scene, then add them here to start combat
-                      </p>
-                    </div>
-                  )}
-                </ScrollArea>
-                {initiativeOrder.length > 0 && (
-                  <Button onClick={nextTurn} className="w-full mt-2" size="sm">
-                    Next Turn
+                  </ScrollArea>
+                  <Button onClick={nextTurn} size="sm" className="w-full h-6 mt-1 text-xs">
+                    Next
                   </Button>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
-            {/* Current Scene - THE SPINE */}
-            <Card className="flex-1 ring-2 ring-amber-500/30 bg-gradient-to-b from-amber-500/5 to-transparent shadow-lg">
-              <CardHeader className="p-3 pb-1">
+          {/* CENTER: Current Scene - THE DOMINANT ANCHOR */}
+          <div className="flex-1 flex flex-col min-w-0">
+            {/* Session Focus Strip - Required orientation */}
+            <div className="mb-2 p-2 rounded-lg bg-amber-500/5 border border-amber-500/20">
+              {editingFocus ? (
+                <Input
+                  value={sessionFocus}
+                  onChange={(e) => setSessionFocus(e.target.value)}
+                  onBlur={() => setEditingFocus(false)}
+                  onKeyDown={(e) => e.key === 'Enter' && setEditingFocus(false)}
+                  placeholder="What's the goal of this session?"
+                  className="h-7 text-sm border-amber-500/30 bg-transparent"
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="flex items-center gap-2 cursor-pointer hover:bg-amber-500/10 rounded px-1 py-0.5 transition-colors"
+                  onClick={() => setEditingFocus(true)}
+                >
+                  <Target className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+                  <span className={`text-sm ${sessionFocus ? 'text-foreground' : 'text-muted-foreground italic'}`}>
+                    {sessionFocus || "Click to set session focus..."}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Current Scene - Enlarged, centered, strongest contrast */}
+            <Card className="flex-1 ring-2 ring-amber-500/50 bg-gradient-to-b from-amber-500/10 to-transparent shadow-xl">
+              <CardHeader className="p-3 pb-2">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-amber-500/20">
-                    <BookOpen className="h-4 w-4 text-amber-500" />
+                  <div className="p-2 rounded-lg bg-amber-500/30">
+                    <BookOpen className="h-5 w-5 text-amber-500" />
                   </div>
-                  <div>
-                    <CardTitle className="text-sm text-amber-500">Current Scene</CardTitle>
-                    <CardDescription className="text-xs">What's in play right now</CardDescription>
-                  </div>
+                  <CardTitle className="text-base text-amber-500">Current Scene</CardTitle>
                 </div>
               </CardHeader>
-              <CardContent className="p-3 pt-2">
+              <CardContent className="p-3 pt-0 flex-1">
                 <DroppableZone id="session-dropzone" isOver={!!activeId}>
-                  <ScrollArea className="h-[200px]">
+                  <ScrollArea className="h-[280px]">
                     {sessionArtifacts.length > 0 ? (
                       <div className="grid grid-cols-2 gap-2">
                         {sessionArtifacts.map((artifact) => (
                           <div
                             key={artifact.id}
-                            className="p-2 rounded-lg border bg-card text-xs hover:bg-muted/50 transition-colors"
+                            className="p-3 rounded-lg border-2 border-amber-500/20 bg-card hover:bg-amber-500/5 transition-colors"
                           >
-                            <div className="flex items-center gap-1 mb-1">
-                              {artifact.type === "npc" && <Users className="h-3 w-3 text-blue-500" />}
-                              {artifact.type === "item" && <Package className="h-3 w-3 text-amber-500" />}
-                              {artifact.type === "encounter" && <Sword className="h-3 w-3 text-red-500" />}
-                              {artifact.type === "monster" && <Skull className="h-3 w-3 text-purple-500" />}
-                              {artifact.type === "location" && <MapPin className="h-3 w-3 text-green-500" />}
-                              <span className="font-medium truncate">{artifact.name}</span>
+                            <div className="flex items-center gap-2 mb-1">
+                              {artifact.type === "npc" && <Users className="h-4 w-4 text-blue-500" />}
+                              {artifact.type === "item" && <Package className="h-4 w-4 text-amber-500" />}
+                              {artifact.type === "encounter" && <Sword className="h-4 w-4 text-red-500" />}
+                              {artifact.type === "monster" && <Skull className="h-4 w-4 text-purple-500" />}
+                              {artifact.type === "location" && <MapPin className="h-4 w-4 text-green-500" />}
+                              <span className="font-medium text-sm">{artifact.name}</span>
                             </div>
-                            <Badge variant="outline" className="text-[10px]">
-                              {artifact.type}
-                            </Badge>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-8">
-                        <div className="p-3 rounded-full bg-amber-500/10 mb-3">
-                          <Upload className="h-6 w-6 text-amber-500/70" />
+                      <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-12">
+                        <div className="p-4 rounded-full bg-amber-500/10 mb-4">
+                          <Upload className="h-8 w-8 text-amber-500/70" />
                         </div>
-                        <p className="text-sm font-medium mb-1">Build your scene</p>
-                        <p className="text-xs text-center max-w-[180px]">
-                          Drag NPCs, locations, or threats here to bring them into play
+                        <p className="text-base font-medium mb-1">This is your table</p>
+                        <p className="text-sm text-center max-w-[220px]">
+                          Drag from the left to bring characters and places into play
                         </p>
                       </div>
                     )}
@@ -981,149 +934,108 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
             </Card>
           </div>
 
-          {/* Right Column: Foresight & Narration */}
-          <div className="space-y-4 pb-32 overflow-y-auto">
-            {/* Likely Player Moves - Foresight Tool */}
-            <Card className="border-purple-500/20">
-              <CardHeader className="p-3 pb-1">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-purple-500" />
-                  Likely Player Moves
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Things the party may try next
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-3 pt-0">
-                <ScrollArea className="h-[150px]">
-                  {liveSession?.choices && liveSession.choices.length > 0 ? (
-                    <div className="space-y-2">
-                      {liveSession.choices.map((choice: any, idx: number) => (
-                        <div key={idx} className="p-2 rounded-lg border bg-purple-500/5 border-purple-500/20 hover:bg-purple-500/10 transition-colors">
-                          <p className="text-sm">{choice.text}</p>
-                          {choice.type && (
-                            <Badge variant="secondary" className="text-xs mt-1 bg-purple-500/10 text-purple-400">
-                              {choice.type}
-                            </Badge>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
-                      <Sparkles className="h-5 w-5 mb-2 opacity-50" />
-                      <p className="text-xs text-center">
-                        Player options will appear here as the story unfolds
+          {/* Right Column: THINK (muted) + SAY (high contrast) */}
+          <div className="lg:w-72 flex-shrink-0 flex flex-col gap-3 overflow-y-auto pb-16">
+            {/* THINK ZONE - Muted, analytical */}
+            <div className="space-y-2">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-1">Think</p>
+              
+              {/* Likely Player Moves - Compact, muted */}
+              <Card className="border-muted bg-muted/10">
+                <CardHeader className="p-2 pb-1">
+                  <CardTitle className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Sparkles className="h-3 w-3 text-purple-400" />
+                    Likely Moves
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-2 pt-0">
+                  <ScrollArea className="h-[100px]">
+                    {liveSession?.choices && liveSession.choices.length > 0 ? (
+                      <div className="space-y-1">
+                        {liveSession.choices.map((choice: any, idx: number) => (
+                          <div key={idx} className="p-1.5 rounded text-xs text-muted-foreground border border-muted">
+                            {choice.text}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground/50 text-center py-2">
+                        Player options appear here
                       </p>
-                    </div>
-                  )}
-                </ScrollArea>
-              </CardContent>
-            </Card>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
 
-            {/* Arc Signals - Character Reputation Insights */}
-            <ArcSignalsPanel campaignId={selectedCampaignId} />
+              {/* Arc Signals - Compact */}
+              <ArcSignalsPanel campaignId={selectedCampaignId} />
+            </div>
 
-            {/* DM Narration - The Payoff */}
-            <Card className="border-amber-500/30 bg-gradient-to-b from-amber-500/5 to-transparent">
-              <CardHeader className="p-3 pb-1">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-amber-500/20">
-                    <Send className="h-4 w-4 text-amber-500" />
+            {/* SAY ZONE - High contrast, clear CTA */}
+            <div className="flex-1 flex flex-col">
+              <p className="text-[10px] uppercase tracking-wider text-amber-500/60 px-1 mb-2">Say</p>
+              
+              <Card className="flex-1 border-2 border-amber-500/40 bg-gradient-to-b from-amber-500/10 to-transparent shadow-lg">
+                <CardHeader className="p-3 pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2 text-amber-500">
+                    <Send className="h-4 w-4" />
+                    Tell Your Story
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 pt-0 space-y-2">
+                  <div className="flex gap-1">
+                    <Button
+                      variant={messageType === "narration" ? "default" : "ghost"}
+                      size="sm"
+                      className={`flex-1 text-xs h-7 ${messageType === "narration" ? "bg-amber-500 hover:bg-amber-600" : ""}`}
+                      onClick={() => setMessageType("narration")}
+                    >
+                      Narrate
+                    </Button>
+                    <Button
+                      variant={messageType === "ooc" ? "default" : "ghost"}
+                      size="sm"
+                      className="flex-1 text-xs h-7"
+                      onClick={() => setMessageType("ooc")}
+                    >
+                      OOC
+                    </Button>
+                    <Button
+                      variant={messageType === "system" ? "default" : "ghost"}
+                      size="sm"
+                      className="flex-1 text-xs h-7"
+                      onClick={() => setMessageType("system")}
+                    >
+                      System
+                    </Button>
                   </div>
-                  <div>
-                    <CardTitle className="text-sm">Tell Your Story</CardTitle>
-                    <CardDescription className="text-xs">Describe what the players experience</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 pt-2 space-y-3">
-                <div className="flex gap-1">
+                  <Textarea
+                    value={dmMessage}
+                    onChange={(e) => setDmMessage(e.target.value)}
+                    placeholder={
+                      messageType === "narration"
+                        ? "Describe what the players experience..."
+                        : messageType === "ooc"
+                        ? "Out of character message..."
+                        : "Game mechanics..."
+                    }
+                    className="min-h-[80px] text-sm border-amber-500/30 focus:border-amber-500 bg-background/50"
+                  />
                   <Button
-                    variant={messageType === "narration" ? "default" : "ghost"}
-                    size="sm"
-                    className={`flex-1 text-xs ${messageType === "narration" ? "bg-amber-500 hover:bg-amber-600" : ""}`}
-                    onClick={() => setMessageType("narration")}
+                    onClick={() => sendDmMessageMutation.mutate({ message: dmMessage, type: messageType })}
+                    disabled={!dmMessage.trim() || sendDmMessageMutation.isPending}
+                    className="w-full bg-amber-500 hover:bg-amber-600 h-9"
                   >
-                    Narration
+                    {sendDmMessageMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-2" />
+                    )}
+                    Send to Players
                   </Button>
-                  <Button
-                    variant={messageType === "ooc" ? "default" : "ghost"}
-                    size="sm"
-                    className="flex-1 text-xs"
-                    onClick={() => setMessageType("ooc")}
-                  >
-                    OOC
-                  </Button>
-                  <Button
-                    variant={messageType === "system" ? "default" : "ghost"}
-                    size="sm"
-                    className="flex-1 text-xs"
-                    onClick={() => setMessageType("system")}
-                  >
-                    System
-                  </Button>
-                </div>
-                <Textarea
-                  value={dmMessage}
-                  onChange={(e) => setDmMessage(e.target.value)}
-                  placeholder={
-                    messageType === "narration"
-                      ? "The harpies circle lower, their talons scraping stone as they prepare to strike..."
-                      : messageType === "ooc"
-                      ? "Quick break everyone, 5 minutes..."
-                      : "Roll for initiative!"
-                  }
-                  className="min-h-[100px] text-sm border-amber-500/20 focus:border-amber-500"
-                />
-                {sessionArtifacts.length > 0 && !dmMessage && (
-                  <p className="text-xs text-amber-500/70 flex items-center gap-1">
-                    <Sparkles className="h-3 w-3" />
-                    You may want to describe what's happening in the scene
-                  </p>
-                )}
-                <Button
-                  onClick={() => sendDmMessageMutation.mutate({ message: dmMessage, type: messageType })}
-                  disabled={!dmMessage.trim() || sendDmMessageMutation.isPending}
-                  className="w-full bg-amber-500 hover:bg-amber-600"
-                  size="sm"
-                >
-                  {sendDmMessageMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Send className="h-4 w-4 mr-2" />
-                  )}
-                  Send to Players
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Recent DM Messages */}
-            <Card>
-              <CardHeader className="p-3">
-                <CardTitle className="text-sm">Message History</CardTitle>
-              </CardHeader>
-              <CardContent className="p-3 pt-0">
-                <ScrollArea className="h-[120px]">
-                  {dmMessages.length > 0 ? (
-                    <div className="space-y-2">
-                      {dmMessages.slice(-5).reverse().map((msg: any, idx: number) => (
-                        <div key={idx} className="p-2 rounded-lg bg-muted/50 text-xs">
-                          <Badge variant="outline" className="text-[10px] mb-1">
-                            {msg.type}
-                          </Badge>
-                          <p className="line-clamp-2">{msg.message}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-2">
-                      No messages yet
-                    </p>
-                  )}
-                </ScrollArea>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </div>

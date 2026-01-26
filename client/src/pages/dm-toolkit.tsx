@@ -513,30 +513,29 @@ export default function DMToolkit() {
             <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <Lightbulb className="h-5 w-5 text-purple-500" />
               Between Sessions
-              <span className="text-xs font-normal text-muted-foreground ml-1">Set up future situations (opens in panel)</span>
             </h3>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+            <div className="grid grid-cols-4 md:grid-cols-7 gap-2">
               {[
-                { id: 'companions', icon: Users, label: 'NPCs', color: 'text-rose-500', description: 'Create and manage NPCs for your campaign' },
-                { id: 'locations', icon: MapPin, label: 'Locations', color: 'text-emerald-500', description: 'Design memorable locations for your world' },
-                { id: 'quests', icon: Scroll, label: 'Quests', color: 'text-amber-500', description: 'Plan quests and story hooks' },
-                { id: 'items', icon: Package, label: 'Items', color: 'text-cyan-500', description: 'Create magic items and equipment' },
-                { id: 'monsters', icon: Swords, label: 'Monsters', color: 'text-red-500', description: 'Design monsters and encounters' },
-                { id: 'threats', icon: Target, label: 'Threats', color: 'text-orange-500', description: 'Build threat archetypes for your campaign' },
-                { id: 'deploy', icon: Globe, label: 'Deploy', color: 'text-indigo-500', description: 'Deploy assets to your campaign' },
+                { id: 'companions', icon: Users, label: 'NPCs', color: 'text-rose-500' },
+                { id: 'locations', icon: MapPin, label: 'Locations', color: 'text-emerald-500' },
+                { id: 'quests', icon: Scroll, label: 'Quests', color: 'text-amber-500' },
+                { id: 'items', icon: Package, label: 'Items', color: 'text-cyan-500' },
+                { id: 'monsters', icon: Swords, label: 'Monsters', color: 'text-red-500' },
+                { id: 'threats', icon: Target, label: 'Threats', color: 'text-orange-500' },
+                { id: 'deploy', icon: Globe, label: 'Deploy', color: 'text-indigo-500' },
               ].map(({ id, icon: Icon, label, color }) => (
-                <Card 
+                <Button
                   key={id}
-                  className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                    openDrawer === id ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'
+                  variant={openDrawer === id ? 'secondary' : 'ghost'}
+                  className={`h-auto py-2 px-3 flex flex-col items-center gap-1 ${
+                    openDrawer === id ? 'ring-2 ring-primary bg-primary/10' : 'hover:bg-muted/50'
                   }`}
                   onClick={() => setOpenDrawer(id)}
                 >
-                  <CardContent className="p-3 text-center">
-                    <Icon className={`h-6 w-6 mx-auto mb-1.5 ${color}`} />
-                    <h5 className="text-xs font-medium">{label}</h5>
-                  </CardContent>
-                </Card>
+                  <Icon className={`h-5 w-5 ${color}`} />
+                  <span className="text-xs font-medium">{label}</span>
+                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                </Button>
               ))}
             </div>
           </div>

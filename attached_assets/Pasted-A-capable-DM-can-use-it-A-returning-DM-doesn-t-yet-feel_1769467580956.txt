@@ -1,0 +1,262 @@
+A capable DM can use it.
+A returning DM doesn’t yet feel pulled back to it.
+
+Why?
+
+Because it still answers too many questions at once.
+
+Right now the screen is trying to be:
+
+a tutorial
+
+a control panel
+
+a content browser
+
+a thinking aid
+
+a narration surface
+
+All at equal visual weight.
+
+DMs don’t want everything visible.
+They want one thing centered and everything else subordinate.
+
+The core reconfiguration principle
+
+The DM’s eyes must land in one place first, every time.
+
+Right now, their eyes scatter.
+
+Your fix is not new features.
+It’s hierarchy, collapse, and commitment.
+
+What you already got right (important)
+
+Before I tell you what to change, here’s what must not be lost:
+
+Drag-to-scene model ✔️ (this is excellent)
+
+“Current Scene” as a concept ✔️ (this is the heart)
+
+Likely Player Moves ✔️ (this is rare and valuable)
+
+Narration + Send to Players ✔️ (this is correct)
+
+Live stats + initiative ✔️ (good, but mispositioned)
+
+So we’re rebalancing, not scrapping.
+
+The single biggest problem on this screen
+
+“Current Scene” is not visually dominant enough.
+
+That is fatal for DM psychology.
+
+The DM’s internal question is always:
+
+“What exists right now?”
+
+And on this screen, that answer is:
+
+smaller than side panels
+
+visually quieter than instructions
+
+competing with stats and lists
+
+That’s backwards.
+
+The reconfiguration: step by step
+Step 1: Make “Current Scene” the visual anchor
+
+Do this first. Everything else depends on it.
+
+What to change
+
+Enlarge the Current Scene panel by ~30–40%
+
+Move it dead center
+
+Give it the strongest contrast border on the page
+
+Reduce text inside it. Let emptiness do the work.
+
+What it should communicate visually
+
+“This is the table. Everything else feeds into this.”
+
+If nothing is in the scene, that emptiness should feel intentional, not like an empty widget.
+
+Step 2: Demote the tutorial banner immediately
+
+“Running Your First Scene” is helpful — once.
+
+After that, it becomes visual noise.
+
+Recode behavior
+
+Show it only:
+
+first session
+
+or until dismissed
+
+Collapse it into a small “?” or “Guide” toggle afterward
+
+DMs do not want to feel like they are still being taught once they’ve started running.
+
+Step 3: Collapse the left column into a “Summon Drawer”
+
+Right now, the left column competes with the scene.
+
+Instead, it should feel like:
+
+“I reach for something when I need it.”
+
+Reconfigure “Cast & World”
+
+Collapse by default
+
+Expand on hover or click
+
+Treat items as summonable, not browsable
+
+Rename mentally (even if not in UI yet):
+
+“Library” → “Summon”
+
+This reframes the DM as acting, not searching.
+
+Step 4: Split the right column into THINK vs SAY
+
+This is subtle but critical.
+
+Right now, these are mixed:
+
+Likely Moves (thinking)
+
+Arc Signals (thinking)
+
+Tell Your Story (speaking)
+
+They should not compete.
+
+Reconfigure into two vertical zones:
+
+Upper right: THINK
+
+Likely Player Moves
+
+Arc Signals
+
+Private notes
+
+Muted colors. Calm. Analytical.
+
+Lower right: SAY
+
+Tell Your Story
+
+Send to Players
+
+High contrast. Clear CTA.
+
+This matches the DM’s mental loop:
+
+think → decide → speak
+
+Step 5: Party Stats and Initiative must be peripheral
+
+These are reference, not focus.
+
+Change
+
+Shrink Party Stats slightly
+
+Reduce color saturation
+
+Keep Initiative collapsed until combat begins
+
+They should be reachable without shouting.
+
+The most important missing thing (conceptual)
+
+You still don’t have a Session Focus visible here.
+
+This is why Everdice doesn’t yet clearly solve the “over-prep” problem.
+
+Add a thin strip above Current Scene:
+
+“Session Focus”
+
+1 sentence
+
+editable inline
+
+required once per session
+
+Example:
+
+“Escort the caravan through the forest without alerting the scouts.”
+
+This single line:
+
+orients the DM
+
+constrains decisions
+
+ties directly to your Reddit insight
+
+makes Everdice’s philosophy legible
+
+Without this, the product’s core value remains implicit.
+
+What to remove or hide (yes, really)
+
+To make DMs come back, you must protect them from options.
+
+Strong candidates for hiding by default:
+
+Events
+
+Quests
+
+Items (unless dragged in)
+
+Campaign-wide browsing
+
+These belong in Between Sessions, not At the Table.
+
+The mental test (use this while coding)
+
+Ask yourself, for every component:
+
+“Does this help me decide what happens in the next 30 seconds?”
+
+If no:
+
+collapse it
+
+demote it
+
+move it off-screen
+
+DM confidence comes from narrowing, not expanding.
+
+Why this will change DM behavior
+
+After this reconfiguration, a DM will experience:
+
+immediate orientation
+
+fewer decisions
+
+clearer authority
+
+less fear of “doing it wrong”
+
+That’s why they’ll come back.
+
+Not because it can do more —
+but because it tells them where to stand.
