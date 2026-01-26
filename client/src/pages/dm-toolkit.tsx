@@ -1038,20 +1038,181 @@ export default function DMToolkit() {
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Globe className="h-5 w-5 text-indigo-500" />
-              Deploy Assets
+              Deploy Assets to Campaign
             </SheetTitle>
-            <SheetDescription>Deploy assets to your campaign</SheetDescription>
+            <SheetDescription>Turn your creations into a deployable campaign</SheetDescription>
           </SheetHeader>
-          <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-            <p className="text-sm text-muted-foreground">
-              To deploy assets to a campaign, use the full Deploy tab in the main view.
-            </p>
-            <Button 
-              className="mt-4"
-              onClick={() => { setOpenDrawer(null); setActiveTab('deploy'); }}
-            >
-              Open Full Deploy Tab
-            </Button>
+          <div className="mt-6 space-y-6">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-500/30">
+              <FileCode className="h-4 w-4 text-purple-400" />
+              <span className="text-sm font-medium text-purple-300">CAML 2.0 Compatible</span>
+            </div>
+            
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center text-base">
+                  <Globe className="h-4 w-4 mr-2 text-primary" />
+                  Create Campaign from Assets
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Generate a new campaign using your companions, locations, and quests
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-1">
+                  <Label htmlFor="drawer-campaign-name" className="text-xs">Campaign Name</Label>
+                  <Input id="drawer-campaign-name" placeholder="Enter a name" className="h-8" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="drawer-campaign-desc" className="text-xs">Description</Label>
+                  <Textarea id="drawer-campaign-desc" placeholder="Describe your campaign" className="min-h-[60px]" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Difficulty</Label>
+                    <Select>
+                      <SelectTrigger className="h-8">
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="beginner">Beginner</SelectItem>
+                        <SelectItem value="intermediate">Intermediate</SelectItem>
+                        <SelectItem value="advanced">Advanced</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Style</Label>
+                    <Select>
+                      <SelectTrigger className="h-8">
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="heroic">Heroic</SelectItem>
+                        <SelectItem value="gritty">Gritty</SelectItem>
+                        <SelectItem value="mystery">Mystery</SelectItem>
+                        <SelectItem value="horror">Horror</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter className="pt-0">
+                <Button className="w-full" size="sm">Create Deployable Campaign</Button>
+              </CardFooter>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Your Created Assets</CardTitle>
+                <CardDescription className="text-xs">Select assets to include in your campaign</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-xs">
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-xs">Companions</Label>
+                    <Badge variant="outline" className="text-xs">Select below</Badge>
+                  </div>
+                  <div className="border rounded-md p-2 space-y-1.5 max-h-24 overflow-y-auto">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="drawer-companion-1" />
+                      <Label htmlFor="drawer-companion-1" className="text-xs">Your NPCs appear here</Label>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-xs">Locations</Label>
+                    <Badge variant="outline" className="text-xs">Select below</Badge>
+                  </div>
+                  <div className="border rounded-md p-2 space-y-1.5 max-h-24 overflow-y-auto">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="drawer-location-1" />
+                      <Label htmlFor="drawer-location-1" className="text-xs">Your locations appear here</Label>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-xs">Quests</Label>
+                    <Badge variant="outline" className="text-xs">Select below</Badge>
+                  </div>
+                  <div className="border rounded-md p-2 space-y-1.5 max-h-24 overflow-y-auto">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="drawer-quest-1" />
+                      <Label htmlFor="drawer-quest-1" className="text-xs">Your quests appear here</Label>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-purple-500/20 bg-gradient-to-br from-purple-900/10 to-blue-900/10">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center text-base">
+                  <FileCode className="mr-2 h-4 w-4 text-purple-400" />
+                  <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                    Export as CAML 2.0
+                  </span>
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Export your campaign for use with other tools like Foundry VTT
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline" className="border-purple-500/30 text-purple-300 text-xs">
+                    Foundry VTT
+                  </Badge>
+                  <Badge variant="outline" className="border-blue-500/30 text-blue-300 text-xs">
+                    JSON/YAML
+                  </Badge>
+                </div>
+                <div className="flex gap-3 items-end">
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-xs">Campaign</Label>
+                    <Select value={exportCampaignId?.toString() || ""} onValueChange={(v) => setExportCampaignId(Number(v))}>
+                      <SelectTrigger className="h-8 bg-background/50">
+                        <SelectValue placeholder="Select campaign" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {campaigns.filter((c: any) => c.userId === user?.id).map((campaign: any) => (
+                          <SelectItem key={campaign.id} value={campaign.id.toString()}>
+                            {campaign.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Format</Label>
+                    <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as "yaml" | "json")}>
+                      <SelectTrigger className="h-8 w-20 bg-background/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="yaml">YAML</SelectItem>
+                        <SelectItem value="json">JSON</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full border-purple-500/50 hover:bg-purple-900/20 text-purple-300"
+                  size="sm"
+                  onClick={handleExportCampaign}
+                  disabled={isExporting || !exportCampaignId}
+                >
+                  {isExporting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="mr-2 h-4 w-4" />
+                  )}
+                  Export Campaign
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </SheetContent>
       </Sheet>
