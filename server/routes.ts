@@ -2760,6 +2760,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Add selected assets to the campaign if provided
+      const selectedAssets = req.body.selectedAssets;
+      if (selectedAssets) {
+        // Add selected NPCs to campaign
+        if (selectedAssets.npcs && Array.isArray(selectedAssets.npcs)) {
+          for (const npcId of selectedAssets.npcs) {
+            try {
+              await storage.addNpcToCampaign({
+                campaignId: campaign.id,
+                npcId: npcId,
+                role: 'companion',
+                isActive: true,
+                joinedAt: new Date().toISOString()
+              });
+            } catch (e) {
+              console.log(`Failed to add NPC ${npcId} to campaign:`, e);
+            }
+          }
+        }
+        
+        // Add selected quests to campaign  
+        if (selectedAssets.quests && Array.isArray(selectedAssets.quests)) {
+          for (const questId of selectedAssets.quests) {
+            try {
+              // Fetch the original quest from the quests table
+              const [originalQuest] = await db.select().from(quests).where(eq(quests.id, questId));
+              if (originalQuest) {
+                await storage.createCampaignQuest({
+                  campaignId: campaign.id,
+                  title: originalQuest.title,
+                  description: originalQuest.description,
+                  status: 'active',
+                });
+              }
+            } catch (e) {
+              console.log(`Failed to add quest ${questId} to campaign:`, e);
+            }
+          }
+        }
+      }
+      
       // Generate and create the initial session for this campaign
       try {
         // Generate initial narrative based on campaign description
