@@ -28,6 +28,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -114,6 +121,7 @@ export default function DMToolkit() {
   const [isExporting, setIsExporting] = useState(false);
   const [offlineStatus, setOfflineStatus] = useState<'idle' | 'caching' | 'cached' | 'error'>('idle');
   const [isOnline, setIsOnline] = useState(true);
+  const [openDrawer, setOpenDrawer] = useState<string | null>(null);
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -500,29 +508,29 @@ export default function DMToolkit() {
             </div>
           </div>
 
-          {/* Content Creation - Between Sessions work */}
+          {/* Content Creation - Between Sessions work (opens in slide-out drawers) */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <Lightbulb className="h-5 w-5 text-purple-500" />
               Between Sessions
-              <span className="text-xs font-normal text-muted-foreground ml-1">Set up future situations</span>
+              <span className="text-xs font-normal text-muted-foreground ml-1">Set up future situations (opens in panel)</span>
             </h3>
             <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
               {[
-                { id: 'companions', icon: Users, label: 'NPCs', color: 'text-rose-500' },
-                { id: 'locations', icon: MapPin, label: 'Locations', color: 'text-emerald-500' },
-                { id: 'quests', icon: Scroll, label: 'Quests', color: 'text-amber-500' },
-                { id: 'items', icon: Package, label: 'Items', color: 'text-cyan-500' },
-                { id: 'monsters', icon: Swords, label: 'Monsters', color: 'text-red-500' },
-                { id: 'threats', icon: Target, label: 'Threats', color: 'text-orange-500' },
-                { id: 'deploy', icon: Globe, label: 'Deploy', color: 'text-indigo-500' },
+                { id: 'companions', icon: Users, label: 'NPCs', color: 'text-rose-500', description: 'Create and manage NPCs for your campaign' },
+                { id: 'locations', icon: MapPin, label: 'Locations', color: 'text-emerald-500', description: 'Design memorable locations for your world' },
+                { id: 'quests', icon: Scroll, label: 'Quests', color: 'text-amber-500', description: 'Plan quests and story hooks' },
+                { id: 'items', icon: Package, label: 'Items', color: 'text-cyan-500', description: 'Create magic items and equipment' },
+                { id: 'monsters', icon: Swords, label: 'Monsters', color: 'text-red-500', description: 'Design monsters and encounters' },
+                { id: 'threats', icon: Target, label: 'Threats', color: 'text-orange-500', description: 'Build threat archetypes for your campaign' },
+                { id: 'deploy', icon: Globe, label: 'Deploy', color: 'text-indigo-500', description: 'Deploy assets to your campaign' },
               ].map(({ id, icon: Icon, label, color }) => (
                 <Card 
                   key={id}
                   className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                    activeTab === id ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'
+                    openDrawer === id ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'
                   }`}
-                  onClick={() => setActiveTab(id)}
+                  onClick={() => setOpenDrawer(id)}
                 >
                   <CardContent className="p-3 text-center">
                     <Icon className={`h-6 w-6 mx-auto mb-1.5 ${color}`} />
@@ -933,6 +941,120 @@ export default function DMToolkit() {
           onClose={() => setShowAIGuide(false)}
         />
       )}
+
+      {/* Slide-in Drawer Panels for Between Sessions Tools */}
+      <Sheet open={openDrawer === 'companions'} onOpenChange={(open) => !open && setOpenDrawer(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-rose-500" />
+              NPCs & Companions
+            </SheetTitle>
+            <SheetDescription>Create and manage NPCs for your campaign</SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            <CompanionsTab />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={openDrawer === 'locations'} onOpenChange={(open) => !open && setOpenDrawer(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-emerald-500" />
+              Locations
+            </SheetTitle>
+            <SheetDescription>Design memorable locations for your world</SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            <LocationsTab />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={openDrawer === 'quests'} onOpenChange={(open) => !open && setOpenDrawer(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Scroll className="h-5 w-5 text-amber-500" />
+              Quests
+            </SheetTitle>
+            <SheetDescription>Plan quests and story hooks</SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            <QuestsTab />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={openDrawer === 'items'} onOpenChange={(open) => !open && setOpenDrawer(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-cyan-500" />
+              Magic Items
+            </SheetTitle>
+            <SheetDescription>Create magic items and equipment</SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            <MagicItemsTab />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={openDrawer === 'monsters'} onOpenChange={(open) => !open && setOpenDrawer(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Swords className="h-5 w-5 text-red-500" />
+              Monsters
+            </SheetTitle>
+            <SheetDescription>Design monsters and encounters</SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            <MonstersTab />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={openDrawer === 'threats'} onOpenChange={(open) => !open && setOpenDrawer(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-orange-500" />
+              Threat Archetypes
+            </SheetTitle>
+            <SheetDescription>Build threat archetypes for your campaign</SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            <ThreatArchetypes />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={openDrawer === 'deploy'} onOpenChange={(open) => !open && setOpenDrawer(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5 text-indigo-500" />
+              Deploy Assets
+            </SheetTitle>
+            <SheetDescription>Deploy assets to your campaign</SheetDescription>
+          </SheetHeader>
+          <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              To deploy assets to a campaign, use the full Deploy tab in the main view.
+            </p>
+            <Button 
+              className="mt-4"
+              onClick={() => { setOpenDrawer(null); setActiveTab('deploy'); }}
+            >
+              Open Full Deploy Tab
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
