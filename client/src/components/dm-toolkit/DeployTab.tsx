@@ -29,7 +29,10 @@ import {
   Download,
   Loader2,
   Check,
-  Info
+  Info,
+  ChevronUp,
+  ChevronDown,
+  GripVertical
 } from "lucide-react";
 
 export default function DeployTab() {
@@ -75,6 +78,24 @@ export default function DeployTab() {
 
   const selectAll = (items: any[], setSelected: (ids: number[]) => void) => {
     setSelected(items.map(i => i.id));
+  };
+
+  const moveQuestUp = (questId: number) => {
+    const index = selectedQuests.indexOf(questId);
+    if (index > 0) {
+      const newOrder = [...selectedQuests];
+      [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+      setSelectedQuests(newOrder);
+    }
+  };
+
+  const moveQuestDown = (questId: number) => {
+    const index = selectedQuests.indexOf(questId);
+    if (index < selectedQuests.length - 1) {
+      const newOrder = [...selectedQuests];
+      [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+      setSelectedQuests(newOrder);
+    }
   };
 
   const createCampaignMutation = useMutation({
@@ -389,13 +410,13 @@ export default function DeployTab() {
                   onSelectAll={() => selectAll(locations, setSelectedLocations)}
                 />
 
-                <AssetSection
-                  title="Quests"
-                  icon={<Scroll className="h-4 w-4 text-amber-500" />}
-                  items={quests}
+                <QuestOrderSection
+                  quests={quests}
                   selected={selectedQuests}
                   onToggle={(id) => toggleSelection(id, selectedQuests, setSelectedQuests)}
                   onSelectAll={() => selectAll(quests, setSelectedQuests)}
+                  onMoveUp={moveQuestUp}
+                  onMoveDown={moveQuestDown}
                 />
 
                 <AssetSection
@@ -501,6 +522,118 @@ function AssetSection({
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function QuestOrderSection({ 
+  quests, 
+  selected, 
+  onToggle, 
+  onSelectAll,
+  onMoveUp,
+  onMoveDown
+}: { 
+  quests: any[];
+  selected: number[];
+  onToggle: (id: number) => void;
+  onSelectAll: () => void;
+  onMoveUp: (id: number) => void;
+  onMoveDown: (id: number) => void;
+}) {
+  if (quests.length === 0) {
+    return (
+      <div className="space-y-2">
+        <div className="flex justify-between items-center">
+          <Label className="flex items-center gap-2">
+            <Scroll className="h-4 w-4 text-amber-500" />
+            Quests
+          </Label>
+          <Badge variant="outline" className="text-muted-foreground">None created</Badge>
+        </div>
+      </div>
+    );
+  }
+
+  const selectedQuests = selected.map(id => quests.find(q => q.id === id)).filter(Boolean);
+  const unselectedQuests = quests.filter(q => !selected.includes(q.id));
+
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-between items-center">
+        <Label className="flex items-center gap-2">
+          <Scroll className="h-4 w-4 text-amber-500" />
+          Quests
+          {selected.length > 1 && (
+            <span className="text-xs text-muted-foreground">(ordered)</span>
+          )}
+        </Label>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline">{selected.length} / {quests.length}</Badge>
+          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={onSelectAll}>
+            All
+          </Button>
+        </div>
+      </div>
+      
+      {selected.length > 0 && (
+        <div className="border border-amber-500/30 rounded-md p-2 space-y-1 bg-amber-500/5">
+          <div className="text-xs text-amber-500 font-medium mb-1">Quest Order (drag or use arrows)</div>
+          {selectedQuests.map((quest: any, index: number) => (
+            <div key={quest.id} className="flex items-center gap-1 bg-background/50 rounded px-1 py-0.5">
+              <GripVertical className="h-3 w-3 text-muted-foreground cursor-grab" />
+              <Badge variant="secondary" className="h-5 w-5 p-0 flex items-center justify-center text-xs">
+                {index + 1}
+              </Badge>
+              <Checkbox 
+                id={`quest-order-${quest.id}`}
+                checked={true}
+                onCheckedChange={() => onToggle(quest.id)}
+              />
+              <Label htmlFor={`quest-order-${quest.id}`} className="text-sm cursor-pointer flex-1 truncate">
+                {quest.title || quest.name}
+              </Label>
+              <div className="flex gap-0.5">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-5 w-5 p-0"
+                  onClick={() => onMoveUp(quest.id)}
+                  disabled={index === 0}
+                >
+                  <ChevronUp className="h-3 w-3" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-5 w-5 p-0"
+                  onClick={() => onMoveDown(quest.id)}
+                  disabled={index === selected.length - 1}
+                >
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {unselectedQuests.length > 0 && (
+        <div className="border rounded-md p-2 space-y-1 max-h-24 overflow-y-auto">
+          {unselectedQuests.map((quest: any) => (
+            <div key={quest.id} className="flex items-center space-x-2">
+              <Checkbox 
+                id={`quest-${quest.id}`}
+                checked={false}
+                onCheckedChange={() => onToggle(quest.id)}
+              />
+              <Label htmlFor={`quest-${quest.id}`} className="text-sm cursor-pointer flex-1 truncate">
+                {quest.title || quest.name}
+              </Label>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
