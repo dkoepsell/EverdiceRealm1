@@ -767,7 +767,7 @@ export default function DMToolkit() {
       </Sheet>
 
       <Sheet open={openDrawer === 'locations'} onOpenChange={(open) => !open && setOpenDrawer(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5 text-emerald-500" />
@@ -776,13 +776,13 @@ export default function DMToolkit() {
             <SheetDescription>Design memorable locations for your world</SheetDescription>
           </SheetHeader>
           <div className="mt-6">
-            <LocationsTab />
+            <LocationsDrawerContent />
           </div>
         </SheetContent>
       </Sheet>
 
       <Sheet open={openDrawer === 'quests'} onOpenChange={(open) => !open && setOpenDrawer(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Scroll className="h-5 w-5 text-amber-500" />
@@ -791,13 +791,13 @@ export default function DMToolkit() {
             <SheetDescription>Plan quests and story hooks</SheetDescription>
           </SheetHeader>
           <div className="mt-6">
-            <QuestsTab />
+            <QuestsDrawerContent />
           </div>
         </SheetContent>
       </Sheet>
 
       <Sheet open={openDrawer === 'items'} onOpenChange={(open) => !open && setOpenDrawer(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Package className="h-5 w-5 text-cyan-500" />
@@ -806,13 +806,13 @@ export default function DMToolkit() {
             <SheetDescription>Create magic items and equipment</SheetDescription>
           </SheetHeader>
           <div className="mt-6">
-            <MagicItemsTab />
+            <MagicItemsDrawerContent />
           </div>
         </SheetContent>
       </Sheet>
 
       <Sheet open={openDrawer === 'monsters'} onOpenChange={(open) => !open && setOpenDrawer(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Swords className="h-5 w-5 text-red-500" />
@@ -821,7 +821,7 @@ export default function DMToolkit() {
             <SheetDescription>Design monsters and encounters</SheetDescription>
           </SheetHeader>
           <div className="mt-6">
-            <MonstersTab />
+            <MonstersDrawerContent />
           </div>
         </SheetContent>
       </Sheet>
@@ -1381,6 +1381,156 @@ function CompanionsTab() {
           onOpenChange={setShowDetailsDialog}
         />
       )}
+    </div>
+  );
+}
+
+// Simplified drawer content components for slide-out panels
+function LocationsDrawerContent() {
+  const { data: locations = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/locations"] });
+  const { toast } = useToast();
+  
+  const deleteLocationMutation = useMutation({
+    mutationFn: async (id: number) => apiRequest("DELETE", `/api/locations/${id}`),
+    onSuccess: () => {
+      toast({ title: "Location deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
+    },
+  });
+
+  if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (locations.length === 0) return <div className="text-center py-8 text-muted-foreground">No locations yet</div>;
+
+  return (
+    <div className="space-y-2">
+      {locations.map((loc: any) => (
+        <div key={loc.id} className="border rounded-lg p-3 hover:bg-muted/30">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold truncate">{loc.name}</h4>
+              <p className="text-xs text-muted-foreground">{loc.environment || loc.type}</p>
+            </div>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:text-destructive" onClick={() => deleteLocationMutation.mutate(loc.id)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+          {loc.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{loc.description}</p>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function QuestsDrawerContent() {
+  const { data: quests = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/quests"] });
+  const { toast } = useToast();
+  
+  const deleteQuestMutation = useMutation({
+    mutationFn: async (id: number) => apiRequest("DELETE", `/api/quests/${id}`),
+    onSuccess: () => {
+      toast({ title: "Quest deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/quests"] });
+    },
+  });
+
+  if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (quests.length === 0) return <div className="text-center py-8 text-muted-foreground">No quests yet</div>;
+
+  return (
+    <div className="space-y-2">
+      {quests.map((quest: any) => (
+        <div key={quest.id} className="border rounded-lg p-3 hover:bg-muted/30">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h4 className="font-semibold truncate">{quest.title}</h4>
+                {quest.level_range && <Badge variant="secondary" className="text-xs shrink-0">{quest.level_range}</Badge>}
+              </div>
+              <p className="text-xs text-muted-foreground">{quest.category}{quest.difficulty ? ` · ${quest.difficulty}` : ''}</p>
+            </div>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:text-destructive" onClick={() => deleteQuestMutation.mutate(quest.id)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+          {quest.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{quest.description}</p>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MagicItemsDrawerContent() {
+  const { data: items = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/magic-items"] });
+  const { toast } = useToast();
+  
+  const deleteItemMutation = useMutation({
+    mutationFn: async (id: number) => apiRequest("DELETE", `/api/magic-items/${id}`),
+    onSuccess: () => {
+      toast({ title: "Item deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/magic-items"] });
+    },
+  });
+
+  if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (items.length === 0) return <div className="text-center py-8 text-muted-foreground">No magic items yet</div>;
+
+  return (
+    <div className="space-y-2">
+      {items.map((item: any) => (
+        <div key={item.id} className="border rounded-lg p-3 hover:bg-muted/30">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h4 className="font-semibold truncate">{item.name}</h4>
+                {item.rarity && <Badge variant="outline" className="text-xs shrink-0">{item.rarity}</Badge>}
+              </div>
+              <p className="text-xs text-muted-foreground">{item.type}{item.requires_attunement ? ' · Attunement' : ''}</p>
+            </div>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:text-destructive" onClick={() => deleteItemMutation.mutate(item.id)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+          {item.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{item.description}</p>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MonstersDrawerContent() {
+  const { data: monsters = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/monsters"] });
+  const { toast } = useToast();
+  
+  const deleteMonsterMutation = useMutation({
+    mutationFn: async (id: number) => apiRequest("DELETE", `/api/monsters/${id}`),
+    onSuccess: () => {
+      toast({ title: "Monster deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/monsters"] });
+    },
+  });
+
+  if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (monsters.length === 0) return <div className="text-center py-8 text-muted-foreground">No monsters yet</div>;
+
+  return (
+    <div className="space-y-2">
+      {monsters.map((monster: any) => (
+        <div key={monster.id} className="border rounded-lg p-3 hover:bg-muted/30">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h4 className="font-semibold truncate">{monster.name}</h4>
+                {monster.challenge_rating && <Badge variant="secondary" className="text-xs shrink-0">CR {monster.challenge_rating}</Badge>}
+              </div>
+              <p className="text-xs text-muted-foreground">{monster.size} {monster.type} · AC {monster.armor_class} · HP {monster.hit_points}</p>
+            </div>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:text-destructive" onClick={() => deleteMonsterMutation.mutate(monster.id)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+          {monster.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{monster.description}</p>}
+        </div>
+      ))}
     </div>
   );
 }
