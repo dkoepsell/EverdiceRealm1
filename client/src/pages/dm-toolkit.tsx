@@ -1638,14 +1638,22 @@ function LocationsTab() {
         </DialogContent>
       </Dialog>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="space-y-4">
         {locationsLoading ? (
-          <div className="col-span-full flex items-center justify-center py-8">
+          <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin" />
             <span className="ml-2">Loading locations...</span>
           </div>
+        ) : locations.length === 0 ? (
+          <div className="text-center py-12">
+            <MapPin className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
+            <p className="text-muted-foreground">No locations created yet</p>
+            <Button className="mt-4" size="sm" onClick={() => setShowCreateDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" /> Create Location
+            </Button>
+          </div>
         ) : (
-          <div className="space-y-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {locations.map((location) => (
               <div key={location.id} className="border rounded-lg p-3 hover:bg-muted/30 transition-colors">
                 <div className="flex items-start justify-between gap-2 mb-2">
@@ -1675,16 +1683,16 @@ function LocationsTab() {
                 </div>
               </div>
             ))}
+            
+            <div className="border border-dashed rounded-lg p-4 text-center flex flex-col items-center justify-center">
+              <Plus className="h-8 w-8 text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground mb-2">Add location</p>
+              <Button size="sm" onClick={() => setShowCreateDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" /> Create
+              </Button>
+            </div>
           </div>
         )}
-        
-        <div className="border border-dashed rounded-lg p-4 text-center">
-          <Plus className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground mb-2">Add a new location</p>
-          <Button size="sm" onClick={() => setShowCreateDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" /> Create Location
-          </Button>
-        </div>
       </div>
       
       <Card className="bg-muted/30">
