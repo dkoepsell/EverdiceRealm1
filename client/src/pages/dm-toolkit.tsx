@@ -624,12 +624,26 @@ export default function DMToolkit() {
             {campaigns.length > 0 && (
               <Select
                 value={selectedCampaignId?.toString() || ""}
-                onValueChange={(value) => setSelectedCampaignId(value ? parseInt(value) : null)}
+                onValueChange={(value) => {
+                  if (value === "create-new") {
+                    setActiveTab('campaign-builder');
+                    setQuickGenerateExpanded(true);
+                  } else {
+                    setSelectedCampaignId(value ? parseInt(value) : null);
+                  }
+                }}
               >
                 <SelectTrigger className="w-[220px]">
                   <SelectValue placeholder="Select campaign..." />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="create-new" className="text-primary font-medium">
+                    <span className="flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      Create New Campaign
+                    </span>
+                  </SelectItem>
+                  <Separator className="my-1" />
                   {campaigns.filter((c: any) => !c.isArchived).map((campaign: any) => (
                     <SelectItem key={campaign.id} value={campaign.id.toString()}>
                       {campaign.title}
