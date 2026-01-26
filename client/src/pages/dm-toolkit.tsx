@@ -497,9 +497,30 @@ export default function DMToolkit() {
             {/* Quick Generate - Unfolding section */}
             {quickGenerateExpanded && (
               <div className="mt-4 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 animate-in slide-in-from-top-2 duration-200">
-                <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+                {/* Create Campaign - Featured first */}
+                <div className="mb-4">
+                  <Button
+                    variant={activeTab === 'generators' ? 'secondary' : 'outline'}
+                    className={`w-full h-auto py-4 flex items-center gap-3 ${
+                      activeTab === 'generators' ? 'ring-2 ring-purple-500 bg-purple-500/10' : 'hover:bg-purple-500/10 border-purple-500/30'
+                    }`}
+                    onClick={() => setActiveTab('generators')}
+                  >
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600">
+                      <Sparkles className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <span className="font-semibold">Create a Campaign</span>
+                      <p className="text-xs text-muted-foreground">AI-generated adventures with CAML 2.0</p>
+                    </div>
+                    <Badge variant="secondary" className="bg-purple-500/20 text-purple-400 text-[10px]">AI</Badge>
+                  </Button>
+                </div>
+
+                {/* Session Assets */}
+                <p className="text-xs text-muted-foreground mb-2 px-1">Session Assets</p>
+                <div className="grid grid-cols-4 md:grid-cols-7 gap-2">
                   {[
-                    { id: 'generators', icon: Sparkles, label: 'Campaign', color: 'text-purple-500', isTab: true },
                     { id: 'companions', icon: Users, label: 'NPCs', color: 'text-rose-500' },
                     { id: 'locations', icon: MapPin, label: 'Locations', color: 'text-emerald-500' },
                     { id: 'quests', icon: Scroll, label: 'Quests', color: 'text-amber-500' },
@@ -507,18 +528,18 @@ export default function DMToolkit() {
                     { id: 'monsters', icon: Swords, label: 'Monsters', color: 'text-red-500' },
                     { id: 'threats', icon: Target, label: 'Threats', color: 'text-orange-500' },
                     { id: 'deploy', icon: Globe, label: 'Deploy', color: 'text-indigo-500' },
-                  ].map(({ id, icon: Icon, label, color, isTab }) => (
+                  ].map(({ id, icon: Icon, label, color }) => (
                     <Button
                       key={id}
-                      variant={(isTab ? activeTab === id : openDrawer === id) ? 'secondary' : 'ghost'}
+                      variant={openDrawer === id ? 'secondary' : 'ghost'}
                       className={`h-auto py-3 px-3 flex flex-col items-center gap-1.5 ${
-                        (isTab ? activeTab === id : openDrawer === id) ? 'ring-2 ring-amber-500 bg-amber-500/10' : 'hover:bg-amber-500/10'
+                        openDrawer === id ? 'ring-2 ring-amber-500 bg-amber-500/10' : 'hover:bg-amber-500/10'
                       }`}
-                      onClick={() => isTab ? setActiveTab(id) : setOpenDrawer(id)}
+                      onClick={() => setOpenDrawer(id)}
                     >
                       <Icon className={`h-5 w-5 ${color}`} />
                       <span className="text-xs font-medium">{label}</span>
-                      {!isTab && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+                      <ChevronRight className="h-3 w-3 text-muted-foreground" />
                     </Button>
                   ))}
                 </div>
