@@ -8808,6 +8808,18 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
     }
   });
 
+  // Delete a location
+  app.delete('/api/locations/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const locationId = parseInt(req.params.id);
+      await db.delete(locations).where(eq(locations.id, locationId));
+      res.status(204).send();
+    } catch (error) {
+      console.error("Failed to delete location:", error);
+      res.status(500).json({ message: "Failed to delete location" });
+    }
+  });
+
   // Quest management routes
   app.post('/api/quests', isAuthenticated, async (req: any, res) => {
     try {
@@ -8875,6 +8887,18 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
     } catch (error) {
       console.error("Failed to update quest:", error);
       res.status(500).json({ message: "Failed to update quest" });
+    }
+  });
+
+  // Delete a quest
+  app.delete('/api/quests/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const questId = parseInt(req.params.id);
+      await db.delete(quests).where(eq(quests.id, questId));
+      res.status(204).send();
+    } catch (error) {
+      console.error("Failed to delete quest:", error);
+      res.status(500).json({ message: "Failed to delete quest" });
     }
   });
 
@@ -8946,6 +8970,18 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
     } catch (error) {
       console.error("Failed to update magic item:", error);
       res.status(500).json({ message: "Failed to update magic item" });
+    }
+  });
+
+  // Delete a magic item
+  app.delete('/api/magic-items/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const itemId = parseInt(req.params.id);
+      await db.delete(magicItems).where(eq(magicItems.id, itemId));
+      res.status(204).send();
+    } catch (error) {
+      console.error("Failed to delete magic item:", error);
+      res.status(500).json({ message: "Failed to delete magic item" });
     }
   });
 
@@ -9038,6 +9074,18 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
     } catch (error) {
       console.error("Failed to update monster:", error);
       res.status(500).json({ message: "Failed to update monster" });
+    }
+  });
+
+  // Delete a monster
+  app.delete('/api/monsters/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const monsterId = parseInt(req.params.id);
+      await db.delete(monsters).where(eq(monsters.id, monsterId));
+      res.status(204).send();
+    } catch (error) {
+      console.error("Failed to delete monster:", error);
+      res.status(500).json({ message: "Failed to delete monster" });
     }
   });
 

@@ -1457,6 +1457,19 @@ function LocationsTab() {
     },
   });
 
+  const deleteLocationMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest("DELETE", `/api/locations/${id}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Location deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleCreateLocation = () => {
     if (!newLocation.name.trim()) {
       toast({
@@ -1632,48 +1645,46 @@ function LocationsTab() {
             <span className="ml-2">Loading locations...</span>
           </div>
         ) : (
-          <>
+          <div className="space-y-2">
             {locations.map((location) => (
-              <Card key={location.id}>
-                <CardHeader>
-                  <CardTitle className="font-fantasy">{location.name}</CardTitle>
-                  <CardDescription>{location.environment || location.type}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="aspect-video bg-muted/50 rounded-md flex items-center justify-center mb-3">
-                    <MapPin className="h-12 w-12 text-muted-foreground" />
+              <div key={location.id} className="border rounded-lg p-3 hover:bg-muted/30 transition-colors">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-fantasy font-semibold truncate">{location.name}</h4>
+                    <p className="text-xs text-muted-foreground">
+                      {location.environment || location.type}
+                    </p>
                   </div>
-                  <p className="text-sm">{location.description}</p>
-                  {location.notable_features && Array.isArray(location.notable_features) && location.notable_features.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-xs font-medium text-muted-foreground">Notable Features:</p>
-                      <p className="text-xs text-muted-foreground">{location.notable_features.join(", ")}</p>
-                    </div>
-                  )}
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <Button variant="outline" size="sm">View Details</Button>
-                  <Button size="sm">Edit Location</Button>
-                </CardFooter>
-              </Card>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                    onClick={() => deleteLocationMutation.mutate(location.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                {location.description && (
+                  <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                    {location.description}
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="text-xs h-7 flex-1">Details</Button>
+                  <Button size="sm" className="text-xs h-7 flex-1" onClick={() => handleEditLocation(location)}>Edit</Button>
+                </div>
+              </div>
             ))}
-          </>
+          </div>
         )}
         
-        <Card className="border-dashed bg-muted/10">
-          <CardHeader>
-            <CardTitle className="font-fantasy text-muted-foreground">Create New Location</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center h-40">
-            <Plus className="h-12 w-12 text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground">Add a new location for your adventures</p>
-          </CardContent>
-          <CardFooter>
-            <Button className="w-full">
-              <Plus className="h-4 w-4 mr-2" /> Create Location
-            </Button>
-          </CardFooter>
-        </Card>
+        <div className="border border-dashed rounded-lg p-4 text-center">
+          <Plus className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+          <p className="text-sm text-muted-foreground mb-2">Add a new location</p>
+          <Button size="sm" onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Create Location
+          </Button>
+        </div>
       </div>
       
       <Card className="bg-muted/30">
@@ -1842,6 +1853,19 @@ function QuestsTab() {
         description: error.message,
         variant: "destructive",
       });
+    },
+  });
+
+  const deleteQuestMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest("DELETE", `/api/quests/${id}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Quest deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/quests"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -2178,48 +2202,40 @@ function QuestsTab() {
             <span className="ml-2">Loading quests...</span>
           </div>
         ) : (
-          <>
+          <div className="space-y-2">
             {quests.map((quest) => (
-              <Card key={quest.id}>
-                <CardHeader>
-                  <div className="flex justify-between">
-                    <CardTitle className="font-fantasy">{quest.title}</CardTitle>
-                    {quest.level_range && <Badge>{quest.level_range}</Badge>}
+              <div key={quest.id} className="border rounded-lg p-3 hover:bg-muted/30 transition-colors">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-fantasy font-semibold truncate">{quest.title}</h4>
+                      {quest.level_range && <Badge variant="secondary" className="text-xs shrink-0">{quest.level_range}</Badge>}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {quest.category}{quest.difficulty ? ` · ${quest.difficulty}` : ''}
+                    </p>
                   </div>
-                  <CardDescription>{quest.category}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm mb-3">{quest.description}</p>
-                  <div className="space-y-2">
-                    {quest.difficulty && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Difficulty:</span>
-                        <span>{quest.difficulty}</span>
-                      </div>
-                    )}
-                    {quest.estimated_duration && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Estimated Duration:</span>
-                        <span>{quest.estimated_duration}</span>
-                      </div>
-                    )}
-                    {quest.status && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Status:</span>
-                        <Badge variant={quest.status === 'completed' ? 'default' : 'secondary'}>
-                          {quest.status}
-                        </Badge>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <Button variant="outline" size="sm">View Details</Button>
-                  <Button size="sm" onClick={() => handleEditQuest(quest)}>Edit Quest</Button>
-                </CardFooter>
-              </Card>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                    onClick={() => deleteQuestMutation.mutate(quest.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                {quest.description && (
+                  <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                    {quest.description}
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="text-xs h-7 flex-1">Details</Button>
+                  <Button size="sm" className="text-xs h-7 flex-1" onClick={() => handleEditQuest(quest)}>Edit</Button>
+                </div>
+              </div>
             ))}
-          </>
+          </div>
         )}
         
         <Card className="border-dashed bg-muted/10">
@@ -2413,6 +2429,19 @@ function MagicItemsTab() {
         description: error.message,
         variant: "destructive",
       });
+    },
+  });
+
+  const deleteItemMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest("DELETE", `/api/magic-items/${id}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Magic item deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/magic-items"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -2720,55 +2749,49 @@ function MagicItemsTab() {
             <span className="ml-2">Loading magic items...</span>
           </div>
         ) : (
-          <>
+          <div className="space-y-2">
             {magicItems.map((item) => (
-              <Card key={item.id}>
-                <CardHeader className="pb-3">
-                  <div className="flex justify-between">
-                    <CardTitle className="font-fantasy">{item.name}</CardTitle>
-                    {item.rarity && <Badge variant="outline">{item.rarity}</Badge>}
-                  </div>
-                  <CardDescription>{item.type}{item.requires_attunement ? ', requires attunement' : ''}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex justify-center mb-3">
-                    <div className="w-20 h-20 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-                      <Sparkles className="h-10 w-10 text-purple-500" />
+              <div key={item.id} className="border rounded-lg p-3 hover:bg-muted/30 transition-colors">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-fantasy font-semibold truncate">{item.name}</h4>
+                      {item.rarity && <Badge variant="outline" className="text-xs shrink-0">{item.rarity}</Badge>}
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      {item.type}{item.requires_attunement ? ' · Attunement' : ''}
+                    </p>
                   </div>
-                  <p className="text-sm mb-3">{item.description}</p>
-                  {item.requires_attunement && (
-                    <>
-                      <Separator className="my-2" />
-                      <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>Requires attunement</span>
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <Button variant="outline" size="sm">View Details</Button>
-                  <Button size="sm" onClick={() => handleEditItem(item)}>Edit Item</Button>
-                </CardFooter>
-              </Card>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                    onClick={() => deleteItemMutation.mutate(item.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                {item.description && (
+                  <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                    {item.description}
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="text-xs h-7 flex-1">Details</Button>
+                  <Button size="sm" className="text-xs h-7 flex-1" onClick={() => handleEditItem(item)}>Edit</Button>
+                </div>
+              </div>
             ))}
-          </>
+          </div>
         )}
         
-        <Card className="border-dashed bg-muted/10">
-          <CardHeader>
-            <CardTitle className="font-fantasy text-muted-foreground">Create New Magic Item</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center h-48">
-            <Plus className="h-12 w-12 text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground">Design a new magical item for your campaign</p>
-          </CardContent>
-          <CardFooter>
-            <Button className="w-full">
-              <Plus className="h-4 w-4 mr-2" /> Create Magic Item
-            </Button>
-          </CardFooter>
-        </Card>
+        <div className="border border-dashed rounded-lg p-4 text-center">
+          <Plus className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+          <p className="text-sm text-muted-foreground mb-2">Design a new magical item</p>
+          <Button size="sm" onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Create Magic Item
+          </Button>
+        </div>
       </div>
       
       <Card className="bg-muted/30">
@@ -2964,6 +2987,19 @@ function MonstersTab() {
         description: error.message,
         variant: "destructive",
       });
+    },
+  });
+
+  const deleteMonsterMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest("DELETE", `/api/monsters/${id}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Monster deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/monsters"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -3293,6 +3329,14 @@ function MonstersTab() {
                         {monster.size} {monster.type} · AC {monster.armor_class} · HP {monster.hit_points}
                       </p>
                     </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                      onClick={() => deleteMonsterMutation.mutate(monster.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                   {monster.description && (
                     <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
