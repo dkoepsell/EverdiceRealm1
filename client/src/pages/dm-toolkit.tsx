@@ -497,11 +497,12 @@ export default function DMToolkit() {
             {/* Quick Generate - Unfolding section */}
             {quickGenerateExpanded && (
               <div className="mt-4 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 animate-in slide-in-from-top-2 duration-200">
-                {/* Create Campaign - Featured first */}
-                <div className="mb-4">
+                {/* Campaign Creation Options - Featured first */}
+                <p className="text-xs text-muted-foreground mb-2 px-1">Campaign Creation</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
                   <Button
                     variant={activeTab === 'campaign-builder' ? 'secondary' : 'outline'}
-                    className={`w-full h-auto py-4 flex items-center gap-3 ${
+                    className={`h-auto py-4 flex items-center gap-3 ${
                       activeTab === 'campaign-builder' ? 'ring-2 ring-purple-500 bg-purple-500/10' : 'hover:bg-purple-500/10 border-purple-500/30'
                     }`}
                     onClick={() => setActiveTab('campaign-builder')}
@@ -510,16 +511,33 @@ export default function DMToolkit() {
                       <Sparkles className="h-5 w-5 text-white" />
                     </div>
                     <div className="text-left flex-1">
-                      <span className="font-semibold">Create a Campaign</span>
-                      <p className="text-xs text-muted-foreground">AI-generated adventures with CAML 2.0</p>
+                      <span className="font-semibold">AI Campaign</span>
+                      <p className="text-xs text-muted-foreground">Auto-generate with CAML 2.0</p>
                     </div>
                     <Badge variant="secondary" className="bg-purple-500/20 text-purple-400 text-[10px]">AI</Badge>
+                  </Button>
+
+                  <Button
+                    variant={activeTab === 'deploy' ? 'secondary' : 'outline'}
+                    className={`h-auto py-4 flex items-center gap-3 ${
+                      activeTab === 'deploy' ? 'ring-2 ring-emerald-500 bg-emerald-500/10' : 'hover:bg-emerald-500/10 border-emerald-500/30'
+                    }`}
+                    onClick={() => setActiveTab('deploy')}
+                  >
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600">
+                      <Package className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <span className="font-semibold">Manual Campaign</span>
+                      <p className="text-xs text-muted-foreground">Assemble & export your assets</p>
+                    </div>
+                    <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-400 text-[10px]">CAML</Badge>
                   </Button>
                 </div>
 
                 {/* Session Assets */}
                 <p className="text-xs text-muted-foreground mb-2 px-1">Session Assets</p>
-                <div className="grid grid-cols-4 md:grid-cols-7 gap-2">
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                   {[
                     { id: 'companions', icon: Users, label: 'NPCs', color: 'text-rose-500' },
                     { id: 'locations', icon: MapPin, label: 'Locations', color: 'text-emerald-500' },
@@ -527,7 +545,6 @@ export default function DMToolkit() {
                     { id: 'items', icon: Package, label: 'Items', color: 'text-cyan-500' },
                     { id: 'monsters', icon: Swords, label: 'Monsters', color: 'text-red-500' },
                     { id: 'threats', icon: Target, label: 'Threats', color: 'text-orange-500' },
-                    { id: 'deploy', icon: Globe, label: 'Deploy', color: 'text-indigo-500' },
                   ].map(({ id, icon: Icon, label, color }) => (
                     <Button
                       key={id}
