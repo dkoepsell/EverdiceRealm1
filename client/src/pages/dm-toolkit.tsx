@@ -3278,100 +3278,55 @@ function MonstersTab() {
               <span className="ml-2">Loading monsters...</span>
             </div>
           ) : (
-            <>
+            <div className="space-y-2">
               {monsters.map((monster) => (
-                <Card key={monster.id} className="overflow-hidden">
-                  {monster.imageUrl && (
-                    <div className="relative h-40 w-full bg-gradient-to-b from-muted/30 to-transparent">
-                      <img 
-                        src={monster.imageUrl} 
-                        alt={monster.name}
-                        className="w-full h-full object-cover object-top"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                        }}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+                <div key={monster.id} className="border rounded-lg p-3 hover:bg-muted/30 transition-colors">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-fantasy font-semibold truncate">{monster.name}</h4>
+                        {monster.challenge_rating && (
+                          <Badge variant="secondary" className="text-xs shrink-0">CR {monster.challenge_rating}</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {monster.size} {monster.type} · AC {monster.armor_class} · HP {monster.hit_points}
+                      </p>
                     </div>
+                  </div>
+                  {monster.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                      {monster.description}
+                    </p>
                   )}
-                  <CardHeader className={monster.imageUrl ? "pb-2 pt-3" : "pb-2"}>
-                    <div className="flex justify-between">
-                      <CardTitle className="font-fantasy">{monster.name}</CardTitle>
-                      {monster.challenge_rating && <Badge>CR {monster.challenge_rating}</Badge>}
-                    </div>
-                    <CardDescription>{monster.size} {monster.type}, {monster.alignment}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pb-0">
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-sm">
-                        <div>
-                          <span className="font-medium">Armor Class:</span> {monster.armor_class}
-                        </div>
-                        <div>
-                          <span className="font-medium">Hit Points:</span> {monster.hit_points}
-                        </div>
-                      </div>
-                      
-                      <div className="flex justify-between text-sm">
-                        <div>
-                          <span className="font-medium">Speed:</span> {monster.speed}
-                        </div>
-                        <div>
-                          <span className="font-medium">Size:</span> {monster.size}
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-3 gap-2 text-center text-xs mt-2">
-                        {[
-                          { label: 'STR', value: monster.strength ?? 10 },
-                          { label: 'DEX', value: monster.dexterity ?? 10 },
-                          { label: 'CON', value: monster.constitution ?? 10 },
-                          { label: 'INT', value: monster.intelligence ?? 10 },
-                          { label: 'WIS', value: monster.wisdom ?? 10 },
-                          { label: 'CHA', value: monster.charisma ?? 10 },
-                        ].map((stat) => {
-                          const mod = Math.floor((stat.value - 10) / 2);
-                          return (
-                            <div key={stat.label} className="bg-muted rounded-md py-1.5 px-1">
-                              <div className="font-medium text-muted-foreground">{stat.label}</div>
-                              <div className="font-semibold">{stat.value} <span className="text-muted-foreground">({mod >= 0 ? '+' : ''}{mod})</span></div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      
-                      {monster.description && (
-                        <div className="space-y-1">
-                          <div className="font-medium text-sm">Description</div>
-                          <p className="text-sm text-muted-foreground">{monster.description}</p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex justify-between pt-3">
-                    <Button variant="outline" size="sm">View Details</Button>
-                    <Button size="sm">Edit Monster</Button>
-                  </CardFooter>
-                </Card>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="text-xs h-7 flex-1"
+                    >
+                      Details
+                    </Button>
+                    <Button 
+                      size="sm"
+                      className="text-xs h-7 flex-1"
+                      onClick={() => handleEditMonster(monster)}
+                    >
+                      Edit
+                    </Button>
+                  </div>
+                </div>
               ))}
-            </>
+            </div>
           )}
           
-          <Card className="border-dashed bg-muted/10">
-            <CardHeader>
-              <CardTitle className="font-fantasy text-muted-foreground">Create New Monster</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center h-44">
-              <Plus className="h-12 w-12 text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground">Design a new monster for your campaign</p>
-            </CardContent>
-            <CardFooter>
-              <Button className="w-full">
-                <Plus className="h-4 w-4 mr-2" /> Create Monster
-              </Button>
-            </CardFooter>
-          </Card>
+          <div className="border border-dashed rounded-lg p-4 text-center">
+            <Plus className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground mb-2">Design a new monster</p>
+            <Button size="sm" onClick={() => setShowCreateDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" /> Create Monster
+            </Button>
+          </div>
         </div>
         
         <div className="space-y-6">
