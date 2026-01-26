@@ -3319,31 +3319,23 @@ function MonstersTab() {
                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-6 gap-2 text-center text-sm mt-2">
-                        <div className="space-y-1">
-                          <div className="font-medium">STR</div>
-                          <div className="bg-muted rounded-md py-1">{monster.strength ?? 10} ({Math.floor(((monster.strength ?? 10) - 10) / 2) >= 0 ? '+' : ''}{Math.floor(((monster.strength ?? 10) - 10) / 2)})</div>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="font-medium">DEX</div>
-                          <div className="bg-muted rounded-md py-1">{monster.dexterity ?? 10} ({Math.floor(((monster.dexterity ?? 10) - 10) / 2) >= 0 ? '+' : ''}{Math.floor(((monster.dexterity ?? 10) - 10) / 2)})</div>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="font-medium">CON</div>
-                          <div className="bg-muted rounded-md py-1">{monster.constitution ?? 10} ({Math.floor(((monster.constitution ?? 10) - 10) / 2) >= 0 ? '+' : ''}{Math.floor(((monster.constitution ?? 10) - 10) / 2)})</div>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="font-medium">INT</div>
-                          <div className="bg-muted rounded-md py-1">{monster.intelligence ?? 10} ({Math.floor(((monster.intelligence ?? 10) - 10) / 2) >= 0 ? '+' : ''}{Math.floor(((monster.intelligence ?? 10) - 10) / 2)})</div>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="font-medium">WIS</div>
-                          <div className="bg-muted rounded-md py-1">{monster.wisdom ?? 10} ({Math.floor(((monster.wisdom ?? 10) - 10) / 2) >= 0 ? '+' : ''}{Math.floor(((monster.wisdom ?? 10) - 10) / 2)})</div>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="font-medium">CHA</div>
-                          <div className="bg-muted rounded-md py-1">{monster.charisma ?? 10} ({Math.floor(((monster.charisma ?? 10) - 10) / 2) >= 0 ? '+' : ''}{Math.floor(((monster.charisma ?? 10) - 10) / 2)})</div>
-                        </div>
+                      <div className="grid grid-cols-3 gap-2 text-center text-xs mt-2">
+                        {[
+                          { label: 'STR', value: monster.strength ?? 10 },
+                          { label: 'DEX', value: monster.dexterity ?? 10 },
+                          { label: 'CON', value: monster.constitution ?? 10 },
+                          { label: 'INT', value: monster.intelligence ?? 10 },
+                          { label: 'WIS', value: monster.wisdom ?? 10 },
+                          { label: 'CHA', value: monster.charisma ?? 10 },
+                        ].map((stat) => {
+                          const mod = Math.floor((stat.value - 10) / 2);
+                          return (
+                            <div key={stat.label} className="bg-muted rounded-md py-1.5 px-1">
+                              <div className="font-medium text-muted-foreground">{stat.label}</div>
+                              <div className="font-semibold">{stat.value} <span className="text-muted-foreground">({mod >= 0 ? '+' : ''}{mod})</span></div>
+                            </div>
+                          );
+                        })}
                       </div>
                       
                       {monster.description && (
