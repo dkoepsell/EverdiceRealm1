@@ -449,9 +449,9 @@ export default function DMToolkit() {
               </Card>
               <Card 
                 className={`w-36 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${
-                  activeTab === 'training' ? 'ring-2 ring-blue-500 bg-blue-500/5' : 'hover:bg-muted/50'
+                  activeTab === 'training' && !quickGenerateExpanded ? 'ring-2 ring-blue-500 bg-blue-500/5' : 'hover:bg-muted/50'
                 }`}
-                onClick={() => setActiveTab('training')}
+                onClick={() => { setActiveTab('training'); setQuickGenerateExpanded(false); }}
               >
                 <CardContent className="p-5 text-center">
                   <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
@@ -464,9 +464,9 @@ export default function DMToolkit() {
 
               <Card 
                 className={`w-36 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${
-                  activeTab === 'live-manager' ? 'ring-2 ring-green-500 bg-green-500/5' : 'hover:bg-muted/50'
+                  activeTab === 'live-manager' && !quickGenerateExpanded ? 'ring-2 ring-green-500 bg-green-500/5' : 'hover:bg-muted/50'
                 }`}
-                onClick={() => setActiveTab('live-manager')}
+                onClick={() => { setActiveTab('live-manager'); setQuickGenerateExpanded(false); }}
               >
                 <CardContent className="p-5 text-center">
                   <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg shadow-green-500/25">
