@@ -489,14 +489,14 @@ export default function DMToolkit() {
                   <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
                     <Zap className="h-6 w-6 text-white" />
                   </div>
-                  <h4 className="font-semibold text-sm">Quick Generate</h4>
-                  <p className="text-xs text-muted-foreground mt-1">Create content</p>
+                  <h4 className="font-semibold text-sm">Build Content</h4>
+                  <p className="text-xs text-muted-foreground mt-1">Between sessions</p>
                   <ChevronRight className={`h-4 w-4 mx-auto mt-1 text-muted-foreground transition-transform ${quickGenerateExpanded ? 'rotate-90' : ''}`} />
                 </CardContent>
               </Card>
             </div>
 
-            {/* Quick Generate - Unfolding section */}
+            {/* Build Content - Unfolding section */}
             {quickGenerateExpanded && (
               <div className="mt-4 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 animate-in slide-in-from-top-2 duration-200">
                 {/* Campaign Creation Options - Featured first */}
