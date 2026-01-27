@@ -312,7 +312,10 @@ export default function ThreatArchetypes() {
       return res.json();
     },
     onSuccess: (data) => {
-      toast({ title: `${data.name} generated as deployable threat!` });
+      toast({ 
+        title: "Threat Generated!", 
+        description: `${data.name} (CR ${data.challenge_rating}) has been added to your Monsters as a deployable asset.`
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/monsters"] });
       setGeneratingArchetypeId(null);
     },
