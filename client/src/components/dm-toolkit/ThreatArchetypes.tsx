@@ -4,6 +4,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   ChevronDown, 
   ChevronUp, 
@@ -17,9 +20,14 @@ import {
   CheckCircle,
   XCircle,
   Timer,
-  Sparkles
+  Sparkles,
+  Plus,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useMutation } from '@tanstack/react-query';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 import {
   ThreatArchetype,
   BEGINNER_THREAT_PACK,
@@ -31,9 +39,12 @@ interface ThreatCardProps {
   archetype: ThreatArchetype;
   isExpanded: boolean;
   onToggle: () => void;
+  onGenerate: (archetype: ThreatArchetype) => void;
+  onCreate: (archetype: ThreatArchetype) => void;
+  isGenerating: boolean;
 }
 
-function ThreatCard({ archetype, isExpanded, onToggle }: ThreatCardProps) {
+function ThreatCard({ archetype, isExpanded, onToggle, onGenerate, onCreate, isGenerating }: ThreatCardProps) {
   const tierInfo = THREAT_TIER_INFO[archetype.threatTier];
   const roleInfo = PLAYSTYLE_ROLE_INFO[archetype.playstyleRole];
 
@@ -60,9 +71,28 @@ function ThreatCard({ archetype, isExpanded, onToggle }: ThreatCardProps) {
                   {archetype.narrativeFunction.purpose}
                 </CardDescription>
               </div>
-              <Button variant="ghost" size="sm" className="ml-2">
-                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </Button>
+              <div className="flex items-center gap-1 ml-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8"
+                  onClick={(e) => { e.stopPropagation(); onCreate(archetype); }}
+                >
+                  <Plus className="h-3 w-3 mr-1" /> Create
+                </Button>
+                <Button 
+                  size="sm" 
+                  className="h-8"
+                  onClick={(e) => { e.stopPropagation(); onGenerate(archetype); }}
+                  disabled={isGenerating}
+                >
+                  {isGenerating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                  Generate
+                </Button>
+                <Button variant="ghost" size="sm">
+                  {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
           </CardHeader>
         </CollapsibleTrigger>
@@ -245,12 +275,69 @@ export default function ThreatArchetypes() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filterTier, setFilterTier] = useState<string>('all');
   const [filterRole, setFilterRole] = useState<string>('all');
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [selectedArchetype, setSelectedArchetype] = useState<ThreatArchetype | null>(null);
+  const [generatingArchetypeId, setGeneratingArchetypeId] = useState<string | null>(null);
+  const [newMonster, setNewMonster] = useState({
+    name: '',
+    type: '',
+    size: 'Medium',
+    challenge_rating: '',
+    description: '',
+    archetype: ''
+  });
+  const { toast } = useToast();
 
   const filteredArchetypes = BEGINNER_THREAT_PACK.filter(a => {
     if (filterTier !== 'all' && a.threatTier !== filterTier) return false;
     if (filterRole !== 'all' && a.playstyleRole !== filterRole) return false;
     return true;
   });
+
+  const createMonsterMutation = useMutation({
+    mutationFn: async (data: any) => apiRequest("POST", "/api/monsters", data),
+    onSuccess: () => {
+      toast({ title: "Threat created as deployable monster!" });
+      setShowCreateDialog(false);
+      setNewMonster({ name: '', type: '', size: 'Medium', challenge_rating: '', description: '', archetype: '' });
+      setSelectedArchetype(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/monsters"] });
+    },
+  });
+
+  const aiGenerateMutation = useMutation({
+    mutationFn: async (archetype: ThreatArchetype) => {
+      setGeneratingArchetypeId(archetype.archetypeId);
+      const res = await apiRequest("POST", "/api/ai-generate/threat-monster", { archetype });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: `${data.name} generated as deployable threat!` });
+      queryClient.invalidateQueries({ queryKey: ["/api/monsters"] });
+      setGeneratingArchetypeId(null);
+    },
+    onError: () => {
+      setGeneratingArchetypeId(null);
+    }
+  });
+
+  const handleCreate = (archetype: ThreatArchetype) => {
+    setSelectedArchetype(archetype);
+    const tierToCR: Record<string, string> = { low: '1', medium: '3', high: '6', apex: '10' };
+    setNewMonster({
+      name: '',
+      type: archetype.reskins[0] || archetype.displayName,
+      size: 'Medium',
+      challenge_rating: tierToCR[archetype.threatTier] || '1',
+      description: `${archetype.narrativeFunction.purpose}. ${archetype.behavior.defaultTactic}`,
+      archetype: archetype.archetypeId
+    });
+    setShowCreateDialog(true);
+  };
+
+  const handleGenerate = (archetype: ThreatArchetype) => {
+    aiGenerateMutation.mutate(archetype);
+  };
 
   return (
     <div className="space-y-6">
@@ -347,6 +434,9 @@ export default function ThreatArchetypes() {
                 onToggle={() => setExpandedId(
                   expandedId === archetype.archetypeId ? null : archetype.archetypeId
                 )}
+                onGenerate={handleGenerate}
+                onCreate={handleCreate}
+                isGenerating={generatingArchetypeId === archetype.archetypeId}
               />
             </motion.div>
           ))}
@@ -358,6 +448,57 @@ export default function ThreatArchetypes() {
           No archetypes match your filters. Try adjusting them.
         </div>
       )}
+
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Create {selectedArchetype?.displayName} Threat
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input 
+              placeholder="Monster name" 
+              value={newMonster.name} 
+              onChange={(e) => setNewMonster({ ...newMonster, name: e.target.value })} 
+            />
+            <Input 
+              placeholder="Type (e.g., Ogre, Bandit Captain...)" 
+              value={newMonster.type} 
+              onChange={(e) => setNewMonster({ ...newMonster, type: e.target.value })} 
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Input 
+                placeholder="Size" 
+                value={newMonster.size} 
+                onChange={(e) => setNewMonster({ ...newMonster, size: e.target.value })} 
+              />
+              <Input 
+                placeholder="CR" 
+                value={newMonster.challenge_rating} 
+                onChange={(e) => setNewMonster({ ...newMonster, challenge_rating: e.target.value })} 
+              />
+            </div>
+            <Textarea 
+              placeholder="Description and behavior" 
+              value={newMonster.description} 
+              onChange={(e) => setNewMonster({ ...newMonster, description: e.target.value })} 
+              rows={4}
+            />
+            {selectedArchetype && (
+              <div className="text-xs text-muted-foreground p-2 bg-muted/30 rounded">
+                <strong>Reskin suggestions:</strong> {selectedArchetype.reskins.join(', ')}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => createMonsterMutation.mutate(newMonster)} disabled={!newMonster.name || createMonsterMutation.isPending}>
+              {createMonsterMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+              Create Threat
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -9270,6 +9270,84 @@ Create a unique monster with balanced stats appropriate for its challenge rating
     }
   });
 
+  // Generate monster from threat archetype
+  app.post('/api/ai-generate/threat-monster', isAuthenticated, async (req: any, res) => {
+    try {
+      const { archetype } = req.body;
+      if (!archetype) {
+        return res.status(400).json({ message: "Archetype data required" });
+      }
+
+      const tierToCR: Record<string, string> = { low: '1', medium: '3', high: '6', apex: '10' };
+      const cr = tierToCR[archetype.threatTier] || '1';
+
+      const prompt = `Generate a D&D monster based on this threat archetype:
+
+Archetype: ${archetype.displayName}
+Role: ${archetype.playstyleRole}
+Threat Tier: ${archetype.threatTier} (CR ${cr})
+Purpose: ${archetype.narrativeFunction?.purpose || 'Combat encounter'}
+Default Tactic: ${archetype.behavior?.defaultTactic || 'Aggressive'}
+Under Pressure: ${archetype.behavior?.underPressure || 'Reckless'}
+When Winning: ${archetype.behavior?.whenWinning || 'Press advantage'}
+When Losing: ${archetype.behavior?.whenLosing || 'Flee'}
+Possible Reskins: ${archetype.reskins?.join(', ') || 'Generic monster'}
+
+Create a specific creature (pick one of the reskins or create a thematic variant) with the following JSON format:
+{
+  "name": "Specific monster name",
+  "size": "Size category",
+  "type": "Creature type",
+  "alignment": "Alignment",
+  "challenge_rating": "${cr}",
+  "armor_class": 15,
+  "hit_points": 58,
+  "speed": "30 ft.",
+  "strength": 16,
+  "dexterity": 14,
+  "constitution": 16,
+  "intelligence": 10,
+  "wisdom": 12,
+  "charisma": 8,
+  "description": "Description incorporating the archetype's behavior and tactics",
+  "notes": "DM notes on how to run this creature using the archetype's behavior patterns"
+}`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert D&D Dungeon Master. Generate thematic monsters that embody the given threat archetype's behavioral patterns. The monster should feel like a living creature that follows the archetype's tactics. Always respond with valid JSON."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.8,
+        max_tokens: 1500
+      });
+
+      const monsterData = JSON.parse(completion.choices[0].message.content || '{}');
+      
+      // Save to database
+      const savedMonster = await storage.createMonster({
+        ...monsterData,
+        user_id: req.user!.id
+      });
+
+      res.json(savedMonster);
+    } catch (error) {
+      console.error("Failed to generate threat monster:", error);
+      res.status(500).json({ 
+        message: "Failed to generate threat monster",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Character XP and Inventory Management Routes
   app.post("/api/characters/award-xp", isAuthenticated, async (req: any, res) => {
     try {
