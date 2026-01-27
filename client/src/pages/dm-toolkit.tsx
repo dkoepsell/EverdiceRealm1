@@ -1036,7 +1036,7 @@ function CompanionsTab() {
   });
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [newCompanion, setNewCompanion] = useState({ name: "", race: "", class: "", backstory: "" });
+  const [newCompanion, setNewCompanion] = useState({ name: "", race: "", class: "", backstory: "", personality: "", motivation: "" });
 
   const deleteCompanionMutation = useMutation({
     mutationFn: async (id: number) => apiRequest("DELETE", `/api/npcs/${id}`),
@@ -1047,12 +1047,24 @@ function CompanionsTab() {
   });
 
   const createCompanionMutation = useMutation({
-    mutationFn: async (data: any) => apiRequest("POST", "/api/npcs", { ...data, isCompanion: true, level: 1 }),
+    mutationFn: async (data: any) => apiRequest("POST", "/api/npcs", { 
+      name: data.name,
+      race: data.race || "Human",
+      occupation: data.class || "Adventurer",
+      personality: data.personality || data.backstory || "Loyal and brave",
+      appearance: "A seasoned adventurer",
+      motivation: data.motivation || "To seek adventure and glory",
+      isCompanion: true, 
+      level: 1 
+    }),
     onSuccess: () => {
       toast({ title: "Companion created" });
       setShowCreateDialog(false);
-      setNewCompanion({ name: "", race: "", class: "", backstory: "" });
+      setNewCompanion({ name: "", race: "", class: "", backstory: "", personality: "", motivation: "" });
       queryClient.invalidateQueries({ queryKey: ["/api/npcs/companions"] });
+    },
+    onError: () => {
+      toast({ title: "Creation failed", description: "Could not create companion.", variant: "destructive" });
     },
   });
 
@@ -1066,7 +1078,9 @@ function CompanionsTab() {
         name: data.name || "", 
         race: data.race || "", 
         class: data.class || "", 
-        backstory: data.backstory || data.background || "" 
+        backstory: data.backstory || data.background || "",
+        personality: data.personality || "",
+        motivation: data.motivation || ""
       });
       setShowCreateDialog(true);
       toast({ title: "Companion generated!", description: "Review and save your new companion." });
