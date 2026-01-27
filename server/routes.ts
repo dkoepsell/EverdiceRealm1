@@ -9330,13 +9330,37 @@ Create a specific creature (pick one of the reskins or create a thematic variant
         max_tokens: 1500
       });
 
-      const monsterData = JSON.parse(completion.choices[0].message.content || '{}');
+      const aiMonsterData = JSON.parse(completion.choices[0].message.content || '{}');
       
       // Save to database
-      const savedMonster = await storage.createMonster({
-        ...monsterData,
-        user_id: req.user!.id
-      });
+      const monsterToSave = {
+        name: aiMonsterData.name,
+        type: aiMonsterData.type,
+        size: aiMonsterData.size,
+        challenge_rating: aiMonsterData.challenge_rating || cr,
+        armor_class: aiMonsterData.armor_class || 10,
+        hit_points: aiMonsterData.hit_points || 1,
+        speed: aiMonsterData.speed || '30 ft.',
+        stats: `STR ${aiMonsterData.strength || 10}, DEX ${aiMonsterData.dexterity || 10}, CON ${aiMonsterData.constitution || 10}, INT ${aiMonsterData.intelligence || 10}, WIS ${aiMonsterData.wisdom || 10}, CHA ${aiMonsterData.charisma || 10}`,
+        description: aiMonsterData.description,
+        lore: aiMonsterData.notes || '',
+        skills: [],
+        resistances: [],
+        immunities: [],
+        senses: [],
+        languages: [],
+        abilities: [],
+        actions: [],
+        environment: [],
+        created_by: req.user!.id,
+        is_public: false,
+        created_at: new Date()
+      };
+
+      const [savedMonster] = await db
+        .insert(monsters)
+        .values(monsterToSave)
+        .returning();
 
       res.json(savedMonster);
     } catch (error) {
