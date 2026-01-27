@@ -431,10 +431,7 @@ export default function DMToolkit() {
 
           {/* Essential Tools - Large cards with colored icons */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Star className="h-5 w-5 text-amber-500" />
-              Essential Tools
-            </h3>
+            <h3 className="text-sm font-medium text-muted-foreground text-center">Essential Tools</h3>
             <div className="flex justify-center gap-4 flex-wrap">
               {/* Quick Start Card */}
               <Card 
@@ -565,15 +562,13 @@ export default function DMToolkit() {
             )}
           </div>
 
-          {/* Utilities - Simple row */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Circle className="h-5 w-5 text-slate-500" />
-              Utilities
-            </h3>
-            <div className="flex flex-wrap gap-3">
+          {/* Utilities - Centered row */}
+          <div className="text-center space-y-3">
+            <h3 className="text-sm font-medium text-muted-foreground">Utilities</h3>
+            <div className="flex justify-center flex-wrap gap-2">
               <Button
-                variant={activeTab === 'invitations' ? 'default' : 'outline'}
+                variant={activeTab === 'invitations' ? 'default' : 'ghost'}
+                size="sm"
                 onClick={() => setActiveTab('invitations')}
                 className="gap-2"
               >
@@ -581,7 +576,8 @@ export default function DMToolkit() {
                 Invitations
               </Button>
               <Button
-                variant={activeTab === 'notes' ? 'default' : 'outline'}
+                variant={activeTab === 'notes' ? 'default' : 'ghost'}
+                size="sm"
                 onClick={() => setActiveTab('notes')}
                 className="gap-2"
               >
@@ -589,7 +585,8 @@ export default function DMToolkit() {
                 Notes
               </Button>
               <Button
-                variant={activeTab === 'discord' ? 'default' : 'outline'}
+                variant={activeTab === 'discord' ? 'default' : 'ghost'}
+                size="sm"
                 onClick={() => setActiveTab('discord')}
                 className="gap-2"
               >
