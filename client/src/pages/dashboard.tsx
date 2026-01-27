@@ -20,6 +20,7 @@ import { Bookmark, Calendar, History, User, Users, Activity, Star, Play, Sparkle
 import { ReturnVisitorPrompt } from "@/components/learning/ReturnVisitorPrompt";
 import { Badge } from "@/components/ui/badge";
 import parchmentFrame from "@assets/image_1768600727955.png";
+import creatorAvatar from "@assets/image_1769476073776.png";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -281,6 +282,7 @@ export default function Dashboard() {
                 </div>
               )}
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
+                <img src={creatorAvatar} alt="KoeppyLoco" className="w-5 h-5 rounded-full object-cover" />
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                 <span>KoeppyLoco is online</span>
               </div>

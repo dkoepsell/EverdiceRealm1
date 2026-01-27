@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import everdiceBackground from "@assets/image_1768599782346.png";
+import creatorAvatar from "@assets/image_1769476073776.png";
 
 const features = [
   {
@@ -179,6 +180,7 @@ export default function LandingPage() {
                     </div>
                   )}
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
+                    <img src={creatorAvatar} alt="KoeppyLoco" className="w-5 h-5 rounded-full object-cover" />
                     <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                     <span>KoeppyLoco is online</span>
                   </div>
@@ -314,15 +316,11 @@ export default function LandingPage() {
               It turned out to be just as useful for running serious, long-form campaigns without the overhead of a virtual tabletop."
             </p>
             <div className="flex items-center justify-center gap-3">
-              <div 
-                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold"
-                style={{ 
-                  background: 'linear-gradient(135deg, #C9B896 0%, #A89070 100%)',
-                  color: '#2a2218'
-                }}
-              >
-                KL
-              </div>
+              <img 
+                src={creatorAvatar} 
+                alt="KoeppyLoco" 
+                className="w-10 h-10 rounded-full object-cover border-2 border-amber-600/50"
+              />
               <div className="text-left">
                 <p className="text-sm font-medium" style={{ color: '#C9B896' }}>KoeppyLoco</p>
                 <p className="text-xs text-muted-foreground">Creator of Everdice</p>
