@@ -1031,6 +1031,9 @@ function CompanionsTab() {
   const { data: companions = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/npcs/companions"],
   });
+  const { data: stockCompanions = [], isLoading: isLoadingStock } = useQuery<any[]>({
+    queryKey: ["/api/npcs/stock-companions"],
+  });
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newCompanion, setNewCompanion] = useState({ name: "", race: "", class: "", backstory: "" });
@@ -1066,7 +1069,10 @@ function CompanionsTab() {
         backstory: data.backstory || data.background || "" 
       });
       setShowCreateDialog(true);
-      toast({ title: "Companion generated!" });
+      toast({ title: "Companion generated!", description: "Review and save your new companion." });
+    },
+    onError: () => {
+      toast({ title: "Generation failed", description: "Could not generate companion. Try again.", variant: "destructive" });
     },
   });
 
@@ -1107,6 +1113,31 @@ function CompanionsTab() {
           ))}
         </div>
       )}
+
+      {/* Pre-made NPCs Section */}
+      <div className="border-t pt-4 mt-4">
+        <h4 className="text-sm font-medium text-muted-foreground mb-3">Pre-made NPCs</h4>
+        {isLoadingStock ? (
+          <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin" /></div>
+        ) : stockCompanions.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-4">No pre-made NPCs available</p>
+        ) : (
+          <div className="space-y-2">
+            {stockCompanions.map((npc: any) => (
+              <div key={npc.id} className="border rounded-lg p-3 hover:bg-muted/30 bg-muted/10">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-semibold truncate">{npc.name}</h4>
+                    <p className="text-xs text-muted-foreground">{npc.race} {npc.class} · Level {npc.level}</p>
+                  </div>
+                  <Badge variant="secondary" className="text-[10px]">Stock</Badge>
+                </div>
+                {npc.backstory && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{npc.backstory}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent>
