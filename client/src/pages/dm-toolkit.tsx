@@ -1390,6 +1390,8 @@ function CompanionsTab() {
 function LocationsDrawerContent() {
   const { data: locations = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/locations"] });
   const { toast } = useToast();
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newLocation, setNewLocation] = useState({ name: "", type: "", description: "" });
   
   const deleteLocationMutation = useMutation({
     mutationFn: async (id: number) => apiRequest("DELETE", `/api/locations/${id}`),
@@ -1399,25 +1401,81 @@ function LocationsDrawerContent() {
     },
   });
 
-  if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
-  if (locations.length === 0) return <div className="text-center py-8 text-muted-foreground">No locations yet</div>;
+  const createLocationMutation = useMutation({
+    mutationFn: async (data: any) => apiRequest("POST", "/api/locations", data),
+    onSuccess: () => {
+      toast({ title: "Location created" });
+      setShowCreateDialog(false);
+      setNewLocation({ name: "", type: "", description: "" });
+      queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
+    },
+  });
+
+  const aiGenerateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/ai-generate/location", {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setNewLocation({ name: data.name || "", type: data.type || "", description: data.description || "" });
+      setShowCreateDialog(true);
+      toast({ title: "Location generated!" });
+    },
+  });
 
   return (
-    <div className="space-y-2">
-      {locations.map((loc: any) => (
-        <div key={loc.id} className="border rounded-lg p-3 hover:bg-muted/30">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <h4 className="font-semibold truncate">{loc.name}</h4>
-              <p className="text-xs text-muted-foreground">{loc.environment || loc.type}</p>
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Button size="sm" className="flex-1" onClick={() => setShowCreateDialog(true)}>
+          <Plus className="h-4 w-4 mr-1" /> Create
+        </Button>
+        <Button size="sm" variant="outline" className="flex-1" onClick={() => aiGenerateMutation.mutate()} disabled={aiGenerateMutation.isPending}>
+          {aiGenerateMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
+          Generate
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+      ) : locations.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">No locations yet</div>
+      ) : (
+        <div className="space-y-2">
+          {locations.map((loc: any) => (
+            <div key={loc.id} className="border rounded-lg p-3 hover:bg-muted/30">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold truncate">{loc.name}</h4>
+                  <p className="text-xs text-muted-foreground">{loc.environment || loc.type}</p>
+                </div>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:text-destructive" onClick={() => deleteLocationMutation.mutate(loc.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              {loc.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{loc.description}</p>}
             </div>
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:text-destructive" onClick={() => deleteLocationMutation.mutate(loc.id)}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-          {loc.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{loc.description}</p>}
+          ))}
         </div>
-      ))}
+      )}
+
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Location</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Location name" value={newLocation.name} onChange={(e) => setNewLocation({ ...newLocation, name: e.target.value })} />
+            <Input placeholder="Type (city, dungeon, forest...)" value={newLocation.type} onChange={(e) => setNewLocation({ ...newLocation, type: e.target.value })} />
+            <Textarea placeholder="Description" value={newLocation.description} onChange={(e) => setNewLocation({ ...newLocation, description: e.target.value })} />
+          </div>
+          <DialogFooter>
+            <Button onClick={() => createLocationMutation.mutate(newLocation)} disabled={!newLocation.name || createLocationMutation.isPending}>
+              {createLocationMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1425,6 +1483,8 @@ function LocationsDrawerContent() {
 function QuestsDrawerContent() {
   const { data: quests = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/quests"] });
   const { toast } = useToast();
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newQuest, setNewQuest] = useState({ title: "", description: "", category: "" });
   
   const deleteQuestMutation = useMutation({
     mutationFn: async (id: number) => apiRequest("DELETE", `/api/quests/${id}`),
@@ -1434,28 +1494,84 @@ function QuestsDrawerContent() {
     },
   });
 
-  if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
-  if (quests.length === 0) return <div className="text-center py-8 text-muted-foreground">No quests yet</div>;
+  const createQuestMutation = useMutation({
+    mutationFn: async (data: any) => apiRequest("POST", "/api/quests", data),
+    onSuccess: () => {
+      toast({ title: "Quest created" });
+      setShowCreateDialog(false);
+      setNewQuest({ title: "", description: "", category: "" });
+      queryClient.invalidateQueries({ queryKey: ["/api/quests"] });
+    },
+  });
+
+  const aiGenerateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/ai-generate/quest", {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setNewQuest({ title: data.title || "", description: data.description || "", category: data.category || "" });
+      setShowCreateDialog(true);
+      toast({ title: "Quest generated!" });
+    },
+  });
 
   return (
-    <div className="space-y-2">
-      {quests.map((quest: any) => (
-        <div key={quest.id} className="border rounded-lg p-3 hover:bg-muted/30">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h4 className="font-semibold truncate">{quest.title}</h4>
-                {quest.level_range && <Badge variant="secondary" className="text-xs shrink-0">{quest.level_range}</Badge>}
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Button size="sm" className="flex-1" onClick={() => setShowCreateDialog(true)}>
+          <Plus className="h-4 w-4 mr-1" /> Create
+        </Button>
+        <Button size="sm" variant="outline" className="flex-1" onClick={() => aiGenerateMutation.mutate()} disabled={aiGenerateMutation.isPending}>
+          {aiGenerateMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
+          Generate
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+      ) : quests.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">No quests yet</div>
+      ) : (
+        <div className="space-y-2">
+          {quests.map((quest: any) => (
+            <div key={quest.id} className="border rounded-lg p-3 hover:bg-muted/30">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold truncate">{quest.title}</h4>
+                    {quest.level_range && <Badge variant="secondary" className="text-xs shrink-0">{quest.level_range}</Badge>}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{quest.category}{quest.difficulty ? ` · ${quest.difficulty}` : ''}</p>
+                </div>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:text-destructive" onClick={() => deleteQuestMutation.mutate(quest.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
-              <p className="text-xs text-muted-foreground">{quest.category}{quest.difficulty ? ` · ${quest.difficulty}` : ''}</p>
+              {quest.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{quest.description}</p>}
             </div>
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:text-destructive" onClick={() => deleteQuestMutation.mutate(quest.id)}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-          {quest.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{quest.description}</p>}
+          ))}
         </div>
-      ))}
+      )}
+
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Quest</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Quest title" value={newQuest.title} onChange={(e) => setNewQuest({ ...newQuest, title: e.target.value })} />
+            <Input placeholder="Category" value={newQuest.category} onChange={(e) => setNewQuest({ ...newQuest, category: e.target.value })} />
+            <Textarea placeholder="Description" value={newQuest.description} onChange={(e) => setNewQuest({ ...newQuest, description: e.target.value })} />
+          </div>
+          <DialogFooter>
+            <Button onClick={() => createQuestMutation.mutate(newQuest)} disabled={!newQuest.title || createQuestMutation.isPending}>
+              {createQuestMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1463,6 +1579,8 @@ function QuestsDrawerContent() {
 function MagicItemsDrawerContent() {
   const { data: items = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/magic-items"] });
   const { toast } = useToast();
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newItem, setNewItem] = useState({ name: "", type: "", rarity: "", description: "" });
   
   const deleteItemMutation = useMutation({
     mutationFn: async (id: number) => apiRequest("DELETE", `/api/magic-items/${id}`),
@@ -1472,28 +1590,85 @@ function MagicItemsDrawerContent() {
     },
   });
 
-  if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
-  if (items.length === 0) return <div className="text-center py-8 text-muted-foreground">No magic items yet</div>;
+  const createItemMutation = useMutation({
+    mutationFn: async (data: any) => apiRequest("POST", "/api/magic-items", data),
+    onSuccess: () => {
+      toast({ title: "Item created" });
+      setShowCreateDialog(false);
+      setNewItem({ name: "", type: "", rarity: "", description: "" });
+      queryClient.invalidateQueries({ queryKey: ["/api/magic-items"] });
+    },
+  });
+
+  const aiGenerateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/ai-generate/magic-item", {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setNewItem({ name: data.name || "", type: data.type || "", rarity: data.rarity || "", description: data.description || "" });
+      setShowCreateDialog(true);
+      toast({ title: "Item generated!" });
+    },
+  });
 
   return (
-    <div className="space-y-2">
-      {items.map((item: any) => (
-        <div key={item.id} className="border rounded-lg p-3 hover:bg-muted/30">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h4 className="font-semibold truncate">{item.name}</h4>
-                {item.rarity && <Badge variant="outline" className="text-xs shrink-0">{item.rarity}</Badge>}
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Button size="sm" className="flex-1" onClick={() => setShowCreateDialog(true)}>
+          <Plus className="h-4 w-4 mr-1" /> Create
+        </Button>
+        <Button size="sm" variant="outline" className="flex-1" onClick={() => aiGenerateMutation.mutate()} disabled={aiGenerateMutation.isPending}>
+          {aiGenerateMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
+          Generate
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+      ) : items.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">No magic items yet</div>
+      ) : (
+        <div className="space-y-2">
+          {items.map((item: any) => (
+            <div key={item.id} className="border rounded-lg p-3 hover:bg-muted/30">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold truncate">{item.name}</h4>
+                    {item.rarity && <Badge variant="outline" className="text-xs shrink-0">{item.rarity}</Badge>}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{item.type}{item.requires_attunement ? ' · Attunement' : ''}</p>
+                </div>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:text-destructive" onClick={() => deleteItemMutation.mutate(item.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
-              <p className="text-xs text-muted-foreground">{item.type}{item.requires_attunement ? ' · Attunement' : ''}</p>
+              {item.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{item.description}</p>}
             </div>
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:text-destructive" onClick={() => deleteItemMutation.mutate(item.id)}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-          {item.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{item.description}</p>}
+          ))}
         </div>
-      ))}
+      )}
+
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Magic Item</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Item name" value={newItem.name} onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} />
+            <Input placeholder="Type (wondrous, weapon, armor...)" value={newItem.type} onChange={(e) => setNewItem({ ...newItem, type: e.target.value })} />
+            <Input placeholder="Rarity (common, uncommon, rare...)" value={newItem.rarity} onChange={(e) => setNewItem({ ...newItem, rarity: e.target.value })} />
+            <Textarea placeholder="Description" value={newItem.description} onChange={(e) => setNewItem({ ...newItem, description: e.target.value })} />
+          </div>
+          <DialogFooter>
+            <Button onClick={() => createItemMutation.mutate(newItem)} disabled={!newItem.name || createItemMutation.isPending}>
+              {createItemMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1501,6 +1676,8 @@ function MagicItemsDrawerContent() {
 function MonstersDrawerContent() {
   const { data: monsters = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/monsters"] });
   const { toast } = useToast();
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newMonster, setNewMonster] = useState({ name: "", type: "", size: "Medium", challenge_rating: "", description: "" });
   
   const deleteMonsterMutation = useMutation({
     mutationFn: async (id: number) => apiRequest("DELETE", `/api/monsters/${id}`),
@@ -1510,28 +1687,94 @@ function MonstersDrawerContent() {
     },
   });
 
-  if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
-  if (monsters.length === 0) return <div className="text-center py-8 text-muted-foreground">No monsters yet</div>;
+  const createMonsterMutation = useMutation({
+    mutationFn: async (data: any) => apiRequest("POST", "/api/monsters", data),
+    onSuccess: () => {
+      toast({ title: "Monster created" });
+      setShowCreateDialog(false);
+      setNewMonster({ name: "", type: "", size: "Medium", challenge_rating: "", description: "" });
+      queryClient.invalidateQueries({ queryKey: ["/api/monsters"] });
+    },
+  });
+
+  const aiGenerateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/ai-generate/monster", {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setNewMonster({ 
+        name: data.name || "", 
+        type: data.type || "", 
+        size: data.size || "Medium", 
+        challenge_rating: data.challenge_rating || "", 
+        description: data.description || "" 
+      });
+      setShowCreateDialog(true);
+      toast({ title: "Monster generated!" });
+    },
+  });
 
   return (
-    <div className="space-y-2">
-      {monsters.map((monster: any) => (
-        <div key={monster.id} className="border rounded-lg p-3 hover:bg-muted/30">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h4 className="font-semibold truncate">{monster.name}</h4>
-                {monster.challenge_rating && <Badge variant="secondary" className="text-xs shrink-0">CR {monster.challenge_rating}</Badge>}
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Button size="sm" className="flex-1" onClick={() => setShowCreateDialog(true)}>
+          <Plus className="h-4 w-4 mr-1" /> Create
+        </Button>
+        <Button size="sm" variant="outline" className="flex-1" onClick={() => aiGenerateMutation.mutate()} disabled={aiGenerateMutation.isPending}>
+          {aiGenerateMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
+          Generate
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+      ) : monsters.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">No monsters yet</div>
+      ) : (
+        <div className="space-y-2">
+          {monsters.map((monster: any) => (
+            <div key={monster.id} className="border rounded-lg p-3 hover:bg-muted/30">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold truncate">{monster.name}</h4>
+                    {monster.challenge_rating && <Badge variant="secondary" className="text-xs shrink-0">CR {monster.challenge_rating}</Badge>}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{monster.size} {monster.type} · AC {monster.armor_class} · HP {monster.hit_points}</p>
+                </div>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:text-destructive" onClick={() => deleteMonsterMutation.mutate(monster.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
-              <p className="text-xs text-muted-foreground">{monster.size} {monster.type} · AC {monster.armor_class} · HP {monster.hit_points}</p>
+              {monster.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{monster.description}</p>}
             </div>
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:text-destructive" onClick={() => deleteMonsterMutation.mutate(monster.id)}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-          {monster.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{monster.description}</p>}
+          ))}
         </div>
-      ))}
+      )}
+
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Monster</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Monster name" value={newMonster.name} onChange={(e) => setNewMonster({ ...newMonster, name: e.target.value })} />
+            <Input placeholder="Type (beast, undead, dragon...)" value={newMonster.type} onChange={(e) => setNewMonster({ ...newMonster, type: e.target.value })} />
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder="Size" value={newMonster.size} onChange={(e) => setNewMonster({ ...newMonster, size: e.target.value })} />
+              <Input placeholder="CR" value={newMonster.challenge_rating} onChange={(e) => setNewMonster({ ...newMonster, challenge_rating: e.target.value })} />
+            </div>
+            <Textarea placeholder="Description" value={newMonster.description} onChange={(e) => setNewMonster({ ...newMonster, description: e.target.value })} />
+          </div>
+          <DialogFooter>
+            <Button onClick={() => createMonsterMutation.mutate(newMonster)} disabled={!newMonster.name || createMonsterMutation.isPending}>
+              {createMonsterMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
