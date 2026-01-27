@@ -491,7 +491,6 @@ export default function DMToolkit() {
                   </div>
                   <h4 className="font-semibold text-sm">Build Content</h4>
                   <p className="text-xs text-muted-foreground mt-1">Between sessions</p>
-                  <ChevronRight className={`h-4 w-4 mx-auto mt-1 text-muted-foreground transition-transform ${quickGenerateExpanded ? 'rotate-90' : ''}`} />
                 </CardContent>
               </Card>
             </div>
