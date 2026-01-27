@@ -9090,6 +9090,48 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
   });
 
   // AI Generation routes for DM toolkit
+  app.post('/api/ai-generate/npc', isAuthenticated, async (req: any, res) => {
+    try {
+      const prompt = `Generate a D&D NPC companion with the following details in JSON format:
+{
+  "name": "Full character name",
+  "race": "Fantasy race (Human, Elf, Dwarf, Halfling, Tiefling, etc.)",
+  "class": "D&D class (Fighter, Wizard, Rogue, Cleric, etc.)",
+  "backstory": "A compelling 2-3 sentence backstory",
+  "personality": "Key personality traits",
+  "motivation": "What drives this character"
+}
+
+Create an interesting and unique NPC suitable for a D&D adventure party.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert D&D Dungeon Master. Generate creative and detailed NPCs for fantasy campaigns. Always respond with valid JSON."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.8,
+        max_tokens: 800
+      });
+
+      const npcData = JSON.parse(completion.choices[0].message.content || "{}");
+      res.json(npcData);
+    } catch (error) {
+      console.error("Failed to generate NPC:", error);
+      res.status(500).json({ 
+        message: "Failed to generate NPC",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   app.post('/api/ai-generate/location', isAuthenticated, async (req: any, res) => {
     try {
       const prompt = `Generate a D&D location with the following details in JSON format:
