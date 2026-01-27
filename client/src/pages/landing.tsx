@@ -315,11 +315,11 @@ export default function LandingPage() {
             >
               It turned out to be just as useful for running serious, long-form campaigns without the overhead of a virtual tabletop."
             </p>
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex items-center justify-center gap-4">
               <img 
                 src={creatorAvatar} 
                 alt="KoeppyLoco" 
-                className="w-10 h-10 rounded-full object-cover border-2 border-amber-600/50"
+                className="w-14 h-14 rounded-full object-cover border-2 border-amber-600/50"
               />
               <div className="text-left">
                 <p className="text-sm font-medium" style={{ color: '#C9B896' }}>KoeppyLoco</p>
