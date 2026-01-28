@@ -787,6 +787,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Monster portrait generation
+  app.post("/api/monsters/:id/generate-portrait", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const [monster] = await db.select().from(monsters).where(eq(monsters.id, id));
+      
+      if (!monster) {
+        return res.status(404).json({ message: "Monster not found" });
+      }
+      
+      // Generate portrait using OpenAI with monster details
+      const portraitData = await generateCharacterPortrait({
+        name: monster.name,
+        race: monster.type || 'Monster',
+        class: `${monster.size} ${monster.type}`,
+        background: monster.lore || undefined,
+        appearance: monster.description || undefined
+      });
+      
+      // Update monster with image URL
+      const [updatedMonster] = await db
+        .update(monsters)
+        .set({ imageUrl: portraitData.url })
+        .where(eq(monsters.id, id))
+        .returning();
+      
+      res.json({ 
+        imageUrl: portraitData.url, 
+        monster: updatedMonster 
+      });
+    } catch (error: any) {
+      console.error("Error generating monster portrait:", error);
+      res.status(500).json({ 
+        message: "Failed to generate monster portrait", 
+        error: error.message 
+      });
+    }
+  });
+  
   app.post("/api/characters/:id/generate-background", async (req, res) => {
     try {
       const id = parseInt(req.params.id);

@@ -684,6 +684,315 @@ export async function exportNpcPDF(npc: NpcData): Promise<void> {
   pdf.save(`${npc.name.replace(/\s+/g, '_')}_statblock.pdf`);
 }
 
+// Monster data interface matching the monsters schema
+interface MonsterData {
+  name: string;
+  type: string;
+  size: string;
+  challenge_rating: string;
+  armor_class?: number;
+  hit_points?: number;
+  speed?: string;
+  strength?: number;
+  dexterity?: number;
+  constitution?: number;
+  intelligence?: number;
+  wisdom?: number;
+  charisma?: number;
+  description?: string;
+  notes?: string;
+  imageUrl?: string;
+  // Extended D&D stat block fields
+  alignment?: string;
+  saving_throws?: string;
+  skills?: string;
+  damage_resistances?: string;
+  damage_immunities?: string;
+  condition_immunities?: string;
+  senses?: string;
+  languages?: string;
+  special_abilities?: { name: string; description: string }[];
+  actions?: { name: string; description: string }[];
+  legendary_actions?: { name: string; description: string }[];
+  reactions?: { name: string; description: string }[];
+}
+
+export async function exportMonsterPDF(monster: MonsterData): Promise<void> {
+  const { pdf, bgImage } = await createBasePDF();
+  let y = 20;
+  
+  // Try to load monster image
+  let monsterImage: string | null = null;
+  if (monster.imageUrl) {
+    try {
+      monsterImage = await loadImageAsBase64(monster.imageUrl);
+    } catch {
+      console.warn('Could not load monster image');
+    }
+  }
+  
+  // Helper to draw inline stat
+  const drawInlineStat = (label: string, value: string, xPos: number = 20) => {
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(10);
+    pdf.setTextColor(139, 10, 10);
+    pdf.text(label, xPos, y);
+    pdf.setFont('times', 'normal');
+    pdf.setTextColor(40, 40, 40);
+    pdf.text(value, xPos + pdf.getTextWidth(label) + 2, y);
+  };
+  
+  // Helper to draw action/ability entry
+  const drawAbilityEntry = (name: string, description: string) => {
+    pdf.setFont('times', 'bolditalic');
+    pdf.setFontSize(10);
+    pdf.setTextColor(40, 40, 40);
+    pdf.text(`${name}. `, 20, y);
+    pdf.setFont('times', 'normal');
+    const nameWidth = pdf.getTextWidth(`${name}. `);
+    const descLines = pdf.splitTextToSize(description, 165 - nameWidth);
+    if (descLines.length === 1) {
+      pdf.text(descLines[0], 20 + nameWidth, y);
+      y += 5;
+    } else {
+      pdf.text(descLines[0], 20 + nameWidth, y);
+      y += 5;
+      for (let i = 1; i < descLines.length; i++) {
+        pdf.text(descLines[i], 20, y);
+        y += 4.5;
+      }
+    }
+    y += 2;
+  };
+  
+  // Draw monster image if available
+  const imageSize = 45;
+  const contentX = monsterImage ? 75 : 20;
+  const maxTitleWidth = monsterImage ? 115 : 170;
+  
+  if (monsterImage) {
+    try {
+      pdf.addImage(monsterImage, 'JPEG', 20, y, imageSize, imageSize);
+      pdf.setDrawColor(139, 69, 19);
+      pdf.setLineWidth(1.5);
+      pdf.rect(20, y, imageSize, imageSize);
+    } catch {
+      console.warn('Failed to add monster image to PDF');
+    }
+  }
+  
+  // Title - Monster name
+  pdf.setFont('times', 'bold');
+  let titleSize = 26;
+  pdf.setFontSize(titleSize);
+  while (pdf.getTextWidth(monster.name) > maxTitleWidth && titleSize > 16) {
+    titleSize -= 1;
+    pdf.setFontSize(titleSize);
+  }
+  pdf.setTextColor(120, 10, 10);
+  pdf.text(monster.name, contentX, y + 10);
+  
+  // Type line (size, type, alignment)
+  pdf.setFontSize(10);
+  pdf.setTextColor(40, 40, 40);
+  pdf.setFont('times', 'italic');
+  const typeText = `${monster.size} ${monster.type}${monster.alignment ? `, ${monster.alignment}` : ''}`;
+  pdf.text(typeText, contentX, y + 20);
+  
+  y = monsterImage ? y + imageSize + 5 : y + 28;
+  
+  // Red decorative line
+  pdf.setDrawColor(139, 10, 10);
+  pdf.setLineWidth(1);
+  pdf.line(20, y, 190, y);
+  y += 5;
+  
+  // Core stats block
+  if (monster.armor_class) {
+    drawInlineStat('Armor Class ', `${monster.armor_class}`);
+    y += 5;
+  }
+  
+  if (monster.hit_points) {
+    const conMod = monster.constitution ? Math.floor((monster.constitution - 10) / 2) : 0;
+    const hitDice = Math.ceil(monster.hit_points / 4.5);
+    const hitDiceStr = `(${hitDice}d8${conMod !== 0 ? (conMod > 0 ? ` + ${conMod * hitDice}` : ` - ${Math.abs(conMod * hitDice)}`) : ''})`;
+    drawInlineStat('Hit Points ', `${monster.hit_points} ${hitDiceStr}`);
+    y += 5;
+  }
+  
+  drawInlineStat('Speed ', monster.speed || '30 ft.');
+  y += 5;
+  
+  // Red decorative line
+  pdf.setDrawColor(139, 10, 10);
+  pdf.setLineWidth(1);
+  pdf.line(20, y, 190, y);
+  y += 5;
+  
+  // Ability Scores
+  if (monster.strength && monster.dexterity && monster.constitution && monster.intelligence && monster.wisdom && monster.charisma) {
+    y = drawStatRow(pdf, [
+      { label: 'STR', value: monster.strength },
+      { label: 'DEX', value: monster.dexterity },
+      { label: 'CON', value: monster.constitution },
+      { label: 'INT', value: monster.intelligence },
+      { label: 'WIS', value: monster.wisdom },
+      { label: 'CHA', value: monster.charisma }
+    ], y);
+  }
+  
+  // Red decorative line
+  pdf.setDrawColor(139, 10, 10);
+  pdf.setLineWidth(1);
+  pdf.line(20, y, 190, y);
+  y += 5;
+  
+  // Secondary stats
+  if (monster.saving_throws) {
+    drawInlineStat('Saving Throws ', monster.saving_throws);
+    y += 5;
+  }
+  
+  if (monster.skills) {
+    drawInlineStat('Skills ', monster.skills);
+    y += 5;
+  }
+  
+  if (monster.damage_resistances) {
+    drawInlineStat('Damage Resistances ', monster.damage_resistances);
+    y += 5;
+  }
+  
+  if (monster.damage_immunities) {
+    drawInlineStat('Damage Immunities ', monster.damage_immunities);
+    y += 5;
+  }
+  
+  if (monster.condition_immunities) {
+    drawInlineStat('Condition Immunities ', monster.condition_immunities);
+    y += 5;
+  }
+  
+  if (monster.senses) {
+    drawInlineStat('Senses ', monster.senses);
+    y += 5;
+  }
+  
+  if (monster.languages) {
+    drawInlineStat('Languages ', monster.languages);
+    y += 5;
+  }
+  
+  // Challenge Rating
+  const xpByCR: Record<string, number> = {
+    '0': 10, '1/8': 25, '1/4': 50, '1/2': 100, '1': 200, '2': 450, '3': 700, '4': 1100, '5': 1800,
+    '6': 2300, '7': 2900, '8': 3900, '9': 5000, '10': 5900, '11': 7200, '12': 8400, '13': 10000,
+    '14': 11500, '15': 13000, '16': 15000, '17': 18000, '18': 20000, '19': 22000, '20': 25000
+  };
+  const xp = xpByCR[monster.challenge_rating] || parseInt(monster.challenge_rating) * 200 || 0;
+  drawInlineStat('Challenge ', `${monster.challenge_rating} (${xp.toLocaleString()} XP)`);
+  y += 5;
+  
+  // Red decorative line
+  pdf.setDrawColor(139, 10, 10);
+  pdf.setLineWidth(1);
+  pdf.line(20, y, 190, y);
+  y += 6;
+  
+  // Special Abilities / Traits
+  if (monster.special_abilities && monster.special_abilities.length > 0) {
+    monster.special_abilities.forEach(ability => drawAbilityEntry(ability.name, ability.description));
+  }
+  
+  // Description as a trait if no special abilities
+  if (monster.description && (!monster.special_abilities || monster.special_abilities.length === 0)) {
+    const descLines = pdf.splitTextToSize(monster.description, 170);
+    pdf.setFont('times', 'normal');
+    pdf.setFontSize(10);
+    pdf.setTextColor(40, 40, 40);
+    pdf.text(descLines, 20, y);
+    y += descLines.length * 4.5 + 4;
+  }
+  
+  // Actions Section
+  if (monster.actions && monster.actions.length > 0) {
+    y += 2;
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(14);
+    pdf.setTextColor(120, 10, 10);
+    pdf.text('Actions', 20, y);
+    y += 2;
+    pdf.setDrawColor(120, 10, 10);
+    pdf.setLineWidth(0.5);
+    pdf.line(20, y, 190, y);
+    y += 5;
+    
+    monster.actions.forEach(action => drawAbilityEntry(action.name, action.description));
+  }
+  
+  // Reactions Section
+  if (monster.reactions && monster.reactions.length > 0) {
+    y += 2;
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(14);
+    pdf.setTextColor(120, 10, 10);
+    pdf.text('Reactions', 20, y);
+    y += 2;
+    pdf.setDrawColor(120, 10, 10);
+    pdf.setLineWidth(0.5);
+    pdf.line(20, y, 190, y);
+    y += 5;
+    
+    monster.reactions.forEach(reaction => drawAbilityEntry(reaction.name, reaction.description));
+  }
+  
+  // Legendary Actions Section
+  if (monster.legendary_actions && monster.legendary_actions.length > 0) {
+    y += 2;
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(14);
+    pdf.setTextColor(120, 10, 10);
+    pdf.text('Legendary Actions', 20, y);
+    y += 2;
+    pdf.setDrawColor(120, 10, 10);
+    pdf.setLineWidth(0.5);
+    pdf.line(20, y, 190, y);
+    y += 5;
+    
+    pdf.setFont('times', 'normal');
+    pdf.setFontSize(10);
+    pdf.setTextColor(40, 40, 40);
+    const legendaryIntro = pdf.splitTextToSize(`${monster.name} can take 3 legendary actions, choosing from the options below. Only one legendary action can be used at a time and only at the end of another creature's turn. ${monster.name} regains spent legendary actions at the start of its turn.`, 170);
+    pdf.text(legendaryIntro, 20, y);
+    y += legendaryIntro.length * 4.5 + 4;
+    
+    monster.legendary_actions.forEach(action => drawAbilityEntry(action.name, action.description));
+  }
+  
+  // Notes section
+  if (monster.notes) {
+    y += 2;
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(14);
+    pdf.setTextColor(120, 10, 10);
+    pdf.text('DM Notes', 20, y);
+    y += 2;
+    pdf.setDrawColor(120, 10, 10);
+    pdf.setLineWidth(0.5);
+    pdf.line(20, y, 190, y);
+    y += 5;
+    
+    pdf.setFont('times', 'normal');
+    pdf.setFontSize(10);
+    pdf.setTextColor(40, 40, 40);
+    const notesLines = pdf.splitTextToSize(monster.notes, 170);
+    pdf.text(notesLines, 20, y);
+  }
+  
+  pdf.save(`${monster.name.replace(/\s+/g, '_')}_statblock.pdf`);
+}
+
 export async function exportItemPDF(item: ItemData): Promise<void> {
   const { pdf, bgImage } = await createBasePDF();
   let y = 25;
