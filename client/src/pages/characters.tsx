@@ -31,7 +31,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import CharacterSheet from "@/components/character/CharacterSheet";
-import { AlertCircle, Plus, User, Users, Dice6, Swords, Sparkles, Sword, Wand2, Shield, Heart, Flame, Moon, Loader2, ChevronDown, ChevronUp, Zap, Package, Scroll, Edit, Trash2, HelpCircle, BookOpen, Target, Brain, Eye } from "lucide-react";
+import { AlertCircle, Plus, User, Users, Dice6, Swords, Sparkles, Sword, Wand2, Shield, Heart, Flame, Moon, Loader2, ChevronDown, ChevronUp, Zap, Package, Scroll, Edit, Trash2, HelpCircle, BookOpen, Target, Brain, Eye, FileDown } from "lucide-react";
+import { exportCharacterPDF } from "@/lib/pdf-export";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1101,6 +1102,24 @@ export default function Characters() {
                                     </Tooltip>
                                   </TooltipProvider>
                                 )}
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        className="text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-700"
+                                        onClick={() => exportCharacterPDF(character)}
+                                      >
+                                        <FileDown className="h-4 w-4 mr-2" />
+                                        Export PDF
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Download character sheet as a D&D-style PDF</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
                                     <Button 
