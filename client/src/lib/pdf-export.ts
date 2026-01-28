@@ -104,6 +104,20 @@ interface NpcData {
   skills?: string[];
   equipment?: string[];
   portraitUrl?: string;
+  // Combat and ability fields for D&D stat blocks
+  speed?: string;
+  savingThrows?: string;
+  damageResistances?: string;
+  damageImmunities?: string;
+  conditionImmunities?: string;
+  senses?: string;
+  languages?: string;
+  challenge?: string;
+  combatAbilities?: { name: string; description: string }[];
+  supportAbilities?: { name: string; description: string }[];
+  actions?: { name: string; description: string }[];
+  legendaryActions?: { name: string; description: string }[];
+  traits?: { name: string; description: string }[];
 }
 
 function getModifier(score: number): string {
@@ -428,45 +442,92 @@ export async function exportCharacterPDF(character: CharacterData): Promise<void
 
 export async function exportNpcPDF(npc: NpcData): Promise<void> {
   const { pdf, bgImage } = await createBasePDF();
-  let y = 25;
+  let y = 20;
   
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(24);
-  pdf.setTextColor(139, 10, 10);
-  pdf.text(npc.name.toUpperCase(), 20, y);
-  y += 8;
+  // Helper to draw inline stat
+  const drawInlineStat = (label: string, value: string, xPos: number = 20) => {
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(10);
+    pdf.setTextColor(139, 10, 10);
+    pdf.text(label, xPos, y);
+    pdf.setFont('times', 'normal');
+    pdf.setTextColor(40, 40, 40);
+    pdf.text(value, xPos + pdf.getTextWidth(label) + 2, y);
+  };
   
+  // Helper to draw action/ability entry
+  const drawAbilityEntry = (name: string, description: string) => {
+    pdf.setFont('times', 'bolditalic');
+    pdf.setFontSize(10);
+    pdf.setTextColor(40, 40, 40);
+    pdf.text(`${name}. `, 20, y);
+    pdf.setFont('times', 'normal');
+    const nameWidth = pdf.getTextWidth(`${name}. `);
+    const descLines = pdf.splitTextToSize(description, 165 - nameWidth);
+    if (descLines.length === 1) {
+      pdf.text(descLines[0], 20 + nameWidth, y);
+      y += 5;
+    } else {
+      pdf.text(descLines[0], 20 + nameWidth, y);
+      y += 5;
+      for (let i = 1; i < descLines.length; i++) {
+        pdf.text(descLines[i], 20, y);
+        y += 4.5;
+      }
+    }
+    y += 2;
+  };
+  
+  // Title - Monster/NPC name
+  pdf.setFont('times', 'bold');
+  pdf.setFontSize(26);
+  pdf.setTextColor(120, 10, 10);
+  pdf.text(npc.name, 20, y);
+  y += 6;
+  
+  // Type line (race, occupation, alignment)
   pdf.setFontSize(10);
-  pdf.setTextColor(80, 80, 80);
-  pdf.setFont('helvetica', 'italic');
-  const typeText = `${npc.race} ${npc.occupation}${npc.level ? `, Level ${npc.level}` : ''}`;
+  pdf.setTextColor(40, 40, 40);
+  pdf.setFont('times', 'italic');
+  const typeText = `${npc.race} ${npc.occupation}${npc.level ? `, CR ${npc.level}` : ''}`;
   pdf.text(typeText, 20, y);
-  y += 8;
+  y += 6;
   
-  y = drawDivider(pdf, y);
+  // Red decorative line
+  pdf.setDrawColor(139, 10, 10);
+  pdf.setLineWidth(1);
+  pdf.line(20, y, 190, y);
+  y += 5;
   
+  // Core stats block
   if (npc.armorClass) {
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(9);
-    pdf.setTextColor(139, 69, 19);
-    pdf.text(`Armor Class `, 20, y);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`${npc.armorClass}`, 20 + pdf.getTextWidth('Armor Class '), y);
+    drawInlineStat('Armor Class ', `${npc.armorClass}`);
     y += 5;
   }
   
   if (npc.hitPoints || npc.maxHitPoints) {
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(`Hit Points `, 20, y);
-    pdf.setFont('helvetica', 'normal');
-    const hp = npc.hitPoints || npc.maxHitPoints;
-    const maxHp = npc.maxHitPoints || npc.hitPoints;
-    pdf.text(`${hp}/${maxHp}`, 20 + pdf.getTextWidth('Hit Points '), y);
-    y += 8;
+    const hp = npc.maxHitPoints || npc.hitPoints || 0;
+    const hitDice = npc.level ? `(${npc.level}d8 + ${Math.floor(((npc.constitution || 10) - 10) / 2) * (npc.level || 1)})` : '';
+    drawInlineStat('Hit Points ', `${hp} ${hitDice}`);
+    y += 5;
   }
   
+  if (npc.speed) {
+    drawInlineStat('Speed ', npc.speed);
+    y += 5;
+  } else {
+    drawInlineStat('Speed ', '30 ft.');
+    y += 5;
+  }
+  
+  // Red decorative line
+  pdf.setDrawColor(139, 10, 10);
+  pdf.setLineWidth(1);
+  pdf.line(20, y, 190, y);
+  y += 5;
+  
+  // Ability Scores
   if (npc.strength && npc.dexterity && npc.constitution && npc.intelligence && npc.wisdom && npc.charisma) {
-    y = drawDivider(pdf, y);
     y = drawStatRow(pdf, [
       { label: 'STR', value: npc.strength },
       { label: 'DEX', value: npc.dexterity },
@@ -477,58 +538,150 @@ export async function exportNpcPDF(npc: NpcData): Promise<void> {
     ], y);
   }
   
-  y = drawDivider(pdf, y);
+  // Red decorative line
+  pdf.setDrawColor(139, 10, 10);
+  pdf.setLineWidth(1);
+  pdf.line(20, y, 190, y);
+  y += 5;
   
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(9);
-  pdf.setTextColor(139, 69, 19);
-  pdf.text('Personality ', 20, y);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(60, 60, 60);
-  const personalityLines = pdf.splitTextToSize(npc.personality, 160);
-  pdf.text(personalityLines, 20, y + 5);
-  y += personalityLines.length * 4 + 8;
-  
-  pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(139, 69, 19);
-  pdf.text('Appearance ', 20, y);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(60, 60, 60);
-  const appearanceLines = pdf.splitTextToSize(npc.appearance, 160);
-  pdf.text(appearanceLines, 20, y + 5);
-  y += appearanceLines.length * 4 + 8;
-  
-  pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(139, 69, 19);
-  pdf.text('Motivation ', 20, y);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(60, 60, 60);
-  const motivationLines = pdf.splitTextToSize(npc.motivation, 160);
-  pdf.text(motivationLines, 20, y + 5);
-  y += motivationLines.length * 4 + 8;
+  // Secondary stats
+  if (npc.savingThrows) {
+    drawInlineStat('Saving Throws ', npc.savingThrows);
+    y += 5;
+  }
   
   if (npc.skills && npc.skills.length > 0) {
-    y = drawDivider(pdf, y);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(139, 69, 19);
-    pdf.text('Skills ', 20, y);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(60, 60, 60);
-    pdf.text(npc.skills.join(', '), 20 + pdf.getTextWidth('Skills '), y);
-    y += 8;
+    drawInlineStat('Skills ', npc.skills.join(', '));
+    y += 5;
   }
   
+  if (npc.damageResistances) {
+    drawInlineStat('Damage Resistances ', npc.damageResistances);
+    y += 5;
+  }
+  
+  if (npc.damageImmunities) {
+    drawInlineStat('Damage Immunities ', npc.damageImmunities);
+    y += 5;
+  }
+  
+  if (npc.conditionImmunities) {
+    drawInlineStat('Condition Immunities ', npc.conditionImmunities);
+    y += 5;
+  }
+  
+  if (npc.senses) {
+    drawInlineStat('Senses ', npc.senses);
+    y += 5;
+  }
+  
+  if (npc.languages) {
+    drawInlineStat('Languages ', npc.languages);
+    y += 5;
+  }
+  
+  if (npc.challenge) {
+    drawInlineStat('Challenge ', npc.challenge);
+    y += 5;
+  } else if (npc.level) {
+    drawInlineStat('Challenge ', `${npc.level} (${npc.level * 200} XP)`);
+    y += 5;
+  }
+  
+  // Red decorative line
+  pdf.setDrawColor(139, 10, 10);
+  pdf.setLineWidth(1);
+  pdf.line(20, y, 190, y);
+  y += 6;
+  
+  // Traits section (personality, appearance, motivation as traits)
+  if (npc.traits && npc.traits.length > 0) {
+    npc.traits.forEach(trait => drawAbilityEntry(trait.name, trait.description));
+  }
+  
+  // Personality as a trait
+  if (npc.personality) {
+    drawAbilityEntry('Personality', npc.personality);
+  }
+  
+  // Appearance as a trait
+  if (npc.appearance) {
+    drawAbilityEntry('Appearance', npc.appearance);
+  }
+  
+  // Motivation as a trait
+  if (npc.motivation) {
+    drawAbilityEntry('Motivation', npc.motivation);
+  }
+  
+  // Actions Section Header
+  const allActions = [
+    ...(npc.actions || []),
+    ...(npc.combatAbilities || []),
+    ...(npc.supportAbilities || [])
+  ];
+  
+  if (allActions.length > 0) {
+    y += 2;
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(14);
+    pdf.setTextColor(120, 10, 10);
+    pdf.text('Actions', 20, y);
+    y += 2;
+    pdf.setDrawColor(120, 10, 10);
+    pdf.setLineWidth(0.5);
+    pdf.line(20, y, 190, y);
+    y += 5;
+    
+    allActions.forEach(action => drawAbilityEntry(action.name, action.description));
+  }
+  
+  // Legendary Actions Section
+  if (npc.legendaryActions && npc.legendaryActions.length > 0) {
+    y += 2;
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(14);
+    pdf.setTextColor(120, 10, 10);
+    pdf.text('Legendary Actions', 20, y);
+    y += 2;
+    pdf.setDrawColor(120, 10, 10);
+    pdf.setLineWidth(0.5);
+    pdf.line(20, y, 190, y);
+    y += 5;
+    
+    pdf.setFont('times', 'normal');
+    pdf.setFontSize(10);
+    pdf.setTextColor(40, 40, 40);
+    const legendaryIntro = pdf.splitTextToSize('The creature can take 3 legendary actions, choosing from the options below. Only one legendary action can be used at a time and only at the end of another creature\'s turn. The creature regains spent legendary actions at the start of its turn.', 170);
+    pdf.text(legendaryIntro, 20, y);
+    y += legendaryIntro.length * 4.5 + 4;
+    
+    npc.legendaryActions.forEach(action => drawAbilityEntry(action.name, action.description));
+  }
+  
+  // Equipment section
   if (npc.equipment && npc.equipment.length > 0) {
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(139, 69, 19);
-    pdf.text('Equipment ', 20, y);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(60, 60, 60);
-    const equipLines = pdf.splitTextToSize(npc.equipment.join(', '), 160);
-    pdf.text(equipLines, 20, y + 5);
+    y += 2;
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(14);
+    pdf.setTextColor(120, 10, 10);
+    pdf.text('Equipment', 20, y);
+    y += 2;
+    pdf.setDrawColor(120, 10, 10);
+    pdf.setLineWidth(0.5);
+    pdf.line(20, y, 190, y);
+    y += 5;
+    
+    pdf.setFont('times', 'normal');
+    pdf.setFontSize(10);
+    pdf.setTextColor(40, 40, 40);
+    const cleanEquipment = npc.equipment.map(item => parseEquipmentItem(item));
+    const equipText = cleanEquipment.join(', ');
+    const equipLines = pdf.splitTextToSize(equipText, 170);
+    pdf.text(equipLines, 20, y);
   }
   
-  pdf.save(`${npc.name.replace(/\s+/g, '_')}_npc.pdf`);
+  pdf.save(`${npc.name.replace(/\s+/g, '_')}_statblock.pdf`);
 }
 
 export async function exportItemPDF(item: ItemData): Promise<void> {

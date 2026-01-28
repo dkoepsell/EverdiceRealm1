@@ -613,7 +613,7 @@ export default function LandingPage() {
           <div className="mt-8 pt-6 border-t border-border/30 text-sm text-muted-foreground">
             <span>Questions, bugs, or ideas? </span>
             <a 
-              href="mailto:feedback@everdice.app?subject=Everdice Feedback" 
+              href="mailto:drkoepsell@gmail.com?subject=Everdice Feedback" 
               className="text-amber-500 hover:text-amber-400 underline underline-offset-2"
             >
               Send feedback to KoeppyLoco

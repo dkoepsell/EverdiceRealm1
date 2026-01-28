@@ -292,7 +292,7 @@ export default function Dashboard() {
             <div className="text-xs text-white/50 mb-3">
               <span>Questions or ideas? </span>
               <a 
-                href="mailto:feedback@everdice.app?subject=Everdice Feedback" 
+                href="mailto:drkoepsell@gmail.com?subject=Everdice Feedback" 
                 className="text-amber-400/80 hover:text-amber-400 underline underline-offset-2"
               >
                 Send feedback to KoeppyLoco
