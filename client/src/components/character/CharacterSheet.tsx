@@ -6,7 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronUp, Image, BookOpen, Shield, Users, Crown, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, Image, BookOpen, Shield, Users, Crown, Sparkles, FileDown } from "lucide-react";
+import { exportCharacterPDF } from "@/lib/pdf-export";
 import CharacterPortraitGenerator from "./CharacterPortraitGenerator";
 import CharacterStoryArc from "./CharacterStoryArc";
 import SpellBook from "@/components/SpellBook";
@@ -71,15 +72,26 @@ export default function CharacterSheet({ character, initialTab = "main" }: Chara
     <Card className="bg-secondary-light rounded-lg shadow-xl overflow-hidden">
       <div className="bg-primary p-4 flex justify-between items-center">
         <h2 className="font-fantasy text-xl font-bold text-white">Character Sheet</h2>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="text-white hover:bg-primary-dark"
-          onClick={toggleExpanded}
-          aria-label={isExpanded ? "Collapse character sheet" : "Expand character sheet"}
-        >
-          {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-white hover:bg-primary-dark"
+            onClick={() => exportCharacterPDF(character)}
+            aria-label="Export character to PDF"
+          >
+            <FileDown className="h-5 w-5" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-white hover:bg-primary-dark"
+            onClick={toggleExpanded}
+            aria-label={isExpanded ? "Collapse character sheet" : "Expand character sheet"}
+          >
+            {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+          </Button>
+        </div>
       </div>
       
       {isExpanded ? (

@@ -92,8 +92,10 @@ import {
   Download,
   WifiOff,
   MessageCircle,
-  Trash2
+  Trash2,
+  FileDown
 } from "lucide-react";
+import { exportNpcPDF, exportLocationPDF, exportItemPDF } from "@/lib/pdf-export";
 import { SiDiscord } from "react-icons/si";
 
 // Import our tabs
@@ -1116,11 +1118,16 @@ function CompanionsTab() {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <h4 className="font-semibold truncate">{npc.name}</h4>
-                  <p className="text-xs text-muted-foreground">{npc.race} {npc.class} · Level {npc.level}</p>
+                  <p className="text-xs text-muted-foreground">{npc.race} {npc.occupation || npc.class} · Level {npc.level}</p>
                 </div>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:text-destructive" onClick={() => deleteCompanionMutation.mutate(npc.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:text-amber-500" onClick={() => exportNpcPDF(npc)} title="Export to PDF">
+                    <FileDown className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:text-destructive" onClick={() => deleteCompanionMutation.mutate(npc.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               {npc.backstory && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{npc.backstory}</p>}
             </div>
@@ -1142,9 +1149,14 @@ function CompanionsTab() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <h4 className="font-semibold truncate">{npc.name}</h4>
-                    <p className="text-xs text-muted-foreground">{npc.race} {npc.class} · Level {npc.level}</p>
+                    <p className="text-xs text-muted-foreground">{npc.race} {npc.occupation || npc.class} · Level {npc.level}</p>
                   </div>
-                  <Badge variant="secondary" className="text-[10px]">Stock</Badge>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:text-amber-500" onClick={() => exportNpcPDF(npc)} title="Export to PDF">
+                      <FileDown className="h-4 w-4" />
+                    </Button>
+                    <Badge variant="secondary" className="text-[10px]">Stock</Badge>
+                  </div>
                 </div>
                 {npc.backstory && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{npc.backstory}</p>}
               </div>
@@ -2029,14 +2041,25 @@ function LocationsTab() {
                       {location.environment || location.type}
                     </p>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
-                    onClick={() => deleteLocationMutation.mutate(location.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-amber-500"
+                      onClick={() => exportLocationPDF(location)}
+                      title="Export to PDF"
+                    >
+                      <FileDown className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => deleteLocationMutation.mutate(location.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 {location.description && (
                   <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
@@ -3136,14 +3159,25 @@ function MagicItemsTab() {
                       {item.type}{item.requires_attunement ? ' · Attunement' : ''}
                     </p>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
-                    onClick={() => deleteItemMutation.mutate(item.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-amber-500"
+                      onClick={() => exportItemPDF(item)}
+                      title="Export to PDF"
+                    >
+                      <FileDown className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => deleteItemMutation.mutate(item.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 {item.description && (
                   <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
