@@ -229,20 +229,36 @@ export async function exportCharacterPDF(character: CharacterData): Promise<void
     }
   }
   
-  // Character Name - large title with fantasy font (Times for classic feel)
-  pdf.setFont('times', 'bold');
-  pdf.setFontSize(32);
-  pdf.setTextColor(139, 10, 10);
+  // Character Name - large title with fantasy styling
   const nameX = portraitImage ? 78 : 20;
-  pdf.text(character.name.toUpperCase(), nameX, y + 12);
+  const maxNameWidth = portraitImage ? 120 : 170;
+  const characterName = character.name.toUpperCase();
+  
+  // Auto-scale font size to fit name
+  let nameFontSize = 28;
+  pdf.setFont('times', 'bolditalic');
+  pdf.setFontSize(nameFontSize);
+  while (pdf.getTextWidth(characterName) > maxNameWidth && nameFontSize > 16) {
+    nameFontSize -= 1;
+    pdf.setFontSize(nameFontSize);
+  }
+  
+  pdf.setTextColor(120, 10, 10);
+  pdf.text(characterName, nameX, y + 10);
+  
+  // Decorative underline for classical feel
+  const nameWidth = pdf.getTextWidth(characterName);
+  pdf.setDrawColor(139, 69, 19);
+  pdf.setLineWidth(0.5);
+  pdf.line(nameX, y + 13, nameX + Math.min(nameWidth, maxNameWidth), y + 13);
   
   // Subtitle line
-  pdf.setFontSize(13);
+  pdf.setFontSize(12);
   pdf.setTextColor(80, 80, 80);
   pdf.setFont('times', 'italic');
   let subtitle = `${character.race} ${character.class}, Level ${character.level}`;
   if (character.alignment) subtitle += ` • ${character.alignment}`;
-  pdf.text(subtitle, nameX, y + 22);
+  pdf.text(subtitle, nameX, y + 21);
   
   // Draw portrait if available
   if (portraitImage) {
