@@ -95,7 +95,8 @@ import {
   Trash2,
   FileDown,
   Edit,
-  ImageIcon
+  ImageIcon,
+  Search
 } from "lucide-react";
 import { exportNpcPDF, exportLocationPDF, exportItemPDF, exportMonsterPDF } from "@/lib/pdf-export";
 import { SiDiscord } from "react-icons/si";
@@ -539,7 +540,7 @@ export default function DMToolkit() {
 
                 {/* Session Assets */}
                 <p className="text-xs text-muted-foreground mb-2 px-1">Session Assets</p>
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                <div className="grid grid-cols-3 md:grid-cols-7 gap-2">
                   {[
                     { id: 'companions', icon: Users, label: 'NPCs', color: 'text-rose-500' },
                     { id: 'locations', icon: MapPin, label: 'Locations', color: 'text-emerald-500' },
@@ -547,6 +548,7 @@ export default function DMToolkit() {
                     { id: 'items', icon: Package, label: 'Items', color: 'text-cyan-500' },
                     { id: 'monsters', icon: Swords, label: 'Monsters', color: 'text-red-500' },
                     { id: 'threats', icon: Target, label: 'Threats', color: 'text-orange-500' },
+                    { id: 'srd-library', icon: BookOpen, label: 'SRD Library', color: 'text-blue-500' },
                   ].map(({ id, icon: Icon, label, color }) => (
                     <Button
                       key={id}
@@ -838,6 +840,21 @@ export default function DMToolkit() {
           </SheetHeader>
           <div className="mt-6">
             <ThreatArchetypes />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={openDrawer === 'srd-library'} onOpenChange={(open) => !open && setOpenDrawer(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-blue-500" />
+              SRD Library
+            </SheetTitle>
+            <SheetDescription>Browse official D&D 5e SRD content from open5e</SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            <SRDLibraryContent />
           </div>
         </SheetContent>
       </Sheet>
@@ -1816,6 +1833,370 @@ function MonstersDrawerContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function SRDLibraryContent() {
+  const [category, setCategory] = useState<'monsters' | 'spells' | 'magicitems' | 'weapons'>('monsters');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const { data: monstersData, isLoading: monstersLoading, error: monstersError } = useQuery<any>({
+    queryKey: ['/api/open5e/monsters', debouncedSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams({ limit: '20' });
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      const res = await fetch(`/api/open5e/monsters?${params}`);
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+    enabled: category === 'monsters',
+  });
+
+  const { data: spellsData, isLoading: spellsLoading, error: spellsError } = useQuery<any>({
+    queryKey: ['/api/open5e/spells', debouncedSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams({ limit: '20' });
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      const res = await fetch(`/api/open5e/spells?${params}`);
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+    enabled: category === 'spells',
+  });
+
+  const { data: itemsData, isLoading: itemsLoading, error: itemsError } = useQuery<any>({
+    queryKey: ['/api/open5e/magicitems', debouncedSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams({ limit: '20' });
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      const res = await fetch(`/api/open5e/magicitems?${params}`);
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+    enabled: category === 'magicitems',
+  });
+
+  const { data: weaponsData, isLoading: weaponsLoading, error: weaponsError } = useQuery<any>({
+    queryKey: ['/api/open5e/weapons', debouncedSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams({ limit: '50' });
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      const res = await fetch(`/api/open5e/weapons?${params}`);
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+    enabled: category === 'weapons',
+  });
+
+  const isLoading = monstersLoading || spellsLoading || itemsLoading || weaponsLoading;
+  const hasError = monstersError || spellsError || itemsError || weaponsError;
+
+  const getCurrentData = () => {
+    switch (category) {
+      case 'monsters': return monstersData?.results || [];
+      case 'spells': return spellsData?.results || [];
+      case 'magicitems': return itemsData?.results || [];
+      case 'weapons': return weaponsData?.results || [];
+    }
+  };
+
+  const renderMonsterCard = (monster: any) => (
+    <div 
+      key={monster.slug} 
+      className="border rounded-lg p-3 hover:bg-muted/30 cursor-pointer transition-colors"
+      onClick={() => setSelectedItem({ type: 'monster', data: monster })}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="font-semibold truncate">{monster.name}</h4>
+            <Badge variant="secondary" className="text-xs shrink-0">CR {monster.challenge_rating}</Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {monster.size} {monster.type} · AC {monster.armor_class} · HP {monster.hit_points}
+          </p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+      </div>
+    </div>
+  );
+
+  const renderSpellCard = (spell: any) => (
+    <div 
+      key={spell.key || spell.slug} 
+      className="border rounded-lg p-3 hover:bg-muted/30 cursor-pointer transition-colors"
+      onClick={() => setSelectedItem({ type: 'spell', data: spell })}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="font-semibold truncate">{spell.name}</h4>
+            <Badge variant="outline" className="text-xs shrink-0">
+              {spell.level === 0 || spell.spell_level === 0 ? 'Cantrip' : `Level ${spell.level || spell.spell_level}`}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {spell.school?.name || spell.school} · {spell.casting_time}
+          </p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+      </div>
+    </div>
+  );
+
+  const renderItemCard = (item: any) => (
+    <div 
+      key={item.slug} 
+      className="border rounded-lg p-3 hover:bg-muted/30 cursor-pointer transition-colors"
+      onClick={() => setSelectedItem({ type: 'magicitem', data: item })}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="font-semibold truncate">{item.name}</h4>
+            {item.rarity && <Badge variant="outline" className="text-xs shrink-0">{item.rarity}</Badge>}
+          </div>
+          <p className="text-xs text-muted-foreground">{item.type}</p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+      </div>
+    </div>
+  );
+
+  const renderWeaponCard = (weapon: any) => (
+    <div 
+      key={weapon.key || weapon.slug || weapon.name} 
+      className="border rounded-lg p-3 hover:bg-muted/30 cursor-pointer transition-colors"
+      onClick={() => setSelectedItem({ type: 'weapon', data: weapon })}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="font-semibold truncate">{weapon.name}</h4>
+            {weapon.category && <Badge variant="outline" className="text-xs shrink-0">{weapon.category?.name || weapon.category}</Badge>}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {weapon.damage_dice || weapon.damage?.dice} {weapon.damage_type?.name || weapon.damage_type}
+          </p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+      </div>
+    </div>
+  );
+
+  if (selectedItem) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => setSelectedItem(null)} className="gap-1">
+          <ChevronLeft className="h-4 w-4" /> Back to list
+        </Button>
+
+        {selectedItem.type === 'monster' && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-bold">{selectedItem.data.name}</h3>
+              <Badge>CR {selectedItem.data.challenge_rating}</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground italic">
+              {selectedItem.data.size} {selectedItem.data.type}, {selectedItem.data.alignment}
+            </p>
+            <Separator />
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div><strong>AC:</strong> {selectedItem.data.armor_class}</div>
+              <div><strong>HP:</strong> {selectedItem.data.hit_points}</div>
+              <div className="col-span-2"><strong>Speed:</strong> {JSON.stringify(selectedItem.data.speed)?.replace(/[{}"]/g, '')}</div>
+            </div>
+            <Separator />
+            <div className="grid grid-cols-6 gap-2 text-center text-sm">
+              <div><strong>STR</strong><br/>{selectedItem.data.strength}</div>
+              <div><strong>DEX</strong><br/>{selectedItem.data.dexterity}</div>
+              <div><strong>CON</strong><br/>{selectedItem.data.constitution}</div>
+              <div><strong>INT</strong><br/>{selectedItem.data.intelligence}</div>
+              <div><strong>WIS</strong><br/>{selectedItem.data.wisdom}</div>
+              <div><strong>CHA</strong><br/>{selectedItem.data.charisma}</div>
+            </div>
+            {selectedItem.data.special_abilities && selectedItem.data.special_abilities.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm">Special Abilities</h4>
+                  {selectedItem.data.special_abilities.map((ability: any, i: number) => (
+                    <div key={i} className="text-sm">
+                      <strong>{ability.name}.</strong> {ability.desc}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            {selectedItem.data.actions && selectedItem.data.actions.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm text-red-600">Actions</h4>
+                  {selectedItem.data.actions.map((action: any, i: number) => (
+                    <div key={i} className="text-sm">
+                      <strong>{action.name}.</strong> {action.desc}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            <Separator />
+            <p className="text-xs text-muted-foreground text-center">
+              Data from <a href="https://open5e.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">open5e.com</a> · SRD 5.1 CC-BY-4.0
+            </p>
+          </div>
+        )}
+
+        {selectedItem.type === 'spell' && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-bold">{selectedItem.data.name}</h3>
+              <Badge variant="outline">
+                {selectedItem.data.level === 0 || selectedItem.data.spell_level === 0 ? 'Cantrip' : `Level ${selectedItem.data.level || selectedItem.data.spell_level}`}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground italic">{selectedItem.data.school?.name || selectedItem.data.school}</p>
+            <Separator />
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div><strong>Casting Time:</strong> {selectedItem.data.casting_time}</div>
+              <div><strong>Range:</strong> {selectedItem.data.range}</div>
+              <div><strong>Components:</strong> {selectedItem.data.components}</div>
+              <div><strong>Duration:</strong> {selectedItem.data.duration}</div>
+            </div>
+            <Separator />
+            <div className="text-sm whitespace-pre-wrap">{selectedItem.data.desc || selectedItem.data.description}</div>
+            {selectedItem.data.higher_level && (
+              <div className="text-sm bg-muted/50 p-3 rounded-lg">
+                <strong>At Higher Levels:</strong> {selectedItem.data.higher_level}
+              </div>
+            )}
+            <Separator />
+            <p className="text-xs text-muted-foreground text-center">
+              Data from <a href="https://open5e.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">open5e.com</a> · SRD 5.1 CC-BY-4.0
+            </p>
+          </div>
+        )}
+
+        {selectedItem.type === 'magicitem' && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-bold">{selectedItem.data.name}</h3>
+              {selectedItem.data.rarity && <Badge variant="outline">{selectedItem.data.rarity}</Badge>}
+            </div>
+            <p className="text-sm text-muted-foreground italic">{selectedItem.data.type}</p>
+            {selectedItem.data.requires_attunement && (
+              <Badge variant="secondary">Requires Attunement</Badge>
+            )}
+            <Separator />
+            <div className="text-sm whitespace-pre-wrap">{selectedItem.data.desc}</div>
+            <Separator />
+            <p className="text-xs text-muted-foreground text-center">
+              Data from <a href="https://open5e.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">open5e.com</a> · SRD 5.1 CC-BY-4.0
+            </p>
+          </div>
+        )}
+
+        {selectedItem.type === 'weapon' && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-bold">{selectedItem.data.name}</h3>
+              {selectedItem.data.category && <Badge variant="outline">{selectedItem.data.category?.name || selectedItem.data.category}</Badge>}
+            </div>
+            <Separator />
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div><strong>Damage:</strong> {selectedItem.data.damage_dice || selectedItem.data.damage?.dice} {selectedItem.data.damage_type?.name || selectedItem.data.damage_type}</div>
+              <div><strong>Cost:</strong> {selectedItem.data.cost}</div>
+              <div><strong>Weight:</strong> {selectedItem.data.weight}</div>
+              {selectedItem.data.properties && (
+                <div className="col-span-2"><strong>Properties:</strong> {selectedItem.data.properties?.map((p: any) => p.name || p).join(', ')}</div>
+              )}
+            </div>
+            <Separator />
+            <p className="text-xs text-muted-foreground text-center">
+              Data from <a href="https://open5e.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">open5e.com</a> · SRD 5.1 CC-BY-4.0
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        {[
+          { id: 'monsters', label: 'Monsters', icon: Swords },
+          { id: 'spells', label: 'Spells', icon: Sparkles },
+          { id: 'magicitems', label: 'Magic Items', icon: Package },
+          { id: 'weapons', label: 'Weapons', icon: Shield },
+        ].map(({ id, label, icon: Icon }) => (
+          <Button
+            key={id}
+            variant={category === id ? 'default' : 'outline'}
+            size="sm"
+            className="flex-1"
+            onClick={() => { setCategory(id as any); setSearchQuery(''); }}
+          >
+            <Icon className="h-3 w-3 mr-1" />
+            {label}
+          </Button>
+        ))}
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder={`Search ${category}...`}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
+      {hasError && (
+        <div className="text-center py-8 text-muted-foreground">
+          <AlertCircle className="h-8 w-8 mx-auto mb-2 text-amber-500" />
+          <p className="text-sm">Unable to reach SRD database</p>
+          <p className="text-xs">Check your connection and try again</p>
+        </div>
+      )}
+
+      {isLoading && (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </div>
+      )}
+
+      {!isLoading && !hasError && (
+        <div className="space-y-2">
+          {getCurrentData().length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p className="text-sm">No results found</p>
+            </div>
+          ) : (
+            <>
+              {category === 'monsters' && getCurrentData().map(renderMonsterCard)}
+              {category === 'spells' && getCurrentData().map(renderSpellCard)}
+              {category === 'magicitems' && getCurrentData().map(renderItemCard)}
+              {category === 'weapons' && getCurrentData().map(renderWeaponCard)}
+            </>
+          )}
+        </div>
+      )}
+
+      <Separator />
+      <p className="text-xs text-muted-foreground text-center">
+        Powered by <a href="https://open5e.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">open5e.com</a> · SRD 5.1 CC-BY-4.0
+      </p>
     </div>
   );
 }

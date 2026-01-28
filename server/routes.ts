@@ -787,6 +787,172 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // ========================================
+  // Open5e SRD Reference API (proxy with caching)
+  // ========================================
+  
+  // Simple in-memory cache with TTL (1 hour)
+  const open5eCache = new Map<string, { data: any; expiry: number }>();
+  const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+  
+  async function fetchOpen5e(url: string): Promise<any> {
+    const cached = open5eCache.get(url);
+    if (cached && cached.expiry > Date.now()) {
+      return cached.data;
+    }
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Open5e API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    open5eCache.set(url, { data, expiry: Date.now() + CACHE_TTL });
+    return data;
+  }
+  
+  // Search/list monsters from open5e
+  app.get("/api/open5e/monsters", async (req, res) => {
+    try {
+      const { search, page = "1", limit = "20" } = req.query;
+      let url = `https://api.open5e.com/v1/monsters/?limit=${limit}&page=${page}`;
+      if (search) {
+        url += `&search=${encodeURIComponent(search as string)}`;
+      }
+      const data = await fetchOpen5e(url);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching open5e monsters:", error.message);
+      res.status(503).json({ message: "Unable to reach SRD database", error: error.message });
+    }
+  });
+  
+  // Get specific monster details
+  app.get("/api/open5e/monsters/:slug", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const url = `https://api.open5e.com/v1/monsters/${slug}/`;
+      const data = await fetchOpen5e(url);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching open5e monster:", error.message);
+      res.status(503).json({ message: "Unable to reach SRD database", error: error.message });
+    }
+  });
+  
+  // Search/list spells from open5e
+  app.get("/api/open5e/spells", async (req, res) => {
+    try {
+      const { search, page = "1", limit = "20", level } = req.query;
+      let url = `https://api.open5e.com/v2/spells/?limit=${limit}&page=${page}`;
+      if (search) {
+        url += `&search=${encodeURIComponent(search as string)}`;
+      }
+      if (level) {
+        url += `&spell_level=${level}`;
+      }
+      const data = await fetchOpen5e(url);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching open5e spells:", error.message);
+      res.status(503).json({ message: "Unable to reach SRD database", error: error.message });
+    }
+  });
+  
+  // Get specific spell details
+  app.get("/api/open5e/spells/:slug", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const url = `https://api.open5e.com/v2/spells/${slug}/`;
+      const data = await fetchOpen5e(url);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching open5e spell:", error.message);
+      res.status(503).json({ message: "Unable to reach SRD database", error: error.message });
+    }
+  });
+  
+  // Search/list magic items from open5e
+  app.get("/api/open5e/magicitems", async (req, res) => {
+    try {
+      const { search, page = "1", limit = "20", rarity } = req.query;
+      let url = `https://api.open5e.com/v1/magicitems/?limit=${limit}&page=${page}`;
+      if (search) {
+        url += `&search=${encodeURIComponent(search as string)}`;
+      }
+      if (rarity) {
+        url += `&rarity=${encodeURIComponent(rarity as string)}`;
+      }
+      const data = await fetchOpen5e(url);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching open5e magic items:", error.message);
+      res.status(503).json({ message: "Unable to reach SRD database", error: error.message });
+    }
+  });
+  
+  // Get specific magic item details
+  app.get("/api/open5e/magicitems/:slug", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const url = `https://api.open5e.com/v1/magicitems/${slug}/`;
+      const data = await fetchOpen5e(url);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching open5e magic item:", error.message);
+      res.status(503).json({ message: "Unable to reach SRD database", error: error.message });
+    }
+  });
+  
+  // Search/list weapons from open5e
+  app.get("/api/open5e/weapons", async (req, res) => {
+    try {
+      const { search, page = "1", limit = "50" } = req.query;
+      let url = `https://api.open5e.com/v2/weapons/?limit=${limit}&page=${page}`;
+      if (search) {
+        url += `&search=${encodeURIComponent(search as string)}`;
+      }
+      const data = await fetchOpen5e(url);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching open5e weapons:", error.message);
+      res.status(503).json({ message: "Unable to reach SRD database", error: error.message });
+    }
+  });
+  
+  // Get specific weapon details
+  app.get("/api/open5e/weapons/:slug", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const url = `https://api.open5e.com/v2/weapons/${slug}/`;
+      const data = await fetchOpen5e(url);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching open5e weapon:", error.message);
+      res.status(503).json({ message: "Unable to reach SRD database", error: error.message });
+    }
+  });
+  
+  // Search/list feats from open5e
+  app.get("/api/open5e/feats", async (req, res) => {
+    try {
+      const { search, page = "1", limit = "50" } = req.query;
+      let url = `https://api.open5e.com/v2/feats/?limit=${limit}&page=${page}`;
+      if (search) {
+        url += `&search=${encodeURIComponent(search as string)}`;
+      }
+      const data = await fetchOpen5e(url);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching open5e feats:", error.message);
+      res.status(503).json({ message: "Unable to reach SRD database", error: error.message });
+    }
+  });
+  
+  // ========================================
+  // End Open5e SRD Reference API
+  // ========================================
+
   // Monster portrait generation
   app.post("/api/monsters/:id/generate-portrait", isAuthenticated, async (req: any, res) => {
     try {
