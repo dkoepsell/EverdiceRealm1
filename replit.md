@@ -68,6 +68,8 @@ Preferred communication style: Simple, everyday language.
     - **Spells**: Browse spells by level with casting time, range, components, and full descriptions
     - **Magic Items**: Search magic items by rarity with attunement requirements and effects
     - **Weapons**: View weapon stats, damage, and properties
+    - **Add to Campaign**: Any SRD entity can be added to a campaign for quick reference during sessions
+    - **Campaign SRD Assets**: View and manage all SRD content linked to each campaign
     - **Architecture**: Reference-only approach - fetches from open5e API on demand with caching, no data duplication
     - **Attribution**: Clear "Data from open5e.com · SRD 5.1 CC-BY-4.0" credit on all content
 - **Discord Integration**: Full bot integration (Everdice#1320) enabling D&D campaigns playable through Discord channels:
