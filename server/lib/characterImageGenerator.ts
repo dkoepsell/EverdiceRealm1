@@ -146,6 +146,71 @@ function createImagePrompt(
   return prompt;
 }
 
+// Generate monster/creature portraits with appropriate prompts
+export async function generateMonsterPortrait(monsterDescription: {
+  name: string;
+  type: string;
+  size: string;
+  description?: string;
+}): Promise<{ url: string }> {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OpenAI API key is not configured");
+  }
+
+  const { name, type, size, description } = monsterDescription;
+  
+  // Create a safe, fantasy-appropriate prompt for monster art
+  const prompt = createMonsterPrompt(name, type, size, description);
+
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+  try {
+    console.log(`Generating monster portrait with prompt: ${prompt}`);
+    
+    const response = await openai.images.generate({
+      model: "dall-e-3",
+      prompt: prompt,
+      n: 1,
+      size: "1024x1024",
+      quality: "standard",
+      style: "vivid",
+    });
+
+    const imageData = response.data?.[0];
+    if (!imageData || !imageData.url) {
+      throw new Error("No image data returned from OpenAI");
+    }
+    
+    const persistentUrl = await saveImageToObjectStorage(imageData.url, `monsters/${randomUUID()}.png`);
+    
+    return { url: persistentUrl };
+  } catch (error: any) {
+    console.error("Error generating monster portrait:", error.message);
+    throw new Error(`Failed to generate monster portrait: ${error.message}`);
+  }
+}
+
+// Create a safe, fantasy-appropriate prompt for monster creatures
+function createMonsterPrompt(
+  name: string,
+  type: string,
+  size: string,
+  description?: string
+): string {
+  // Keep the prompt focused on fantasy creature art in a safe, game-appropriate way
+  let prompt = `Create a detailed fantasy creature illustration for a tabletop RPG bestiary. The creature is called "${name}", a ${size.toLowerCase()} ${type.toLowerCase()}.`;
+  
+  if (description) {
+    // Clean up description to be more art-focused
+    const cleanDesc = description.substring(0, 200); // Limit length
+    prompt += ` Description: ${cleanDesc}`;
+  }
+  
+  prompt += ` Style: Detailed fantasy monster art suitable for a fantasy game manual, dramatic lighting, dynamic pose, showcasing the creature's distinctive features. The art should be similar to official D&D monster manual illustrations - heroic fantasy style, not horror or gore.`;
+  
+  return prompt;
+}
+
 // Simple string hash for consistent diversity selection
 function hashString(str: string): number {
   let hash = 0;

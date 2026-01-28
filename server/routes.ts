@@ -797,13 +797,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Monster not found" });
       }
       
-      // Generate portrait using OpenAI with monster details
-      const portraitData = await generateCharacterPortrait({
+      // Generate portrait using the monster-specific generator
+      const { generateMonsterPortrait } = await import("./lib/characterImageGenerator");
+      const portraitData = await generateMonsterPortrait({
         name: monster.name,
-        race: monster.type || 'Monster',
-        class: `${monster.size} ${monster.type}`,
-        background: monster.lore || undefined,
-        appearance: monster.description || undefined
+        type: monster.type || 'creature',
+        size: monster.size || 'Medium',
+        description: monster.description || undefined
       });
       
       // Update monster with image URL
