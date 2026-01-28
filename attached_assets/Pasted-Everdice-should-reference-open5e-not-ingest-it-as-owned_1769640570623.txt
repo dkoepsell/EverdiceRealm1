@@ -1,0 +1,132 @@
+Everdice should reference open5e, not ingest it as owned data.
+
+Think of open5e as:
+
+authoritative
+
+external
+
+replaceable
+
+read-only
+
+Everdice stays focused on play state, narrative logic, and prep, not rules curation.
+
+If you hold that line, you’re safe.
+
+What “importing open5e” should actually mean
+
+Not:
+
+copying monsters into your DB
+
+extending or modifying their schema
+
+bundling stat blocks as Everdice content
+
+Instead:
+
+linking to open5e entities by stable identifier
+
+fetching on demand
+
+caching lightly and transparently
+
+In other words: resolve, don’t absorb.
+
+The clean architecture (recommended)
+1. Reference by URL or slug, not by duplication
+
+In CAML / Everdice data:
+
+participants:
+  - ref: open5e.monster.bandit-captain
+  - ref: open5e.monster.bandit
+
+
+or even more explicitly:
+
+participants:
+  - https://api.open5e.com/monsters/bandit-captain/
+
+
+This keeps the boundary obvious.
+
+2. Resolve at runtime (or on view), not at authoring
+
+When Everdice needs details:
+
+fetch from open5e API
+
+display stat block or summary
+
+attribute clearly (“Data from open5e”)
+
+Optional:
+
+short-term cache (per session or per campaign)
+
+invalidate easily
+
+Never require open5e to exist for CAML to be valid.
+CAML should still read fine on paper.
+
+3. Treat open5e as a content provider, not a dependency
+
+Good UX patterns:
+
+Monster name is clickable → opens open5e page
+
+Inline stat summary with “view full details”
+
+Graceful fallback if API is down
+
+This signals respect and separation.
+
+What to explicitly NOT do
+
+Do not:
+
+auto-import entire bestiaries
+
+expose editing of open5e content
+
+add “encounter” or “scenario” layers on top of their data
+
+imply open5e is incomplete without Everdice
+
+Those are red flags to maintainers.
+
+Why this helps Everdice (practically)
+
+You avoid maintaining SRD data
+
+You gain instant familiarity for DMs
+
+You stay legally and culturally safe
+
+You reinforce Everdice’s identity as structure + state, not rules
+
+It also strengthens your CAML story:
+
+“CAML says when an encounter exists; open5e says what is in it.”
+
+That’s a very clean division.
+
+Best rollout strategy (important)
+
+Implement quietly
+
+No announcement
+
+No “open5e integration!” headline
+
+Document neutrally
+
+“Everdice can reference external SRD sources such as open5e”
+
+Only later, mention publicly
+
+“We consume open5e as an external content API”
+
+By the time anyone notices, it’s already clearly respectful.
