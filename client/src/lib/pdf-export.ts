@@ -167,35 +167,35 @@ function drawStatRow(pdf: jsPDF, stats: { label: string; value: number }[], y: n
   
   stats.forEach((stat, i) => {
     const x = startX + (i * cellWidth);
-    pdf.setFont('helvetica', 'bold');
+    pdf.setFont('times', 'bold');
     pdf.text(stat.label, x + cellWidth/2, y, { align: 'center' });
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(12);
-    pdf.text(`${stat.value}`, x + cellWidth/2, y + 7, { align: 'center' });
+    pdf.setFont('times', 'normal');
+    pdf.setFontSize(13);
+    pdf.text(`${stat.value}`, x + cellWidth/2, y + 6, { align: 'center' });
     pdf.setFontSize(9);
     pdf.setTextColor(100, 100, 100);
-    pdf.text(`(${getModifier(stat.value)})`, x + cellWidth/2, y + 12, { align: 'center' });
+    pdf.text(`(${getModifier(stat.value)})`, x + cellWidth/2, y + 11, { align: 'center' });
     pdf.setTextColor(139, 69, 19);
     pdf.setFontSize(10);
   });
   
-  return y + 18;
+  return y + 16;
 }
 
 function drawNotesSection(pdf: jsPDF, title: string, y: number, lineCount: number = 6): number {
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(12);
+  pdf.setFont('times', 'bold');
+  pdf.setFontSize(13);
   pdf.setTextColor(139, 10, 10);
   pdf.text(title, 20, y);
-  y += 6;
+  y += 5;
   
   pdf.setDrawColor(180, 160, 140);
   pdf.setLineWidth(0.2);
   for (let i = 0; i < lineCount; i++) {
-    pdf.line(20, y + (i * 7), 190, y + (i * 7));
+    pdf.line(20, y + (i * 6), 190, y + (i * 6));
   }
   
-  return y + (lineCount * 7) + 5;
+  return y + (lineCount * 6) + 4;
 }
 
 function parseEquipmentItem(item: string): string {
@@ -216,7 +216,7 @@ function parseEquipmentItem(item: string): string {
 export async function exportCharacterPDF(character: CharacterData): Promise<void> {
   const { pdf, bgImage } = await createBasePDF();
   let y = 20;
-  const portraitSize = 45;
+  const portraitSize = 50;
   const hasPortrait = character.portraitUrl && !character.portraitUrl.includes('placeholder');
   
   // Try to load portrait
@@ -229,20 +229,20 @@ export async function exportCharacterPDF(character: CharacterData): Promise<void
     }
   }
   
-  // Character Name - large title
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(28);
+  // Character Name - large title with fantasy font (Times for classic feel)
+  pdf.setFont('times', 'bold');
+  pdf.setFontSize(32);
   pdf.setTextColor(139, 10, 10);
-  const nameX = portraitImage ? 75 : 20;
-  pdf.text(character.name.toUpperCase(), nameX, y + 8);
+  const nameX = portraitImage ? 78 : 20;
+  pdf.text(character.name.toUpperCase(), nameX, y + 12);
   
   // Subtitle line
-  pdf.setFontSize(14);
+  pdf.setFontSize(13);
   pdf.setTextColor(80, 80, 80);
-  pdf.setFont('helvetica', 'italic');
+  pdf.setFont('times', 'italic');
   let subtitle = `${character.race} ${character.class}, Level ${character.level}`;
   if (character.alignment) subtitle += ` • ${character.alignment}`;
-  pdf.text(subtitle, nameX, y + 18);
+  pdf.text(subtitle, nameX, y + 22);
   
   // Draw portrait if available
   if (portraitImage) {
@@ -250,58 +250,58 @@ export async function exportCharacterPDF(character: CharacterData): Promise<void
       pdf.addImage(portraitImage, 'JPEG', 20, y, portraitSize, portraitSize);
       // Portrait border
       pdf.setDrawColor(139, 69, 19);
-      pdf.setLineWidth(1);
+      pdf.setLineWidth(1.5);
       pdf.rect(20, y, portraitSize, portraitSize);
     } catch {
       console.warn('Failed to add portrait to PDF');
     }
   }
   
-  y = portraitImage ? y + portraitSize + 8 : y + 28;
+  y = portraitImage ? y + portraitSize + 5 : y + 30;
   
   y = drawDivider(pdf, y);
   
   // Combat Stats Row
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(12);
+  pdf.setFont('times', 'bold');
+  pdf.setFontSize(11);
   pdf.setTextColor(139, 69, 19);
   
   const statsY = y;
   pdf.text('Armor Class', 20, statsY);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(16);
+  pdf.setFont('times', 'normal');
+  pdf.setFontSize(14);
   pdf.setTextColor(40, 40, 40);
-  pdf.text(`${character.armorClass}`, 20, statsY + 8);
+  pdf.text(`${character.armorClass}`, 20, statsY + 6);
   
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(12);
+  pdf.setFont('times', 'bold');
+  pdf.setFontSize(11);
   pdf.setTextColor(139, 69, 19);
-  pdf.text('Hit Points', 70, statsY);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(16);
+  pdf.text('Hit Points', 65, statsY);
+  pdf.setFont('times', 'normal');
+  pdf.setFontSize(14);
   pdf.setTextColor(40, 40, 40);
-  pdf.text(`${character.hitPoints} / ${character.maxHitPoints}`, 70, statsY + 8);
+  pdf.text(`${character.hitPoints} / ${character.maxHitPoints}`, 65, statsY + 6);
   
   if (character.background) {
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(12);
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(11);
     pdf.setTextColor(139, 69, 19);
-    pdf.text('Background', 130, statsY);
-    pdf.setFont('helvetica', 'normal');
+    pdf.text('Background', 120, statsY);
+    pdf.setFont('times', 'normal');
     pdf.setFontSize(12);
     pdf.setTextColor(40, 40, 40);
-    pdf.text(character.background, 130, statsY + 8);
+    pdf.text(character.background, 120, statsY + 6);
   }
   
-  y = statsY + 18;
+  y = statsY + 14;
   y = drawDivider(pdf, y);
   
   // Ability Scores
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(12);
+  pdf.setFont('times', 'bold');
+  pdf.setFontSize(13);
   pdf.setTextColor(139, 10, 10);
   pdf.text('ABILITY SCORES', 20, y);
-  y += 8;
+  y += 6;
   
   y = drawStatRow(pdf, [
     { label: 'STR', value: character.strength },
@@ -316,28 +316,28 @@ export async function exportCharacterPDF(character: CharacterData): Promise<void
   
   // Skills
   if (character.skills && character.skills.length > 0) {
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(12);
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(13);
     pdf.setTextColor(139, 10, 10);
     pdf.text('SKILLS', 20, y);
-    y += 6;
-    pdf.setFont('helvetica', 'normal');
+    y += 5;
+    pdf.setFont('times', 'normal');
     pdf.setFontSize(11);
     pdf.setTextColor(60, 60, 60);
     const skillsText = character.skills.join(', ');
     const skillLines = pdf.splitTextToSize(skillsText, 170);
     pdf.text(skillLines, 20, y);
-    y += skillLines.length * 5 + 6;
+    y += skillLines.length * 4.5 + 4;
   }
   
   // Equipment - clean formatting
   if (character.equipment && character.equipment.length > 0) {
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(12);
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(13);
     pdf.setTextColor(139, 10, 10);
     pdf.text('EQUIPMENT', 20, y);
-    y += 6;
-    pdf.setFont('helvetica', 'normal');
+    y += 5;
+    pdf.setFont('times', 'normal');
     pdf.setFontSize(11);
     pdf.setTextColor(60, 60, 60);
     // Parse equipment items to clean up JSON
@@ -345,7 +345,7 @@ export async function exportCharacterPDF(character: CharacterData): Promise<void
     const equipText = cleanEquipment.join(', ');
     const equipLines = pdf.splitTextToSize(equipText, 170);
     pdf.text(equipLines, 20, y);
-    y += equipLines.length * 5 + 6;
+    y += equipLines.length * 4.5 + 4;
   }
   
   // Wealth
@@ -354,11 +354,11 @@ export async function exportCharacterPDF(character: CharacterData): Promise<void
                     (character.copper || 0) / 100 + 
                     (character.platinum || 0) * 10;
   if (totalGold > 0) {
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(12);
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(13);
     pdf.setTextColor(139, 10, 10);
     pdf.text('WEALTH', 20, y);
-    pdf.setFont('helvetica', 'normal');
+    pdf.setFont('times', 'normal');
     pdf.setFontSize(11);
     pdf.setTextColor(60, 60, 60);
     let wealthStr = '';
@@ -367,40 +367,40 @@ export async function exportCharacterPDF(character: CharacterData): Promise<void
     if (character.silver) wealthStr += `${character.silver} sp, `;
     if (character.copper) wealthStr += `${character.copper} cp`;
     wealthStr = wealthStr.replace(/, $/, '');
-    pdf.text(wealthStr, 50, y);
-    y += 10;
+    pdf.text(wealthStr, 48, y);
+    y += 8;
   }
   
   // Appearance
   if (character.appearance) {
     y = drawDivider(pdf, y);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(12);
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(13);
     pdf.setTextColor(139, 10, 10);
     pdf.text('APPEARANCE', 20, y);
-    y += 6;
-    pdf.setFont('helvetica', 'normal');
+    y += 5;
+    pdf.setFont('times', 'normal');
     pdf.setFontSize(11);
     pdf.setTextColor(60, 60, 60);
     const appearanceLines = pdf.splitTextToSize(character.appearance, 170);
     pdf.text(appearanceLines, 20, y);
-    y += appearanceLines.length * 5 + 6;
+    y += appearanceLines.length * 4.5 + 4;
   }
   
   // Background Story
   if (character.backgroundStory) {
     y = drawDivider(pdf, y);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(12);
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(13);
     pdf.setTextColor(139, 10, 10);
     pdf.text('BACKSTORY', 20, y);
-    y += 6;
-    pdf.setFont('helvetica', 'normal');
+    y += 5;
+    pdf.setFont('times', 'normal');
     pdf.setFontSize(11);
     pdf.setTextColor(60, 60, 60);
     const storyLines = pdf.splitTextToSize(character.backgroundStory, 170);
     pdf.text(storyLines, 20, y);
-    y += storyLines.length * 5 + 6;
+    y += storyLines.length * 4.5 + 4;
   }
   
   // Notes section with lines
