@@ -1701,6 +1701,20 @@ function MonstersDrawerContent() {
     },
   });
 
+  const generatePortraitMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("POST", `/api/monsters/${id}/generate-portrait`);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Portrait generated!", description: "Monster image has been created" });
+      queryClient.invalidateQueries({ queryKey: ["/api/monsters"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
@@ -1721,19 +1735,60 @@ function MonstersDrawerContent() {
         <div className="space-y-2">
           {monsters.map((monster: any) => (
             <div key={monster.id} className="border rounded-lg p-3 hover:bg-muted/30">
-              <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start gap-3 mb-2">
+                {/* Monster Image */}
+                <div className="relative shrink-0">
+                  {monster.imageUrl ? (
+                    <img 
+                      src={monster.imageUrl} 
+                      alt={monster.name}
+                      className="w-14 h-14 rounded-lg object-cover border-2 border-red-900/30"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center border-2 border-dashed border-muted-foreground/30">
+                      <Swords className="h-5 w-5 text-muted-foreground/50" />
+                    </div>
+                  )}
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-semibold truncate">{monster.name}</h4>
-                    {monster.challenge_rating && <Badge variant="secondary" className="text-xs shrink-0">CR {monster.challenge_rating}</Badge>}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold truncate">{monster.name}</h4>
+                      {monster.challenge_rating && <Badge variant="secondary" className="text-xs shrink-0">CR {monster.challenge_rating}</Badge>}
+                    </div>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:text-destructive shrink-0" onClick={() => deleteMonsterMutation.mutate(monster.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">{monster.size} {monster.type} · AC {monster.armor_class} · HP {monster.hit_points}</p>
+                  {monster.description && <p className="text-xs text-muted-foreground line-clamp-1 mt-1">{monster.description}</p>}
                 </div>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:text-destructive" onClick={() => deleteMonsterMutation.mutate(monster.id)}>
-                  <Trash2 className="h-4 w-4" />
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="text-xs h-7"
+                  onClick={() => generatePortraitMutation.mutate(monster.id)}
+                  disabled={generatePortraitMutation.isPending}
+                >
+                  {generatePortraitMutation.isPending ? (
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  ) : (
+                    <ImageIcon className="h-3 w-3 mr-1" />
+                  )}
+                  {monster.imageUrl ? 'Regen Art' : 'Gen Art'}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="text-xs h-7"
+                  onClick={() => exportMonsterPDF(monster)}
+                >
+                  <FileDown className="h-3 w-3 mr-1" />
+                  Export PDF
                 </Button>
               </div>
-              {monster.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{monster.description}</p>}
             </div>
           ))}
         </div>
