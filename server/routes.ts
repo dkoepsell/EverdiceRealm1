@@ -934,6 +934,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Search/list armor from open5e
+  app.get("/api/open5e/armor", async (req, res) => {
+    try {
+      const { search, page = "1", limit = "50" } = req.query;
+      let url = `https://api.open5e.com/v2/armor/?limit=${limit}&page=${page}`;
+      if (search) {
+        url += `&search=${encodeURIComponent(search as string)}`;
+      }
+      const data = await fetchOpen5e(url);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching open5e armor:", error.message);
+      res.status(503).json({ message: "Unable to reach SRD database", error: error.message });
+    }
+  });
+  
+  // Get specific armor details
+  app.get("/api/open5e/armor/:slug", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const url = `https://api.open5e.com/v2/armor/${slug}/`;
+      const data = await fetchOpen5e(url);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching open5e armor:", error.message);
+      res.status(503).json({ message: "Unable to reach SRD database", error: error.message });
+    }
+  });
+
   // Search/list feats from open5e
   app.get("/api/open5e/feats", async (req, res) => {
     try {

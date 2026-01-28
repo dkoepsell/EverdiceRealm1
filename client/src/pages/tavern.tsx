@@ -680,6 +680,298 @@ function MagicItemShop({
   );
 }
 
+// SRD Shop - Official D&D 5e content from open5e with level-based unlocking
+function SRDShop({ 
+  characterId, 
+  characterLevel, 
+  characterGold,
+  onPurchase
+}: { 
+  characterId?: number;
+  characterLevel: number;
+  characterGold: number;
+  onPurchase: (itemName: string, cost: number, itemData: any) => void;
+}) {
+  const [category, setCategory] = useState<'weapons' | 'armor' | 'magicitems'>('weapons');
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const { toast } = useToast();
+
+  const { data: weaponsData, isLoading: weaponsLoading } = useQuery<any>({
+    queryKey: ['/api/open5e/weapons'],
+    queryFn: async () => {
+      const res = await fetch('/api/open5e/weapons?limit=50');
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+    enabled: category === 'weapons',
+  });
+
+  const { data: armorData, isLoading: armorLoading } = useQuery<any>({
+    queryKey: ['/api/open5e/armor'],
+    queryFn: async () => {
+      const res = await fetch('/api/open5e/armor?limit=50');
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+    enabled: category === 'armor',
+  });
+
+  const { data: magicItemsData, isLoading: magicItemsLoading } = useQuery<any>({
+    queryKey: ['/api/open5e/magicitems', 'shop'],
+    queryFn: async () => {
+      const res = await fetch('/api/open5e/magicitems?limit=50');
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+    enabled: category === 'magicitems',
+  });
+
+  const isLoading = weaponsLoading || armorLoading || magicItemsLoading;
+
+  // Level requirements based on item type/rarity
+  const getLevelRequirement = (item: any, itemCategory: string): number => {
+    if (itemCategory === 'magicitems') {
+      const rarity = (item.rarity || '').toLowerCase();
+      if (rarity.includes('legendary')) return 15;
+      if (rarity.includes('very rare')) return 11;
+      if (rarity.includes('rare')) return 7;
+      if (rarity.includes('uncommon')) return 3;
+      return 1;
+    }
+    if (itemCategory === 'armor') {
+      const category = (item.category?.name || '').toLowerCase();
+      if (category.includes('heavy')) return 5;
+      if (category.includes('medium')) return 3;
+      return 1;
+    }
+    if (itemCategory === 'weapons') {
+      const category = (item.category?.name || '').toLowerCase();
+      if (category.includes('martial')) return 3;
+      return 1;
+    }
+    return 1;
+  };
+
+  // Price calculation based on item type
+  const getItemPrice = (item: any, itemCategory: string): number => {
+    if (itemCategory === 'magicitems') {
+      const rarity = (item.rarity || '').toLowerCase();
+      if (rarity.includes('legendary')) return 50000;
+      if (rarity.includes('very rare')) return 10000;
+      if (rarity.includes('rare')) return 2000;
+      if (rarity.includes('uncommon')) return 400;
+      return 100;
+    }
+    // Parse cost string like "75 gp" or "10 sp"
+    const costStr = item.cost || '';
+    const match = costStr.match(/(\d+)\s*(gp|sp|cp)/i);
+    if (match) {
+      const value = parseInt(match[1]);
+      const unit = match[2].toLowerCase();
+      if (unit === 'gp') return value;
+      if (unit === 'sp') return Math.ceil(value / 10);
+      if (unit === 'cp') return Math.ceil(value / 100);
+    }
+    return 10;
+  };
+
+  const isUnlocked = (item: any, itemCategory: string) => {
+    return characterLevel >= getLevelRequirement(item, itemCategory);
+  };
+
+  const canAfford = (price: number) => characterGold >= price;
+
+  const handlePurchase = (item: any, itemCategory: string) => {
+    if (!characterId) {
+      toast({ title: 'Select a character', description: 'Choose a character to make purchases.', variant: 'destructive' });
+      return;
+    }
+    const price = getItemPrice(item, itemCategory);
+    if (!canAfford(price)) {
+      toast({ title: 'Not enough gold!', variant: 'destructive' });
+      return;
+    }
+    onPurchase(item.name, price, {
+      name: item.name,
+      type: itemCategory === 'weapons' ? (item.category?.name || 'Weapon') : 
+            itemCategory === 'armor' ? (item.category?.name || 'Armor') : 
+            (item.type || 'Wondrous Item'),
+      rarity: item.rarity || 'common',
+      description: item.desc || item.description || '',
+      damage: item.damage_dice || (item.damage?.dice ? `${item.damage.dice} ${item.damage_type?.name || ''}` : undefined),
+      armor: item.base_ac,
+      properties: item.properties?.map((p: any) => p.name || p).join(', '),
+      source: 'srd'
+    });
+    setSelectedItem(null);
+  };
+
+  const getCurrentItems = () => {
+    switch (category) {
+      case 'weapons': return weaponsData?.results || [];
+      case 'armor': return armorData?.results || [];
+      case 'magicitems': return magicItemsData?.results || [];
+    }
+  };
+
+  const items = getCurrentItems();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Scroll className="h-5 w-5 text-blue-500" />
+          SRD Equipment Shop
+        </CardTitle>
+        <CardDescription>
+          Official D&D 5e equipment from the SRD. Higher-tier items unlock as you level up.
+        </CardDescription>
+        <div className="flex gap-2 mt-3">
+          {[
+            { id: 'weapons', label: 'Weapons', icon: Sword },
+            { id: 'armor', label: 'Armor', icon: Shield },
+            { id: 'magicitems', label: 'Magic Items', icon: Sparkles },
+          ].map(({ id, label, icon: Icon }) => (
+            <Button
+              key={id}
+              variant={category === id ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => { setCategory(id as any); setSelectedItem(null); }}
+              className="gap-1"
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </Button>
+          ))}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="text-center py-8">
+            <RefreshCw className="h-8 w-8 mx-auto animate-spin text-blue-500 mb-2" />
+            <p className="text-muted-foreground">Loading SRD items...</p>
+          </div>
+        ) : selectedItem ? (
+          <div className="space-y-4">
+            <Button variant="ghost" size="sm" onClick={() => setSelectedItem(null)}>
+              ← Back to list
+            </Button>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-lg font-bold">{selectedItem.name}</h3>
+                {!isUnlocked(selectedItem, category) && (
+                  <Badge variant="destructive">Level {getLevelRequirement(selectedItem, category)} Required</Badge>
+                )}
+                {category === 'magicitems' && selectedItem.rarity && (
+                  <Badge variant="secondary">{selectedItem.rarity}</Badge>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {category === 'weapons' && selectedItem.category?.name}
+                {category === 'armor' && selectedItem.category?.name}
+                {category === 'magicitems' && selectedItem.type}
+              </p>
+              {selectedItem.damage_dice && (
+                <p className="text-sm"><strong>Damage:</strong> {selectedItem.damage_dice} {selectedItem.damage_type?.name}</p>
+              )}
+              {selectedItem.damage?.dice && (
+                <p className="text-sm"><strong>Damage:</strong> {selectedItem.damage.dice} {selectedItem.damage_type?.name}</p>
+              )}
+              {selectedItem.base_ac !== undefined && (
+                <p className="text-sm"><strong>AC:</strong> {selectedItem.base_ac}{selectedItem.plus_dex_mod ? ' + Dex' : ''}{selectedItem.plus_max ? ` (max ${selectedItem.plus_max})` : ''}</p>
+              )}
+              {selectedItem.properties && selectedItem.properties.length > 0 && (
+                <p className="text-sm"><strong>Properties:</strong> {selectedItem.properties.map((p: any) => p.name || p).join(', ')}</p>
+              )}
+              {selectedItem.desc && (
+                <p className="text-sm whitespace-pre-wrap">{selectedItem.desc}</p>
+              )}
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xl font-bold text-yellow-600">
+                    <Coins className="h-4 w-4 inline mr-1" />
+                    {getItemPrice(selectedItem, category).toLocaleString()} gp
+                  </p>
+                  <p className="text-xs text-muted-foreground">Your gold: {characterGold.toLocaleString()} gp</p>
+                </div>
+                <Button
+                  disabled={!isUnlocked(selectedItem, category) || !canAfford(getItemPrice(selectedItem, category)) || !characterId}
+                  onClick={() => handlePurchase(selectedItem, category)}
+                >
+                  <ShoppingBag className="h-4 w-4 mr-2" />
+                  Purchase
+                </Button>
+              </div>
+              {!isUnlocked(selectedItem, category) && (
+                <p className="text-sm text-orange-600">Reach level {getLevelRequirement(selectedItem, category)} to unlock this item.</p>
+              )}
+              {!canAfford(getItemPrice(selectedItem, category)) && isUnlocked(selectedItem, category) && (
+                <p className="text-sm text-red-500">You need {(getItemPrice(selectedItem, category) - characterGold).toLocaleString()} more gold.</p>
+              )}
+            </div>
+            <Separator />
+            <p className="text-xs text-muted-foreground text-center">
+              Data from <a href="https://open5e.com" target="_blank" rel="noopener noreferrer" className="underline">open5e.com</a> · SRD 5.1 CC-BY-4.0
+            </p>
+          </div>
+        ) : (
+          <ScrollArea className="h-[400px]">
+            <div className="grid gap-2">
+              {items.map((item: any) => {
+                const levelReq = getLevelRequirement(item, category);
+                const unlocked = isUnlocked(item, category);
+                const price = getItemPrice(item, category);
+                const affordable = canAfford(price);
+                
+                return (
+                  <div
+                    key={item.slug || item.key || item.name}
+                    className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                      unlocked 
+                        ? 'hover:bg-muted/50 hover:border-amber-500/50' 
+                        : 'opacity-60 bg-slate-100 dark:bg-slate-800'
+                    }`}
+                    onClick={() => setSelectedItem(item)}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-medium truncate ${!unlocked ? 'text-muted-foreground' : ''}`}>
+                            {item.name}
+                          </span>
+                          {!unlocked && (
+                            <Badge variant="outline" className="text-xs shrink-0">
+                              Lv {levelReq}
+                            </Badge>
+                          )}
+                          {category === 'magicitems' && item.rarity && (
+                            <Badge variant="secondary" className="text-xs shrink-0">{item.rarity}</Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {category === 'weapons' && (item.damage_dice || item.damage?.dice || '')}
+                          {category === 'armor' && (item.base_ac !== undefined ? `AC ${item.base_ac}` : '')}
+                          {category === 'magicitems' && (item.type || '')}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className={`font-medium ${affordable && unlocked ? 'text-yellow-600' : 'text-muted-foreground'}`}>
+                          {price.toLocaleString()} gp
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // Component to show recent bulletin board posts in the tavern
 function RecentBulletinPosts() {
   const { data: posts, isLoading } = useQuery<any[]>({
@@ -1266,10 +1558,14 @@ export default function TavernPage() {
         )}
 
         <Tabs defaultValue="shop" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-6">
+          <TabsList className="grid w-full grid-cols-6 mb-6">
             <TabsTrigger value="shop" className="flex items-center gap-2">
               <ShoppingBag className="h-4 w-4" />
               <span className="hidden sm:inline">Shop</span>
+            </TabsTrigger>
+            <TabsTrigger value="srd-shop" className="flex items-center gap-2">
+              <Scroll className="h-4 w-4" />
+              <span className="hidden sm:inline">SRD Gear</span>
             </TabsTrigger>
             <TabsTrigger value="magic-shop" className="flex items-center gap-2">
               <Sparkles className="h-4 w-4" />
@@ -1415,6 +1711,38 @@ export default function TavernPage() {
                 </ScrollArea>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="srd-shop">
+            <SRDShop 
+              characterId={activeCharacter?.id}
+              characterLevel={activeCharacter?.level || 1}
+              characterGold={characterGold}
+              onPurchase={async (itemName, cost, itemData) => {
+                if (!activeCharacter) return;
+                try {
+                  await buyItemMutation.mutateAsync({
+                    characterId: activeCharacter.id,
+                    item: {
+                      id: itemName.toLowerCase().replace(/\s+/g, '-'),
+                      name: itemName,
+                      type: itemData.type,
+                      rarity: itemData.rarity,
+                      description: itemData.description,
+                      properties: itemData.properties,
+                      damage: itemData.damage,
+                      armor: itemData.armor,
+                      goldCost: cost,
+                      weight: 1,
+                      category: 'weapons'
+                    },
+                    qty: 1
+                  });
+                } catch (e) {
+                  // Error handled by mutation
+                }
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="magic-shop">
