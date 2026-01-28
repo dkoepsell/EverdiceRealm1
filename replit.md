@@ -63,6 +63,13 @@ Preferred communication style: Simple, everyday language.
 - **Dice Rolling Engine**: Standard RPG dice, real-time WebSocket rolls, history, critical hit/fumble detection, advantage/disadvantage mechanics.
 - **AI-Powered Features**: Campaign/story generation, dynamic narrative, character backgrounds/portraits, DM assistance (NPCs, locations, quests, monsters). AI focuses on exploration, discovery, mystery, and social encounters.
 - **DM Toolkit**: NPC/location/quest/monster generators, campaign notes, invitation system, Discord integration.
+- **SRD Library Integration**: Browse official D&D 5e SRD content from open5e.com directly in the DM Toolkit:
+    - **Monsters**: Search and view full stat blocks with abilities, actions, and legendary actions
+    - **Spells**: Browse spells by level with casting time, range, components, and full descriptions
+    - **Magic Items**: Search magic items by rarity with attunement requirements and effects
+    - **Weapons**: View weapon stats, damage, and properties
+    - **Architecture**: Reference-only approach - fetches from open5e API on demand with caching, no data duplication
+    - **Attribution**: Clear "Data from open5e.com · SRD 5.1 CC-BY-4.0" credit on all content
 - **Discord Integration**: Full bot integration (Everdice#1320) enabling D&D campaigns playable through Discord channels:
     - **Slash Commands**: `/everdice link`, `/everdice roll`, `/everdice recap`, `/everdice status`, `/everdice unlink`
     - **Campaign Linking**: Deploy campaigns to Discord channels using deployment codes
