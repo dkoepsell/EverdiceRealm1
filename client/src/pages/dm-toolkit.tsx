@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -96,7 +96,8 @@ import {
   FileDown,
   Edit,
   ImageIcon,
-  Search
+  Search,
+  Library
 } from "lucide-react";
 import { exportNpcPDF, exportLocationPDF, exportItemPDF, exportMonsterPDF } from "@/lib/pdf-export";
 import { SiDiscord } from "react-icons/si";
@@ -549,6 +550,7 @@ export default function DMToolkit() {
                     { id: 'monsters', icon: Swords, label: 'Monsters', color: 'text-red-500' },
                     { id: 'threats', icon: Target, label: 'Threats', color: 'text-orange-500' },
                     { id: 'srd-library', icon: BookOpen, label: 'SRD Library', color: 'text-blue-500' },
+                    { id: 'campaign-srd-assets', icon: Library, label: 'Campaign SRD Assets', color: 'text-teal-500' },
                   ].map(({ id, icon: Icon, label, color }) => (
                     <Button
                       key={id}
@@ -855,6 +857,21 @@ export default function DMToolkit() {
           </SheetHeader>
           <div className="mt-6">
             <SRDLibraryContent />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={openDrawer === 'campaign-srd-assets'} onOpenChange={(open) => !open && setOpenDrawer(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Library className="h-5 w-5 text-teal-500" />
+              Campaign SRD Assets
+            </SheetTitle>
+            <SheetDescription>View and manage SRD content added to your campaigns</SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            <CampaignSRDAssetsContent />
           </div>
         </SheetContent>
       </Sheet>
@@ -1842,11 +1859,59 @@ function SRDLibraryContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  const { data: campaigns } = useQuery<any[]>({
+    queryKey: ['/api/campaigns'],
+  });
+
+  const addToMutation = useMutation({
+    mutationFn: async ({ campaignId, entityType, entitySlug, entityName, entityData }: {
+      campaignId: number;
+      entityType: string;
+      entitySlug: string;
+      entityName: string;
+      entityData: any;
+    }) => {
+      const res = await fetch(`/api/campaigns/${campaignId}/srd-references`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ entityType, entitySlug, entityName, entityData }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Failed to add');
+      }
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      toast({ title: 'Added to campaign', description: `${variables.entityName} added successfully.` });
+      queryClient.invalidateQueries({ queryKey: ['/api/campaigns', variables.campaignId, 'srd-references'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const handleAddToCampaign = () => {
+    if (!selectedCampaignId || !selectedItem) return;
+    const entitySlug = selectedItem.data.slug || selectedItem.data.key || selectedItem.data.name?.toLowerCase().replace(/\s+/g, '-');
+    addToMutation.mutate({
+      campaignId: selectedCampaignId,
+      entityType: selectedItem.type === 'magicitem' ? 'magicitem' : selectedItem.type,
+      entitySlug,
+      entityName: selectedItem.data.name,
+      entityData: selectedItem.data,
+    });
+  };
 
   const { data: monstersData, isLoading: monstersLoading, error: monstersError } = useQuery<any>({
     queryKey: ['/api/open5e/monsters', debouncedSearch],
@@ -1992,12 +2057,37 @@ function SRDLibraryContent() {
     </div>
   );
 
+  const AddToCampaignSection = () => (
+    <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
+      <span className="text-sm font-medium">Add to Campaign:</span>
+      <Select value={selectedCampaignId?.toString() || ''} onValueChange={(v) => setSelectedCampaignId(parseInt(v))}>
+        <SelectTrigger className="w-[200px]">
+          <SelectValue placeholder="Select campaign..." />
+        </SelectTrigger>
+        <SelectContent>
+          {campaigns?.map((c: any) => (
+            <SelectItem key={c.id} value={c.id.toString()}>{c.title}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button 
+        size="sm" 
+        onClick={handleAddToCampaign}
+        disabled={!selectedCampaignId || addToMutation.isPending}
+      >
+        {addToMutation.isPending ? 'Adding...' : 'Add'}
+      </Button>
+    </div>
+  );
+
   if (selectedItem) {
     return (
       <div className="space-y-4">
         <Button variant="ghost" size="sm" onClick={() => setSelectedItem(null)} className="gap-1">
           <ChevronLeft className="h-4 w-4" /> Back to list
         </Button>
+
+        <AddToCampaignSection />
 
         {selectedItem.type === 'monster' && (
           <div className="space-y-4">
@@ -5898,6 +5988,127 @@ function DiscordIntegrationTab() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function CampaignSRDAssetsContent() {
+  const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: campaigns } = useQuery<any[]>({
+    queryKey: ['/api/campaigns'],
+  });
+
+  const { data: srdRefs, isLoading } = useQuery<any[]>({
+    queryKey: ['/api/campaigns', selectedCampaignId, 'srd-references'],
+    queryFn: async () => {
+      if (!selectedCampaignId) return [];
+      const res = await fetch(`/api/campaigns/${selectedCampaignId}/srd-references`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+    enabled: !!selectedCampaignId,
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: async (refId: number) => {
+      const res = await fetch(`/api/campaigns/${selectedCampaignId}/srd-references/${refId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to remove');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: 'Removed', description: 'SRD reference removed from campaign.' });
+      queryClient.invalidateQueries({ queryKey: ['/api/campaigns', selectedCampaignId, 'srd-references'] });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to remove reference.', variant: 'destructive' });
+    },
+  });
+
+  const entityTypeIcons: Record<string, any> = {
+    monster: Swords,
+    spell: Sparkles,
+    magicitem: Package,
+    weapon: Swords,
+  };
+
+  const groupedRefs = (srdRefs || []).reduce((acc: Record<string, any[]>, ref: any) => {
+    const type = ref.entityType;
+    if (!acc[type]) acc[type] = [];
+    acc[type].push(ref);
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>Select Campaign</Label>
+        <Select value={selectedCampaignId?.toString() || ''} onValueChange={(v) => setSelectedCampaignId(parseInt(v))}>
+          <SelectTrigger>
+            <SelectValue placeholder="Choose a campaign..." />
+          </SelectTrigger>
+          <SelectContent>
+            {campaigns?.map((c: any) => (
+              <SelectItem key={c.id} value={c.id.toString()}>{c.title}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {selectedCampaignId && isLoading && (
+        <div className="text-center py-8 text-muted-foreground">Loading...</div>
+      )}
+
+      {selectedCampaignId && !isLoading && (!srdRefs || srdRefs.length === 0) && (
+        <div className="text-center py-8 text-muted-foreground">
+          <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p>No SRD content added to this campaign yet.</p>
+          <p className="text-xs mt-1">Use the SRD Library to add monsters, spells, and more.</p>
+        </div>
+      )}
+
+      {selectedCampaignId && srdRefs && srdRefs.length > 0 && (
+        <div className="space-y-4">
+          {Object.entries(groupedRefs).map(([type, refs]) => {
+            const Icon = entityTypeIcons[type] || BookOpen;
+            return (
+              <div key={type}>
+                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2 capitalize">
+                  <Icon className="h-4 w-4" />
+                  {type === 'magicitem' ? 'Magic Items' : type + 's'}
+                  <Badge variant="secondary" className="ml-auto">{(refs as any[]).length}</Badge>
+                </h4>
+                <div className="space-y-2">
+                  {(refs as any[]).map((ref: any) => (
+                    <div key={ref.id} className="flex items-center justify-between p-2 border rounded-lg">
+                      <span className="font-medium text-sm">{ref.entityName}</span>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => removeMutation.mutate(ref.id)}
+                        disabled={removeMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <Separator />
+      <p className="text-xs text-muted-foreground text-center">
+        SRD content from <a href="https://open5e.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">open5e.com</a> · SRD 5.1 CC-BY-4.0
+      </p>
     </div>
   );
 }

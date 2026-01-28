@@ -50,7 +50,8 @@ import {
   hearthBoardPosts,
   hearthUserState,
   hearthMurmur,
-  insertHearthBoardPostSchema
+  insertHearthBoardPostSchema,
+  campaignSrdReferences
 } from "@shared/schema";
 import { setupAuth, isAuthenticated, requireAdmin } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";
@@ -952,6 +953,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================
   // End Open5e SRD Reference API
   // ========================================
+
+  // ========================================
+  // Campaign SRD References API
+  // ========================================
+
+  // Get all SRD references for a campaign
+  app.get("/api/campaigns/:campaignId/srd-references", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const refs = await db.select()
+        .from(campaignSrdReferences)
+        .where(eq(campaignSrdReferences.campaignId, campaignId))
+        .orderBy(campaignSrdReferences.entityType, campaignSrdReferences.entityName);
+      res.json(refs);
+    } catch (error: any) {
+      console.error("Error fetching campaign SRD references:", error.message);
+      res.status(500).json({ message: "Failed to fetch SRD references" });
+    }
+  });
+
+  // Add SRD reference to a campaign
+  app.post("/api/campaigns/:campaignId/srd-references", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = req.user.id;
+      const { entityType, entitySlug, entityName, entityData, notes } = req.body;
+
+      // Check if already exists
+      const existing = await db.select()
+        .from(campaignSrdReferences)
+        .where(and(
+          eq(campaignSrdReferences.campaignId, campaignId),
+          eq(campaignSrdReferences.entityType, entityType),
+          eq(campaignSrdReferences.entitySlug, entitySlug)
+        ));
+
+      if (existing.length > 0) {
+        return res.status(400).json({ message: "This entity is already added to this campaign" });
+      }
+
+      const [newRef] = await db.insert(campaignSrdReferences).values({
+        campaignId,
+        entityType,
+        entitySlug,
+        entityName,
+        entityData,
+        notes,
+        addedBy: userId,
+        addedAt: new Date().toISOString(),
+      }).returning();
+
+      res.status(201).json(newRef);
+    } catch (error: any) {
+      console.error("Error adding SRD reference:", error.message);
+      res.status(500).json({ message: "Failed to add SRD reference" });
+    }
+  });
+
+  // Remove SRD reference from a campaign
+  app.delete("/api/campaigns/:campaignId/srd-references/:refId", isAuthenticated, async (req: any, res) => {
+    try {
+      const refId = parseInt(req.params.refId);
+      await db.delete(campaignSrdReferences).where(eq(campaignSrdReferences.id, refId));
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error removing SRD reference:", error.message);
+      res.status(500).json({ message: "Failed to remove SRD reference" });
+    }
+  });
+
+  // Update SRD reference notes
+  app.patch("/api/campaigns/:campaignId/srd-references/:refId", isAuthenticated, async (req: any, res) => {
+    try {
+      const refId = parseInt(req.params.refId);
+      const { notes } = req.body;
+      const [updated] = await db.update(campaignSrdReferences)
+        .set({ notes })
+        .where(eq(campaignSrdReferences.id, refId))
+        .returning();
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating SRD reference:", error.message);
+      res.status(500).json({ message: "Failed to update SRD reference" });
+    }
+  });
 
   // Monster portrait generation
   app.post("/api/monsters/:id/generate-portrait", isAuthenticated, async (req: any, res) => {

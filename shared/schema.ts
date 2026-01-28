@@ -1876,3 +1876,22 @@ export const narrativeToneIcons: Record<NarrativeTone, string> = {
   "Cursed": "ghost",
   "Ancient": "landmark"
 };
+
+export const campaignSrdReferences = pgTable("campaign_srd_references", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  entityType: text("entity_type").notNull(), // monster, spell, magicitem, weapon
+  entitySlug: text("entity_slug").notNull(), // open5e slug identifier
+  entityName: text("entity_name").notNull(), // Display name
+  entityData: jsonb("entity_data"), // Cached entity data for quick display
+  notes: text("notes"), // Optional DM notes about this entity
+  addedBy: integer("added_by").notNull(), // User who added it
+  addedAt: text("added_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertCampaignSrdReferenceSchema = createInsertSchema(campaignSrdReferences).omit({
+  id: true,
+});
+
+export type InsertCampaignSrdReference = z.infer<typeof insertCampaignSrdReferenceSchema>;
+export type CampaignSrdReference = typeof campaignSrdReferences.$inferSelect;
