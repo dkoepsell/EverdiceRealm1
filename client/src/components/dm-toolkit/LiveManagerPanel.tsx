@@ -5,6 +5,9 @@ import { apiRequest } from "@/lib/queryClient";
 import DMControlBar, { SessionMode } from "./DMControlBar";
 import EventQueue, { PendingEvent } from "./EventQueue";
 import AIWhisperPanel, { AIWhisper } from "./AIWhisperPanel";
+import DMDiceRoller, { DiceRoll } from "./DMDiceRoller";
+import RollQueue, { RollRequest } from "./RollQueue";
+import InitiativeTracker, { InitiativeCombatant } from "./InitiativeTracker";
 import {
   DndContext,
   DragEndEvent,
@@ -66,6 +69,7 @@ import {
   BookOpen,
   Zap,
   Target,
+  Swords,
 } from "lucide-react";
 
 interface LiveManagerPanelProps {
@@ -269,6 +273,21 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
   const [pendingEvents, setPendingEvents] = useState<PendingEvent[]>([]);
   const [processingEventId, setProcessingEventId] = useState<string | null>(null);
   const [aiWhispers, setAiWhispers] = useState<AIWhisper[]>([]);
+  
+  // Dice rolling and initiative state
+  const [diceRolls, setDiceRolls] = useState<DiceRoll[]>([]);
+  const [rollRequests, setRollRequests] = useState<RollRequest[]>([]);
+  const [combatants, setCombatants] = useState<InitiativeCombatant[]>([]);
+  const [isInCombat, setIsInCombat] = useState(false);
+  const [currentTurnCombatantId, setCurrentTurnCombatantId] = useState<string | null>(null);
+  const [roundNum, setRoundNum] = useState(1);
+  const [lastVisibleRoll, setLastVisibleRoll] = useState<DiceRoll | null>(null);
+
+  // Compute current turn index from combatant ID
+  const sortedCombatants = [...combatants].sort((a, b) => b.initiative - a.initiative);
+  const currentTurnIdx = currentTurnCombatantId 
+    ? sortedCombatants.findIndex(c => c.id === currentTurnCombatantId)
+    : 0;
   
   // Tutorial banner - show only first time (stored in localStorage)
   const [showOnboarding, setShowOnboarding] = useState(() => {
@@ -569,6 +588,145 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
     toast({ title: "Inspiration Added", description: "AI suggestion added to your message." });
   }, [toast]);
 
+  // Dice rolling handlers
+  const handleDiceRoll = useCallback((roll: DiceRoll) => {
+    setDiceRolls(prev => [...prev, roll]);
+    if (roll.isPublic) {
+      setLastVisibleRoll(roll);
+      setTimeout(() => setLastVisibleRoll(null), 5000);
+    }
+  }, []);
+
+  const handleClearRolls = useCallback(() => {
+    setDiceRolls([]);
+  }, []);
+
+  const handleRequestRoll = useCallback((request: Omit<RollRequest, "id" | "createdAt" | "status">) => {
+    const newRequest: RollRequest = {
+      ...request,
+      id: `req-${Date.now()}`,
+      status: "pending",
+      createdAt: new Date(),
+    };
+    setRollRequests(prev => [...prev, newRequest]);
+    toast({ title: "Roll Requested", description: `Waiting for ${request.targetPlayer} to roll.` });
+  }, [toast]);
+
+  const handleApproveRollRequest = useCallback((requestId: string) => {
+    setRollRequests(prev => prev.map(r => 
+      r.id === requestId ? { ...r, status: "completed" as const } : r
+    ));
+  }, []);
+
+  const handleSkipRollRequest = useCallback((requestId: string) => {
+    setRollRequests(prev => prev.map(r => 
+      r.id === requestId ? { ...r, status: "skipped" as const } : r
+    ));
+  }, []);
+
+  // Initiative handlers
+  const handleStartCombat = useCallback(() => {
+    const sorted = [...combatants].sort((a, b) => b.initiative - a.initiative);
+    setIsInCombat(true);
+    setCurrentTurnCombatantId(sorted.length > 0 ? sorted[0].id : null);
+    setRoundNum(1);
+    setSessionMode("combat");
+    toast({ title: "Combat Started!", description: "Initiative order is now active." });
+  }, [toast, combatants]);
+
+  const handleEndCombat = useCallback(() => {
+    setIsInCombat(false);
+    setCurrentTurnCombatantId(null);
+    setSessionMode("exploration");
+    toast({ title: "Combat Ended", description: "Returning to exploration mode." });
+  }, [toast]);
+
+  const handleNextTurn = useCallback(() => {
+    const sorted = [...combatants].sort((a, b) => b.initiative - a.initiative);
+    if (sorted.length === 0) return;
+    
+    const currentIdx = currentTurnCombatantId 
+      ? sorted.findIndex(c => c.id === currentTurnCombatantId)
+      : -1;
+    const nextIdx = (currentIdx + 1) % sorted.length;
+    
+    if (nextIdx === 0) {
+      setRoundNum(prev => prev + 1);
+    }
+    setCurrentTurnCombatantId(sorted[nextIdx].id);
+  }, [combatants, currentTurnCombatantId]);
+
+  const handleAddCombatant = useCallback((combatant: Omit<InitiativeCombatant, "id" | "isCurrentTurn">) => {
+    const newCombatant: InitiativeCombatant = {
+      ...combatant,
+      id: `comb-${Date.now()}`,
+      isCurrentTurn: false,
+    };
+    setCombatants(prev => [...prev, newCombatant]);
+  }, []);
+
+  const handleRemoveCombatant = useCallback((id: string) => {
+    setCombatants(prev => {
+      const filtered = prev.filter(c => c.id !== id);
+      if (id === currentTurnCombatantId && filtered.length > 0) {
+        const sorted = [...filtered].sort((a, b) => b.initiative - a.initiative);
+        const removedIdx = prev.sort((a, b) => b.initiative - a.initiative).findIndex(c => c.id === id);
+        const nextCombatant = sorted[Math.min(removedIdx, sorted.length - 1)];
+        setCurrentTurnCombatantId(nextCombatant?.id || null);
+      } else if (filtered.length === 0) {
+        setCurrentTurnCombatantId(null);
+      }
+      return filtered;
+    });
+  }, [currentTurnCombatantId]);
+
+  const handleUpdateCombatant = useCallback((id: string, updates: Partial<InitiativeCombatant>) => {
+    setCombatants(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  }, []);
+
+  const handleRollInitiativeForAll = useCallback(() => {
+    const participantsWithChars = dmSessionState?.participantsWithChars || participants || [];
+    const newCombatants: InitiativeCombatant[] = [];
+    
+    participantsWithChars.forEach((p: any) => {
+      if (p.character) {
+        const dexMod = Math.floor(((p.character.dexterity || 10) - 10) / 2);
+        const roll = Math.floor(Math.random() * 20) + 1 + dexMod;
+        newCombatants.push({
+          id: `comb-${p.character.id}`,
+          name: p.character.name,
+          initiative: roll,
+          isPlayer: true,
+          characterId: p.character.id,
+          hp: p.character.hitPoints || 10,
+          maxHp: p.character.maxHitPoints || 10,
+          ac: p.character.armorClass || 10,
+          conditions: [],
+          isCurrentTurn: false,
+        });
+        
+        setDiceRolls(prev => [...prev, {
+          id: `init-${p.character.id}-${Date.now()}`,
+          dice: "1d20",
+          result: roll - dexMod,
+          breakdown: [roll - dexMod],
+          modifier: dexMod,
+          total: roll,
+          roller: p.character.name,
+          rollerType: "player",
+          isPublic: true,
+          isCritical: (roll - dexMod) === 20,
+          isFumble: (roll - dexMod) === 1,
+          timestamp: new Date(),
+          purpose: "Initiative",
+        }]);
+      }
+    });
+    
+    setCombatants(newCombatants);
+    toast({ title: "Initiative Rolled!", description: `${newCombatants.length} combatants added.` });
+  }, [dmSessionState?.participantsWithChars, participants, toast]);
+
   // Generate sample AI whispers based on session state
   useEffect(() => {
     const artifacts = dmSessionState?.sessionArtifacts || [];
@@ -583,7 +741,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
           timestamp: new Date(),
         });
       }
-      if (liveSession.isInCombat) {
+      if (liveSession.isInCombat || isInCombat) {
         sampleWhispers.push({
           id: `whisper-${Date.now()}-2`,
           type: "pacing",
@@ -596,7 +754,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
         setAiWhispers(sampleWhispers);
       }
     }
-  }, [selectedCampaignId, liveSession, dmSessionState?.sessionArtifacts?.length, aiWhispers.length]);
+  }, [selectedCampaignId, liveSession, dmSessionState?.sessionArtifacts?.length, aiWhispers.length, isInCombat]);
 
   const camlEntities = dmSessionState?.camlEntitySources || {};
   const camlNpcs = (camlEntities.npcs || []).map((npc: any, idx: number) => ({
@@ -1023,13 +1181,58 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
             </div>
 
             {/* Current Scene - Enlarged, centered, strongest contrast */}
-            <Card className="flex-1 ring-2 ring-amber-500/50 bg-gradient-to-b from-amber-500/10 to-transparent shadow-xl">
+            <Card className="flex-1 ring-2 ring-amber-500/50 bg-gradient-to-b from-amber-500/10 to-transparent shadow-xl relative overflow-hidden">
+              {/* Dramatic Roll Display Overlay */}
+              {lastVisibleRoll && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
+                  <div className={`p-8 rounded-xl text-center transform animate-in zoom-in-95 duration-300 ${
+                    lastVisibleRoll.isCritical ? "bg-gradient-to-br from-green-500/30 to-green-900/50 border-2 border-green-500 shadow-2xl shadow-green-500/30" :
+                    lastVisibleRoll.isFumble ? "bg-gradient-to-br from-red-500/30 to-red-900/50 border-2 border-red-500 shadow-2xl shadow-red-500/30" :
+                    "bg-gradient-to-br from-amber-500/30 to-slate-900/50 border-2 border-amber-500/50 shadow-2xl"
+                  }`}>
+                    <div className="flex items-center justify-center gap-2 mb-2 text-slate-400">
+                      <Crown className="h-4 w-4 text-amber-400" />
+                      <span className="text-sm font-medium">{lastVisibleRoll.roller}</span>
+                    </div>
+                    <div className="text-sm text-slate-400 mb-1">
+                      {lastVisibleRoll.dice} {lastVisibleRoll.purpose && `• ${lastVisibleRoll.purpose}`}
+                    </div>
+                    <div className={`text-7xl font-black mb-2 ${
+                      lastVisibleRoll.isCritical ? "text-green-400 animate-pulse" :
+                      lastVisibleRoll.isFumble ? "text-red-400" :
+                      "text-white"
+                    }`}>
+                      {lastVisibleRoll.total}
+                    </div>
+                    {lastVisibleRoll.isCritical && (
+                      <div className="text-green-400 text-lg font-bold tracking-wider animate-pulse">
+                        CRITICAL HIT!
+                      </div>
+                    )}
+                    {lastVisibleRoll.isFumble && (
+                      <div className="text-red-400 text-lg font-bold tracking-wider">
+                        NATURAL 1...
+                      </div>
+                    )}
+                    <div className="text-xs text-slate-500 mt-2">
+                      [{lastVisibleRoll.breakdown.join(", ")}]
+                      {lastVisibleRoll.modifier !== 0 && ` ${lastVisibleRoll.modifier > 0 ? "+" : ""}${lastVisibleRoll.modifier}`}
+                    </div>
+                  </div>
+                </div>
+              )}
               <CardHeader className="p-3 pb-2">
                 <div className="flex items-center gap-2">
                   <div className="p-2 rounded-lg bg-amber-500/30">
                     <BookOpen className="h-5 w-5 text-amber-500" />
                   </div>
                   <CardTitle className="text-base text-amber-500">Current Scene</CardTitle>
+                  {isInCombat && (
+                    <Badge variant="outline" className="ml-auto text-xs bg-red-500/20 text-red-400 border-red-500/30 animate-pulse">
+                      <Swords className="h-3 w-3 mr-1" />
+                      Combat Round {roundNum}
+                    </Badge>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="p-3 pt-0 flex-1">
@@ -1075,13 +1278,22 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
             <Card className="flex-1 flex flex-col bg-slate-900/50 border-slate-700">
               {/* Tabbed Header */}
               <Tabs defaultValue="queue" className="flex-1 flex flex-col">
-                <TabsList className="grid w-full grid-cols-3 h-9 bg-slate-800 rounded-b-none">
+                <TabsList className="grid w-full grid-cols-4 h-9 bg-slate-800 rounded-b-none">
                   <TabsTrigger value="queue" className="text-xs gap-1 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
                     <Clock className="h-3 w-3" />
                     Queue
                     {(pendingEvents.length > 0 || (liveSession?.choices?.length || 0) > 0) && (
                       <Badge variant="outline" className="h-4 px-1 text-[10px] bg-amber-500/30 border-amber-500/50">
                         {pendingEvents.length || liveSession?.choices?.length || 0}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="dice" className="text-xs gap-1 data-[state=active]:bg-red-500/20 data-[state=active]:text-red-400">
+                    <Dice6 className="h-3 w-3" />
+                    Dice
+                    {isInCombat && (
+                      <Badge variant="outline" className="h-4 px-1 text-[10px] bg-red-500/30 border-red-500/50 animate-pulse">
+                        R{roundNum}
                       </Badge>
                     )}
                   </TabsTrigger>
@@ -1123,6 +1335,34 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                     onReject={handleRejectEvent}
                     onModify={handleModifyEvent}
                     isProcessing={processingEventId}
+                  />
+                </TabsContent>
+
+                {/* DICE Tab - Roll dice, manage initiative */}
+                <TabsContent value="dice" className="flex-1 p-3 mt-0 overflow-y-auto space-y-3">
+                  <DMDiceRoller onRoll={handleDiceRoll} />
+                  <InitiativeTracker
+                    combatants={combatants}
+                    currentTurnIndex={currentTurnIdx}
+                    roundNumber={roundNum}
+                    isInCombat={isInCombat}
+                    onStartCombat={handleStartCombat}
+                    onEndCombat={handleEndCombat}
+                    onNextTurn={handleNextTurn}
+                    onAddCombatant={handleAddCombatant}
+                    onRemoveCombatant={handleRemoveCombatant}
+                    onUpdateCombatant={handleUpdateCombatant}
+                    onRollInitiativeForAll={handleRollInitiativeForAll}
+                    participants={participants}
+                  />
+                  <RollQueue
+                    rolls={diceRolls}
+                    requests={rollRequests}
+                    onRequestRoll={handleRequestRoll}
+                    onClearRolls={handleClearRolls}
+                    onApproveRequest={handleApproveRollRequest}
+                    onSkipRequest={handleSkipRollRequest}
+                    participants={participants}
                   />
                 </TabsContent>
 
