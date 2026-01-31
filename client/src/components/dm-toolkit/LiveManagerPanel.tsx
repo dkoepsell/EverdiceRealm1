@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import DMControlBar, { SessionMode } from "./DMControlBar";
+import DMControlBar, { SessionMode, NarrativeMode } from "./DMControlBar";
 import EventQueue, { PendingEvent } from "./EventQueue";
 import AIWhisperPanel, { AIWhisper } from "./AIWhisperPanel";
 import DMDiceRoller, { DiceRoll } from "./DMDiceRoller";
@@ -46,6 +46,8 @@ import {
 } from "@/components/ui/dialog";
 import {
   Users,
+  User,
+  Bot,
   Sword,
   Package,
   MapPin,
@@ -268,6 +270,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
   // DM Control Bar state
   const [isPaused, setIsPaused] = useState(false);
   const [sessionMode, setSessionMode] = useState<SessionMode>("exploration");
+  const [narrativeMode, setNarrativeMode] = useState<NarrativeMode>("manual");
   const [checkpoints, setCheckpoints] = useState<Array<{ id: string; name: string; timestamp: Date; state: any }>>([]);
   const [undoStack, setUndoStack] = useState<any[]>([]);
   const [pendingEvents, setPendingEvents] = useState<PendingEvent[]>([]);
@@ -521,6 +524,16 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
   const handleModeChange = useCallback((mode: SessionMode) => {
     setSessionMode(mode);
     toast({ title: "Mode Changed", description: `Session mode set to ${mode}.` });
+  }, [toast]);
+
+  const handleNarrativeModeChange = useCallback((mode: NarrativeMode) => {
+    setNarrativeMode(mode);
+    toast({ 
+      title: mode === "autopilot" ? "AI Autopilot Enabled" : "Manual DM Mode",
+      description: mode === "autopilot" 
+        ? "AI will generate narrative responses automatically." 
+        : "You control the narrative. Write your own responses.",
+    });
   }, [toast]);
 
   const handleUndo = useCallback(() => {
@@ -832,6 +845,8 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
         onPauseToggle={handlePauseToggle}
         sessionMode={sessionMode}
         onModeChange={handleModeChange}
+        narrativeMode={narrativeMode}
+        onNarrativeModeChange={handleNarrativeModeChange}
         onUndo={handleUndo}
         canUndo={undoStack.length > 0}
         onCheckpoint={handleCheckpoint}
@@ -1237,6 +1252,18 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                     <BookOpen className="h-5 w-5 text-amber-500" />
                   </div>
                   <CardTitle className="text-base text-amber-500">Current Scene</CardTitle>
+                  {narrativeMode === "manual" && (
+                    <Badge variant="outline" className="text-xs bg-amber-500/20 text-amber-400 border-amber-500/30">
+                      <User className="h-3 w-3 mr-1" />
+                      DM Control
+                    </Badge>
+                  )}
+                  {narrativeMode === "autopilot" && (
+                    <Badge variant="outline" className="text-xs bg-purple-500/20 text-purple-400 border-purple-500/30">
+                      <Bot className="h-3 w-3 mr-1" />
+                      AI Autopilot
+                    </Badge>
+                  )}
                   {isInCombat && (
                     <Badge variant="outline" className="ml-auto text-xs bg-red-500/20 text-red-400 border-red-500/30 animate-pulse">
                       <Swords className="h-3 w-3 mr-1" />

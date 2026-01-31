@@ -28,6 +28,8 @@ import {
   Zap,
   History,
   AlertCircle,
+  Bot,
+  User,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -40,12 +42,16 @@ interface Checkpoint {
   state: any;
 }
 
+export type NarrativeMode = "manual" | "autopilot";
+
 interface DMControlBarProps {
   campaignId: number | null;
   isPaused: boolean;
   onPauseToggle: () => void;
   sessionMode: SessionMode;
   onModeChange: (mode: SessionMode) => void;
+  narrativeMode: NarrativeMode;
+  onNarrativeModeChange: (mode: NarrativeMode) => void;
   onUndo: () => void;
   canUndo: boolean;
   onCheckpoint: (name: string) => void;
@@ -70,6 +76,8 @@ export default function DMControlBar({
   onPauseToggle,
   sessionMode,
   onModeChange,
+  narrativeMode,
+  onNarrativeModeChange,
   onUndo,
   canUndo,
   onCheckpoint,
@@ -386,6 +394,41 @@ export default function DMControlBar({
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="h-6 w-px bg-slate-700" />
+
+      {/* AI/Manual Narrative Toggle */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-slate-400">Narrative:</span>
+        <div className="flex rounded-lg overflow-hidden border border-slate-600">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onNarrativeModeChange("manual")}
+            className={`h-8 px-3 rounded-none gap-1.5 ${
+              narrativeMode === "manual" 
+                ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30" 
+                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+            }`}
+          >
+            <User className="h-3.5 w-3.5" />
+            <span className="text-xs">DM</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onNarrativeModeChange("autopilot")}
+            className={`h-8 px-3 rounded-none gap-1.5 ${
+              narrativeMode === "autopilot" 
+                ? "bg-purple-500/20 text-purple-400 hover:bg-purple-500/30" 
+                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+            }`}
+          >
+            <Bot className="h-3.5 w-3.5" />
+            <span className="text-xs">AI</span>
+          </Button>
+        </div>
       </div>
     </div>
   );
