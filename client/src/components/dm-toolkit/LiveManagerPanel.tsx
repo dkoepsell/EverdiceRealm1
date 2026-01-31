@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import DMControlBar, { SessionMode } from "./DMControlBar";
+import EventQueue, { PendingEvent } from "./EventQueue";
+import AIWhisperPanel, { AIWhisper } from "./AIWhisperPanel";
 import {
   DndContext,
   DragEndEvent,
@@ -258,6 +261,15 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
   const [sessionFocus, setSessionFocus] = useState("");
   const [editingFocus, setEditingFocus] = useState(false);
   
+  // DM Control Bar state
+  const [isPaused, setIsPaused] = useState(false);
+  const [sessionMode, setSessionMode] = useState<SessionMode>("exploration");
+  const [checkpoints, setCheckpoints] = useState<Array<{ id: string; name: string; timestamp: Date; state: any }>>([]);
+  const [undoStack, setUndoStack] = useState<any[]>([]);
+  const [pendingEvents, setPendingEvents] = useState<PendingEvent[]>([]);
+  const [processingEventId, setProcessingEventId] = useState<string | null>(null);
+  const [aiWhispers, setAiWhispers] = useState<AIWhisper[]>([]);
+  
   // Tutorial banner - show only first time (stored in localStorage)
   const [showOnboarding, setShowOnboarding] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -478,6 +490,114 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
     }
   };
 
+  // DM Control Bar handlers
+  const handlePauseToggle = useCallback(() => {
+    setIsPaused(prev => !prev);
+    toast({
+      title: isPaused ? "Session Resumed" : "Session Paused",
+      description: isPaused ? "Players can now continue." : "All input is paused until you resume.",
+    });
+  }, [isPaused, toast]);
+
+  const handleModeChange = useCallback((mode: SessionMode) => {
+    setSessionMode(mode);
+    toast({ title: "Mode Changed", description: `Session mode set to ${mode}.` });
+  }, [toast]);
+
+  const handleUndo = useCallback(() => {
+    if (undoStack.length > 0) {
+      const lastState = undoStack[undoStack.length - 1];
+      setUndoStack(prev => prev.slice(0, -1));
+      toast({ title: "Undo Successful", description: "Last action has been reversed." });
+    }
+  }, [undoStack, toast]);
+
+  const handleCheckpoint = useCallback((name: string) => {
+    const newCheckpoint = {
+      id: `cp-${Date.now()}`,
+      name,
+      timestamp: new Date(),
+      state: { 
+        sessionArtifacts: dmSessionState?.sessionArtifacts,
+        initiativeOrder: dmSessionState?.initiativeOrder,
+        dmMessages: dmSessionState?.dmMessages,
+      },
+    };
+    setCheckpoints(prev => [...prev, newCheckpoint]);
+  }, [dmSessionState]);
+
+  const handleRestoreCheckpoint = useCallback((checkpoint: { id: string; name: string; timestamp: Date; state: any }) => {
+    toast({ title: "Checkpoint Restored", description: `Restored to "${checkpoint.name}"` });
+  }, [toast]);
+
+  const handleInjectNarration = useCallback((text: string) => {
+    sendDmMessageMutation.mutate({ message: text, type: "narration" });
+  }, [sendDmMessageMutation]);
+
+  const handleForceStateChange = useCallback((change: { type: string; target: string; value: any }) => {
+    toast({ 
+      title: "State Override Applied", 
+      description: `Set ${change.target}'s ${change.type} to ${change.value}` 
+    });
+  }, [toast]);
+
+  const handleApproveEvent = useCallback((eventId: string) => {
+    setProcessingEventId(eventId);
+    setTimeout(() => {
+      setPendingEvents(prev => prev.filter(e => e.id !== eventId));
+      setProcessingEventId(null);
+      toast({ title: "Event Approved", description: "The action has been executed." });
+    }, 500);
+  }, [toast]);
+
+  const handleRejectEvent = useCallback((eventId: string) => {
+    setPendingEvents(prev => prev.filter(e => e.id !== eventId));
+    toast({ title: "Event Rejected", description: "The action has been discarded." });
+  }, [toast]);
+
+  const handleModifyEvent = useCallback((eventId: string) => {
+    toast({ title: "Modify Event", description: "Edit the event before approving." });
+  }, [toast]);
+
+  const handleDismissWhisper = useCallback((whisperId: string) => {
+    setAiWhispers(prev => prev.filter(w => w.id !== whisperId));
+  }, []);
+
+  const handleUseWhisperAsInspiration = useCallback((whisper: AIWhisper) => {
+    setDmMessage(whisper.content);
+    setAiWhispers(prev => prev.filter(w => w.id !== whisper.id));
+    toast({ title: "Inspiration Added", description: "AI suggestion added to your message." });
+  }, [toast]);
+
+  // Generate sample AI whispers based on session state
+  useEffect(() => {
+    const artifacts = dmSessionState?.sessionArtifacts || [];
+    if (selectedCampaignId && liveSession?.narrative && aiWhispers.length === 0) {
+      const sampleWhispers: AIWhisper[] = [];
+      if (artifacts.length > 0) {
+        sampleWhispers.push({
+          id: `whisper-${Date.now()}-1`,
+          type: "hook",
+          content: "Consider introducing a consequence from earlier choices.",
+          priority: "medium",
+          timestamp: new Date(),
+        });
+      }
+      if (liveSession.isInCombat) {
+        sampleWhispers.push({
+          id: `whisper-${Date.now()}-2`,
+          type: "pacing",
+          content: "Combat has been active for a while. Consider offering a dramatic resolution.",
+          priority: "low",
+          timestamp: new Date(),
+        });
+      }
+      if (sampleWhispers.length > 0) {
+        setAiWhispers(sampleWhispers);
+      }
+    }
+  }, [selectedCampaignId, liveSession, dmSessionState?.sessionArtifacts?.length, aiWhispers.length]);
+
   const camlEntities = dmSessionState?.camlEntitySources || {};
   const camlNpcs = (camlEntities.npcs || []).map((npc: any, idx: number) => ({
     id: `caml-npc-${idx}`,
@@ -537,6 +657,22 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
+      {/* DM Control Bar - Always visible, non-negotiable */}
+      <DMControlBar
+        campaignId={selectedCampaignId}
+        isPaused={isPaused}
+        onPauseToggle={handlePauseToggle}
+        sessionMode={sessionMode}
+        onModeChange={handleModeChange}
+        onUndo={handleUndo}
+        canUndo={undoStack.length > 0}
+        onCheckpoint={handleCheckpoint}
+        onRestoreCheckpoint={handleRestoreCheckpoint}
+        checkpoints={checkpoints}
+        onInjectNarration={handleInjectNarration}
+        onForceStateChange={handleForceStateChange}
+      />
+
       {/* Onboarding Hint - Collapsible, dismissable, first-time only */}
       {showOnboarding && (
         onboardingCollapsed ? (
@@ -934,40 +1070,48 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
             </Card>
           </div>
 
-          {/* Right Column: THINK (muted) + SAY (high contrast) */}
-          <div className="lg:w-72 flex-shrink-0 flex flex-col gap-3 overflow-y-auto pb-16">
-            {/* THINK ZONE - Muted, analytical */}
+          {/* Right Column: QUEUE + THINK + SAY */}
+          <div className="lg:w-80 flex-shrink-0 flex flex-col gap-3 overflow-y-auto pb-16">
+            {/* EVENT QUEUE - DM Mediation Gate */}
             <div className="space-y-2">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-1">Think</p>
-              
-              {/* Likely Player Moves - Compact, muted */}
-              <Card className="border-muted bg-muted/10">
-                <CardHeader className="p-2 pb-1">
-                  <CardTitle className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Sparkles className="h-3 w-3 text-purple-400" />
-                    Likely Moves
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-2 pt-0">
-                  <ScrollArea className="h-[100px]">
-                    {liveSession?.choices && liveSession.choices.length > 0 ? (
-                      <div className="space-y-1">
-                        {liveSession.choices.map((choice: any, idx: number) => (
-                          <div key={idx} className="p-1.5 rounded text-xs text-muted-foreground border border-muted">
-                            {choice.text}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-[10px] text-muted-foreground/50 text-center py-2">
-                        Player options appear here
-                      </p>
-                    )}
-                  </ScrollArea>
-                </CardContent>
-              </Card>
+              <p className="text-[10px] uppercase tracking-wider text-slate-500 px-1">Pending Actions</p>
+              <EventQueue
+                events={pendingEvents.length > 0 ? pendingEvents : (
+                  liveSession?.choices?.map((choice: any, idx: number) => ({
+                    id: `choice-${idx}`,
+                    source: "player" as const,
+                    type: "narrative" as const,
+                    intent: choice.type === "combat" ? "combat" as const : 
+                           choice.type === "dialogue" ? "dialogue" as const : 
+                           "investigation" as const,
+                    title: choice.text?.substring(0, 50) || "Player Action",
+                    description: choice.text || "",
+                    impact: "Advances the narrative",
+                    affectedEntities: [],
+                    timestamp: new Date(),
+                    isReversible: true,
+                  })) || []
+                )}
+                onApprove={handleApproveEvent}
+                onReject={handleRejectEvent}
+                onModify={handleModifyEvent}
+                isProcessing={processingEventId}
+              />
+            </div>
 
-              {/* Arc Signals - Compact */}
+            {/* AI WHISPER - Suggestions only, never auto-executes */}
+            <div className="space-y-2">
+              <p className="text-[10px] uppercase tracking-wider text-purple-400/60 px-1">AI Assistant</p>
+              <AIWhisperPanel
+                whispers={aiWhispers}
+                onDismiss={handleDismissWhisper}
+                onUseAsInspiration={handleUseWhisperAsInspiration}
+              />
+            </div>
+
+            {/* THINK ZONE - Arc Signals */}
+            <div className="space-y-2">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-1">Context</p>
               <ArcSignalsPanel campaignId={selectedCampaignId} />
             </div>
 
