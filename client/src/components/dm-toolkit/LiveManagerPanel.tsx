@@ -1274,10 +1274,10 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
           </div>
 
           {/* Right Column: Fixed Sidebar with Tabs - No scrolling needed */}
-          <div className="lg:w-80 flex-shrink-0 flex flex-col h-full">
-            <Card className="flex-1 flex flex-col bg-slate-900/50 border-slate-700">
+          <div className="lg:w-80 flex-shrink-0 flex flex-col min-h-0 overflow-hidden">
+            <Card className="flex-1 flex flex-col bg-slate-900/50 border-slate-700 min-h-0 overflow-hidden">
               {/* Tabbed Header */}
-              <Tabs defaultValue="queue" className="flex-1 flex flex-col">
+              <Tabs defaultValue="queue" className="flex-1 flex flex-col min-h-0 overflow-hidden">
                 <TabsList className="grid w-full grid-cols-4 h-9 bg-slate-800 rounded-b-none">
                   <TabsTrigger value="queue" className="text-xs gap-1 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
                     <Clock className="h-3 w-3" />
@@ -1313,7 +1313,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                 </TabsList>
 
                 {/* EVENT QUEUE Tab */}
-                <TabsContent value="queue" className="flex-1 p-3 mt-0 overflow-y-auto">
+                <TabsContent value="queue" className="flex-1 p-3 mt-0 overflow-y-auto min-h-0">
                   <EventQueue
                     events={pendingEvents.length > 0 ? pendingEvents : (
                       liveSession?.choices?.map((choice: any, idx: number) => ({
@@ -1339,7 +1339,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                 </TabsContent>
 
                 {/* DICE Tab - Roll dice, manage initiative */}
-                <TabsContent value="dice" className="flex-1 p-3 mt-0 overflow-y-auto space-y-3">
+                <TabsContent value="dice" className="flex-1 p-3 mt-0 overflow-y-auto min-h-0 space-y-3">
                   <DMDiceRoller onRoll={handleDiceRoll} />
                   <InitiativeTracker
                     combatants={combatants}
@@ -1367,7 +1367,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                 </TabsContent>
 
                 {/* AI WHISPER Tab */}
-                <TabsContent value="whisper" className="flex-1 p-3 mt-0 overflow-y-auto">
+                <TabsContent value="whisper" className="flex-1 p-3 mt-0 overflow-y-auto min-h-0">
                   <AIWhisperPanel
                     whispers={aiWhispers}
                     onDismiss={handleDismissWhisper}
@@ -1379,7 +1379,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                 </TabsContent>
 
                 {/* SAY Tab - Tell Your Story */}
-                <TabsContent value="say" className="flex-1 p-3 mt-0 flex flex-col">
+                <TabsContent value="say" className="flex-1 p-3 mt-0 flex flex-col min-h-0 overflow-hidden">
                   <Card className="flex-1 border-2 border-amber-500/40 bg-gradient-to-b from-amber-500/10 to-transparent">
                     <CardHeader className="p-3 pb-2">
                       <CardTitle className="text-sm flex items-center gap-2 text-amber-500">
