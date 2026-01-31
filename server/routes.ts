@@ -10958,6 +10958,8 @@ Generate a complete CAML 2.0 JSON adventure.`;
       const campaignId = parseInt(req.params.campaignId);
       const { choice, rollResult, currentLocation, skipTurnCheck } = req.body;
       
+      console.log(`[Advance Story] Campaign ${campaignId} - Choice: "${choice?.substring(0, 50)}..." by user ${req.user?.id}`);
+      
       // Get campaign to check turn-based settings
       const campaign = await storage.getCampaign(campaignId);
       if (!campaign) {
@@ -11831,6 +11833,7 @@ Respond with JSON:
       });
 
       const storyAdvancement = JSON.parse(response.choices[0].message.content);
+      console.log(`[Advance Story] AI response received - narrative length: ${storyAdvancement.narrative?.length || 0}, choices: ${storyAdvancement.choices?.length || 0}`);
 
       // Calculate XP and item rewards based on story advancement
       let xpAwarded = 0;
@@ -13175,6 +13178,8 @@ Respond with JSON:
           itemsFound
         }]
       });
+      
+      console.log(`[Advance Story] Session ${updatedSession?.id} updated successfully - new narrative length: ${updatedSession?.narrative?.length || 0}`);
 
       // Auto-link campaign to world location if not already linked
       const campaignForLinking = await storage.getCampaign(campaignId);
