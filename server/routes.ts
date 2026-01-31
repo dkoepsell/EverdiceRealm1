@@ -10822,6 +10822,119 @@ Generate a complete CAML 2.0 JSON adventure.`;
     }
   });
 
+  // Get table chat - available to all campaign participants during live sessions
+  app.get("/api/campaigns/:campaignId/table-chat", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const campaign = await storage.getCampaign(campaignId);
+      
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      // Check if user is DM or a participant
+      const isDM = campaign.userId === req.user.id;
+      const participants = await storage.getCampaignParticipants(campaignId);
+      const isParticipant = participants.some(p => p.userId === req.user.id);
+      
+      if (!isDM && !isParticipant) {
+        return res.status(403).json({ message: "Only campaign participants can access table chat" });
+      }
+      
+      // Get session state
+      const sessionState = await db.select().from(dmSessionStates)
+        .where(eq(dmSessionStates.campaignId, campaignId))
+        .limit(1);
+      
+      if (sessionState.length === 0) {
+        return res.json({ tableChat: [], isActive: false });
+      }
+      
+      const currentState = sessionState[0];
+      res.json({ 
+        tableChat: (currentState as any).tableChat || [],
+        isActive: currentState.isActive,
+        initiativeOrder: currentState.initiativeOrder,
+        currentTurnIndex: currentState.currentTurnIndex,
+      });
+    } catch (error) {
+      console.error("Failed to get table chat:", error);
+      res.status(500).json({ message: "Failed to get table chat" });
+    }
+  });
+
+  // Send table chat message - available to all campaign participants during live sessions
+  app.post("/api/campaigns/:campaignId/table-chat", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const campaign = await storage.getCampaign(campaignId);
+      
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      // Check if user is DM or a participant
+      const isDM = campaign.userId === req.user.id;
+      const participants = await storage.getCampaignParticipants(campaignId);
+      const isParticipant = participants.some(p => p.userId === req.user.id);
+      
+      if (!isDM && !isParticipant) {
+        return res.status(403).json({ message: "Only campaign participants can send table chat" });
+      }
+      
+      const { message, senderName, characterName } = req.body;
+      
+      if (!message || typeof message !== 'string' || message.trim().length === 0) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+      
+      // Get current session state
+      const sessionState = await db.select().from(dmSessionStates)
+        .where(eq(dmSessionStates.campaignId, campaignId))
+        .limit(1);
+      
+      if (sessionState.length === 0) {
+        return res.status(404).json({ message: "No active session found" });
+      }
+      
+      // Create the chat message
+      const chatMessage = {
+        id: Date.now().toString(),
+        message: message.trim(),
+        senderId: req.user.id,
+        senderName: senderName || req.user.username || 'Unknown',
+        characterName: characterName || null,
+        isDM,
+        timestamp: new Date().toISOString(),
+      };
+      
+      // Get existing table chat or initialize
+      const currentState = sessionState[0];
+      const tableChat = (currentState as any).tableChat || [];
+      
+      // Add message to table chat (keep last 100 messages)
+      const updatedChat = [...tableChat, chatMessage].slice(-100);
+      
+      await db.update(dmSessionStates)
+        .set({
+          tableChat: updatedChat,
+          lastUpdatedAt: new Date().toISOString(),
+        })
+        .where(eq(dmSessionStates.campaignId, campaignId));
+      
+      // Broadcast to all participants via WebSocket
+      broadcastMessage('table-chat', {
+        campaignId,
+        ...chatMessage
+      });
+      
+      res.json({ success: true, message: chatMessage });
+    } catch (error) {
+      console.error("Failed to send table chat:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
   // Add session artifact (from drag-and-drop)
   app.post("/api/campaigns/:campaignId/session-artifact", isAuthenticated, async (req: any, res) => {
     try {

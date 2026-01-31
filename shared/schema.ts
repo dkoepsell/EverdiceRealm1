@@ -906,6 +906,8 @@ export const dmSessionStates = pgTable("dm_session_states", {
   pendingChoices: jsonb("pending_choices").default([]), // [{characterId, choice, timestamp}]
   // DM messages log
   dmMessages: jsonb("dm_messages").default([]), // [{message, timestamp, type: 'narration'|'ooc'|'system'}]
+  // Table-wide chat - all players can send messages anytime
+  tableChat: jsonb("table_chat").default([]), // [{id, message, senderId, senderName, characterName, isDM, timestamp}]
   // Session artifacts - dragged items from sidebar
   sessionArtifacts: jsonb("session_artifacts").default([]), // [{type, entityId, name, data, addedAt}]
   // CAML entity sources for sidebar

@@ -42,10 +42,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { SiDiscord } from "react-icons/si";
 import CampaignParticipants from "./CampaignParticipants";
 import TurnManager from "./TurnManager";
 import CampaignDeploymentTab from "./CampaignDeploymentTab";
 import CampaignDashboard from "./CampaignDashboard";
+import TableChat from "@/components/dm-toolkit/TableChat";
 import CombatSpellPanel from "@/components/combat/CombatSpellPanel";
 import { LearningTip, useLearningTips } from "@/components/learning/LearningTip";
 import type { DungeonMapData, MapEntity } from "../dungeon/DungeonMap";
@@ -211,6 +213,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     failureText: string;
   } | null>(null);
   const [customAction, setCustomAction] = useState("");
+  const [tableChatCollapsed, setTableChatCollapsed] = useState(true);
+  const [isMyTurn, setIsMyTurn] = useState(true);
+  const [currentTurnName, setCurrentTurnName] = useState<string | null>(null);
   const [newItemName, setNewItemName] = useState("");
   const [selectedPartyMemberType, setSelectedPartyMemberType] = useState<"character" | "npc">("character");
   const [selectedNpcId, setSelectedNpcId] = useState<number | null>(null);
@@ -2622,9 +2627,55 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             <TabsContent value="narrative" className="p-4 sm:p-6">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <h2 className="text-2xl font-bold font-fantasy" style={{ color: '#0f172a' }}>
-                    {campaign.title}
-                  </h2>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <h2 className="text-2xl font-bold font-fantasy" style={{ color: '#0f172a' }}>
+                        {campaign.title}
+                      </h2>
+                    </div>
+                    {campaign.discordChannelId ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0 border-[#5865F2] text-[#5865F2] hover:bg-[#5865F2]/10"
+                            onClick={() => {
+                              const discordUrl = `https://discord.com/channels/${campaign.discordGuildId}/${campaign.discordChannelId}`;
+                              window.open(discordUrl, '_blank');
+                            }}
+                          >
+                            <SiDiscord className="h-4 w-4 mr-1.5" />
+                            <span className="hidden sm:inline">Join Discord</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Open campaign's Discord channel</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : isDM && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="shrink-0 text-muted-foreground hover:text-[#5865F2]"
+                            onClick={() => {
+                              const tabsList = document.querySelector('[data-state="active"][value="deploy"]') || 
+                                              document.querySelector('button[value="deploy"]');
+                              if (tabsList) (tabsList as HTMLButtonElement).click();
+                            }}
+                          >
+                            <SiDiscord className="h-4 w-4 mr-1.5" />
+                            <span className="hidden sm:inline">Add Discord</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Connect this campaign to Discord</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
                   <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-md border">
                     <p className="text-gray-900 dark:text-gray-50 font-semibold text-base leading-relaxed">
                       {campaign.description}
@@ -3740,7 +3791,25 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     {/* Action choices */}
                     {!isAdvancingStory && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 ? (
                       <div className="mt-6 space-y-4">
-                        <h4 className="font-semibold" style={{ color: '#1e293b' }}>What will you do?</h4>
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold" style={{ color: '#1e293b' }}>What will you do?</h4>
+                          {currentTurnName && !isMyTurn && (
+                            <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+                              <Clock className="h-3 w-3 mr-1" />
+                              {currentTurnName}'s turn
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        {/* Turn restriction notice */}
+                        {currentTurnName && !isMyTurn && !isDM && (
+                          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                            <p className="flex items-center gap-2">
+                              <Clock className="h-4 w-4" />
+                              Waiting for {currentTurnName}'s turn to end. You can still use the table chat!
+                            </p>
+                          </div>
+                        )}
                         
                         {/* Suggested Actions */}
                         <div className="grid grid-cols-1 gap-2 max-w-full overflow-hidden">
@@ -3772,12 +3841,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               );
                             }
                             
+                            const actionDisabled = !isDM && !!currentTurnName && !isMyTurn;
+                            
                             const button = (
                               <Button 
                                 key={index}
                                 variant="outline"
-                                className="justify-start h-auto py-3 px-3 sm:px-4 bg-background hover:bg-accent border-2 border-border hover:border-primary text-left w-full max-w-full overflow-hidden"
-                                onClick={() => handleChoiceSelection(choice)}
+                                className={`justify-start h-auto py-3 px-3 sm:px-4 bg-background border-2 text-left w-full max-w-full overflow-hidden ${actionDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-accent border-border hover:border-primary'}`}
+                                onClick={() => !actionDisabled && handleChoiceSelection(choice)}
+                                disabled={actionDisabled}
                                 data-testid={`choice-button-${index}`}
                               >
                                 <div className="flex items-start w-full min-w-0 overflow-hidden">
@@ -3842,7 +3914,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               />
                               <Button 
                                 onClick={handleCustomAction}
-                                disabled={!customAction.trim() || isAdvancingStory}
+                                disabled={!customAction.trim() || isAdvancingStory || (!isDM && !!currentTurnName && !isMyTurn)}
                                 className="shrink-0"
                               >
                                 <ArrowRight className="h-4 w-4" />
@@ -3855,6 +3927,37 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </div>
                       </div>
                     ) : null}
+                    
+                    {/* Table Chat - Available to all participants during live sessions */}
+                    {currentSession && (
+                      <div className="mt-6">
+                        {tableChatCollapsed ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full border-dashed"
+                            onClick={() => setTableChatCollapsed(false)}
+                          >
+                            <MessageCircle className="h-4 w-4 mr-2" />
+                            Open Table Chat
+                          </Button>
+                        ) : (
+                          <div className="h-80 border rounded-lg overflow-hidden">
+                            <TableChat
+                              campaignId={campaign.id}
+                              characterName={activeCharacter?.name}
+                              characterId={activeCharacter?.id}
+                              isCollapsed={false}
+                              onToggle={() => setTableChatCollapsed(true)}
+                              onInitiativeUpdate={(myTurn, combatantName) => {
+                                setIsMyTurn(myTurn);
+                                setCurrentTurnName(combatantName);
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : sessionsLoading ? (
                   <div className="mt-6">
