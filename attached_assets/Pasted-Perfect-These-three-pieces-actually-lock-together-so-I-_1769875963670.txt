@@ -1,0 +1,332 @@
+Perfect. These three pieces actually *lock together*, so I’ll give them to you as a coherent system rather than three disconnected artifacts.
+
+I’ll do this in order of **mental model → mechanics → interface**, which mirrors how DMs evaluate trust.
+
+---
+
+# I. The DM Trust Manifesto
+
+*(This is the north star. Everything else should be checkable against it.)*
+
+### **The DM Trust Manifesto**
+
+A Dungeon Master will trust a digital tool only if:
+
+1. **The DM is always in charge**
+
+   * Nothing meaningful happens without the DM’s consent or ability to interrupt.
+   * Automation never outranks judgment.
+
+2. **The system is legible**
+
+   * The DM can see what the system believes is true.
+   * State is inspectable, not inferred.
+
+3. **The system is interruptible**
+
+   * Any action can be paused, undone, overridden, or reframed.
+   * Mistakes are recoverable in seconds, not minutes.
+
+4. **The system is subordinate**
+
+   * AI suggests; the DM decides.
+   * The tool supports pacing, it never dictates it.
+
+5. **The system remembers so the DM doesn’t have to**
+
+   * The tool tracks continuity, flags, NPC states, and unresolved threads.
+   * The DM is freed cognitively, not replaced creatively.
+
+6. **The system respects table reality**
+
+   * Players hesitate, interrupt, joke, stall, and surprise.
+   * The tool bends to humans, not the other way around.
+
+Every feature must answer one question:
+
+> “Does this make the DM more confident running a live table?”
+
+If not, it does not belong.
+
+---
+
+# II. DM-First Event Pipeline
+
+*(This is the “how the machine behaves” layer.)*
+
+Right now, your system feels *event-reactive*.
+You want it to feel **DM-mediated**.
+
+Here’s the pipeline you should enforce everywhere.
+
+---
+
+## 1. Event Origination
+
+Events can originate from:
+
+* Player input
+* DM input
+* System timers
+* AI suggestions
+* Map interactions
+
+**Key rule:**
+👉 *Nothing commits directly to state.*
+
+All events enter a **Pending Queue**.
+
+---
+
+## 2. Intent Classification Layer
+
+Every event is classified before execution:
+
+* Narrative (description, dialogue)
+* Mechanical (rolls, damage, movement)
+* State-altering (flags, NPC status, location change)
+* Meta (pause, rewind, branch)
+
+This classification determines **who must approve it**.
+
+---
+
+## 3. DM Mediation Gate (Critical)
+
+Before execution:
+
+* **DM-visible preview** of:
+
+  * What will change
+  * Who it affects
+  * Whether it advances the scene
+
+DM options:
+
+* Approve
+* Modify
+* Delay
+* Reject
+* Replace with narration
+
+For low-stakes events, this can be *implicit approval* — but never invisible.
+
+---
+
+## 4. Execution Layer
+
+Once approved:
+
+* State updates occur
+* Logs are written
+* Players are notified (if applicable)
+
+**Every execution includes:**
+
+* Source (Player X, DM, AI)
+* Mode (Exploration, Conflict, etc.)
+* Reversibility flag
+
+---
+
+## 5. Checkpointing & Rollback
+
+After execution:
+
+* Auto-checkpoint created (cheap JSON diff)
+* Manual DM checkpoint optionally created
+
+Rollback options:
+
+* Undo last event
+* Restore checkpoint
+* Fork timeline
+
+This makes experimentation safe.
+
+---
+
+## 6. Memory & Continuity Update
+
+Finally:
+
+* NPC memories update
+* Location history updates
+* Loose ends tracked
+* AI context updated *after* state is stable
+
+AI never reasons on half-committed state.
+
+---
+
+### Pipeline Summary (one-line)
+
+> **Input → Intent → DM Gate → Execute → Checkpoint → Remember**
+
+If an event skips a step, it’s a bug.
+
+---
+
+# III. DM Screen Layout (Wireframe-Level)
+
+Now we design the interface so this pipeline is *felt*, not explained.
+
+Think **cockpit, not dashboard**.
+
+---
+
+## High-Level Layout
+
+```
+┌───────────────────────────────────────────────────────────┐
+│ DM CONTROL BAR (always visible, never collapses)          │
+│ Pause | Undo | Override | Inject | Mode | Checkpoint      │
+└───────────────────────────────────────────────────────────┘
+
+┌───────────────┬────────────────────────────┬─────────────┐
+│               │                            │             │
+│ MAP / SCENE   │ TABLE VIEW                 │ STATE PANEL │
+│               │ (what players see)         │ (DM only)   │
+│               │                            │             │
+│               │                            │             │
+└───────────────┴────────────────────────────┴─────────────┘
+
+┌───────────────────────────────────────────────────────────┐
+│ EVENT QUEUE & AI WHISPER (DM only)                         │
+└───────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 1. DM Control Bar (Top, Non-Negotiable)
+
+This is sacred space.
+
+**Always visible. Always responsive.**
+
+Buttons:
+
+* **Pause** (freezes player input + AI)
+* **Undo**
+* **Checkpoint**
+* **Inject Narration**
+* **Force State Change**
+* **Session Mode Selector**
+
+No nesting. No hiding. No ambiguity.
+
+If this bar glitches, the session fails.
+
+---
+
+## 2. Center: Table View (Player Reality)
+
+This is *exactly* what players see:
+
+* Narration
+* Dialogue
+* Rolls
+* Map reveals
+
+DM sees it *as players do*, reinforcing empathy.
+
+Optional toggle:
+
+* “What players can’t see” overlay (fog, secrets)
+
+---
+
+## 3. Left: Map / Scene Panel (Narrative Anchor)
+
+This is where space becomes story.
+
+Features:
+
+* Click hex/location → contextual actions
+* Reveal/hide per player group
+* Attach notes, moods, memories
+* Spawn events *without* auto-trigger
+
+Think: “I point here and something happens — when I decide.”
+
+---
+
+## 4. Right: State Panel (The Ledger)
+
+This is the trust engine.
+
+Tabs:
+
+* Flags & Threads
+* NPCs & Motivations
+* Player Conditions
+* Timers / Clocks
+* Hidden Facts
+
+Everything here is:
+
+* Explicit
+* Editable
+* Logged
+
+No guessing. No magic.
+
+---
+
+## 5. Bottom: Event Queue & AI Whisper
+
+Split vertically:
+
+**Left: Event Queue**
+
+* Pending player intents
+* System events
+* Map-triggered possibilities
+
+Each event shows:
+
+* Source
+* Impact
+* Approve / Modify / Reject
+
+**Right: AI Whisper**
+
+* Suggestions only
+* Hooks, reminders, consequences
+* Never auto-executes
+
+The AI is a *junior assistant*, not a co-DM.
+
+---
+
+# IV. Feature Alignment Check (Manifesto → Reality)
+
+| Manifesto Principle | Feature That Enforces It       |
+| ------------------- | ------------------------------ |
+| DM always in charge | DM control bar, mediation gate |
+| System legible      | State panel, event previews    |
+| Interruptible       | Pause, undo, checkpoints       |
+| Subordinate AI      | AI whisper channel             |
+| Remembers for DM    | NPC memory, loose ends         |
+| Respects table      | Input throttling, modes        |
+
+If a feature can’t be placed in this table, cut it.
+
+---
+
+## Closing Thought (Important)
+
+What you’re building is **not a smarter RPG system**.
+
+It’s a **calm, trustworthy co-pilot** for live human improvisation.
+
+That’s rare. And it’s exactly why Everdice *should not* chase universality yet.
+
+If you want next, I can:
+
+* Translate this into a concrete React component hierarchy
+* Define the event schema types
+* Write copy for a DM-facing “Why this won’t hijack your game” page
+* Help you choose what *not* to build yet
+
+Just say the word.
