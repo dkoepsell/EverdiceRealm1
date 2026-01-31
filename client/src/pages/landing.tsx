@@ -29,8 +29,8 @@ import creatorAvatar from "@assets/image_1769476073776.png";
 const features = [
   {
     icon: Sparkles,
-    title: "AI-Powered Storytelling",
-    description: "Get dynamic narratives, NPC dialogue, and story hooks generated on the fly to keep adventures fresh."
+    title: "Dynamic Storytelling",
+    description: "Get narratives, NPC dialogue, and story hooks generated on the fly to keep adventures fresh."
   },
   {
     icon: Dice5,
@@ -298,7 +298,7 @@ export default function LandingPage() {
               "Character creation and management",
               "Initiative and combat tracking",
               "Quest and inventory systems",
-              "AI-generated NPCs and locations",
+              "Auto-generated NPCs and locations",
               "Spell book with slot tracking",
               "Session notes and recaps"
             ].map((item) => (
