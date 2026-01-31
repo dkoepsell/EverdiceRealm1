@@ -29,23 +29,23 @@ import creatorAvatar from "@assets/image_1769476073776.png";
 const features = [
   {
     icon: Sparkles,
-    title: "Simple to Learn",
-    description: "Start playing in minutes. No complex setup, no software tutorials, no pressure."
+    title: "AI-Powered Storytelling",
+    description: "Get dynamic narratives, NPC dialogue, and story hooks generated on the fly to keep adventures fresh."
   },
   {
     icon: Dice5,
-    title: "Real Dice, Real Imagination",
-    description: "Roll physical dice. Talk freely. Improvise. Everdice quietly handles continuity and notes."
+    title: "Built-in Dice Roller",
+    description: "Roll any dice from d4 to d100 with advantage, modifiers, and automatic critical detection."
   },
   {
     icon: BookOpen,
     title: "Campaigns That Remember",
-    description: "Characters persist. Stories don't vanish between sessions. Pick up right where you left off."
+    description: "Characters, quests, and story arcs persist between sessions. Pick up right where you left off."
   },
   {
-    icon: MessageCircle,
-    title: "Works With Discord",
-    description: "Build campaigns in Everdice, deploy to Discord. Chat stays there, continuity stays here."
+    icon: Shield,
+    title: "SRD 5e Rules Library",
+    description: "Access spells, monsters, classes, and rules from the official D&D 5e System Reference Document."
   }
 ];
 
@@ -276,7 +276,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Built for Real Tables */}
+      {/* What You Get */}
       <section className="container mx-auto px-4 py-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -285,24 +285,22 @@ export default function LandingPage() {
           className="max-w-3xl mx-auto"
         >
           <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 bg-amber-500/10 text-amber-400 px-3 py-1 rounded-full text-sm font-medium mb-4">
-              <Dice5 className="h-4 w-4" />
-              Real Tables, Not Replacements
-            </div>
             <h2 className="text-2xl md:text-3xl font-bold mb-4">
-              Built for Real Tables, Not Replacements
+              Everything You Need to Play
             </h2>
             <p className="text-muted-foreground max-w-xl mx-auto leading-relaxed">
-              Everdice isn't a virtual tabletop and doesn't try to be one.
+              Everdice handles the complexity so you can focus on the story.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-4 mb-6">
             {[
-              "You roll physical dice",
-              "You talk freely",
-              "You improvise",
-              "Stories don't vanish"
+              "Character creation and management",
+              "Initiative and combat tracking",
+              "Quest and inventory systems",
+              "AI-generated NPCs and locations",
+              "Spell book with slot tracking",
+              "Session notes and recaps"
             ].map((item) => (
               <div key={item} className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border border-border/50">
                 <CheckCircle className="h-5 w-5 text-emerald-400 flex-shrink-0" />
@@ -310,10 +308,6 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-
-          <p className="text-center text-muted-foreground">
-            Everdice quietly handles continuity, notes, characters, and campaign memory so you can focus on roleplaying.
-          </p>
         </motion.div>
       </section>
 
