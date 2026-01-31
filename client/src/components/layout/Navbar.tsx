@@ -73,8 +73,7 @@ export default function Navbar() {
     { name: "Play", path: "/dashboard", icon: Play },
     { name: "Characters", path: "/characters", icon: Users },
     { name: "Learn", path: "/learn", icon: BookOpen },
-    // Show DM link if user has campaigns
-    ...(hasDMCampaigns ? [{ name: "Run Session", path: "/dm-toolkit", icon: Wrench }] : []),
+    { name: "Run Session", path: "/dm-toolkit", icon: Wrench },
   ] : [];
   
   const moreLinks = [
