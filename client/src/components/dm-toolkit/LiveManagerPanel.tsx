@@ -574,14 +574,19 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
     toast({ title: "Event Rejected", description: "The action has been discarded." });
   }, [toast]);
 
-  const handleModifyEvent = useCallback((eventId: string) => {
-    toast({ title: "Modify Event", description: "Edit the event before approving." });
+  const handleModifyEvent = useCallback((eventId: string, updatedEvent: PendingEvent) => {
+    setPendingEvents(prev => prev.map(e => e.id === eventId ? updatedEvent : e));
+    toast({ title: "Event Updated", description: `"${updatedEvent.title}" has been modified.` });
   }, [toast]);
 
   const handleAddEvent = useCallback((event: PendingEvent) => {
     setPendingEvents(prev => [...prev, event]);
     toast({ title: "Event Added", description: `"${event.title}" added to the queue.` });
   }, [toast]);
+
+  const handleReorderEvents = useCallback((reorderedEvents: PendingEvent[]) => {
+    setPendingEvents(reorderedEvents);
+  }, []);
 
   const handleDismissWhisper = useCallback((whisperId: string) => {
     setAiWhispers(prev => prev.filter(w => w.id !== whisperId));
@@ -1340,6 +1345,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                     onReject={handleRejectEvent}
                     onModify={handleModifyEvent}
                     onAddEvent={handleAddEvent}
+                    onReorder={handleReorderEvents}
                     isProcessing={processingEventId}
                   />
                 </TabsContent>

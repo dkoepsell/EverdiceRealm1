@@ -46,8 +46,9 @@ interface EventQueueProps {
   events: PendingEvent[];
   onApprove: (eventId: string) => void;
   onReject: (eventId: string) => void;
-  onModify: (eventId: string) => void;
+  onModify: (eventId: string, updatedEvent: PendingEvent) => void;
   onAddEvent?: (event: PendingEvent) => void;
+  onReorder?: (events: PendingEvent[]) => void;
   isProcessing?: string | null;
 }
 
@@ -80,9 +81,19 @@ export default function EventQueue({
   onReject,
   onModify,
   onAddEvent,
+  onReorder,
   isProcessing,
 }: EventQueueProps) {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [editingEvent, setEditingEvent] = useState<{
+    title: string;
+    description: string;
+    impact: string;
+    type: EventType;
+    intent: IntentClassification | "";
+    affectedEntities: string;
+  } | null>(null);
   const [newEvent, setNewEvent] = useState({
     title: "",
     description: "",
@@ -91,6 +102,51 @@ export default function EventQueue({
     intent: "" as IntentClassification | "",
     affectedEntities: "",
   });
+
+  const startEditing = (event: PendingEvent) => {
+    setEditingEventId(event.id);
+    setEditingEvent({
+      title: event.title,
+      description: event.description,
+      impact: event.impact,
+      type: event.type,
+      intent: event.intent || "",
+      affectedEntities: event.affectedEntities.join(", "),
+    });
+  };
+
+  const saveEdit = (originalEvent: PendingEvent) => {
+    if (!editingEvent || !editingEvent.title.trim() || !editingEvent.description.trim()) return;
+    
+    const updatedEvent: PendingEvent = {
+      ...originalEvent,
+      title: editingEvent.title.trim(),
+      description: editingEvent.description.trim(),
+      impact: editingEvent.impact.trim() || originalEvent.impact,
+      type: editingEvent.type,
+      intent: editingEvent.intent || undefined,
+      affectedEntities: editingEvent.affectedEntities.split(",").map(e => e.trim()).filter(Boolean),
+    };
+    
+    onModify(originalEvent.id, updatedEvent);
+    setEditingEventId(null);
+    setEditingEvent(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingEventId(null);
+    setEditingEvent(null);
+  };
+
+  const moveEvent = (index: number, direction: "up" | "down") => {
+    if (!onReorder) return;
+    const newIndex = direction === "up" ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= events.length) return;
+    
+    const newEvents = [...events];
+    [newEvents[index], newEvents[newIndex]] = [newEvents[newIndex], newEvents[index]];
+    onReorder(newEvents);
+  };
 
   const handleAddEvent = () => {
     if (!newEvent.title.trim() || !newEvent.description.trim()) return;
@@ -229,7 +285,7 @@ export default function EventQueue({
         <ScrollArea className={showAddForm ? "h-[120px]" : "h-[200px]"}>
           {events.length > 0 ? (
             <div className="space-y-2">
-              {events.map((event) => {
+              {events.map((event, index) => {
                 const sourceConfig = SOURCE_CONFIG[event.source];
                 const typeConfig = TYPE_CONFIG[event.type];
                 const intentConfig = event.intent ? INTENT_CONFIG[event.intent] : null;
@@ -237,6 +293,89 @@ export default function EventQueue({
                 const TypeIcon = typeConfig.icon;
                 const IntentIcon = intentConfig?.icon;
                 const processing = isProcessing === event.id;
+                const isEditing = editingEventId === event.id;
+
+                if (isEditing && editingEvent) {
+                  return (
+                    <div key={event.id} className="p-3 rounded-lg border bg-slate-800/70 border-amber-500/50 space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-amber-400 font-medium mb-2">
+                        <Edit2 className="h-3 w-3" />
+                        Edit Event
+                      </div>
+                      <Input
+                        placeholder="Event title"
+                        value={editingEvent.title}
+                        onChange={(e) => setEditingEvent(prev => prev ? { ...prev, title: e.target.value } : null)}
+                        className="h-8 text-xs bg-slate-900/50 border-slate-600"
+                      />
+                      <Textarea
+                        placeholder="Description"
+                        value={editingEvent.description}
+                        onChange={(e) => setEditingEvent(prev => prev ? { ...prev, description: e.target.value } : null)}
+                        className="text-xs bg-slate-900/50 border-slate-600 min-h-[60px]"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <Select
+                          value={editingEvent.type}
+                          onValueChange={(value: EventType) => setEditingEvent(prev => prev ? { ...prev, type: value } : null)}
+                        >
+                          <SelectTrigger className="h-8 text-xs bg-slate-900/50 border-slate-600">
+                            <SelectValue placeholder="Type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="narrative">Narrative</SelectItem>
+                            <SelectItem value="mechanical">Mechanical</SelectItem>
+                            <SelectItem value="state">State Change</SelectItem>
+                            <SelectItem value="meta">Meta</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={editingEvent.intent || "none"}
+                          onValueChange={(value) => setEditingEvent(prev => prev ? { ...prev, intent: value === "none" ? "" : value as IntentClassification } : null)}
+                        >
+                          <SelectTrigger className="h-8 text-xs bg-slate-900/50 border-slate-600">
+                            <SelectValue placeholder="Intent" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No intent</SelectItem>
+                            <SelectItem value="dialogue">Dialogue</SelectItem>
+                            <SelectItem value="investigation">Investigation</SelectItem>
+                            <SelectItem value="combat">Combat</SelectItem>
+                            <SelectItem value="stealth">Stealth</SelectItem>
+                            <SelectItem value="ingenuity">Ingenuity</SelectItem>
+                            <SelectItem value="endurance">Endurance</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Input
+                        placeholder="Impact"
+                        value={editingEvent.impact}
+                        onChange={(e) => setEditingEvent(prev => prev ? { ...prev, impact: e.target.value } : null)}
+                        className="h-8 text-xs bg-slate-900/50 border-slate-600"
+                      />
+                      <div className="flex gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          className="flex-1 h-7 text-xs bg-amber-500/20 border-amber-500/30 text-amber-400 hover:bg-amber-500/30"
+                          variant="outline"
+                          onClick={() => saveEdit(event)}
+                          disabled={!editingEvent.title.trim() || !editingEvent.description.trim()}
+                        >
+                          <Check className="h-3 w-3 mr-1" />
+                          Save
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs bg-slate-700/50 border-slate-600 text-slate-300 hover:bg-slate-600"
+                          onClick={cancelEdit}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                }
 
                 return (
                   <div
@@ -245,21 +384,45 @@ export default function EventQueue({
                       processing ? "opacity-50" : "hover:border-amber-500/50"
                     }`}
                   >
-                    {/* Header with source and type */}
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge variant="outline" className={`text-[10px] ${sourceConfig.color}`}>
-                        <SourceIcon className="h-3 w-3 mr-1" />
-                        {sourceConfig.label}
-                      </Badge>
-                      <Badge variant="outline" className="text-[10px] bg-slate-700/50 text-slate-300 border-slate-600">
-                        <TypeIcon className="h-3 w-3 mr-1" />
-                        {typeConfig.label}
-                      </Badge>
-                      {intentConfig && IntentIcon && (
-                        <Badge variant="outline" className={`text-[10px] bg-slate-700/50 border-slate-600 ${intentConfig.color}`}>
-                          <IntentIcon className="h-3 w-3 mr-1" />
-                          {event.intent}
+                    {/* Header with source, type, and reorder buttons */}
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className={`text-[10px] ${sourceConfig.color}`}>
+                          <SourceIcon className="h-3 w-3 mr-1" />
+                          {sourceConfig.label}
                         </Badge>
+                        <Badge variant="outline" className="text-[10px] bg-slate-700/50 text-slate-300 border-slate-600">
+                          <TypeIcon className="h-3 w-3 mr-1" />
+                          {typeConfig.label}
+                        </Badge>
+                        {intentConfig && IntentIcon && (
+                          <Badge variant="outline" className={`text-[10px] bg-slate-700/50 border-slate-600 ${intentConfig.color}`}>
+                            <IntentIcon className="h-3 w-3 mr-1" />
+                            {event.intent}
+                          </Badge>
+                        )}
+                      </div>
+                      {onReorder && events.length > 1 && (
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-5 w-5 p-0 text-slate-400 hover:text-slate-200"
+                            onClick={() => moveEvent(index, "up")}
+                            disabled={index === 0 || processing}
+                          >
+                            <ChevronUp className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-5 w-5 p-0 text-slate-400 hover:text-slate-200"
+                            onClick={() => moveEvent(index, "down")}
+                            disabled={index === events.length - 1 || processing}
+                          >
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
+                        </div>
                       )}
                     </div>
 
@@ -304,7 +467,7 @@ export default function EventQueue({
                         size="sm"
                         variant="outline"
                         className="h-7 text-xs bg-slate-700/50 border-slate-600 text-slate-300 hover:bg-slate-600"
-                        onClick={() => onModify(event.id)}
+                        onClick={() => startEditing(event)}
                         disabled={processing}
                       >
                         <Edit2 className="h-3 w-3" />
