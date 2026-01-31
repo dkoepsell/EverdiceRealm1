@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { SiDiscord } from "react-icons/si";
 import DMControlBar, { SessionMode, NarrativeMode } from "./DMControlBar";
 import EventQueue, { PendingEvent } from "./EventQueue";
 import AIWhisperPanel, { AIWhisper } from "./AIWhisperPanel";
@@ -364,6 +365,16 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
 
   const { data: locations } = useQuery<any[]>({
     queryKey: ['/api/locations'],
+    enabled: !!selectedCampaignId,
+  });
+
+  const { data: campaign } = useQuery<{
+    id: number;
+    name: string;
+    discordGuildId?: string | null;
+    discordChannelId?: string | null;
+  }>({
+    queryKey: [`/api/campaigns/${selectedCampaignId}`],
     enabled: !!selectedCampaignId,
   });
 
@@ -855,6 +866,33 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
         onInjectNarration={handleInjectNarration}
         onForceStateChange={handleForceStateChange}
       />
+
+      {/* Discord Channel Link */}
+      <div className="mb-2 flex items-center gap-2 px-2 py-1.5 rounded-lg bg-[#5865F2]/10 border border-[#5865F2]/20">
+        <SiDiscord className="h-4 w-4 text-[#5865F2]" />
+        {campaign?.discordChannelId && campaign?.discordGuildId ? (
+          <a
+            href={`https://discord.com/channels/${campaign.discordGuildId}/${campaign.discordChannelId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-[#5865F2] hover:underline flex items-center gap-1"
+          >
+            Open Discord Channel
+            <ChevronRight className="h-3 w-3" />
+          </a>
+        ) : (
+          <a
+            href="/dm-toolkit?tab=discord"
+            className="text-sm text-[#5865F2] hover:underline flex items-center gap-1"
+          >
+            Connect Discord Channel
+            <Plus className="h-3 w-3" />
+          </a>
+        )}
+        <span className="text-xs text-muted-foreground ml-auto">
+          {campaign?.discordChannelId ? "Linked" : "Not linked"}
+        </span>
+      </div>
 
       {/* Onboarding Hint - Collapsible, dismissable, first-time only */}
       {showOnboarding && (
