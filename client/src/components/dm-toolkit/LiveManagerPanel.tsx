@@ -1070,127 +1070,150 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
             </Card>
           </div>
 
-          {/* Right Column: QUEUE + THINK + SAY */}
-          <div className="lg:w-80 flex-shrink-0 flex flex-col gap-3 overflow-y-auto pb-16">
-            {/* EVENT QUEUE - DM Mediation Gate */}
-            <div className="space-y-2">
-              <p className="text-[10px] uppercase tracking-wider text-slate-500 px-1">Pending Actions</p>
-              <EventQueue
-                events={pendingEvents.length > 0 ? pendingEvents : (
-                  liveSession?.choices?.map((choice: any, idx: number) => ({
-                    id: `choice-${idx}`,
-                    source: "player" as const,
-                    type: "narrative" as const,
-                    intent: choice.type === "combat" ? "combat" as const : 
-                           choice.type === "dialogue" ? "dialogue" as const : 
-                           "investigation" as const,
-                    title: choice.text?.substring(0, 50) || "Player Action",
-                    description: choice.text || "",
-                    impact: "Advances the narrative",
-                    affectedEntities: [],
-                    timestamp: new Date(),
-                    isReversible: true,
-                  })) || []
-                )}
-                onApprove={handleApproveEvent}
-                onReject={handleRejectEvent}
-                onModify={handleModifyEvent}
-                isProcessing={processingEventId}
-              />
-            </div>
-
-            {/* AI WHISPER - Suggestions only, never auto-executes */}
-            <div className="space-y-2">
-              <p className="text-[10px] uppercase tracking-wider text-purple-400/60 px-1">AI Assistant</p>
-              <AIWhisperPanel
-                whispers={aiWhispers}
-                onDismiss={handleDismissWhisper}
-                onUseAsInspiration={handleUseWhisperAsInspiration}
-              />
-            </div>
-
-            {/* THINK ZONE - Arc Signals */}
-            <div className="space-y-2">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-1">Context</p>
-              <ArcSignalsPanel campaignId={selectedCampaignId} />
-            </div>
-
-            {/* SAY ZONE - High contrast, clear CTA */}
-            <div className="flex-1 flex flex-col">
-              <p className="text-[10px] uppercase tracking-wider text-amber-500/60 px-1 mb-2">Say</p>
-              
-              <Card className="flex-1 border-2 border-amber-500/40 bg-gradient-to-b from-amber-500/10 to-transparent shadow-lg">
-                <CardHeader className="p-3 pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2 text-amber-500">
-                    <Send className="h-4 w-4" />
-                    Tell Your Story
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-3 pt-0 space-y-2">
-                  <div className="flex gap-1">
-                    <Button
-                      variant={messageType === "narration" ? "default" : "ghost"}
-                      size="sm"
-                      className={`flex-1 text-xs h-7 ${messageType === "narration" ? "bg-amber-500 hover:bg-amber-600" : ""}`}
-                      onClick={() => setMessageType("narration")}
-                    >
-                      Narrate
-                    </Button>
-                    <Button
-                      variant={messageType === "ooc" ? "default" : "ghost"}
-                      size="sm"
-                      className="flex-1 text-xs h-7"
-                      onClick={() => setMessageType("ooc")}
-                    >
-                      OOC
-                    </Button>
-                    <Button
-                      variant={messageType === "system" ? "default" : "ghost"}
-                      size="sm"
-                      className="flex-1 text-xs h-7"
-                      onClick={() => setMessageType("system")}
-                    >
-                      System
-                    </Button>
-                  </div>
-                  <Textarea
-                    value={dmMessage}
-                    onChange={(e) => setDmMessage(e.target.value)}
-                    placeholder={
-                      messageType === "narration"
-                        ? "Describe what the players experience..."
-                        : messageType === "ooc"
-                        ? "Out of character message..."
-                        : "Game mechanics..."
-                    }
-                    className="min-h-[80px] text-sm border-amber-500/30 focus:border-amber-500 bg-background/50"
-                  />
-                  <Button
-                    onClick={() => sendDmMessageMutation.mutate({ message: dmMessage, type: messageType })}
-                    disabled={!dmMessage.trim() || sendDmMessageMutation.isPending}
-                    className="w-full bg-amber-500 hover:bg-amber-600 h-9"
-                  >
-                    {sendDmMessageMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Send className="h-4 w-4 mr-2" />
+          {/* Right Column: Fixed Sidebar with Tabs - No scrolling needed */}
+          <div className="lg:w-80 flex-shrink-0 flex flex-col h-full">
+            <Card className="flex-1 flex flex-col bg-slate-900/50 border-slate-700">
+              {/* Tabbed Header */}
+              <Tabs defaultValue="queue" className="flex-1 flex flex-col">
+                <TabsList className="grid w-full grid-cols-3 h-9 bg-slate-800 rounded-b-none">
+                  <TabsTrigger value="queue" className="text-xs gap-1 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
+                    <Clock className="h-3 w-3" />
+                    Queue
+                    {(pendingEvents.length > 0 || (liveSession?.choices?.length || 0) > 0) && (
+                      <Badge variant="outline" className="h-4 px-1 text-[10px] bg-amber-500/30 border-amber-500/50">
+                        {pendingEvents.length || liveSession?.choices?.length || 0}
+                      </Badge>
                     )}
-                    Send to Players
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+                  </TabsTrigger>
+                  <TabsTrigger value="whisper" className="text-xs gap-1 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-400">
+                    <MessageSquare className="h-3 w-3" />
+                    AI
+                    {aiWhispers.length > 0 && (
+                      <Badge variant="outline" className="h-4 px-1 text-[10px] bg-purple-500/30 border-purple-500/50">
+                        {aiWhispers.length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="say" className="text-xs gap-1 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
+                    <Send className="h-3 w-3" />
+                    Say
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* EVENT QUEUE Tab */}
+                <TabsContent value="queue" className="flex-1 p-3 mt-0 overflow-y-auto">
+                  <EventQueue
+                    events={pendingEvents.length > 0 ? pendingEvents : (
+                      liveSession?.choices?.map((choice: any, idx: number) => ({
+                        id: `choice-${idx}`,
+                        source: "player" as const,
+                        type: "narrative" as const,
+                        intent: choice.type === "combat" ? "combat" as const : 
+                               choice.type === "dialogue" ? "dialogue" as const : 
+                               "investigation" as const,
+                        title: choice.text?.substring(0, 50) || "Player Action",
+                        description: choice.text || "",
+                        impact: "Advances the narrative",
+                        affectedEntities: [],
+                        timestamp: new Date(),
+                        isReversible: true,
+                      })) || []
+                    )}
+                    onApprove={handleApproveEvent}
+                    onReject={handleRejectEvent}
+                    onModify={handleModifyEvent}
+                    isProcessing={processingEventId}
+                  />
+                </TabsContent>
+
+                {/* AI WHISPER Tab */}
+                <TabsContent value="whisper" className="flex-1 p-3 mt-0 overflow-y-auto">
+                  <AIWhisperPanel
+                    whispers={aiWhispers}
+                    onDismiss={handleDismissWhisper}
+                    onUseAsInspiration={handleUseWhisperAsInspiration}
+                  />
+                  <div className="mt-3">
+                    <ArcSignalsPanel campaignId={selectedCampaignId} />
+                  </div>
+                </TabsContent>
+
+                {/* SAY Tab - Tell Your Story */}
+                <TabsContent value="say" className="flex-1 p-3 mt-0 flex flex-col">
+                  <Card className="flex-1 border-2 border-amber-500/40 bg-gradient-to-b from-amber-500/10 to-transparent">
+                    <CardHeader className="p-3 pb-2">
+                      <CardTitle className="text-sm flex items-center gap-2 text-amber-500">
+                        <Send className="h-4 w-4" />
+                        Tell Your Story
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-0 space-y-2">
+                      <div className="flex gap-1">
+                        <Button
+                          variant={messageType === "narration" ? "default" : "ghost"}
+                          size="sm"
+                          className={`flex-1 text-xs h-7 ${messageType === "narration" ? "bg-amber-500 hover:bg-amber-600" : ""}`}
+                          onClick={() => setMessageType("narration")}
+                        >
+                          Narrate
+                        </Button>
+                        <Button
+                          variant={messageType === "ooc" ? "default" : "ghost"}
+                          size="sm"
+                          className="flex-1 text-xs h-7"
+                          onClick={() => setMessageType("ooc")}
+                        >
+                          OOC
+                        </Button>
+                        <Button
+                          variant={messageType === "system" ? "default" : "ghost"}
+                          size="sm"
+                          className="flex-1 text-xs h-7"
+                          onClick={() => setMessageType("system")}
+                        >
+                          System
+                        </Button>
+                      </div>
+                      <Textarea
+                        value={dmMessage}
+                        onChange={(e) => setDmMessage(e.target.value)}
+                        placeholder={
+                          messageType === "narration"
+                            ? "Describe what the players experience..."
+                            : messageType === "ooc"
+                            ? "Out of character message..."
+                            : "Game mechanics..."
+                        }
+                        className="min-h-[120px] text-sm border-amber-500/30 focus:border-amber-500 bg-background/50"
+                      />
+                      <Button
+                        onClick={() => sendDmMessageMutation.mutate({ message: dmMessage, type: messageType })}
+                        disabled={!dmMessage.trim() || sendDmMessageMutation.isPending}
+                        className="w-full bg-amber-500 hover:bg-amber-600 h-9"
+                      >
+                        {sendDmMessageMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Send className="h-4 w-4 mr-2" />
+                        )}
+                        Send to Players
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </Card>
           </div>
         </div>
       </div>
 
       <DragOverlay>
-        {activeId ? (
-          <div className="p-2 rounded-lg border bg-card shadow-lg">
-            <span className="text-sm font-medium">Dragging...</span>
-          </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
-  );
+          {activeId ? (
+            <div className="p-2 rounded-lg border bg-card shadow-lg">
+              <span className="text-sm font-medium">Dragging...</span>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    );
 }
