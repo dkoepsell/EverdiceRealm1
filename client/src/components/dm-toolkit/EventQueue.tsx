@@ -1,8 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Check,
   X,
@@ -17,6 +20,9 @@ import {
   Search,
   Puzzle,
   Loader2,
+  Plus,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 
 export type EventSource = "player" | "ai" | "system" | "map";
@@ -41,6 +47,7 @@ interface EventQueueProps {
   onApprove: (eventId: string) => void;
   onReject: (eventId: string) => void;
   onModify: (eventId: string) => void;
+  onAddEvent?: (event: PendingEvent) => void;
   isProcessing?: string | null;
 }
 
@@ -72,8 +79,40 @@ export default function EventQueue({
   onApprove,
   onReject,
   onModify,
+  onAddEvent,
   isProcessing,
 }: EventQueueProps) {
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newEvent, setNewEvent] = useState({
+    title: "",
+    description: "",
+    impact: "",
+    type: "narrative" as EventType,
+    intent: "" as IntentClassification | "",
+    affectedEntities: "",
+  });
+
+  const handleAddEvent = () => {
+    if (!newEvent.title.trim() || !newEvent.description.trim()) return;
+    
+    const event: PendingEvent = {
+      id: `dm-${Date.now()}`,
+      source: "system",
+      type: newEvent.type,
+      intent: newEvent.intent || undefined,
+      title: newEvent.title.trim(),
+      description: newEvent.description.trim(),
+      impact: newEvent.impact.trim() || "DM-initiated event",
+      affectedEntities: newEvent.affectedEntities.split(",").map(e => e.trim()).filter(Boolean),
+      timestamp: new Date(),
+      isReversible: true,
+    };
+    
+    onAddEvent?.(event);
+    setNewEvent({ title: "", description: "", impact: "", type: "narrative", intent: "", affectedEntities: "" });
+    setShowAddForm(false);
+  };
+
   return (
     <Card className="border-slate-700 bg-slate-900/50">
       <CardHeader className="p-3 pb-2">
@@ -82,15 +121,112 @@ export default function EventQueue({
             <Clock className="h-4 w-4 text-amber-400" />
             Event Queue
           </div>
-          {events.length > 0 && (
-            <Badge variant="outline" className="text-xs bg-amber-500/20 text-amber-400 border-amber-500/30">
-              {events.length} pending
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {events.length > 0 && (
+              <Badge variant="outline" className="text-xs bg-amber-500/20 text-amber-400 border-amber-500/30">
+                {events.length} pending
+              </Badge>
+            )}
+            {onAddEvent && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 text-xs bg-emerald-500/20 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30"
+                onClick={() => setShowAddForm(!showAddForm)}
+              >
+                {showAddForm ? <ChevronUp className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+              </Button>
+            )}
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-3 pt-0">
-        <ScrollArea className="h-[200px]">
+        {showAddForm && (
+          <div className="mb-3 p-3 rounded-lg border bg-slate-800/70 border-emerald-500/30 space-y-2">
+            <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium mb-2">
+              <Plus className="h-3 w-3" />
+              Create Custom Event
+            </div>
+            <Input
+              placeholder="Event title (e.g., 'Goblin Ambush')"
+              value={newEvent.title}
+              onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
+              className="h-8 text-xs bg-slate-900/50 border-slate-600"
+            />
+            <Textarea
+              placeholder="Description of what happens..."
+              value={newEvent.description}
+              onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
+              className="text-xs bg-slate-900/50 border-slate-600 min-h-[60px]"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Select
+                value={newEvent.type}
+                onValueChange={(value: EventType) => setNewEvent(prev => ({ ...prev, type: value }))}
+              >
+                <SelectTrigger className="h-8 text-xs bg-slate-900/50 border-slate-600">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="narrative">Narrative</SelectItem>
+                  <SelectItem value="mechanical">Mechanical</SelectItem>
+                  <SelectItem value="state">State Change</SelectItem>
+                  <SelectItem value="meta">Meta</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={newEvent.intent || "none"}
+                onValueChange={(value) => setNewEvent(prev => ({ ...prev, intent: value === "none" ? "" : value as IntentClassification }))}
+              >
+                <SelectTrigger className="h-8 text-xs bg-slate-900/50 border-slate-600">
+                  <SelectValue placeholder="Intent (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No intent</SelectItem>
+                  <SelectItem value="dialogue">Dialogue</SelectItem>
+                  <SelectItem value="investigation">Investigation</SelectItem>
+                  <SelectItem value="combat">Combat</SelectItem>
+                  <SelectItem value="stealth">Stealth</SelectItem>
+                  <SelectItem value="ingenuity">Ingenuity</SelectItem>
+                  <SelectItem value="endurance">Endurance</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Input
+              placeholder="Impact (optional)"
+              value={newEvent.impact}
+              onChange={(e) => setNewEvent(prev => ({ ...prev, impact: e.target.value }))}
+              className="h-8 text-xs bg-slate-900/50 border-slate-600"
+            />
+            <Input
+              placeholder="Affected entities (comma-separated, optional)"
+              value={newEvent.affectedEntities}
+              onChange={(e) => setNewEvent(prev => ({ ...prev, affectedEntities: e.target.value }))}
+              className="h-8 text-xs bg-slate-900/50 border-slate-600"
+            />
+            <div className="flex gap-2 pt-1">
+              <Button
+                size="sm"
+                className="flex-1 h-7 text-xs bg-emerald-500/20 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30"
+                variant="outline"
+                onClick={handleAddEvent}
+                disabled={!newEvent.title.trim() || !newEvent.description.trim()}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add to Queue
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs bg-slate-700/50 border-slate-600 text-slate-300 hover:bg-slate-600"
+                onClick={() => setShowAddForm(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+        <ScrollArea className={showAddForm ? "h-[120px]" : "h-[200px]"}>
           {events.length > 0 ? (
             <div className="space-y-2">
               {events.map((event) => {

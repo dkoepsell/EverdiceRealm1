@@ -578,6 +578,11 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
     toast({ title: "Modify Event", description: "Edit the event before approving." });
   }, [toast]);
 
+  const handleAddEvent = useCallback((event: PendingEvent) => {
+    setPendingEvents(prev => [...prev, event]);
+    toast({ title: "Event Added", description: `"${event.title}" added to the queue.` });
+  }, [toast]);
+
   const handleDismissWhisper = useCallback((whisperId: string) => {
     setAiWhispers(prev => prev.filter(w => w.id !== whisperId));
   }, []);
@@ -1334,6 +1339,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                     onApprove={handleApproveEvent}
                     onReject={handleRejectEvent}
                     onModify={handleModifyEvent}
+                    onAddEvent={handleAddEvent}
                     isProcessing={processingEventId}
                   />
                 </TabsContent>
