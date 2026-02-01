@@ -11006,6 +11006,349 @@ Generate a complete CAML 2.0 JSON adventure.`;
     }
   });
 
+  // ========================================
+  // GROUP CHOICE VOTING SYSTEM (Multiplayer)
+  // ========================================
+
+  // Create or update group choices (DM only)
+  app.post("/api/campaigns/:campaignId/group-choices", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const campaign = await storage.getCampaign(campaignId);
+      
+      if (!campaign || campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can create group choices" });
+      }
+      
+      const { choices, threshold } = req.body;
+      
+      if (!choices || !Array.isArray(choices) || choices.length === 0) {
+        return res.status(400).json({ message: "Choices array is required" });
+      }
+      
+      // Validate choice format
+      const formattedChoices = choices.map((choice: any, index: number) => ({
+        id: choice.id || `choice-${index + 1}`,
+        text: choice.text || '',
+        description: choice.description || '',
+        dc: choice.dc || null,
+        modifier: choice.modifier || null,
+        skillCheck: choice.skillCheck || null,
+        createdBy: 'dm'
+      }));
+      
+      await db.update(dmSessionStates)
+        .set({
+          activeGroupChoices: formattedChoices,
+          groupChoiceVotes: [],
+          groupChoiceStatus: 'pending',
+          groupChoiceThreshold: threshold || 0,
+          groupChoiceResolution: null,
+          lastUpdatedAt: new Date().toISOString(),
+        })
+        .where(eq(dmSessionStates.campaignId, campaignId));
+      
+      // Broadcast to all players
+      broadcastMessage('group-choices-updated', {
+        campaignId,
+        choices: formattedChoices,
+        status: 'pending',
+        votes: [],
+        threshold: threshold || 0
+      });
+      
+      res.json({ success: true, choices: formattedChoices });
+    } catch (error) {
+      console.error("Failed to create group choices:", error);
+      res.status(500).json({ message: "Failed to create group choices" });
+    }
+  });
+
+  // AI-generate group choices (DM only)
+  app.post("/api/campaigns/:campaignId/group-choices/generate", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const campaign = await storage.getCampaign(campaignId);
+      
+      if (!campaign || campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can generate group choices" });
+      }
+      
+      const { context, numChoices } = req.body;
+      const choiceCount = numChoices || 4;
+      
+      // Get current session for context
+      const session = await storage.getCampaignSessionByNumber(campaignId, campaign.currentSession || 1);
+      const narrative = session?.narrative || campaign.currentNarrative || "The party stands at a crossroads.";
+      
+      const prompt = `You are a D&D 5e Dungeon Master. Generate ${choiceCount} meaningful choices for a party of adventurers.
+
+Current situation: ${context || narrative}
+
+For each choice, provide:
+- text: Short action text (e.g., "Sneak past the guards")
+- description: Brief description of the approach
+- dc: Difficulty class if applicable (number 5-25, or null if no check needed)
+- skillCheck: The skill required if DC is set (e.g., "Stealth", "Persuasion", "Athletics")
+- modifier: Any situational modifier (e.g., "+2 if using cover", or null)
+
+Return ONLY valid JSON array with ${choiceCount} choices. No markdown, no explanation.
+Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","dc":15,"skillCheck":"Stealth","modifier":null}]`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.8,
+      });
+      
+      let choices: any[] = [];
+      const content = response.choices[0]?.message?.content || '[]';
+      try {
+        // Try to parse, handling potential markdown wrapping
+        let cleaned = content.trim();
+        if (cleaned.startsWith('```')) {
+          cleaned = cleaned.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+        }
+        choices = JSON.parse(cleaned);
+      } catch (parseErr) {
+        console.error("Failed to parse AI choices:", parseErr);
+        // Fallback to basic choices
+        choices = [
+          { text: "Proceed cautiously", description: "Take the careful approach", dc: null, skillCheck: null, modifier: null },
+          { text: "Rush forward", description: "Act with urgency", dc: 12, skillCheck: "Athletics", modifier: null },
+          { text: "Seek information", description: "Look for clues or ask around", dc: 10, skillCheck: "Investigation", modifier: null },
+          { text: "Find another way", description: "Search for an alternative", dc: 14, skillCheck: "Perception", modifier: null },
+        ];
+      }
+      
+      // Format choices with IDs
+      const formattedChoices = choices.map((choice: any, index: number) => ({
+        id: `choice-${index + 1}`,
+        text: choice.text || `Option ${index + 1}`,
+        description: choice.description || '',
+        dc: choice.dc || null,
+        modifier: choice.modifier || null,
+        skillCheck: choice.skillCheck || null,
+        createdBy: 'ai'
+      }));
+      
+      res.json({ success: true, choices: formattedChoices });
+    } catch (error) {
+      console.error("Failed to generate group choices:", error);
+      res.status(500).json({ message: "Failed to generate choices" });
+    }
+  });
+
+  // Cast vote on group choice (any participant)
+  app.post("/api/campaigns/:campaignId/group-choices/vote", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const { choiceId, characterId, characterName } = req.body;
+      
+      if (!choiceId) {
+        return res.status(400).json({ message: "Choice ID is required" });
+      }
+      
+      // Get current state
+      const sessionState = await db.select().from(dmSessionStates)
+        .where(eq(dmSessionStates.campaignId, campaignId))
+        .limit(1);
+      
+      if (sessionState.length === 0) {
+        return res.status(404).json({ message: "No session state found" });
+      }
+      
+      const state = sessionState[0];
+      if (state.groupChoiceStatus !== 'pending') {
+        return res.status(400).json({ message: "No active vote in progress" });
+      }
+      
+      const currentVotes = (state.groupChoiceVotes as any[]) || [];
+      const choices = (state.activeGroupChoices as any[]) || [];
+      
+      // Validate choice exists
+      if (!choices.find((c: any) => c.id === choiceId)) {
+        return res.status(400).json({ message: "Invalid choice ID" });
+      }
+      
+      // Remove previous vote from same character/user
+      const filteredVotes = currentVotes.filter((v: any) => 
+        v.userId !== req.user.id && v.characterId !== characterId
+      );
+      
+      // Add new vote
+      const newVote = {
+        choiceId,
+        characterId: characterId || null,
+        characterName: characterName || req.user.username,
+        userId: req.user.id,
+        timestamp: new Date().toISOString()
+      };
+      
+      const updatedVotes = [...filteredVotes, newVote];
+      
+      await db.update(dmSessionStates)
+        .set({
+          groupChoiceVotes: updatedVotes,
+          lastUpdatedAt: new Date().toISOString(),
+        })
+        .where(eq(dmSessionStates.campaignId, campaignId));
+      
+      // Calculate vote counts
+      const voteCounts: Record<string, number> = {};
+      choices.forEach((c: any) => { voteCounts[c.id] = 0; });
+      updatedVotes.forEach((v: any) => { voteCounts[v.choiceId] = (voteCounts[v.choiceId] || 0) + 1; });
+      
+      // Broadcast updated votes
+      broadcastMessage('group-choice-vote', {
+        campaignId,
+        votes: updatedVotes,
+        voteCounts,
+        latestVote: newVote
+      });
+      
+      res.json({ success: true, votes: updatedVotes, voteCounts });
+    } catch (error) {
+      console.error("Failed to cast vote:", error);
+      res.status(500).json({ message: "Failed to cast vote" });
+    }
+  });
+
+  // Resolve group choice (DM only)
+  app.post("/api/campaigns/:campaignId/group-choices/resolve", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const campaign = await storage.getCampaign(campaignId);
+      
+      if (!campaign || campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can resolve group choices" });
+      }
+      
+      // Get current state
+      const sessionState = await db.select().from(dmSessionStates)
+        .where(eq(dmSessionStates.campaignId, campaignId))
+        .limit(1);
+      
+      if (sessionState.length === 0) {
+        return res.status(404).json({ message: "No session state found" });
+      }
+      
+      const state = sessionState[0];
+      const choices = (state.activeGroupChoices as any[]) || [];
+      const votes = (state.groupChoiceVotes as any[]) || [];
+      const initiativeOrder = (state.initiativeOrder as any[]) || [];
+      
+      if (choices.length === 0) {
+        return res.status(400).json({ message: "No active choices to resolve" });
+      }
+      
+      // Count votes per choice
+      const voteCounts: Record<string, number> = {};
+      choices.forEach((c: any) => { voteCounts[c.id] = 0; });
+      votes.forEach((v: any) => { voteCounts[v.choiceId] = (voteCounts[v.choiceId] || 0) + 1; });
+      
+      // Find winner
+      let maxVotes = 0;
+      let winners: string[] = [];
+      Object.entries(voteCounts).forEach(([choiceId, count]) => {
+        if (count > maxVotes) {
+          maxVotes = count;
+          winners = [choiceId];
+        } else if (count === maxVotes && count > 0) {
+          winners.push(choiceId);
+        }
+      });
+      
+      let winningChoiceId: string;
+      let resolutionMethod: string = 'majority';
+      
+      if (winners.length === 1) {
+        winningChoiceId = winners[0];
+      } else if (winners.length > 1 && initiativeOrder.length > 0) {
+        // Tie-break by initiative order
+        resolutionMethod = 'initiative';
+        // Find first player in initiative who voted for a tied choice
+        for (const initEntry of initiativeOrder) {
+          const playerVote = votes.find((v: any) => 
+            (v.characterId === initEntry.characterId || v.characterName === initEntry.name) &&
+            winners.includes(v.choiceId)
+          );
+          if (playerVote) {
+            winningChoiceId = playerVote.choiceId;
+            break;
+          }
+        }
+        // If no initiative match, pick first tied choice
+        winningChoiceId = winningChoiceId! || winners[0];
+      } else {
+        // No votes or still tied - pick first choice
+        winningChoiceId = winners[0] || choices[0]?.id;
+        resolutionMethod = 'default';
+      }
+      
+      const winningChoice = choices.find((c: any) => c.id === winningChoiceId);
+      
+      const resolution = {
+        winningChoiceId,
+        winningChoice,
+        method: resolutionMethod,
+        voteCounts,
+        totalVotes: votes.length,
+        resolvedAt: new Date().toISOString()
+      };
+      
+      await db.update(dmSessionStates)
+        .set({
+          groupChoiceStatus: 'resolved',
+          groupChoiceResolution: resolution,
+          lastUpdatedAt: new Date().toISOString(),
+        })
+        .where(eq(dmSessionStates.campaignId, campaignId));
+      
+      // Broadcast resolution
+      broadcastMessage('group-choice-resolved', {
+        campaignId,
+        resolution
+      });
+      
+      res.json({ success: true, resolution });
+    } catch (error) {
+      console.error("Failed to resolve group choice:", error);
+      res.status(500).json({ message: "Failed to resolve choice" });
+    }
+  });
+
+  // Clear group choices (DM only)
+  app.delete("/api/campaigns/:campaignId/group-choices", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const campaign = await storage.getCampaign(campaignId);
+      
+      if (!campaign || campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can clear group choices" });
+      }
+      
+      await db.update(dmSessionStates)
+        .set({
+          activeGroupChoices: [],
+          groupChoiceVotes: [],
+          groupChoiceStatus: 'none',
+          groupChoiceThreshold: 0,
+          groupChoiceResolution: null,
+          lastUpdatedAt: new Date().toISOString(),
+        })
+        .where(eq(dmSessionStates.campaignId, campaignId));
+      
+      // Broadcast clear
+      broadcastMessage('group-choices-cleared', { campaignId });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to clear group choices:", error);
+      res.status(500).json({ message: "Failed to clear choices" });
+    }
+  });
+
   // Add session artifact (from drag-and-drop)
   app.post("/api/campaigns/:campaignId/session-artifact", isAuthenticated, async (req: any, res) => {
     try {

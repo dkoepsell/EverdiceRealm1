@@ -905,6 +905,12 @@ export const dmSessionStates = pgTable("dm_session_states", {
   roundNumber: integer("round_number").default(1),
   // Player choices tracking
   pendingChoices: jsonb("pending_choices").default([]), // [{characterId, choice, timestamp}]
+  // Group choice voting system for multiplayer
+  activeGroupChoices: jsonb("active_group_choices").default([]), // [{id, text, description, dc, modifier, skillCheck, createdBy}]
+  groupChoiceVotes: jsonb("group_choice_votes").default([]), // [{choiceId, characterId, characterName, userId, timestamp}]
+  groupChoiceStatus: text("group_choice_status").default("none"), // none, pending, resolved
+  groupChoiceThreshold: integer("group_choice_threshold").default(0), // 0 = majority, >0 = specific count needed
+  groupChoiceResolution: jsonb("group_choice_resolution"), // {winningChoiceId, method: 'majority'|'initiative', votes: {...}}
   // DM messages log
   dmMessages: jsonb("dm_messages").default([]), // [{message, timestamp, type: 'narration'|'ooc'|'system'}]
   // Table-wide chat - all players can send messages anytime
