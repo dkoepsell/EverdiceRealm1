@@ -4767,13 +4767,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                           transferItemMutation.mutate({ 
                                             fromCharacterId: activeCharacter.id, 
                                             toNpcId: parseInt(targetId.replace('npc:', '')), 
-                                            item: itemName 
+                                            item: itemRaw 
                                           });
                                         } else {
                                           transferItemMutation.mutate({ 
                                             fromCharacterId: activeCharacter.id, 
                                             toCharacterId: parseInt(targetId), 
-                                            item: itemName 
+                                            item: itemRaw 
                                           });
                                         }
                                       }
@@ -4813,7 +4813,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   className="h-6 w-6 p-0 text-destructive hover:text-destructive"
                                   onClick={() => removeItemMutation.mutate({ 
                                     characterId: activeCharacter.id, 
-                                    item: itemName 
+                                    item: itemRaw 
                                   })}
                                   disabled={removeItemMutation.isPending}
                                   data-testid={`button-remove-item-${index}`}
