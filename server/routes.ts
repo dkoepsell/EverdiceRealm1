@@ -6299,6 +6299,77 @@ Return your response as a JSON object with these fields:
     }
   });
   
+  // Transfer gold from character to NPC companion
+  app.post("/api/campaigns/:campaignId/transfer-gold", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const { fromCharacterId, toNpcId, amount } = req.body;
+      
+      if (!fromCharacterId || !toNpcId || amount === undefined) {
+        return res.status(400).json({ message: "fromCharacterId, toNpcId, and amount are required" });
+      }
+      
+      const goldAmount = parseInt(amount);
+      if (isNaN(goldAmount) || goldAmount <= 0) {
+        return res.status(400).json({ message: "Amount must be a positive number" });
+      }
+      
+      // Get source character
+      const character = await storage.getCharacter(fromCharacterId);
+      if (!character) {
+        return res.status(404).json({ message: "Source character not found" });
+      }
+      
+      // Check if character has enough gold
+      const characterGold = character.gold || 0;
+      if (characterGold < goldAmount) {
+        return res.status(400).json({ message: `Not enough gold. You have ${characterGold} gold.` });
+      }
+      
+      // Get campaign NPC
+      const campaignNpc = await storage.getCampaignNpc(campaignId, toNpcId);
+      if (!campaignNpc) {
+        return res.status(404).json({ message: "NPC not in this campaign" });
+      }
+      
+      if (campaignNpc.role !== 'companion' && campaignNpc.role !== 'ally') {
+        return res.status(400).json({ message: "Can only give gold to companion or ally NPCs" });
+      }
+      
+      // Get the NPC details
+      const npc = await storage.getNpc(toNpcId);
+      if (!npc) {
+        return res.status(404).json({ message: "NPC not found" });
+      }
+      
+      // Update character gold
+      await storage.updateCharacter(fromCharacterId, {
+        gold: characterGold - goldAmount,
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Update campaign NPC gold
+      const npcGold = campaignNpc.gold || 0;
+      await storage.updateCampaignNpc(campaignNpc.id, {
+        gold: npcGold + goldAmount
+      });
+      
+      res.json({
+        success: true,
+        message: `Gave ${goldAmount} gold to ${npc.name}`,
+        characterGold: characterGold - goldAmount,
+        npcGold: npcGold + goldAmount
+      });
+    } catch (error: any) {
+      console.error("Error transferring gold:", error);
+      res.status(500).json({ message: "Failed to transfer gold", error: error.message });
+    }
+  });
+  
   // Campaign NPC Short Rest - heal 25% of max HP
   app.post("/api/campaigns/:campaignId/npcs/:npcId/short-rest", async (req, res) => {
     try {

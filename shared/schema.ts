@@ -463,6 +463,7 @@ export const campaignNpcs = pgTable("campaign_npcs", {
   attackBonus: integer("attack_bonus").default(3), // Attack bonus for combat
   damageRoll: text("damage_roll").default("1d6+1"), // Damage dice (e.g., "1d6+1")
   status: text("status").default("conscious"), // conscious, unconscious, dead, stabilized
+  gold: integer("gold").default(0), // Gold held by this NPC in this campaign
   inventory: text("inventory").array().default([]), // Items held by this NPC in this campaign
   consumables: jsonb("consumables").default([]), // Consumable items (potions, scrolls) held by this NPC
   deathSaveSuccesses: integer("death_save_successes").default(0),

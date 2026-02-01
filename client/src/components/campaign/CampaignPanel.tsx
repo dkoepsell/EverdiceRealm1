@@ -219,6 +219,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [newItemName, setNewItemName] = useState("");
   const [selectedPartyMemberType, setSelectedPartyMemberType] = useState<"character" | "npc">("character");
   const [selectedNpcId, setSelectedNpcId] = useState<number | null>(null);
+  const [giveGoldAmount, setGiveGoldAmount] = useState<string>("");
   const [managedCharacterId, setManagedCharacterId] = useState<number | null>(null);
   const [dungeonMapData, setDungeonMapData] = useState<DungeonMapData | null>(null);
   const [dungeonMapId, setDungeonMapId] = useState<number | null>(null);
@@ -546,6 +547,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         hitPoints: cn.currentHp ?? cn.npc?.hitPoints ?? cn.npc?.hit_points,
         maxHitPoints: cn.maxHp ?? cn.npc?.maxHitPoints ?? cn.npc?.max_hit_points,
         status: cn.status || 'conscious',
+        gold: cn.gold || 0,
+        inventory: cn.inventory || [],
+        consumables: cn.consumables || [],
         // Keep campaign NPC id for updates
         campaignNpcId: cn.id
       }));
@@ -1677,6 +1681,30 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     onError: (error: Error) => {
       toast({
         title: "Failed to Give Item",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Transfer gold from character to NPC companion
+  const transferGoldMutation = useMutation({
+    mutationFn: async ({ fromCharacterId, toNpcId, amount }: { fromCharacterId: number; toNpcId: number; amount: number }) => {
+      const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/transfer-gold`, { fromCharacterId, toNpcId, amount });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      toast({
+        title: "Gold Transferred",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Transfer Gold",
         description: error.message,
         variant: "destructive"
       });
@@ -5237,9 +5265,52 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       <Coins className="h-5 w-5 text-yellow-500" />
                       Gold - {selectedNpc.name}
                     </h3>
-                    <div className="p-2 border rounded bg-gradient-to-b from-yellow-100 to-yellow-200 dark:from-yellow-900/50 dark:to-yellow-800/50 text-center">
+                    <div className="p-2 border rounded bg-gradient-to-b from-yellow-100 to-yellow-200 dark:from-yellow-900/50 dark:to-yellow-800/50 text-center mb-3">
                       <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{selectedNpc.gold || 0} GP</div>
                     </div>
+                    {activeCharacter && (
+                      <div className="space-y-2">
+                        <div className="text-sm text-slate-600 dark:text-slate-400">
+                          Give gold to {selectedNpc.name} (You have {activeCharacter.gold || 0} GP)
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            max={activeCharacter.gold || 0}
+                            value={giveGoldAmount}
+                            onChange={(e) => setGiveGoldAmount(e.target.value)}
+                            placeholder="Amount"
+                            className="flex-1 px-3 py-1.5 text-sm border rounded bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const amount = parseInt(giveGoldAmount);
+                              if (amount > 0 && activeCharacter.id && selectedNpc.id) {
+                                transferGoldMutation.mutate({
+                                  fromCharacterId: activeCharacter.id,
+                                  toNpcId: selectedNpc.id,
+                                  amount
+                                });
+                                setGiveGoldAmount("");
+                              }
+                            }}
+                            disabled={!giveGoldAmount || parseInt(giveGoldAmount) <= 0 || parseInt(giveGoldAmount) > (activeCharacter.gold || 0) || transferGoldMutation.isPending}
+                          >
+                            {transferGoldMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Coins className="h-4 w-4 mr-1" />
+                                Give
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
