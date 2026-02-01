@@ -169,6 +169,36 @@ const STEP_TITLES = [
   "Select Your Adventure"
 ];
 
+// Fantasy name parts for generating unique character names
+const FIRST_NAME_PARTS = {
+  Fighter: ["Gar", "Thor", "Bran", "Kord", "Vorn", "Rok", "Drak", "Mal", "Grim", "Tor"],
+  Wizard: ["Thal", "Eld", "Myr", "Zeph", "Cal", "Nar", "Ven", "Sar", "Lyr", "Gor"],
+  Paladin: ["Val", "Sir", "Aur", "Rad", "Sol", "Lux", "Gal", "Cer", "Dom", "Jor"],
+  Rogue: ["Sly", "Nim", "Shade", "Vex", "Fox", "Dash", "Flick", "Jinx", "Trick", "Sneak"]
+};
+
+const LAST_NAME_PARTS = {
+  Fighter: ["axe", "hammer", "iron", "steel", "stone", "fist", "blade", "shield"],
+  Wizard: ["wind", "star", "moon", "fire", "frost", "storm", "spark", "shadow"],
+  Paladin: ["light", "heart", "soul", "dawn", "glory", "valor", "hope", "grace"],
+  Rogue: ["foot", "hand", "eye", "blade", "shadow", "whisper", "step", "knife"]
+};
+
+function generateFantasyName(characterClass: string): string {
+  const firstParts = FIRST_NAME_PARTS[characterClass as keyof typeof FIRST_NAME_PARTS] || FIRST_NAME_PARTS.Fighter;
+  const lastParts = LAST_NAME_PARTS[characterClass as keyof typeof LAST_NAME_PARTS] || LAST_NAME_PARTS.Fighter;
+  
+  const firstName = firstParts[Math.floor(Math.random() * firstParts.length)];
+  const lastName = lastParts[Math.floor(Math.random() * lastParts.length)];
+  // Add a short random suffix for uniqueness
+  const uniqueSuffix = Math.floor(Math.random() * 900) + 100;
+  
+  // Capitalize first letter of lastName properly
+  const capitalizedLast = lastName.charAt(0).toUpperCase() + lastName.slice(1);
+  
+  return `${firstName}${capitalizedLast}${uniqueSuffix}`;
+}
+
 const STEP_DESCRIPTIONS = [
   "Who do you want to be? Pick a hero that sounds fun!",
   "You won't be alone! Choose a friend to adventure with.",
@@ -210,7 +240,7 @@ export default function PlayerQuickStart({
       const ac = charTemplate.class === "Fighter" || charTemplate.class === "Paladin" ? 16 : 12;
       
       const characterData = {
-        name: `${charTemplate.name.split(' ')[0]} the ${charTemplate.class}`,
+        name: generateFantasyName(charTemplate.class),
         race: charTemplate.race,
         class: charTemplate.class,
         level: 1,
