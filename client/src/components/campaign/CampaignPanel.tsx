@@ -5192,41 +5192,55 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       <div className="text-sm font-medium">Items ({selectedNpc.inventory?.length || 0})</div>
                       <div className="max-h-48 overflow-y-auto space-y-1">
                         {selectedNpc.inventory && selectedNpc.inventory.length > 0 ? (
-                          selectedNpc.inventory.map((item: string, index: number) => (
-                            <div key={index} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-700 rounded text-sm" data-testid={`npc-item-${index}`}>
-                              <span className="flex-1">{item}</span>
-                              <div className="flex items-center gap-1">
-                                <Select 
-                                  value=""
-                                  onValueChange={(slot) => {
-                                    if (slot) {
-                                      equipNpcItemMutation.mutate({ npcId: selectedNpc.id, item, slot });
-                                    }
-                                  }}
-                                >
-                                  <SelectTrigger className="h-6 w-16 text-xs" data-testid={`npc-select-equip-${index}`}>
-                                    <SelectValue placeholder="Equip" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="weapon">Weapon</SelectItem>
-                                    <SelectItem value="armor">Armor</SelectItem>
-                                    <SelectItem value="shield">Shield</SelectItem>
-                                    <SelectItem value="accessory">Accessory</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                                  onClick={() => removeNpcItemMutation.mutate({ npcId: selectedNpc.id, item })}
-                                  disabled={removeNpcItemMutation.isPending}
-                                  data-testid={`button-npc-remove-item-${index}`}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
+                          selectedNpc.inventory.map((itemRaw: string, index: number) => {
+                            const itemDetails = parseEquipmentItem(itemRaw);
+                            return (
+                              <div key={index} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-700 rounded text-sm" data-testid={`npc-item-${index}`}>
+                                <div className="flex-1 min-w-0">
+                                  <span className={`font-medium block truncate ${itemDetails.rarity ? getRarityColor(itemDetails.rarity) : ''}`}>
+                                    {itemDetails.name}
+                                  </span>
+                                  {itemDetails.type && (
+                                    <span className="text-xs text-slate-500 block">
+                                      {itemDetails.type}
+                                      {itemDetails.damage && ` • ${itemDetails.damage}`}
+                                      {itemDetails.armor && ` • AC ${itemDetails.armor}`}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Select 
+                                    value=""
+                                    onValueChange={(slot) => {
+                                      if (slot) {
+                                        equipNpcItemMutation.mutate({ npcId: selectedNpc.id, item: itemRaw, slot });
+                                      }
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-6 w-16 text-xs" data-testid={`npc-select-equip-${index}`}>
+                                      <SelectValue placeholder="Equip" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="weapon">Weapon</SelectItem>
+                                      <SelectItem value="armor">Armor</SelectItem>
+                                      <SelectItem value="shield">Shield</SelectItem>
+                                      <SelectItem value="accessory">Accessory</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                    onClick={() => removeNpcItemMutation.mutate({ npcId: selectedNpc.id, item: itemRaw })}
+                                    disabled={removeNpcItemMutation.isPending}
+                                    data-testid={`button-npc-remove-item-${index}`}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
                               </div>
-                            </div>
-                          ))
+                            );
+                          })
                         ) : (
                           <p className="text-sm text-slate-600 dark:text-slate-400 py-2">No items in inventory</p>
                         )}
