@@ -3021,7 +3021,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           {participants.map((p: any, idx: number) => {
                             const char = p.character;
                             if (!char) return null;
-                            const hpPercent = char.maxHitPoints > 0 ? Math.max(0, (char.hitPoints ?? 0) / char.maxHitPoints * 100) : 0;
+                            const maxHp = char.maxHitPoints || char.hitPoints || 10;
+                            const hpPercent = maxHp > 0 ? Math.max(0, (char.hitPoints ?? 0) / maxHp * 100) : 0;
                             const hpColor = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
                             const isDead = char.status === 'dead' && (char.hitPoints ?? 0) <= 0;
                             const isNpc = p.isNpc;
