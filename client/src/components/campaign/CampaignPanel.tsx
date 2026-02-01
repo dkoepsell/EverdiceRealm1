@@ -29,7 +29,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard, Coffee, Star } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard, Coffee, Star, Camera } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -1603,6 +1603,28 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     onError: (error: Error) => {
       toast({
         title: "Failed to Use Item",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Generate portrait for NPC companion
+  const generateNpcPortraitMutation = useMutation({
+    mutationFn: async (npcId: number) => {
+      const response = await apiRequest('POST', `/api/npcs/${npcId}/generate-portrait`, {});
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
+      toast({
+        title: "Portrait Generated",
+        description: `Portrait has been generated for ${data.name || 'the companion'}`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Generate Portrait",
         description: error.message,
         variant: "destructive"
       });
@@ -5007,10 +5029,46 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 {/* NPC Inventory Management Section */}
                 {selectedPartyMemberType === "npc" && selectedNpc && (
                   <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
-                      <Backpack className="h-5 w-5 text-amber-600" />
-                      Inventory & Equipment - {selectedNpc.name}
-                    </h3>
+                    {/* NPC Header with Portrait */}
+                    <div className="flex items-start gap-4 mb-4">
+                      <div className="relative w-20 h-20 flex-shrink-0">
+                        {selectedNpc.portraitUrl ? (
+                          <img 
+                            src={selectedNpc.portraitUrl} 
+                            alt={`${selectedNpc.name} portrait`}
+                            className="w-full h-full rounded-lg object-cover border-2 border-amber-400"
+                          />
+                        ) : (
+                          <div className="w-full h-full rounded-lg bg-gradient-to-br from-slate-700 to-slate-800 border-2 border-dashed border-slate-500 flex items-center justify-center">
+                            <User className="h-8 w-8 text-slate-400" />
+                          </div>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="absolute -bottom-1 -right-1 h-6 w-6 p-0 rounded-full bg-amber-500 hover:bg-amber-600 text-white"
+                          onClick={() => generateNpcPortraitMutation.mutate(selectedNpc.id)}
+                          disabled={generateNpcPortraitMutation.isPending}
+                          title="Generate Portrait"
+                        >
+                          {generateNpcPortraitMutation.isPending ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Camera className="h-3 w-3" />
+                          )}
+                        </Button>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                          <Backpack className="h-5 w-5 text-amber-600" />
+                          {selectedNpc.name}
+                        </h3>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                          {selectedNpc.class || 'Companion'} {selectedNpc.race ? `• ${selectedNpc.race}` : ''}
+                        </p>
+                        <p className="text-xs text-slate-500 capitalize">{selectedNpc.status || 'conscious'}</p>
+                      </div>
+                    </div>
                     
                     {/* NPC Stats Display */}
                     <div className="flex gap-4 mb-4">
@@ -5131,10 +5189,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     
                     {/* NPC Inventory Items */}
                     <div className="space-y-2">
-                      <div className="text-sm font-medium">Items ({selectedNpc.equipment?.length || 0})</div>
+                      <div className="text-sm font-medium">Items ({selectedNpc.inventory?.length || 0})</div>
                       <div className="max-h-48 overflow-y-auto space-y-1">
-                        {selectedNpc.equipment && selectedNpc.equipment.length > 0 ? (
-                          selectedNpc.equipment.map((item: string, index: number) => (
+                        {selectedNpc.inventory && selectedNpc.inventory.length > 0 ? (
+                          selectedNpc.inventory.map((item: string, index: number) => (
                             <div key={index} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-700 rounded text-sm" data-testid={`npc-item-${index}`}>
                               <span className="flex-1">{item}</span>
                               <div className="flex items-center gap-1">
