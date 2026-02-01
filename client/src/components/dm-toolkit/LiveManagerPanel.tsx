@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { SiDiscord } from "react-icons/si";
 import DMControlBar, { SessionMode, NarrativeMode } from "./DMControlBar";
 import EventQueue, { PendingEvent } from "./EventQueue";
+import { GroupChoicePanel } from "./GroupChoicePanel";
 import AIWhisperPanel, { AIWhisper } from "./AIWhisperPanel";
 import DMDiceRoller, { DiceRoll } from "./DMDiceRoller";
 import RollQueue, { RollRequest } from "./RollQueue";
@@ -321,6 +322,11 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
     sessionArtifacts?: SessionArtifact[];
     camlEntitySources?: { npcs?: any[]; items?: any[]; encounters?: any[]; locations?: any[]; quests?: any[] };
     participantsWithChars?: any[];
+    activeGroupChoices?: any[];
+    groupChoiceVotes?: any[];
+    groupChoiceStatus?: string;
+    groupChoiceThreshold?: number;
+    groupChoiceResolution?: any;
   }>({
     queryKey: [`/api/campaigns/${selectedCampaignId}/dm-session-state`],
     enabled: !!selectedCampaignId,
@@ -1388,7 +1394,17 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                 </TabsList>
 
                 {/* EVENT QUEUE Tab */}
-                <TabsContent value="queue" className="flex-1 p-3 mt-0 overflow-y-auto min-h-0">
+                <TabsContent value="queue" className="flex-1 p-3 mt-0 overflow-y-auto min-h-0 space-y-3">
+                  {/* Group Choice Voting Panel */}
+                  <GroupChoicePanel
+                    campaignId={selectedCampaignId}
+                    activeChoices={dmSessionState?.activeGroupChoices || []}
+                    votes={dmSessionState?.groupChoiceVotes || []}
+                    status={dmSessionState?.groupChoiceStatus || 'none'}
+                    resolution={dmSessionState?.groupChoiceResolution}
+                    participantCount={(dmSessionState?.participantsWithChars || participants || []).length}
+                    isDM={true}
+                  />
                   <EventQueue
                     events={pendingEvents.length > 0 ? pendingEvents : (
                       liveSession?.choices?.map((choice: any, idx: number) => ({
