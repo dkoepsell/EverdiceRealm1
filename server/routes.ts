@@ -11371,6 +11371,23 @@ NARRATIVE RULES (MANDATORY):
 `;
       }
       
+      // Chapter tracking and finale detection
+      const currentChapter = campaign.currentSession || 1;
+      const totalChapters = campaign.totalChapters || 5;
+      const isOnFinalChapter = currentChapter >= totalChapters;
+      const isCampaignCompleted = campaign.isCompleted;
+      
+      // Prevent progression if campaign is already completed
+      if (isCampaignCompleted) {
+        return res.status(400).json({
+          message: "This campaign has been completed!",
+          isCompleted: true,
+          suggestion: "You can view your achievements or start a new adventure."
+        });
+      }
+      
+      console.log(`[Advance Story] Chapter ${currentChapter}/${totalChapters} - Final chapter: ${isOnFinalChapter}`);
+      
       let currentSession = await storage.getCurrentSession(campaignId);
       if (!currentSession) {
         // Auto-create a session for the campaign if none exists
@@ -11608,12 +11625,43 @@ ${detectedTheme === 'urban' ? '- Use city sounds, crowds, buildings, streets, so
         ? '\n\nIMPORTANT: The previous scene was Combat. This scene MUST be a different type (Exploration, Social, Discovery, Travel, Puzzle, or Downtime) unless the player explicitly initiates another fight.\n'
         : '';
       
+      // Finale and chapter progress instructions
+      const chapterProgressNote = `
+CAMPAIGN PROGRESS: Chapter ${currentChapter} of ${totalChapters}
+`;
+      
+      const finaleInstructions = isOnFinalChapter ? `
+═══════════════════════════════════════════════════════════════════════════════
+FINAL CHAPTER - DRIVE TOWARD CONCLUSION
+═══════════════════════════════════════════════════════════════════════════════
+This is the FINAL CHAPTER of the campaign. You MUST:
+1. Drive the narrative toward a satisfying CONCLUSION - no new plot threads
+2. Resolve the main campaign conflict within the next 2-3 story beats
+3. Include one of these finale choice options if appropriate:
+   - "Confront [final boss/antagonist]" 
+   - "Complete the final objective"
+   - "Make the decisive choice that ends this chapter"
+4. When the climax is resolved, include "isCampaignFinale": true in your response
+5. Provide closure for active quests - mark them completed or failed
+6. Set up an epilogue moment showing the consequences of the adventure
+7. Do NOT start new subplots, introduce new mysteries, or extend the story
+
+The player deserves a clear, triumphant (or tragic) ending - not an endless story.
+If they defeat the final challenge, respond with:
+- A satisfying narrative conclusion
+- "isCampaignFinale": true
+- Final rewards and XP
+═══════════════════════════════════════════════════════════════════════════════
+` : '';
+      
       // Generate story continuation based on choice and previous context
       const prompt = `
 You are an expert Dungeon Master for a D&D game with a ${narrativeStyle} storytelling style.
 ${narrativeStyleInstructions}
 Difficulty: ${difficulty}
+${chapterProgressNote}
 ${themeContext}
+${finaleInstructions}
 
 ${SCENE_GENERATION_CONSTRAINTS}
 ${antiCombatRepeatNote}
@@ -14491,6 +14539,54 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         }
       }
       
+      // Campaign finale detection and completion
+      // Only trigger completion when AI explicitly returns isCampaignFinale: true
+      const isCampaignFinale = storyAdvancement.isCampaignFinale === true;
+      let campaignCompletionData = null;
+      
+      // Idempotency: only process completion if AI says finale AND campaign not already completed
+      if (isCampaignFinale && !campaign.isCompleted) {
+        console.log(`[Campaign Completion] Marking campaign ${campaignId} as completed`);
+        
+        // Calculate final rewards and stats
+        const totalXpAwarded = xpAwarded + (campaign.xpReward || 0);
+        const completedQuestCount = ((mergedStoryState.activeQuests || []).filter((q: any) => q.status === 'completed').length) +
+                                    ((mergedStoryState.completedQuests || []).length);
+        
+        // Mark the campaign as completed
+        await storage.updateCampaign(campaignId, {
+          isCompleted: true,
+          completedAt: new Date().toISOString()
+        });
+        
+        // Create adventure completion record for XP tracking
+        if (participants && participants.length > 0) {
+          for (const participant of participants) {
+            await storage.createAdventureCompletion({
+              userId: participant.userId,
+              characterId: participant.characterId,
+              campaignId,
+              xpAwarded: totalXpAwarded,
+              completedAt: new Date().toISOString(),
+              notes: `Completed ${campaign.title} - Chapter ${currentChapter} of ${totalChapters}`
+            });
+          }
+        }
+        
+        campaignCompletionData = {
+          isCompleted: true,
+          completedAt: new Date().toISOString(),
+          totalXpAwarded,
+          chaptersCompleted: currentChapter,
+          totalChapters,
+          questsCompleted: completedQuestCount,
+          epilogue: storyAdvancement.narrative,
+          message: `Congratulations! You have completed "${campaign.title}"!`
+        };
+        
+        console.log(`[Campaign Completion] Campaign ${campaignId} completed successfully`);
+      }
+      
       res.json({
         ...(sessionAdvanced && newSessionData ? newSessionData : updatedSession),
         progression: characterProgression,
@@ -14511,7 +14607,13 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           treasuresFound: treasureDone,
           discoveriesMade: discoveriesDone,
           trapsOvercome: trapDone
-        } : null
+        } : null,
+        // Campaign chapter tracking
+        currentChapter,
+        totalChapters,
+        isOnFinalChapter,
+        // Campaign completion data (if campaign just finished)
+        campaignCompletion: campaignCompletionData
       });
     } catch (error: any) {
       console.error("Failed to advance story:", error);

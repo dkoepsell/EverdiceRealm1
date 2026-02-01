@@ -23,6 +23,17 @@ Discord integration enables playing campaigns directly through Discord channels 
 
 CAML 2.0 (Canonical Adventure Markup Language) integration provides a robust ontological framework for adventures, supporting various entity types and state transitions, with backward compatibility and export options. The Scene Schema v2 ensures varied gameplay by preventing consecutive combat encounters and enforcing diverse scene types (Combat, Exploration, Social, Puzzle, Discovery, Travel, Downtime) and resolution modes. RPG systems include automatic XP and skill progression, D&D combat mechanics with HP and status tracking, rest mechanics, inventory management, death saving throws, and a structured quest system. A comprehensive Spell Book System integrates D&D 5e spellcasting for all spellcaster classes, including spell learning, preparation, slot tracking, and detailed spell information.
 
+### Campaign Completion System
+Campaigns have defined chapter structures (currentChapter/totalChapters) to prevent endless stories. The system includes:
+- Final chapter detection (`isOnFinalChapter`) that triggers special AI instructions to drive toward conclusion
+- AI finale prompts that prevent new plot threads and resolve main conflicts within 2-3 story beats
+- Campaign completion ONLY triggered when AI explicitly returns `isCampaignFinale: true`
+- Idempotency guard: completion only processed if `campaign.isCompleted` is false
+- Automatic campaign marking as completed with timestamp in database
+- Adventure completion records created for XP tracking per participant
+- Response includes `campaignCompletion` data with epilogue, XP summary, and completion message
+- Chapter progress visible in advance-story response (currentChapter, totalChapters, isOnFinalChapter)
+
 ## External Dependencies
 
 ### Core
