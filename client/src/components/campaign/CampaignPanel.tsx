@@ -421,7 +421,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     if (!selectedNpcId || !campaignNpcs) return null;
     const campaignNpc = campaignNpcs.find((cn: any) => cn.npcId === selectedNpcId);
     if (!campaignNpc?.npc) return null;
-    // Return merged object: base NPC + campaign-specific overrides (consumables, HP, status, inventory)
+    // Return merged object: base NPC + campaign-specific overrides (consumables, HP, status, inventory, gold)
     return {
       ...campaignNpc.npc,
       consumables: campaignNpc.consumables || [],
@@ -429,6 +429,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       hitPoints: campaignNpc.currentHp ?? campaignNpc.npc.hitPoints,
       maxHitPoints: campaignNpc.maxHp ?? campaignNpc.npc.maxHitPoints,
       status: campaignNpc.status ?? campaignNpc.npc.status,
+      gold: campaignNpc.gold ?? 0,
     };
   }, [selectedNpcId, campaignNpcs]);
   
