@@ -29,7 +29,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard, Coffee, Star, Camera } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard, Coffee, Star, Camera, Check } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -111,6 +111,43 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
   const { data: worldLocations = [] } = useQuery<WorldLocation[]>({
     queryKey: ['/api/world/locations'],
+  });
+
+  // DM Session state for group voting
+  const { data: dmSessionState } = useQuery<{
+    activeGroupChoices?: any[];
+    groupChoiceVotes?: any[];
+    groupChoiceStatus?: string;
+    groupChoiceResolution?: any;
+  }>({
+    queryKey: [`/api/campaigns/${campaign.id}/dm-session-state`],
+    refetchInterval: 3000,
+  });
+
+  // Mutation for voting on group choices
+  const voteGroupChoiceMutation = useMutation({
+    mutationFn: async ({ choiceId, characterId, characterName }: { choiceId: string; characterId?: number; characterName?: string }) => {
+      const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/group-choices/vote`, {
+        choiceId,
+        characterId,
+        characterName
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/dm-session-state`] });
+      toast({
+        title: "Vote Cast",
+        description: "Your choice has been recorded"
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Vote",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   });
   
   // Mutation to save dungeon map
@@ -3839,8 +3876,85 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       )}
                     </div>
                     
+                    {/* Group Vote Section - Multiplayer choice voting */}
+                    {dmSessionState?.groupChoiceStatus === 'pending' && dmSessionState?.activeGroupChoices?.length > 0 && (
+                      <div className="mt-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold flex items-center gap-2 text-amber-600">
+                            <Users className="h-4 w-4" />
+                            Party Vote Active
+                          </h4>
+                          <Badge variant="outline" className="bg-amber-50 border-amber-300 text-amber-700">
+                            {dmSessionState.groupChoiceVotes?.length || 0} voted
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2">
+                          {(dmSessionState.activeGroupChoices || []).map((choice: any) => {
+                            const voteCount = dmSessionState.groupChoiceVotes?.filter((v: any) => v.choiceId === choice.id).length || 0;
+                            const myVote = dmSessionState.groupChoiceVotes?.find((v: any) => 
+                              v.characterId === activeCharacter?.id || v.characterName === activeCharacter?.name
+                            );
+                            const isMyChoice = myVote?.choiceId === choice.id;
+                            
+                            return (
+                              <Button
+                                key={choice.id}
+                                variant="outline"
+                                className={`justify-start h-auto py-3 px-4 text-left w-full ${isMyChoice ? 'border-2 border-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'border-border hover:border-amber-400'}`}
+                                onClick={() => voteGroupChoiceMutation.mutate({
+                                  choiceId: choice.id,
+                                  characterId: activeCharacter?.id,
+                                  characterName: activeCharacter?.name
+                                })}
+                                disabled={voteGroupChoiceMutation.isPending}
+                              >
+                                <div className="flex items-start justify-between w-full gap-3">
+                                  <div className="flex items-start gap-2 flex-1 min-w-0">
+                                    <ArrowRight className={`h-5 w-5 mt-0.5 shrink-0 ${isMyChoice ? 'text-amber-600' : 'text-primary'}`} />
+                                    <div className="flex flex-col gap-1 min-w-0">
+                                      <span className="font-medium text-slate-900 dark:text-slate-100">{choice.text}</span>
+                                      {choice.description && (
+                                        <span className="text-xs text-muted-foreground">{choice.description}</span>
+                                      )}
+                                      {choice.dc && (
+                                        <span className="text-xs text-amber-600">
+                                          DC {choice.dc} {choice.skillCheck}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <Badge variant={voteCount > 0 ? "default" : "outline"} className={`shrink-0 ${voteCount > 0 ? 'bg-amber-500' : ''}`}>
+                                    {voteCount} vote{voteCount !== 1 ? 's' : ''}
+                                  </Badge>
+                                </div>
+                              </Button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-xs text-muted-foreground text-center">
+                          Click a choice to vote. The DM will resolve when ready.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Show resolved vote result */}
+                    {dmSessionState?.groupChoiceStatus === 'resolved' && dmSessionState?.groupChoiceResolution && (
+                      <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Check className="h-4 w-4 text-green-600" />
+                          <span className="font-semibold text-green-700 dark:text-green-300">Vote Resolved</span>
+                        </div>
+                        <p className="text-green-800 dark:text-green-200">
+                          The party chose: <strong>{dmSessionState.groupChoiceResolution.winningChoice?.text}</strong>
+                        </p>
+                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                          Won by {dmSessionState.groupChoiceResolution.method} ({dmSessionState.groupChoiceResolution.totalVotes} total votes)
+                        </p>
+                      </div>
+                    )}
+
                     {/* Action choices */}
-                    {!isAdvancingStory && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 ? (
+                    {!isAdvancingStory && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 && dmSessionState?.groupChoiceStatus !== 'pending' ? (
                       <div className="mt-6 space-y-4">
                         <div className="flex items-center justify-between">
                           <h4 className="font-semibold" style={{ color: '#1e293b' }}>What will you do?</h4>
