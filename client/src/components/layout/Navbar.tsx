@@ -81,6 +81,7 @@ export default function Navbar() {
     { name: "Guilds", path: "/groups", icon: Shield },
     { name: "World Map", path: "/world-map", icon: Map },
     { name: "DM Tools", path: "/dm-toolkit", icon: Wrench },
+    { name: "DM Guide", path: "/dm-guide", icon: BookOpen },
     { name: "Dice Roller", path: "/dice-roller", icon: Dice5 },
     { name: "Find Groups", path: "/bulletin", icon: MessageSquare },
     { name: "CAML", path: "/caml", icon: FileCode },

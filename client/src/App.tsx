@@ -28,6 +28,7 @@ import TavernPage from "@/pages/tavern";
 import GroupsPage from "@/pages/groups";
 import ProfilePage from "@/pages/profile";
 import HearthPage from "@/pages/hearth";
+import DMGuidePage from "@/pages/dm-guide";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import InvitationAlert from "@/components/InvitationAlert";
@@ -68,6 +69,7 @@ function Router() {
           <ProtectedRoute path="/admin" component={AdminPage} />
           <ProtectedRoute path="/profile" component={ProfilePage} />
           <Route path="/how-it-works" component={HowItWorks} />
+          <Route path="/dm-guide" component={DMGuidePage} />
           <Route path="/legal" component={LegalPage} />
           <Route path="/auth" component={AuthPage} />
           <Route component={NotFound} />

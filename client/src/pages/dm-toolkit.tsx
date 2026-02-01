@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -318,6 +319,11 @@ export default function DMToolkit() {
               </div>
               <h1 className="text-2xl md:text-3xl font-fantasy font-bold text-white mb-2">Dungeon Master Toolkit</h1>
               <p className="text-white/60">Craft worlds, tell stories, and bring adventures to life</p>
+              <Link href="/dm-guide" className="inline-flex items-center gap-1.5 text-sm text-purple-300 hover:text-purple-200 mt-2 transition-colors">
+                <BookOpen className="h-3.5 w-3.5" />
+                New to DMing? Read our step-by-step guide
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
             </div>
             <div className="flex flex-wrap gap-3">
               <TooltipProvider>
