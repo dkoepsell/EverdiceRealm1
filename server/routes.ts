@@ -11200,8 +11200,8 @@ Generate a complete CAML 2.0 JSON adventure.`;
       const choiceCount = numChoices || 4;
       
       // Get current session for context
-      const session = await storage.getCampaignSessionByNumber(campaignId, campaign.currentSession || 1);
-      const narrative = session?.narrative || campaign.currentNarrative || "The party stands at a crossroads.";
+      const session = await storage.getCampaignSession(campaignId, campaign.currentSession || 1);
+      const narrative = session?.narrative || "The party stands at a crossroads.";
       
       const prompt = `You are a D&D 5e Dungeon Master. Generate ${choiceCount} meaningful choices for a party of adventurers.
 
@@ -11255,9 +11255,10 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
       }));
       
       res.json({ success: true, choices: formattedChoices });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to generate group choices:", error);
-      res.status(500).json({ message: "Failed to generate choices" });
+      console.error("Error details:", error?.message, error?.response?.data || error?.cause);
+      res.status(500).json({ message: "Failed to generate choices", error: error?.message || "Unknown error" });
     }
   });
 
