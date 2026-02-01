@@ -10683,6 +10683,101 @@ Generate a complete CAML 2.0 JSON adventure.`;
 
   // DM Session State Management APIs
 
+  // Helper function to auto-resolve expired group votes
+  async function checkAndAutoResolveExpiredVotes(campaignId: number, state: any): Promise<any> {
+    if (state.groupChoiceStatus !== 'pending') return state;
+    
+    const resolution = state.groupChoiceResolution as any;
+    if (!resolution?.voteExpiresAt) return state;
+    
+    const expiresAt = new Date(resolution.voteExpiresAt);
+    if (new Date() < expiresAt) return state; // Not expired yet
+    
+    // Vote has expired - auto-resolve
+    const choices = (state.activeGroupChoices as any[]) || [];
+    const votes = (state.groupChoiceVotes as any[]) || [];
+    const initiativeOrder = (state.initiativeOrder as any[]) || [];
+    
+    if (choices.length === 0) return state;
+    
+    // Count votes per choice
+    const voteCounts: Record<string, number> = {};
+    choices.forEach((c: any) => { voteCounts[c.id] = 0; });
+    votes.forEach((v: any) => { voteCounts[v.choiceId] = (voteCounts[v.choiceId] || 0) + 1; });
+    
+    // Find winner
+    let maxVotes = 0;
+    let winners: string[] = [];
+    Object.entries(voteCounts).forEach(([choiceId, count]) => {
+      if (count > maxVotes) {
+        maxVotes = count;
+        winners = [choiceId];
+      } else if (count === maxVotes && count > 0) {
+        winners.push(choiceId);
+      }
+    });
+    
+    let winningChoiceId: string;
+    let resolutionMethod: string = 'timeout_majority';
+    
+    if (winners.length === 1) {
+      winningChoiceId = winners[0];
+    } else if (winners.length > 1 && initiativeOrder.length > 0) {
+      resolutionMethod = 'timeout_initiative';
+      for (const initEntry of initiativeOrder) {
+        const playerVote = votes.find((v: any) => 
+          (v.characterId === initEntry.characterId || v.characterName === initEntry.name) &&
+          winners.includes(v.choiceId)
+        );
+        if (playerVote) {
+          winningChoiceId = playerVote.choiceId;
+          break;
+        }
+      }
+      winningChoiceId = winningChoiceId! || winners[0];
+    } else {
+      winningChoiceId = winners[0] || choices[0]?.id;
+      resolutionMethod = 'timeout_default';
+    }
+    
+    const winningChoice = choices.find((c: any) => c.id === winningChoiceId);
+    
+    const newResolution = {
+      ...resolution,
+      winningChoiceId,
+      winningChoice,
+      method: resolutionMethod,
+      voteCounts,
+      totalVotes: votes.length,
+      resolvedAt: new Date().toISOString(),
+      autoResolved: true
+    };
+    
+    // Update database
+    await db.update(dmSessionStates)
+      .set({
+        groupChoiceStatus: 'resolved',
+        groupChoiceResolution: newResolution,
+        lastUpdatedAt: new Date().toISOString(),
+      })
+      .where(eq(dmSessionStates.campaignId, campaignId));
+    
+    // Broadcast resolution
+    broadcastMessage('group-choice-resolved', {
+      campaignId,
+      resolution: newResolution,
+      autoResolved: true
+    });
+    
+    console.log(`[Auto-DM] Vote timeout - auto-resolved for campaign ${campaignId}`);
+    
+    return {
+      ...state,
+      groupChoiceStatus: 'resolved',
+      groupChoiceResolution: newResolution
+    };
+  }
+
   // Get or create DM session state
   app.get("/api/campaigns/:campaignId/dm-session-state", isAuthenticated, async (req: any, res) => {
     try {
@@ -10693,9 +10788,13 @@ Generate a complete CAML 2.0 JSON adventure.`;
         return res.status(404).json({ message: "Campaign not found" });
       }
       
-      // Only DM can access this
-      if (campaign.userId !== req.user.id) {
-        return res.status(403).json({ message: "Only the DM can access session state" });
+      // Allow DM and players to access (players need voting data)
+      const participants = await storage.getCampaignParticipants(campaignId);
+      const isParticipant = participants.some(p => p.userId === req.user.id);
+      const isDM = campaign.userId === req.user.id;
+      
+      if (!isDM && !isParticipant) {
+        return res.status(403).json({ message: "Only campaign members can access session state" });
       }
       
       // Get or create session state
@@ -10713,7 +10812,6 @@ Generate a complete CAML 2.0 JSON adventure.`;
       }
       
       // Get participants with character data
-      const participants = await storage.getCampaignParticipants(campaignId);
       const participantsWithChars = await Promise.all(
         participants.map(async (p) => {
           const character = await storage.getCharacter(p.characterId);
@@ -10789,8 +10887,23 @@ Generate a complete CAML 2.0 JSON adventure.`;
           .where(eq(dmSessionStates.campaignId, campaignId));
       }
       
+      // Check for expired votes and auto-resolve if needed
+      let finalState = sessionState[0];
+      finalState = await checkAndAutoResolveExpiredVotes(campaignId, finalState);
+      
+      // For players (non-DM), return only vote-related fields
+      if (!isDM) {
+        res.json({
+          activeGroupChoices: finalState.activeGroupChoices,
+          groupChoiceVotes: finalState.groupChoiceVotes,
+          groupChoiceStatus: finalState.groupChoiceStatus,
+          groupChoiceResolution: finalState.groupChoiceResolution,
+        });
+        return;
+      }
+      
       res.json({
-        ...sessionState[0],
+        ...finalState,
         camlEntitySources,
         participantsWithChars
       });
@@ -11020,7 +11133,7 @@ Generate a complete CAML 2.0 JSON adventure.`;
         return res.status(403).json({ message: "Only the DM can create group choices" });
       }
       
-      const { choices, threshold } = req.body;
+      const { choices, threshold, timeoutHours } = req.body;
       
       if (!choices || !Array.isArray(choices) || choices.length === 0) {
         return res.status(400).json({ message: "Choices array is required" });
@@ -11037,13 +11150,22 @@ Generate a complete CAML 2.0 JSON adventure.`;
         createdBy: 'dm'
       }));
       
+      // Calculate timeout (default 12 hours for async campaigns)
+      const voteTimeoutHours = typeof timeoutHours === 'number' ? timeoutHours : 12;
+      const voteStartedAt = new Date().toISOString();
+      const voteExpiresAt = new Date(Date.now() + voteTimeoutHours * 60 * 60 * 1000).toISOString();
+      
       await db.update(dmSessionStates)
         .set({
           activeGroupChoices: formattedChoices,
           groupChoiceVotes: [],
           groupChoiceStatus: 'pending',
           groupChoiceThreshold: threshold || 0,
-          groupChoiceResolution: null,
+          groupChoiceResolution: {
+            voteStartedAt,
+            voteExpiresAt,
+            voteTimeoutHours
+          },
           lastUpdatedAt: new Date().toISOString(),
         })
         .where(eq(dmSessionStates.campaignId, campaignId));

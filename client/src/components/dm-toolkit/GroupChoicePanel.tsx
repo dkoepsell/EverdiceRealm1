@@ -48,6 +48,10 @@ interface GroupChoicePanelProps {
     method: string;
     voteCounts: Record<string, number>;
     totalVotes: number;
+    voteStartedAt?: string;
+    voteExpiresAt?: string;
+    voteTimeoutHours?: number;
+    autoResolved?: boolean;
   };
   participantCount: number;
   isDM: boolean;
@@ -69,6 +73,20 @@ export function GroupChoicePanel({
     { text: "", description: "", dc: null, skillCheck: null }
   ]);
   const [context, setContext] = useState("");
+  const [timeoutHours, setTimeoutHours] = useState(12); // Default 12 hours for async play
+  
+  // Calculate time remaining for vote
+  const getTimeRemaining = () => {
+    if (status !== 'pending' || !resolution?.voteExpiresAt) return null;
+    const expiresAt = new Date(resolution.voteExpiresAt);
+    const now = new Date();
+    const diffMs = expiresAt.getTime() - now.getTime();
+    if (diffMs <= 0) return "Expired";
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  };
 
   // Calculate vote counts
   const voteCounts: Record<string, number> = {};
@@ -79,7 +97,8 @@ export function GroupChoicePanel({
   const createChoicesMutation = useMutation({
     mutationFn: async (choicesData: Partial<Choice>[]) => {
       const response = await apiRequest('POST', `/api/campaigns/${campaignId}/group-choices`, {
-        choices: choicesData.filter(c => c.text?.trim())
+        choices: choicesData.filter(c => c.text?.trim()),
+        timeoutHours
       });
       return await response.json();
     },
@@ -160,11 +179,20 @@ export function GroupChoicePanel({
 
   // Show resolved state
   if (status === 'resolved' && resolution) {
+    const methodDisplay = resolution.method?.includes('timeout') 
+      ? `${resolution.method.replace('timeout_', '')} (auto-resolved after timeout)`
+      : resolution.method;
+    
     return (
       <Card className="p-3 bg-green-900/20 border-green-700">
         <div className="flex items-center gap-2 mb-2">
           <Check className="h-4 w-4 text-green-400" />
           <span className="font-medium text-green-300">Vote Resolved</span>
+          {resolution.autoResolved && (
+            <Badge variant="outline" className="text-xs bg-orange-500/20 border-orange-500/50 text-orange-300">
+              Auto
+            </Badge>
+          )}
         </div>
         <div className="p-2 rounded bg-green-900/30 border border-green-700 mb-2">
           <div className="font-medium text-green-200">{resolution.winningChoice?.text}</div>
@@ -172,7 +200,7 @@ export function GroupChoicePanel({
             <div className="text-xs text-green-300/70 mt-1">{resolution.winningChoice.description}</div>
           )}
           <div className="text-xs text-green-400 mt-1">
-            Won by {resolution.method} ({resolution.totalVotes} votes)
+            Won by {methodDisplay} ({resolution.totalVotes} votes)
           </div>
         </div>
         {isDM && (
@@ -186,6 +214,8 @@ export function GroupChoicePanel({
 
   // Show active voting
   if (status === 'pending' && activeChoices.length > 0) {
+    const timeRemaining = getTimeRemaining();
+    
     return (
       <Card className="p-3 bg-amber-900/20 border-amber-700">
         <div className="flex items-center justify-between mb-2">
@@ -193,9 +223,16 @@ export function GroupChoicePanel({
             <Vote className="h-4 w-4 text-amber-400" />
             <span className="font-medium text-amber-300">Group Vote Active</span>
           </div>
-          <Badge variant="outline" className="text-xs bg-amber-500/20 border-amber-500/50">
-            {votes.length}/{participantCount} voted
-          </Badge>
+          <div className="flex items-center gap-2">
+            {timeRemaining && (
+              <Badge variant="outline" className={`text-xs ${timeRemaining === 'Expired' ? 'bg-red-500/20 border-red-500/50 text-red-300' : 'bg-slate-500/20 border-slate-500/50 text-slate-300'}`}>
+                {timeRemaining === 'Expired' ? 'Expired' : `${timeRemaining} left`}
+              </Badge>
+            )}
+            <Badge variant="outline" className="text-xs bg-amber-500/20 border-amber-500/50">
+              {votes.length}/{participantCount} voted
+            </Badge>
+          </div>
         </div>
         
         <div className="space-y-2 mb-3">
@@ -352,6 +389,27 @@ export function GroupChoicePanel({
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Timeout Configuration */}
+        <div className="mb-3 p-2 rounded bg-slate-900/30 border border-slate-600">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400">Auto-resolve timeout:</span>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={1}
+                max={72}
+                value={timeoutHours}
+                onChange={(e) => setTimeoutHours(parseInt(e.target.value) || 12)}
+                className="text-xs h-6 w-16 text-center"
+              />
+              <span className="text-xs text-slate-400">hours</span>
+            </div>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            Vote will auto-resolve after {timeoutHours}h if players don't vote
+          </p>
         </div>
 
         <div className="flex gap-2">

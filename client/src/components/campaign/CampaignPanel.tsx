@@ -3877,16 +3877,38 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     </div>
                     
                     {/* Group Vote Section - Multiplayer choice voting */}
-                    {dmSessionState?.groupChoiceStatus === 'pending' && dmSessionState?.activeGroupChoices?.length > 0 && (
+                    {dmSessionState?.groupChoiceStatus === 'pending' && dmSessionState?.activeGroupChoices?.length > 0 && (() => {
+                      // Calculate time remaining
+                      const expiresAt = dmSessionState.groupChoiceResolution?.voteExpiresAt;
+                      let timeRemaining: string | null = null;
+                      if (expiresAt) {
+                        const diffMs = new Date(expiresAt).getTime() - Date.now();
+                        if (diffMs <= 0) {
+                          timeRemaining = "Expired";
+                        } else {
+                          const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                          const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                          timeRemaining = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+                        }
+                      }
+                      
+                      return (
                       <div className="mt-6 space-y-4">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
                           <h4 className="font-semibold flex items-center gap-2 text-amber-600">
                             <Users className="h-4 w-4" />
                             Party Vote Active
                           </h4>
-                          <Badge variant="outline" className="bg-amber-50 border-amber-300 text-amber-700">
-                            {dmSessionState.groupChoiceVotes?.length || 0} voted
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            {timeRemaining && (
+                              <Badge variant="outline" className={`${timeRemaining === 'Expired' ? 'bg-red-50 border-red-300 text-red-700' : 'bg-slate-50 border-slate-300 text-slate-600'}`}>
+                                {timeRemaining === 'Expired' ? 'Expired' : `${timeRemaining} left`}
+                              </Badge>
+                            )}
+                            <Badge variant="outline" className="bg-amber-50 border-amber-300 text-amber-700">
+                              {dmSessionState.groupChoiceVotes?.length || 0} voted
+                            </Badge>
+                          </div>
                         </div>
                         <div className="grid grid-cols-1 gap-2">
                           {(dmSessionState.activeGroupChoices || []).map((choice: any) => {
@@ -3932,10 +3954,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           })}
                         </div>
                         <p className="text-xs text-muted-foreground text-center">
-                          Click a choice to vote. The DM will resolve when ready.
+                          {timeRemaining === 'Expired' ? 'Vote has expired - waiting for auto-resolution...' : 'Click a choice to vote. The DM will resolve when ready.'}
                         </p>
                       </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Show resolved vote result */}
                     {dmSessionState?.groupChoiceStatus === 'resolved' && dmSessionState?.groupChoiceResolution && (
@@ -3943,12 +3966,18 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         <div className="flex items-center gap-2 mb-2">
                           <Check className="h-4 w-4 text-green-600" />
                           <span className="font-semibold text-green-700 dark:text-green-300">Vote Resolved</span>
+                          {dmSessionState.groupChoiceResolution.autoResolved && (
+                            <Badge variant="outline" className="text-xs bg-orange-50 border-orange-300 text-orange-600">
+                              Auto
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-green-800 dark:text-green-200">
                           The party chose: <strong>{dmSessionState.groupChoiceResolution.winningChoice?.text}</strong>
                         </p>
                         <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                          Won by {dmSessionState.groupChoiceResolution.method} ({dmSessionState.groupChoiceResolution.totalVotes} total votes)
+                          Won by {dmSessionState.groupChoiceResolution.method?.replace('timeout_', '')} ({dmSessionState.groupChoiceResolution.totalVotes} total votes)
+                          {dmSessionState.groupChoiceResolution.autoResolved && ' - auto-resolved after timeout'}
                         </p>
                       </div>
                     )}
