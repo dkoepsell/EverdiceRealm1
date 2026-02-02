@@ -2816,6 +2816,27 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 {/* Current Session */}
                 {currentSession && !parsedStoryState?.adventureEnded ? (
                   <div className="mt-6 space-y-4">
+                    {/* Chapter Header - Above narrative pane */}
+                    <div className="flex justify-between items-center bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 px-4 py-3 rounded-lg border border-amber-200 dark:border-amber-800">
+                      <div className="flex items-center gap-3">
+                        <Scroll className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                        <div>
+                          <span className="text-sm text-amber-700 dark:text-amber-300 font-medium">
+                            Chapter {currentSession.sessionNumber} of {campaign.totalChapters || 5}
+                          </span>
+                          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                            {currentSession.title.replace(/^(Session|Chapter)\s*\d+:\s*/i, '')}
+                          </h3>
+                        </div>
+                      </div>
+                      
+                      {/* Current location */}
+                      <Badge variant="outline" className="bg-white dark:bg-slate-800 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300">
+                        <MapPin className="h-3 w-3 mr-1" />
+                        {currentLocation}
+                      </Badge>
+                    </div>
+                    
                     {/* ===== CURRENT SCENE - The main story area with glowing pulsing border ===== */}
                     <ContextualHint hintId="narrative_choices" position="bottom" delay={1000}>
                       <div 
@@ -2971,6 +2992,36 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 </Button>
                               </div>
                             </div>
+                          </div>
+                        )}
+                        
+                        {/* Open Table Chat - Inside narrative pane, after choices */}
+                        {currentSession && (
+                          <div className="mt-6 pt-5 border-t border-amber-500/30">
+                            {tableChatCollapsed ? (
+                              <Button
+                                variant="outline"
+                                className="w-full bg-slate-800/50 border-amber-500/50 text-amber-300 hover:bg-slate-700/50 hover:text-amber-200"
+                                onClick={() => setTableChatCollapsed(false)}
+                              >
+                                <MessageCircle className="h-4 w-4 mr-2" />
+                                Open Table Chat
+                              </Button>
+                            ) : (
+                              <div className="h-80 border border-amber-500/30 rounded-lg overflow-hidden bg-slate-900/50">
+                                <TableChat
+                                  campaignId={campaign.id}
+                                  characterName={activeCharacter?.name}
+                                  characterId={activeCharacter?.id}
+                                  isCollapsed={false}
+                                  onToggle={() => setTableChatCollapsed(true)}
+                                  onInitiativeUpdate={(myTurn, combatantName) => {
+                                    setIsMyTurn(myTurn);
+                                    setCurrentTurnName(combatantName);
+                                  }}
+                                />
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -3277,21 +3328,6 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </Button>
                       </div>
                     )}
-                    
-                    <div className="flex justify-between items-start">
-                      <h3 className="text-xl font-bold flex items-center" style={{ color: '#0f172a' }}>
-                        <Scroll className="h-5 w-5 mr-2 text-indigo-600 dark:text-indigo-400" />
-                        Chapter {currentSession.sessionNumber}: {currentSession.title.replace(/^(Session|Chapter)\s*\d+:\s*/i, '')}
-                      </h3>
-                      
-                      {/* Current location display */}
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="flex items-center gap-1">
-                          <MapPin className="h-4 w-4" />
-                          <span className="hidden sm:inline">{currentLocation}</span>
-                        </Button>
-                      </div>
-                    </div>
                     
                     {/* Combat Status Display */}
                     {parsedStoryState?.inCombat && (
@@ -4163,37 +4199,6 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 </div>
                               ))}
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    
-                    {/* Table Chat - Available to all participants during live sessions */}
-                    {currentSession && (
-                      <div className="mt-6">
-                        {tableChatCollapsed ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full border-dashed"
-                            onClick={() => setTableChatCollapsed(false)}
-                          >
-                            <MessageCircle className="h-4 w-4 mr-2" />
-                            Open Table Chat
-                          </Button>
-                        ) : (
-                          <div className="h-80 border rounded-lg overflow-hidden">
-                            <TableChat
-                              campaignId={campaign.id}
-                              characterName={activeCharacter?.name}
-                              characterId={activeCharacter?.id}
-                              isCollapsed={false}
-                              onToggle={() => setTableChatCollapsed(true)}
-                              onInitiativeUpdate={(myTurn, combatantName) => {
-                                setIsMyTurn(myTurn);
-                                setCurrentTurnName(combatantName);
-                              }}
-                            />
                           </div>
                         )}
                       </div>
