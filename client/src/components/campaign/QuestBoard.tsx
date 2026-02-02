@@ -87,7 +87,7 @@ export function QuestBoard({ campaignId, isDM, activeCharacter, userId }: QuestB
     prerequisites: ''
   });
 
-  const { data: boardQuests, isLoading } = useQuery<BoardQuest[]>({
+  const { data: boardQuests, isLoading, isError, refetch } = useQuery<BoardQuest[]>({
     queryKey: ['/api/campaigns', campaignId, 'quest-board'],
     queryFn: async () => {
       const response = await fetch(`/api/campaigns/${campaignId}/quest-board`);
@@ -180,6 +180,23 @@ export function QuestBoard({ campaignId, isDM, activeCharacter, userId }: QuestB
           ))}
         </div>
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Card className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20">
+        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+          <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
+          <h4 className="text-lg font-medium text-red-700 dark:text-red-300">Failed to Load Quest Board</h4>
+          <p className="text-sm text-red-600 dark:text-red-400 mt-1 mb-4">
+            There was an error loading the quest board. Please try again.
+          </p>
+          <Button onClick={() => refetch()} variant="outline" className="border-red-300 text-red-700 hover:bg-red-100">
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 

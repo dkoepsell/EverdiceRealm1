@@ -47,6 +47,7 @@ import CampaignParticipants from "./CampaignParticipants";
 import TurnManager from "./TurnManager";
 import CampaignDeploymentTab from "./CampaignDeploymentTab";
 import CampaignDashboard from "./CampaignDashboard";
+import { QuestBoard } from "./QuestBoard";
 import TableChat from "@/components/dm-toolkit/TableChat";
 import CombatSpellPanel from "@/components/combat/CombatSpellPanel";
 import { LearningTip, useLearningTips } from "@/components/learning/LearningTip";
@@ -2693,6 +2694,22 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 <TooltipContent side="bottom" className="max-w-xs">
                   <p className="font-medium">Journey Log & History</p>
                   <p className="text-xs text-muted-foreground">Review past events, completed quests, dice rolls, and key moments. Useful for catching up after breaks.</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              {/* QUESTS */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <TabsTrigger value="quests" className="flex-1 text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
+                    <span className="flex items-center">
+                      <Target className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
+                      <span>Quests</span>
+                    </span>
+                  </TabsTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p className="font-medium">Quest Board</p>
+                  <p className="text-xs text-muted-foreground">Browse available quests posted by the DM. Accept quests to track your objectives and earn rewards!</p>
                 </TooltipContent>
               </Tooltip>
               
@@ -5959,6 +5976,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   </div>
                 </div>
               </div>
+            </TabsContent>
+            
+            <TabsContent value="quests" className="p-4">
+              <QuestBoard 
+                campaignId={campaign.id}
+                isDM={isDM}
+                activeCharacter={activeCharacter}
+                userId={user?.id}
+              />
             </TabsContent>
             
             {isDM && (

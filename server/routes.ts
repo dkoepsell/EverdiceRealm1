@@ -8384,11 +8384,30 @@ Return your response as a JSON object with these fields:
         return res.status(401).json({ message: "Not authenticated" });
       }
       
+      const campaignId = parseInt(req.params.campaignId);
       const questId = parseInt(req.params.questId);
       const { characterId } = req.body;
       
-      // Get the quest first
-      const allQuests = await storage.getCampaignQuests(parseInt(req.params.campaignId));
+      // Validate characterId is provided
+      if (!characterId || typeof characterId !== 'number') {
+        return res.status(400).json({ message: "Valid characterId is required" });
+      }
+      
+      // Verify the character belongs to the authenticated user
+      const character = await storage.getCharacter(characterId);
+      if (!character || character.userId !== req.user.id) {
+        return res.status(403).json({ message: "Character not found or doesn't belong to you" });
+      }
+      
+      // Verify user is a participant in the campaign
+      const participants = await storage.getCampaignParticipants(campaignId);
+      const isParticipant = participants.some((p: any) => p.userId === req.user.id);
+      if (!isParticipant) {
+        return res.status(403).json({ message: "You must be a campaign participant to accept quests" });
+      }
+      
+      // Get the quest
+      const allQuests = await storage.getCampaignQuests(campaignId);
       const quest = allQuests.find((q: any) => q.id === questId);
       
       if (!quest) {
