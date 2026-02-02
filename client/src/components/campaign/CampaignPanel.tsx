@@ -3171,172 +3171,6 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </div>
                     </div>
                     
-                    {/* Adventure Progress Display - Collapsible to prioritize narrative */}
-                    {parsedStoryState?.adventureProgress && (() => {
-                      // Calculate progress percentage locally for reliability
-                      const progress = parsedStoryState.adventureProgress as any;
-                      // Use default requirements if not set
-                      const requirements = parsedStoryState.adventureRequirements as any || {
-                        encounters: { combat: 3, trap: 2, treasure: 2 },
-                        puzzles: 2,
-                        discoveries: 3,
-                        subquests: 1
-                      };
-                      
-                      const combatDone = Math.min(progress.encounters?.combat || 0, requirements.encounters?.combat || 1);
-                      const trapDone = Math.min(progress.encounters?.trap || 0, requirements.encounters?.trap || 1);
-                      const treasureDone = Math.min(progress.encounters?.treasure || 0, requirements.encounters?.treasure || 1);
-                      const puzzlesDone = Math.min(progress.puzzles || 0, requirements.puzzles || 1);
-                      const discoveriesDone = Math.min(progress.discoveries || 0, requirements.discoveries || 1);
-                      const subquestsDone = Math.min(progress.subquestsCompleted || 0, requirements.subquests || 1);
-                      
-                      const totalDone = combatDone + trapDone + treasureDone + puzzlesDone + discoveriesDone + subquestsDone;
-                      const totalRequired = (requirements.encounters?.combat || 0) + (requirements.encounters?.trap || 0) + 
-                                           (requirements.encounters?.treasure || 0) + (requirements.puzzles || 0) + 
-                                           (requirements.discoveries || 0) + (requirements.subquests || 0);
-                      
-                      const percentComplete = totalRequired > 0 ? Math.floor((totalDone / totalRequired) * 100) : 0;
-                      const isComplete = percentComplete >= 100;
-                      
-                      return (
-                        <div className="bg-slate-100 dark:bg-slate-900/50 rounded-md border border-slate-200 dark:border-slate-700 mb-3 overflow-hidden">
-                          <button
-                            onClick={() => setIsProgressCollapsed(!isProgressCollapsed)}
-                            className="w-full p-2 flex items-center justify-between hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors"
-                          >
-                            <h4 className="font-semibold text-slate-700 dark:text-slate-300 flex items-center text-sm">
-                              <Target className="h-4 w-4 mr-2 text-indigo-600 dark:text-indigo-400" />
-                              Adventure Progress
-                              <span className="ml-2 text-xs font-normal opacity-70">
-                                ({percentComplete}%)
-                              </span>
-                              {isComplete && (
-                                <Badge className="ml-2 bg-green-600 text-white text-xs">Complete!</Badge>
-                              )}
-                            </h4>
-                            {isProgressCollapsed ? (
-                              <ChevronDown className="h-4 w-4 text-slate-500" />
-                            ) : (
-                              <ChevronUp className="h-4 w-4 text-slate-500" />
-                            )}
-                          </button>
-                          
-                          {!isProgressCollapsed && (
-                            <div className="p-3 pt-0">
-                              <div className="mb-3">
-                                <div className="h-2 bg-slate-300 dark:bg-slate-700 rounded-full overflow-hidden">
-                                  <div 
-                                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
-                                    style={{ width: `${percentComplete}%` }}
-                                  />
-                                </div>
-                              </div>
-                              
-                              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 text-xs">
-                                <div className="bg-red-600 dark:bg-red-700 p-1.5 rounded text-center">
-                                  <div className="font-bold text-white">
-                                    {progress.encounters?.combat || 0}/{requirements.encounters?.combat || 0}
-                                  </div>
-                                  <div className="text-red-100 text-[10px]">Combat</div>
-                                </div>
-                                <div className="bg-orange-600 dark:bg-orange-700 p-1.5 rounded text-center">
-                                  <div className="font-bold text-white">
-                                    {progress.encounters?.trap || 0}/{requirements.encounters?.trap || 0}
-                                  </div>
-                                  <div className="text-orange-100 text-[10px]">Traps</div>
-                                </div>
-                                <div className="bg-amber-500 dark:bg-amber-600 p-1.5 rounded text-center">
-                                  <div className="font-bold text-white">
-                                    {progress.encounters?.treasure || 0}/{requirements.encounters?.treasure || 0}
-                                  </div>
-                                  <div className="text-amber-100 text-[10px]">Treasure</div>
-                                </div>
-                                <div className="bg-sky-600 dark:bg-sky-700 p-1.5 rounded text-center">
-                                  <div className="font-bold text-white">
-                                    {progress.discoveries || 0}/{requirements.discoveries || 0}
-                                  </div>
-                                  <div className="text-sky-100 text-[10px]">Discoveries</div>
-                                </div>
-                                <div className="bg-violet-600 dark:bg-violet-700 p-1.5 rounded text-center">
-                                  <div className="font-bold text-white">
-                                    {progress.puzzles || 0}/{requirements.puzzles || 0}
-                                  </div>
-                                  <div className="text-violet-100 text-[10px]">Puzzles</div>
-                                </div>
-                                <div className="bg-emerald-600 dark:bg-emerald-700 p-1.5 rounded text-center">
-                                  <div className="font-bold text-white">
-                                    {progress.subquestsCompleted || 0}/{requirements.subquests || 0}
-                                  </div>
-                                  <div className="text-emerald-100 text-[10px]">Subquests</div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                    
-                    {/* Adventure Objectives - Collapsible to keep focus on narrative */}
-                    {parsedStoryState?.activeQuests && 
-                     (parsedStoryState.activeQuests as any[]).length > 0 && (
-                      <div className="bg-amber-50 dark:bg-amber-950/30 rounded-md border border-amber-200 dark:border-amber-800 mb-4 overflow-hidden">
-                        <button
-                          onClick={() => setIsObjectivesCollapsed(!isObjectivesCollapsed)}
-                          className="w-full p-3 flex items-center justify-between hover:bg-amber-100/50 dark:hover:bg-amber-900/30 transition-colors"
-                        >
-                          <h4 className="font-semibold flex items-center text-sm" style={{ color: '#92400e' }}>
-                            <Target className="h-4 w-4 mr-2" />
-                            Adventure Objectives
-                            <span className="ml-2 text-xs font-normal opacity-70">
-                              ({(parsedStoryState.activeQuests as any[]).filter((q: any) => q.status !== 'completed').length} active)
-                            </span>
-                          </h4>
-                          {isObjectivesCollapsed ? (
-                            <ChevronDown className="h-4 w-4 text-amber-600" />
-                          ) : (
-                            <ChevronUp className="h-4 w-4 text-amber-600" />
-                          )}
-                        </button>
-                        
-                        {!isObjectivesCollapsed && (
-                          <div className="px-4 pb-4">
-                            <p className="text-xs mb-3" style={{ color: '#92400e' }}>
-                              Complete these objectives through your actions to progress the story
-                            </p>
-                            <div className="space-y-2">
-                              {(parsedStoryState.activeQuests as any[]).map((quest: any, index: number) => (
-                                <div 
-                                  key={quest.id || index}
-                                  className={`flex items-start gap-2 p-2 rounded ${
-                                    quest.status === 'completed' 
-                                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200' 
-                                      : quest.status === 'in_progress'
-                                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
-                                      : 'bg-amber-100/50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-100'
-                                  }`}
-                                  data-testid={`objective-${index}`}
-                                >
-                                  <span className="text-lg">
-                                    {quest.status === 'completed' ? '✓' : quest.status === 'in_progress' ? '→' : '○'}
-                                  </span>
-                                  <div className="flex-1">
-                                    <p className="font-medium text-sm">{quest.title}</p>
-                                    <p className="text-xs opacity-80">{quest.description}</p>
-                                    {quest.xpReward && quest.status !== 'completed' && (
-                                      <div className="flex items-center gap-2 mt-1 text-xs font-bold" style={{ color: '#7c2d12' }}>
-                                        <Sparkles className="h-3 w-3" />
-                                        {quest.xpReward} XP on completion
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    
                     {/* Combat Status Display */}
                     {parsedStoryState?.inCombat && (
                       <div className="bg-red-50 dark:bg-red-950/30 p-4 rounded-md border-2 border-red-400 dark:border-red-700 mb-4">
@@ -4187,6 +4021,170 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </div>
                       </div>
                     ) : null}
+                    
+                    {/* Adventure Progress Display - Collapsible, moved below choices for better flow */}
+                    {parsedStoryState?.adventureProgress && (() => {
+                      const progress = parsedStoryState.adventureProgress as any;
+                      const requirements = parsedStoryState.adventureRequirements as any || {
+                        encounters: { combat: 3, trap: 2, treasure: 2 },
+                        puzzles: 2,
+                        discoveries: 3,
+                        subquests: 1
+                      };
+                      
+                      const combatDone = Math.min(progress.encounters?.combat || 0, requirements.encounters?.combat || 1);
+                      const trapDone = Math.min(progress.encounters?.trap || 0, requirements.encounters?.trap || 1);
+                      const treasureDone = Math.min(progress.encounters?.treasure || 0, requirements.encounters?.treasure || 1);
+                      const puzzlesDone = Math.min(progress.puzzles || 0, requirements.puzzles || 1);
+                      const discoveriesDone = Math.min(progress.discoveries || 0, requirements.discoveries || 1);
+                      const subquestsDone = Math.min(progress.subquestsCompleted || 0, requirements.subquests || 1);
+                      
+                      const totalDone = combatDone + trapDone + treasureDone + puzzlesDone + discoveriesDone + subquestsDone;
+                      const totalRequired = (requirements.encounters?.combat || 0) + (requirements.encounters?.trap || 0) + 
+                                           (requirements.encounters?.treasure || 0) + (requirements.puzzles || 0) + 
+                                           (requirements.discoveries || 0) + (requirements.subquests || 0);
+                      
+                      const percentComplete = totalRequired > 0 ? Math.floor((totalDone / totalRequired) * 100) : 0;
+                      const isComplete = percentComplete >= 100;
+                      
+                      return (
+                        <div className="mt-6 bg-slate-100 dark:bg-slate-900/50 rounded-md border border-slate-200 dark:border-slate-700 overflow-hidden">
+                          <button
+                            onClick={() => setIsProgressCollapsed(!isProgressCollapsed)}
+                            className="w-full p-2 flex items-center justify-between hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors"
+                          >
+                            <h4 className="font-semibold text-slate-700 dark:text-slate-300 flex items-center text-sm">
+                              <Target className="h-4 w-4 mr-2 text-indigo-600 dark:text-indigo-400" />
+                              Adventure Progress
+                              <span className="ml-2 text-xs font-normal opacity-70">
+                                ({percentComplete}%)
+                              </span>
+                              {isComplete && (
+                                <Badge className="ml-2 bg-green-600 text-white text-xs">Complete!</Badge>
+                              )}
+                            </h4>
+                            {isProgressCollapsed ? (
+                              <ChevronDown className="h-4 w-4 text-slate-500" />
+                            ) : (
+                              <ChevronUp className="h-4 w-4 text-slate-500" />
+                            )}
+                          </button>
+                          
+                          {!isProgressCollapsed && (
+                            <div className="p-3 pt-0">
+                              <div className="mb-3">
+                                <div className="h-2 bg-slate-300 dark:bg-slate-700 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
+                                    style={{ width: `${percentComplete}%` }}
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 text-xs">
+                                <div className="bg-red-600 dark:bg-red-700 p-1.5 rounded text-center">
+                                  <div className="font-bold text-white">
+                                    {progress.encounters?.combat || 0}/{requirements.encounters?.combat || 0}
+                                  </div>
+                                  <div className="text-red-100 text-[10px]">Combat</div>
+                                </div>
+                                <div className="bg-orange-600 dark:bg-orange-700 p-1.5 rounded text-center">
+                                  <div className="font-bold text-white">
+                                    {progress.encounters?.trap || 0}/{requirements.encounters?.trap || 0}
+                                  </div>
+                                  <div className="text-orange-100 text-[10px]">Traps</div>
+                                </div>
+                                <div className="bg-amber-500 dark:bg-amber-600 p-1.5 rounded text-center">
+                                  <div className="font-bold text-white">
+                                    {progress.encounters?.treasure || 0}/{requirements.encounters?.treasure || 0}
+                                  </div>
+                                  <div className="text-amber-100 text-[10px]">Treasure</div>
+                                </div>
+                                <div className="bg-sky-600 dark:bg-sky-700 p-1.5 rounded text-center">
+                                  <div className="font-bold text-white">
+                                    {progress.discoveries || 0}/{requirements.discoveries || 0}
+                                  </div>
+                                  <div className="text-sky-100 text-[10px]">Discoveries</div>
+                                </div>
+                                <div className="bg-violet-600 dark:bg-violet-700 p-1.5 rounded text-center">
+                                  <div className="font-bold text-white">
+                                    {progress.puzzles || 0}/{requirements.puzzles || 0}
+                                  </div>
+                                  <div className="text-violet-100 text-[10px]">Puzzles</div>
+                                </div>
+                                <div className="bg-emerald-600 dark:bg-emerald-700 p-1.5 rounded text-center">
+                                  <div className="font-bold text-white">
+                                    {progress.subquestsCompleted || 0}/{requirements.subquests || 0}
+                                  </div>
+                                  <div className="text-emerald-100 text-[10px]">Subquests</div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    
+                    {/* Adventure Objectives - Collapsible, moved below choices */}
+                    {parsedStoryState?.activeQuests && 
+                     (parsedStoryState.activeQuests as any[]).length > 0 && (
+                      <div className="mt-3 bg-amber-50 dark:bg-amber-950/30 rounded-md border border-amber-200 dark:border-amber-800 overflow-hidden">
+                        <button
+                          onClick={() => setIsObjectivesCollapsed(!isObjectivesCollapsed)}
+                          className="w-full p-3 flex items-center justify-between hover:bg-amber-100/50 dark:hover:bg-amber-900/30 transition-colors"
+                        >
+                          <h4 className="font-semibold flex items-center text-sm" style={{ color: '#92400e' }}>
+                            <Target className="h-4 w-4 mr-2" />
+                            Adventure Objectives
+                            <span className="ml-2 text-xs font-normal opacity-70">
+                              ({(parsedStoryState.activeQuests as any[]).filter((q: any) => q.status !== 'completed').length} active)
+                            </span>
+                          </h4>
+                          {isObjectivesCollapsed ? (
+                            <ChevronDown className="h-4 w-4 text-amber-600" />
+                          ) : (
+                            <ChevronUp className="h-4 w-4 text-amber-600" />
+                          )}
+                        </button>
+                        
+                        {!isObjectivesCollapsed && (
+                          <div className="px-4 pb-4">
+                            <p className="text-xs mb-3" style={{ color: '#92400e' }}>
+                              Complete these objectives through your actions to progress the story
+                            </p>
+                            <div className="space-y-2">
+                              {(parsedStoryState.activeQuests as any[]).map((quest: any, index: number) => (
+                                <div 
+                                  key={quest.id || index}
+                                  className={`flex items-start gap-2 p-2 rounded ${
+                                    quest.status === 'completed' 
+                                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200' 
+                                      : quest.status === 'in_progress'
+                                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
+                                      : 'bg-amber-100/50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-100'
+                                  }`}
+                                  data-testid={`objective-${index}`}
+                                >
+                                  <span className="text-lg">
+                                    {quest.status === 'completed' ? '✓' : quest.status === 'in_progress' ? '→' : '○'}
+                                  </span>
+                                  <div className="flex-1">
+                                    <p className="font-medium text-sm">{quest.title}</p>
+                                    <p className="text-xs opacity-80">{quest.description}</p>
+                                    {quest.xpReward && quest.status !== 'completed' && (
+                                      <div className="flex items-center gap-2 mt-1 text-xs font-bold" style={{ color: '#7c2d12' }}>
+                                        <Sparkles className="h-3 w-3" />
+                                        {quest.xpReward} XP on completion
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     
                     {/* Table Chat - Available to all participants during live sessions */}
                     {currentSession && (
