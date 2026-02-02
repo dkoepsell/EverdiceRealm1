@@ -19,7 +19,8 @@ export type HintId =
   | 'spell_slots'
   | 'death_saves'
   | 'dm_controls'
-  | 'initiative_tracker';
+  | 'initiative_tracker'
+  | 'campaign_tabs_intro';
 
 interface HintContent {
   id: HintId;
@@ -124,6 +125,12 @@ const HINT_CONTENT: Record<HintId, HintContent> = {
     title: "Initiative & Turn Order",
     description: "During combat, initiative determines who acts first. Higher initiative = earlier turn in the round.",
     tip: "Plan your actions based on when enemies act - sometimes it's better to wait!"
+  },
+  campaign_tabs_intro: {
+    id: 'campaign_tabs_intro',
+    title: "Welcome to Your Adventure!",
+    description: "Use these tabs to navigate your campaign. The Narrative tab is where the story unfolds and you make choices. The Party tab lets you manage your character, items, and companions.",
+    tip: "Hover over any tab to see what it does. Start with Narrative to continue your adventure!"
   }
 };
 

@@ -72,12 +72,22 @@ export default function AuthPage() {
     },
   });
   
-  // If user is already logged in, redirect to dashboard
+  // Track if this is a new registration (to redirect to Hearth)
+  const isNewRegistration = registerMutation.isSuccess;
+  
+  // If user is already logged in, redirect appropriately
+  // New users go to Hearth for onboarding, returning users go to dashboard
   useEffect(() => {
     if (user) {
-      navigate("/");
+      if (isNewRegistration) {
+        // New users get directed to The Hearth to explore the community
+        navigate("/hearth");
+      } else {
+        // Returning users go to their dashboard
+        navigate("/");
+      }
     }
-  }, [user, navigate]);
+  }, [user, navigate, isNewRegistration]);
   
   // If the user is logged in, don't render the auth page
   if (user) {

@@ -2604,6 +2604,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       
       <Card className="border-2 border-accent-light bg-parchment drop-shadow-lg">
         <CardContent className="p-0">
+          {/* First-time tab tour banner */}
+          <ContextualHint hintId="campaign_tabs_intro" position="bottom" delay={800}>
+            <div className="sr-only">Campaign navigation tabs</div>
+          </ContextualHint>
+          
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className={`grid w-full ${isDM ? 'grid-cols-7' : 'grid-cols-6'} bg-slate-900 rounded-none border-b-2 border-amber-500 h-12`}>
               {/* NARRATIVE - Primary gameplay tab with visual emphasis */}
