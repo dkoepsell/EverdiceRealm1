@@ -50,6 +50,8 @@ import CampaignDashboard from "./CampaignDashboard";
 import TableChat from "@/components/dm-toolkit/TableChat";
 import CombatSpellPanel from "@/components/combat/CombatSpellPanel";
 import { LearningTip, useLearningTips } from "@/components/learning/LearningTip";
+import { ContextualHint } from "@/components/ui/contextual-hint";
+import { HowToPlayPanel } from "@/components/ui/how-to-play-panel";
 import type { DungeonMapData, MapEntity } from "../dungeon/DungeonMap";
 import { generateDungeon } from "../dungeon/DungeonGenerator";
 
@@ -3878,7 +3880,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     </div>
                     
                     {/* Group Vote Section - Multiplayer choice voting */}
-                    {dmSessionState?.groupChoiceStatus === 'pending' && dmSessionState?.activeGroupChoices?.length > 0 && (() => {
+                    {dmSessionState?.groupChoiceStatus === 'pending' && (dmSessionState?.activeGroupChoices?.length ?? 0) > 0 && (() => {
                       // Calculate time remaining
                       const expiresAt = dmSessionState.groupChoiceResolution?.voteExpiresAt;
                       let timeRemaining: string | null = null;
@@ -4370,19 +4372,21 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       <Users className="h-5 w-5 text-amber-600" />
                       Manage Party Member
                     </h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setStockCompanionsEnabled(true);
-                        setShowAddCompanionDialog(true);
-                      }}
-                      className="flex items-center gap-2"
-                      data-testid="button-add-companion"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add Companion
-                    </Button>
+                    <ContextualHint hintId="companion_benefits" position="left" delay={1000}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setStockCompanionsEnabled(true);
+                          setShowAddCompanionDialog(true);
+                        }}
+                        className="flex items-center gap-2"
+                        data-testid="button-add-companion"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Companion
+                      </Button>
+                    </ContextualHint>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {/* Character buttons - show ALL user's characters in the party */}
@@ -4502,10 +4506,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 {/* Rest & Recovery Section - Character Only */}
                 {selectedPartyMemberType === "character" && activeCharacter && (
                   <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
-                      <Heart className="h-5 w-5 text-red-500" />
-                      Rest & Recovery - {activeCharacter.name}
-                    </h3>
+                    <ContextualHint hintId="rest_mechanics" position="bottom" delay={1000}>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
+                        <Heart className="h-5 w-5 text-red-500" />
+                        Rest & Recovery - {activeCharacter.name}
+                      </h3>
+                    </ContextualHint>
                     
                     {/* Status Display */}
                     {activeCharacter.status && activeCharacter.status !== "conscious" && (
@@ -4634,10 +4640,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 {/* Inventory Management Section - Character */}
                 {selectedPartyMemberType === "character" && activeCharacter && (
                   <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
-                      <Backpack className="h-5 w-5 text-amber-600" />
-                      Inventory & Equipment - {activeCharacter.name}
-                    </h3>
+                    <ContextualHint hintId="inventory_usage" position="bottom" delay={1500}>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
+                        <Backpack className="h-5 w-5 text-amber-600" />
+                        Inventory & Equipment - {activeCharacter.name}
+                      </h3>
+                    </ContextualHint>
                     
                     {/* Equipment Slots */}
                     <div className="grid grid-cols-2 gap-3 mb-4">
@@ -5031,10 +5039,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 {/* Consumables Section - Character */}
                 {selectedPartyMemberType === "character" && activeCharacter && (
                   <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
-                      <FlaskConical className="h-5 w-5 text-purple-500" />
-                      Consumables - {activeCharacter.name}
-                    </h3>
+                    <ContextualHint hintId="consumables" position="bottom" delay={2000}>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
+                        <FlaskConical className="h-5 w-5 text-purple-500" />
+                        Consumables - {activeCharacter.name}
+                      </h3>
+                    </ContextualHint>
                     
                     {/* Current Consumables */}
                     <div className="space-y-2 mb-4">

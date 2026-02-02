@@ -16,9 +16,10 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
 import { getQueryFn, queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Bookmark, Calendar, History, User, Users, Activity, Star, Play, Sparkles, Sword, Shield, ScrollText, ChevronDown, ChevronUp, Heart, Zap, Package, Scroll, BookOpen } from "lucide-react";
+import { Bookmark, Calendar, History, User, Users, Activity, Star, Play, Sparkles, Sword, Shield, ScrollText, ChevronDown, ChevronUp, Heart, Zap, Package, Scroll, BookOpen, HelpCircle } from "lucide-react";
 import { ReturnVisitorPrompt } from "@/components/learning/ReturnVisitorPrompt";
 import { Badge } from "@/components/ui/badge";
+import { HowToPlayPanel } from "@/components/ui/how-to-play-panel";
 import parchmentFrame from "@assets/image_1768600727955.png";
 import creatorAvatar from "@assets/image_1769476073776.png";
 
@@ -1025,6 +1026,14 @@ export default function Dashboard() {
         <p className="text-center text-sm text-muted-foreground/70 italic">
           Most tables play weekly. Everything you set up here will be waiting when game night comes.
         </p>
+      </div>
+      
+      {/* How to Play floating button for new users */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <HowToPlayPanel
+          variant="button"
+          triggerClassName="shadow-lg bg-gradient-to-r from-amber-600 to-orange-600 text-white hover:from-amber-500 hover:to-orange-500 border-0"
+        />
       </div>
     </div>
   );
