@@ -285,9 +285,9 @@ export default function HearthPage() {
                 <h3 className="font-bold text-amber-200 mb-2">To continue your journey:</h3>
                 <ul className="text-sm text-amber-300/80 space-y-1">
                   <li>• Create a free account to save your progress</li>
-                  <li>• Build characters with real D&D stats</li>
-                  <li>• Play full campaigns with AI storytelling</li>
-                  <li>• Join or host multiplayer adventures</li>
+                  <li>• Build characters with full D&D 5e stats</li>
+                  <li>• Play full campaigns with dynamic storytelling</li>
+                  <li>• Join or host multiplayer adventures with friends</li>
                 </ul>
               </div>
               
