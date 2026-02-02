@@ -946,9 +946,11 @@ export default function Dashboard() {
                         onValueChange={(value) => setAsActiveAdventure(parseInt(value))}
                       >
                         <SelectTrigger className="w-auto border-amber-400 text-amber-700 dark:text-amber-300 bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-900/30">
-                          <BookOpen className="h-4 w-4 mr-2" />
-                          <span className="hidden sm:inline">Switch Adventure</span>
-                          <span className="sm:hidden">Switch</span>
+                          <div className="flex items-center gap-2">
+                            <BookOpen className="h-4 w-4" />
+                            <span className="hidden sm:inline">Switch Adventure</span>
+                            <span className="sm:hidden">Switch</span>
+                          </div>
                         </SelectTrigger>
                         <SelectContent>
                           {availableCampaigns.map((campaign) => (
