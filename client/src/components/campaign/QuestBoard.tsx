@@ -27,7 +27,8 @@ import {
   Trophy,
   Users,
   Map,
-  MessageSquare
+  MessageSquare,
+  Sparkles
 } from 'lucide-react';
 
 interface QuestBoardProps {
@@ -56,6 +57,8 @@ interface BoardQuest {
   acceptedByCharacterId?: number;
   acceptedByUserId?: number;
   acceptedAt?: string;
+  discoveredByAI?: boolean;
+  discoveryContext?: string;
 }
 
 const DIFFICULTY_COLORS: Record<string, string> = {
@@ -452,6 +455,12 @@ function QuestCard({ quest, isDM, isAccepted, isOwn, onAccept, onAbandon, onRemo
               {QUEST_TYPE_ICONS[quest.questType] || <Scroll className="h-4 w-4" />}
             </span>
             <CardTitle className="text-base">{quest.title}</CardTitle>
+            {quest.discoveredByAI && (
+              <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 text-xs px-1.5 py-0.5">
+                <Sparkles className="h-3 w-3 mr-1" />
+                Discovered
+              </Badge>
+            )}
           </div>
           <Badge className={DIFFICULTY_COLORS[quest.difficultyRating] || DIFFICULTY_COLORS.moderate}>
             {quest.difficultyRating}
@@ -460,6 +469,11 @@ function QuestCard({ quest, isDM, isAccepted, isOwn, onAccept, onAbandon, onRemo
         <CardDescription className="line-clamp-2 mt-1">
           {quest.description}
         </CardDescription>
+        {quest.discoveredByAI && quest.discoveryContext && (
+          <p className="text-xs text-purple-600 dark:text-purple-400 italic mt-1">
+            "{quest.discoveryContext}"
+          </p>
+        )}
       </CardHeader>
       <CardContent className="pb-2">
         <div className="flex flex-wrap gap-2 text-sm">

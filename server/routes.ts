@@ -4861,6 +4861,15 @@ Based on the player's action: "${cleanedPrompt}", generate the next part of the 
 2. A title for this scene/encounter
 3. Four possible actions the player can take next, with at least 2 actions requiring dice rolls (skill checks, saving throws, or combat rolls)
 
+SIDE QUEST DISCOVERY (OPTIONAL):
+About 20-25% of the time, when the scene naturally allows for it, include a discovered side quest opportunity. This works well when:
+- Players enter a new location (tavern, village, dungeon entrance)
+- NPCs are present who might need help
+- Exploration reveals hints of nearby trouble or treasure
+- The environment suggests something interesting nearby
+
+Side quests should be BRIEF (completable in 1-2 sessions), OPTIONAL (never blocking the main story), and THEMATICALLY APPROPRIATE to the current location/situation.
+
 Return your response as a JSON object with these fields:
 - narrative: The descriptive text of what happens next
 - sessionTitle: A short, engaging title for this scene
@@ -4876,6 +4885,14 @@ Return your response as a JSON object with these fields:
   - rollPurpose: A short explanation of what the roll is for (e.g., "Perception Check", "Persuasion Check", "Stealth Check")
   - successText: Brief text to display on a successful roll
   - failureText: Brief text to display on a failed roll
+- discoveredQuest: (OPTIONAL - include only when a side quest is naturally discovered) An object with:
+  - title: A compelling quest name (e.g., "The Missing Merchant", "Whispers in the Well")
+  - description: 2-3 sentences describing the quest objective
+  - discoveryContext: How it was discovered (e.g., "A frantic villager approaches", "A weathered notice on the tavern board")
+  - xpReward: XP reward (50-150 for easy, 100-200 for moderate, 150-300 for challenging)
+  - goldReward: Gold reward (10-50 for most side quests)
+  - difficultyRating: "easy", "moderate", or "challenging"
+  - estimatedDuration: "1 session" or "1-2 sessions"
 `;
 
       // Generate story directly using OpenAI
@@ -4928,7 +4945,42 @@ Return your response as a JSON object with these fields:
       // Update campaign's current session
       await storage.updateCampaignSession(parseInt(campaignId), sessionNumber);
       
-      res.status(201).json(session);
+      // Handle AI-discovered side quests
+      let discoveredQuest = null;
+      if (storyData.discoveredQuest) {
+        const questData = storyData.discoveredQuest;
+        try {
+          discoveredQuest = await storage.createCampaignQuest({
+            campaignId: parseInt(campaignId),
+            title: questData.title,
+            description: questData.description,
+            questType: "side",
+            status: "active",
+            xpReward: questData.xpReward || 100,
+            goldReward: questData.goldReward || 25,
+            difficultyRating: questData.difficultyRating || "moderate",
+            estimatedDuration: questData.estimatedDuration || "1 session",
+            isPostedToBoard: true,
+            postedAt: new Date().toISOString(),
+            discoveredByAI: true,
+            discoveryContext: questData.discoveryContext || "Discovered during adventure",
+            createdAt: new Date().toISOString(),
+          });
+          console.log(`AI discovered side quest: "${questData.title}" for campaign ${campaignId}`);
+        } catch (questError) {
+          console.error("Failed to create AI-discovered quest:", questError);
+          // Don't fail the whole request if quest creation fails
+        }
+      }
+      
+      res.status(201).json({ 
+        ...session, 
+        discoveredQuest: discoveredQuest ? {
+          id: discoveredQuest.id,
+          title: discoveredQuest.title,
+          discoveryContext: discoveredQuest.discoveryContext
+        } : null 
+      });
     } catch (error) {
       console.error("Error advancing story:", error);
       
