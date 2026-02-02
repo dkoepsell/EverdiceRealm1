@@ -2604,13 +2604,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       
       <Card className="border-2 border-accent-light bg-parchment drop-shadow-lg">
         <CardContent className="p-0">
-          {/* First-time tab tour banner */}
-          <ContextualHint hintId="campaign_tabs_intro" position="bottom" delay={800}>
-            <div className="sr-only">Campaign navigation tabs</div>
-          </ContextualHint>
-          
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className={`grid w-full ${isDM ? 'grid-cols-7' : 'grid-cols-6'} bg-slate-900 rounded-none border-b-2 border-amber-500 h-12`}>
+            {/* First-time tab tour wraps the tabs for proper positioning */}
+            <ContextualHint hintId="campaign_tabs_intro" position="bottom" delay={800}>
+              <TabsList className={`grid w-full ${isDM ? 'grid-cols-7' : 'grid-cols-6'} bg-slate-900 rounded-none border-b-2 border-amber-500 h-12`}>
               {/* NARRATIVE - Primary gameplay tab with visual emphasis */}
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -2728,7 +2725,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   <p className="text-xs text-muted-foreground">Get invite links to share with friends, manage who can join, and deploy your campaign for others to play.</p>
                 </TooltipContent>
               </Tooltip>
-            </TabsList>
+              </TabsList>
+            </ContextualHint>
             
             <TabsContent value="narrative" className="p-4 sm:p-6">
               <div className="space-y-4">
