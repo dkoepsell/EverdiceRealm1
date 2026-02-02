@@ -708,6 +708,15 @@ export const campaignQuests = pgTable("campaign_quests", {
   completedAt: text("completed_at"),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
   order: integer("order").default(0), // Display order
+  // Quest Board fields
+  isPostedToBoard: boolean("is_posted_to_board").default(false),
+  postedAt: text("posted_at"),
+  acceptedByCharacterId: integer("accepted_by_character_id"),
+  acceptedByUserId: integer("accepted_by_user_id"),
+  acceptedAt: text("accepted_at"),
+  difficultyRating: text("difficulty_rating").default("moderate"), // easy, moderate, challenging, deadly
+  estimatedDuration: text("estimated_duration"), // "1 session", "2-3 sessions", etc.
+  prerequisites: text("prerequisites"), // Any requirements to accept
 });
 
 export const insertCampaignQuestSchema = createInsertSchema(campaignQuests).omit({
