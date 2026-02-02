@@ -929,7 +929,7 @@ export default function Dashboard() {
                 </Card>
               ) : activeCampaign ? (
                 <div className="space-y-6">
-                  {/* Active Adventure Header - Compact */}
+                  {/* Active Adventure Header - Compact with dropdown */}
                   <div className="flex items-center justify-between bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 px-4 py-2 rounded-lg border border-amber-300 dark:border-amber-700">
                     <div className="flex items-center gap-3">
                       <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
@@ -941,12 +941,27 @@ export default function Dashboard() {
                       </div>
                     </div>
                     {availableCampaigns.length > 1 && (
-                      <Link href="/campaigns">
-                        <Button variant="outline" size="sm" className="border-amber-400 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30">
-                          <BookOpen className="h-4 w-4 mr-1" />
-                          Adventure Library
-                        </Button>
-                      </Link>
+                      <Select
+                        value={selectedCampaignId?.toString() || ''}
+                        onValueChange={(value) => setAsActiveAdventure(parseInt(value))}
+                      >
+                        <SelectTrigger className="w-auto border-amber-400 text-amber-700 dark:text-amber-300 bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-900/30">
+                          <BookOpen className="h-4 w-4 mr-2" />
+                          <span className="hidden sm:inline">Switch Adventure</span>
+                          <span className="sm:hidden">Switch</span>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableCampaigns.map((campaign) => (
+                            <SelectItem key={campaign.id} value={campaign.id.toString()}>
+                              <div className="flex items-center gap-2">
+                                {campaign.id === selectedCampaignId && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
+                                <span>{campaign.title}</span>
+                                <span className="text-xs text-muted-foreground">Ch. {campaign.currentSession}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     )}
                   </div>
                   <CampaignPanel campaign={activeCampaign} />
