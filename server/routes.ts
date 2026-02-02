@@ -4889,10 +4889,14 @@ Return your response as a JSON object with these fields:
   - title: A compelling quest name (e.g., "The Missing Merchant", "Whispers in the Well")
   - description: 2-3 sentences describing the quest objective
   - discoveryContext: How it was discovered (e.g., "A frantic villager approaches", "A weathered notice on the tavern board")
+  - objectives: An array of 2-4 objective objects, each with:
+    - text: A specific task to complete (e.g., "Find the missing merchant's trail", "Investigate the old well")
+    - completed: false (always start as incomplete)
   - xpReward: XP reward (50-150 for easy, 100-200 for moderate, 150-300 for challenging)
   - goldReward: Gold reward (10-50 for most side quests)
   - difficultyRating: "easy", "moderate", or "challenging"
   - estimatedDuration: "1 session" or "1-2 sessions"
+  - questGiver: (optional) Name of NPC who gives this quest if discovered through NPC interaction
 `;
 
       // Generate story directly using OpenAI
@@ -4945,17 +4949,26 @@ Return your response as a JSON object with these fields:
       // Update campaign's current session
       await storage.updateCampaignSession(parseInt(campaignId), sessionNumber);
       
-      // Handle AI-discovered side quests
+      // Handle AI-discovered side quests (CAML 2.0 compatible)
       let discoveredQuest = null;
       if (storyData.discoveredQuest) {
         const questData = storyData.discoveredQuest;
         try {
+          // Format objectives for CAML compatibility
+          const objectives = questData.objectives && Array.isArray(questData.objectives)
+            ? questData.objectives.map((obj: any) => ({
+                text: obj.text || obj.description || "Complete objective",
+                completed: false
+              }))
+            : [{ text: questData.description?.split('.')[0] || "Complete the quest", completed: false }];
+          
           discoveredQuest = await storage.createCampaignQuest({
             campaignId: parseInt(campaignId),
             title: questData.title,
             description: questData.description,
             questType: "side",
             status: "active",
+            objectives: objectives, // CAML-compatible objectives array
             xpReward: questData.xpReward || 100,
             goldReward: questData.goldReward || 25,
             difficultyRating: questData.difficultyRating || "moderate",
@@ -4964,9 +4977,10 @@ Return your response as a JSON object with these fields:
             postedAt: new Date().toISOString(),
             discoveredByAI: true,
             discoveryContext: questData.discoveryContext || "Discovered during adventure",
+            questGiver: questData.questGiver || null, // CAML role assignment support
             createdAt: new Date().toISOString(),
           });
-          console.log(`AI discovered side quest: "${questData.title}" for campaign ${campaignId}`);
+          console.log(`AI discovered side quest: "${questData.title}" for campaign ${campaignId} (CAML 2.0 compatible)`);
         } catch (questError) {
           console.error("Failed to create AI-discovered quest:", questError);
           // Don't fail the whole request if quest creation fails
