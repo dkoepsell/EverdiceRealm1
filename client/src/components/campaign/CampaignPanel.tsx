@@ -2857,7 +2857,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     {/* ===== CURRENT SCENE - The main story area with glowing pulsing border ===== */}
                     <ContextualHint hintId="narrative_choices" position="bottom" delay={1000}>
                       <div 
-                        className="relative bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-black dark:to-slate-900 p-6 rounded-xl shadow-2xl mb-6"
+                        className="relative bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-black dark:to-slate-900 p-6 rounded-xl shadow-2xl mb-6 overflow-hidden"
                         style={{
                           animation: 'narrativePulse 3s ease-in-out infinite',
                           boxShadow: '0 0 20px rgba(251, 191, 36, 0.4), 0 0 40px rgba(251, 191, 36, 0.2), inset 0 1px 0 rgba(255,255,255,0.1)',
@@ -2885,7 +2885,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             </p>
                           </div>
                         ) : (
-                          <p className="whitespace-pre-line text-lg sm:text-xl leading-relaxed text-slate-100 font-medium" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>
+                          <p className="whitespace-pre-line break-words text-lg sm:text-xl leading-relaxed text-slate-100 font-medium overflow-hidden" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)', wordBreak: 'break-word' }}>
                             {currentSession.narrative}
                           </p>
                         )}
@@ -2950,8 +2950,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   >
                                     <div className="flex items-start w-full">
                                       <ArrowRight className="h-5 w-5 mr-2 mt-0.5 shrink-0 text-amber-400" />
-                                      <div className="flex flex-col gap-1 flex-1">
-                                        <span className="text-slate-100 font-medium text-sm sm:text-base">
+                                      <div className="flex flex-col gap-1 flex-1 min-w-0">
+                                        <span className="text-slate-100 font-medium text-sm sm:text-base break-words whitespace-normal">
                                           {choiceText}
                                         </span>
                                         {hasRoll && dc && (
