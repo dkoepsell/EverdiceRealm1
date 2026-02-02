@@ -2609,7 +2609,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             {/* First-time tab tour wraps the tabs for proper positioning */}
             <ContextualHint hintId="campaign_tabs_intro" position="bottom" delay={800}>
-              <TabsList className={`grid w-full ${isDM ? 'grid-cols-7' : 'grid-cols-6'} bg-slate-900 rounded-none border-b-2 border-amber-500 h-12`}>
+              <TabsList className="flex w-full justify-center bg-slate-900 rounded-none border-b-2 border-amber-500 h-12">
               {/* NARRATIVE - Primary gameplay tab with visual emphasis */}
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -3370,12 +3370,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   }`}
                                 >
                                   <div className="flex justify-between items-center mb-1">
-                                    <span className={`font-bold text-sm ${
+                                    <span className={`font-bold text-sm truncate max-w-[120px] sm:max-w-none ${
                                       isUnconscious ? 'text-gray-500 dark:text-gray-400 line-through' :
                                       member.type === 'player' ? 'text-blue-800 dark:text-blue-200' : 'text-green-800 dark:text-green-200'
                                     }`}>
                                       {isUnconscious ? '💀 ' : member.type === 'player' ? '👤 ' : '🤝 '}{member.name}
-                                      {member.class && <span className="text-xs ml-1 opacity-70">({member.class})</span>}
+                                      {member.class && <span className="text-xs ml-1 opacity-70 hidden sm:inline">({member.class})</span>}
                                     </span>
                                     <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
                                       isUnconscious
