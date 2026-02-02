@@ -20,6 +20,7 @@ import { Bookmark, Calendar, History, User, Users, Activity, Star, Play, Sparkle
 import { ReturnVisitorPrompt } from "@/components/learning/ReturnVisitorPrompt";
 import { Badge } from "@/components/ui/badge";
 import { HowToPlayPanel } from "@/components/ui/how-to-play-panel";
+import { HearthReminder } from "@/components/HearthReminder";
 import parchmentFrame from "@assets/image_1768600727955.png";
 import creatorAvatar from "@assets/image_1769476073776.png";
 
@@ -1009,6 +1010,9 @@ export default function Dashboard() {
           triggerClassName="shadow-lg bg-gradient-to-r from-amber-600 to-orange-600 text-white hover:from-amber-500 hover:to-orange-500 border-0"
         />
       </div>
+      
+      {/* Hearth reminder popup */}
+      <HearthReminder />
     </div>
   );
 }
