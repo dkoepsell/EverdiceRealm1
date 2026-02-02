@@ -2851,6 +2851,128 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             {currentSession.narrative}
                           </p>
                         )}
+                        
+                        {/* Choices integrated directly after narrative for immediate access */}
+                        {!isAdvancingStory && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 && dmSessionState?.groupChoiceStatus !== 'pending' && (
+                          <div className="mt-6 pt-5 border-t border-amber-500/30">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="font-bold text-amber-300 flex items-center">
+                                <ArrowRight className="h-5 w-5 mr-2 animate-pulse" />
+                                What will you do?
+                              </h4>
+                              {currentTurnName && !isMyTurn && (
+                                <Badge variant="outline" className="text-amber-400 border-amber-500/50 bg-amber-900/30">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  {currentTurnName}'s turn
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            {currentTurnName && !isMyTurn && !isDM && (
+                              <div className="p-3 bg-amber-900/30 border border-amber-600/30 rounded-lg text-sm text-amber-200 mb-3">
+                                <p className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4" />
+                                  Waiting for {currentTurnName}'s turn to end. You can still use the table chat!
+                                </p>
+                              </div>
+                            )}
+                            
+                            <div className="grid grid-cols-1 gap-2">
+                              {currentSession.choices.map((choice: any, index: number) => {
+                                const choiceText = choice.action || choice.text || '';
+                                const dc = choice.rollDC || parseDCFromText(choiceText);
+                                const skillName = choice.skillType || choice.rollPurpose?.toLowerCase().replace(/\s+check/i, '') || 'strength';
+                                const hasRoll = choice.requiresRoll || choice.requiresDiceRoll || dc;
+                                const actionDisabled = !isDM && !!currentTurnName && !isMyTurn;
+                                
+                                let tooltipContent = null;
+                                if (hasRoll && activeCharacter && dc) {
+                                  const { modifier, breakdown } = getSkillModifier(activeCharacter, skillName);
+                                  const probability = calculateSuccessProbability(dc, modifier);
+                                  const likelihood = getLikelihoodDescription(probability);
+                                  tooltipContent = (
+                                    <div className="text-sm space-y-1 p-1">
+                                      <div className="font-bold text-white">DC {dc} {skillName.charAt(0).toUpperCase() + skillName.slice(1)} Check</div>
+                                      <div className="text-gray-300">Your modifier: {breakdown}</div>
+                                      <div className={`font-semibold ${likelihood.color}`}>
+                                        Success chance: {Math.round(probability)}% ({likelihood.text})
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                
+                                const button = (
+                                  <Button 
+                                    key={index}
+                                    variant="outline"
+                                    className={`justify-start h-auto py-3 px-4 bg-slate-800/80 border-2 border-amber-600/40 text-left w-full hover:bg-slate-700 hover:border-amber-500 ${actionDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    onClick={() => !actionDisabled && handleChoiceSelection(choice)}
+                                    disabled={actionDisabled}
+                                    data-testid={`choice-button-${index}`}
+                                  >
+                                    <div className="flex items-start w-full">
+                                      <ArrowRight className="h-5 w-5 mr-2 mt-0.5 shrink-0 text-amber-400" />
+                                      <div className="flex flex-col gap-1 flex-1">
+                                        <span className="text-slate-100 font-medium text-sm sm:text-base">
+                                          {choiceText}
+                                        </span>
+                                        {hasRoll && dc && (
+                                          <div className="flex items-center gap-1">
+                                            <span className="text-xs bg-amber-600 text-white px-2 py-0.5 rounded font-bold">
+                                              {choice.rollPurpose && choice.rollPurpose !== "null" ? choice.rollPurpose : "Skill Check"} (d20)
+                                            </span>
+                                            {activeCharacter && dc > 0 && (
+                                              <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${getLikelihoodDescription(calculateSuccessProbability(dc, getSkillModifier(activeCharacter, skillName).modifier)).color} bg-black/30`}>
+                                                {Math.round(calculateSuccessProbability(dc, getSkillModifier(activeCharacter, skillName).modifier))}%
+                                              </span>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </Button>
+                                );
+                                
+                                if (tooltipContent) {
+                                  return (
+                                    <Tooltip key={index}>
+                                      <TooltipTrigger asChild>{button}</TooltipTrigger>
+                                      <TooltipContent side="top" className="bg-gray-900 border-gray-700 max-w-xs z-50">
+                                        {tooltipContent}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  );
+                                }
+                                return button;
+                              })}
+                            </div>
+                            
+                            {/* Custom Action */}
+                            <div className="mt-3 p-3 bg-slate-800/50 rounded-lg border border-slate-600/50">
+                              <h5 className="font-medium text-sm text-slate-300 mb-2">Or describe your own action:</h5>
+                              <div className="flex gap-2">
+                                <Input
+                                  placeholder="e.g., 'Search for hidden symbols'"
+                                  value={customAction}
+                                  onChange={(e) => setCustomAction(e.target.value)}
+                                  className="flex-1 bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
+                                  onKeyPress={(e) => {
+                                    if (e.key === 'Enter' && customAction.trim()) {
+                                      handleCustomAction();
+                                    }
+                                  }}
+                                />
+                                <Button 
+                                  onClick={handleCustomAction}
+                                  disabled={!customAction.trim() || isAdvancingStory || (!isDM && !!currentTurnName && !isMyTurn)}
+                                  className="shrink-0 bg-amber-600 hover:bg-amber-500"
+                                >
+                                  <ArrowRight className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </ContextualHint>
                     
@@ -3882,146 +4004,6 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </div>
                     )}
 
-                    {/* Action choices */}
-                    {!isAdvancingStory && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 && dmSessionState?.groupChoiceStatus !== 'pending' ? (
-                      <div className="mt-6 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-semibold" style={{ color: '#1e293b' }}>What will you do?</h4>
-                          {currentTurnName && !isMyTurn && (
-                            <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
-                              <Clock className="h-3 w-3 mr-1" />
-                              {currentTurnName}'s turn
-                            </Badge>
-                          )}
-                        </div>
-                        
-                        {/* Turn restriction notice */}
-                        {currentTurnName && !isMyTurn && !isDM && (
-                          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-                            <p className="flex items-center gap-2">
-                              <Clock className="h-4 w-4" />
-                              Waiting for {currentTurnName}'s turn to end. You can still use the table chat!
-                            </p>
-                          </div>
-                        )}
-                        
-                        {/* Suggested Actions */}
-                        <div className="grid grid-cols-1 gap-2 max-w-full overflow-hidden">
-                          {currentSession.choices.map((choice: any, index: number) => {
-                            // Parse DC and calculate success probability
-                            const choiceText = choice.action || choice.text || '';
-                            const dc = choice.rollDC || parseDCFromText(choiceText);
-                            const skillName = choice.skillType || choice.rollPurpose?.toLowerCase().replace(/\s+check/i, '') || 'strength';
-                            const hasRoll = choice.requiresRoll || choice.requiresDiceRoll || dc;
-                            
-                            // Get modifier and probability if we have a character and a roll is required
-                            let tooltipContent = null;
-                            if (hasRoll && activeCharacter && dc) {
-                              const { modifier, breakdown } = getSkillModifier(activeCharacter, skillName);
-                              const probability = calculateSuccessProbability(dc, modifier);
-                              const likelihood = getLikelihoodDescription(probability);
-                              
-                              tooltipContent = (
-                                <div className="text-sm space-y-1 p-1">
-                                  <div className="font-bold text-white">DC {dc} {skillName.charAt(0).toUpperCase() + skillName.slice(1)} Check</div>
-                                  <div className="text-gray-300">Your modifier: {breakdown}</div>
-                                  <div className={`font-semibold ${likelihood.color}`}>
-                                    Success chance: {Math.round(probability)}% ({likelihood.text})
-                                  </div>
-                                  <div className="text-xs text-gray-400 mt-1">
-                                    Need to roll {Math.max(1, dc - getSkillModifier(activeCharacter, skillName).modifier)}+ on d20
-                                  </div>
-                                </div>
-                              );
-                            }
-                            
-                            const actionDisabled = !isDM && !!currentTurnName && !isMyTurn;
-                            
-                            const button = (
-                              <Button 
-                                key={index}
-                                variant="outline"
-                                className={`justify-start h-auto py-3 px-3 sm:px-4 bg-background border-2 text-left w-full max-w-full overflow-hidden ${actionDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-accent border-border hover:border-primary'}`}
-                                onClick={() => !actionDisabled && handleChoiceSelection(choice)}
-                                disabled={actionDisabled}
-                                data-testid={`choice-button-${index}`}
-                              >
-                                <div className="flex items-start w-full min-w-0 overflow-hidden">
-                                  <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 mr-2 mt-0.5 shrink-0 text-primary" />
-                                  <div className="flex flex-col gap-1 min-w-0 flex-1 overflow-hidden">
-                                    <span className="text-slate-900 dark:text-slate-100 font-medium text-sm sm:text-base break-words whitespace-normal overflow-wrap-anywhere">
-                                      {choiceText}
-                                    </span>
-                                    {hasRoll && dc && (
-                                      <div className="flex flex-wrap items-center gap-1">
-                                        <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded font-bold">
-                                          {choice.rollPurpose && choice.rollPurpose !== "null" ? choice.rollPurpose : "Skill Check"} ({choice.diceType && choice.diceType !== "null" ? choice.diceType : "d20"})
-                                        </span>
-                                        {tooltipContent && activeCharacter && dc > 0 && (
-                                          <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${getLikelihoodDescription(calculateSuccessProbability(dc, getSkillModifier(activeCharacter, skillName).modifier)).color} bg-black/20`}>
-                                            {(() => {
-                                              const prob = calculateSuccessProbability(dc, getSkillModifier(activeCharacter, skillName).modifier);
-                                              return isNaN(prob) ? "~50" : Math.round(prob);
-                                            })()}%
-                                          </span>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </Button>
-                            );
-                            
-                            // Wrap with tooltip if we have content
-                            if (tooltipContent) {
-                              return (
-                                <Tooltip key={index}>
-                                  <TooltipTrigger asChild>
-                                    {button}
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" align="center" sideOffset={5} className="bg-gray-900 border-gray-700 max-w-xs z-50" data-testid={`tooltip-choice-${index}`}>
-                                    {tooltipContent}
-                                  </TooltipContent>
-                                </Tooltip>
-                              );
-                            }
-                            
-                            return button;
-                          })}
-                        </div>
-                        
-                        {/* Custom Action Input */}
-                        <div className="mt-4 p-4 bg-white dark:bg-slate-800/50 rounded-lg border border-border">
-                          <div className="space-y-3">
-                            <h5 className="font-medium text-sm text-slate-900 dark:text-slate-100">Or describe your own action:</h5>
-                            <div className="flex gap-2">
-                              <Input
-                                placeholder="e.g., 'Search the chapel thoroughly for hidden symbols' or 'Approach the children and ask what they saw'"
-                                value={customAction}
-                                onChange={(e) => setCustomAction(e.target.value)}
-                                className="flex-1"
-                                onKeyPress={(e) => {
-                                  if (e.key === 'Enter' && customAction.trim()) {
-                                    handleCustomAction();
-                                  }
-                                }}
-                              />
-                              <Button 
-                                onClick={handleCustomAction}
-                                disabled={!customAction.trim() || isAdvancingStory || (!isDM && !!currentTurnName && !isMyTurn)}
-                                className="shrink-0"
-                              >
-                                <ArrowRight className="h-4 w-4" />
-                              </Button>
-                            </div>
-                            <p className="text-xs text-slate-900 dark:text-slate-100/70">
-                              The AI will determine if your action needs a dice roll and what type.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ) : null}
-                    
                     {/* Adventure Progress Display - Collapsible, moved below choices for better flow */}
                     {parsedStoryState?.adventureProgress && (() => {
                       const progress = parsedStoryState.adventureProgress as any;
