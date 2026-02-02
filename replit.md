@@ -21,6 +21,8 @@ AI-powered features extend to campaign generation, dynamic narrative, character 
 
 Discord integration enables playing campaigns directly through Discord channels with slash commands for rolling dice, recaps, and status updates. A Campaign Dashboard provides DMs with AI-powered narrative insights. The Hearth system acts as a social hub for player interaction, while the Tavern system offers between-campaign activities like shopping, inventory management, and equipment repair.
 
+AI-Discovered Side Quests: The AI naturally discovers optional side quests during gameplay (~20-25% frequency) when players enter new locations, meet NPCs, or explore. These quests are brief (1-2 sessions), thematically appropriate, and auto-post to the Quest Board with a "Discovered" badge. All discovered quests include CAML 2.0 compatible objectives arrays and optional questGiver fields for proper state fact conversion and role assignments.
+
 CAML 2.0 (Canonical Adventure Markup Language) integration provides a robust ontological framework for adventures, supporting various entity types and state transitions, with backward compatibility and export options. The Scene Schema v2 ensures varied gameplay by preventing consecutive combat encounters and enforcing diverse scene types (Combat, Exploration, Social, Puzzle, Discovery, Travel, Downtime) and resolution modes. RPG systems include automatic XP and skill progression, D&D combat mechanics with HP and status tracking, rest mechanics, inventory management, death saving throws, and a structured quest system. A comprehensive Spell Book System integrates D&D 5e spellcasting for all spellcaster classes, including spell learning, preparation, slot tracking, and detailed spell information.
 
 ### Campaign Completion System
