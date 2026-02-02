@@ -33,7 +33,7 @@ const HINT_CONTENT: Record<HintId, HintContent> = {
   narrative_choices: {
     id: 'narrative_choices',
     title: "Making Choices",
-    description: "Click any of the options below to take that action. Each choice leads to a different outcome in your adventure!",
+    description: "Click any of the options above to take that action. Each choice leads to a different outcome in your adventure!",
     tip: "There's no wrong choice - pick what feels right for your character."
   },
   free_text_action: {
