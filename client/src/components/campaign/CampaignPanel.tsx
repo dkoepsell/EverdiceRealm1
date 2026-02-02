@@ -2610,7 +2610,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             {/* First-time tab tour wraps the tabs for proper positioning */}
             <ContextualHint hintId="campaign_tabs_intro" position="bottom" delay={800}>
-              <TabsList className="flex w-full bg-slate-900 rounded-none border-b-2 border-amber-500 h-12">
+              <TabsList className={`grid w-full bg-slate-900 rounded-none border-b-2 border-amber-500 h-12 ${isDM ? 'grid-cols-8' : 'grid-cols-7'}`}>
               {/* NARRATIVE - Primary gameplay tab with visual emphasis */}
               <Tooltip>
                 <TooltipTrigger asChild>
