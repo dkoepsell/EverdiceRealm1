@@ -928,52 +928,26 @@ export default function Dashboard() {
                 </Card>
               ) : activeCampaign ? (
                 <div className="space-y-6">
-                  {/* Active Adventure Header */}
-                  <Card className="border-2 border-amber-500/50">
-                    <CardHeader className="pb-3 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
-                          <CardTitle className="text-lg font-fantasy">Active Adventure</CardTitle>
-                          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/50 dark:text-amber-200 dark:border-amber-700">
-                            <Play className="h-3 w-3 mr-1" /> Playing
-                          </Badge>
-                        </div>
+                  {/* Active Adventure Header - Compact */}
+                  <div className="flex items-center justify-between bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 px-4 py-2 rounded-lg border border-amber-300 dark:border-amber-700">
+                    <div className="flex items-center gap-3">
+                      <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 dark:text-slate-100">{activeCampaign.title}</span>
+                        <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/50 dark:text-amber-200 dark:border-amber-700 text-xs">
+                          Ch. {activeCampaign.currentSession}
+                        </Badge>
                       </div>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                      {availableCampaigns.length > 1 ? (
-                        <div className="space-y-3">
-                          <p className="text-sm text-muted-foreground">Choose which campaign to play:</p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {availableCampaigns.map((campaign) => (
-                              <Button
-                                key={campaign.id}
-                                variant={selectedCampaignId === campaign.id ? "default" : "outline"}
-                                className={`justify-start h-auto py-3 px-4 ${selectedCampaignId === campaign.id ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''}`}
-                                onClick={() => setAsActiveAdventure(campaign.id)}
-                                data-testid={`button-set-active-${campaign.id}`}
-                              >
-                                <div className="flex items-center gap-2 w-full">
-                                  {selectedCampaignId === campaign.id && <Star className="h-4 w-4 fill-current" />}
-                                  <div className="text-left">
-                                    <div className="font-medium">{campaign.title}</div>
-                                    <div className="text-xs opacity-80">Session {campaign.currentSession}</div>
-                                  </div>
-                                </div>
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                          <span className="font-medium">{activeCampaign.title}</span>
-                          <Badge variant="secondary">Session {activeCampaign.currentSession}</Badge>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                    </div>
+                    {availableCampaigns.length > 1 && (
+                      <Link href="/campaigns">
+                        <Button variant="outline" size="sm" className="border-amber-400 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30">
+                          <BookOpen className="h-4 w-4 mr-1" />
+                          Adventure Library
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
                   <CampaignPanel campaign={activeCampaign} />
                 </div>
               ) : (
