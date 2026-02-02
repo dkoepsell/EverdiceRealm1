@@ -217,7 +217,7 @@ export function ContextualHint({
   };
 
   return (
-    <div className="relative inline-block">
+    <div className="relative w-full">
       {children}
       <AnimatePresence>
         {isVisible && hint && (
