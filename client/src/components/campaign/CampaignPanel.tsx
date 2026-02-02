@@ -266,6 +266,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [isGeneratingMap, setIsGeneratingMap] = useState(false);
   const [isMapCollapsed, setIsMapCollapsed] = useState(false);
   const [isObjectivesCollapsed, setIsObjectivesCollapsed] = useState(true); // Collapsed by default to prioritize narrative
+  const [isProgressCollapsed, setIsProgressCollapsed] = useState(true); // Collapsed by default to prioritize narrative
   const [isMapExpanded, setIsMapExpanded] = useState(false);
   const [chapterProgress, setChapterProgress] = useState<{
     combat: { done: number; required: number; complete: boolean };
@@ -2815,24 +2816,38 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 {/* Current Session */}
                 {currentSession && !parsedStoryState?.adventureEnded ? (
                   <div className="mt-6 space-y-4">
-                    {/* ===== CURRENT SCENE - The main story area (moved to top for visibility) ===== */}
+                    {/* ===== CURRENT SCENE - The main story area with glowing pulsing border ===== */}
                     <ContextualHint hintId="narrative_choices" position="bottom" delay={1000}>
-                      <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-black dark:to-slate-900 p-5 rounded-xl border-2 border-amber-500/50 shadow-lg mb-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Sparkles className="h-5 w-5 text-amber-400" />
-                          <h3 className="text-lg font-bold text-amber-400 tracking-wide">Current Scene</h3>
+                      <div 
+                        className="relative bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-black dark:to-slate-900 p-6 rounded-xl shadow-2xl mb-6"
+                        style={{
+                          animation: 'narrativePulse 3s ease-in-out infinite',
+                          boxShadow: '0 0 20px rgba(251, 191, 36, 0.4), 0 0 40px rgba(251, 191, 36, 0.2), inset 0 1px 0 rgba(255,255,255,0.1)',
+                          border: '3px solid',
+                          borderImage: 'linear-gradient(135deg, #f59e0b, #fbbf24, #f59e0b) 1'
+                        }}
+                      >
+                        <style>{`
+                          @keyframes narrativePulse {
+                            0%, 100% { box-shadow: 0 0 20px rgba(251, 191, 36, 0.4), 0 0 40px rgba(251, 191, 36, 0.2); }
+                            50% { box-shadow: 0 0 30px rgba(251, 191, 36, 0.6), 0 0 60px rgba(251, 191, 36, 0.3); }
+                          }
+                        `}</style>
+                        <div className="flex items-center gap-2 mb-4">
+                          <Sparkles className="h-6 w-6 text-amber-400 animate-pulse" />
+                          <h3 className="text-xl font-bold text-amber-400 tracking-wide">Current Scene</h3>
                           <div className="flex-1 h-px bg-gradient-to-r from-amber-500/50 to-transparent ml-2" />
                         </div>
                         
                         {isAdvancingStory ? (
-                          <div className="flex flex-col items-center justify-center py-8">
-                            <div className="animate-spin h-10 w-10 rounded-full border-4 border-amber-400 border-t-transparent"></div>
-                            <p className="mt-3 text-center font-medium text-amber-300">
+                          <div className="flex flex-col items-center justify-center py-10">
+                            <div className="animate-spin h-12 w-12 rounded-full border-4 border-amber-400 border-t-transparent"></div>
+                            <p className="mt-4 text-center font-medium text-amber-300 text-lg">
                               Adventure continues...
                             </p>
                           </div>
                         ) : (
-                          <p className="whitespace-pre-line text-base sm:text-lg leading-relaxed text-slate-100 font-medium" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                          <p className="whitespace-pre-line text-lg sm:text-xl leading-relaxed text-slate-100 font-medium" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>
                             {currentSession.narrative}
                           </p>
                         )}
@@ -3156,7 +3171,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </div>
                     </div>
                     
-                    {/* Adventure Progress Display */}
+                    {/* Adventure Progress Display - Collapsible to prioritize narrative */}
                     {parsedStoryState?.adventureProgress && (() => {
                       // Calculate progress percentage locally for reliability
                       const progress = parsedStoryState.adventureProgress as any;
@@ -3184,69 +3199,79 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       const isComplete = percentComplete >= 100;
                       
                       return (
-                        <div className="bg-slate-100 dark:bg-slate-900/50 p-4 rounded-md border-2 border-slate-300 dark:border-slate-700 mb-4 shadow-sm">
-                          <h4 className="font-bold text-slate-900 dark:text-slate-100 flex items-center mb-3 text-base">
-                            <Target className="h-5 w-5 mr-2 text-indigo-600 dark:text-indigo-400" />
-                            Adventure Progress
-                            {isComplete && (
-                              <Badge className="ml-2 bg-green-600 text-white">Complete!</Badge>
+                        <div className="bg-slate-100 dark:bg-slate-900/50 rounded-md border border-slate-200 dark:border-slate-700 mb-3 overflow-hidden">
+                          <button
+                            onClick={() => setIsProgressCollapsed(!isProgressCollapsed)}
+                            className="w-full p-2 flex items-center justify-between hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors"
+                          >
+                            <h4 className="font-semibold text-slate-700 dark:text-slate-300 flex items-center text-sm">
+                              <Target className="h-4 w-4 mr-2 text-indigo-600 dark:text-indigo-400" />
+                              Adventure Progress
+                              <span className="ml-2 text-xs font-normal opacity-70">
+                                ({percentComplete}%)
+                              </span>
+                              {isComplete && (
+                                <Badge className="ml-2 bg-green-600 text-white text-xs">Complete!</Badge>
+                              )}
+                            </h4>
+                            {isProgressCollapsed ? (
+                              <ChevronDown className="h-4 w-4 text-slate-500" />
+                            ) : (
+                              <ChevronUp className="h-4 w-4 text-slate-500" />
                             )}
-                          </h4>
+                          </button>
                           
-                          <div className="mb-4">
-                            <div className="flex justify-between text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">
-                              <span>Overall Progress</span>
-                              <span>{percentComplete}%</span>
-                            </div>
-                            <div className="h-3 bg-slate-300 dark:bg-slate-700 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
-                                style={{ width: `${percentComplete}%` }}
-                              />
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
-                            <div className="bg-red-600 dark:bg-red-700 p-2 rounded text-center shadow">
-                              <div className="font-bold text-white text-lg">
-                                {progress.encounters?.combat || 0}/{requirements.encounters?.combat || 0}
+                          {!isProgressCollapsed && (
+                            <div className="p-3 pt-0">
+                              <div className="mb-3">
+                                <div className="h-2 bg-slate-300 dark:bg-slate-700 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
+                                    style={{ width: `${percentComplete}%` }}
+                                  />
+                                </div>
                               </div>
-                              <div className="text-red-100 font-medium">Combat</div>
-                            </div>
-                            <div className="bg-orange-600 dark:bg-orange-700 p-2 rounded text-center shadow">
-                              <div className="font-bold text-white text-lg">
-                                {progress.encounters?.trap || 0}/{requirements.encounters?.trap || 0}
+                              
+                              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 text-xs">
+                                <div className="bg-red-600 dark:bg-red-700 p-1.5 rounded text-center">
+                                  <div className="font-bold text-white">
+                                    {progress.encounters?.combat || 0}/{requirements.encounters?.combat || 0}
+                                  </div>
+                                  <div className="text-red-100 text-[10px]">Combat</div>
+                                </div>
+                                <div className="bg-orange-600 dark:bg-orange-700 p-1.5 rounded text-center">
+                                  <div className="font-bold text-white">
+                                    {progress.encounters?.trap || 0}/{requirements.encounters?.trap || 0}
+                                  </div>
+                                  <div className="text-orange-100 text-[10px]">Traps</div>
+                                </div>
+                                <div className="bg-amber-500 dark:bg-amber-600 p-1.5 rounded text-center">
+                                  <div className="font-bold text-white">
+                                    {progress.encounters?.treasure || 0}/{requirements.encounters?.treasure || 0}
+                                  </div>
+                                  <div className="text-amber-100 text-[10px]">Treasure</div>
+                                </div>
+                                <div className="bg-sky-600 dark:bg-sky-700 p-1.5 rounded text-center">
+                                  <div className="font-bold text-white">
+                                    {progress.discoveries || 0}/{requirements.discoveries || 0}
+                                  </div>
+                                  <div className="text-sky-100 text-[10px]">Discoveries</div>
+                                </div>
+                                <div className="bg-violet-600 dark:bg-violet-700 p-1.5 rounded text-center">
+                                  <div className="font-bold text-white">
+                                    {progress.puzzles || 0}/{requirements.puzzles || 0}
+                                  </div>
+                                  <div className="text-violet-100 text-[10px]">Puzzles</div>
+                                </div>
+                                <div className="bg-emerald-600 dark:bg-emerald-700 p-1.5 rounded text-center">
+                                  <div className="font-bold text-white">
+                                    {progress.subquestsCompleted || 0}/{requirements.subquests || 0}
+                                  </div>
+                                  <div className="text-emerald-100 text-[10px]">Subquests</div>
+                                </div>
                               </div>
-                              <div className="text-orange-100 font-medium">Traps</div>
                             </div>
-                            <div className="bg-amber-500 dark:bg-amber-600 p-2 rounded text-center shadow">
-                              <div className="font-bold text-white text-lg">
-                                {progress.encounters?.treasure || 0}/{requirements.encounters?.treasure || 0}
-                              </div>
-                              <div className="text-amber-100 font-medium">Treasure</div>
-                            </div>
-                            <div className="bg-sky-600 dark:bg-sky-700 p-2 rounded text-center shadow">
-                              <div className="font-bold text-white text-lg">
-                                {progress.discoveries || 0}/{requirements.discoveries || 0}
-                              </div>
-                              <div className="text-sky-100 font-medium">Discoveries</div>
-                            </div>
-                          </div>
-                          
-                          <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-                            <div className="bg-violet-600 dark:bg-violet-700 p-2 rounded text-center shadow">
-                              <div className="font-bold text-white text-lg">
-                                {progress.puzzles || 0}/{requirements.puzzles || 0}
-                              </div>
-                              <div className="text-violet-100 font-medium">Puzzles</div>
-                            </div>
-                            <div className="bg-emerald-600 dark:bg-emerald-700 p-2 rounded text-center shadow">
-                              <div className="font-bold text-white text-lg">
-                                {progress.subquestsCompleted || 0}/{requirements.subquests || 0}
-                              </div>
-                              <div className="text-emerald-100 font-medium">Subquests</div>
-                            </div>
-                          </div>
+                          )}
                         </div>
                       );
                     })()}
