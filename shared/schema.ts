@@ -1898,6 +1898,25 @@ export const campaignSrdReferences = pgTable("campaign_srd_references", {
   addedAt: text("added_at").notNull().default(new Date().toISOString()),
 });
 
+// Demo analytics - track guest demo usage and conversions
+export const demoAnalytics = pgTable("demo_analytics", {
+  id: serial("id").primaryKey(),
+  sessionId: text("session_id").notNull(), // Browser fingerprint/session for tracking unique visitors
+  eventType: text("event_type").notNull(), // started, character_selected, adventure_selected, scene_completed, dice_rolled, completed, converted
+  eventData: jsonb("event_data"), // Additional event metadata (character chosen, adventure, scene number, etc.)
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  userAgent: text("user_agent"),
+  referrer: text("referrer"),
+  convertedUserId: integer("converted_user_id"), // If user signed up after demo, link to their user ID
+});
+
+export const insertDemoAnalyticsSchema = createInsertSchema(demoAnalytics).omit({
+  id: true,
+});
+
+export type InsertDemoAnalytics = z.infer<typeof insertDemoAnalyticsSchema>;
+export type DemoAnalytics = typeof demoAnalytics.$inferSelect;
+
 export const insertCampaignSrdReferenceSchema = createInsertSchema(campaignSrdReferences).omit({
   id: true,
 });

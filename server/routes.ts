@@ -51,7 +51,8 @@ import {
   hearthUserState,
   hearthMurmur,
   insertHearthBoardPostSchema,
-  campaignSrdReferences
+  campaignSrdReferences,
+  demoAnalytics
 } from "@shared/schema";
 import { setupAuth, isAuthenticated, requireAdmin } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";
@@ -17952,6 +17953,185 @@ ALWAYS generate:
     } catch (error) {
       console.error("Admin Analytics: Failed to fetch detailed events:", error);
       res.status(500).json({ message: "Failed to fetch detailed events" });
+    }
+  });
+
+  // ============ Demo Analytics Routes ============
+  
+  // Track demo events (public - no auth required)
+  app.post("/api/demo/track", async (req, res) => {
+    try {
+      const { sessionId, eventType, eventData } = req.body;
+      
+      if (!sessionId || !eventType) {
+        return res.status(400).json({ message: "sessionId and eventType are required" });
+      }
+      
+      await db.insert(demoAnalytics).values({
+        sessionId,
+        eventType,
+        eventData: eventData || {},
+        userAgent: req.headers['user-agent'] || null,
+        referrer: req.headers.referer || null,
+        createdAt: new Date().toISOString()
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Demo Analytics: Failed to track event:", error);
+      res.status(500).json({ message: "Failed to track event" });
+    }
+  });
+  
+  // Mark demo session as converted (when user signs up)
+  app.post("/api/demo/convert", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { sessionId } = req.body;
+      
+      if (!sessionId) {
+        return res.status(400).json({ message: "sessionId is required" });
+      }
+      
+      // Record conversion event
+      await db.insert(demoAnalytics).values({
+        sessionId,
+        eventType: 'converted',
+        eventData: { userId },
+        convertedUserId: userId,
+        userAgent: req.headers['user-agent'] || null,
+        referrer: req.headers.referer || null,
+        createdAt: new Date().toISOString()
+      });
+      
+      // Also update any existing demo events with converted user ID
+      await db.update(demoAnalytics)
+        .set({ convertedUserId: userId })
+        .where(eq(demoAnalytics.sessionId, sessionId));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Demo Analytics: Failed to mark conversion:", error);
+      res.status(500).json({ message: "Failed to mark conversion" });
+    }
+  });
+  
+  // Get demo analytics overview (admin only)
+  app.get("/api/admin/analytics/demo", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 30;
+      const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      
+      // Get total demo starts
+      const startedResult = await db.select({
+        count: sql<number>`count(distinct ${demoAnalytics.sessionId})`
+      })
+        .from(demoAnalytics)
+        .where(and(
+          eq(demoAnalytics.eventType, 'started'),
+          gte(demoAnalytics.createdAt, sinceDate)
+        ));
+      
+      // Get completed demos
+      const completedResult = await db.select({
+        count: sql<number>`count(distinct ${demoAnalytics.sessionId})`
+      })
+        .from(demoAnalytics)
+        .where(and(
+          eq(demoAnalytics.eventType, 'completed'),
+          gte(demoAnalytics.createdAt, sinceDate)
+        ));
+      
+      // Get conversions
+      const convertedResult = await db.select({
+        count: sql<number>`count(distinct ${demoAnalytics.sessionId})`
+      })
+        .from(demoAnalytics)
+        .where(and(
+          eq(demoAnalytics.eventType, 'converted'),
+          gte(demoAnalytics.createdAt, sinceDate)
+        ));
+      
+      // Get character selection breakdown
+      const characterBreakdown = await db.select({
+        character: sql<string>`${demoAnalytics.eventData}->>'characterId'`,
+        count: sql<number>`count(*)`
+      })
+        .from(demoAnalytics)
+        .where(and(
+          eq(demoAnalytics.eventType, 'character_selected'),
+          gte(demoAnalytics.createdAt, sinceDate)
+        ))
+        .groupBy(sql`${demoAnalytics.eventData}->>'characterId'`);
+      
+      // Get adventure selection breakdown
+      const adventureBreakdown = await db.select({
+        adventure: sql<string>`${demoAnalytics.eventData}->>'adventureId'`,
+        count: sql<number>`count(*)`
+      })
+        .from(demoAnalytics)
+        .where(and(
+          eq(demoAnalytics.eventType, 'adventure_selected'),
+          gte(demoAnalytics.createdAt, sinceDate)
+        ))
+        .groupBy(sql`${demoAnalytics.eventData}->>'adventureId'`);
+      
+      // Get daily demo stats
+      const dailyStats = await db.select({
+        date: sql<string>`date(${demoAnalytics.createdAt})`,
+        started: sql<number>`count(distinct case when ${demoAnalytics.eventType} = 'started' then ${demoAnalytics.sessionId} end)`,
+        completed: sql<number>`count(distinct case when ${demoAnalytics.eventType} = 'completed' then ${demoAnalytics.sessionId} end)`,
+        converted: sql<number>`count(distinct case when ${demoAnalytics.eventType} = 'converted' then ${demoAnalytics.sessionId} end)`
+      })
+        .from(demoAnalytics)
+        .where(gte(demoAnalytics.createdAt, sinceDate))
+        .groupBy(sql`date(${demoAnalytics.createdAt})`)
+        .orderBy(sql`date(${demoAnalytics.createdAt})`);
+      
+      // Get drop-off analysis (how far users get)
+      const funnelStats = await db.select({
+        eventType: demoAnalytics.eventType,
+        count: sql<number>`count(distinct ${demoAnalytics.sessionId})`
+      })
+        .from(demoAnalytics)
+        .where(gte(demoAnalytics.createdAt, sinceDate))
+        .groupBy(demoAnalytics.eventType);
+      
+      const started = Number(startedResult[0]?.count) || 0;
+      const completed = Number(completedResult[0]?.count) || 0;
+      const converted = Number(convertedResult[0]?.count) || 0;
+      
+      res.json({
+        overview: {
+          started,
+          completed,
+          converted,
+          completionRate: started > 0 ? Math.round((completed / started) * 100) : 0,
+          conversionRate: started > 0 ? Math.round((converted / started) * 100) : 0,
+          completedToConversionRate: completed > 0 ? Math.round((converted / completed) * 100) : 0
+        },
+        characterBreakdown: characterBreakdown.map(c => ({
+          character: c.character || 'unknown',
+          count: Number(c.count)
+        })),
+        adventureBreakdown: adventureBreakdown.map(a => ({
+          adventure: a.adventure || 'unknown',
+          count: Number(a.count)
+        })),
+        dailyStats: dailyStats.map(d => ({
+          date: d.date,
+          started: Number(d.started),
+          completed: Number(d.completed),
+          converted: Number(d.converted)
+        })),
+        funnelStats: funnelStats.map(f => ({
+          eventType: f.eventType,
+          count: Number(f.count)
+        }))
+      });
+    } catch (error) {
+      console.error("Admin Analytics: Failed to fetch demo analytics:", error);
+      res.status(500).json({ message: "Failed to fetch demo analytics" });
     }
   });
 

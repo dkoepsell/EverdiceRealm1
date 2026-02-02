@@ -89,7 +89,34 @@ interface DetailedEvent {
   uniqueUsers: number;
 }
 
+interface DemoAnalyticsData {
+  overview: {
+    started: number;
+    completed: number;
+    converted: number;
+    completionRate: number;
+    conversionRate: number;
+    completedToConversionRate: number;
+  };
+  characterBreakdown: { character: string; count: number }[];
+  adventureBreakdown: { adventure: string; count: number }[];
+  dailyStats: { date: string; started: number; completed: number; converted: number }[];
+  funnelStats: { eventType: string; count: number }[];
+}
+
 const COLORS = ['#f59e0b', '#ef4444', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+
+const CHARACTER_NAMES: Record<string, string> = {
+  warrior: 'Theron Blackblade (Fighter)',
+  wizard: 'Elara Moonwhisper (Wizard)',
+  paladin: 'Ser Roland Dawnkeeper (Paladin)',
+  rogue: 'Vex Shadowmere (Rogue)'
+};
+
+const ADVENTURE_NAMES: Record<string, string> = {
+  dungeon: 'The Forgotten Crypts',
+  mystery: 'The Merchant\'s Secret'
+};
 
 export default function AdminPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -180,6 +207,16 @@ export default function AdminPage() {
       return res.json();
     },
     enabled: !!user?.isAdmin,
+  });
+
+  const { data: demoAnalytics } = useQuery<DemoAnalyticsData>({
+    queryKey: ['/api/admin/analytics/demo', timeRange],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/analytics/demo?days=${timeRange}`);
+      return res.json();
+    },
+    enabled: !!user?.isAdmin,
+    refetchInterval: 60000,
   });
 
   const toggleAdminMutation = useMutation({
@@ -359,6 +396,9 @@ export default function AdminPage() {
           <TabsList className="bg-card/50 backdrop-blur border border-border">
             <TabsTrigger value="analytics" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <BarChart3 className="h-4 w-4" /> Analytics
+            </TabsTrigger>
+            <TabsTrigger value="demo" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Sparkles className="h-4 w-4" /> Demo & Conversions
             </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Users className="h-4 w-4" /> Users
@@ -689,6 +729,282 @@ export default function AdminPage() {
                   )}
                 </CardContent>
               </Card>
+            </motion.div>
+          </TabsContent>
+
+          <TabsContent value="demo">
+            <motion.div 
+              className="space-y-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              {/* Demo Overview Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-950/20 to-emerald-900/10 backdrop-blur">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" /> Demo Started
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-emerald-400">{demoAnalytics?.overview?.started || 0}</div>
+                    <p className="text-xs text-muted-foreground">Total demo sessions</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-blue-500/20 bg-gradient-to-br from-blue-950/20 to-blue-900/10 backdrop-blur">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                      <Activity className="h-3 w-3" /> Completed
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-400">{demoAnalytics?.overview?.completed || 0}</div>
+                    <p className="text-xs text-muted-foreground">{demoAnalytics?.overview?.completionRate || 0}% completion</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-amber-500/20 bg-gradient-to-br from-amber-950/20 to-amber-900/10 backdrop-blur">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3" /> Converted
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-amber-400">{demoAnalytics?.overview?.converted || 0}</div>
+                    <p className="text-xs text-muted-foreground">{demoAnalytics?.overview?.conversionRate || 0}% of all demos</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-purple-500/20 bg-gradient-to-br from-purple-950/20 to-purple-900/10 backdrop-blur">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                      <Crown className="h-3 w-3" /> Completion Rate
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-purple-400">{demoAnalytics?.overview?.completionRate || 0}%</div>
+                    <p className="text-xs text-muted-foreground">Finish full demo</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-orange-500/20 bg-gradient-to-br from-orange-950/20 to-orange-900/10 backdrop-blur">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                      <User className="h-3 w-3" /> Signup Rate
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-orange-400">{demoAnalytics?.overview?.conversionRate || 0}%</div>
+                    <p className="text-xs text-muted-foreground">Demo to signup</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-rose-500/20 bg-gradient-to-br from-rose-950/20 to-rose-900/10 backdrop-blur">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3" /> Completed → Signup
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-rose-400">{demoAnalytics?.overview?.completedToConversionRate || 0}%</div>
+                    <p className="text-xs text-muted-foreground">Of completers</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Conversion Funnel */}
+                <Card className="border-primary/20 bg-card/50 backdrop-blur">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5 text-emerald-500" />
+                      Conversion Funnel
+                    </CardTitle>
+                    <CardDescription>Demo progression and drop-off analysis</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {demoAnalytics?.funnelStats && demoAnalytics.funnelStats.length > 0 ? (
+                      <div className="space-y-3">
+                        {[
+                          { key: 'started', label: 'Started Demo', color: 'bg-emerald-500' },
+                          { key: 'character_selected', label: 'Selected Character', color: 'bg-teal-500' },
+                          { key: 'adventure_selected', label: 'Selected Adventure', color: 'bg-blue-500' },
+                          { key: 'scene_completed', label: 'Completed Scene', color: 'bg-indigo-500' },
+                          { key: 'completed', label: 'Finished Demo', color: 'bg-purple-500' },
+                          { key: 'converted', label: 'Signed Up', color: 'bg-amber-500' },
+                        ].map(step => {
+                          const stat = demoAnalytics.funnelStats.find(f => f.eventType === step.key);
+                          const count = stat?.count || 0;
+                          const maxCount = demoAnalytics?.overview?.started || 1;
+                          const percentage = maxCount > 0 ? Math.round((count / maxCount) * 100) : 0;
+                          
+                          return (
+                            <div key={step.key} className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-300">{step.label}</span>
+                                <span className="text-slate-400">{count} ({percentage}%)</span>
+                              </div>
+                              <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full ${step.color} transition-all duration-500`}
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                        <div className="text-center">
+                          <TrendingUp className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                          <p>No demo data yet</p>
+                          <p className="text-sm">Funnel data will appear here</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Daily Demo Stats Chart */}
+                <Card className="border-primary/20 bg-card/50 backdrop-blur">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5 text-blue-500" />
+                      Daily Demo Activity
+                    </CardTitle>
+                    <CardDescription>Demo starts, completions, and conversions per day</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {demoAnalytics?.dailyStats && demoAnalytics.dailyStats.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={demoAnalytics.dailyStats.map(d => ({
+                          ...d,
+                          date: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                        }))}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                          <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--card))', 
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px'
+                            }} 
+                          />
+                          <Bar dataKey="started" fill="#10b981" name="Started" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="completed" fill="#3b82f6" name="Completed" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="converted" fill="#f59e0b" name="Converted" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                        <div className="text-center">
+                          <BarChart3 className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                          <p>No daily data yet</p>
+                          <p className="text-sm">Daily stats will appear here</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Character Preferences */}
+                <Card className="border-primary/20 bg-card/50 backdrop-blur">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Swords className="h-5 w-5 text-red-500" />
+                      Popular Characters
+                    </CardTitle>
+                    <CardDescription>Which characters users choose in demo</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {demoAnalytics?.characterBreakdown && demoAnalytics.characterBreakdown.length > 0 ? (
+                      <div className="space-y-3">
+                        {demoAnalytics.characterBreakdown.map((char, idx) => {
+                          const total = demoAnalytics.characterBreakdown.reduce((sum, c) => sum + c.count, 0);
+                          const percentage = total > 0 ? Math.round((char.count / total) * 100) : 0;
+                          const displayName = CHARACTER_NAMES[char.character] || char.character;
+                          
+                          return (
+                            <div key={char.character} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
+                              <div className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold" style={{ backgroundColor: COLORS[idx % COLORS.length] + '30', color: COLORS[idx % COLORS.length] }}>
+                                #{idx + 1}
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-medium text-sm">{displayName}</p>
+                                <div className="h-1.5 bg-slate-800 rounded-full mt-1 overflow-hidden">
+                                  <div 
+                                    className="h-full rounded-full"
+                                    style={{ width: `${percentage}%`, backgroundColor: COLORS[idx % COLORS.length] }}
+                                  />
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-semibold">{char.count}</p>
+                                <p className="text-xs text-muted-foreground">{percentage}%</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="h-[150px] flex items-center justify-center text-muted-foreground">
+                        <div className="text-center">
+                          <Swords className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                          <p>No character data yet</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Adventure Preferences */}
+                <Card className="border-primary/20 bg-card/50 backdrop-blur">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <MapPin className="h-5 w-5 text-purple-500" />
+                      Popular Adventures
+                    </CardTitle>
+                    <CardDescription>Which adventures users choose in demo</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {demoAnalytics?.adventureBreakdown && demoAnalytics.adventureBreakdown.length > 0 ? (
+                      <div className="space-y-3">
+                        {demoAnalytics.adventureBreakdown.map((adv, idx) => {
+                          const total = demoAnalytics.adventureBreakdown.reduce((sum, a) => sum + a.count, 0);
+                          const percentage = total > 0 ? Math.round((adv.count / total) * 100) : 0;
+                          const displayName = ADVENTURE_NAMES[adv.adventure] || adv.adventure;
+                          
+                          return (
+                            <div key={adv.adventure} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                              <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: COLORS[idx % COLORS.length] + '30' }}>
+                                <MapPin className="h-5 w-5" style={{ color: COLORS[idx % COLORS.length] }} />
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-medium">{displayName}</p>
+                                <div className="h-2 bg-slate-800 rounded-full mt-1 overflow-hidden">
+                                  <div 
+                                    className="h-full rounded-full"
+                                    style={{ width: `${percentage}%`, backgroundColor: COLORS[idx % COLORS.length] }}
+                                  />
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-semibold text-lg">{adv.count}</p>
+                                <p className="text-xs text-muted-foreground">{percentage}%</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="h-[150px] flex items-center justify-center text-muted-foreground">
+                        <div className="text-center">
+                          <MapPin className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                          <p>No adventure data yet</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </motion.div>
           </TabsContent>
 

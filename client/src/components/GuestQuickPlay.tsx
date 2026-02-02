@@ -539,6 +539,32 @@ function generateStoryScenes(characterClass: string, theme: string): StoryScene[
   return stories[theme]?.[characterClass] || stories.dungeon.Fighter;
 }
 
+// Generate or retrieve a unique session ID for tracking
+function getOrCreateSessionId(): string {
+  const key = 'everdice_demo_session';
+  let sessionId = localStorage.getItem(key);
+  if (!sessionId) {
+    sessionId = `demo_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    localStorage.setItem(key, sessionId);
+  }
+  return sessionId;
+}
+
+// Track demo analytics event
+async function trackDemoEvent(eventType: string, eventData?: Record<string, any>) {
+  try {
+    const sessionId = getOrCreateSessionId();
+    await fetch('/api/demo/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, eventType, eventData })
+    });
+  } catch (error) {
+    // Silently fail - don't interrupt user experience for analytics
+    console.debug('Demo tracking failed:', error);
+  }
+}
+
 export default function GuestQuickPlay({ 
   onComplete, 
   onCancel 
@@ -565,6 +591,11 @@ export default function GuestQuickPlay({
   
   const scene = scenes[currentScene];
 
+  // Track demo start on mount
+  useEffect(() => {
+    trackDemoEvent('started');
+  }, []);
+
   // Reset narrative reveal when scene changes
   useEffect(() => {
     setNarrativeRevealed(false);
@@ -574,6 +605,11 @@ export default function GuestQuickPlay({
 
   const handleRollDice = () => {
     setIsRolling(true);
+    trackDemoEvent('dice_rolled', { 
+      sceneNumber: currentScene + 1,
+      characterId: selectedCharacter,
+      adventureId: selectedTheme
+    });
     let rolls = 0;
     const interval = setInterval(() => {
       setDiceResult(Math.floor(Math.random() * 20) + 1);
@@ -589,20 +625,32 @@ export default function GuestQuickPlay({
   };
 
   const handleContinue = () => {
+    trackDemoEvent('scene_completed', { 
+      sceneNumber: currentScene + 1,
+      characterId: selectedCharacter,
+      adventureId: selectedTheme
+    });
     if (currentScene < scenes.length - 1) {
       setCurrentScene(currentScene + 1);
       setSelectedChoice(null);
       setDiceResult(null);
       setShowOutcome(false);
     } else {
+      trackDemoEvent('completed', { 
+        characterId: selectedCharacter,
+        adventureId: selectedTheme,
+        totalScenes: scenes.length
+      });
       setStep(3);
     }
   };
 
   const handleNextStep = () => {
     if (step === 0 && selectedCharacter) {
+      trackDemoEvent('character_selected', { characterId: selectedCharacter });
       setStep(1);
     } else if (step === 1 && selectedTheme) {
+      trackDemoEvent('adventure_selected', { adventureId: selectedTheme });
       setStep(2);
     }
   };
