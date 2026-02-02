@@ -1,4 +1,4 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,12 +19,14 @@ import {
   Compass,
   Crown,
   MessageCircle,
-  Shield
+  Shield,
+  Play
 } from "lucide-react";
 import { SiDiscord } from "react-icons/si";
 import { motion } from "framer-motion";
 import everdiceBackground from "@assets/image_1768599782346.png";
 import creatorAvatar from "@assets/image_1769476073776.png";
+import GuestQuickPlay from "@/components/GuestQuickPlay";
 
 const features = [
   {
@@ -72,7 +74,16 @@ const audienceBlocks = [
 
 export default function LandingPage() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const [userCount, setUserCount] = useState(0);
+  const [showGuestPlay, setShowGuestPlay] = useState(false);
+  const [hasPlayedAsGuest, setHasPlayedAsGuest] = useState(false);
+  
+  useEffect(() => {
+    // Check if user has already played as guest
+    const guestPlayed = localStorage.getItem('everdice_guest_played');
+    setHasPlayedAsGuest(!!guestPlayed);
+  }, []);
   
   useEffect(() => {
     const fetchUserStats = async () => {
@@ -88,6 +99,23 @@ export default function LandingPage() {
     };
     fetchUserStats();
   }, []);
+  
+  const handleGuestPlayComplete = () => {
+    // Mark that guest has played
+    localStorage.setItem('everdice_guest_played', 'true');
+    setShowGuestPlay(false);
+    // Redirect to Hearth with signup prompt
+    setLocation('/hearth?welcome=guest');
+  };
+  
+  const handleGuestPlayStart = () => {
+    if (hasPlayedAsGuest) {
+      // Already played, redirect to auth
+      setLocation('/auth');
+    } else {
+      setShowGuestPlay(true);
+    }
+  };
 
   return (
     <div className="min-h-screen">
@@ -135,19 +163,51 @@ export default function LandingPage() {
                 Beginner-friendly. DM-respectful. Free during beta.
               </p>
 
-              <div className="flex flex-col items-center gap-3">
-                <Link href={user ? "/dashboard" : "/auth"}>
-                  <Button 
-                    size="lg" 
-                    className="text-base px-7 py-6 font-semibold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-orange-500/25"
-                  >
-                    {user ? "Continue Your Adventure" : "Start a Campaign"}
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
+              <div className="flex flex-col items-center gap-4">
+                {/* Primary CTA - Play Now (Guest or Logged In) */}
+                {user ? (
+                  <Link href="/dashboard">
+                    <Button 
+                      size="lg" 
+                      className="text-base px-8 py-6 font-semibold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-orange-500/25"
+                    >
+                      Continue Your Adventure
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Button>
+                  </Link>
+                ) : (
+                  <>
+                    <Button 
+                      size="lg" 
+                      onClick={handleGuestPlayStart}
+                      className="text-lg px-10 py-7 font-bold bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-xl shadow-emerald-500/30 animate-pulse hover:animate-none"
+                    >
+                      <Play className="mr-2 h-6 w-6" />
+                      {hasPlayedAsGuest ? "Sign Up to Keep Playing" : "Play D&D Now — No Account Needed"}
+                    </Button>
+                    
+                    <p className="text-xs text-muted-foreground/70">
+                      {hasPlayedAsGuest 
+                        ? "You've tried the demo! Create a free account to continue your adventures."
+                        : "Try a quick adventure right now. Create an account later if you like it."}
+                    </p>
+                    
+                    <div className="flex items-center gap-3 mt-2">
+                      <Link href="/auth">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="text-sm border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
+                        >
+                          Already have an account? Sign in
+                        </Button>
+                      </Link>
+                    </div>
+                  </>
+                )}
                 
                 {!user && (
-                  <p className="text-sm text-muted-foreground/80">
+                  <p className="text-sm text-muted-foreground/80 mt-2">
                     Safe for families • You stay in control • No cost to try
                   </p>
                 )}
@@ -532,12 +592,26 @@ export default function LandingPage() {
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-4">Ready to Begin?</h2>
           <p className="text-muted-foreground mb-8">
-            Create a character and start your first adventure in minutes.
+            {user 
+              ? "Continue your epic adventures." 
+              : hasPlayedAsGuest 
+                ? "Create a free account to save your progress and unlock full features."
+                : "Try D&D right now — no account needed. Create one later if you love it."}
           </p>
-          {!user && (
+          {!user && !hasPlayedAsGuest && (
+            <Button 
+              size="lg" 
+              onClick={handleGuestPlayStart}
+              className="text-lg px-10 py-6 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600"
+            >
+              <Play className="mr-2 h-5 w-5" />
+              Play D&D Now
+            </Button>
+          )}
+          {!user && hasPlayedAsGuest && (
             <Link href="/auth">
               <Button size="lg" className="text-lg px-10 py-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600">
-                Start Free
+                Create Free Account
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
@@ -574,6 +648,14 @@ export default function LandingPage() {
           </p>
         </div>
       </footer>
+      
+      {/* Guest Quick Play Modal */}
+      {showGuestPlay && (
+        <GuestQuickPlay 
+          onComplete={handleGuestPlayComplete}
+          onCancel={() => setShowGuestPlay(false)}
+        />
+      )}
     </div>
   );
 }

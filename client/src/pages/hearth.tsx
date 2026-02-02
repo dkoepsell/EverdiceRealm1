@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -27,7 +27,10 @@ import {
   Map,
   LogOut,
   Loader2,
-  Plus
+  Plus,
+  Sparkles,
+  ArrowRight,
+  X
 } from "lucide-react";
 import hearthBackground from "@assets/image_1769304828468.png";
 
@@ -97,7 +100,21 @@ const categoryColors: Record<string, string> = {
 export default function HearthPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [location] = useLocation();
   const [showArrival, setShowArrival] = useState(true);
+  const [showGuestWelcome, setShowGuestWelcome] = useState(false);
+  
+  // Check for guest welcome parameter
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('welcome') === 'guest') {
+        setShowGuestWelcome(true);
+        // Clean up URL
+        window.history.replaceState({}, '', '/hearth');
+      }
+    }
+  }, [location]);
   const [quietMode, setQuietMode] = useState(false);
   const [boardFilter, setBoardFilter] = useState<string>("all");
   const [showPostDialog, setShowPostDialog] = useState(false);
@@ -242,6 +259,53 @@ export default function HearthPage() {
           <Card className="bg-amber-950/90 backdrop-blur border-amber-700/50 max-w-md">
             <CardContent className="py-4 text-center">
               <p className="text-amber-200 italic text-lg">{snapshot.me.arrivalLine}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      
+      {/* Guest Welcome Banner */}
+      {showGuestWelcome && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <Card className="bg-gradient-to-b from-amber-950 to-amber-900 border-amber-700 max-w-lg w-full">
+            <CardContent className="py-8 text-center space-y-6">
+              <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+                <Sparkles className="h-8 w-8 text-white" />
+              </div>
+              
+              <div>
+                <h2 className="text-2xl font-bold text-amber-200 mb-2">Welcome to the Hearth!</h2>
+                <p className="text-amber-300/80">
+                  You just completed your first D&D adventure! This is the Hearth — 
+                  a cozy community hub where adventurers gather.
+                </p>
+              </div>
+              
+              <div className="bg-amber-950/50 rounded-lg p-4 text-left">
+                <h3 className="font-bold text-amber-200 mb-2">To continue your journey:</h3>
+                <ul className="text-sm text-amber-300/80 space-y-1">
+                  <li>• Create a free account to save your progress</li>
+                  <li>• Build characters with real D&D stats</li>
+                  <li>• Play full campaigns with AI storytelling</li>
+                  <li>• Join or host multiplayer adventures</li>
+                </ul>
+              </div>
+              
+              <div className="flex flex-col gap-3">
+                <Link href="/auth">
+                  <Button className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white py-6">
+                    Create Free Account
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </Link>
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowGuestWelcome(false)}
+                  className="text-amber-400 hover:text-amber-300"
+                >
+                  Look around first
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
