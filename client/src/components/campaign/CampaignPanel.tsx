@@ -265,6 +265,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [dungeonMapLocation, setDungeonMapLocation] = useState<string | null>(null);
   const [isGeneratingMap, setIsGeneratingMap] = useState(false);
   const [isMapCollapsed, setIsMapCollapsed] = useState(false);
+  const [isObjectivesCollapsed, setIsObjectivesCollapsed] = useState(true); // Collapsed by default to prioritize narrative
   const [isMapExpanded, setIsMapExpanded] = useState(false);
   const [chapterProgress, setChapterProgress] = useState<{
     combat: { done: number; required: number; complete: boolean };
@@ -2814,27 +2815,47 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 {/* Current Session */}
                 {currentSession && !parsedStoryState?.adventureEnded ? (
                   <div className="mt-6 space-y-4">
-                    {/* Campaign Chapter Progress Bar */}
-                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 p-3 rounded-lg border border-indigo-200 dark:border-indigo-800 mb-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-semibold text-indigo-900 dark:text-indigo-100 flex items-center">
-                          <BookOpen className="h-4 w-4 mr-2" />
-                          Campaign Progress
+                    {/* ===== CURRENT SCENE - The main story area (moved to top for visibility) ===== */}
+                    <ContextualHint hintId="narrative_choices" position="bottom" delay={1000}>
+                      <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-black dark:to-slate-900 p-5 rounded-xl border-2 border-amber-500/50 shadow-lg mb-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Sparkles className="h-5 w-5 text-amber-400" />
+                          <h3 className="text-lg font-bold text-amber-400 tracking-wide">Current Scene</h3>
+                          <div className="flex-1 h-px bg-gradient-to-r from-amber-500/50 to-transparent ml-2" />
+                        </div>
+                        
+                        {isAdvancingStory ? (
+                          <div className="flex flex-col items-center justify-center py-8">
+                            <div className="animate-spin h-10 w-10 rounded-full border-4 border-amber-400 border-t-transparent"></div>
+                            <p className="mt-3 text-center font-medium text-amber-300">
+                              Adventure continues...
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="whitespace-pre-line text-base sm:text-lg leading-relaxed text-slate-100 font-medium" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                            {currentSession.narrative}
+                          </p>
+                        )}
+                      </div>
+                    </ContextualHint>
+                    
+                    {/* Campaign Chapter Progress Bar - Compact version */}
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 p-2 rounded-lg border border-indigo-200 dark:border-indigo-800 mb-3">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-semibold text-indigo-900 dark:text-indigo-100 flex items-center">
+                          <BookOpen className="h-3 w-3 mr-1" />
+                          Progress
                         </span>
-                        <span className="text-sm font-bold text-indigo-700 dark:text-indigo-300">
-                          Chapter {currentSession.sessionNumber} of {campaign.totalChapters || 5}
+                        <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                          Ch. {currentSession.sessionNumber}/{campaign.totalChapters || 5}
+                          {currentSession.sessionNumber === (campaign.totalChapters || 5) && ' 🏆'}
                         </span>
                       </div>
                       <Progress 
                         value={(currentSession.sessionNumber / (campaign.totalChapters || 5)) * 100} 
-                        className="h-3 bg-indigo-200 dark:bg-indigo-900"
+                        className="h-2 bg-indigo-200 dark:bg-indigo-900"
                         data-testid="progress-campaign-chapters"
                       />
-                      <div className="flex justify-between text-xs mt-1 text-indigo-600 dark:text-indigo-400">
-                        <span>Start</span>
-                        <span>{currentSession.sessionNumber === (campaign.totalChapters || 5) ? '🏆 Final Chapter!' : `${(campaign.totalChapters || 5) - currentSession.sessionNumber} chapters remaining`}</span>
-                        <span>End</span>
-                      </div>
                     </div>
                     
                     {/* Quick Reference Panel - Full Width Map + Party Stats Row */}
@@ -3230,46 +3251,64 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       );
                     })()}
                     
-                    {/* Adventure Objectives - Story-driven quests that auto-complete */}
+                    {/* Adventure Objectives - Collapsible to keep focus on narrative */}
                     {parsedStoryState?.activeQuests && 
                      (parsedStoryState.activeQuests as any[]).length > 0 && (
-                      <div className="bg-amber-50 dark:bg-amber-950/30 p-4 rounded-md border border-amber-200 dark:border-amber-800 mb-4">
-                        <h4 className="font-semibold flex items-center mb-3" style={{ color: '#92400e' }}>
-                          <Target className="h-4 w-4 mr-2" />
-                          Adventure Objectives
-                        </h4>
-                        <p className="text-xs mb-3" style={{ color: '#92400e' }}>
-                          Complete these objectives through your actions to progress the story
-                        </p>
-                        <div className="space-y-2">
-                          {(parsedStoryState.activeQuests as any[]).map((quest: any, index: number) => (
-                            <div 
-                              key={quest.id || index}
-                              className={`flex items-start gap-2 p-2 rounded ${
-                                quest.status === 'completed' 
-                                  ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200' 
-                                  : quest.status === 'in_progress'
-                                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
-                                  : 'bg-amber-100/50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-100'
-                              }`}
-                              data-testid={`objective-${index}`}
-                            >
-                              <span className="text-lg">
-                                {quest.status === 'completed' ? '✓' : quest.status === 'in_progress' ? '→' : '○'}
-                              </span>
-                              <div className="flex-1">
-                                <p className="font-medium text-sm">{quest.title}</p>
-                                <p className="text-xs opacity-80">{quest.description}</p>
-                                {quest.xpReward && quest.status !== 'completed' && (
-                                  <div className="flex items-center gap-2 mt-1 text-xs font-bold" style={{ color: '#7c2d12' }}>
-                                    <Sparkles className="h-3 w-3" />
-                                    {quest.xpReward} XP on completion
+                      <div className="bg-amber-50 dark:bg-amber-950/30 rounded-md border border-amber-200 dark:border-amber-800 mb-4 overflow-hidden">
+                        <button
+                          onClick={() => setIsObjectivesCollapsed(!isObjectivesCollapsed)}
+                          className="w-full p-3 flex items-center justify-between hover:bg-amber-100/50 dark:hover:bg-amber-900/30 transition-colors"
+                        >
+                          <h4 className="font-semibold flex items-center text-sm" style={{ color: '#92400e' }}>
+                            <Target className="h-4 w-4 mr-2" />
+                            Adventure Objectives
+                            <span className="ml-2 text-xs font-normal opacity-70">
+                              ({(parsedStoryState.activeQuests as any[]).filter((q: any) => q.status !== 'completed').length} active)
+                            </span>
+                          </h4>
+                          {isObjectivesCollapsed ? (
+                            <ChevronDown className="h-4 w-4 text-amber-600" />
+                          ) : (
+                            <ChevronUp className="h-4 w-4 text-amber-600" />
+                          )}
+                        </button>
+                        
+                        {!isObjectivesCollapsed && (
+                          <div className="px-4 pb-4">
+                            <p className="text-xs mb-3" style={{ color: '#92400e' }}>
+                              Complete these objectives through your actions to progress the story
+                            </p>
+                            <div className="space-y-2">
+                              {(parsedStoryState.activeQuests as any[]).map((quest: any, index: number) => (
+                                <div 
+                                  key={quest.id || index}
+                                  className={`flex items-start gap-2 p-2 rounded ${
+                                    quest.status === 'completed' 
+                                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200' 
+                                      : quest.status === 'in_progress'
+                                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
+                                      : 'bg-amber-100/50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-100'
+                                  }`}
+                                  data-testid={`objective-${index}`}
+                                >
+                                  <span className="text-lg">
+                                    {quest.status === 'completed' ? '✓' : quest.status === 'in_progress' ? '→' : '○'}
+                                  </span>
+                                  <div className="flex-1">
+                                    <p className="font-medium text-sm">{quest.title}</p>
+                                    <p className="text-xs opacity-80">{quest.description}</p>
+                                    {quest.xpReward && quest.status !== 'completed' && (
+                                      <div className="flex items-center gap-2 mt-1 text-xs font-bold" style={{ color: '#7c2d12' }}>
+                                        <Sparkles className="h-3 w-3" />
+                                        {quest.xpReward} XP on completion
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                              </div>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     )}
                     
@@ -3878,21 +3917,6 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </div>
                     )}
 
-                    <div className="bg-white dark:bg-slate-800 p-4 rounded-md border border-border shadow-inner">
-                      {isAdvancingStory ? (
-                        <div className="flex flex-col items-center justify-center py-10">
-                          <div className="animate-spin h-12 w-12 rounded-full border-4 border-primary border-t-transparent"></div>
-                          <p className="mt-4 text-center font-medium text-primary">
-                            Adventure continues...
-                          </p>
-                        </div>
-                      ) : (
-                        <p className="whitespace-pre-line text-sm sm:text-base leading-relaxed text-card-foreground font-medium">
-                          {currentSession.narrative}
-                        </p>
-                      )}
-                    </div>
-                    
                     {/* Group Vote Section - Multiplayer choice voting */}
                     {dmSessionState?.groupChoiceStatus === 'pending' && (dmSessionState?.activeGroupChoices?.length ?? 0) > 0 && (() => {
                       // Calculate time remaining
