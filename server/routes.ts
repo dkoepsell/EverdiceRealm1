@@ -8302,6 +8302,200 @@ Return your response as a JSON object with these fields:
     }
   });
 
+  // ==================== Quest Board Routes ====================
+  
+  // Get all quests posted to the board for a campaign
+  app.get("/api/campaigns/:campaignId/quest-board", async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const allQuests = await storage.getCampaignQuests(campaignId);
+      const boardQuests = allQuests.filter((q: any) => q.isPostedToBoard === true);
+      res.json(boardQuests);
+    } catch (error) {
+      console.error("Error fetching quest board:", error);
+      res.status(500).json({ message: "Failed to fetch quest board" });
+    }
+  });
+  
+  // Post a quest to the board (DM only)
+  app.post("/api/campaigns/:campaignId/quests/:questId/post-to-board", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const questId = parseInt(req.params.questId);
+      const { difficultyRating, estimatedDuration, prerequisites } = req.body;
+      
+      // Verify user is DM
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign || campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can post quests to the board" });
+      }
+      
+      const updatedQuest = await storage.updateCampaignQuest(questId, {
+        isPostedToBoard: true,
+        postedAt: new Date().toISOString(),
+        difficultyRating: difficultyRating || "moderate",
+        estimatedDuration,
+        prerequisites
+      });
+      
+      res.json(updatedQuest);
+    } catch (error) {
+      console.error("Error posting quest to board:", error);
+      res.status(500).json({ message: "Failed to post quest to board" });
+    }
+  });
+  
+  // Remove a quest from the board (DM only)
+  app.post("/api/campaigns/:campaignId/quests/:questId/remove-from-board", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const questId = parseInt(req.params.questId);
+      
+      // Verify user is DM
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign || campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can remove quests from the board" });
+      }
+      
+      const updatedQuest = await storage.updateCampaignQuest(questId, {
+        isPostedToBoard: false,
+        postedAt: null
+      });
+      
+      res.json(updatedQuest);
+    } catch (error) {
+      console.error("Error removing quest from board:", error);
+      res.status(500).json({ message: "Failed to remove quest from board" });
+    }
+  });
+  
+  // Accept a quest from the board (player)
+  app.post("/api/campaigns/:campaignId/quests/:questId/accept", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const questId = parseInt(req.params.questId);
+      const { characterId } = req.body;
+      
+      // Get the quest first
+      const allQuests = await storage.getCampaignQuests(parseInt(req.params.campaignId));
+      const quest = allQuests.find((q: any) => q.id === questId);
+      
+      if (!quest) {
+        return res.status(404).json({ message: "Quest not found" });
+      }
+      
+      if (!quest.isPostedToBoard) {
+        return res.status(400).json({ message: "Quest is not on the board" });
+      }
+      
+      if (quest.acceptedByUserId) {
+        return res.status(400).json({ message: "Quest has already been accepted" });
+      }
+      
+      const updatedQuest = await storage.updateCampaignQuest(questId, {
+        acceptedByCharacterId: characterId,
+        acceptedByUserId: req.user.id,
+        acceptedAt: new Date().toISOString(),
+        status: "in_progress"
+      });
+      
+      res.json(updatedQuest);
+    } catch (error) {
+      console.error("Error accepting quest:", error);
+      res.status(500).json({ message: "Failed to accept quest" });
+    }
+  });
+  
+  // Abandon a quest (player who accepted it)
+  app.post("/api/campaigns/:campaignId/quests/:questId/abandon", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const questId = parseInt(req.params.questId);
+      
+      // Get the quest first
+      const allQuests = await storage.getCampaignQuests(parseInt(req.params.campaignId));
+      const quest = allQuests.find((q: any) => q.id === questId);
+      
+      if (!quest) {
+        return res.status(404).json({ message: "Quest not found" });
+      }
+      
+      // Only the player who accepted can abandon
+      if (quest.acceptedByUserId !== req.user.id) {
+        return res.status(403).json({ message: "Only the player who accepted can abandon this quest" });
+      }
+      
+      const updatedQuest = await storage.updateCampaignQuest(questId, {
+        acceptedByCharacterId: null,
+        acceptedByUserId: null,
+        acceptedAt: null,
+        status: "active"
+      });
+      
+      res.json(updatedQuest);
+    } catch (error) {
+      console.error("Error abandoning quest:", error);
+      res.status(500).json({ message: "Failed to abandon quest" });
+    }
+  });
+  
+  // Create quest directly to board (DM shortcut)
+  app.post("/api/campaigns/:campaignId/quest-board", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      
+      // Verify user is DM
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign || campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the DM can post quests to the board" });
+      }
+      
+      const { title, description, questType, xpReward, goldReward, silverReward, lootRewards, objectives, difficultyRating, estimatedDuration, prerequisites } = req.body;
+      
+      const quest = await storage.createCampaignQuest({
+        campaignId,
+        title,
+        description,
+        questType: questType || "side",
+        status: "active",
+        xpReward: xpReward || 100,
+        goldReward: goldReward || 0,
+        silverReward: silverReward || 0,
+        lootRewards: lootRewards || [],
+        objectives: objectives || [],
+        createdAt: new Date().toISOString(),
+        isPostedToBoard: true,
+        postedAt: new Date().toISOString(),
+        difficultyRating: difficultyRating || "moderate",
+        estimatedDuration,
+        prerequisites
+      });
+      
+      res.status(201).json(quest);
+    } catch (error) {
+      console.error("Error creating quest on board:", error);
+      res.status(500).json({ message: "Failed to create quest on board" });
+    }
+  });
+
   // ==================== Campaign Dashboard / Narrative Insights Routes ====================
   
   // Get narrative insights for a campaign (cached) - DM only
