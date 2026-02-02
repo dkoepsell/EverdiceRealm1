@@ -4,6 +4,9 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ContextualHint } from "@/components/ui/contextual-hint";
+import { InlineHelp } from "@/components/ui/help-tooltip";
+import { HowToPlayPanel } from "@/components/ui/how-to-play-panel";
 import { 
   Sparkles, 
   ChevronLeft, 
@@ -27,7 +30,8 @@ import {
   Footprints,
   Skull,
   Crown,
-  ScrollText
+  ScrollText,
+  HelpCircle
 } from "lucide-react";
 
 interface CharacterTemplate {
@@ -818,19 +822,21 @@ export default function GuestQuickPlay({
                 <p className="text-sm text-slate-400">Level {selectedChar.level} {selectedChar.class}</p>
                 
                 {/* Stats */}
-                <div className="mt-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Heart className="h-4 w-4 text-red-400" />
-                    <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-red-500 to-red-400 w-full" />
+                <ContextualHint hintId="hp_bar" position="right" delay={1500}>
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Heart className="h-4 w-4 text-red-400" />
+                      <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-red-500 to-red-400 w-full" />
+                      </div>
+                      <span className="text-xs text-red-300">{selectedChar.hitPoints}/{selectedChar.hitPoints}</span>
                     </div>
-                    <span className="text-xs text-red-300">{selectedChar.hitPoints}/{selectedChar.hitPoints}</span>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Shield className="h-4 w-4 text-blue-400" />
+                      <span className="text-blue-300">AC {selectedChar.armorClass}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Shield className="h-4 w-4 text-blue-400" />
-                    <span className="text-blue-300">AC {selectedChar.armorClass}</span>
-                  </div>
-                </div>
+                </ContextualHint>
                 
                 {/* Traits - Hidden on mobile */}
                 <div className="hidden lg:block mt-4">
@@ -925,10 +931,11 @@ export default function GuestQuickPlay({
                 
                 {/* Choices */}
                 {scene.choices && !scene.requiresRoll && (
-                  <div className="space-y-3">
-                    <p className="text-center text-slate-400 text-sm">What do you do?</p>
-                    <div className="grid gap-2">
-                      {scene.choices.map((choice) => {
+                  <ContextualHint hintId="narrative_choices" position="top" delay={2000}>
+                    <div className="space-y-3">
+                      <p className="text-center text-slate-400 text-sm">What do you do?</p>
+                      <div className="grid gap-2">
+                        {scene.choices.map((choice) => {
                         const Icon = choice.icon;
                         return (
                           <Button
@@ -945,22 +952,24 @@ export default function GuestQuickPlay({
                             {choice.text}
                           </Button>
                         );
-                      })}
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  </ContextualHint>
                 )}
                 
                 {/* Dice Roll Section */}
                 {scene.requiresRoll && (
-                  <Card className="bg-slate-800/80 border-amber-900/50">
-                    <CardContent className="py-6 text-center">
-                      <p className="text-amber-400 font-medium mb-4">
-                        <Dices className="inline h-4 w-4 mr-1" />
-                        {scene.requiresRoll.type} — DC {scene.requiresRoll.dc}
-                      </p>
-                      
-                      {!diceResult && !isRolling && (
-                        <Button
+                  <ContextualHint hintId="dice_rolling" position="top" delay={1000}>
+                    <Card className="bg-slate-800/80 border-amber-900/50">
+                      <CardContent className="py-6 text-center">
+                        <p className="text-amber-400 font-medium mb-4">
+                          <Dices className="inline h-4 w-4 mr-1" />
+                          {scene.requiresRoll.type} — DC {scene.requiresRoll.dc}
+                        </p>
+                        
+                        {!diceResult && !isRolling && (
+                          <Button
                           onClick={handleRollDice}
                           className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 px-8 py-6 text-lg"
                         >
@@ -1019,8 +1028,9 @@ export default function GuestQuickPlay({
                           </CardContent>
                         </Card>
                       )}
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </ContextualHint>
                 )}
               </div>
             </ScrollArea>
