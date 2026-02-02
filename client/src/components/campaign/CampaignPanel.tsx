@@ -2606,51 +2606,43 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         <CardContent className="p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className={`grid w-full ${isDM ? 'grid-cols-7' : 'grid-cols-6'} bg-slate-900 rounded-none border-b-2 border-amber-500 h-12`}>
+              {/* NARRATIVE - Primary gameplay tab with visual emphasis */}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TabsTrigger value="narrative" className="text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
+                  <TabsTrigger value="narrative" className="relative text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700 group">
                     <span className="flex items-center">
                       <BookOpen className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
                       <span>Narrative</span>
                     </span>
+                    {/* Visual indicator for primary tab */}
+                    <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-amber-400 rounded-full animate-pulse group-data-[state=active]:hidden" />
                   </TabsTrigger>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-xs">
-                  <p className="font-medium">Your Adventure Story</p>
-                  <p className="text-xs text-muted-foreground">Read the unfolding narrative, take actions, and see the story progress. This is where the adventure happens!</p>
+                <TooltipContent side="bottom" className="max-w-xs bg-slate-800 border-amber-500">
+                  <p className="font-medium text-amber-400">⭐ Your Adventure Story</p>
+                  <p className="text-xs text-slate-300">This is where the action happens! Read the story, make choices, and drive the adventure forward. Start here!</p>
                 </TooltipContent>
               </Tooltip>
               
+              {/* PARTY - Second most important tab with visual emphasis */}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TabsTrigger value="journey-log" className="text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
-                    <span className="flex items-center">
-                      <Scroll className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
-                      <span>Log</span>
-                    </span>
-                  </TabsTrigger>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-xs">
-                  <p className="font-medium">Journey Log & History</p>
-                  <p className="text-xs text-muted-foreground">Review past events, completed quests, dice rolls, and key moments. Never forget what happened in previous sessions.</p>
-                </TooltipContent>
-              </Tooltip>
-              
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <TabsTrigger value="party" className="text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
+                  <TabsTrigger value="party" className="relative text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700 group">
                     <span className="flex items-center">
                       <Users className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
                       <span>Party</span>
                     </span>
+                    {/* Visual indicator for important tab */}
+                    <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse group-data-[state=active]:hidden" />
                   </TabsTrigger>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-xs">
-                  <p className="font-medium">Your Adventuring Party</p>
-                  <p className="text-xs text-muted-foreground">View all party members, their stats, HP, and inventory. Manage your group and see who's joined the campaign.</p>
+                <TooltipContent side="bottom" className="max-w-xs bg-slate-800 border-purple-500">
+                  <p className="font-medium text-purple-400">⭐ Your Adventuring Party</p>
+                  <p className="text-xs text-slate-300">Manage your character, companions, inventory, and consumables. Rest to heal, use items, and track your stats.</p>
                 </TooltipContent>
               </Tooltip>
               
+              {/* CHAT - Social tab */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <TabsTrigger value="chat" className="text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700" data-testid="tab-chat">
@@ -2666,6 +2658,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 </TooltipContent>
               </Tooltip>
               
+              {/* DM DASHBOARD - Only for DMs */}
               {isDM && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -2683,6 +2676,23 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 </Tooltip>
               )}
               
+              {/* LOG - Moved to less prominent position */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <TabsTrigger value="journey-log" className="text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
+                    <span className="flex items-center">
+                      <Scroll className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
+                      <span>Log</span>
+                    </span>
+                  </TabsTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p className="font-medium">Journey Log & History</p>
+                  <p className="text-xs text-muted-foreground">Review past events, completed quests, dice rolls, and key moments. Useful for catching up after breaks.</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              {/* SETTINGS */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <TabsTrigger value="settings" className="text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
@@ -2698,6 +2708,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 </TooltipContent>
               </Tooltip>
               
+              {/* DEPLOY */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <TabsTrigger value="deploy" className="text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none">
