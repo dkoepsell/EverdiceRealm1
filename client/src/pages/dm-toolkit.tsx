@@ -558,6 +558,7 @@ export default function DMToolkit() {
                     { id: 'threats', icon: Target, label: 'Threats', color: 'text-orange-500' },
                     { id: 'srd-library', icon: BookOpen, label: 'SRD Library', color: 'text-blue-500' },
                     { id: 'campaign-srd-assets', icon: Library, label: 'Campaign SRD Assets', color: 'text-teal-500' },
+                    { id: 'map-builder', icon: Map, label: 'Map Builder', color: 'text-violet-500' },
                   ].map(({ id, icon: Icon, label, color }) => (
                     <Button
                       key={id}
@@ -896,6 +897,36 @@ export default function DMToolkit() {
           </SheetHeader>
           <div className="mt-6">
             <CampaignSRDAssetsContent />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={openDrawer === 'map-builder'} onOpenChange={(open) => !open && setOpenDrawer(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Map className="h-5 w-5 text-violet-500" />
+              Hex Map Builder
+            </SheetTitle>
+            <SheetDescription>Create custom exploration maps for your campaign</SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            {selectedCampaignId ? (
+              <DMMapBuilder campaignId={selectedCampaignId} onSave={(hexes) => {
+                apiRequest('POST', `/api/campaigns/${selectedCampaignId}/exploration/import-hexes`, { hexes })
+                  .then(() => {
+                    toast({ title: "Map Saved", description: `Saved ${hexes.length} hexes to campaign.` });
+                  })
+                  .catch((err: any) => {
+                    toast({ title: "Save Failed", description: err.message, variant: "destructive" });
+                  });
+              }} />
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Map className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>Select a campaign first to build maps.</p>
+              </div>
+            )}
           </div>
         </SheetContent>
       </Sheet>
