@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +18,11 @@ import {
   Sparkles,
   HelpCircle,
   Navigation,
-  Loader2
+  Loader2,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Move
 } from "lucide-react";
 
 interface HexEntity {
@@ -441,6 +445,57 @@ export function ProceduralExplorationMap({
   const [hoveredHex, setHoveredHex] = useState<ExplorationHex | null>(null);
   const [isMoving, setIsMoving] = useState(false);
   
+  // Zoom and pan state
+  const [zoom, setZoom] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const svgRef = useCallback((node: SVGSVGElement | null) => {
+    if (node) {
+      svgElementRef.current = node;
+    }
+  }, []);
+  const svgElementRef = useRef<SVGSVGElement | null>(null);
+  
+  const handleZoomIn = useCallback(() => {
+    setZoom(prev => Math.min(prev * 1.3, 4));
+  }, []);
+  
+  const handleZoomOut = useCallback(() => {
+    setZoom(prev => Math.max(prev / 1.3, 0.25));
+  }, []);
+  
+  const handleResetView = useCallback(() => {
+    setZoom(1);
+    setPanOffset({ x: 0, y: 0 });
+  }, []);
+  
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button === 0) {
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+    }
+  }, [panOffset]);
+  
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (isPanning) {
+      setPanOffset({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y
+      });
+    }
+  }, [isPanning, panStart]);
+  
+  const handleMouseUp = useCallback(() => {
+    setIsPanning(false);
+  }, []);
+  
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    setZoom(prev => Math.min(Math.max(prev * delta, 0.25), 4));
+  }, []);
+  
   const { data: explorationData, isLoading, refetch } = useQuery<{
     state: ExplorationState;
     hexes: ExplorationHex[];
@@ -634,11 +689,23 @@ export function ProceduralExplorationMap({
         </div>
       </CardHeader>
       <CardContent className="p-2">
-        <div className={`relative ${compact ? "h-32" : "h-64"} bg-slate-950 rounded-lg overflow-hidden border border-slate-800`}>
+        <div 
+          className={`relative ${compact ? "h-32" : "h-64"} bg-slate-950 rounded-lg overflow-hidden border border-slate-800 ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onWheel={handleWheel}
+        >
           <svg 
+            ref={svgRef}
             viewBox={`${bounds.minX} ${bounds.minY} ${viewBoxWidth} ${viewBoxHeight}`}
             className="w-full h-full"
             preserveAspectRatio="xMidYMid meet"
+            style={{
+              transform: `scale(${zoom}) translate(${panOffset.x / zoom}px, ${panOffset.y / zoom}px)`,
+              transformOrigin: 'center center'
+            }}
           >
             {allHexesWithFog.map((hex) => (
               <HexTile
@@ -648,12 +715,50 @@ export function ProceduralExplorationMap({
                 isAdjacent={adjacentCoords.has(`${hex.q},${hex.r}`)}
                 onClick={() => handleHexClick(hex)}
                 onHover={setHoveredHex}
-                interactive={interactive && !isMoving}
+                interactive={interactive && !isMoving && !isPanning}
                 hexSize={hexSize}
                 compact={compact}
               />
             ))}
           </svg>
+          
+          {/* Zoom Controls */}
+          <div className="absolute top-2 right-2 flex flex-col gap-1">
+            <Button
+              size="icon"
+              variant="secondary"
+              className="h-7 w-7 bg-slate-800/90 hover:bg-slate-700 border border-slate-600"
+              onClick={(e) => { e.stopPropagation(); handleZoomIn(); }}
+              title="Zoom In"
+            >
+              <ZoomIn className="h-4 w-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="secondary"
+              className="h-7 w-7 bg-slate-800/90 hover:bg-slate-700 border border-slate-600"
+              onClick={(e) => { e.stopPropagation(); handleZoomOut(); }}
+              title="Zoom Out"
+            >
+              <ZoomOut className="h-4 w-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="secondary"
+              className="h-7 w-7 bg-slate-800/90 hover:bg-slate-700 border border-slate-600"
+              onClick={(e) => { e.stopPropagation(); handleResetView(); }}
+              title="Reset View"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {/* Zoom indicator */}
+          {zoom !== 1 && (
+            <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-slate-800/90 rounded text-xs text-slate-300 border border-slate-600">
+              {Math.round(zoom * 100)}%
+            </div>
+          )}
           
           {isMoving && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
