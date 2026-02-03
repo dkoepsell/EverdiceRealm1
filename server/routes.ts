@@ -13687,6 +13687,82 @@ Respond with JSON:
         } catch (mapError) {
           console.error("Failed to update dungeon map from story movement:", mapError);
         }
+        
+        // Update procedural exploration hexes based on movement
+        try {
+          const explorationState = await storage.getExplorationState(campaignId);
+          if (explorationState) {
+            const currentQ = explorationState.currentHexQ || 0;
+            const currentR = explorationState.currentHexR || 0;
+            
+            // Convert cardinal direction to hex direction
+            const cardinalToHexDir: Record<string, HexDirection> = {
+              'up': 'n', 'north': 'n', 'n': 'n',
+              'down': 's', 'south': 's', 's': 's',
+              'right': 'se', 'east': 'se', 'e': 'se',
+              'left': 'nw', 'west': 'nw', 'w': 'nw'
+            };
+            const hexDir = cardinalToHexDir[(effectiveDirection || '').toLowerCase()] || 'n';
+            const newCoords = getAdjacentHexCoordinates(currentQ, currentR, hexDir);
+            
+            // Mark current hex as explored
+            const currentHex = await storage.getExplorationHex(campaignId, currentQ, currentR);
+            if (currentHex && !currentHex.isExplored) {
+              await storage.updateExplorationHex(currentHex.id, {
+                isExplored: true,
+                exploredAt: new Date().toISOString()
+              });
+            }
+            
+            // Create new hex at destination
+            let newHex = await storage.getExplorationHex(campaignId, newCoords.q, newCoords.r);
+            const parsed = parseNarrativeForLocations(storyAdvancement.narrative || '');
+            const hexMeta = generateHexMetaFromKeywords(
+              parsed.currentLocation.environmentKeywords,
+              parsed.atmosphereKeywords
+            );
+            
+            if (!newHex) {
+              newHex = await storage.createExplorationHex({
+                campaignId,
+                q: newCoords.q,
+                r: newCoords.r,
+                terrainType: parsed.terrainType || "Unknown",
+                locationName: parsed.currentLocation.name || dungeonState?.currentRoom || "Unknown",
+                locationDescription: parsed.currentLocation.description,
+                hexMeta,
+                isExplored: true,
+                isRevealed: true,
+                exploredAt: new Date().toISOString(),
+                revealedAt: new Date().toISOString(),
+                narrativeContext: (storyAdvancement.narrative || '').slice(0, 500),
+                connectedDirections: []
+              });
+              console.log(`[Exploration] Created new hex at (${newCoords.q}, ${newCoords.r}): ${parsed.currentLocation.name || parsed.terrainType}`);
+            } else {
+              await storage.updateExplorationHex(newHex.id, {
+                terrainType: parsed.terrainType !== "Unknown" ? parsed.terrainType : newHex.terrainType,
+                locationName: parsed.currentLocation.name || dungeonState?.currentRoom || newHex.locationName,
+                locationDescription: parsed.currentLocation.description || newHex.locationDescription,
+                hexMeta,
+                isExplored: true,
+                exploredAt: new Date().toISOString(),
+                narrativeContext: (storyAdvancement.narrative || '').slice(0, 500)
+              });
+            }
+            
+            // Update exploration state with new position
+            await storage.updateExplorationState(explorationState.id, {
+              currentHexQ: newCoords.q,
+              currentHexR: newCoords.r,
+              exploredHexCount: (explorationState.exploredHexCount || 0) + 1,
+              totalDistance: (explorationState.totalDistance || 0) + 1
+            });
+            console.log(`[Exploration] Player moved from (${currentQ}, ${currentR}) to (${newCoords.q}, ${newCoords.r})`);
+          }
+        } catch (explorationError) {
+          console.error("Failed to update exploration hexes:", explorationError);
+        }
       }
       
       // Process AI's dungeonState to update map dynamically based on narrative
