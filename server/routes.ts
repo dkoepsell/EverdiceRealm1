@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { parseNarrativeForLocations, generateHexMetaFromKeywords, getAllAdjacentCoordinates, getAdjacentHexCoordinates, type HexDirection } from "./narrativeHexParser";
+import { parseNarrativeForLocations, generateHexMetaFromKeywords, getAllAdjacentCoordinates, getAdjacentHexCoordinates, detectMovementInNarrative, type HexDirection } from "./narrativeHexParser";
 import { z } from "zod";
 import { getDiscordStatus, sendToChannel, createSessionStartEmbed, createRecapEmbed, createRollEmbed, postCampaignEvent } from "./discord";
 import { 
@@ -4993,37 +4993,94 @@ Return your response as a JSON object with these fields:
         const explorationState = await storage.getExplorationState(parseInt(campaignId));
         if (explorationState && storyData.narrative) {
           const parsed = parseNarrativeForLocations(storyData.narrative);
+          const movement = detectMovementInNarrative(storyData.narrative);
           
-          // Update current hex with narrative context
-          const currentHex = await storage.getExplorationHex(
-            parseInt(campaignId), 
-            explorationState.currentHexQ || 0, 
-            explorationState.currentHexR || 0
-          );
+          const currentQ = explorationState.currentHexQ || 0;
+          const currentR = explorationState.currentHexR || 0;
           
-          if (currentHex) {
+          // If movement detected, create new hex and move player
+          if (movement.hasMoved && movement.direction) {
+            const newCoords = getAdjacentHexCoordinates(currentQ, currentR, movement.direction);
+            
+            // Mark current hex as explored with its terrain
+            const currentHex = await storage.getExplorationHex(parseInt(campaignId), currentQ, currentR);
+            if (currentHex && !currentHex.isExplored) {
+              await storage.updateExplorationHex(currentHex.id, {
+                isExplored: true,
+                exploredAt: new Date().toISOString()
+              });
+            }
+            
+            // Create or update the new hex
+            let newHex = await storage.getExplorationHex(parseInt(campaignId), newCoords.q, newCoords.r);
             const hexMeta = generateHexMetaFromKeywords(
               parsed.currentLocation.environmentKeywords,
               parsed.atmosphereKeywords
             );
             
-            await storage.updateExplorationHex(currentHex.id, {
-              terrainType: parsed.terrainType !== "Unknown" ? parsed.terrainType : currentHex.terrainType,
-              locationName: parsed.currentLocation.name || currentHex.locationName,
-              locationDescription: parsed.currentLocation.description || currentHex.locationDescription,
-              hexMeta: hexMeta,
-              narrativeContext: storyData.narrative.slice(0, 500)
+            if (!newHex) {
+              newHex = await storage.createExplorationHex({
+                campaignId: parseInt(campaignId),
+                q: newCoords.q,
+                r: newCoords.r,
+                terrainType: movement.newTerrainType || parsed.terrainType || "Unknown",
+                locationName: movement.newLocationName || parsed.currentLocation.name,
+                locationDescription: parsed.currentLocation.description,
+                hexMeta: hexMeta,
+                isExplored: true,
+                isRevealed: true,
+                exploredAt: new Date().toISOString(),
+                revealedAt: new Date().toISOString(),
+                narrativeContext: storyData.narrative.slice(0, 500),
+                connectedDirections: []
+              });
+              console.log(`Created new explored hex at (${newCoords.q}, ${newCoords.r}): ${movement.newLocationName || parsed.terrainType}`);
+            } else {
+              await storage.updateExplorationHex(newHex.id, {
+                terrainType: movement.newTerrainType || parsed.terrainType || newHex.terrainType,
+                locationName: movement.newLocationName || parsed.currentLocation.name || newHex.locationName,
+                locationDescription: parsed.currentLocation.description || newHex.locationDescription,
+                hexMeta: hexMeta,
+                isExplored: true,
+                exploredAt: new Date().toISOString(),
+                narrativeContext: storyData.narrative.slice(0, 500)
+              });
+            }
+            
+            // Update exploration state with new position
+            await storage.updateExplorationState(explorationState.id, {
+              currentHexQ: newCoords.q,
+              currentHexR: newCoords.r,
+              exploredHexCount: (explorationState.exploredHexCount || 0) + 1,
+              totalDistance: (explorationState.totalDistance || 0) + 1
             });
+            console.log(`Player moved from (${currentQ}, ${currentR}) to (${newCoords.q}, ${newCoords.r})`);
+          } else {
+            // No movement, just update current hex with narrative context
+            const currentHex = await storage.getExplorationHex(parseInt(campaignId), currentQ, currentR);
+            if (currentHex) {
+              const hexMeta = generateHexMetaFromKeywords(
+                parsed.currentLocation.environmentKeywords,
+                parsed.atmosphereKeywords
+              );
+              await storage.updateExplorationHex(currentHex.id, {
+                terrainType: parsed.terrainType !== "Unknown" ? parsed.terrainType : currentHex.terrainType,
+                locationName: parsed.currentLocation.name || currentHex.locationName,
+                locationDescription: parsed.currentLocation.description || currentHex.locationDescription,
+                hexMeta: hexMeta,
+                narrativeContext: storyData.narrative.slice(0, 500)
+              });
+            }
           }
           
           // Reveal adjacent hexes based on narrative hints
+          const updatedState = await storage.getExplorationState(parseInt(campaignId));
+          const newCurrentQ = updatedState?.currentHexQ || currentQ;
+          const newCurrentR = updatedState?.currentHexR || currentR;
+          
           for (const hint of parsed.adjacentHints) {
             if (hint.distance === "adjacent" || hint.distance === "nearby") {
-              const coords = getAdjacentHexCoordinates(
-                explorationState.currentHexQ || 0, 
-                explorationState.currentHexR || 0, 
-                hint.direction
-              );
+              const coords = getAdjacentHexCoordinates(newCurrentQ, newCurrentR, hint.direction);
               
               // Check if hex already exists
               const existingHex = await storage.getExplorationHex(parseInt(campaignId), coords.q, coords.r);

@@ -245,6 +245,63 @@ function deduplicateHints(hints: DirectionalHint[]): DirectionalHint[] {
   return result;
 }
 
+export interface MovementDetection {
+  hasMoved: boolean;
+  direction: HexDirection | null;
+  newLocationName: string | null;
+  newTerrainType: string | null;
+}
+
+export function detectMovementInNarrative(narrative: string): MovementDetection {
+  const movementPatterns = [
+    /(?:you |the party |your group )?(?:step|walk|move|enter|pass|go|proceed|travel|venture|head|push|climb|descend|cross|wade)(?:s|ed|ing)?\s+(?:through|into|in|to|toward|towards|across|down|up|over|past)/i,
+    /(?:you |the party )?(?:open|push open|swing open)(?:s|ed)?\s+(?:the |a )?\s*(?:door|gate|portal|entrance)/i,
+    /(?:entering|stepping into|walking into|moving into|going through)/i,
+    /(?:you |the party )?(?:arrive|reach|find yourself|now stand|emerge)(?:s|d)?\s+(?:at|in|inside)/i,
+    /(?:the door|the gate|the portal|the passage)\s+(?:opens|leads|reveals)/i,
+  ];
+  
+  const lowerNarrative = narrative.toLowerCase();
+  let hasMoved = false;
+  
+  for (const pattern of movementPatterns) {
+    if (pattern.test(narrative)) {
+      hasMoved = true;
+      break;
+    }
+  }
+  
+  if (!hasMoved) return { hasMoved: false, direction: null, newLocationName: null, newTerrainType: null };
+  
+  let direction: HexDirection = "n";
+  for (const [dir, patterns] of Object.entries(DIRECTION_PATTERNS)) {
+    for (const pattern of patterns) {
+      if (pattern.test(narrative)) {
+        direction = dir as HexDirection;
+        break;
+      }
+    }
+  }
+  
+  let newTerrainType: string | null = null;
+  for (const [keyword, envData] of Object.entries(ENVIRONMENT_KEYWORDS)) {
+    if (lowerNarrative.includes(keyword)) {
+      newTerrainType = envData.terrain;
+      break;
+    }
+  }
+  
+  const locationMatch = narrative.match(/(?:into|in|to|at|inside)\s+(?:a |an |the )?([^,.!?]+?)(?:\.|,|!|\?|$)/i);
+  const newLocationName = locationMatch ? locationMatch[1].trim().slice(0, 50) : newTerrainType;
+  
+  return {
+    hasMoved,
+    direction,
+    newLocationName,
+    newTerrainType
+  };
+}
+
 export function generateHexMetaFromKeywords(
   keywords: string[],
   atmosphereKeywords: string[],
