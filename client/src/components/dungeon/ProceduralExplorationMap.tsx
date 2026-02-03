@@ -690,7 +690,7 @@ export function ProceduralExplorationMap({
       </CardHeader>
       <CardContent className="p-2">
         <div 
-          className={`relative ${compact ? "h-32" : "h-64"} bg-slate-950 rounded-lg overflow-hidden border border-slate-800 ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+          className={`relative ${compact ? "h-44" : "h-64"} bg-slate-950 rounded-lg overflow-hidden border border-slate-800 ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
