@@ -173,7 +173,7 @@ function HexTile({
 }) {
   const { x, y } = axialToPixel(hex.q, hex.r, hexSize);
   const colorClass = getHexColor(hex, isCurrentPosition);
-  const canClick = interactive && isAdjacent && hex.isRevealed && !isCurrentPosition;
+  const canClick = false;
   
   const points = [];
   for (let i = 0; i < 6; i++) {
@@ -501,8 +501,8 @@ export function ProceduralExplorationMap({
               </div>
             )}
             {!hoveredHex.isExplored && adjacentCoords.has(`${hoveredHex.q},${hoveredHex.r}`) && (
-              <p className="text-xs text-amber-400 mt-1 flex items-center gap-1">
-                <Navigation className="h-3 w-3" /> Click to explore
+              <p className="text-xs text-slate-400 mt-1 italic">
+                Advance the story to explore this area
               </p>
             )}
           </div>
