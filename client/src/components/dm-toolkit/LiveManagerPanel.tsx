@@ -1148,6 +1148,17 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
               </CardContent>
             </Card>
 
+            {/* Exploration Map - Compact DM view */}
+            {selectedCampaignId && (
+              <div className="rounded overflow-hidden bg-slate-900/50 border border-muted">
+                <ProceduralExplorationMap
+                  campaignId={selectedCampaignId}
+                  interactive={false}
+                  compact={true}
+                />
+              </div>
+            )}
+
             {/* Initiative - Collapsed until combat, muted styling */}
             {initiativeOrder.length > 0 && (
               <Card className="border-muted bg-muted/20">
