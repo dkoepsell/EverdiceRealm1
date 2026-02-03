@@ -3048,166 +3048,6 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </div>
                     </ContextualHint>
                     
-                    {/* Campaign Chapter Progress Bar - Compact version */}
-                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 p-2 rounded-lg border border-indigo-200 dark:border-indigo-800 mb-3">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs font-semibold text-indigo-900 dark:text-indigo-100 flex items-center">
-                          <BookOpen className="h-3 w-3 mr-1" />
-                          Progress
-                        </span>
-                        <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">
-                          Ch. {currentSession.sessionNumber}/{campaign.totalChapters || 5}
-                          {currentSession.sessionNumber === (campaign.totalChapters || 5) && ' 🏆'}
-                        </span>
-                      </div>
-                      <Progress 
-                        value={(currentSession.sessionNumber / (campaign.totalChapters || 5)) * 100} 
-                        className="h-2 bg-indigo-200 dark:bg-indigo-900"
-                        data-testid="progress-campaign-chapters"
-                      />
-                    </div>
-                    
-                    {/* Quick Reference Panel - Full Width Map + Party Stats Row */}
-                    <div className="space-y-3 mb-4">
-                      {/* Procedural Exploration Map - Narrative-driven hex exploration */}
-                      <div className="bg-slate-800 dark:bg-slate-900 rounded-lg border-2 border-amber-600/50 shadow-lg overflow-hidden">
-                        <div className="flex items-center justify-between p-3 hover:bg-slate-700/50 transition-colors">
-                          <button
-                            onClick={() => setIsMapCollapsed(!isMapCollapsed)}
-                            className="flex-1 flex items-center text-left"
-                          >
-                            <h5 className="text-sm font-bold text-amber-400 flex items-center">
-                              <Map className="h-4 w-4 mr-2" />
-                              {currentLocation || 'Exploration Map'}
-                            </h5>
-                          </button>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => setIsMapCollapsed(!isMapCollapsed)}
-                              className="p-1 hover:bg-slate-600/50 rounded"
-                            >
-                              {isMapCollapsed ? (
-                                <ChevronDown className="h-4 w-4 text-slate-400" />
-                              ) : (
-                                <ChevronUp className="h-4 w-4 text-slate-400" />
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                        
-                        {!isMapCollapsed && (
-                          <div className="p-3 pt-0">
-                            {/* Procedural Exploration Map - Narrative-driven hexes */}
-                            <ProceduralExplorationMap
-                              campaignId={campaign.id}
-                              onHexMove={(hex, needsNarrative) => {
-                                if (needsNarrative) {
-                                  toast({
-                                    title: "Exploring...",
-                                    description: `Heading to ${hex.locationName || 'a new area'} to discover what lies ahead...`,
-                                  });
-                                }
-                              }}
-                              compact={true}
-                            />
-                            
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Party Stats Widget - Below map */}
-                      <div className="bg-gradient-to-br from-emerald-900/80 to-green-900/80 dark:from-emerald-950 dark:to-green-950 p-3 rounded-lg border-2 border-emerald-600/50 shadow-lg">
-                        <h5 className="text-sm font-bold text-emerald-300 flex items-center mb-2">
-                          <Users className="h-4 w-4 mr-1" />
-                          Party Status ({participants.length})
-                        </h5>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {participants.map((p: any, idx: number) => {
-                            const char = p.character;
-                            if (!char) return null;
-                            const maxHp = char.maxHitPoints || char.hitPoints || 10;
-                            const hpPercent = maxHp > 0 ? Math.max(0, (char.hitPoints ?? 0) / maxHp * 100) : 0;
-                            const hpColor = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
-                            const isDead = char.status === 'dead' && (char.hitPoints ?? 0) <= 0;
-                            const isNpc = p.isNpc;
-                            const roleLabel = isNpc ? (char.companionType || char.occupation || 'Companion') : (char.class || 'Adventurer');
-                            return (
-                              <div key={char.id || idx} className={`flex items-center gap-2 p-1.5 rounded ${isDead ? 'opacity-50 bg-red-900/30' : 'bg-slate-800/50'}`}>
-                                <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden shrink-0 border border-slate-600">
-                                  {char.portraitUrl ? (
-                                    <img src={char.portraitUrl} alt="" className="w-full h-full object-cover" />
-                                  ) : (
-                                    <User className="h-4 w-4 text-slate-400" />
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between text-xs">
-                                    <div className="flex items-center gap-1">
-                                      <span className={`font-medium truncate ${isDead ? 'text-red-400 line-through' : 'text-white'}`}>
-                                        {char.name}
-                                      </span>
-                                      <span className="text-slate-400 text-[10px]">Lv{char.level || 1}</span>
-                                    </div>
-                                    <span className={`font-bold ${isDead ? 'text-red-400' : 'text-emerald-300'}`}>
-                                      {isDead ? 'DEAD' : `${char.hitPoints ?? 0}/${char.maxHitPoints ?? char.hitPoints ?? 10}`}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center justify-between text-[10px] text-slate-400 mt-0.5">
-                                    <span className="truncate capitalize">{roleLabel}</span>
-                                    <div className="flex items-center gap-2">
-                                      <span className="flex items-center gap-0.5">
-                                        <Shield className="h-2.5 w-2.5" /> {char.armorClass || 10}
-                                      </span>
-                                      {char.gold > 0 && (
-                                        <span className="flex items-center gap-0.5 text-yellow-400">
-                                          <Coins className="h-2.5 w-2.5" /> {char.gold}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                  {!isDead && (
-                                    <div className="h-1 bg-slate-700 rounded-full overflow-hidden mt-0.5">
-                                      <div className={`h-full ${hpColor} transition-all`} style={{ width: `${hpPercent}%` }} />
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                          {participants.length === 0 && (
-                            <p className="text-xs text-emerald-400/70 italic">No party members</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Contextual Party Tab Reminder - shows when low HP or no potions */}
-                    {activeCharacter && (
-                      activeCharacter.hitPoints < activeCharacter.maxHitPoints / 2 || 
-                      !((activeCharacter as any).consumables?.length > 0)
-                    ) && !parsedStoryState?.inCombat && (
-                      <div className="bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 border-2 border-amber-400 dark:border-amber-600 rounded-lg p-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <FlaskConical className="h-4 w-4" style={{ color: '#92400e' }} />
-                          <span className="text-sm font-medium" style={{ color: '#78350f' }}>
-                            {activeCharacter.hitPoints < activeCharacter.maxHitPoints / 2 
-                              ? "Your hero is wounded! Consider stocking up on healing potions." 
-                              : "You have no consumables. Potions can save your life!"}
-                          </span>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-amber-500 hover:bg-amber-200 dark:hover:bg-amber-900/50"
-                          style={{ color: '#78350f' }}
-                          onClick={() => setActiveTab("party")}
-                        >
-                          <Backpack className="h-4 w-4 mr-1" />
-                          Party Tab
-                        </Button>
-                      </div>
-                    )}
-                    
                     {/* Combat Status Display */}
                     {parsedStoryState?.inCombat && (
                       <div className="bg-red-50 dark:bg-red-950/30 p-4 rounded-md border-2 border-red-400 dark:border-red-700 mb-4">
@@ -3538,139 +3378,81 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                     const damageResult = parseAndRollDice(damageDice, false, damageType);
                                     
                                     const combatLog = {
-                                      attacker: activeCharacter.name || 'Hero',
+                                      attacker: activeCharacter.name || 'Player',
                                       attackerType: 'player',
                                       target: targetEnemy.name,
                                       targetType: 'enemy',
-                                      attackRoll: { roll: 0, modifier: 0, total: 0, isCritical: false, isCriticalMiss: false }, // Magic Missile auto-hits, no roll needed
-                                      targetAC: targetEnemy.ac || 12,
+                                      attackRoll: { roll: 0, modifier: 0, total: 0, isCritical: false, isCriticalMiss: false },
+                                      targetAC: targetEnemy.ac || 10,
                                       isHit: true,
-                                      damage: {
-                                        diceRolls: damageResult.diceRolls,
-                                        diceType: damageResult.diceType,
-                                        modifier: damageResult.modifier,
-                                        total: damageResult.total,
-                                        isCritical: false
-                                      },
-                                      targetNewHp: Math.max(0, targetEnemy.currentHp - damageResult.total),
-                                      targetMaxHp: targetEnemy.maxHp,
-                                      targetStatus: (targetEnemy.currentHp - damageResult.total) <= 0 ? 'defeated' : targetEnemy.status,
-                                      description: `${activeCharacter.name} waves the ${item.name}! Glowing darts of magical force streak toward ${targetEnemy.name}, dealing ${damageResult.total} force damage!`,
-                                      mechanicsBreakdown: `Magic Missile (auto-hit - no attack roll needed)\nDamage: ${damageResult.diceRolls.join('+')} = ${damageResult.total} force`
+                                      damage: damageResult,
+                                      description: `${activeCharacter.name} uses ${item.name}! The magic missiles strike ${targetEnemy.name} for ${damageResult.total} ${damageType} damage!`,
+                                      mechanicsBreakdown: `Magic Missile (auto-hit): ${damageResult.diceRolls.join('+')} = ${damageResult.total} ${damageType} damage`,
                                     };
                                     
-                                    setDetailedCombatLogs([combatLog]);
-                                    setShowCombatLogDialog(true);
+                                    setDetailedCombatLogs(prev => [...prev, combatLog]);
                                     
-                                    toast({
-                                      title: `✨ ${item.name}!`,
-                                      description: `Dealt ${damageResult.total} force damage to ${targetEnemy.name}!`,
-                                    });
-                                    
+                                    // Advance story with magic item use
                                     advanceStory.mutate({
-                                      choice: `Use ${item.name} on ${targetEnemy.name}, dealing ${damageResult.total} force damage`,
+                                      choice: `Use ${item.name}`,
                                       rollResult: {
                                         type: 'magic_item',
                                         itemName: item.name,
                                         damage: damageResult,
-                                        target: targetEnemy.name,
-                                        isHit: true
+                                        targetName: targetEnemy.name,
+                                        autoHit: true
                                       }
                                     });
                                   } else {
-                                    // Other magic items may require attack roll
-                                    const profBonus = Math.floor(((activeCharacter.level || 1) - 1) / 4) + 2;
-                                    const intMod = Math.floor(((activeCharacter as any).intelligence || 10 - 10) / 2);
-                                    const attackResult = rollSpellAttack(profBonus + intMod);
-                                    const targetAC = targetEnemy.ac || 12;
-                                    const isHit = attackResult.isCritical || (!attackResult.isCriticalMiss && attackResult.total >= targetAC);
+                                    // Other magic items use spell attack roll
+                                    const spellAttackBonus = Math.floor((activeCharacter.level || 1) / 4) + 2 + Math.floor(((activeCharacter.intelligence || activeCharacter.wisdom || 10) - 10) / 2);
+                                    const attackResult = rollSpellAttack(spellAttackBonus, targetEnemy.ac || 10);
                                     
-                                    let damageResult = null;
-                                    if (isHit) {
-                                      damageResult = parseAndRollDice(damageDice, attackResult.isCritical, damageType);
+                                    let damageResult: SpellDamageResult | null = null;
+                                    if (attackResult.hit) {
+                                      damageResult = parseAndRollDice(damageDice, attackResult.critical, damageType);
                                     }
                                     
                                     const combatLog = {
-                                      attacker: activeCharacter.name || 'Hero',
+                                      attacker: activeCharacter.name || 'Player',
                                       attackerType: 'player',
                                       target: targetEnemy.name,
                                       targetType: 'enemy',
-                                      attackRoll: attackResult,
-                                      targetAC,
-                                      isHit,
-                                      damage: damageResult ? {
-                                        diceRolls: damageResult.diceRolls,
-                                        diceType: damageResult.diceType,
-                                        modifier: damageResult.modifier,
-                                        total: damageResult.total,
-                                        isCritical: damageResult.isCritical
-                                      } : null,
-                                      targetNewHp: isHit && damageResult ? Math.max(0, targetEnemy.currentHp - damageResult.total) : targetEnemy.currentHp,
-                                      targetMaxHp: targetEnemy.maxHp,
-                                      targetStatus: isHit && damageResult && (targetEnemy.currentHp - damageResult.total) <= 0 ? 'defeated' : targetEnemy.status,
-                                      description: isHit 
-                                        ? `${activeCharacter.name} activates the ${item.name}! ${targetEnemy.name} takes ${damageResult?.total} ${damageType} damage!`
-                                        : `${activeCharacter.name} uses the ${item.name} but ${targetEnemy.name} evades!`,
-                                      mechanicsBreakdown: `Attack: d20(${attackResult.roll}) + ${attackResult.modifier} = ${attackResult.total} vs AC ${targetAC}`
-                                        + (damageResult ? `\nDamage: ${damageResult.diceRolls.join('+')} = ${damageResult.total} ${damageType}` : '')
+                                      attackRoll: { roll: attackResult.roll, modifier: spellAttackBonus, total: attackResult.total, isCritical: attackResult.critical, isCriticalMiss: attackResult.roll === 1 },
+                                      targetAC: targetEnemy.ac || 10,
+                                      isHit: attackResult.hit,
+                                      damage: damageResult,
+                                      description: attackResult.hit 
+                                        ? `${activeCharacter.name} uses ${item.name}! The attack strikes ${targetEnemy.name} for ${damageResult?.total || 0} ${damageType} damage!`
+                                        : `${activeCharacter.name} uses ${item.name} but the attack misses ${targetEnemy.name}!`,
+                                      mechanicsBreakdown: `Spell Attack: d20(${attackResult.roll}) + ${spellAttackBonus} = ${attackResult.total} vs AC ${targetEnemy.ac || 10}${attackResult.hit && damageResult ? `. Damage: ${damageResult.diceRolls.join('+')}${damageResult.modifier ? `+${damageResult.modifier}` : ''} = ${damageResult.total}` : ''}`,
                                     };
                                     
-                                    setDetailedCombatLogs([combatLog]);
-                                    setShowCombatLogDialog(true);
+                                    setDetailedCombatLogs(prev => [...prev, combatLog]);
                                     
-                                    toast({
-                                      title: isHit ? `✨ ${item.name} hits!` : `❌ ${item.name} missed!`,
-                                      description: isHit && damageResult
-                                        ? `Dealt ${damageResult.total} ${damageType} damage to ${targetEnemy.name}!`
-                                        : `Attack roll ${attackResult.total} vs AC ${targetAC}`,
-                                      variant: isHit ? undefined : "destructive",
-                                    });
-                                    
+                                    // Advance story with magic item use
                                     advanceStory.mutate({
-                                      choice: `Use ${item.name} on ${targetEnemy.name}${isHit ? `, dealing ${damageResult?.total} ${damageType} damage` : ' but missed'}`,
+                                      choice: `Use ${item.name}`,
                                       rollResult: {
                                         type: 'magic_item',
                                         itemName: item.name,
                                         attackRoll: attackResult,
                                         damage: damageResult,
-                                        target: targetEnemy.name,
-                                        isHit
+                                        targetName: targetEnemy.name,
+                                        hit: attackResult.hit
                                       }
                                     });
                                   }
                                 } else {
-                                  // Outside combat - just describe using the item
+                                  // Out of combat use
                                   toast({
-                                    title: `✨ Used ${item.name}!`,
-                                    description: item.specialEffect || `You activate the magical item.`,
-                                  });
-                                  
-                                  advanceStory.mutate({
-                                    choice: `Use ${item.name}`,
-                                    rollResult: {
-                                      type: 'magic_item',
-                                      itemName: item.name
-                                    }
+                                    title: `Using ${item.name}`,
+                                    description: item.specialEffect || `You activate the ${item.name}`,
                                   });
                                 }
                               }}
                               onCastSpell={(spell, slotLevel) => {
-                                // Calculate spellcasting modifier based on class
-                                const getSpellcastingAbility = (charClass: string): 'intelligence' | 'wisdom' | 'charisma' => {
-                                  const lowerClass = charClass.toLowerCase();
-                                  if (['wizard'].includes(lowerClass)) return 'intelligence';
-                                  if (['cleric', 'druid', 'ranger'].includes(lowerClass)) return 'wisdom';
-                                  return 'charisma'; // sorcerer, bard, warlock, paladin
-                                };
-                                
-                                const ability = getSpellcastingAbility(activeCharacter.class || '');
-                                const abilityScore = (activeCharacter as any)[ability] || 10;
-                                const abilityMod = Math.floor((abilityScore - 10) / 2);
-                                // D&D 5e proficiency bonus: 2 at levels 1-4, 3 at 5-8, 4 at 9-12, etc.
-                                const profBonus = Math.floor(((activeCharacter.level || 1) - 1) / 4) + 2;
-                                const spellMod = abilityMod + profBonus;
-                                
-                                // Check if we're in combat and have valid enemies
+                                // Handle casting combat spell
                                 const inCombat = parsedStoryState?.inCombat;
                                 const enemies = (parsedStoryState?.combatants as any[] || []).filter(
                                   (c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated' && (c.currentHp > 0 || c.currentHp === undefined)
@@ -3679,124 +3461,84 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 const validIndex = selectedTargetIndex < enemies.length ? selectedTargetIndex : 0;
                                 const targetEnemy = enemies.length > 0 ? enemies[validIndex] : null;
                                 
-                                // If spell has damage dice and we're in combat with enemies, handle combat spell
-                                if (spell.damageDice && inCombat && targetEnemy) {
-                                  // Roll spell attack
-                                  const attackResult = rollSpellAttack(spellMod);
-                                  const targetAC = targetEnemy.ac || 12;
-                                  const isHit = attackResult.isCritical || (!attackResult.isCriticalMiss && attackResult.total >= targetAC);
+                                if (inCombat && targetEnemy && spell.damage) {
+                                  // Calculate spell attack or saving throw
+                                  const spellcastingAbility = ['Wizard'].includes(activeCharacter?.class || '') ? 'intelligence' : 
+                                                             ['Cleric', 'Druid', 'Ranger'].includes(activeCharacter?.class || '') ? 'wisdom' : 
+                                                             ['Sorcerer', 'Warlock', 'Bard', 'Paladin'].includes(activeCharacter?.class || '') ? 'charisma' : 'intelligence';
+                                  const abilityScore = (activeCharacter as any)?.[spellcastingAbility] || 10;
+                                  const abilityMod = Math.floor((abilityScore - 10) / 2);
+                                  const profBonus = Math.floor(((activeCharacter?.level || 1) - 1) / 4) + 2;
+                                  const spellAttackBonus = abilityMod + profBonus;
                                   
-                                  let damageResult: SpellDamageResult | null = null;
-                                  
-                                  if (isHit) {
-                                    damageResult = parseAndRollDice(spell.damageDice, attackResult.isCritical, spell.damageType);
-                                  }
-                                  
-                                  // Create combat log entry
-                                  const combatLog = {
-                                    attacker: activeCharacter.name || 'Hero',
-                                    attackerType: 'player',
-                                    target: targetEnemy.name,
-                                    targetType: 'enemy',
-                                    attackRoll: attackResult,
-                                    targetAC,
-                                    isHit,
-                                    damage: damageResult ? {
-                                      diceRolls: damageResult.diceRolls,
-                                      diceType: damageResult.diceType,
-                                      modifier: damageResult.modifier,
-                                      total: damageResult.total,
-                                      isCritical: damageResult.isCritical
-                                    } : null,
-                                    targetNewHp: isHit && damageResult ? Math.max(0, targetEnemy.currentHp - damageResult.total) : targetEnemy.currentHp,
-                                    targetMaxHp: targetEnemy.maxHp,
-                                    targetStatus: isHit && damageResult && (targetEnemy.currentHp - damageResult.total) <= 0 ? 'defeated' : targetEnemy.status,
-                                    description: isHit 
-                                      ? `${activeCharacter.name} casts ${spell.name}${attackResult.isCritical ? ' with devastating effect' : ''}! The spell strikes ${targetEnemy.name} for ${damageResult?.total} ${spell.damageType || ''} damage!`
-                                      : `${activeCharacter.name} casts ${spell.name} but ${targetEnemy.name} evades the spell!`,
-                                    mechanicsBreakdown: `Spell Attack: d20(${attackResult.roll}) + ${attackResult.modifier} = ${attackResult.total} vs AC ${targetAC}`
-                                      + (damageResult ? `\nDamage: ${damageResult.diceRolls.join('+')}${damageResult.modifier !== 0 ? (damageResult.modifier > 0 ? '+' : '') + damageResult.modifier : ''} = ${damageResult.total} ${spell.damageType || ''}${damageResult.isCritical ? ' (CRITICAL!)' : ''}` : '')
-                                  };
-                                  
-                                  // Show the combat log dialog
-                                  setDetailedCombatLogs([combatLog]);
-                                  setShowCombatLogDialog(true);
-                                  
-                                  // Toast notification
-                                  toast({
-                                    title: attackResult.isCritical 
-                                      ? `🎯 Critical ${spell.name}!` 
-                                      : isHit 
-                                        ? `✨ ${spell.name} hits!`
-                                        : `❌ ${spell.name} missed!`,
-                                    description: isHit && damageResult
-                                      ? `Dealt ${damageResult.total} ${spell.damageType || ''} damage to ${targetEnemy.name}!`
-                                      : attackResult.isCriticalMiss 
-                                        ? 'Natural 1! The spell fizzles...'
-                                        : `Attack roll ${attackResult.total} vs AC ${targetAC}`,
-                                    variant: isHit ? undefined : "destructive",
-                                  });
-                                  
-                                  // Send spell action to server to update game state
-                                  advanceStory.mutate({
-                                    choice: `Cast ${spell.name} on ${targetEnemy.name}${isHit ? ` dealing ${damageResult?.total} ${spell.damageType || ''} damage` : ' but missed'}`,
-                                    rollResult: {
-                                      type: 'spell_attack',
-                                      spellName: spell.name,
-                                      slotLevel,
-                                      attackRoll: attackResult,
-                                      damage: damageResult,
+                                  // For attack spells
+                                  if (spell.attack_type === 'ranged' || spell.attack_type === 'melee') {
+                                    const attackResult = rollSpellAttack(spellAttackBonus, targetEnemy.ac || 10);
+                                    
+                                    let damageResult: SpellDamageResult | null = null;
+                                    if (attackResult.hit && spell.damage) {
+                                      // Scale damage by slot level if needed
+                                      let damageDice = spell.damage;
+                                      // Simple upcast: add 1d per level above base
+                                      if (slotLevel > spell.level) {
+                                        const diceMatch = spell.damage.match(/(\d+)d(\d+)/);
+                                        if (diceMatch) {
+                                          const extraDice = slotLevel - spell.level;
+                                          damageDice = `${parseInt(diceMatch[1]) + extraDice}d${diceMatch[2]}`;
+                                        }
+                                      }
+                                      damageResult = parseAndRollDice(damageDice, attackResult.critical, spell.damage_type || 'magical');
+                                    }
+                                    
+                                    const combatLog = {
+                                      attacker: activeCharacter?.name || 'Player',
+                                      attackerType: 'player',
                                       target: targetEnemy.name,
-                                      isHit
-                                    }
-                                  });
-                                  
-                                } else if (spell.healingDice) {
-                                  // Handle healing spell
-                                  const healResult = parseAndRollDice(spell.healingDice, false);
-                                  
-                                  toast({
-                                    title: `💚 ${spell.name}!`,
-                                    description: `Healed for ${healResult.total} HP!`,
-                                  });
-                                  
-                                  // Send healing action to server
-                                  advanceStory.mutate({
-                                    choice: `Cast ${spell.name} to heal for ${healResult.total} HP`,
-                                    rollResult: {
-                                      type: 'spell_heal',
-                                      spellName: spell.name,
-                                      slotLevel,
-                                      healing: healResult.total
-                                    }
-                                  });
-                                  
-                                } else if (spell.damageDice && !inCombat) {
-                                  // Damage spell cast outside combat - roll damage and let server handle narrative
-                                  const damageResult = parseAndRollDice(spell.damageDice, false, spell.damageType);
-                                  
-                                  toast({
-                                    title: `✨ ${activeCharacter.name} casts ${spell.name}!`,
-                                    description: `${damageResult.diceRolls.join(' + ')} = ${damageResult.total} ${spell.damageType || ''} damage${!inCombat ? ' (not in combat)' : ''}`,
-                                  });
-                                  
-                                  advanceStory.mutate({
-                                    choice: `Cast ${spell.name} dealing ${damageResult.total} ${spell.damageType || ''} damage`,
-                                    rollResult: {
-                                      type: 'spell_attack',
-                                      spellName: spell.name,
-                                      slotLevel,
-                                      damage: damageResult
-                                    }
-                                  });
-                                  
-                                } else {
-                                  // Utility spell - just send action to server
-                                  toast({
-                                    title: `✨ ${activeCharacter.name} casts ${spell.name}!`,
-                                    description: slotLevel > 0 ? `Used a level ${slotLevel} spell slot` : "Cantrip",
-                                  });
-                                  
+                                      targetType: 'enemy',
+                                      attackRoll: { roll: attackResult.roll, modifier: spellAttackBonus, total: attackResult.total, isCritical: attackResult.critical, isCriticalMiss: attackResult.roll === 1 },
+                                      targetAC: targetEnemy.ac || 10,
+                                      isHit: attackResult.hit,
+                                      damage: damageResult,
+                                      description: attackResult.hit 
+                                        ? `${activeCharacter?.name} casts ${spell.name}! ${attackResult.critical ? 'CRITICAL HIT! ' : ''}The spell strikes ${targetEnemy.name} for ${damageResult?.total || 0} ${spell.damage_type || 'magical'} damage!`
+                                        : `${activeCharacter?.name} casts ${spell.name} but the spell misses ${targetEnemy.name}!`,
+                                      mechanicsBreakdown: `Spell Attack: d20(${attackResult.roll}) + ${spellAttackBonus} = ${attackResult.total} vs AC ${targetEnemy.ac || 10}${attackResult.hit && damageResult ? `. Damage: ${damageResult.diceRolls.join('+')}${damageResult.modifier ? `+${damageResult.modifier}` : ''}${attackResult.critical ? ' (doubled)' : ''} = ${damageResult.total}` : ''}`,
+                                    };
+                                    
+                                    setDetailedCombatLogs(prev => [...prev, combatLog]);
+                                    
+                                    // Advance story with spell cast
+                                    advanceStory.mutate({
+                                      choice: `Cast ${spell.name}`,
+                                      rollResult: {
+                                        type: 'spell_attack',
+                                        spellName: spell.name,
+                                        slotLevel,
+                                        attackRoll: attackResult,
+                                        damage: damageResult,
+                                        targetName: targetEnemy.name,
+                                        hit: attackResult.hit
+                                      }
+                                    });
+                                  } else {
+                                    // For saving throw spells, just roll damage (enemy save handled by AI)
+                                    const damageResult = parseAndRollDice(spell.damage, false, spell.damage_type || 'magical');
+                                    
+                                    advanceStory.mutate({
+                                      choice: `Cast ${spell.name}`,
+                                      rollResult: {
+                                        type: 'spell_save',
+                                        spellName: spell.name,
+                                        slotLevel,
+                                        damage: damageResult,
+                                        targetName: targetEnemy.name,
+                                        saveDC: 8 + profBonus + abilityMod,
+                                        saveType: spell.dc?.dc_type?.index || 'dexterity'
+                                      }
+                                    });
+                                  }
+                                } else if (!spell.damage) {
+                                  // Utility spell (healing, buff, etc.)
                                   advanceStory.mutate({
                                     choice: `Cast ${spell.name}`,
                                     rollResult: {
@@ -3812,7 +3554,167 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         )}
                       </div>
                     )}
-
+                    
+                    {/* Campaign Chapter Progress Bar - Compact version */}
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 p-2 rounded-lg border border-indigo-200 dark:border-indigo-800 mb-3">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-semibold text-indigo-900 dark:text-indigo-100 flex items-center">
+                          <BookOpen className="h-3 w-3 mr-1" />
+                          Progress
+                        </span>
+                        <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                          Ch. {currentSession.sessionNumber}/{campaign.totalChapters || 5}
+                          {currentSession.sessionNumber === (campaign.totalChapters || 5) && ' 🏆'}
+                        </span>
+                      </div>
+                      <Progress 
+                        value={(currentSession.sessionNumber / (campaign.totalChapters || 5)) * 100} 
+                        className="h-2 bg-indigo-200 dark:bg-indigo-900"
+                        data-testid="progress-campaign-chapters"
+                      />
+                    </div>
+                    
+                    {/* Quick Reference Panel - Full Width Map + Party Stats Row */}
+                    <div className="space-y-3 mb-4">
+                      {/* Procedural Exploration Map - Narrative-driven hex exploration */}
+                      <div className="bg-slate-800 dark:bg-slate-900 rounded-lg border-2 border-amber-600/50 shadow-lg overflow-hidden">
+                        <div className="flex items-center justify-between p-3 hover:bg-slate-700/50 transition-colors">
+                          <button
+                            onClick={() => setIsMapCollapsed(!isMapCollapsed)}
+                            className="flex-1 flex items-center text-left"
+                          >
+                            <h5 className="text-sm font-bold text-amber-400 flex items-center">
+                              <Map className="h-4 w-4 mr-2" />
+                              {currentLocation || 'Exploration Map'}
+                            </h5>
+                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setIsMapCollapsed(!isMapCollapsed)}
+                              className="p-1 hover:bg-slate-600/50 rounded"
+                            >
+                              {isMapCollapsed ? (
+                                <ChevronDown className="h-4 w-4 text-slate-400" />
+                              ) : (
+                                <ChevronUp className="h-4 w-4 text-slate-400" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                        
+                        {!isMapCollapsed && (
+                          <div className="p-3 pt-0">
+                            {/* Procedural Exploration Map - Narrative-driven hexes */}
+                            <ProceduralExplorationMap
+                              campaignId={campaign.id}
+                              onHexMove={(hex, needsNarrative) => {
+                                if (needsNarrative) {
+                                  toast({
+                                    title: "Exploring...",
+                                    description: `Heading to ${hex.locationName || 'a new area'} to discover what lies ahead...`,
+                                  });
+                                }
+                              }}
+                              compact={true}
+                            />
+                            
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Party Stats Widget - Below map */}
+                      <div className="bg-gradient-to-br from-emerald-900/80 to-green-900/80 dark:from-emerald-950 dark:to-green-950 p-3 rounded-lg border-2 border-emerald-600/50 shadow-lg">
+                        <h5 className="text-sm font-bold text-emerald-300 flex items-center mb-2">
+                          <Users className="h-4 w-4 mr-1" />
+                          Party Status ({participants.length})
+                        </h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {participants.map((p: any, idx: number) => {
+                            const char = p.character;
+                            if (!char) return null;
+                            const maxHp = char.maxHitPoints || char.hitPoints || 10;
+                            const hpPercent = maxHp > 0 ? Math.max(0, (char.hitPoints ?? 0) / maxHp * 100) : 0;
+                            const hpColor = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
+                            const isDead = char.status === 'dead' && (char.hitPoints ?? 0) <= 0;
+                            const isNpc = p.isNpc;
+                            const roleLabel = isNpc ? (char.companionType || char.occupation || 'Companion') : (char.class || 'Adventurer');
+                            return (
+                              <div key={char.id || idx} className={`flex items-center gap-2 p-1.5 rounded ${isDead ? 'opacity-50 bg-red-900/30' : 'bg-slate-800/50'}`}>
+                                <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden shrink-0 border border-slate-600">
+                                  {char.portraitUrl ? (
+                                    <img src={char.portraitUrl} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <User className="h-4 w-4 text-slate-400" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <div className="flex items-center gap-1">
+                                      <span className={`font-medium truncate ${isDead ? 'text-red-400 line-through' : 'text-white'}`}>
+                                        {char.name}
+                                      </span>
+                                      <span className="text-slate-400 text-[10px]">Lv{char.level || 1}</span>
+                                    </div>
+                                    <span className={`font-bold ${isDead ? 'text-red-400' : 'text-emerald-300'}`}>
+                                      {isDead ? 'DEAD' : `${char.hitPoints ?? 0}/${char.maxHitPoints ?? char.hitPoints ?? 10}`}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-[10px] text-slate-400 mt-0.5">
+                                    <span className="truncate capitalize">{roleLabel}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="flex items-center gap-0.5">
+                                        <Shield className="h-2.5 w-2.5" /> {char.armorClass || 10}
+                                      </span>
+                                      {char.gold > 0 && (
+                                        <span className="flex items-center gap-0.5 text-yellow-400">
+                                          <Coins className="h-2.5 w-2.5" /> {char.gold}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {!isDead && (
+                                    <div className="h-1 bg-slate-700 rounded-full overflow-hidden mt-0.5">
+                                      <div className={`h-full ${hpColor} transition-all`} style={{ width: `${hpPercent}%` }} />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {participants.length === 0 && (
+                            <p className="text-xs text-emerald-400/70 italic">No party members</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Contextual Party Tab Reminder - shows when low HP or no potions */}
+                    {activeCharacter && (
+                      activeCharacter.hitPoints < activeCharacter.maxHitPoints / 2 || 
+                      !((activeCharacter as any).consumables?.length > 0)
+                    ) && !parsedStoryState?.inCombat && (
+                      <div className="bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 border-2 border-amber-400 dark:border-amber-600 rounded-lg p-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <FlaskConical className="h-4 w-4" style={{ color: '#92400e' }} />
+                          <span className="text-sm font-medium" style={{ color: '#78350f' }}>
+                            {activeCharacter.hitPoints < activeCharacter.maxHitPoints / 2 
+                              ? "Your hero is wounded! Consider stocking up on healing potions." 
+                              : "You have no consumables. Potions can save your life!"}
+                          </span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-amber-500 hover:bg-amber-200 dark:hover:bg-amber-900/50"
+                          style={{ color: '#78350f' }}
+                          onClick={() => setActiveTab("party")}
+                        >
+                          <Backpack className="h-4 w-4 mr-1" />
+                          Party Tab
+                        </Button>
+                      </div>
+                    )}
+                    
                     {/* Group Vote Section - Multiplayer choice voting */}
                     {dmSessionState?.groupChoiceStatus === 'pending' && (dmSessionState?.activeGroupChoices?.length ?? 0) > 0 && (() => {
                       // Calculate time remaining
