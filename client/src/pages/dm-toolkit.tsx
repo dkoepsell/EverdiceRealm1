@@ -116,6 +116,7 @@ import WorldDevelopmentsPanel from "@/components/dm-toolkit/WorldDevelopmentsPan
 import ThreatArchetypes from "@/components/dm-toolkit/ThreatArchetypes";
 import SessionContextStrip from "@/components/dm-toolkit/SessionContextStrip";
 import DeployTab from "@/components/dm-toolkit/DeployTab";
+import { DMMapBuilder } from "@/components/dm/DMMapBuilder";
 import parchmentFrame from "@assets/image_1768600727955.png";
 
 export default function DMToolkit() {
@@ -626,6 +627,7 @@ export default function DMToolkit() {
             <TabsTrigger value="invitations">Invitations</TabsTrigger>
             <TabsTrigger value="notes">Notes</TabsTrigger>
             <TabsTrigger value="generators">Generators</TabsTrigger>
+            <TabsTrigger value="map-builder">Map Builder</TabsTrigger>
             <TabsTrigger value="deploy">Deploy</TabsTrigger>
             <TabsTrigger value="discord">Discord</TabsTrigger>
           </TabsList>
@@ -741,6 +743,22 @@ export default function DMToolkit() {
         
         <TabsContent value="generators" className="space-y-4">
           <DMWorkflowAndGuidance />
+        </TabsContent>
+        
+        <TabsContent value="map-builder" className="space-y-4">
+          {selectedCampaignId ? (
+            <DMMapBuilderContent campaignId={selectedCampaignId} />
+          ) : (
+            <Card className="bg-slate-800/50 border-slate-700">
+              <CardContent className="py-8 text-center">
+                <Map className="h-12 w-12 mx-auto text-slate-500 mb-4" />
+                <h3 className="text-lg font-medium text-slate-300 mb-2">Select a Campaign</h3>
+                <p className="text-sm text-slate-400">
+                  Choose a campaign from the dropdown above to start building maps.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
         
         <TabsContent value="deploy" className="space-y-6">
@@ -6116,5 +6134,37 @@ function CampaignSRDAssetsContent() {
         SRD content from <a href="https://open5e.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">open5e.com</a> · SRD 5.1 CC-BY-4.0
       </p>
     </div>
+  );
+}
+
+function DMMapBuilderContent({ campaignId }: { campaignId: number }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const handleSave = async (hexes: any[]) => {
+    try {
+      await apiRequest('POST', `/api/campaigns/${campaignId}/exploration/import-hexes`, { hexes });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaignId}/exploration`] });
+      toast({ title: "Map Saved", description: "Your custom map has been saved to the campaign." });
+    } catch (error: any) {
+      toast({ title: "Save Failed", description: error.message, variant: "destructive" });
+    }
+  };
+  
+  return (
+    <Card className="bg-slate-900/80 border-slate-700">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-amber-400">
+          <Map className="h-5 w-5" />
+          Hex Map Builder
+        </CardTitle>
+        <CardDescription>
+          Create custom exploration maps for your campaign using manual placement or AI generation.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <DMMapBuilder campaignId={campaignId} onSave={handleSave} />
+      </CardContent>
+    </Card>
   );
 }

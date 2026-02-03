@@ -254,6 +254,7 @@ export interface IStorage {
   getExplorationHex(campaignId: number, q: number, r: number): Promise<CampaignExplorationHex | undefined>;
   createExplorationHex(hex: InsertCampaignExplorationHex): Promise<CampaignExplorationHex>;
   updateExplorationHex(id: number, updates: Partial<CampaignExplorationHex>): Promise<CampaignExplorationHex | undefined>;
+  deleteExplorationHex(id: number): Promise<boolean>;
   getExplorationState(campaignId: number): Promise<CampaignExplorationState | undefined>;
   createExplorationState(state: InsertCampaignExplorationState): Promise<CampaignExplorationState>;
   updateExplorationState(campaignId: number, updates: Partial<CampaignExplorationState>): Promise<CampaignExplorationState | undefined>;
@@ -2625,6 +2626,12 @@ export class DatabaseStorage implements IStorage {
       .where(eq(campaignExplorationHexes.id, id))
       .returning();
     return updated || undefined;
+  }
+  
+  async deleteExplorationHex(id: number): Promise<boolean> {
+    const result = await db.delete(campaignExplorationHexes)
+      .where(eq(campaignExplorationHexes.id, id));
+    return true;
   }
   
   async getExplorationState(campaignId: number): Promise<CampaignExplorationState | undefined> {

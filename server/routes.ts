@@ -8556,6 +8556,162 @@ Return your response as a JSON object with these fields:
     }
   });
   
+  // Import hexes from DM Map Builder
+  app.post("/api/campaigns/:campaignId/exploration/import-hexes", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const { hexes } = req.body;
+      
+      if (!Array.isArray(hexes)) {
+        return res.status(400).json({ message: "hexes must be an array" });
+      }
+      
+      // Clear existing hexes and state for this campaign
+      const existingHexes = await storage.getExplorationHexes(campaignId);
+      for (const hex of existingHexes) {
+        await storage.deleteExplorationHex(hex.id);
+      }
+      
+      // Create new hexes
+      const createdHexes = [];
+      for (const hex of hexes) {
+        const newHex = await storage.createExplorationHex({
+          campaignId,
+          q: hex.q,
+          r: hex.r,
+          terrainType: hex.terrainType || "Unknown",
+          isExplored: hex.isExplored ?? true,
+          isRevealed: hex.isRevealed ?? true,
+          revealedAt: new Date().toISOString(),
+          connectedDirections: hex.connectedDirections || []
+        });
+        createdHexes.push(newHex);
+      }
+      
+      // Initialize or update exploration state
+      let state = await storage.getExplorationState(campaignId);
+      if (state) {
+        await storage.updateExplorationState(campaignId, {
+          currentHexQ: 0,
+          currentHexR: 0,
+          exploredHexCount: createdHexes.length,
+          totalDistance: 0
+        });
+      } else {
+        await storage.createExplorationState({
+          campaignId,
+          currentHexQ: 0,
+          currentHexR: 0,
+          exploredHexCount: createdHexes.length,
+          totalDistance: 0
+        });
+      }
+      
+      res.json({ success: true, hexCount: createdHexes.length });
+    } catch (error) {
+      console.error("Error importing hexes:", error);
+      res.status(500).json({ message: "Failed to import hexes" });
+    }
+  });
+  
+  // AI Map Generation
+  app.post("/api/campaigns/:campaignId/generate-map", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const campaignId = parseInt(req.params.campaignId);
+      const { prompt } = req.body;
+      
+      if (!prompt || typeof prompt !== 'string') {
+        return res.status(400).json({ message: "prompt is required" });
+      }
+      
+      // Use OpenAI to generate hex layout from description
+      const openaiApiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+      if (!openaiApiKey) {
+        return res.status(500).json({ message: "OpenAI API key not configured" });
+      }
+      
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${openaiApiKey}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: `You are a hex map generator for a fantasy RPG. Generate hex coordinates with terrain types based on the user's description.
+
+Output format: JSON array of hex objects with q, r coordinates (axial hex coordinates), terrainType, and terrainEmoji.
+
+Terrain types: forest, grove, grass, meadow, clearing, swamp, mountain, hill, cliff, valley, cave, desert, snow, river, lake, waterfall, coast, bridge, path, road, crossroads, village, town, tavern, market, house, camp, castle, tower, wall, gate, ruins, temple, shrine, altar, dungeon, crypt, graveyard, battlefield, tunnel, corridor, chamber
+
+Guidelines:
+- Use q=0, r=0 as the center/starting point
+- Create coherent geography (rivers flow downhill, forests cluster, paths connect locations)
+- Respect adjacency - nearby hexes should have related terrain
+- Generate 10-30 hexes depending on description complexity
+- Include relevant emojis for each terrain type
+
+Example output:
+[
+  {"q": 0, "r": 0, "terrainType": "clearing", "terrainEmoji": "☀️"},
+  {"q": 1, "r": 0, "terrainType": "forest", "terrainEmoji": "🌲"},
+  {"q": -1, "r": 0, "terrainType": "path", "terrainEmoji": "🛤️"}
+]`
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 2000,
+          response_format: { type: "json_object" }
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        console.error("OpenAI API error:", error);
+        return res.status(500).json({ message: "AI generation failed" });
+      }
+      
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+      
+      if (!content) {
+        return res.status(500).json({ message: "No response from AI" });
+      }
+      
+      let hexes;
+      try {
+        const parsed = JSON.parse(content);
+        hexes = parsed.hexes || parsed;
+        if (!Array.isArray(hexes)) {
+          hexes = [parsed];
+        }
+      } catch (e) {
+        console.error("Failed to parse AI response:", content);
+        return res.status(500).json({ message: "Invalid AI response format" });
+      }
+      
+      res.json({ hexes });
+    } catch (error) {
+      console.error("Error generating map:", error);
+      res.status(500).json({ message: "Failed to generate map" });
+    }
+  });
+  
   // ==================== Campaign Quest Routes ====================
   
   // Get all quests for a campaign
