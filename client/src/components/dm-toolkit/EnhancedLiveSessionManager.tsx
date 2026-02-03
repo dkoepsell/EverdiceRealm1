@@ -152,6 +152,8 @@ export default function EnhancedLiveSessionManager({ selectedCampaignId }: Enhan
       refetchLiveSession();
       setPlayerChoice("");
       setRollResult(null);
+      // Invalidate exploration map data so player position updates
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${selectedCampaignId}/exploration`] });
     },
     onError: (error: Error) => {
       toast({

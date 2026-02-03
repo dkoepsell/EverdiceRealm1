@@ -1090,6 +1090,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
       
+      // Invalidate exploration map data so player position updates after movement
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/exploration`] });
+      
       // If the user is the campaign owner, also update the campaign data
       if (campaign.userId === user?.id) {
         queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
