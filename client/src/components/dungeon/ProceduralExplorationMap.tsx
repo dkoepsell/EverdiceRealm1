@@ -21,6 +21,13 @@ import {
   Loader2
 } from "lucide-react";
 
+interface HexEntity {
+  type: "monster" | "npc" | "object" | "hazard";
+  name: string;
+  hostile: boolean;
+  direction?: string;
+}
+
 interface HexMeta {
   narrativeTone?: string;
   currentState?: string;
@@ -36,6 +43,7 @@ interface HexMeta {
   environmentTags?: string[];
   regionName?: string;
   regionDescription?: string;
+  entities?: HexEntity[];
 }
 
 interface ExplorationHex {
@@ -209,16 +217,51 @@ function HexTile({
           )}
           
           {!isCurrentPosition && hex.isExplored && (
+            <>
+              <text 
+                textAnchor="middle" 
+                dominantBaseline="middle"
+                style={{ fontSize: compact ? '10px' : '14px' }}
+              >
+                {getTerrainEmoji(hex.terrainType)}
+              </text>
+              {/* Entity markers */}
+              {hex.hexMeta?.entities && hex.hexMeta.entities.length > 0 && (
+                <g transform={`translate(${hexSize * 0.4}, ${-hexSize * 0.3})`}>
+                  {hex.hexMeta.entities.some(e => e.hostile) ? (
+                    <text 
+                      textAnchor="middle" 
+                      dominantBaseline="middle"
+                      style={{ fontSize: compact ? '8px' : '10px' }}
+                    >
+                      ⚔️
+                    </text>
+                  ) : (
+                    <text 
+                      textAnchor="middle" 
+                      dominantBaseline="middle"
+                      style={{ fontSize: compact ? '8px' : '10px' }}
+                    >
+                      👤
+                    </text>
+                  )}
+                </g>
+              )}
+            </>
+          )}
+          
+          {/* Revealed but unexplored hex with entities (monsters sighted) */}
+          {!isCurrentPosition && !hex.isExplored && hex.isRevealed && hex.hexMeta?.entities && hex.hexMeta.entities.length > 0 && (
             <text 
               textAnchor="middle" 
               dominantBaseline="middle"
               style={{ fontSize: compact ? '10px' : '14px' }}
             >
-              {getTerrainEmoji(hex.terrainType)}
+              {hex.hexMeta.entities.some(e => e.hostile) ? "⚠️" : "❓"}
             </text>
           )}
           
-          {!isCurrentPosition && !hex.isExplored && isAdjacent && (
+          {!isCurrentPosition && !hex.isExplored && isAdjacent && !(hex.hexMeta?.entities && hex.hexMeta.entities.length > 0) && (
             <text 
               textAnchor="middle" 
               dominantBaseline="middle" 
@@ -498,6 +541,18 @@ export function ProceduralExplorationMap({
             {hoveredHex.hexMeta?.narrativeTone && (
               <div className="text-xs text-purple-400 mt-1 flex items-center gap-1">
                 <Sparkles className="h-3 w-3" /> {hoveredHex.hexMeta.narrativeTone}
+              </div>
+            )}
+            {hoveredHex.hexMeta?.entities && hoveredHex.hexMeta.entities.length > 0 && (
+              <div className="text-xs mt-1 flex flex-wrap gap-1">
+                {hoveredHex.hexMeta.entities.map((entity, idx) => (
+                  <span 
+                    key={idx}
+                    className={`px-1.5 py-0.5 rounded ${entity.hostile ? 'bg-red-900/60 text-red-300' : 'bg-blue-900/60 text-blue-300'}`}
+                  >
+                    {entity.hostile ? '⚔️' : '👤'} {entity.name}
+                  </span>
+                ))}
               </div>
             )}
             {!hoveredHex.isExplored && adjacentCoords.has(`${hoveredHex.q},${hoveredHex.r}`) && (

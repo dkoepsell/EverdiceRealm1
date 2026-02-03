@@ -9,6 +9,14 @@ export interface DirectionalHint {
   distance?: "adjacent" | "nearby" | "distant";
 }
 
+export interface DetectedEntity {
+  type: "monster" | "npc" | "object" | "hazard";
+  name: string;
+  description?: string;
+  hostile: boolean;
+  direction?: HexDirection;
+}
+
 export interface ParsedNarrativeLocations {
   currentLocation: {
     name: string;
@@ -18,27 +26,56 @@ export interface ParsedNarrativeLocations {
   adjacentHints: DirectionalHint[];
   terrainType: string;
   atmosphereKeywords: string[];
+  detectedEntities: DetectedEntity[];
 }
+
+const MONSTER_PATTERNS: Array<{ pattern: RegExp; name: string; hostile: boolean }> = [
+  { pattern: /kobolds?/i, name: "Kobolds", hostile: true },
+  { pattern: /goblins?/i, name: "Goblins", hostile: true },
+  { pattern: /orcs?/i, name: "Orcs", hostile: true },
+  { pattern: /skeletons?/i, name: "Skeletons", hostile: true },
+  { pattern: /zombies?/i, name: "Zombies", hostile: true },
+  { pattern: /wolves?|wolve?s/i, name: "Wolves", hostile: true },
+  { pattern: /spiders?/i, name: "Spiders", hostile: true },
+  { pattern: /rats?/i, name: "Rats", hostile: true },
+  { pattern: /bats?/i, name: "Bats", hostile: false },
+  { pattern: /dragons?/i, name: "Dragon", hostile: true },
+  { pattern: /ogres?/i, name: "Ogre", hostile: true },
+  { pattern: /trolls?/i, name: "Troll", hostile: true },
+  { pattern: /bandits?/i, name: "Bandits", hostile: true },
+  { pattern: /guards?/i, name: "Guards", hostile: false },
+  { pattern: /merchants?/i, name: "Merchant", hostile: false },
+  { pattern: /villagers?/i, name: "Villagers", hostile: false },
+  { pattern: /cultists?/i, name: "Cultists", hostile: true },
+  { pattern: /undead/i, name: "Undead", hostile: true },
+  { pattern: /ghosts?|spectr/i, name: "Ghost", hostile: true },
+  { pattern: /mimics?/i, name: "Mimic", hostile: true },
+  { pattern: /slimes?|oozes?/i, name: "Slime", hostile: true },
+];
 
 const DIRECTION_PATTERNS: Record<HexDirection, RegExp[]> = {
   n: [
     /to the north/i, /northward/i, /ahead lies/i, /before you/i,
-    /in front of you/i, /further ahead/i, /straight ahead/i
+    /in front of you/i, /further ahead/i, /straight ahead/i,
+    /passage (?:to the )?north/i, /corridor (?:to the )?north/i, /door (?:to the )?north/i
   ],
   ne: [
-    /to the northeast/i, /northeast/i
+    /to the northeast/i, /northeast/i, /passage (?:to the )?northeast/i
   ],
   se: [
-    /to the southeast/i, /southeast/i
+    /to the southeast/i, /southeast/i, /passage (?:to the )?southeast/i,
+    /to the east/i, /eastward/i, /passage (?:to the )?east/i, /corridor (?:to the )?east/i, /door (?:to the )?east/i
   ],
   s: [
-    /to the south/i, /southward/i, /behind you/i, /the way you came/i
+    /to the south/i, /southward/i, /behind you/i, /the way you came/i,
+    /passage (?:to the )?south/i, /corridor (?:to the )?south/i, /door (?:to the )?south/i
   ],
   sw: [
-    /to the southwest/i, /southwest/i
+    /to the southwest/i, /southwest/i, /passage (?:to the )?southwest/i
   ],
   nw: [
-    /to the northwest/i, /northwest/i
+    /to the northwest/i, /northwest/i, /passage (?:to the )?northwest/i,
+    /to the west/i, /westward/i, /passage (?:to the )?west/i, /corridor (?:to the )?west/i, /door (?:to the )?west/i
   ]
 };
 
@@ -47,7 +84,7 @@ const LATERAL_PATTERNS = {
   right: ["ne", "se"] as HexDirection[]
 };
 
-const ENVIRONMENT_KEYWORDS: Record<string, { terrain: string; tags: EnvironmentTag[] }> = {
+export const ENVIRONMENT_KEYWORDS: Record<string, { terrain: string; tags: EnvironmentTag[] }> = {
   forest: { terrain: "Forest", tags: ["overgrown", "living-wood"] },
   woods: { terrain: "Forest", tags: ["overgrown", "living-wood"] },
   trees: { terrain: "Forest", tags: ["living-wood"] },
@@ -142,6 +179,7 @@ const ATMOSPHERE_KEYWORDS: Record<string, NarrativeTone> = {
 export function parseNarrativeForLocations(narrative: string): ParsedNarrativeLocations {
   const adjacentHints: DirectionalHint[] = [];
   const atmosphereKeywords: string[] = [];
+  const detectedEntities: DetectedEntity[] = [];
   let terrainType = "Unknown";
   const currentLocationKeywords: string[] = [];
   
@@ -184,6 +222,34 @@ export function parseNarrativeForLocations(narrative: string): ParsedNarrativeLo
         atmosphereKeywords.push(atmosphere);
       }
     }
+    
+    // Detect monsters and entities in each sentence
+    for (const monster of MONSTER_PATTERNS) {
+      if (monster.pattern.test(sentence)) {
+        // Try to determine direction from context
+        let entityDirection: HexDirection | undefined;
+        for (const [dir, patterns] of Object.entries(DIRECTION_PATTERNS)) {
+          for (const pattern of patterns) {
+            if (pattern.test(sentence)) {
+              entityDirection = dir as HexDirection;
+              break;
+            }
+          }
+          if (entityDirection) break;
+        }
+        
+        // Avoid duplicates
+        if (!detectedEntities.some(e => e.name === monster.name)) {
+          detectedEntities.push({
+            type: monster.hostile ? "monster" : "npc",
+            name: monster.name,
+            description: sentence.trim(),
+            hostile: monster.hostile,
+            direction: entityDirection
+          });
+        }
+      }
+    }
   }
   
   for (const [keyword, envData] of Object.entries(ENVIRONMENT_KEYWORDS)) {
@@ -206,7 +272,8 @@ export function parseNarrativeForLocations(narrative: string): ParsedNarrativeLo
     },
     adjacentHints: deduplicateHints(adjacentHints),
     terrainType,
-    atmosphereKeywords: Array.from(new Set(atmosphereKeywords))
+    atmosphereKeywords: Array.from(new Set(atmosphereKeywords)),
+    detectedEntities
   };
 }
 

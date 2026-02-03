@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { parseNarrativeForLocations, generateHexMetaFromKeywords, getAllAdjacentCoordinates, getAdjacentHexCoordinates, detectMovementInNarrative, type HexDirection } from "./narrativeHexParser";
+import { parseNarrativeForLocations, generateHexMetaFromKeywords, getAllAdjacentCoordinates, getAdjacentHexCoordinates, detectMovementInNarrative, ENVIRONMENT_KEYWORDS, type HexDirection } from "./narrativeHexParser";
 import { z } from "zod";
 import { getDiscordStatus, sendToChannel, createSessionStartEmbed, createRecapEmbed, createRollEmbed, postCampaignEvent } from "./discord";
 import { 
@@ -13759,6 +13759,82 @@ Respond with JSON:
               totalDistance: (explorationState.totalDistance || 0) + 1
             });
             console.log(`[Exploration] Player moved from (${currentQ}, ${currentR}) to (${newCoords.q}, ${newCoords.r})`);
+            
+            // Reveal adjacent hexes based on narrative hints (passages, corridors, etc.)
+            for (const hint of parsed.adjacentHints) {
+              const adjacentCoords = getAdjacentHexCoordinates(newCoords.q, newCoords.r, hint.direction);
+              let adjacentHex = await storage.getExplorationHex(campaignId, adjacentCoords.q, adjacentCoords.r);
+              
+              if (!adjacentHex) {
+                // Create revealed but unexplored hex
+                const hintMeta = generateHexMetaFromKeywords(hint.environmentKeywords, []);
+                adjacentHex = await storage.createExplorationHex({
+                  campaignId,
+                  q: adjacentCoords.q,
+                  r: adjacentCoords.r,
+                  terrainType: hint.environmentKeywords[0] ? 
+                    (ENVIRONMENT_KEYWORDS[hint.environmentKeywords[0]]?.terrain || "Passage") : "Passage",
+                  locationName: hint.description.slice(0, 50) || "Unknown Passage",
+                  locationDescription: hint.description,
+                  hexMeta: hintMeta,
+                  isExplored: false,
+                  isRevealed: true,
+                  revealedAt: new Date().toISOString(),
+                  narrativeContext: hint.description,
+                  connectedDirections: []
+                });
+                console.log(`[Exploration] Revealed adjacent hex at (${adjacentCoords.q}, ${adjacentCoords.r}) - ${hint.direction}: ${hint.description.slice(0, 40)}`);
+              }
+            }
+            
+            // Store detected entities on the current hex
+            if (parsed.detectedEntities.length > 0) {
+              const entityData = parsed.detectedEntities.map(e => ({
+                type: e.type,
+                name: e.name,
+                hostile: e.hostile,
+                direction: e.direction
+              }));
+              
+              // Update hex with entities
+              await storage.updateExplorationHex(newHex.id, {
+                hexMeta: {
+                  ...hexMeta,
+                  entities: entityData
+                }
+              });
+              console.log(`[Exploration] Detected entities on hex: ${parsed.detectedEntities.map(e => e.name).join(', ')}`);
+              
+              // Create revealed hexes for entities with directions
+              for (const entity of parsed.detectedEntities) {
+                if (entity.direction) {
+                  const entityCoords = getAdjacentHexCoordinates(newCoords.q, newCoords.r, entity.direction);
+                  let entityHex = await storage.getExplorationHex(campaignId, entityCoords.q, entityCoords.r);
+                  
+                  if (!entityHex) {
+                    entityHex = await storage.createExplorationHex({
+                      campaignId,
+                      q: entityCoords.q,
+                      r: entityCoords.r,
+                      terrainType: entity.hostile ? "Danger" : "Unknown",
+                      locationName: `${entity.name} Spotted`,
+                      locationDescription: entity.description || `${entity.name} were seen in this direction`,
+                      hexMeta: {
+                        narrativeTone: entity.hostile ? "Hostile" : "Neutral",
+                        hexState: "hidden",
+                        entities: [{ type: entity.type, name: entity.name, hostile: entity.hostile }]
+                      },
+                      isExplored: false,
+                      isRevealed: true,
+                      revealedAt: new Date().toISOString(),
+                      narrativeContext: entity.description,
+                      connectedDirections: []
+                    });
+                    console.log(`[Exploration] Revealed entity hex at (${entityCoords.q}, ${entityCoords.r}) - ${entity.name}`);
+                  }
+                }
+              }
+            }
           }
         } catch (explorationError) {
           console.error("Failed to update exploration hexes:", explorationError);
