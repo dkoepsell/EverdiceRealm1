@@ -3062,28 +3062,33 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               🛡️ Your Party
                             </h5>
                             <div className="space-y-2">
-                              {(parsedStoryState.partyMembers as any[] || []).map((member: any, index: number) => {
-                                // Look up actual character HP from participants if this is a player character
-                                const participantChar = participants.find((p: any) => 
-                                  p.character?.name === member.name || p.character?.id === member.characterId
-                                )?.character;
-                                // For companions, look up actual HP from partyNpcs (database values)
-                                // Note: partyNpcs uses hitPoints/maxHitPoints, not currentHp/maxHp
-                                const companionNpc = member.type !== 'player' ? partyNpcs?.find((npc: any) => npc.name === member.name) : null;
-                                const actualHp = participantChar?.hitPoints ?? companionNpc?.hitPoints ?? member.currentHp;
-                                const actualMaxHp = participantChar?.maxHitPoints ?? companionNpc?.maxHitPoints ?? member.maxHp;
-                                const actualStatus = participantChar?.status ?? companionNpc?.status ?? member.status;
+                              {/* Use participants data directly for consistent HP display with Party Status */}
+                              {participants.map((p: any, index: number) => {
+                                const char = p.character;
+                                if (!char) return null;
+                                
+                                // Get combat-specific info from AI state if available
+                                const memberFromState = (parsedStoryState.partyMembers as any[] || []).find(
+                                  (m: any) => m.name === char.name || m.characterId === char.id
+                                );
+                                const memberType = p.isNpc ? 'companion' : 'player';
+                                const memberClass = char.class || char.occupation || '';
+                                
+                                // Use actual database values for HP (same as Party Status)
+                                const actualHp = char.hitPoints ?? 0;
+                                const actualMaxHp = char.maxHitPoints || char.hitPoints || 10;
+                                const actualStatus = char.status || memberFromState?.status || 'healthy';
                                 
                                 const isUnconscious = actualStatus === 'unconscious' || actualStatus === 'dead' || actualHp <= 0;
                                 const hpRatio = actualMaxHp > 0 ? Math.max(0, actualHp / actualMaxHp) : 0;
                                 
                                 return (
                                 <div 
-                                  key={member.name || index}
+                                  key={char.id || index}
                                   className={`p-2 rounded border ${
                                     isUnconscious
                                       ? 'bg-gray-100 dark:bg-gray-800/50 border-gray-400 dark:border-gray-600 opacity-75'
-                                      : member.type === 'player' 
+                                      : memberType === 'player' 
                                       ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700' 
                                       : 'bg-green-50 dark:bg-green-900/30 border-green-300 dark:border-green-700'
                                   }`}
@@ -3091,10 +3096,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   <div className="flex justify-between items-center mb-1">
                                     <span className={`font-bold text-sm truncate max-w-[120px] sm:max-w-none ${
                                       isUnconscious ? 'text-gray-500 dark:text-gray-400 line-through' :
-                                      member.type === 'player' ? 'text-blue-800 dark:text-blue-200' : 'text-green-800 dark:text-green-200'
+                                      memberType === 'player' ? 'text-blue-800 dark:text-blue-200' : 'text-green-800 dark:text-green-200'
                                     }`}>
-                                      {isUnconscious ? '💀 ' : member.type === 'player' ? '👤 ' : '🤝 '}{member.name}
-                                      {member.class && <span className="text-xs ml-1 opacity-70 hidden sm:inline">({member.class})</span>}
+                                      {isUnconscious ? '💀 ' : memberType === 'player' ? '👤 ' : '🤝 '}{char.name}
+                                      {memberClass && <span className="text-xs ml-1 opacity-70 hidden sm:inline">({memberClass})</span>}
                                     </span>
                                     <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
                                       isUnconscious
@@ -3133,17 +3138,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   
                                   {/* D&D Combat Stats for party members */}
                                   {(() => {
-                                    // Get stats for companions from partyNpcs or from member data
-                                    const companionNpc = member.type !== 'player' ? partyNpcs?.find((npc: any) => npc.name === member.name) : null;
-                                    const memberAC = companionNpc?.armorClass || member.ac || participantChar?.armorClass;
+                                    // Get stats for companions from partyNpcs or from character data
+                                    const companionNpc = memberType !== 'player' ? partyNpcs?.find((npc: any) => npc.name === char.name) : null;
+                                    const memberAC = companionNpc?.armorClass || char.armorClass || memberFromState?.ac || 10;
                                     
                                     // For player characters, calculate ATK from ability scores
                                     // ATK = proficiency bonus + ability modifier (STR or DEX based on class)
-                                    let memberATK = companionNpc?.attackBonus || member.attackBonus;
-                                    let memberDMG = companionNpc?.damageRoll || member.damage;
+                                    let memberATK = companionNpc?.attackBonus || memberFromState?.attackBonus;
+                                    let memberDMG = companionNpc?.damageRoll || memberFromState?.damage;
                                     
-                                    if (!memberATK && participantChar) {
-                                      const char = participantChar;
+                                    if (!memberATK && char) {
                                       const level = char.level || 1;
                                       const profBonus = Math.floor((level - 1) / 4) + 2; // D&D 5e proficiency bonus
                                       const strMod = Math.floor(((char.strength || 10) - 10) / 2);
@@ -3154,8 +3158,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                       memberATK = profBonus + abilityMod;
                                     }
                                     
-                                    if (!memberDMG && participantChar) {
-                                      const char = participantChar;
+                                    if (!memberDMG && char) {
                                       const strMod = Math.floor(((char.strength || 10) - 10) / 2);
                                       const dexMod = Math.floor(((char.dexterity || 10) - 10) / 2);
                                       const isFinesse = ['Rogue', 'Ranger', 'Monk'].includes(char.class);
