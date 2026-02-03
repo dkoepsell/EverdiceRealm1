@@ -692,6 +692,51 @@ export const insertCampaignDungeonMapSchema = createInsertSchema(campaignDungeon
 export type InsertCampaignDungeonMap = z.infer<typeof insertCampaignDungeonMapSchema>;
 export type CampaignDungeonMap = typeof campaignDungeonMaps.$inferSelect;
 
+// Procedural Exploration Hexes - Narrative-driven hex exploration
+export const campaignExplorationHexes = pgTable("campaign_exploration_hexes", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  q: integer("q").notNull(), // Axial hex coordinate (column)
+  r: integer("r").notNull(), // Axial hex coordinate (row)
+  terrainType: text("terrain_type").notNull().default("Unknown"),
+  locationName: text("location_name"),
+  locationDescription: text("location_description"),
+  hexMeta: jsonb("hex_meta"), // HexMetaV2 data
+  isExplored: boolean("is_explored").default(false),
+  isRevealed: boolean("is_revealed").default(false), // Visible but not yet visited
+  exploredAt: text("explored_at"),
+  revealedAt: text("revealed_at"),
+  narrativeContext: text("narrative_context"), // The narrative that spawned this hex
+  connectedDirections: jsonb("connected_directions").default([]), // Which directions have paths
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+// Exploration state tracks the party's current position and exploration progress
+export const campaignExplorationState = pgTable("campaign_exploration_state", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull().unique(),
+  currentHexQ: integer("current_hex_q").default(0),
+  currentHexR: integer("current_hex_r").default(0),
+  exploredHexCount: integer("explored_hex_count").default(1),
+  totalDistance: integer("total_distance").default(0), // Hexes traveled
+  lastMovementAt: text("last_movement_at"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  updatedAt: text("updated_at"),
+});
+
+export const insertCampaignExplorationHexSchema = createInsertSchema(campaignExplorationHexes).omit({
+  id: true,
+});
+
+export const insertCampaignExplorationStateSchema = createInsertSchema(campaignExplorationState).omit({
+  id: true,
+});
+
+export type InsertCampaignExplorationHex = z.infer<typeof insertCampaignExplorationHexSchema>;
+export type CampaignExplorationHex = typeof campaignExplorationHexes.$inferSelect;
+export type InsertCampaignExplorationState = z.infer<typeof insertCampaignExplorationStateSchema>;
+export type CampaignExplorationState = typeof campaignExplorationState.$inferSelect;
+
 // Campaign Quests - Milestone tracking within adventures
 export const campaignQuests = pgTable("campaign_quests", {
   id: serial("id").primaryKey(),

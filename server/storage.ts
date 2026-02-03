@@ -28,6 +28,9 @@ import {
   // Dungeon maps and quests
   campaignDungeonMaps, type CampaignDungeonMap, type InsertCampaignDungeonMap,
   campaignQuests, type CampaignQuest, type InsertCampaignQuest,
+  // Procedural exploration hexes
+  campaignExplorationHexes, type CampaignExplorationHex, type InsertCampaignExplorationHex,
+  campaignExplorationState, type CampaignExplorationState, type InsertCampaignExplorationState,
   // World map system
   worldRegions, type WorldRegion, type InsertWorldRegion,
   worldLocations, type WorldLocation, type InsertWorldLocation,
@@ -245,6 +248,15 @@ export interface IStorage {
   createCampaignDungeonMap(map: InsertCampaignDungeonMap): Promise<CampaignDungeonMap>;
   updateCampaignDungeonMap(id: number, updates: Partial<CampaignDungeonMap>): Promise<CampaignDungeonMap | undefined>;
   deleteCampaignDungeonMap(id: number): Promise<boolean>;
+  
+  // Procedural Exploration operations
+  getExplorationHexes(campaignId: number): Promise<CampaignExplorationHex[]>;
+  getExplorationHex(campaignId: number, q: number, r: number): Promise<CampaignExplorationHex | undefined>;
+  createExplorationHex(hex: InsertCampaignExplorationHex): Promise<CampaignExplorationHex>;
+  updateExplorationHex(id: number, updates: Partial<CampaignExplorationHex>): Promise<CampaignExplorationHex | undefined>;
+  getExplorationState(campaignId: number): Promise<CampaignExplorationState | undefined>;
+  createExplorationState(state: InsertCampaignExplorationState): Promise<CampaignExplorationState>;
+  updateExplorationState(campaignId: number, updates: Partial<CampaignExplorationState>): Promise<CampaignExplorationState | undefined>;
   
   // Campaign Quest operations
   getCampaignQuests(campaignId: number): Promise<CampaignQuest[]>;
@@ -2579,6 +2591,67 @@ export class DatabaseStorage implements IStorage {
   async deleteCampaignDungeonMap(id: number): Promise<boolean> {
     await db.delete(campaignDungeonMaps).where(eq(campaignDungeonMaps.id, id));
     return true;
+  }
+  
+  // Procedural Exploration operations
+  async getExplorationHexes(campaignId: number): Promise<CampaignExplorationHex[]> {
+    return await db.select().from(campaignExplorationHexes)
+      .where(eq(campaignExplorationHexes.campaignId, campaignId));
+  }
+  
+  async getExplorationHex(campaignId: number, q: number, r: number): Promise<CampaignExplorationHex | undefined> {
+    const [hex] = await db.select().from(campaignExplorationHexes)
+      .where(and(
+        eq(campaignExplorationHexes.campaignId, campaignId),
+        eq(campaignExplorationHexes.q, q),
+        eq(campaignExplorationHexes.r, r)
+      ));
+    return hex || undefined;
+  }
+  
+  async createExplorationHex(hex: InsertCampaignExplorationHex): Promise<CampaignExplorationHex> {
+    const [newHex] = await db.insert(campaignExplorationHexes)
+      .values({
+        ...hex,
+        createdAt: new Date().toISOString()
+      })
+      .returning();
+    return newHex;
+  }
+  
+  async updateExplorationHex(id: number, updates: Partial<CampaignExplorationHex>): Promise<CampaignExplorationHex | undefined> {
+    const [updated] = await db.update(campaignExplorationHexes)
+      .set(updates)
+      .where(eq(campaignExplorationHexes.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async getExplorationState(campaignId: number): Promise<CampaignExplorationState | undefined> {
+    const [state] = await db.select().from(campaignExplorationState)
+      .where(eq(campaignExplorationState.campaignId, campaignId));
+    return state || undefined;
+  }
+  
+  async createExplorationState(state: InsertCampaignExplorationState): Promise<CampaignExplorationState> {
+    const [newState] = await db.insert(campaignExplorationState)
+      .values({
+        ...state,
+        createdAt: new Date().toISOString()
+      })
+      .returning();
+    return newState;
+  }
+  
+  async updateExplorationState(campaignId: number, updates: Partial<CampaignExplorationState>): Promise<CampaignExplorationState | undefined> {
+    const [updated] = await db.update(campaignExplorationState)
+      .set({
+        ...updates,
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(campaignExplorationState.campaignId, campaignId))
+      .returning();
+    return updated || undefined;
   }
   
   // Campaign Quest operations

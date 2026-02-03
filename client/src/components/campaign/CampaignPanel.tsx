@@ -55,6 +55,7 @@ import { ContextualHint } from "@/components/ui/contextual-hint";
 import { HowToPlayPanel } from "@/components/ui/how-to-play-panel";
 import type { DungeonMapData, MapEntity } from "../dungeon/DungeonMap";
 import { generateDungeon } from "../dungeon/DungeonGenerator";
+import { ProceduralExplorationMap } from "../dungeon/ProceduralExplorationMap";
 
 interface CampaignPanelProps {
   campaign: Campaign;
@@ -3065,7 +3066,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     
                     {/* Quick Reference Panel - Full Width Map + Party Stats Row */}
                     <div className="space-y-3 mb-4">
-                      {/* Dungeon Map Widget - Collapsible, environment-aware */}
+                      {/* Procedural Exploration Map - Narrative-driven hex exploration */}
                       <div className="bg-slate-800 dark:bg-slate-900 rounded-lg border-2 border-amber-600/50 shadow-lg overflow-hidden">
                         <div className="flex items-center justify-between p-3 hover:bg-slate-700/50 transition-colors">
                           <button
@@ -3074,10 +3075,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           >
                             <h5 className="text-sm font-bold text-amber-400 flex items-center">
                               <Map className="h-4 w-4 mr-2" />
-                              {currentLocation || 'Unknown'}
-                              <span className="ml-2 text-xs font-normal text-slate-400 capitalize">
-                                ({mapEnvironment.type})
-                              </span>
+                              {currentLocation || 'Exploration Map'}
                             </h5>
                           </button>
                           <div className="flex items-center gap-2">
@@ -3096,8 +3094,22 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         
                         {!isMapCollapsed && (
                           <div className="p-3 pt-0">
-                            {/* Hex Map Preview Grid - D&D Authentic Style */}
-                            {dungeonMapData && dungeonMapData.tiles ? (() => {
+                            {/* Procedural Exploration Map - Narrative-driven hexes */}
+                            <ProceduralExplorationMap
+                              campaignId={campaign.id}
+                              onHexMove={(hex, needsNarrative) => {
+                                if (needsNarrative) {
+                                  toast({
+                                    title: "Exploring...",
+                                    description: `Heading to ${hex.locationName || 'a new area'} to discover what lies ahead...`,
+                                  });
+                                }
+                              }}
+                              compact={true}
+                            />
+                            
+                            {/* Legacy Hex Map Preview Grid - D&D Authentic Style (fallback) */}
+                            {dungeonMapData && dungeonMapData.tiles && false ? (() => {
                               // Hex grid calculations for preview
                               const hexSize = 14;
                               const hexWidth = hexSize;
