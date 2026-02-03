@@ -119,30 +119,120 @@ function getHexColor(hex: ExplorationHex, isCurrentPosition: boolean): string {
   }
   
   const terrain = hex.terrainType.toLowerCase();
-  if (terrain.includes("forest") || terrain.includes("glade") || terrain.includes("meadow") || terrain.includes("tree") || terrain.includes("wood")) {
-    return "fill-green-800/60 stroke-green-600";
+  
+  // Vegetation - greens
+  if (terrain.includes("forest") || terrain.includes("wood") || terrain.includes("grove") || terrain.includes("thicket")) {
+    return "fill-green-900/70 stroke-green-600";
   }
-  if (terrain.includes("mountain") || terrain.includes("cave") || terrain.includes("rock") || terrain.includes("cavern")) {
-    return "fill-stone-700/60 stroke-stone-500";
+  if (terrain.includes("grass") || terrain.includes("meadow") || terrain.includes("field") || terrain.includes("plains") || terrain.includes("clearing") || terrain.includes("glade")) {
+    return "fill-lime-800/60 stroke-lime-500";
   }
-  if (terrain.includes("water") || terrain.includes("lake") || terrain.includes("river") || terrain.includes("stream")) {
-    return "fill-blue-800/60 stroke-blue-500";
+  if (terrain.includes("garden") || terrain.includes("orchard")) {
+    return "fill-emerald-800/60 stroke-emerald-500";
   }
-  if (terrain.includes("village") || terrain.includes("town") || terrain.includes("tavern") || terrain.includes("inn") || terrain.includes("camp")) {
-    return "fill-amber-900/60 stroke-amber-600";
+  if (terrain.includes("swamp") || terrain.includes("marsh") || terrain.includes("bog")) {
+    return "fill-teal-900/60 stroke-teal-600";
   }
-  if (terrain.includes("dungeon") || terrain.includes("crypt") || terrain.includes("ruin") || terrain.includes("ancient")) {
-    return "fill-purple-900/60 stroke-purple-600";
+  
+  // Elevation - browns/grays
+  if (terrain.includes("mountain") || terrain.includes("peak") || terrain.includes("cliff") || terrain.includes("ridge") || terrain.includes("canyon")) {
+    return "fill-stone-700/70 stroke-stone-500";
   }
-  if (terrain.includes("tunnel") || terrain.includes("corridor") || terrain.includes("passage") || terrain.includes("hall")) {
+  if (terrain.includes("hill") || terrain.includes("slope") || terrain.includes("valley")) {
+    return "fill-amber-800/50 stroke-amber-600";
+  }
+  if (terrain.includes("cave") || terrain.includes("cavern") || terrain.includes("mine")) {
+    return "fill-stone-800/70 stroke-stone-600";
+  }
+  
+  // Water - blues
+  if (terrain.includes("river") || terrain.includes("stream") || terrain.includes("brook") || terrain.includes("creek") || terrain.includes("waterfall")) {
+    return "fill-blue-700/60 stroke-blue-400";
+  }
+  if (terrain.includes("lake") || terrain.includes("pond") || terrain.includes("pool")) {
+    return "fill-blue-800/70 stroke-blue-500";
+  }
+  if (terrain.includes("coast") || terrain.includes("shore") || terrain.includes("beach") || terrain.includes("island")) {
+    return "fill-cyan-800/60 stroke-cyan-500";
+  }
+  if (terrain.includes("dock") || terrain.includes("pier") || terrain.includes("harbor")) {
+    return "fill-slate-700/60 stroke-blue-500";
+  }
+  
+  // Harsh terrain
+  if (terrain.includes("desert") || terrain.includes("dune") || terrain.includes("sand")) {
+    return "fill-yellow-700/60 stroke-yellow-500";
+  }
+  if (terrain.includes("volcano") || terrain.includes("lava")) {
+    return "fill-orange-900/70 stroke-red-600";
+  }
+  if (terrain.includes("ice") || terrain.includes("glacier") || terrain.includes("snow") || terrain.includes("tundra")) {
+    return "fill-sky-200/60 stroke-sky-400";
+  }
+  
+  // Paths - tan/brown
+  if (terrain.includes("road") || terrain.includes("path") || terrain.includes("trail") || terrain.includes("track") || terrain.includes("crossroads")) {
+    return "fill-amber-700/50 stroke-amber-500";
+  }
+  if (terrain.includes("bridge")) {
     return "fill-stone-600/60 stroke-stone-400";
   }
-  if (terrain.includes("danger") || terrain.includes("hostile")) {
+  
+  // Buildings & structures
+  if (terrain.includes("castle") || terrain.includes("fortress") || terrain.includes("keep") || terrain.includes("tower")) {
+    return "fill-slate-600/70 stroke-slate-400";
+  }
+  if (terrain.includes("wall") || terrain.includes("gate") || terrain.includes("rampart") || terrain.includes("battlement")) {
+    return "fill-stone-600/70 stroke-stone-400";
+  }
+  if (terrain.includes("house") || terrain.includes("cabin") || terrain.includes("cottage") || terrain.includes("hut") || terrain.includes("building")) {
+    return "fill-amber-800/60 stroke-amber-600";
+  }
+  
+  // Settlements - warm amber/orange
+  if (terrain.includes("village") || terrain.includes("town") || terrain.includes("city")) {
+    return "fill-amber-900/70 stroke-amber-600";
+  }
+  if (terrain.includes("market") || terrain.includes("square") || terrain.includes("plaza") || terrain.includes("street")) {
+    return "fill-orange-900/60 stroke-orange-600";
+  }
+  if (terrain.includes("tavern") || terrain.includes("inn") || terrain.includes("shop")) {
+    return "fill-amber-800/60 stroke-amber-500";
+  }
+  if (terrain.includes("camp")) {
+    return "fill-orange-800/50 stroke-orange-500";
+  }
+  
+  // Religious/magical - purples
+  if (terrain.includes("temple") || terrain.includes("shrine") || terrain.includes("altar") || terrain.includes("sanctuary") || terrain.includes("chapel") || terrain.includes("cathedral")) {
+    return "fill-violet-900/60 stroke-violet-500";
+  }
+  
+  // Dark places - deep purples/grays
+  if (terrain.includes("dungeon") || terrain.includes("crypt") || terrain.includes("tomb") || terrain.includes("catacomb")) {
+    return "fill-purple-950/70 stroke-purple-700";
+  }
+  if (terrain.includes("graveyard") || terrain.includes("cemetery")) {
+    return "fill-slate-800/70 stroke-slate-600";
+  }
+  if (terrain.includes("ruin")) {
+    return "fill-stone-700/60 stroke-stone-500";
+  }
+  
+  // Underground passages
+  if (terrain.includes("tunnel") || terrain.includes("corridor") || terrain.includes("passage") || terrain.includes("hall") || terrain.includes("chamber") || terrain.includes("room")) {
+    return "fill-stone-600/60 stroke-stone-400";
+  }
+  if (terrain.includes("cellar") || terrain.includes("basement")) {
+    return "fill-stone-700/60 stroke-stone-500";
+  }
+  
+  // Danger
+  if (terrain.includes("danger") || terrain.includes("hostile") || terrain.includes("battlefield")) {
     return "fill-red-900/60 stroke-red-600";
   }
-  if (terrain.includes("desert") || terrain.includes("sand")) {
-    return "fill-yellow-800/60 stroke-yellow-600";
-  }
+  
+  // Fallback
   if (terrain.includes("explored") || terrain.includes("previous")) {
     return "fill-slate-500/60 stroke-slate-400";
   }
@@ -152,20 +242,63 @@ function getHexColor(hex: ExplorationHex, isCurrentPosition: boolean): string {
 
 function getTerrainEmoji(terrainType: string): string {
   const terrain = terrainType.toLowerCase();
-  if (terrain.includes("forest") || terrain.includes("tree") || terrain.includes("wood")) return "🌲";
+  // Vegetation
+  if (terrain.includes("forest") || terrain.includes("wood") || terrain.includes("grove") || terrain.includes("thicket")) return "🌲";
+  if (terrain.includes("tree")) return "🌳";
+  if (terrain.includes("grass") || terrain.includes("meadow") || terrain.includes("field") || terrain.includes("plains")) return "🌾";
+  if (terrain.includes("garden") || terrain.includes("orchard")) return "🌻";
+  if (terrain.includes("clearing") || terrain.includes("glade")) return "☀️";
+  // Elevation
   if (terrain.includes("mountain") || terrain.includes("peak")) return "⛰️";
+  if (terrain.includes("hill")) return "🏔️";
+  if (terrain.includes("cliff") || terrain.includes("ridge") || terrain.includes("canyon")) return "🪨";
+  if (terrain.includes("valley")) return "🏞️";
+  // Underground
   if (terrain.includes("cave") || terrain.includes("cavern")) return "🕳️";
-  if (terrain.includes("village") || terrain.includes("town")) return "🏘️";
+  if (terrain.includes("tunnel") || terrain.includes("passage") || terrain.includes("corridor")) return "🚪";
+  if (terrain.includes("mine") || terrain.includes("shaft")) return "⛏️";
+  // Water
+  if (terrain.includes("river") || terrain.includes("stream") || terrain.includes("brook") || terrain.includes("creek")) return "🌊";
+  if (terrain.includes("lake") || terrain.includes("pond") || terrain.includes("pool")) return "💧";
+  if (terrain.includes("waterfall")) return "💦";
+  if (terrain.includes("swamp") || terrain.includes("marsh") || terrain.includes("bog")) return "🌿";
+  if (terrain.includes("coast") || terrain.includes("shore") || terrain.includes("beach")) return "🏖️";
+  if (terrain.includes("island")) return "🏝️";
+  if (terrain.includes("dock") || terrain.includes("pier") || terrain.includes("harbor")) return "⚓";
+  // Harsh terrain
+  if (terrain.includes("desert") || terrain.includes("dune") || terrain.includes("sand")) return "🏜️";
+  if (terrain.includes("volcano") || terrain.includes("lava")) return "🌋";
+  if (terrain.includes("ice") || terrain.includes("glacier") || terrain.includes("snow") || terrain.includes("tundra")) return "❄️";
+  // Paths
+  if (terrain.includes("road") || terrain.includes("path") || terrain.includes("trail") || terrain.includes("track")) return "🛤️";
+  if (terrain.includes("bridge")) return "🌉";
+  if (terrain.includes("crossroads")) return "✚";
+  // Buildings
+  if (terrain.includes("castle") || terrain.includes("fortress") || terrain.includes("keep")) return "🏰";
+  if (terrain.includes("tower")) return "🗼";
+  if (terrain.includes("wall") || terrain.includes("gate") || terrain.includes("rampart") || terrain.includes("battlement")) return "🧱";
+  if (terrain.includes("house") || terrain.includes("cabin") || terrain.includes("cottage") || terrain.includes("hut") || terrain.includes("building")) return "🏠";
+  if (terrain.includes("hall") || terrain.includes("chamber") || terrain.includes("room")) return "🚪";
+  // Settlements
+  if (terrain.includes("village") || terrain.includes("town") || terrain.includes("city")) return "🏘️";
+  if (terrain.includes("market") || terrain.includes("square") || terrain.includes("plaza")) return "🏛️";
+  if (terrain.includes("street") || terrain.includes("alley")) return "🏙️";
   if (terrain.includes("tavern") || terrain.includes("inn")) return "🍺";
-  if (terrain.includes("dungeon") || terrain.includes("crypt")) return "💀";
-  if (terrain.includes("ruin") || terrain.includes("ancient")) return "🏛️";
-  if (terrain.includes("temple") || terrain.includes("shrine")) return "⛩️";
-  if (terrain.includes("water") || terrain.includes("lake") || terrain.includes("river")) return "💧";
-  if (terrain.includes("desert") || terrain.includes("sand")) return "🏜️";
-  if (terrain.includes("swamp") || terrain.includes("marsh")) return "🌿";
-  if (terrain.includes("road") || terrain.includes("path")) return "🛤️";
-  if (terrain.includes("camp") || terrain.includes("rest")) return "⛺";
-  if (terrain.includes("castle") || terrain.includes("fortress")) return "🏰";
+  if (terrain.includes("shop")) return "🛒";
+  if (terrain.includes("stable")) return "🐴";
+  // Religious
+  if (terrain.includes("temple") || terrain.includes("shrine") || terrain.includes("altar") || terrain.includes("sanctuary")) return "⛩️";
+  if (terrain.includes("chapel") || terrain.includes("cathedral")) return "⛪";
+  // Dark places
+  if (terrain.includes("dungeon") || terrain.includes("crypt") || terrain.includes("tomb") || terrain.includes("catacomb")) return "💀";
+  if (terrain.includes("graveyard") || terrain.includes("cemetery")) return "🪦";
+  if (terrain.includes("ruin")) return "🏚️";
+  // Other
+  if (terrain.includes("camp")) return "⛺";
+  if (terrain.includes("library")) return "📚";
+  if (terrain.includes("throne")) return "👑";
+  if (terrain.includes("battlefield")) return "⚔️";
+  if (terrain.includes("cellar") || terrain.includes("basement")) return "🪜";
   return "❓";
 }
 
@@ -532,52 +665,79 @@ export function ProceduralExplorationMap({
         {/* Map Legend */}
         <div className="mt-2 p-2 bg-slate-800/80 rounded text-xs border border-slate-700">
           <div className="text-slate-400 mb-1 font-medium">Legend</div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm bg-amber-500/80 border border-amber-400"></div>
-              <span className="text-slate-300">Current</span>
+          <div className="grid grid-cols-3 gap-x-2 gap-y-1">
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm bg-amber-500/80 border border-amber-400"></div>
+              <span className="text-slate-300">You</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm bg-green-800/60 border border-green-600"></div>
-              <span className="text-slate-300">Forest</span>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm bg-green-900/70 border border-green-600"></div>
+              <span className="text-slate-300">🌲 Forest</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm bg-stone-700/60 border border-stone-500"></div>
-              <span className="text-slate-300">Cave/Mountain</span>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm bg-lime-800/60 border border-lime-500"></div>
+              <span className="text-slate-300">🌾 Grass</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm bg-stone-600/60 border border-stone-400"></div>
-              <span className="text-slate-300">Tunnel/Passage</span>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm bg-stone-700/70 border border-stone-500"></div>
+              <span className="text-slate-300">⛰️ Mountain</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm bg-purple-900/60 border border-purple-600"></div>
-              <span className="text-slate-300">Dungeon/Ruins</span>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm bg-amber-800/50 border border-amber-600"></div>
+              <span className="text-slate-300">🏔️ Hills</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm bg-amber-900/60 border border-amber-600"></div>
-              <span className="text-slate-300">Settlement</span>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm bg-stone-800/70 border border-stone-600"></div>
+              <span className="text-slate-300">🕳️ Cave</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm bg-blue-800/60 border border-blue-500"></div>
-              <span className="text-slate-300">Water</span>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm bg-blue-700/60 border border-blue-400"></div>
+              <span className="text-slate-300">🌊 River</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm bg-red-900/60 border border-red-600"></div>
-              <span className="text-slate-300">Danger</span>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm bg-blue-800/70 border border-blue-500"></div>
+              <span className="text-slate-300">💧 Lake</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm bg-slate-700/60 border border-slate-600"></div>
-              <span className="text-slate-300">Unexplored</span>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm bg-amber-700/50 border border-amber-500"></div>
+              <span className="text-slate-300">🛤️ Path</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm bg-slate-900/90 border border-slate-800"></div>
-              <span className="text-slate-300">Unknown</span>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm bg-amber-900/70 border border-amber-600"></div>
+              <span className="text-slate-300">🏘️ Town</span>
             </div>
-          </div>
-          <div className="mt-1.5 pt-1.5 border-t border-slate-700 flex gap-3">
-            <span className="text-slate-400">⚔️ Hostile</span>
-            <span className="text-slate-400">⚠️ Danger Ahead</span>
-            <span className="text-slate-400">? Adjacent</span>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm bg-slate-600/70 border border-slate-400"></div>
+              <span className="text-slate-300">🏰 Castle</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm bg-stone-600/70 border border-stone-400"></div>
+              <span className="text-slate-300">🧱 Wall</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm bg-purple-950/70 border border-purple-700"></div>
+              <span className="text-slate-300">💀 Dungeon</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm bg-stone-600/60 border border-stone-400"></div>
+              <span className="text-slate-300">🚪 Passage</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm bg-red-900/60 border border-red-600"></div>
+              <span className="text-slate-300">⚔️ Danger</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm bg-slate-700/60 border border-slate-600"></div>
+              <span className="text-slate-300">? Unexplored</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm bg-slate-900/90 border border-slate-800"></div>
+              <span className="text-slate-300">☁️ Unknown</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm bg-sky-200/60 border border-sky-400"></div>
+              <span className="text-slate-300">❄️ Ice</span>
+            </div>
           </div>
         </div>
         
