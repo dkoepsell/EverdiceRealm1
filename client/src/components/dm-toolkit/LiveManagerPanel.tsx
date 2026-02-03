@@ -1076,15 +1076,17 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                       {sidebarTab === "map" && selectedCampaignId && (
                         <div className="space-y-2">
                           <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
-                            <Map className="h-3 w-3" /> Exploration Map
+                            <Map className="h-3 w-3" /> Live Exploration Map
                           </div>
-                          <ProceduralExplorationMap 
-                            campaignId={selectedCampaignId} 
-                            interactive={false}
-                            compact={true}
-                          />
+                          <div className="h-48 border rounded border-slate-700 overflow-hidden">
+                            <ProceduralExplorationMap 
+                              campaignId={selectedCampaignId} 
+                              interactive={true}
+                              compact={true}
+                            />
+                          </div>
                           <p className="text-xs text-muted-foreground text-center">
-                            Use the Map Builder tab in DM Toolkit for full editing
+                            Click adjacent hexes to move party. Full editor in Map Builder tab.
                           </p>
                         </div>
                       )}

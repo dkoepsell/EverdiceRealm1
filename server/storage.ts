@@ -2630,8 +2630,9 @@ export class DatabaseStorage implements IStorage {
   
   async deleteExplorationHex(id: number): Promise<boolean> {
     const result = await db.delete(campaignExplorationHexes)
-      .where(eq(campaignExplorationHexes.id, id));
-    return true;
+      .where(eq(campaignExplorationHexes.id, id))
+      .returning();
+    return result.length > 0;
   }
   
   async getExplorationState(campaignId: number): Promise<CampaignExplorationState | undefined> {
