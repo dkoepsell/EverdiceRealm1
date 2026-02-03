@@ -1429,7 +1429,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                 </TabsList>
 
                 {/* EVENT QUEUE Tab */}
-                <TabsContent value="queue" className="flex-1 p-3 mt-0 overflow-y-auto space-y-3">
+                <TabsContent value="queue" className="flex-1 flex flex-col p-3 mt-0 min-h-0 space-y-3">
                   {/* Group Choice Voting Panel */}
                   <GroupChoicePanel
                     campaignId={selectedCampaignId}

@@ -170,7 +170,7 @@ export default function EventQueue({
   };
 
   return (
-    <Card className="border-slate-700 bg-slate-900/50">
+    <Card className="border-slate-700 bg-slate-900/50 flex-1 flex flex-col min-h-0">
       <CardHeader className="p-3 pb-2">
         <CardTitle className="text-sm flex items-center justify-between">
           <div className="flex items-center gap-2 text-slate-200">
@@ -196,7 +196,7 @@ export default function EventQueue({
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-3 pt-0">
+      <CardContent className="p-3 pt-0 flex-1 overflow-y-auto min-h-0">
         {showAddForm && (
           <div className="mb-3 p-3 rounded-lg border bg-slate-800/70 border-emerald-500/30 space-y-2">
             <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium mb-2">
