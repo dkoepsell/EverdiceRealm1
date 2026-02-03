@@ -1429,7 +1429,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                 </TabsList>
 
                 {/* EVENT QUEUE Tab */}
-                <TabsContent value="queue" className="flex-1 p-3 mt-0 overflow-y-auto min-h-0 space-y-3">
+                <TabsContent value="queue" className="flex-1 flex flex-col p-3 mt-0 overflow-y-auto min-h-0 space-y-3 data-[state=active]:flex">
                   {/* Group Choice Voting Panel */}
                   <GroupChoicePanel
                     campaignId={selectedCampaignId}
@@ -1467,7 +1467,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                 </TabsContent>
 
                 {/* DICE Tab - Roll dice, manage initiative */}
-                <TabsContent value="dice" className="flex-1 p-3 mt-0 overflow-y-auto min-h-0 space-y-3">
+                <TabsContent value="dice" className="flex-1 flex flex-col p-3 mt-0 overflow-y-auto min-h-0 space-y-3 data-[state=active]:flex">
                   <DMDiceRoller onRoll={handleDiceRoll} />
                   <InitiativeTracker
                     combatants={combatants}
@@ -1495,7 +1495,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                 </TabsContent>
 
                 {/* AI WHISPER Tab */}
-                <TabsContent value="whisper" className="flex-1 p-3 mt-0 overflow-y-auto min-h-0">
+                <TabsContent value="whisper" className="flex-1 flex flex-col p-3 mt-0 overflow-y-auto min-h-0 data-[state=active]:flex">
                   <AIWhisperPanel
                     whispers={aiWhispers}
                     onDismiss={handleDismissWhisper}
@@ -1507,7 +1507,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                 </TabsContent>
 
                 {/* SAY Tab - Tell Your Story */}
-                <TabsContent value="say" className="flex-1 p-3 mt-0 flex flex-col min-h-0 overflow-hidden">
+                <TabsContent value="say" className="flex-1 p-3 mt-0 flex flex-col min-h-0 overflow-hidden data-[state=active]:flex">
                   <Card className="flex-1 border-2 border-amber-500/40 bg-gradient-to-b from-amber-500/10 to-transparent">
                     <CardHeader className="p-3 pb-2">
                       <CardTitle className="text-sm flex items-center gap-2 text-amber-500">
