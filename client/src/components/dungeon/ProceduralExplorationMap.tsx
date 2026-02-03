@@ -529,6 +529,58 @@ export function ProceduralExplorationMap({
           )}
         </div>
         
+        {/* Map Legend */}
+        <div className="mt-2 p-2 bg-slate-800/80 rounded text-xs border border-slate-700">
+          <div className="text-slate-400 mb-1 font-medium">Legend</div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-amber-500/80 border border-amber-400"></div>
+              <span className="text-slate-300">Current</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-green-800/60 border border-green-600"></div>
+              <span className="text-slate-300">Forest</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-stone-700/60 border border-stone-500"></div>
+              <span className="text-slate-300">Cave/Mountain</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-stone-600/60 border border-stone-400"></div>
+              <span className="text-slate-300">Tunnel/Passage</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-purple-900/60 border border-purple-600"></div>
+              <span className="text-slate-300">Dungeon/Ruins</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-amber-900/60 border border-amber-600"></div>
+              <span className="text-slate-300">Settlement</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-blue-800/60 border border-blue-500"></div>
+              <span className="text-slate-300">Water</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-red-900/60 border border-red-600"></div>
+              <span className="text-slate-300">Danger</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-slate-700/60 border border-slate-600"></div>
+              <span className="text-slate-300">Unexplored</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-slate-900/90 border border-slate-800"></div>
+              <span className="text-slate-300">Unknown</span>
+            </div>
+          </div>
+          <div className="mt-1.5 pt-1.5 border-t border-slate-700 flex gap-3">
+            <span className="text-slate-400">⚔️ Hostile</span>
+            <span className="text-slate-400">⚠️ Danger Ahead</span>
+            <span className="text-slate-400">? Adjacent</span>
+          </div>
+        </div>
+        
         {hoveredHex && (hoveredHex.isRevealed || adjacentCoords.has(`${hoveredHex.q},${hoveredHex.r}`)) && (
           <div className="mt-2 p-2 bg-slate-800/90 rounded text-sm border border-slate-700">
             <div className="flex items-center gap-2">
