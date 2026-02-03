@@ -68,13 +68,14 @@ interface ProceduralExplorationMapProps {
   compact?: boolean;
 }
 
-const HEX_SIZE = 40;
-const HEX_WIDTH = Math.sqrt(3) * HEX_SIZE;
-const HEX_HEIGHT = 2 * HEX_SIZE;
+const HEX_SIZE_NORMAL = 32;
+const HEX_SIZE_COMPACT = 18;
 
-function axialToPixel(q: number, r: number): { x: number; y: number } {
-  const x = HEX_WIDTH * (q + r / 2);
-  const y = HEX_HEIGHT * 0.75 * r;
+function axialToPixel(q: number, r: number, hexSize: number): { x: number; y: number } {
+  const hexWidth = Math.sqrt(3) * hexSize;
+  const hexHeight = 2 * hexSize;
+  const x = hexWidth * (q + r / 2);
+  const y = hexHeight * 0.75 * r;
   return { x, y };
 }
 
@@ -132,13 +133,34 @@ function getHexColor(hex: ExplorationHex, isCurrentPosition: boolean): string {
   return "fill-slate-600/60 stroke-slate-500";
 }
 
+function getTerrainEmoji(terrainType: string): string {
+  const terrain = terrainType.toLowerCase();
+  if (terrain.includes("forest") || terrain.includes("tree") || terrain.includes("wood")) return "🌲";
+  if (terrain.includes("mountain") || terrain.includes("peak")) return "⛰️";
+  if (terrain.includes("cave") || terrain.includes("cavern")) return "🕳️";
+  if (terrain.includes("village") || terrain.includes("town")) return "🏘️";
+  if (terrain.includes("tavern") || terrain.includes("inn")) return "🍺";
+  if (terrain.includes("dungeon") || terrain.includes("crypt")) return "💀";
+  if (terrain.includes("ruin") || terrain.includes("ancient")) return "🏛️";
+  if (terrain.includes("temple") || terrain.includes("shrine")) return "⛩️";
+  if (terrain.includes("water") || terrain.includes("lake") || terrain.includes("river")) return "💧";
+  if (terrain.includes("desert") || terrain.includes("sand")) return "🏜️";
+  if (terrain.includes("swamp") || terrain.includes("marsh")) return "🌿";
+  if (terrain.includes("road") || terrain.includes("path")) return "🛤️";
+  if (terrain.includes("camp") || terrain.includes("rest")) return "⛺";
+  if (terrain.includes("castle") || terrain.includes("fortress")) return "🏰";
+  return "❓";
+}
+
 function HexTile({ 
   hex, 
   isCurrentPosition, 
   isAdjacent,
   onClick,
   onHover,
-  interactive
+  interactive,
+  hexSize,
+  compact
 }: { 
   hex: ExplorationHex; 
   isCurrentPosition: boolean;
@@ -146,18 +168,23 @@ function HexTile({
   onClick?: () => void;
   onHover?: (hex: ExplorationHex | null) => void;
   interactive?: boolean;
+  hexSize: number;
+  compact?: boolean;
 }) {
-  const { x, y } = axialToPixel(hex.q, hex.r);
+  const { x, y } = axialToPixel(hex.q, hex.r, hexSize);
   const colorClass = getHexColor(hex, isCurrentPosition);
   const canClick = interactive && isAdjacent && hex.isRevealed && !isCurrentPosition;
   
   const points = [];
   for (let i = 0; i < 6; i++) {
     const angle = (Math.PI / 180) * (60 * i - 30);
-    const px = HEX_SIZE * Math.cos(angle);
-    const py = HEX_SIZE * Math.sin(angle);
+    const px = hexSize * Math.cos(angle);
+    const py = hexSize * Math.sin(angle);
     points.push(`${px},${py}`);
   }
+  
+  const iconSize = compact ? 8 : 12;
+  const fontSize = compact ? "6px" : "10px";
   
   return (
     <g 
@@ -169,26 +196,34 @@ function HexTile({
     >
       <polygon
         points={points.join(" ")}
-        className={`${colorClass} stroke-2 transition-all duration-200 ${canClick ? "hover:brightness-125" : ""}`}
+        className={`${colorClass} stroke-[1.5] transition-all duration-200 ${canClick ? "hover:brightness-125 hover:stroke-amber-400" : ""}`}
       />
       
       {hex.isRevealed && (
         <g className="pointer-events-none">
           {isCurrentPosition && (
-            <circle r="8" className="fill-white animate-pulse" />
+            <>
+              <circle r={hexSize * 0.25} className="fill-white animate-pulse" />
+              <circle r={hexSize * 0.4} className="fill-none stroke-amber-300 stroke-1 animate-ping" style={{ animationDuration: '2s' }} />
+            </>
           )}
           
           {!isCurrentPosition && hex.isExplored && (
-            <g className="opacity-70">
-              {getTerrainIcon(hex.terrainType)}
-            </g>
+            <text 
+              textAnchor="middle" 
+              dominantBaseline="middle"
+              style={{ fontSize: compact ? '10px' : '14px' }}
+            >
+              {getTerrainEmoji(hex.terrainType)}
+            </text>
           )}
           
           {!isCurrentPosition && !hex.isExplored && isAdjacent && (
             <text 
               textAnchor="middle" 
               dominantBaseline="middle" 
-              className="fill-slate-400 text-xs font-bold"
+              className="fill-amber-400/80"
+              style={{ fontSize }}
             >
               ?
             </text>
@@ -197,9 +232,14 @@ function HexTile({
       )}
       
       {!hex.isRevealed && (
-        <g className="pointer-events-none opacity-30">
-          <EyeOff className="h-3 w-3" />
-        </g>
+        <text 
+          textAnchor="middle" 
+          dominantBaseline="middle" 
+          className="fill-slate-600/40"
+          style={{ fontSize: compact ? '8px' : '12px' }}
+        >
+          ☁️
+        </text>
       )}
     </g>
   );
@@ -290,26 +330,63 @@ export function ProceduralExplorationMap({
     moveMutation.mutate({ targetQ: hex.q, targetR: hex.r });
   }, [adjacentCoords, isMoving, moveMutation]);
   
+  const hexSize = compact ? HEX_SIZE_COMPACT : HEX_SIZE_NORMAL;
+  
+  const allHexesWithFog = useMemo(() => {
+    const hexMap = new Map<string, ExplorationHex>();
+    for (const h of hexes) {
+      hexMap.set(`${h.q},${h.r}`, h);
+    }
+    
+    if (state) {
+      const directions = [
+        { dq: 0, dr: -1 }, { dq: 1, dr: -1 }, { dq: 1, dr: 0 },
+        { dq: 0, dr: 1 }, { dq: -1, dr: 1 }, { dq: -1, dr: 0 }
+      ];
+      
+      for (const h of hexes) {
+        for (const dir of directions) {
+          const nq = h.q + dir.dq;
+          const nr = h.r + dir.dr;
+          const key = `${nq},${nr}`;
+          if (!hexMap.has(key)) {
+            hexMap.set(key, {
+              id: -1,
+              campaignId,
+              q: nq,
+              r: nr,
+              terrainType: "unknown",
+              isExplored: false,
+              isRevealed: false
+            });
+          }
+        }
+      }
+    }
+    
+    return Array.from(hexMap.values());
+  }, [hexes, state, campaignId]);
+  
   const bounds = useMemo(() => {
-    if (hexes.length === 0) return { minX: -100, maxX: 100, minY: -100, maxY: 100 };
+    if (allHexesWithFog.length === 0) return { minX: -100, maxX: 100, minY: -100, maxY: 100 };
     
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const hex of hexes) {
-      const { x, y } = axialToPixel(hex.q, hex.r);
+    for (const hex of allHexesWithFog) {
+      const { x, y } = axialToPixel(hex.q, hex.r, hexSize);
       minX = Math.min(minX, x);
       maxX = Math.max(maxX, x);
       minY = Math.min(minY, y);
       maxY = Math.max(maxY, y);
     }
     
-    const padding = HEX_SIZE * 2;
+    const padding = hexSize * 2;
     return {
       minX: minX - padding,
       maxX: maxX + padding,
       minY: minY - padding,
       maxY: maxY + padding
     };
-  }, [hexes]);
+  }, [allHexesWithFog, hexSize]);
   
   if (isLoading) {
     return (
@@ -372,13 +449,13 @@ export function ProceduralExplorationMap({
         </div>
       </CardHeader>
       <CardContent className="p-2">
-        <div className={`relative ${compact ? "h-48" : "h-64"} bg-slate-950 rounded-lg overflow-hidden`}>
+        <div className={`relative ${compact ? "h-32" : "h-64"} bg-slate-950 rounded-lg overflow-hidden border border-slate-800`}>
           <svg 
             viewBox={`${bounds.minX} ${bounds.minY} ${viewBoxWidth} ${viewBoxHeight}`}
             className="w-full h-full"
             preserveAspectRatio="xMidYMid meet"
           >
-            {hexes.map((hex) => (
+            {allHexesWithFog.map((hex) => (
               <HexTile
                 key={`${hex.q},${hex.r}`}
                 hex={hex}
@@ -387,6 +464,8 @@ export function ProceduralExplorationMap({
                 onClick={() => handleHexClick(hex)}
                 onHover={setHoveredHex}
                 interactive={interactive && !isMoving}
+                hexSize={hexSize}
+                compact={compact}
               />
             ))}
           </svg>
@@ -398,19 +477,32 @@ export function ProceduralExplorationMap({
           )}
         </div>
         
-        {hoveredHex && hoveredHex.isRevealed && (
-          <div className="mt-2 p-2 bg-slate-800/80 rounded text-sm">
-            <div className="font-medium text-amber-300">
-              {hoveredHex.locationName || hoveredHex.terrainType}
+        {hoveredHex && (hoveredHex.isRevealed || adjacentCoords.has(`${hoveredHex.q},${hoveredHex.r}`)) && (
+          <div className="mt-2 p-2 bg-slate-800/90 rounded text-sm border border-slate-700">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{getTerrainEmoji(hoveredHex.terrainType)}</span>
+              <div>
+                <div className="font-medium text-amber-300">
+                  {hoveredHex.locationName || (hoveredHex.isExplored ? hoveredHex.terrainType : "Unexplored")}
+                </div>
+                {hoveredHex.isExplored && (
+                  <span className="text-xs text-slate-500 capitalize">{hoveredHex.terrainType}</span>
+                )}
+              </div>
             </div>
             {hoveredHex.locationDescription && (
               <p className="text-xs text-slate-400 mt-1 line-clamp-2">
                 {hoveredHex.locationDescription}
               </p>
             )}
+            {hoveredHex.hexMeta?.narrativeTone && (
+              <div className="text-xs text-purple-400 mt-1 flex items-center gap-1">
+                <Sparkles className="h-3 w-3" /> {hoveredHex.hexMeta.narrativeTone}
+              </div>
+            )}
             {!hoveredHex.isExplored && adjacentCoords.has(`${hoveredHex.q},${hoveredHex.r}`) && (
-              <p className="text-xs text-amber-400 mt-1">
-                Click to explore this area
+              <p className="text-xs text-amber-400 mt-1 flex items-center gap-1">
+                <Navigation className="h-3 w-3" /> Click to explore
               </p>
             )}
           </div>
