@@ -282,7 +282,7 @@ export default function EventQueue({
             </div>
           </div>
         )}
-        <ScrollArea className={showAddForm ? "h-[120px]" : "h-[200px]"}>
+        <ScrollArea className="flex-1 min-h-0">
           {events.length > 0 ? (
             <div className="space-y-2">
               {events.map((event, index) => {
