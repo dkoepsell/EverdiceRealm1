@@ -13705,13 +13705,31 @@ Respond with JSON:
             const hexDir = cardinalToHexDir[(effectiveDirection || '').toLowerCase()] || 'n';
             const newCoords = getAdjacentHexCoordinates(currentQ, currentR, hexDir);
             
-            // Mark current hex as explored
-            const currentHex = await storage.getExplorationHex(campaignId, currentQ, currentR);
-            if (currentHex && !currentHex.isExplored) {
+            // Mark current hex (the one we're leaving) as explored
+            let currentHex = await storage.getExplorationHex(campaignId, currentQ, currentR);
+            if (currentHex) {
+              // Always update to ensure it's marked as explored with proper data
               await storage.updateExplorationHex(currentHex.id, {
                 isExplored: true,
-                exploredAt: new Date().toISOString()
+                isRevealed: true,
+                exploredAt: currentHex.exploredAt || new Date().toISOString()
               });
+              console.log(`[Exploration] Marked previous hex at (${currentQ}, ${currentR}) as explored`);
+            } else {
+              // Create the source hex if it doesn't exist (shouldn't happen normally)
+              currentHex = await storage.createExplorationHex({
+                campaignId,
+                q: currentQ,
+                r: currentR,
+                terrainType: "Explored Area",
+                locationName: "Previous Location",
+                isExplored: true,
+                isRevealed: true,
+                exploredAt: new Date().toISOString(),
+                revealedAt: new Date().toISOString(),
+                connectedDirections: []
+              });
+              console.log(`[Exploration] Created missing source hex at (${currentQ}, ${currentR})`);
             }
             
             // Create new hex at destination

@@ -119,23 +119,32 @@ function getHexColor(hex: ExplorationHex, isCurrentPosition: boolean): string {
   }
   
   const terrain = hex.terrainType.toLowerCase();
-  if (terrain.includes("forest") || terrain.includes("glade") || terrain.includes("meadow")) {
+  if (terrain.includes("forest") || terrain.includes("glade") || terrain.includes("meadow") || terrain.includes("tree") || terrain.includes("wood")) {
     return "fill-green-800/60 stroke-green-600";
   }
-  if (terrain.includes("mountain") || terrain.includes("cave") || terrain.includes("rock")) {
+  if (terrain.includes("mountain") || terrain.includes("cave") || terrain.includes("rock") || terrain.includes("cavern")) {
     return "fill-stone-700/60 stroke-stone-500";
   }
-  if (terrain.includes("water") || terrain.includes("lake") || terrain.includes("river")) {
+  if (terrain.includes("water") || terrain.includes("lake") || terrain.includes("river") || terrain.includes("stream")) {
     return "fill-blue-800/60 stroke-blue-500";
   }
-  if (terrain.includes("village") || terrain.includes("town") || terrain.includes("tavern")) {
+  if (terrain.includes("village") || terrain.includes("town") || terrain.includes("tavern") || terrain.includes("inn") || terrain.includes("camp")) {
     return "fill-amber-900/60 stroke-amber-600";
   }
-  if (terrain.includes("dungeon") || terrain.includes("crypt") || terrain.includes("ruin")) {
+  if (terrain.includes("dungeon") || terrain.includes("crypt") || terrain.includes("ruin") || terrain.includes("ancient")) {
     return "fill-purple-900/60 stroke-purple-600";
+  }
+  if (terrain.includes("tunnel") || terrain.includes("corridor") || terrain.includes("passage") || terrain.includes("hall")) {
+    return "fill-stone-600/60 stroke-stone-400";
+  }
+  if (terrain.includes("danger") || terrain.includes("hostile")) {
+    return "fill-red-900/60 stroke-red-600";
   }
   if (terrain.includes("desert") || terrain.includes("sand")) {
     return "fill-yellow-800/60 stroke-yellow-600";
+  }
+  if (terrain.includes("explored") || terrain.includes("previous")) {
+    return "fill-slate-500/60 stroke-slate-400";
   }
   
   return "fill-slate-600/60 stroke-slate-500";
