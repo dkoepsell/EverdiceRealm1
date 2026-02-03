@@ -5048,7 +5048,7 @@ Return your response as a JSON object with these fields:
             }
             
             // Update exploration state with new position
-            await storage.updateExplorationState(explorationState.id, {
+            await storage.updateExplorationState(parseInt(campaignId), {
               currentHexQ: newCoords.q,
               currentHexR: newCoords.r,
               exploredHexCount: (explorationState.exploredHexCount || 0) + 1,
@@ -13942,7 +13942,7 @@ Respond with JSON:
             }
             
             // Update exploration state with new position
-            await storage.updateExplorationState(explorationState.id, {
+            await storage.updateExplorationState(parseInt(campaignId), {
               currentHexQ: newCoords.q,
               currentHexR: newCoords.r,
               exploredHexCount: (explorationState.exploredHexCount || 0) + 1,
