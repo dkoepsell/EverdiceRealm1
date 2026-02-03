@@ -3,7 +3,7 @@ import { Link } from 'wouter';
 import { X, Flame, MessageSquare, Users, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-const REMINDER_INTERVAL_MS = 45 * 60 * 1000; // Show every 45 minutes
+const REMINDER_INTERVAL_MS = 120 * 60 * 1000; // Show every 2 hours
 const LAST_SHOWN_KEY = 'hearth_reminder_last_shown';
 
 export function HearthReminder() {
