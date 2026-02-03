@@ -1099,9 +1099,9 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
         </div>
 
         {/* Main Content Area - Current Scene is dominant */}
-        <div className="flex-1 flex flex-col lg:flex-row gap-3 min-h-0">
+        <div className="flex-1 flex flex-col lg:flex-row gap-3 min-h-0 overflow-hidden">
           {/* Left Reference Column - Peripheral stats (muted, compact) */}
-          <div className="lg:w-56 flex-shrink-0 space-y-2">
+          <div className="lg:w-52 flex-shrink-0 space-y-2 overflow-y-auto max-h-full">
             {/* Compact Party Stats - muted colors */}
             <Card className="border-muted bg-muted/20">
               <CardHeader className="p-2">
@@ -1390,8 +1390,8 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
           </div>
 
           {/* Right Column: Fixed Sidebar with Tabs - Extends to footer */}
-          <div className="lg:w-72 flex-shrink-0 flex flex-col min-h-0 self-stretch">
-            <Card className="flex-1 flex flex-col bg-slate-900/50 border-slate-700 min-h-0 overflow-hidden">
+          <div className="lg:w-72 flex-shrink-0 flex flex-col max-h-full overflow-hidden">
+            <Card className="flex-1 flex flex-col bg-slate-900/50 border-slate-700 overflow-hidden">
               {/* Tabbed Header */}
               <Tabs defaultValue="queue" className="flex-1 flex flex-col min-h-0 overflow-hidden">
                 <TabsList className="grid w-full grid-cols-4 h-9 bg-slate-800 rounded-b-none">
