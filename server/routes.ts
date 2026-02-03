@@ -8696,10 +8696,26 @@ Example output:
       let hexes;
       try {
         const parsed = JSON.parse(content);
-        hexes = parsed.hexes || parsed;
-        if (!Array.isArray(hexes)) {
+        // Handle various AI response formats
+        if (parsed.hexes && Array.isArray(parsed.hexes)) {
+          hexes = parsed.hexes;
+        } else if (parsed.map && Array.isArray(parsed.map)) {
+          hexes = parsed.map;
+        } else if (Array.isArray(parsed)) {
+          hexes = parsed;
+        } else {
           hexes = [parsed];
         }
+        
+        // Flatten if AI returned nested array with map property
+        if (hexes.length > 0 && hexes[0].map && Array.isArray(hexes[0].map)) {
+          hexes = hexes[0].map;
+        }
+        
+        // Validate hex structure
+        hexes = hexes.filter((h: any) => typeof h.q === 'number' && typeof h.r === 'number');
+        
+        console.log(`AI Map Generation: parsed ${hexes.length} valid hexes`);
       } catch (e) {
         console.error("Failed to parse AI response:", content);
         return res.status(500).json({ message: "Invalid AI response format" });
