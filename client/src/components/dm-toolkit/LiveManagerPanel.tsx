@@ -74,7 +74,9 @@ import {
   Zap,
   Target,
   Swords,
+  Map,
 } from "lucide-react";
+import { ProceduralExplorationMap } from "@/components/dungeon/ProceduralExplorationMap";
 
 interface LiveManagerPanelProps {
   selectedCampaignId: number | null;
@@ -981,8 +983,8 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
             {sidebarOpen && (
               <CardContent className="p-2 h-[calc(100%-50px)]">
                 <Tabs value={sidebarTab} onValueChange={setSidebarTab}>
-                  {/* Core tabs only: People, Places, Threats - hide Items/Events/Quests by default */}
-                  <TabsList className="grid w-full grid-cols-3 h-7 mb-2">
+                  {/* Core tabs: People, Places, Threats, Map */}
+                  <TabsList className="grid w-full grid-cols-4 h-7 mb-2">
                     <TabsTrigger value="npcs" className="text-xs p-1 gap-1" title="People">
                       <Users className="h-3 w-3" />
                     </TabsTrigger>
@@ -991,6 +993,9 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                     </TabsTrigger>
                     <TabsTrigger value="monsters" className="text-xs p-1 gap-1" title="Threats">
                       <Skull className="h-3 w-3" />
+                    </TabsTrigger>
+                    <TabsTrigger value="map" className="text-xs p-1 gap-1" title="Map">
+                      <Map className="h-3 w-3" />
                     </TabsTrigger>
                   </TabsList>
 
@@ -1061,10 +1066,27 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                         <DraggableItem key={entity.id} entity={entity} />
                       ))}
                       
-                      {buildEntityList(sidebarTab).length === 0 && (
+                      {buildEntityList(sidebarTab).length === 0 && sidebarTab !== "map" && (
                         <p className="text-xs text-muted-foreground text-center py-4">
                           No {sidebarTab} available
                         </p>
+                      )}
+                      
+                      {/* Map Tab Content */}
+                      {sidebarTab === "map" && selectedCampaignId && (
+                        <div className="space-y-2">
+                          <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                            <Map className="h-3 w-3" /> Exploration Map
+                          </div>
+                          <ProceduralExplorationMap 
+                            campaignId={selectedCampaignId} 
+                            interactive={false}
+                            compact={true}
+                          />
+                          <p className="text-xs text-muted-foreground text-center">
+                            Use the Map Builder tab in DM Toolkit for full editing
+                          </p>
+                        </div>
                       )}
                     </div>
                   </ScrollArea>
