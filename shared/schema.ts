@@ -204,6 +204,11 @@ export const campaigns = pgTable("campaigns", {
   sessionFocus: text("session_focus"), // 1-2 sentence goal for this session
   activePressures: text("active_pressures").array(), // 2-3 short phrases (max)
   unresolvedThread: text("unresolved_thread"), // One dangling question
+  // CAML 2.0 State-First Adventure System
+  worldState: jsonb("world_state"), // Dynamic state facts that can change (trust, suspicion, awareness, etc.)
+  npcAttitudes: jsonb("npc_attitudes"), // NPC relationships and attitudes that affect scenes
+  pressureMeters: jsonb("pressure_meters"), // Pressure clocks (corruption, stability, time limits)
+  availablePaths: jsonb("available_paths"), // Multiple viable approaches to obstacles
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at"),
 });

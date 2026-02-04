@@ -3130,18 +3130,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
           apiKey: process.env.OPENAI_API_KEY
         });
         
+        // CAML 2.0: Build state context if available for initial scene
+        let initialStateContext = "";
+        const campaignWorldState = campaign.worldState as any[] || [];
+        const campaignNpcAttitudes = campaign.npcAttitudes as any[] || [];
+        const campaignPressureMeters = campaign.pressureMeters as any[] || [];
+        const campaignAvailablePaths = campaign.availablePaths as any[] || [];
+        
+        if (campaignWorldState.length > 0) {
+          initialStateContext += "\n\nSTARTING WORLD STATE (introduce these naturally in the opening):\n";
+          initialStateContext += campaignWorldState.map((s: any) => `- ${s.key}: ${s.value} (${s.description})`).join("\n");
+        }
+        
+        if (campaignNpcAttitudes.length > 0) {
+          initialStateContext += "\n\nKEY NPCs (introduce 1-2 in the opening, show their attitudes through behavior):\n";
+          initialStateContext += campaignNpcAttitudes.map((npc: any) => 
+            `- ${npc.name} (${npc.role}): attitude ${npc.attitude}/100, wants: ${npc.wants}`
+          ).join("\n");
+        }
+        
+        if (campaignPressureMeters.length > 0) {
+          initialStateContext += "\n\nPRESSURE CLOCKS (hint at these tensions in the opening):\n";
+          initialStateContext += campaignPressureMeters.map((m: any) => 
+            `- ${m.name}: ${m.current}/${m.max} - ${m.consequence} if maxed`
+          ).join("\n");
+        }
+        
+        if (campaignAvailablePaths.length > 0) {
+          initialStateContext += "\n\nMULTIPLE PATHS (hint that there are different approaches available):\n";
+          initialStateContext += campaignAvailablePaths.map((p: any) => 
+            `- ${p.approach}: ${p.description}`
+          ).join("\n");
+        }
+        
         const prompt = `
-You are an expert Dungeon Master for a D&D game with a ${campaign.narrativeStyle || "descriptive"} storytelling style.
+You are an expert Dungeon Master using STATE-FIRST storytelling (CAML principles).
 Campaign: ${campaign.title}. ${campaign.description || ""}
 Difficulty level: ${campaign.difficulty || "Normal - Balanced Challenge"}
+Narrative Style: ${campaign.narrativeStyle || "descriptive"}
+${initialStateContext}
 
-DM PHILOSOPHY: You are a facilitator rooting for the player's success, not an adversary. Use the "yes, and..." approach to player creativity. Create cinematic descriptions using all five senses. Make NPCs feel real with their own motivations. Present challenges that feel heroic to overcome.
+CAML STORYTELLING PRINCIPLES:
+1. This world is REACTIVE - state facts will change based on player actions
+2. NPCs are DECISION-MAKERS with attitudes that affect what they reveal or block
+3. FAILURE CHANGES THE WORLD - never just "try again", consequences matter
+4. Multiple paths exist - hint that players have choices in how to approach problems
+5. Pressure builds over time - introduce the sense of urgency naturally
+
+DM PHILOSOPHY: You are a facilitator rooting for the player's success, not an adversary. Use the "yes, and..." approach to player creativity. Create cinematic descriptions using all five senses. Make NPCs feel real with their own motivations.
 
 ${SCENE_GENERATION_CONSTRAINTS}
 
 ${SCENE_CHOICE_FRAMING}
 
 Generate the opening scene for this campaign. The opening should be an EXPLORATION or DISCOVERY scene, not combat.
+The opening should:
+- Establish the current world state naturally (show, don't tell)
+- Introduce 1-2 key NPCs whose attitudes will matter
+- Hint at the pressure/stakes without overwhelming
+- Present choices that suggest multiple viable approaches exist
+
 Include:
 1. A descriptive narrative of the initial setting and situation (2-3 paragraphs, keep it concise)
 2. A title for this opening scene  
@@ -3150,7 +3198,7 @@ Include:
 5. Initial quests/objectives for the players to complete
 
 Return your response as a JSON object with these fields:
-- narrative: The descriptive text of the opening scene (keep under 150 words)
+- narrative: The descriptive text of the opening scene (keep under 150 words). Naturally show the world state through environmental details and NPC behavior.
 - sessionTitle: A short, engaging title for this scene
 - location: The current location or setting where the campaign begins
 - choices: An array of 4 objects, each with:
@@ -3159,10 +3207,10 @@ Return your response as a JSON object with these fields:
   - requiresDiceRoll: Boolean indicating if this action requires a dice roll
   - diceType: If requiresDiceRoll is true, include the type of dice to roll ("d20" for most skill checks)
   - rollDC: If requiresDiceRoll is true, include the DC/difficulty (number to beat) for this roll
-  - skillType: The skill or ability used (e.g., "perception", "persuasion", "stealth", "athletics", "investigation", "arcana", "insight"). IMPORTANT: Vary the skills used - don't just use strength-based checks. Include social skills (persuasion, deception, intimidation), mental skills (investigation, perception, arcana), and physical skills (athletics, acrobatics, stealth) as appropriate to the situation.
+  - skillType: The skill or ability used (e.g., "perception", "persuasion", "stealth", "athletics", "investigation", "arcana", "insight"). IMPORTANT: Vary the skills used - social skills for NPC interactions, mental skills for investigation, physical skills as appropriate.
   - rollPurpose: A short explanation of what the roll is for (e.g., "Perception Check", "Persuasion Check", "Investigation Check")
   - successText: Brief text to display on a successful roll
-  - failureText: Brief text to display on a failed roll
+  - failureText: Brief text describing a meaningful consequence (world changes, NPC reacts, opportunity shifts) - NOT just "you fail"
 - activeQuests: An array of 1-3 initial quests, each with:
   - id: Unique identifier like "quest_main_1" or "quest_side_1"
   - title: Short quest title
@@ -4850,29 +4898,66 @@ Return your response as a JSON object with these fields:
         }
       }
       
+      // CAML 2.0: Build state context for reactive storytelling
+      let stateContext = "";
+      const worldState = campaign.worldState as any[] || [];
+      const npcAttitudes = campaign.npcAttitudes as any[] || [];
+      const pressureMeters = campaign.pressureMeters as any[] || [];
+      const availablePaths = campaign.availablePaths as any[] || [];
+      
+      if (worldState.length > 0) {
+        stateContext += "\n\nCURRENT WORLD STATE (facts that affect this scene):\n";
+        stateContext += worldState.map((s: any) => `- ${s.key}: ${s.value} (${s.description})`).join("\n");
+      }
+      
+      if (npcAttitudes.length > 0) {
+        stateContext += "\n\nKEY NPCs AND ATTITUDES (their behavior depends on these):\n";
+        stateContext += npcAttitudes.map((npc: any) => {
+          let npcLine = `- ${npc.name} (${npc.role}): attitude ${npc.attitude}/100, wants: ${npc.wants}`;
+          if (npc.blocksAccess && npc.attitude < 0) npcLine += ` [BLOCKS: ${npc.blocksAccess}]`;
+          if (npc.unlocksAccess && npc.attitude >= 50) npcLine += ` [UNLOCKS: ${npc.unlocksAccess}]`;
+          return npcLine;
+        }).join("\n");
+      }
+      
+      if (pressureMeters.length > 0) {
+        stateContext += "\n\nPRESSURE METERS (tension clocks - actions may advance these):\n";
+        stateContext += pressureMeters.map((m: any) => 
+          `- ${m.name}: ${m.current}/${m.max} (consequence at max: ${m.consequence})`
+        ).join("\n");
+      }
+      
+      if (availablePaths.length > 0) {
+        stateContext += "\n\nAVAILABLE APPROACHES (multiple paths to obstacles):\n";
+        stateContext += availablePaths.map((p: any) => 
+          `- ${p.approach}: ${p.description} (requires: ${p.requirements})`
+        ).join("\n");
+      }
+      
       const promptWithContext = `
-You are an expert Dungeon Master for a D&D game with a ${narrativeStyle || "descriptive"} storytelling style.
+You are an expert Dungeon Master using STATE-FIRST storytelling (CAML principles).
 ${campaignContext}
 ${locationContext}
 Difficulty level: ${difficulty || "Normal - Balanced Challenge"}
 Story direction preference: ${storyDirection || "balanced mix of combat, roleplay, and exploration"}
+${stateContext}
 
-Based on the player's action: "${cleanedPrompt}", generate the next part of the adventure. Include:
-1. A descriptive narrative of what happens next (3-4 paragraphs)
-2. A title for this scene/encounter
-3. Four possible actions the player can take next, with at least 2 actions requiring dice rolls (skill checks, saving throws, or combat rolls)
+CAML STORYTELLING PRINCIPLES:
+1. Scenes are TESTS of current state - check worldState and npcAttitudes before describing what happens
+2. NPCs behave according to their attitudes - hostile NPCs block access, friendly ones unlock secrets
+3. FAILURE CHANGES THE WORLD - never "try again", instead: partial success, progress with cost, NPCs learn something, problem escalates
+4. Pressure meters advance based on player actions - reckless actions, failed stealth, time passing
+5. When state changes, describe it in the narrative so players feel the world reacting
 
-SIDE QUEST DISCOVERY (OPTIONAL):
-About 20-25% of the time, when the scene naturally allows for it, include a discovered side quest opportunity. This works well when:
-- Players enter a new location (tavern, village, dungeon entrance)
-- NPCs are present who might need help
-- Exploration reveals hints of nearby trouble or treasure
-- The environment suggests something interesting nearby
+Based on the player's action: "${cleanedPrompt}", generate the next part of the adventure.
 
-Side quests should be BRIEF (completable in 1-2 sessions), OPTIONAL (never blocking the main story), and THEMATICALLY APPROPRIATE to the current location/situation.
+Consider how current world state affects this scene:
+- Does an NPC's attitude change what information or access is available?
+- Should a pressure meter tick up based on this action?
+- If the action fails, what CHANGES in the world (not just "you fail")?
 
 Return your response as a JSON object with these fields:
-- narrative: The descriptive text of what happens next
+- narrative: The descriptive text of what happens next (3-4 paragraphs). Show how world state affects the scene.
 - sessionTitle: A short, engaging title for this scene
 - location: The current location or setting where this scene takes place
 - choices: An array of 4 objects, each with:
@@ -4885,7 +4970,11 @@ Return your response as a JSON object with these fields:
   - skillType: The skill or ability used (e.g., "perception", "persuasion", "stealth", "athletics", "investigation", "arcana", "insight", "intimidation", "deception", "acrobatics"). IMPORTANT: Use varied skills appropriate to the situation - social situations should use Persuasion/Deception/Insight, sneaking uses Stealth, searching uses Perception/Investigation, climbing/jumping uses Athletics/Acrobatics, magical knowledge uses Arcana. Don't default everything to Athletics or Strength.
   - rollPurpose: A short explanation of what the roll is for (e.g., "Perception Check", "Persuasion Check", "Stealth Check")
   - successText: Brief text to display on a successful roll
-  - failureText: Brief text to display on a failed roll
+  - failureText: Brief text describing meaningful consequence - NOT "try again" but world changes (NPC becomes suspicious, alarm raised, resource lost, problem escalates)
+- stateChanges: (IMPORTANT) An object describing how this scene changed the world state:
+  - worldStateUpdates: Array of {key, delta, reason} for any world state facts that changed (delta is number to add, e.g., +10 or -15)
+  - npcAttitudeUpdates: Array of {name, delta, reason} for any NPC attitudes that changed
+  - pressureMeterUpdates: Array of {name, delta, reason} for any pressure meters that advanced
 - discoveredQuest: (OPTIONAL - include only when a side quest is naturally discovered) An object with:
   - title: A compelling quest name (e.g., "The Missing Merchant", "Whispers in the Well")
   - description: 2-3 sentences describing the quest objective
@@ -4949,6 +5038,85 @@ Return your response as a JSON object with these fields:
       
       // Update campaign's current session
       await storage.updateCampaignSession(parseInt(campaignId), sessionNumber);
+      
+      // CAML 2.0: Apply state changes from the AI response
+      if (storyData.stateChanges) {
+        try {
+          const changes = storyData.stateChanges;
+          let updatedWorldState = [...worldState];
+          let updatedNpcAttitudes = [...npcAttitudes];
+          let updatedPressureMeters = [...pressureMeters];
+          let stateWasUpdated = false;
+          
+          // Apply world state updates
+          if (changes.worldStateUpdates && Array.isArray(changes.worldStateUpdates)) {
+            for (const update of changes.worldStateUpdates) {
+              const stateIndex = updatedWorldState.findIndex((s: any) => s.key === update.key);
+              if (stateIndex >= 0) {
+                const newValue = Math.max(-100, Math.min(100, updatedWorldState[stateIndex].value + (update.delta || 0)));
+                updatedWorldState[stateIndex] = {
+                  ...updatedWorldState[stateIndex],
+                  value: newValue,
+                  description: update.reason || updatedWorldState[stateIndex].description
+                };
+                stateWasUpdated = true;
+                console.log(`CAML State Update: ${update.key} ${update.delta > 0 ? '+' : ''}${update.delta} (${update.reason})`);
+              }
+            }
+          }
+          
+          // Apply NPC attitude updates
+          if (changes.npcAttitudeUpdates && Array.isArray(changes.npcAttitudeUpdates)) {
+            for (const update of changes.npcAttitudeUpdates) {
+              const npcIndex = updatedNpcAttitudes.findIndex((n: any) => n.name === update.name);
+              if (npcIndex >= 0) {
+                const newAttitude = Math.max(-100, Math.min(100, updatedNpcAttitudes[npcIndex].attitude + (update.delta || 0)));
+                updatedNpcAttitudes[npcIndex] = {
+                  ...updatedNpcAttitudes[npcIndex],
+                  attitude: newAttitude
+                };
+                stateWasUpdated = true;
+                console.log(`CAML NPC Update: ${update.name} attitude ${update.delta > 0 ? '+' : ''}${update.delta} (${update.reason})`);
+              }
+            }
+          }
+          
+          // Apply pressure meter updates
+          if (changes.pressureMeterUpdates && Array.isArray(changes.pressureMeterUpdates)) {
+            for (const update of changes.pressureMeterUpdates) {
+              const meterIndex = updatedPressureMeters.findIndex((m: any) => m.name === update.name);
+              if (meterIndex >= 0) {
+                const newValue = Math.max(0, Math.min(updatedPressureMeters[meterIndex].max, updatedPressureMeters[meterIndex].current + (update.delta || 0)));
+                updatedPressureMeters[meterIndex] = {
+                  ...updatedPressureMeters[meterIndex],
+                  current: newValue
+                };
+                stateWasUpdated = true;
+                console.log(`CAML Pressure Update: ${update.name} ${update.delta > 0 ? '+' : ''}${update.delta} (${update.reason})`);
+                
+                // Check if pressure meter maxed out
+                if (newValue >= updatedPressureMeters[meterIndex].max) {
+                  console.log(`CAML CONSEQUENCE TRIGGERED: ${update.name} reached max! ${updatedPressureMeters[meterIndex].consequence}`);
+                }
+              }
+            }
+          }
+          
+          // Save updated state to campaign
+          if (stateWasUpdated) {
+            await storage.updateCampaign(parseInt(campaignId), {
+              worldState: updatedWorldState,
+              npcAttitudes: updatedNpcAttitudes,
+              pressureMeters: updatedPressureMeters,
+              updatedAt: new Date().toISOString()
+            });
+            console.log(`CAML: Updated campaign ${campaignId} state after story advancement`);
+          }
+        } catch (stateError) {
+          console.error("Failed to apply CAML state changes:", stateError);
+          // Don't fail the request if state update fails
+        }
+      }
       
       // Handle AI-discovered side quests (CAML 2.0 compatible)
       let discoveredQuest = null;
