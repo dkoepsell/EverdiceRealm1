@@ -40,6 +40,9 @@ export interface AlternativePath {
   description: string; // How it works
   requirements: string; // State conditions needed
   consequences: string; // What changes if this path is taken
+  exclusiveWith?: string[]; // Other path names that become BLOCKED if this is chosen
+  isBlocked: boolean; // Whether this path is currently available
+  blockedReason?: string; // Why this path is blocked (if it is)
 }
 
 export interface CampaignGenerationResponse {
@@ -120,6 +123,8 @@ CAML STATE-FIRST FIELDS:
   - description: How this approach works
   - requirements: What state conditions make this path viable
   - consequences: What changes if this path is taken
+  - exclusiveWith: Array of other path names that become BLOCKED if this path is chosen (for mutually exclusive outcomes)
+  - isBlocked: false (always start as available)
 
 Format the response as a valid JSON object without explanation.
 `;

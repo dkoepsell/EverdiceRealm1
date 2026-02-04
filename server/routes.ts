@@ -4898,8 +4898,13 @@ Return your response as a JSON object with these fields:
         }
       }
       
-      // CAML 2.0: Build state context for reactive storytelling
+      // CAML 2.0: Build OPERATIVE state context for reactive storytelling
       let stateContext = "";
+      let activeGates: string[] = [];
+      let availableUnlocks: string[] = [];
+      let criticalPressure: string[] = [];
+      let blockedPaths: string[] = [];
+      
       const worldState = campaign.worldState as any[] || [];
       const npcAttitudes = campaign.npcAttitudes as any[] || [];
       const pressureMeters = campaign.pressureMeters as any[] || [];
@@ -4911,50 +4916,117 @@ Return your response as a JSON object with these fields:
       }
       
       if (npcAttitudes.length > 0) {
-        stateContext += "\n\nKEY NPCs AND ATTITUDES (their behavior depends on these):\n";
+        stateContext += "\n\nKEY NPCs AND ATTITUDES:\n";
         stateContext += npcAttitudes.map((npc: any) => {
           let npcLine = `- ${npc.name} (${npc.role}): attitude ${npc.attitude}/100, wants: ${npc.wants}`;
-          if (npc.blocksAccess && npc.attitude < 0) npcLine += ` [BLOCKS: ${npc.blocksAccess}]`;
-          if (npc.unlocksAccess && npc.attitude >= 50) npcLine += ` [UNLOCKS: ${npc.unlocksAccess}]`;
+          // Track operative gates
+          if (npc.blocksAccess && npc.attitude < 0) {
+            npcLine += ` [ACTIVELY BLOCKING: ${npc.blocksAccess}]`;
+            activeGates.push(`${npc.name} is blocking "${npc.blocksAccess}" due to hostile attitude (${npc.attitude})`);
+          }
+          if (npc.unlocksAccess && npc.attitude >= 50) {
+            npcLine += ` [NOW UNLOCKED: ${npc.unlocksAccess}]`;
+            availableUnlocks.push(`${npc.name} has unlocked "${npc.unlocksAccess}" due to friendly attitude (${npc.attitude})`);
+          } else if (npc.unlocksAccess && npc.attitude < 50) {
+            npcLine += ` [LOCKED until attitude >= 50: ${npc.unlocksAccess}]`;
+          }
           return npcLine;
         }).join("\n");
       }
       
       if (pressureMeters.length > 0) {
-        stateContext += "\n\nPRESSURE METERS (tension clocks - actions may advance these):\n";
-        stateContext += pressureMeters.map((m: any) => 
-          `- ${m.name}: ${m.current}/${m.max} (consequence at max: ${m.consequence})`
-        ).join("\n");
+        stateContext += "\n\nPRESSURE METERS (OPERATIVE - affect scene availability):\n";
+        stateContext += pressureMeters.map((m: any) => {
+          const percentFull = (m.current / m.max) * 100;
+          let meterLine = `- ${m.name}: ${m.current}/${m.max}`;
+          if (percentFull >= 80) {
+            meterLine += ` [CRITICAL - consequence imminent: ${m.consequence}]`;
+            criticalPressure.push(`${m.name} at ${m.current}/${m.max} - ${m.consequence}`);
+          } else if (percentFull >= 50) {
+            meterLine += ` [HIGH - scenes become harder, some options closing]`;
+          }
+          meterLine += ` (triggers: ${(m.triggers || []).join(', ')})`;
+          return meterLine;
+        }).join("\n");
       }
       
       if (availablePaths.length > 0) {
-        stateContext += "\n\nAVAILABLE APPROACHES (multiple paths to obstacles):\n";
-        stateContext += availablePaths.map((p: any) => 
-          `- ${p.approach}: ${p.description} (requires: ${p.requirements})`
-        ).join("\n");
+        stateContext += "\n\nAVAILABLE APPROACHES:\n";
+        stateContext += availablePaths.map((p: any) => {
+          const isBlocked = p.isBlocked || false;
+          let pathLine = `- ${p.approach}: ${p.description}`;
+          if (isBlocked) {
+            pathLine = `- [BLOCKED] ${p.approach}: ${p.blockedReason || 'No longer available'}`;
+            blockedPaths.push(p.approach);
+          } else {
+            pathLine += ` (requires: ${p.requirements})`;
+          }
+          return pathLine;
+        }).join("\n");
       }
       
+      // Build operative summary
+      let operativeSummary = "";
+      if (activeGates.length > 0) {
+        operativeSummary += "\n\n⚠️ ACTIVE BLOCKS (you MUST enforce these):\n" + activeGates.map(g => `- ${g}`).join("\n");
+      }
+      if (availableUnlocks.length > 0) {
+        operativeSummary += "\n\n✓ UNLOCKED CONTENT (now available):\n" + availableUnlocks.map(u => `- ${u}`).join("\n");
+      }
+      if (criticalPressure.length > 0) {
+        operativeSummary += "\n\n🔥 CRITICAL PRESSURE (consequence imminent):\n" + criticalPressure.map(c => `- ${c}`).join("\n");
+      }
+      if (blockedPaths.length > 0) {
+        operativeSummary += "\n\n❌ BLOCKED PATHS (no longer available):\n" + blockedPaths.map(b => `- ${b}`).join("\n");
+      }
+      
+      stateContext += operativeSummary;
+      
       const promptWithContext = `
-You are an expert Dungeon Master using STATE-FIRST storytelling (CAML principles).
+You are an expert Dungeon Master using OPERATIVE STATE-FIRST storytelling (CAML 2.0).
 ${campaignContext}
 ${locationContext}
 Difficulty level: ${difficulty || "Normal - Balanced Challenge"}
 Story direction preference: ${storyDirection || "balanced mix of combat, roleplay, and exploration"}
 ${stateContext}
 
-CAML STORYTELLING PRINCIPLES:
-1. Scenes are TESTS of current state - check worldState and npcAttitudes before describing what happens
-2. NPCs behave according to their attitudes - hostile NPCs block access, friendly ones unlock secrets
-3. FAILURE CHANGES THE WORLD - never "try again", instead: partial success, progress with cost, NPCs learn something, problem escalates
-4. Pressure meters advance based on player actions - reckless actions, failed stealth, time passing
-5. When state changes, describe it in the narrative so players feel the world reacting
+═══════════════════════════════════════════════════════════
+MANDATORY OPERATIVE RULES - YOU MUST ENFORCE THESE:
+═══════════════════════════════════════════════════════════
+
+1. NPC ATTITUDE GATES ARE BINDING:
+   - If an NPC is marked [ACTIVELY BLOCKING], that content is UNAVAILABLE in this scene
+   - If an NPC attitude < 0, they are uncooperative, evasive, or hostile
+   - If an NPC attitude >= 50 and marked [NOW UNLOCKED], reveal that content
+   - Do NOT allow players to bypass gates through clever roleplay - the gate is real
+
+2. PRESSURE METERS ARE OPERATIVE:
+   - If a meter is >= 50%, increase DCs by 2 and add complications
+   - If a meter is >= 80% (CRITICAL), the consequence is IMMINENT - foreshadow it
+   - If a meter reaches max, the consequence HAPPENS in this scene
+   - Failed stealth, reckless actions, loud combat, time passing → advance relevant meter
+
+3. FAILURE HAS CONSEQUENCES (NEVER "TRY AGAIN"):
+   - Failed roll → advance a pressure meter by 1-2
+   - Failed social roll → NPC attitude drops by 10-20
+   - Failure must change something: NPC learns something, alarm raised, resource lost, problem mutates
+
+4. PATH EXCLUSIVITY:
+   - If a path is marked [BLOCKED], it is NO LONGER AVAILABLE
+   - When a major approach is taken, mark at least one alternative as blocked
+   - Different endings are possible - not all end the same way
+
+5. MUTUALLY EXCLUSIVE OUTCOMES:
+   - Actions that help one faction often hurt another
+   - Saving one thing may cost another
+   - The ending should reflect accumulated choices, not just "victory"
 
 Based on the player's action: "${cleanedPrompt}", generate the next part of the adventure.
 
-Consider how current world state affects this scene:
-- Does an NPC's attitude change what information or access is available?
-- Should a pressure meter tick up based on this action?
-- If the action fails, what CHANGES in the world (not just "you fail")?
+BEFORE GENERATING, CHECK:
+- Are any NPC gates blocking what the player wants? If so, they must work around it.
+- Should this action advance a pressure meter? Which one?
+- If there's a failure possibility, what specifically changes in the world?
 
 Return your response as a JSON object with these fields:
 - narrative: The descriptive text of what happens next (3-4 paragraphs). Show how world state affects the scene.
@@ -4971,10 +5043,16 @@ Return your response as a JSON object with these fields:
   - rollPurpose: A short explanation of what the roll is for (e.g., "Perception Check", "Persuasion Check", "Stealth Check")
   - successText: Brief text to display on a successful roll
   - failureText: Brief text describing meaningful consequence - NOT "try again" but world changes (NPC becomes suspicious, alarm raised, resource lost, problem escalates)
-- stateChanges: (IMPORTANT) An object describing how this scene changed the world state:
+  - failureConsequence: (REQUIRED for dice rolls) Object specifying what state changes on failure:
+    - type: "pressure" | "npc_attitude" | "path_blocked" | "world_state"
+    - target: The name of the meter, NPC, path, or state key affected
+    - delta: Number to change by (e.g., +2 for pressure, -15 for attitude)
+    - description: What happens narratively
+- stateChanges: (IMPORTANT - REQUIRED) An object describing how this scene changed the world state:
   - worldStateUpdates: Array of {key, delta, reason} for any world state facts that changed (delta is number to add, e.g., +10 or -15)
   - npcAttitudeUpdates: Array of {name, delta, reason} for any NPC attitudes that changed
-  - pressureMeterUpdates: Array of {name, delta, reason} for any pressure meters that advanced
+  - pressureMeterUpdates: Array of {name, delta, reason} for any pressure meters that advanced (MUST include at least one if action was risky or time-sensitive)
+  - pathsBlocked: Array of {approach, reason} for any paths that are now closed due to this scene's events
 - discoveredQuest: (OPTIONAL - include only when a side quest is naturally discovered) An object with:
   - title: A compelling quest name (e.g., "The Missing Merchant", "Whispers in the Well")
   - description: 2-3 sentences describing the quest objective
@@ -5102,12 +5180,30 @@ Return your response as a JSON object with these fields:
             }
           }
           
+          // Apply path blocking (CAML path exclusivity)
+          let updatedAvailablePaths = [...availablePaths];
+          if (changes.pathsBlocked && Array.isArray(changes.pathsBlocked)) {
+            for (const blocked of changes.pathsBlocked) {
+              const pathIndex = updatedAvailablePaths.findIndex((p: any) => p.approach === blocked.approach);
+              if (pathIndex >= 0) {
+                updatedAvailablePaths[pathIndex] = {
+                  ...updatedAvailablePaths[pathIndex],
+                  isBlocked: true,
+                  blockedReason: blocked.reason || "This path is no longer available"
+                };
+                stateWasUpdated = true;
+                console.log(`CAML PATH BLOCKED: ${blocked.approach} - ${blocked.reason}`);
+              }
+            }
+          }
+          
           // Save updated state to campaign
           if (stateWasUpdated) {
             await storage.updateCampaign(parseInt(campaignId), {
               worldState: updatedWorldState,
               npcAttitudes: updatedNpcAttitudes,
               pressureMeters: updatedPressureMeters,
+              availablePaths: updatedAvailablePaths,
               updatedAt: new Date().toISOString()
             });
             console.log(`CAML: Updated campaign ${campaignId} state after story advancement`);
