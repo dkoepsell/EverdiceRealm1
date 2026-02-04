@@ -1,0 +1,208 @@
+# CAML DM Authoring Guide
+
+*A practical field manual for designing flexible, replayable adventures using CAML 2.0.*
+
+---
+
+## What CAML Is (for DMs)
+
+CAML is not a story format. It is a **state-first adventure design language**. You describe:
+
+* **What exists** (world)
+* **What can change** (state)
+* **What might happen** (processes)
+* **What becomes true afterward** (transitions)
+
+If you write CAML like a plot, it will feel linear. If you write CAML like a **reactive situation**, it will feel alive.
+
+---
+
+## The One Rule to Remember
+
+**Design facts that can change, then make scenes care about them.**
+
+If nothing changes, nothing branches.
+
+---
+
+## 1) Start with State, Not Scenes
+
+Before you write any processes, list the **facts that might change** during play.
+
+### High‑leverage state facts
+
+* Trust, suspicion, fear, corruption, stability, awareness
+* Who knows what
+* Who owes whom
+* What is sealed, revealed, damaged, or tainted
+* Which NPCs or factions are aligned
+
+### Low‑leverage state facts
+
+* Purely cosmetic descriptors
+* One‑off flags no later scene checks
+* Facts that only matter at the very end
+
+**Authoring instruction:**
+
+> If a fact can’t change, don’t model it. If it can change, make something check it later.
+
+---
+
+## 2) Treat Scenes as Tests, Not Chapters
+
+Each `process` should be a **test of the current state**.
+
+A good scene answers:
+
+* When does this *not* happen?
+* What different outcomes are possible?
+* What new facts will be true afterward?
+
+**Authoring instruction:**
+
+> If a scene must happen for the adventure to work, it’s doing too much.
+
+Design scenes so the campaign survives if they are:
+
+* Skipped
+* Failed
+* Bypassed
+
+---
+
+## 3) Make Failure Change the World
+
+Failure should never mean “nothing happens.”
+
+### CAML‑friendly failure patterns
+
+* Partial truths instead of full truths
+* Progress with a cost (corruption, suspicion, instability)
+* NPCs learn something the party didn’t want them to
+* The problem moves, escalates, or mutates
+
+**Authoring instruction:**
+
+> Never write a failure that says “try again.” Write one that says “now something is different.”
+
+---
+
+## 4) NPCs Must Be Decision‑Makers
+
+NPCs should **want things** and **react to outcomes**.
+
+If you model an NPC’s attitude, it should:
+
+* Unlock scenes
+* Block scenes
+* Redirect the party
+* Change outcomes
+
+**Authoring instruction:**
+
+> If an NPC’s attitude can change, make at least two scenes behave differently because of it.
+
+Avoid NPCs that only:
+
+* Deliver exposition
+* Appear once
+* Never change stance
+
+---
+
+## 5) Design Paths, Not Plots
+
+A CAML adventure should be describable as:
+
+> “There are several ways this could unfold.”
+
+### Practical techniques
+
+* Create multiple processes that address the same problem in different ways
+* Gate them with state
+* Make some options mutually exclusive
+
+**Authoring instruction:**
+
+> For every major obstacle, design at least two viable approaches, and let state decide which remain available.
+
+---
+
+## 6) Use Clocks and Meters That Matter
+
+Pressure makes play feel alive. In CAML, pressure should be explicit.
+
+Common clocks:
+
+* Corruption
+* Awareness
+* Stability
+* Time until catastrophe
+
+**Critical rule:**
+
+> If a meter changes, something must become harder, stranger, or more dangerous.
+
+If advancing a clock does nothing, remove it.
+
+---
+
+## 7) Endings Summarize What Became True
+
+An ending is not “the boss is defeated.”
+
+An ending is a **snapshot of the world’s final state**.
+
+Good endings:
+
+* Reflect accumulated facts
+* Differ meaningfully based on earlier choices
+* Describe consequences, not scores
+
+**Authoring instruction:**
+
+> Write endings as world summaries, not victory conditions.
+
+---
+
+## 8) Design for Reuse and Replay
+
+A strong CAML adventure should survive:
+
+* Different player choices
+* Different party compositions
+* Different tones of play
+
+This happens naturally if you:
+
+* Rely on state
+* Avoid single points of failure
+* Treat scenes as interchangeable tools
+
+**Authoring instruction:**
+
+> Ask: “If I ran this twice, what would I hope went differently?” Encode that as state.
+
+---
+
+## A Quick CAML DM Checklist
+
+Before calling an adventure finished:
+
+* [ ] Does at least one scene sometimes *not* occur?
+* [ ] Does failure always change something?
+* [ ] Do NPC attitudes affect access or outcomes?
+* [ ] Are there multiple viable paths through the core problem?
+* [ ] Does early play meaningfully affect late play?
+* [ ] Can I summarize the adventure as a list of facts that might become true?
+
+If most answers are “yes,” you are using CAML well.
+
+---
+
+## The One‑Sentence Takeaway
+
+**CAML works best when you stop deciding what will happen and start deciding what could become true.**
+
+Everything else is implementation detail.
