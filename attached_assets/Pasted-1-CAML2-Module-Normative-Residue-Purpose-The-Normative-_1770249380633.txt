@@ -1,0 +1,285 @@
+1. CAML2 Module: Normative Residue
+Purpose
+
+The Normative Residue module formalizes irreversible or partially irreversible consequences that persist across scenes, processes, and sessions, constraining future play.
+
+It distinguishes:
+
+Temporary state (damage, conditions, alerts)
+
+From enduring relational damage (lost standing, foreclosed trust, institutional debt)
+
+This module answers one question:
+
+What remains true even after the scene is over?
+
+Core Design Principles
+
+Residue is not binary (not just “on/off”)
+
+Residue is not automatically repairable
+
+Residue constrains future options, not just narration
+
+Residue always has a bearer (NPC, faction, place, institution, party)
+
+Module Structure
+A. Residue Declaration
+normative_residue:
+  catalog:
+    - id: RES_TRUST_ELORIA
+      bearer: NPC_Archmage
+      domain: social
+      description: >
+        Loss of Archmage Eloria’s trust due to perceived recklessness.
+      severity: 2
+      max_severity: 3
+      enduring: true
+      visible_to_players: true
+
+
+Required fields
+
+bearer: who carries the residue
+
+domain: social | institutional | metaphysical | political | arcane
+
+severity: current level
+
+enduring: whether it persists across sessions
+
+B. Residue Triggers
+
+Residue is created by attributable failures, not random events.
+
+residue_triggers:
+  - id: RT_LIBRARY_DESECRATION
+    caused_by: PROC_Library_Puzzle
+    condition: failure
+    produces:
+      residue: RES_TRUST_ELORIA
+      delta: +1
+      reason: "Sacred tomes mishandled"
+
+
+Key constraint:
+
+Triggers must be tied to player choice, delay, or refusal
+
+C. Residue Effects
+
+Residue must do something mechanically.
+
+residue_effects:
+  - residue: RES_TRUST_ELORIA
+    at_severity: 1
+    effects:
+      - revoke_role: Advisor
+  - residue: RES_TRUST_ELORIA
+    at_severity: 2
+    effects:
+      - lock_transition: CONN_SANCTUM_GUIDANCE
+  - residue: RES_TRUST_ELORIA
+    at_severity: 3
+    effects:
+      - flip_attitude: hostile
+      - enable_process: PROC_ELORIA_WITHDRAWS
+
+
+If residue does not:
+
+revoke
+
+lock
+
+alter access
+
+change roles
+
+…it is not real residue.
+
+D. Repair Pathways (Optional, Costly)
+
+Repair is not guaranteed.
+
+repair_options:
+  - id: REPAIR_RECONCILE_ELORIA
+    targets: [RES_TRUST_ELORIA]
+    cost:
+      time: 1_session
+      sacrifice: ITEM_RARE
+    success_conditions:
+      requires_severity_at_most: 2
+    outcomes:
+      on_success:
+        delta: -1
+      on_failure:
+        delta: +1
+
+
+Important:
+
+Repair can fail
+
+Repair can worsen residue
+
+Repair can be refused by NPCs or institutions
+
+E. Non-Reset Constraint
+
+Explicitly block resets.
+
+constraints:
+  - residue: RES_TRUST_ELORIA
+    cannot_be_removed_by:
+      - long_rest
+      - spell
+      - explanation
+      - time_passage
+
+
+This is what distinguishes normative residue from damage.
+
+Minimal Compliance Rule (for validators)
+
+Every CAML2 adventure must include at least:
+
+One residue that can reach an unrecoverable state
+
+One process that can generate it
+
+One future option that it forecloses
+
+2. One-Page DM Rule
+Some Things Cannot Be Fixed
+
+A rule for running games where actions matter.
+
+What This Rule Is
+
+This rule reminds the DM of one simple truth:
+
+Not every problem exists to be solved.
+Some exist to be lived with.
+
+Players do not need harsher consequences.
+They need lasting ones.
+
+What “Cannot Be Fixed” Means
+
+“Cannot be fixed” does not mean:
+
+The game is unwinnable
+
+The players are punished
+
+Hope is removed
+
+It means:
+
+The world remembers
+
+Repair has limits
+
+Loss changes what comes next
+
+When to Apply This Rule
+
+Apply this rule whenever:
+
+Players ignore warnings
+
+Players choose speed over care
+
+Players exploit safety
+
+Players walk away from responsibility
+
+Players say “we’ll deal with that later”
+
+That later is where residue lives.
+
+What Should Become Unfixable
+
+You do not need many irreversible consequences.
+One or two per campaign is enough.
+
+Good candidates:
+
+Trust from a powerful NPC
+
+Access to a unique place
+
+Moral authority in a community
+
+Stability of an institution
+
+A sacred or dangerous object
+
+Never make:
+
+Basic survival unfixable
+
+Core campaign progress impossible
+
+Player dignity contingent on success
+
+How to Signal It (Without Explaining)
+
+You don’t announce irreversibility.
+
+You show it:
+
+The door does not reopen
+
+The letter goes unanswered
+
+The ritual no longer works
+
+The NPC refuses to meet your eyes
+
+If players ask “Can we fix this?”
+Answer honestly.
+
+Sometimes the answer is simply:
+
+“No. That time has passed.”
+
+Repair Still Exists (But It Is Not Guaranteed)
+
+If repair is possible:
+
+It should cost time, power, or opportunity
+
+It should compete with other goals
+
+It should never fully erase the past
+
+If repair is refused:
+
+Let that refusal stand
+
+Do not substitute a different fix
+
+Do not soften it later
+
+Why This Makes the Game Better
+
+When some things cannot be fixed:
+
+Choices become real
+
+Success feels earned
+
+Failure feels meaningful
+
+Players stop gaming the system
+
+The story belongs to them, not the plot
+
+Most importantly:
+
+Players stop asking “What happens if I click this?”
+and start asking “Can we live with this?”
+
+That is the moment a campaign becomes memorable.
