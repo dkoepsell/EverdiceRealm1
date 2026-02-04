@@ -4965,6 +4965,65 @@ Return your response as a JSON object with these fields:
         }).join("\n");
       }
       
+      // WORLD DETERIORATION: Build context for global stakes, broken NPCs, and foreclosures
+      const globalStakes = campaign.globalStakes as any[] || [];
+      const unreliableNPCs = campaign.unreliableNPCs as any[] || [];
+      const foreclosures = campaign.foreclosures as any[] || [];
+      
+      let criticalStakes: string[] = [];
+      let brokenNPCs: string[] = [];
+      let sealedForeclosures: string[] = [];
+      
+      if (globalStakes.length > 0) {
+        stateContext += "\n\nGLOBAL STAKES (world deterioration - advance every scene):\n";
+        stateContext += globalStakes.map((s: any) => {
+          const percentFull = (s.current / s.max) * 100;
+          let stakeLine = `- ${s.name}: ${s.current}/${s.max}`;
+          if (percentFull >= 80) {
+            stakeLine += ` [CATASTROPHE IMMINENT: ${s.consequence}]`;
+            criticalStakes.push(`${s.name} at ${s.current}/${s.max} - ${s.consequence}`);
+          } else if (percentFull >= 50) {
+            stakeLine += ` [DETERIORATING - world is changing]`;
+          }
+          stakeLine += ` (advances on: ${(s.advancesOn || []).join(', ')})`;
+          if (s.milestones) {
+            const nextMilestone = s.milestones.find((m: any) => m.threshold > s.current);
+            if (nextMilestone) {
+              stakeLine += ` [next at ${nextMilestone.threshold}: ${nextMilestone.effect}]`;
+            }
+          }
+          return stakeLine;
+        }).join("\n");
+      }
+      
+      if (unreliableNPCs.length > 0) {
+        stateContext += "\n\nNPC RELIABILITY STATUS:\n";
+        stateContext += unreliableNPCs.map((npc: any) => {
+          let npcLine = `- ${npc.name}: attitude ${npc.attitude}, trust threshold: ${npc.trustThreshold}`;
+          if (npc.isBroken) {
+            npcLine += ` [BROKEN - will ${npc.betrayalBehavior}]`;
+            brokenNPCs.push(`${npc.name} is BROKEN and will ${npc.betrayalBehavior}`);
+          } else if (npc.attitude < npc.trustThreshold) {
+            npcLine += ` [UNRELIABLE - below trust threshold]`;
+          }
+          npcLine += ` (secret agenda: ${npc.secretAgenda})`;
+          npcLine += ` (breaking points: ${npc.breakingPoints?.join(', ') || 'none'})`;
+          return npcLine;
+        }).join("\n");
+      }
+      
+      if (foreclosures.length > 0) {
+        stateContext += "\n\nFORECLOSURES (doors that seal permanently):\n";
+        stateContext += foreclosures.map((f: any) => {
+          if (f.isSealed) {
+            sealedForeclosures.push(`${f.name}: ${f.consequence}`);
+            return `- ${f.name}: [SEALED - PERMANENTLY LOST] ${f.sealedReason || f.consequence}`;
+          } else {
+            return `- ${f.name}: seals when ${f.sealedWhen} → ${f.consequence}`;
+          }
+        }).join("\n");
+      }
+      
       // Build operative summary
       let operativeSummary = "";
       if (activeGates.length > 0) {
@@ -4978,6 +5037,15 @@ Return your response as a JSON object with these fields:
       }
       if (blockedPaths.length > 0) {
         operativeSummary += "\n\n❌ BLOCKED PATHS (no longer available):\n" + blockedPaths.map(b => `- ${b}`).join("\n");
+      }
+      if (criticalStakes.length > 0) {
+        operativeSummary += "\n\n💀 WORLD DETERIORATION (catastrophe imminent):\n" + criticalStakes.map(s => `- ${s}`).join("\n");
+      }
+      if (brokenNPCs.length > 0) {
+        operativeSummary += "\n\n🔒 BROKEN NPCS (trust permanently lost):\n" + brokenNPCs.map(n => `- ${n}`).join("\n");
+      }
+      if (sealedForeclosures.length > 0) {
+        operativeSummary += "\n\n⛔ PERMANENT LOSSES (sealed forever):\n" + sealedForeclosures.map(f => `- ${f}`).join("\n");
       }
       
       stateContext += operativeSummary;
@@ -5021,6 +5089,22 @@ MANDATORY OPERATIVE RULES - YOU MUST ENFORCE THESE:
    - Saving one thing may cost another
    - The ending should reflect accumulated choices, not just "victory"
 
+6. WORLD DETERIORATION (THE WORLD MOVES WITHOUT THE PLAYERS):
+   - Global stakes advance EVERY scene - include globalStakeUpdates in stateChanges
+   - NPCs with broken trust behave according to their betrayalBehavior (lies, withdraws, antagonizes, sabotages)
+   - Check if any foreclosure conditions are met - if so, that door seals PERMANENTLY
+   - Inaction has consequences: if players delay or avoid the main threat, advance relevant stakes
+
+7. NPC BREAKING POINTS:
+   - If an NPC's attitude drops below their trustThreshold, they become unreliable
+   - If a player triggers a breaking point action, that NPC is PERMANENTLY broken
+   - Broken NPCs lie, withdraw protection, or actively work against the party
+
+8. FORECLOSURE (PERMANENT LOSS):
+   - When conditions are met (stakes reach threshold, attitude drops too low), foreclosures trigger
+   - This is PERMANENT - acknowledge what is lost and adjust narrative accordingly
+   - Some endings involve loss - the Spire may be stabilized but the library is gone
+
 Based on the player's action: "${cleanedPrompt}", generate the next part of the adventure.
 
 BEFORE GENERATING, CHECK:
@@ -5053,6 +5137,9 @@ Return your response as a JSON object with these fields:
   - npcAttitudeUpdates: Array of {name, delta, reason} for any NPC attitudes that changed
   - pressureMeterUpdates: Array of {name, delta, reason} for any pressure meters that advanced (MUST include at least one if action was risky or time-sensitive)
   - pathsBlocked: Array of {approach, reason} for any paths that are now closed due to this scene's events
+  - globalStakeUpdates: Array of {name, delta, reason} for world deterioration (MUST include +1 for at least one stake each scene - the world moves)
+  - npcsBroken: Array of {name, reason} for any NPCs whose breaking points were triggered (PERMANENT)
+  - foreclosuresTriggered: Array of {name, reason} for any doors that sealed permanently this scene
 - discoveredQuest: (OPTIONAL - include only when a side quest is naturally discovered) An object with:
   - title: A compelling quest name (e.g., "The Missing Merchant", "Whispers in the Well")
   - description: 2-3 sentences describing the quest objective
@@ -5197,6 +5284,211 @@ Return your response as a JSON object with these fields:
             }
           }
           
+          // WORLD DETERIORATION: Apply global stake updates
+          let updatedGlobalStakes = [...(campaign.globalStakes || [])];
+          if (changes.globalStakeUpdates && Array.isArray(changes.globalStakeUpdates)) {
+            for (const update of changes.globalStakeUpdates) {
+              const stakeIndex = updatedGlobalStakes.findIndex((s: any) => s.name === update.name);
+              if (stakeIndex >= 0) {
+                const newValue = Math.max(0, Math.min(updatedGlobalStakes[stakeIndex].max, updatedGlobalStakes[stakeIndex].current + (update.delta || 1)));
+                updatedGlobalStakes[stakeIndex] = {
+                  ...updatedGlobalStakes[stakeIndex],
+                  current: newValue
+                };
+                stateWasUpdated = true;
+                console.log(`CAML GLOBAL STAKE: ${update.name} ${update.delta > 0 ? '+' : ''}${update.delta} (${update.reason})`);
+                
+                // Check milestones
+                const stake = updatedGlobalStakes[stakeIndex];
+                if (stake.milestones) {
+                  for (const milestone of stake.milestones) {
+                    if (newValue >= milestone.threshold) {
+                      console.log(`CAML MILESTONE: ${stake.name} at ${milestone.threshold}: ${milestone.effect}`);
+                    }
+                  }
+                }
+                
+                // Check if stake maxed out
+                if (newValue >= stake.max) {
+                  console.log(`CAML CATASTROPHE: ${stake.name} reached max! ${stake.consequence}`);
+                }
+              }
+            }
+          }
+          
+          // WORLD DETERIORATION: Apply NPC breaking points from AI
+          let updatedUnreliableNPCs = [...(campaign.unreliableNPCs || [])];
+          if (changes.npcsBroken && Array.isArray(changes.npcsBroken)) {
+            for (const broken of changes.npcsBroken) {
+              const npcIndex = updatedUnreliableNPCs.findIndex((n: any) => n.name === broken.name);
+              if (npcIndex >= 0 && !updatedUnreliableNPCs[npcIndex].isBroken) {
+                updatedUnreliableNPCs[npcIndex] = {
+                  ...updatedUnreliableNPCs[npcIndex],
+                  isBroken: true
+                };
+                stateWasUpdated = true;
+                console.log(`CAML NPC BROKEN: ${broken.name} - ${broken.reason} (will now: ${updatedUnreliableNPCs[npcIndex].betrayalBehavior})`);
+              }
+            }
+          }
+          
+          // AUTOMATIC SERVER-SIDE ENFORCEMENT: Advance global stakes on scene_end
+          // Only auto-increment stakes that weren't already updated by AI (de-duplication)
+          const aiUpdatedStakes = new Set(
+            (changes.globalStakeUpdates || []).map((u: any) => u.name)
+          );
+          
+          if (updatedGlobalStakes.length > 0) {
+            for (let i = 0; i < updatedGlobalStakes.length; i++) {
+              const stake = updatedGlobalStakes[i];
+              const advancesOnSceneEnd = (stake.advancesOn || []).includes('scene_end');
+              const wasUpdatedByAI = aiUpdatedStakes.has(stake.name);
+              
+              // Skip auto-increment if AI already updated this stake this scene
+              if (advancesOnSceneEnd && stake.current < stake.max && !wasUpdatedByAI) {
+                const newValue = Math.min(stake.max, stake.current + 1);
+                updatedGlobalStakes[i] = { ...stake, current: newValue };
+                stateWasUpdated = true;
+                console.log(`CAML AUTO-DETERIORATION: ${stake.name} +1 on scene end (now ${newValue}/${stake.max})`);
+                
+                // Check milestones
+                if (stake.milestones) {
+                  for (const milestone of stake.milestones) {
+                    if (newValue === milestone.threshold) {
+                      console.log(`CAML MILESTONE REACHED: ${stake.name} at ${milestone.threshold}: ${milestone.effect}`);
+                    }
+                  }
+                }
+                
+                // Check catastrophe
+                if (newValue >= stake.max) {
+                  console.log(`CAML CATASTROPHE: ${stake.name} maxed out! ${stake.consequence}`);
+                }
+              }
+            }
+          }
+          
+          // AUTOMATIC SERVER-SIDE ENFORCEMENT: Check NPC attitude vs trust threshold
+          // Sync unreliable NPC attitudes with npcAttitudes array and check for unreliability
+          for (let i = 0; i < updatedUnreliableNPCs.length; i++) {
+            const unreliableNpc = updatedUnreliableNPCs[i];
+            if (unreliableNpc.isBroken) continue; // Already broken
+            
+            // Find matching NPC in attitudes array to get current attitude
+            const attitudeNpc = updatedNpcAttitudes.find((n: any) => n.name === unreliableNpc.name);
+            if (attitudeNpc) {
+              const previousAttitude = unreliableNpc.attitude;
+              const newAttitude = attitudeNpc.attitude;
+              updatedUnreliableNPCs[i] = { ...unreliableNpc, attitude: newAttitude };
+              stateWasUpdated = true;
+              
+              // Check if NPC crossed below trust threshold (became unreliable)
+              if (previousAttitude >= unreliableNpc.trustThreshold && newAttitude < unreliableNpc.trustThreshold) {
+                console.log(`CAML NPC UNRELIABLE: ${unreliableNpc.name} dropped below trust threshold (${newAttitude} < ${unreliableNpc.trustThreshold}) - will now be evasive or misleading`);
+              }
+              
+              // Check if attitude dropped significantly - could indicate breaking point triggered
+              // Note: Breaking points are action-based and primarily detected by AI
+              // But severe attitude drops (>30 points) may indicate breaking point was hit
+              if (newAttitude - previousAttitude <= -30 && !unreliableNpc.isBroken) {
+                console.log(`CAML POTENTIAL BREAKING POINT: ${unreliableNpc.name} attitude dropped ${previousAttitude - newAttitude} points - check if breaking point was triggered`);
+              }
+            }
+          }
+          
+          // WORLD DETERIORATION: Trigger foreclosures from AI
+          let updatedForeclosures = [...(campaign.foreclosures || [])];
+          if (changes.foreclosuresTriggered && Array.isArray(changes.foreclosuresTriggered)) {
+            for (const triggered of changes.foreclosuresTriggered) {
+              const foreIndex = updatedForeclosures.findIndex((f: any) => f.name === triggered.name);
+              if (foreIndex >= 0 && !updatedForeclosures[foreIndex].isSealed) {
+                updatedForeclosures[foreIndex] = {
+                  ...updatedForeclosures[foreIndex],
+                  isSealed: true,
+                  sealedReason: triggered.reason || "This is permanently lost"
+                };
+                stateWasUpdated = true;
+                console.log(`CAML FORECLOSURE: ${triggered.name} SEALED - ${triggered.reason}. ${updatedForeclosures[foreIndex].consequence}`);
+              }
+            }
+          }
+          
+          // AUTOMATIC SERVER-SIDE ENFORCEMENT: Evaluate foreclosure conditions
+          // Parse sealedWhen conditions and check against current state
+          const evaluateForeclosureCondition = (condition: string): boolean => {
+            // Parse conditions like "arcane_instability >= 5" or "elder_trust < -50"
+            const match = condition.match(/^(\w+)\s*(>=|<=|>|<|==)\s*(-?\d+)$/);
+            if (!match) return false;
+            
+            const [, key, operator, threshold] = match;
+            const thresholdNum = parseInt(threshold, 10);
+            
+            // Check global stakes
+            const stake = updatedGlobalStakes.find((s: any) => s.name === key);
+            if (stake) {
+              switch (operator) {
+                case '>=': return stake.current >= thresholdNum;
+                case '<=': return stake.current <= thresholdNum;
+                case '>': return stake.current > thresholdNum;
+                case '<': return stake.current < thresholdNum;
+                case '==': return stake.current === thresholdNum;
+              }
+            }
+            
+            // Check world state facts
+            const stateFact = updatedWorldState.find((s: any) => s.key === key);
+            if (stateFact) {
+              switch (operator) {
+                case '>=': return stateFact.value >= thresholdNum;
+                case '<=': return stateFact.value <= thresholdNum;
+                case '>': return stateFact.value > thresholdNum;
+                case '<': return stateFact.value < thresholdNum;
+                case '==': return stateFact.value === thresholdNum;
+              }
+            }
+            
+            // Check pressure meters
+            const meter = updatedPressureMeters.find((m: any) => m.name === key);
+            if (meter) {
+              switch (operator) {
+                case '>=': return meter.current >= thresholdNum;
+                case '<=': return meter.current <= thresholdNum;
+                case '>': return meter.current > thresholdNum;
+                case '<': return meter.current < thresholdNum;
+                case '==': return meter.current === thresholdNum;
+              }
+            }
+            
+            // Check NPC attitudes
+            const npc = updatedNpcAttitudes.find((n: any) => n.name.toLowerCase().replace(/\s+/g, '_') === key || n.name === key);
+            if (npc) {
+              switch (operator) {
+                case '>=': return npc.attitude >= thresholdNum;
+                case '<=': return npc.attitude <= thresholdNum;
+                case '>': return npc.attitude > thresholdNum;
+                case '<': return npc.attitude < thresholdNum;
+                case '==': return npc.attitude === thresholdNum;
+              }
+            }
+            
+            return false;
+          };
+          
+          for (let i = 0; i < updatedForeclosures.length; i++) {
+            const foreclosure = updatedForeclosures[i];
+            if (foreclosure.isSealed) continue; // Already sealed
+            
+            if (foreclosure.sealedWhen && evaluateForeclosureCondition(foreclosure.sealedWhen)) {
+              updatedForeclosures[i] = {
+                ...foreclosure,
+                isSealed: true,
+                sealedReason: `Condition met: ${foreclosure.sealedWhen}`
+              };
+              stateWasUpdated = true;
+              console.log(`CAML AUTO-FORECLOSURE: ${foreclosure.name} SEALED - ${foreclosure.sealedWhen}. ${foreclosure.consequence}`);
+            }
+          }
+          
           // Save updated state to campaign
           if (stateWasUpdated) {
             await storage.updateCampaign(parseInt(campaignId), {
@@ -5204,6 +5496,9 @@ Return your response as a JSON object with these fields:
               npcAttitudes: updatedNpcAttitudes,
               pressureMeters: updatedPressureMeters,
               availablePaths: updatedAvailablePaths,
+              globalStakes: updatedGlobalStakes,
+              unreliableNPCs: updatedUnreliableNPCs,
+              foreclosures: updatedForeclosures,
               updatedAt: new Date().toISOString()
             });
             console.log(`CAML: Updated campaign ${campaignId} state after story advancement`);

@@ -209,6 +209,10 @@ export const campaigns = pgTable("campaigns", {
   npcAttitudes: jsonb("npc_attitudes"), // NPC relationships and attitudes that affect scenes
   pressureMeters: jsonb("pressure_meters"), // Pressure clocks (corruption, stability, time limits)
   availablePaths: jsonb("available_paths"), // Multiple viable approaches to obstacles
+  // CAML 2.0 World Deterioration System
+  globalStakes: jsonb("global_stakes"), // World-level deterioration that advances on scene ends/inaction
+  unreliableNPCs: jsonb("unreliable_npcs"), // NPCs with trust thresholds, breaking points, secret agendas
+  foreclosures: jsonb("foreclosures"), // Doors that seal permanently, knowledge that becomes inaccessible
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at"),
 });

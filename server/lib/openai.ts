@@ -45,6 +45,41 @@ export interface AlternativePath {
   blockedReason?: string; // Why this path is blocked (if it is)
 }
 
+// Global Stakes Track - world-level deterioration that advances regardless of player action
+export interface GlobalStake {
+  name: string; // e.g., "arcane_instability", "enemy_progress", "village_corruption"
+  current: number; // Current value (starts at 0)
+  max: number; // Maximum before catastrophic consequence
+  advancesOn: string[]; // What causes this to increase: "scene_end", "failed_check", "inaction", specific actions
+  consequence: string; // What happens when maxed (permanent world change)
+  milestones?: { threshold: number; effect: string }[]; // Effects at intermediate values
+}
+
+// Enhanced NPC with reliability conditions - NPCs can become unreliable or hostile
+export interface UnreliableNPC {
+  name: string;
+  role: string;
+  attitude: number; // -100 to 100
+  trustThreshold: number; // Below this, NPC becomes unreliable
+  breakingPoints: string[]; // Actions that permanently break trust
+  secretAgenda: string; // Hidden motivation that may conflict with players
+  betrayalBehavior: "lies" | "withdraws" | "antagonizes" | "sabotages"; // What they do when trust broken
+  isBroken: boolean; // Whether breaking point has been reached
+  secrets: string[];
+  wants: string;
+  blocksAccess?: string;
+  unlocksAccess?: string;
+}
+
+// Foreclosure - doors that seal permanently, knowledge that becomes inaccessible
+export interface Foreclosure {
+  name: string; // e.g., "Library Access", "Elder's Knowledge", "Sacred Grove"
+  sealedWhen: string; // Condition that triggers foreclosure (e.g., "arcane_instability >= 5")
+  consequence: string; // What is permanently lost
+  isSealed: boolean; // Whether this has been foreclosed
+  sealedReason?: string; // Why it was sealed (for narrative)
+}
+
 export interface CampaignGenerationResponse {
   title: string;
   description: string;
@@ -57,9 +92,13 @@ export interface CampaignGenerationResponse {
   suggestedLevel: number;
   // CAML 2.0 State-First Adventure Fields
   worldState: WorldStateFact[]; // Initial state facts that can change
-  npcAttitudes: NPCAttitude[]; // Key NPCs with attitudes and goals
+  npcAttitudes: NPCAttitude[]; // Key NPCs with attitudes and goals (backward compat)
   pressureMeters: PressureMeter[]; // Tension clocks that drive urgency
   availablePaths: AlternativePath[]; // Multiple approaches to the main obstacle
+  // CAML 2.0 World Deterioration Fields
+  globalStakes: GlobalStake[]; // World-level deterioration tracks
+  unreliableNPCs: UnreliableNPC[]; // NPCs with trust thresholds and breaking points
+  foreclosures: Foreclosure[]; // Doors that can seal permanently
 }
 
 export async function generateCampaign(req: CampaignGenerationRequest): Promise<CampaignGenerationResponse> {
@@ -74,12 +113,14 @@ ${req.difficulty ? `Difficulty: ${req.difficulty}` : 'Difficulty: Normal (balanc
 ${req.narrativeStyle ? `Narrative Style: ${req.narrativeStyle}` : 'Narrative Style: Descriptive'}
 ${req.numberOfSessions ? `Expected Number of Sessions: ${req.numberOfSessions}` : 'Expected Number of Sessions: 5'}
 
-DESIGN PHILOSOPHY:
-- Scenes are tests of current state, not fixed chapters
-- Failure should change the world, never just "try again"
-- NPCs must be decision-makers with wants and attitudes
-- Design multiple paths, not plots - let state decide which remain available
-- Pressure meters create urgency and consequences
+DESIGN PHILOSOPHY (DM AUTHORING RULES):
+- Every scene must threaten something the player cares about
+- Every choice must worsen at least one future
+- No scene may end without changing the campaign state
+- NPCs must be allowed to become hostile or unavailable
+- Curiosity must be dangerous
+- Safety must cost opportunity
+- Inaction must advance the world
 
 Generate a complete D&D campaign in JSON format with these fields:
 
@@ -125,6 +166,33 @@ CAML STATE-FIRST FIELDS:
   - consequences: What changes if this path is taken
   - exclusiveWith: Array of other path names that become BLOCKED if this path is chosen (for mutually exclusive outcomes)
   - isBlocked: false (always start as available)
+
+WORLD DETERIORATION (The world moves without the players):
+
+- globalStakes: An array of 1-2 world-level deterioration tracks that advance REGARDLESS of player action. Each has:
+  - name: Snake_case identifier (e.g., "arcane_instability", "enemy_progress", "plague_spread")
+  - current: Starting value (always 0)
+  - max: Maximum before catastrophic consequence (usually 10)
+  - advancesOn: Array of what causes this to increase: "scene_end" (every scene), "inaction", "failed_check", or specific actions
+  - consequence: What happens when maxed (PERMANENT world change - can't be undone)
+  - milestones: Array of intermediate effects at thresholds, e.g., [{ threshold: 3, effect: "Strange sounds echo" }, { threshold: 6, effect: "The ground trembles" }]
+  
+- unreliableNPCs: Pick 1-2 key NPCs and make them CONDITIONALLY UNRELIABLE. Each has:
+  - name: NPC name (should match an NPC from npcAttitudes)
+  - role: Their role
+  - attitude: Starting attitude
+  - trustThreshold: Below this attitude value, NPC becomes unreliable (-20 to 20)
+  - breakingPoints: Array of 1-2 actions that PERMANENTLY break trust (e.g., "Accuse them publicly", "Discover their secret and threaten exposure")
+  - secretAgenda: Hidden motivation that may conflict with players
+  - betrayalBehavior: What they do when trust broken: "lies", "withdraws", "antagonizes", or "sabotages"
+  - isBroken: false (always start as not broken)
+  - secrets, wants, blocksAccess, unlocksAccess: Same as npcAttitudes
+
+- foreclosures: An array of 2-3 doors that can SEAL PERMANENTLY. Each has:
+  - name: What can be lost (e.g., "Library Access", "Elder's Blessing", "Peaceful Resolution")
+  - sealedWhen: Condition that triggers foreclosure (e.g., "arcane_instability >= 5", "elder_trust < -50", "guard_suspicion >= 80")
+  - consequence: What is PERMANENTLY lost - be specific (e.g., "The ancient scrolls are destroyed, their knowledge lost forever")
+  - isSealed: false (always start as available)
 
 Format the response as a valid JSON object without explanation.
 `;
