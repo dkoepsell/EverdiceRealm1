@@ -80,6 +80,56 @@ export interface Foreclosure {
   sealedReason?: string; // Why it was sealed (for narrative)
 }
 
+// Normative Residue - irreversible consequences that persist and constrain future play
+export interface NormativeResidue {
+  id: string; // e.g., "RES_TRUST_ELORIA"
+  bearer: string; // Who carries the residue (NPC name, faction, place, institution, "party")
+  bearerType: "npc" | "faction" | "place" | "institution" | "party";
+  domain: "social" | "institutional" | "metaphysical" | "political" | "arcane";
+  description: string; // Human-readable description
+  severity: number; // Current severity level (starts at 0)
+  maxSeverity: number; // Maximum before unrecoverable (usually 3)
+  enduring: boolean; // Whether it persists across sessions
+  visibleToPlayers: boolean; // Whether players know about this
+  // Effects at each severity level
+  effects: ResidueEffect[];
+  // Non-reset constraints - what CANNOT remove this residue
+  cannotBeRemovedBy: string[]; // e.g., ["long_rest", "spell", "explanation", "time_passage"]
+}
+
+export interface ResidueEffect {
+  atSeverity: number; // At what severity level this effect activates
+  effectType: "revoke_role" | "lock_access" | "flip_attitude" | "enable_process" | "block_path";
+  target: string; // What is affected (role name, location, NPC, process, path)
+  description: string; // What happens narratively
+}
+
+export interface ResidueTrigger {
+  id: string; // e.g., "RT_LIBRARY_DESECRATION"
+  causedBy: string; // Process, action, or condition that causes this
+  condition: "failure" | "delay" | "refusal" | "recklessness" | "betrayal"; // Type of cause
+  producesResidueId: string; // Which residue this creates/increases
+  delta: number; // How much severity increases (+1, +2, etc.)
+  reason: string; // Narrative reason for the residue
+}
+
+export interface RepairPathway {
+  id: string; // e.g., "REPAIR_RECONCILE_ELORIA"
+  targetsResidueId: string; // Which residue this can repair
+  cost: {
+    time?: string; // e.g., "1_session", "downtime"
+    sacrifice?: string; // e.g., "ITEM_RARE", "opportunity"
+    risk?: string; // What you're risking
+  };
+  requiresSeverityAtMost: number; // Cannot repair if severity exceeds this
+  successChance: number; // 0-100% base success chance
+  outcomes: {
+    onSuccess: { delta: number; narrative: string }; // e.g., -1 severity
+    onFailure: { delta: number; narrative: string }; // e.g., +1 severity (makes it worse)
+  };
+  canBeRefused: boolean; // NPC/institution can refuse to even try
+}
+
 export interface CampaignGenerationResponse {
   title: string;
   description: string;
@@ -99,6 +149,10 @@ export interface CampaignGenerationResponse {
   globalStakes: GlobalStake[]; // World-level deterioration tracks
   unreliableNPCs: UnreliableNPC[]; // NPCs with trust thresholds and breaking points
   foreclosures: Foreclosure[]; // Doors that can seal permanently
+  // CAML 2.0 Normative Residue System
+  normativeResidues: NormativeResidue[]; // Lasting consequences that constrain future play
+  residueTriggers: ResidueTrigger[]; // What creates/increases residue
+  repairPathways: RepairPathway[]; // Costly, risky ways to reduce residue
 }
 
 export async function generateCampaign(req: CampaignGenerationRequest): Promise<CampaignGenerationResponse> {
@@ -193,6 +247,43 @@ WORLD DETERIORATION (The world moves without the players):
   - sealedWhen: Condition that triggers foreclosure (e.g., "arcane_instability >= 5", "elder_trust < -50", "guard_suspicion >= 80")
   - consequence: What is PERMANENTLY lost - be specific (e.g., "The ancient scrolls are destroyed, their knowledge lost forever")
   - isSealed: false (always start as available)
+
+NORMATIVE RESIDUE (Some things cannot be fixed):
+
+- normativeResidues: An array of 1-2 lasting consequences that persist and constrain future play. Each has:
+  - id: Unique identifier (e.g., "RES_TRUST_ELORIA", "RES_TEMPLE_DESECRATION")
+  - bearer: Who carries this residue (NPC name, faction, place, "party")
+  - bearerType: "npc" | "faction" | "place" | "institution" | "party"
+  - domain: "social" | "institutional" | "metaphysical" | "political" | "arcane"
+  - description: What this residue represents (e.g., "Loss of Archmage Eloria's trust due to recklessness")
+  - severity: 0 (always start at 0)
+  - maxSeverity: 3 (when reached, this is UNRECOVERABLE)
+  - enduring: true
+  - visibleToPlayers: true or false
+  - effects: Array of effects that activate at each severity level:
+    - { atSeverity: 1, effectType: "revoke_role", target: "Advisor", description: "No longer trusted as advisor" }
+    - { atSeverity: 2, effectType: "lock_access", target: "Sanctum", description: "Access to inner sanctum denied" }
+    - { atSeverity: 3, effectType: "flip_attitude", target: "hostile", description: "NPC becomes openly hostile" }
+  - cannotBeRemovedBy: ["long_rest", "spell", "explanation", "time_passage"] (what CANNOT fix this)
+
+- residueTriggers: An array of 2-3 conditions that CREATE or INCREASE residue. Each has:
+  - id: Unique identifier (e.g., "RT_LIBRARY_DESECRATION")
+  - causedBy: What triggers this (action, failure, delay) - MUST be tied to player CHOICE
+  - condition: "failure" | "delay" | "refusal" | "recklessness" | "betrayal"
+  - producesResidueId: Which residue this affects
+  - delta: How much severity increases (+1 or +2)
+  - reason: Narrative explanation
+
+- repairPathways: An array of 1-2 costly, risky ways to reduce residue. Each has:
+  - id: Unique identifier
+  - targetsResidueId: Which residue this can repair
+  - cost: { time: "1_session" or "downtime", sacrifice: "ITEM_RARE" or "opportunity", risk: "what you're risking" }
+  - requiresSeverityAtMost: 2 (cannot repair at max severity)
+  - successChance: 50-70 (repair can FAIL)
+  - outcomes: { onSuccess: { delta: -1, narrative: "..." }, onFailure: { delta: +1, narrative: "..." } }
+  - canBeRefused: true (NPC/institution can refuse to even try)
+
+MINIMAL COMPLIANCE: Every adventure MUST have at least one residue that can reach an unrecoverable state (severity 3) with at least one trigger that can generate it.
 
 Format the response as a valid JSON object without explanation.
 `;

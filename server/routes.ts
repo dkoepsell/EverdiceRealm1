@@ -5024,6 +5024,50 @@ Return your response as a JSON object with these fields:
         }).join("\n");
       }
       
+      // NORMATIVE RESIDUE: Build context for lasting consequences
+      const normativeResidues = campaign.normativeResidues as any[] || [];
+      const residueTriggers = campaign.residueTriggers as any[] || [];
+      const repairPathways = campaign.repairPathways as any[] || [];
+      
+      let activeResidueEffects: string[] = [];
+      let unrecoverableResidues: string[] = [];
+      
+      if (normativeResidues.length > 0) {
+        stateContext += "\n\nNORMATIVE RESIDUE (lasting consequences - some things cannot be fixed):\n";
+        stateContext += normativeResidues.map((r: any) => {
+          let residueLine = `- ${r.id} on ${r.bearer} (${r.domain}): severity ${r.severity}/${r.maxSeverity}`;
+          
+          // Check if at max severity (unrecoverable)
+          if (r.severity >= r.maxSeverity) {
+            residueLine += ` [UNRECOVERABLE]`;
+            unrecoverableResidues.push(`${r.id}: ${r.description}`);
+          } else if (r.severity > 0) {
+            residueLine += ` [DAMAGED]`;
+          }
+          
+          // Show active effects at current severity
+          const activeEffects = (r.effects || []).filter((e: any) => e.atSeverity <= r.severity);
+          for (const effect of activeEffects) {
+            activeResidueEffects.push(`${r.bearer}: ${effect.description} (${effect.effectType} ${effect.target})`);
+          }
+          
+          residueLine += ` - ${r.description}`;
+          if (r.cannotBeRemovedBy && r.cannotBeRemovedBy.length > 0) {
+            residueLine += ` [Cannot be fixed by: ${r.cannotBeRemovedBy.join(', ')}]`;
+          }
+          
+          return residueLine;
+        }).join("\n");
+        
+        // Show active triggers
+        if (residueTriggers.length > 0) {
+          stateContext += "\n\nRESIDUE TRIGGERS (what increases lasting damage):\n";
+          stateContext += residueTriggers.map((t: any) => 
+            `- ${t.id}: On ${t.condition} of ${t.causedBy} → ${t.producesResidueId} +${t.delta} (${t.reason})`
+          ).join("\n");
+        }
+      }
+      
       // Build operative summary
       let operativeSummary = "";
       if (activeGates.length > 0) {
@@ -5046,6 +5090,12 @@ Return your response as a JSON object with these fields:
       }
       if (sealedForeclosures.length > 0) {
         operativeSummary += "\n\n⛔ PERMANENT LOSSES (sealed forever):\n" + sealedForeclosures.map(f => `- ${f}`).join("\n");
+      }
+      if (activeResidueEffects.length > 0) {
+        operativeSummary += "\n\n💔 ACTIVE RESIDUE EFFECTS (these MUST constrain the narrative):\n" + activeResidueEffects.map(e => `- ${e}`).join("\n");
+      }
+      if (unrecoverableResidues.length > 0) {
+        operativeSummary += "\n\n☠️ UNRECOVERABLE DAMAGE (cannot be fixed, period):\n" + unrecoverableResidues.map(r => `- ${r}`).join("\n");
       }
       
       stateContext += operativeSummary;
@@ -5105,6 +5155,20 @@ MANDATORY OPERATIVE RULES - YOU MUST ENFORCE THESE:
    - This is PERMANENT - acknowledge what is lost and adjust narrative accordingly
    - Some endings involve loss - the Spire may be stabilized but the library is gone
 
+9. NORMATIVE RESIDUE (SOME THINGS CANNOT BE FIXED):
+   - Residue is created by player CHOICE: failure, delay, refusal, recklessness, betrayal
+   - Residue accumulates in severity (0 → 1 → 2 → 3), each level activating new effects
+   - At max severity, residue is UNRECOVERABLE - no repair possible
+   - Residue effects are REAL: if an effect revokes advisor status, the NPC won't advise
+   - When a residue trigger condition is met, include residueUpdates in stateChanges
+   - Long rest, spells, explanations, and time CANNOT remove residue
+
+10. REPAIR IS RISKY (NOT GUARANTEED):
+   - Repair pathways cost time, sacrifice, and opportunity
+   - Repair can FAIL and make things WORSE (+1 severity instead of -1)
+   - NPCs and institutions can REFUSE repair attempts
+   - Cannot repair at max severity - that ship has sailed
+
 Based on the player's action: "${cleanedPrompt}", generate the next part of the adventure.
 
 BEFORE GENERATING, CHECK:
@@ -5140,6 +5204,7 @@ Return your response as a JSON object with these fields:
   - globalStakeUpdates: Array of {name, delta, reason} for world deterioration (MUST include +1 for at least one stake each scene - the world moves)
   - npcsBroken: Array of {name, reason} for any NPCs whose breaking points were triggered (PERMANENT)
   - foreclosuresTriggered: Array of {name, reason} for any doors that sealed permanently this scene
+  - residueUpdates: Array of {residueId, delta, reason, triggerId?} for any normative residue that increased due to player choice (failure, delay, recklessness)
 - discoveredQuest: (OPTIONAL - include only when a side quest is naturally discovered) An object with:
   - title: A compelling quest name (e.g., "The Missing Merchant", "Whispers in the Well")
   - description: 2-3 sentences describing the quest objective
@@ -5489,6 +5554,40 @@ Return your response as a JSON object with these fields:
             }
           }
           
+          // NORMATIVE RESIDUE: Process residue updates from AI
+          let updatedNormativeResidues = [...(campaign.normativeResidues || [])];
+          if (changes.residueUpdates && Array.isArray(changes.residueUpdates)) {
+            for (const update of changes.residueUpdates) {
+              const residueIndex = updatedNormativeResidues.findIndex((r: any) => r.id === update.residueId);
+              if (residueIndex >= 0) {
+                const residue = updatedNormativeResidues[residueIndex];
+                const previousSeverity = residue.severity;
+                const newSeverity = Math.max(0, Math.min(residue.maxSeverity, residue.severity + (update.delta || 1)));
+                
+                updatedNormativeResidues[residueIndex] = {
+                  ...residue,
+                  severity: newSeverity
+                };
+                stateWasUpdated = true;
+                
+                console.log(`CAML RESIDUE UPDATE: ${update.residueId} ${update.delta > 0 ? '+' : ''}${update.delta} (now ${newSeverity}/${residue.maxSeverity}) - ${update.reason}`);
+                
+                // Check for newly activated effects at this severity
+                const newlyActivatedEffects = (residue.effects || []).filter((e: any) => 
+                  e.atSeverity === newSeverity && e.atSeverity > previousSeverity
+                );
+                for (const effect of newlyActivatedEffects) {
+                  console.log(`CAML RESIDUE EFFECT ACTIVATED: ${effect.effectType} ${effect.target} - ${effect.description}`);
+                }
+                
+                // Check if residue reached max (unrecoverable)
+                if (newSeverity >= residue.maxSeverity && previousSeverity < residue.maxSeverity) {
+                  console.log(`CAML RESIDUE UNRECOVERABLE: ${update.residueId} - "${residue.description}" can no longer be repaired. The damage is permanent.`);
+                }
+              }
+            }
+          }
+          
           // Save updated state to campaign
           if (stateWasUpdated) {
             await storage.updateCampaign(parseInt(campaignId), {
@@ -5499,6 +5598,7 @@ Return your response as a JSON object with these fields:
               globalStakes: updatedGlobalStakes,
               unreliableNPCs: updatedUnreliableNPCs,
               foreclosures: updatedForeclosures,
+              normativeResidues: updatedNormativeResidues,
               updatedAt: new Date().toISOString()
             });
             console.log(`CAML: Updated campaign ${campaignId} state after story advancement`);

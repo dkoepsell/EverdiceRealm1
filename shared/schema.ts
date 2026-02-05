@@ -213,6 +213,10 @@ export const campaigns = pgTable("campaigns", {
   globalStakes: jsonb("global_stakes"), // World-level deterioration that advances on scene ends/inaction
   unreliableNPCs: jsonb("unreliable_npcs"), // NPCs with trust thresholds, breaking points, secret agendas
   foreclosures: jsonb("foreclosures"), // Doors that seal permanently, knowledge that becomes inaccessible
+  // CAML 2.0 Normative Residue System
+  normativeResidues: jsonb("normative_residues"), // Lasting consequences with severity levels
+  residueTriggers: jsonb("residue_triggers"), // What creates/increases residue
+  repairPathways: jsonb("repair_pathways"), // Costly, risky ways to reduce residue
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at"),
 });
