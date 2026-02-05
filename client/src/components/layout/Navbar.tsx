@@ -32,7 +32,8 @@ import {
   X,
   Home,
   Beer,
-  Flame
+  Flame,
+  Store
 } from "lucide-react";
 
 export default function Navbar() {
@@ -77,6 +78,7 @@ export default function Navbar() {
   ] : [];
   
   const moreLinks = [
+    { name: "Trading Post", path: "/trading-post", icon: Store },
     { name: "Tavern", path: "/tavern", icon: Beer },
     { name: "Guilds", path: "/groups", icon: Shield },
     { name: "World Map", path: "/world-map", icon: Map },
@@ -88,6 +90,7 @@ export default function Navbar() {
   ];
   
   const publicLinks = [
+    { name: "Trading Post", path: "/trading-post", icon: Store },
     { name: "World", path: "/world-map", icon: Map },
     { name: "About", path: "/how-it-works", icon: BookOpen },
   ];

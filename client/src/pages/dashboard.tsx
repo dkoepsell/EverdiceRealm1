@@ -12,12 +12,12 @@ import QuickStart from "@/components/onboarding/QuickStart";
 import PlayerQuickStart from "@/components/PlayerQuickStart";
 import SinceLastTime from "@/components/SinceLastTime";
 import { WhatsNextModal, useWhatsNextModal } from "@/components/onboarding/WhatsNextModal";
-import { Character, Campaign } from "@shared/schema";
+import { Character, Campaign, SharedAdventure } from "@shared/schema";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
 import { getQueryFn, queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Bookmark, Calendar, History, User, Users, Activity, Star, Play, Sparkles, Sword, Shield, ScrollText, ChevronDown, ChevronUp, Heart, Zap, Package, Scroll, BookOpen, HelpCircle } from "lucide-react";
+import { Bookmark, Calendar, History, User, Users, Activity, Star, Play, Sparkles, Sword, Shield, ScrollText, ChevronDown, ChevronUp, Heart, Zap, Package, Scroll, BookOpen, HelpCircle, Store, Download, ArrowRight } from "lucide-react";
 import { ReturnVisitorPrompt } from "@/components/learning/ReturnVisitorPrompt";
 import { Badge } from "@/components/ui/badge";
 import { HowToPlayPanel } from "@/components/ui/how-to-play-panel";
@@ -94,6 +94,11 @@ export default function Dashboard() {
   const { data: characters = [], isLoading: charactersLoading } = useQuery<Character[]>({
     queryKey: ['/api/characters'],
     queryFn: getQueryFn({ on401: "throw" }),
+  });
+
+  const { data: featuredAdventures = [] } = useQuery<(SharedAdventure & { authorUsername?: string })[]>({
+    queryKey: ['/api/trading-post/adventures/featured'],
+    queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
   const { data: campaigns = [], isLoading: campaignsLoading, isError: campaignsError, refetch: refetchCampaigns } = useQuery<Campaign[]>({
@@ -1024,6 +1029,72 @@ export default function Dashboard() {
         </div>
       )}
       
+      {/* Trending from the Trading Post */}
+      {featuredAdventures.length > 0 && (
+        <div className="container mx-auto px-4 mt-8">
+          <Card className="overflow-hidden border-amber-500/20 bg-gradient-to-br from-slate-900/80 to-amber-900/10">
+            <CardHeader className="bg-gradient-to-r from-amber-900/40 to-orange-900/30 p-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="font-fantasy text-xl font-bold text-white flex items-center">
+                  <Store className="mr-2 h-5 w-5 text-amber-400" />
+                  Trending from the Trading Post
+                </CardTitle>
+                <Link href="/trading-post">
+                  <Button variant="ghost" size="sm" className="text-amber-300 hover:text-amber-200 hover:bg-amber-900/30">
+                    Browse All <ArrowRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+              <CardDescription className="text-amber-200/70">Community-shared adventures ready to play</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {featuredAdventures.slice(0, 3).map((adventure) => (
+                  <Link key={adventure.id} href="/trading-post">
+                    <Card className="cursor-pointer hover:border-amber-500/40 transition-all hover:shadow-lg hover:shadow-amber-500/10 bg-slate-800/50 border-slate-700/50 h-full">
+                      <div className="relative h-32 overflow-hidden rounded-t-lg">
+                        {adventure.coverImageUrl ? (
+                          <img src={adventure.coverImageUrl} alt={adventure.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-amber-900/60 to-orange-900/40 flex items-center justify-center">
+                            <Scroll className="h-10 w-10 text-amber-400/50" />
+                          </div>
+                        )}
+                        <div className="absolute top-2 right-2">
+                          <Badge className={`text-xs ${
+                            adventure.difficulty === 'easy' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
+                            adventure.difficulty === 'hard' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                            adventure.difficulty === 'deadly' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' :
+                            'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                          }`}>
+                            {adventure.difficulty}
+                          </Badge>
+                        </div>
+                      </div>
+                      <CardContent className="p-3">
+                        <h3 className="font-fantasy text-sm font-bold text-amber-200 line-clamp-1">{adventure.title}</h3>
+                        <p className="text-xs text-muted-foreground mt-1">by {adventure.authorUsername || 'Unknown'}</p>
+                        <p className="text-xs text-slate-400 mt-1 line-clamp-2">{adventure.shortDescription || adventure.description}</p>
+                        <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
+                          <span className="flex items-center gap-1">
+                            <Star className="h-3 w-3 text-amber-400" />
+                            {adventure.avgRating ? (adventure.avgRating / 10).toFixed(1) : 'New'}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Download className="h-3 w-3" />
+                            {adventure.downloadCount || 0}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Gentle reassurance for new users */}
       <div className="container mx-auto px-4 mt-12 mb-4">
         <p className="text-center text-sm text-muted-foreground/70 italic">

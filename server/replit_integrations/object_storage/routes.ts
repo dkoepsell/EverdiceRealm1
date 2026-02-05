@@ -63,6 +63,60 @@ export function registerObjectStorageRoutes(app: Express): void {
   });
 
   /**
+   * Serve public assets from object storage.
+   * These are files uploaded via uploadPublicFile (e.g., stock companion portraits).
+   */
+  app.get("/api/public-assets/:assetPath(*)", async (req, res) => {
+    try {
+      const assetPath = req.params.assetPath;
+      const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+      
+      if (!bucketId) {
+        return res.status(404).json({ error: "Object storage not configured" });
+      }
+      
+      const { Storage } = await import("@google-cloud/storage");
+      const storage = new Storage({
+        credentials: {
+          audience: "replit",
+          subject_token_type: "access_token",
+          token_url: "http://127.0.0.1:1106/token",
+          type: "external_account",
+          credential_source: {
+            url: "http://127.0.0.1:1106/credential",
+            format: {
+              type: "json",
+              subject_token_field_name: "access_token",
+            },
+          },
+          universe_domain: "googleapis.com",
+        },
+        projectId: "",
+      });
+      
+      const bucket = storage.bucket(bucketId);
+      const publicFile = bucket.file(`public/${assetPath}`);
+      const [exists] = await publicFile.exists();
+      
+      if (!exists) {
+        return res.status(404).json({ error: "Asset not found" });
+      }
+      
+      const [metadata] = await publicFile.getMetadata();
+      res.set({
+        "Content-Type": metadata.contentType || "application/octet-stream",
+        "Content-Length": String(metadata.size),
+        "Cache-Control": "public, max-age=31536000",
+      });
+      const stream = publicFile.createReadStream();
+      stream.pipe(res);
+    } catch (error) {
+      console.error("Error serving public asset:", error);
+      return res.status(500).json({ error: "Failed to serve asset" });
+    }
+  });
+
+  /**
    * Serve uploaded objects from private storage.
    *
    * GET /objects/:objectPath(*)

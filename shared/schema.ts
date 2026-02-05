@@ -2002,3 +2002,88 @@ export const insertCampaignSrdReferenceSchema = createInsertSchema(campaignSrdRe
 
 export type InsertCampaignSrdReference = z.infer<typeof insertCampaignSrdReferenceSchema>;
 export type CampaignSrdReference = typeof campaignSrdReferences.$inferSelect;
+
+// ==========================================
+// Trading Post - Community Sharing System
+// ==========================================
+
+export const sharedAdventures = pgTable("shared_adventures", {
+  id: serial("id").primaryKey(),
+  authorId: integer("author_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  shortDescription: text("short_description"),
+  camlData: jsonb("caml_data"),
+  coverImageUrl: text("cover_image_url"),
+  tags: text("tags").array().default([]),
+  difficulty: text("difficulty").notNull().default("medium"),
+  playerCountMin: integer("player_count_min").default(1),
+  playerCountMax: integer("player_count_max").default(5),
+  estimatedSessions: integer("estimated_sessions").default(1),
+  genre: text("genre").default("fantasy"),
+  avgRating: integer("avg_rating").default(0),
+  totalRatings: integer("total_ratings").default(0),
+  downloadCount: integer("download_count").default(0),
+  isFeatured: boolean("is_featured").default(false),
+  status: text("status").notNull().default("published"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  updatedAt: text("updated_at"),
+});
+
+export const insertSharedAdventureSchema = createInsertSchema(sharedAdventures).omit({
+  id: true,
+  avgRating: true,
+  totalRatings: true,
+  downloadCount: true,
+  isFeatured: true,
+});
+
+export type InsertSharedAdventure = z.infer<typeof insertSharedAdventureSchema>;
+export type SharedAdventure = typeof sharedAdventures.$inferSelect;
+
+export const sharedItems = pgTable("shared_items", {
+  id: serial("id").primaryKey(),
+  authorId: integer("author_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  itemType: text("item_type").notNull().default("weapon"),
+  rarity: text("rarity").notNull().default("common"),
+  stats: jsonb("stats").default({}),
+  lore: text("lore"),
+  imageUrl: text("image_url"),
+  tags: text("tags").array().default([]),
+  avgRating: integer("avg_rating").default(0),
+  totalRatings: integer("total_ratings").default(0),
+  downloadCount: integer("download_count").default(0),
+  isFeatured: boolean("is_featured").default(false),
+  status: text("status").notNull().default("published"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertSharedItemSchema = createInsertSchema(sharedItems).omit({
+  id: true,
+  avgRating: true,
+  totalRatings: true,
+  downloadCount: true,
+  isFeatured: true,
+});
+
+export type InsertSharedItem = z.infer<typeof insertSharedItemSchema>;
+export type SharedItem = typeof sharedItems.$inferSelect;
+
+export const tradingPostReviews = pgTable("trading_post_reviews", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  targetType: text("target_type").notNull(),
+  targetId: integer("target_id").notNull(),
+  rating: integer("rating").notNull(),
+  comment: text("comment"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertTradingPostReviewSchema = createInsertSchema(tradingPostReviews).omit({
+  id: true,
+});
+
+export type InsertTradingPostReview = z.infer<typeof insertTradingPostReviewSchema>;
+export type TradingPostReview = typeof tradingPostReviews.$inferSelect;
