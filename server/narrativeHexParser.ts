@@ -197,7 +197,7 @@ export const ENVIRONMENT_KEYWORDS: Record<string, { terrain: string; tags: Envir
   temple: { terrain: "Temple", tags: ["ancient-stone", "rune-carved"] },
   shrine: { terrain: "Shrine", tags: ["ancient-stone"] },
   altar: { terrain: "Altar", tags: ["ancient-stone", "rune-carved"] },
-  sanctuary: { terrain: "Sanctuary", tags: ["sacred"] },
+  sanctuary: { terrain: "Sanctuary", tags: ["ancient-stone", "rune-carved"] },
   chapel: { terrain: "Chapel", tags: ["torch-lit"] },
   cathedral: { terrain: "Cathedral", tags: ["ancient-stone", "torch-lit"] },
   
@@ -265,12 +265,113 @@ const ATMOSPHERE_KEYWORDS: Record<string, NarrativeTone> = {
   dark: "Cursed"
 };
 
-export function parseNarrativeForLocations(narrative: string): ParsedNarrativeLocations {
+// Adventure setting types for context-aware terrain generation
+export type AdventureSetting = "outdoor" | "indoor" | "dungeon" | "library" | "underground" | "urban";
+
+// Keywords that indicate indoor/structure settings
+const INDOOR_SETTING_KEYWORDS = [
+  "library", "tower", "spire", "castle", "dungeon", "crypt", "temple",
+  "hall", "chamber", "room", "corridor", "passage", "basement", "cellar",
+  "attic", "building", "keep", "fortress", "sanctuary", "cathedral"
+];
+
+// Keywords that indicate outdoor settings  
+const OUTDOOR_SETTING_KEYWORDS = [
+  "forest", "mountain", "plains", "desert", "tundra", "swamp", "marsh",
+  "beach", "coast", "ocean", "field", "meadow", "grassland", "valley"
+];
+
+// Terrain types appropriate for different settings
+const SETTING_APPROPRIATE_TERRAIN: Record<AdventureSetting, string[]> = {
+  indoor: ["Hall", "Chamber", "Room", "Corridor", "Passage", "Gallery", "Antechamber", "Vestibule"],
+  library: ["Reading Room", "Archive", "Study", "Scriptorium", "Catalog Hall", "Stack Wing", "Restricted Section", "Scholar's Alcove", "Tome Vault", "Index Chamber"],
+  dungeon: ["Dungeon", "Cell", "Crypt", "Catacomb", "Tomb", "Chamber", "Passage", "Vault"],
+  underground: ["Cave", "Cavern", "Tunnel", "Passage", "Chamber", "Grotto", "Shaft"],
+  urban: ["Street", "Alley", "Square", "Market", "Plaza", "Courtyard", "Building"],
+  outdoor: [] // No restrictions for outdoor - use detected keywords
+};
+
+// Detect adventure setting from campaign/adventure context
+export function detectAdventureSetting(adventureTitle: string, campaignDescription?: string): AdventureSetting {
+  const text = `${adventureTitle} ${campaignDescription || ""}`.toLowerCase();
+  
+  if (text.includes("library") || text.includes("spire") || text.includes("archive") || text.includes("tome")) {
+    return "library";
+  }
+  if (text.includes("dungeon") || text.includes("crypt") || text.includes("tomb") || text.includes("catacomb")) {
+    return "dungeon";
+  }
+  if (text.includes("cave") || text.includes("cavern") || text.includes("underground") || text.includes("mine")) {
+    return "underground";
+  }
+  if (text.includes("city") || text.includes("town") || text.includes("village") || text.includes("street")) {
+    return "urban";
+  }
+  if (text.includes("tower") || text.includes("castle") || text.includes("keep") || text.includes("temple") || text.includes("fortress")) {
+    return "indoor";
+  }
+  
+  // Check for outdoor indicators
+  for (const keyword of OUTDOOR_SETTING_KEYWORDS) {
+    if (text.includes(keyword)) return "outdoor";
+  }
+  
+  // Default to outdoor for wilderness adventures
+  return "outdoor";
+}
+
+// Get contextually appropriate terrain type
+function getContextualTerrainType(detectedKeywords: string[], setting: AdventureSetting): string {
+  // For outdoor settings, use detected keywords directly
+  if (setting === "outdoor") {
+    for (const keyword of detectedKeywords) {
+      const envData = ENVIRONMENT_KEYWORDS[keyword.toLowerCase()];
+      if (envData) return envData.terrain;
+    }
+    return "Unknown";
+  }
+  
+  // For indoor settings, filter to only appropriate terrain
+  const appropriateTerrain = SETTING_APPROPRIATE_TERRAIN[setting];
+  
+  // First, check if any detected keyword matches indoor-appropriate terrain
+  for (const keyword of detectedKeywords) {
+    const envData = ENVIRONMENT_KEYWORDS[keyword.toLowerCase()];
+    if (envData && (appropriateTerrain.length === 0 || appropriateTerrain.some(t => t.toLowerCase() === envData.terrain.toLowerCase()))) {
+      return envData.terrain;
+    }
+  }
+  
+  // For library setting, look for library-specific keywords even if not in ENVIRONMENT_KEYWORDS
+  if (setting === "library") {
+    const libraryKeywordMap: Record<string, string> = {
+      "reading": "Reading Room", "archive": "Archive", "study": "Study",
+      "scriptorium": "Scriptorium", "catalog": "Catalog Hall", "stack": "Stack Wing",
+      "restricted": "Restricted Section", "alcove": "Scholar's Alcove", "vault": "Tome Vault",
+      "index": "Index Chamber", "shelf": "Stack Wing", "shelves": "Stack Wing",
+      "books": "Reading Room", "scrolls": "Archive", "manuscripts": "Scriptorium"
+    };
+    for (const keyword of detectedKeywords) {
+      const match = libraryKeywordMap[keyword.toLowerCase()];
+      if (match) return match;
+    }
+  }
+  
+  // If no appropriate terrain found, return a default for the setting
+  if (appropriateTerrain.length > 0) {
+    return appropriateTerrain[0]; // Default to first appropriate terrain
+  }
+  
+  return "Unknown";
+}
+
+export function parseNarrativeForLocations(narrative: string, adventureSetting?: AdventureSetting): ParsedNarrativeLocations {
   const adjacentHints: DirectionalHint[] = [];
   const atmosphereKeywords: string[] = [];
   const detectedEntities: DetectedEntity[] = [];
   let terrainType = "Unknown";
   const currentLocationKeywords: string[] = [];
+  const setting = adventureSetting || "outdoor";
   
   const sentences = narrative.split(/[.!?]+/).filter(s => s.trim());
   
@@ -341,14 +442,15 @@ export function parseNarrativeForLocations(narrative: string): ParsedNarrativeLo
     }
   }
   
+  // Extract all environment keywords from narrative
   for (const [keyword, envData] of Object.entries(ENVIRONMENT_KEYWORDS)) {
     if (narrative.toLowerCase().includes(keyword)) {
       currentLocationKeywords.push(keyword);
-      if (terrainType === "Unknown") {
-        terrainType = envData.terrain;
-      }
     }
   }
+  
+  // Use contextual terrain type based on adventure setting
+  terrainType = getContextualTerrainType(currentLocationKeywords, setting);
   
   const locationMatch = narrative.match(/(?:You (?:are|stand|find yourself) (?:in|at|on|within) (?:a |an |the )?([^,.]+))/i);
   const locationName = locationMatch ? locationMatch[1].trim() : terrainType;

@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { parseNarrativeForLocations, generateHexMetaFromKeywords, getAllAdjacentCoordinates, getAdjacentHexCoordinates, detectMovementInNarrative, ENVIRONMENT_KEYWORDS, type HexDirection } from "./narrativeHexParser";
+import { parseNarrativeForLocations, generateHexMetaFromKeywords, getAllAdjacentCoordinates, getAdjacentHexCoordinates, detectMovementInNarrative, detectAdventureSetting, ENVIRONMENT_KEYWORDS, type HexDirection, type AdventureSetting } from "./narrativeHexParser";
 import { z } from "zod";
 import { getDiscordStatus, sendToChannel, createSessionStartEmbed, createRecapEmbed, createRollEmbed, postCampaignEvent } from "./discord";
 import { 
@@ -5651,7 +5651,9 @@ Return your response as a JSON object with these fields:
       try {
         const explorationState = await storage.getExplorationState(parseInt(campaignId));
         if (explorationState && storyData.narrative) {
-          const parsed = parseNarrativeForLocations(storyData.narrative);
+          // Detect adventure setting for context-aware terrain generation
+          const adventureSetting = detectAdventureSetting(campaign.title || '', campaign.description || '');
+          const parsed = parseNarrativeForLocations(storyData.narrative, adventureSetting);
           const movement = detectMovementInNarrative(storyData.narrative);
           
           const currentQ = explorationState.currentHexQ || 0;
@@ -9047,8 +9049,11 @@ Return your response as a JSON object with these fields:
       const session = await storage.getCampaignSession(campaignId, currentSessionNum);
       const narrative = session?.narrative || "You stand at the beginning of your adventure.";
       
+      // Detect adventure setting for context-aware terrain generation
+      const adventureSetting = detectAdventureSetting(campaign.title || '', campaign.description || '');
+      
       // Parse narrative for location context
-      const parsed = parseNarrativeForLocations(narrative);
+      const parsed = parseNarrativeForLocations(narrative, adventureSetting);
       const hexMeta = generateHexMetaFromKeywords(
         parsed.currentLocation.environmentKeywords,
         parsed.atmosphereKeywords
@@ -14565,7 +14570,9 @@ Respond with JSON:
             
             // Create new hex at destination
             let newHex = await storage.getExplorationHex(campaignId, newCoords.q, newCoords.r);
-            const parsed = parseNarrativeForLocations(storyAdvancement.narrative || '');
+            // Detect adventure setting for context-aware terrain generation
+            const adventureSetting = detectAdventureSetting(campaign.title || '', campaign.description || '');
+            const parsed = parseNarrativeForLocations(storyAdvancement.narrative || '', adventureSetting);
             const hexMeta = generateHexMetaFromKeywords(
               parsed.currentLocation.environmentKeywords,
               parsed.atmosphereKeywords
