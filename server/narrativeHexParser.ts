@@ -291,8 +291,80 @@ const SETTING_APPROPRIATE_TERRAIN: Record<AdventureSetting, string[]> = {
   outdoor: [] // No restrictions for outdoor - use detected keywords
 };
 
-// Detect adventure setting from campaign/adventure context
-export function detectAdventureSetting(adventureTitle: string, campaignDescription?: string): AdventureSetting {
+// Environment transition patterns - detect when narrative indicates moving between settings
+const ENVIRONMENT_TRANSITION_PATTERNS: { pattern: RegExp; setting: AdventureSetting }[] = [
+  // Library/Archive transitions
+  { pattern: /(?:enter|step into|find yourself in|arrive at|reach|explore)\s+(?:the |a |an )?(?:library|archive|scriptorium|reading room|book|tome|scroll|manuscript)/i, setting: "library" },
+  { pattern: /(?:rows of |towering |dusty )?(?:bookshelves|shelves of books|stacks of tomes|ancient texts)/i, setting: "library" },
+  
+  // Dungeon transitions
+  { pattern: /(?:enter|descend into|find yourself in|step into)\s+(?:the |a |an )?(?:dungeon|crypt|tomb|catacomb|prison|cell)/i, setting: "dungeon" },
+  { pattern: /(?:dark|damp|cold)\s+(?:stone\s+)?(?:corridors?|passages?|cells?)/i, setting: "dungeon" },
+  
+  // Underground transitions
+  { pattern: /(?:enter|descend into|find yourself in|step into)\s+(?:the |a |an )?(?:cave|cavern|tunnel|mine|grotto|underground)/i, setting: "underground" },
+  { pattern: /(?:stalactites?|stalagmites?|natural\s+rock\s+formations?)/i, setting: "underground" },
+  
+  // Urban transitions
+  { pattern: /(?:enter|arrive at|reach|walk through)\s+(?:the |a |an )?(?:city|town|village|market|square|plaza|street|alley)/i, setting: "urban" },
+  { pattern: /(?:bustling|crowded|busy)\s+(?:streets?|markets?|squares?)/i, setting: "urban" },
+  
+  // Indoor/Structure transitions
+  { pattern: /(?:enter|step into|find yourself in|arrive at)\s+(?:the |a |an )?(?:hall|chamber|room|tower|castle|keep|temple|fortress|sanctuary)/i, setting: "indoor" },
+  { pattern: /(?:grand|great|main|throne)\s+(?:hall|chamber|room)/i, setting: "indoor" },
+  
+  // Outdoor transitions
+  { pattern: /(?:exit|leave|step outside|emerge from|step out into)\s+(?:the |a |an )?(?:building|structure|tower|cave|dungeon)/i, setting: "outdoor" },
+  { pattern: /(?:open\s+air|under\s+the\s+sky|beneath\s+the\s+(?:stars?|sun|moon)|fresh\s+air)/i, setting: "outdoor" },
+  { pattern: /(?:enter|step into|find yourself in|arrive at)\s+(?:the |a |an )?(?:forest|woods|meadow|field|plains?|mountain|valley|swamp)/i, setting: "outdoor" },
+];
+
+// Detect adventure setting from campaign/adventure context AND current narrative
+export function detectAdventureSetting(
+  adventureTitle: string, 
+  campaignDescription?: string,
+  currentNarrative?: string,
+  chapterDescription?: string
+): AdventureSetting {
+  // PRIORITY 1: Check current narrative for environment transitions (most specific/immediate context)
+  if (currentNarrative) {
+    for (const { pattern, setting } of ENVIRONMENT_TRANSITION_PATTERNS) {
+      if (pattern.test(currentNarrative)) {
+        return setting;
+      }
+    }
+    
+    // Also check for strong environmental keywords in the immediate narrative
+    const narrativeLower = currentNarrative.toLowerCase();
+    
+    // Strong library indicators in narrative
+    if (/\b(?:bookshelves?|tomes?|scrolls?|manuscripts?|librarian|reading\s+room|archive|scriptorium)\b/.test(narrativeLower)) {
+      return "library";
+    }
+    
+    // Strong dungeon indicators
+    if (/\b(?:cell|prison|shackles?|chains?|torture|crypt|sarcophag)/i.test(narrativeLower)) {
+      return "dungeon";
+    }
+    
+    // Strong cave/underground indicators
+    if (/\b(?:stalactite|stalagmite|cavern\s+walls?|underground\s+river|mining\s+cart)/i.test(narrativeLower)) {
+      return "underground";
+    }
+  }
+  
+  // PRIORITY 2: Check chapter description for setting context
+  if (chapterDescription) {
+    const chapterLower = chapterDescription.toLowerCase();
+    
+    if (/\b(?:library|archive|scriptorium|tome|book)\b/.test(chapterLower)) return "library";
+    if (/\b(?:dungeon|crypt|tomb|catacomb)\b/.test(chapterLower)) return "dungeon";
+    if (/\b(?:cave|cavern|underground|mine)\b/.test(chapterLower)) return "underground";
+    if (/\b(?:city|town|village|street|market)\b/.test(chapterLower)) return "urban";
+    if (/\b(?:tower|castle|keep|temple|fortress|hall)\b/.test(chapterLower)) return "indoor";
+  }
+  
+  // PRIORITY 3: Fall back to campaign title/description (broadest context)
   const text = `${adventureTitle} ${campaignDescription || ""}`.toLowerCase();
   
   if (text.includes("library") || text.includes("spire") || text.includes("archive") || text.includes("tome")) {

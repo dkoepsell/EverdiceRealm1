@@ -5652,7 +5652,13 @@ Return your response as a JSON object with these fields:
         const explorationState = await storage.getExplorationState(parseInt(campaignId));
         if (explorationState && storyData.narrative) {
           // Detect adventure setting for context-aware terrain generation
-          const adventureSetting = detectAdventureSetting(campaign.title || '', campaign.description || '');
+          // Priority: current narrative > chapter description > campaign title
+          const adventureSetting = detectAdventureSetting(
+            campaign.title || '', 
+            campaign.description || '',
+            storyData.narrative,  // Pass current narrative for immediate context
+            campaign.currentChapter ? `Chapter ${campaign.currentChapter}` : undefined
+          );
           const parsed = parseNarrativeForLocations(storyData.narrative, adventureSetting);
           const movement = detectMovementInNarrative(storyData.narrative);
           
@@ -9050,7 +9056,13 @@ Return your response as a JSON object with these fields:
       const narrative = session?.narrative || "You stand at the beginning of your adventure.";
       
       // Detect adventure setting for context-aware terrain generation
-      const adventureSetting = detectAdventureSetting(campaign.title || '', campaign.description || '');
+      // Priority: current narrative > chapter description > campaign title
+      const adventureSetting = detectAdventureSetting(
+        campaign.title || '', 
+        campaign.description || '',
+        narrative,  // Pass current narrative for immediate context
+        campaign.currentChapter ? `Chapter ${campaign.currentChapter}` : undefined
+      );
       
       // Parse narrative for location context
       const parsed = parseNarrativeForLocations(narrative, adventureSetting);
@@ -14571,7 +14583,13 @@ Respond with JSON:
             // Create new hex at destination
             let newHex = await storage.getExplorationHex(campaignId, newCoords.q, newCoords.r);
             // Detect adventure setting for context-aware terrain generation
-            const adventureSetting = detectAdventureSetting(campaign.title || '', campaign.description || '');
+            // Priority: current narrative > chapter description > campaign title
+            const adventureSetting = detectAdventureSetting(
+              campaign.title || '', 
+              campaign.description || '',
+              storyAdvancement.narrative || '',  // Pass current narrative for immediate context
+              campaign.currentChapter ? `Chapter ${campaign.currentChapter}` : undefined
+            );
             const parsed = parseNarrativeForLocations(storyAdvancement.narrative || '', adventureSetting);
             const hexMeta = generateHexMetaFromKeywords(
               parsed.currentLocation.environmentKeywords,
