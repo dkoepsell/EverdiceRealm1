@@ -130,6 +130,57 @@ export interface RepairPathway {
   canBeRefused: boolean; // NPC/institution can refuse to even try
 }
 
+// Procedural Quest Generation - quests generated from world state conditions
+export interface QuestTrigger {
+  id: string; // e.g., "QT_HIGH_SUSPICION"
+  triggerType: "state_threshold" | "npc_attitude" | "pressure_meter" | "player_action" | "location_visit" | "residue_level";
+  condition: {
+    stateKey?: string; // For state_threshold: which worldState key
+    npcName?: string; // For npc_attitude: which NPC
+    meterName?: string; // For pressure_meter: which meter
+    residueId?: string; // For residue_level: which residue
+    operator: ">=" | "<=" | "==" | ">" | "<";
+    threshold: number;
+  };
+  questTemplateId: string; // Which template to generate from
+  priority: number; // Higher priority triggers first (1-10)
+  cooldownScenes: number; // How many scenes before this can trigger again
+  maxGenerations: number; // Maximum times this trigger can fire (0 = unlimited)
+  generationCount?: number; // Current count of times triggered
+}
+
+export interface QuestTemplate {
+  id: string; // e.g., "TEMPLATE_INVESTIGATE_CORRUPTION"
+  category: "investigation" | "rescue" | "retrieval" | "escort" | "elimination" | "negotiation" | "exploration" | "defense";
+  titlePatterns: string[]; // e.g., ["The Missing {NPC}", "{LOCATION} Mystery", "Shadows in {LOCATION}"]
+  descriptionPattern: string; // Template with placeholders
+  objectivePatterns: string[]; // Templates for objectives
+  contextRequirements: {
+    requiresActiveNPC?: boolean; // Needs an NPC to reference
+    requiresLocation?: boolean; // Needs a specific location
+    requiresItem?: boolean; // Needs a specific item
+    requiresThreat?: boolean; // Needs an active threat/enemy
+  };
+  rewards: {
+    xpBase: number;
+    goldBase: number;
+    stateChanges?: { key: string; delta: number }[]; // State changes on completion
+    npcAttitudeChanges?: { name: string; delta: number }[]; // NPC attitude changes
+  };
+  difficulty: "easy" | "moderate" | "challenging" | "deadly";
+  estimatedDuration: string; // "1 session", "2-3 sessions"
+}
+
+export interface ProceduralQuestConfig {
+  triggers: QuestTrigger[];
+  templates: QuestTemplate[];
+  globalSettings: {
+    maxActiveProceduralQuests: number; // Cap on how many procedural quests can be active
+    minScenesBetweenQuests: number; // Minimum scenes between procedural quest generation
+    questChanceModifier: number; // 0-100, affects probability of quest generation
+  };
+}
+
 export interface CampaignGenerationResponse {
   title: string;
   description: string;
@@ -153,6 +204,8 @@ export interface CampaignGenerationResponse {
   normativeResidues: NormativeResidue[]; // Lasting consequences that constrain future play
   residueTriggers: ResidueTrigger[]; // What creates/increases residue
   repairPathways: RepairPathway[]; // Costly, risky ways to reduce residue
+  // Procedural Quest Generation System
+  proceduralQuestConfig: ProceduralQuestConfig; // Triggers and templates for dynamic quest generation
 }
 
 export async function generateCampaign(req: CampaignGenerationRequest): Promise<CampaignGenerationResponse> {
@@ -284,6 +337,43 @@ NORMATIVE RESIDUE (Some things cannot be fixed):
   - canBeRefused: true (NPC/institution can refuse to even try)
 
 MINIMAL COMPLIANCE: Every adventure MUST have at least one residue that can reach an unrecoverable state (severity 3) with at least one trigger that can generate it.
+
+PROCEDURAL QUEST GENERATION (Quests that emerge from world state):
+
+- proceduralQuestConfig: A configuration object for generating quests dynamically based on world state. Contains:
+  - triggers: Array of 3-5 quest triggers that fire when conditions are met. Each has:
+    - id: Unique identifier (e.g., "QT_HIGH_CORRUPTION", "QT_NPC_HOSTILE")
+    - triggerType: One of "state_threshold", "npc_attitude", "pressure_meter", "residue_level"
+    - condition: Object with:
+      - stateKey or npcName or meterName or residueId (depending on triggerType)
+      - operator: ">=" | "<=" | ">" | "<" | "=="
+      - threshold: Number value to compare against
+    - questTemplateId: Which template to use (reference a template id below)
+    - priority: 1-10 (higher fires first)
+    - cooldownScenes: 3-5 (scenes before can trigger again)
+    - maxGenerations: 1-3 (max times this can fire, 0 = unlimited)
+  
+  - templates: Array of 3-4 quest templates that can be instantiated. Each has:
+    - id: Unique identifier (e.g., "TEMPLATE_INVESTIGATE", "TEMPLATE_RESCUE")
+    - category: "investigation" | "rescue" | "retrieval" | "escort" | "elimination" | "negotiation" | "exploration" | "defense"
+    - titlePatterns: Array of 2-3 title templates with {NPC}, {LOCATION}, {THREAT} placeholders
+    - descriptionPattern: Template for quest description with placeholders
+    - objectivePatterns: Array of 2-3 objective templates
+    - contextRequirements: { requiresActiveNPC: true/false, requiresLocation: true/false, requiresThreat: true/false }
+    - rewards: { xpBase: 50-200, goldBase: 25-100, stateChanges: [{ key: "state_key", delta: +/-10 }] }
+    - difficulty: "easy" | "moderate" | "challenging" | "deadly"
+    - estimatedDuration: "1 session" or "2-3 sessions"
+  
+  - globalSettings: Object with:
+    - maxActiveProceduralQuests: 3 (cap on active procedural quests)
+    - minScenesBetweenQuests: 2 (minimum scenes between procedural quests)
+    - questChanceModifier: 70 (percentage chance when trigger fires)
+
+DESIGN GUIDELINES FOR PROCEDURAL QUESTS:
+- Triggers should respond to INTERESTING states (high corruption leads to investigation, hostile NPC leads to negotiation/rescue)
+- Templates should be SPECIFIC to the adventure's theme and location
+- Quests should have MEANINGFUL consequences (state changes, NPC attitude shifts)
+- Avoid generic "fetch X" quests - tie them to the narrative
 
 Format the response as a valid JSON object without explanation.
 `;

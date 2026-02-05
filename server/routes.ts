@@ -359,6 +359,263 @@ function generateCharacterArcSummaryForDM(signal: { characterName: string; profi
   return insights.join('. ') + '.';
 }
 
+// PROCEDURAL QUEST GENERATION SYSTEM
+// Evaluates quest triggers against current world state and generates quests when conditions are met
+async function evaluateProceduralQuestTriggers(
+  campaignId: number,
+  campaign: any,
+  worldState: any[],
+  npcAttitudes: any[],
+  pressureMeters: any[],
+  normativeResidues: any[],
+  currentNarrative: string,
+  storageRef: any
+): Promise<void> {
+  try {
+    const config = campaign.proceduralQuestConfig;
+    if (!config || !config.triggers || !config.templates) {
+      return; // No procedural quest config
+    }
+    
+    const { triggers, templates, globalSettings } = config;
+    const currentSceneNumber = campaign.currentSession || 1;
+    const lastQuestScene = campaign.lastProceduralQuestScene || 0;
+    
+    // Check minimum scene gap between procedural quests
+    if (currentSceneNumber - lastQuestScene < (globalSettings?.minScenesBetweenQuests || 2)) {
+      return;
+    }
+    
+    // Check max active procedural quests
+    const existingQuests = await storageRef.getCampaignQuests(campaignId);
+    const activeProceduralQuests = existingQuests.filter((q: any) => 
+      q.discoveredByAI && q.status === 'active' && q.discoveryContext?.includes('Procedural')
+    );
+    if (activeProceduralQuests.length >= (globalSettings?.maxActiveProceduralQuests || 3)) {
+      return;
+    }
+    
+    // Sort triggers by priority (higher first)
+    const sortedTriggers = [...triggers].sort((a: any, b: any) => (b.priority || 1) - (a.priority || 1));
+    
+    for (const trigger of sortedTriggers) {
+      // Check if trigger has hit max generations
+      if (trigger.maxGenerations > 0 && (trigger.generationCount || 0) >= trigger.maxGenerations) {
+        continue;
+      }
+      
+      // Check cooldown
+      const lastTriggeredScene = trigger.lastTriggeredScene || 0;
+      if (currentSceneNumber - lastTriggeredScene < (trigger.cooldownScenes || 3)) {
+        continue;
+      }
+      
+      // Evaluate trigger condition
+      const conditionMet = evaluateQuestTriggerCondition(
+        trigger,
+        worldState,
+        npcAttitudes,
+        pressureMeters,
+        normativeResidues
+      );
+      
+      if (!conditionMet) {
+        continue;
+      }
+      
+      // Apply chance modifier
+      const chanceRoll = Math.random() * 100;
+      if (chanceRoll > (globalSettings?.questChanceModifier || 70)) {
+        continue;
+      }
+      
+      // Find matching template
+      const template = templates.find((t: any) => t.id === trigger.questTemplateId);
+      if (!template) {
+        console.warn(`Procedural quest trigger ${trigger.id} references unknown template ${trigger.questTemplateId}`);
+        continue;
+      }
+      
+      // Generate the quest from template
+      const generatedQuest = instantiateQuestTemplate(
+        template,
+        campaign,
+        worldState,
+        npcAttitudes,
+        currentNarrative
+      );
+      
+      if (generatedQuest) {
+        // Create the quest
+        await storageRef.createCampaignQuest({
+          campaignId,
+          title: generatedQuest.title,
+          description: generatedQuest.description,
+          questType: "side",
+          status: "active",
+          objectives: generatedQuest.objectives,
+          xpReward: generatedQuest.xpReward,
+          goldReward: generatedQuest.goldReward,
+          difficultyRating: template.difficulty || "moderate",
+          estimatedDuration: template.estimatedDuration || "1 session",
+          isPostedToBoard: true,
+          postedAt: new Date().toISOString(),
+          discoveredByAI: true,
+          discoveryContext: `Procedural: ${trigger.id} triggered by world state`,
+          questGiver: generatedQuest.questGiver || null,
+          createdAt: new Date().toISOString(),
+        });
+        
+        // Update trigger state
+        trigger.generationCount = (trigger.generationCount || 0) + 1;
+        trigger.lastTriggeredScene = currentSceneNumber;
+        
+        // Update campaign with modified triggers and last quest scene
+        await storageRef.updateCampaign(campaignId, {
+          proceduralQuestConfig: { ...config, triggers },
+          lastProceduralQuestScene: currentSceneNumber,
+          updatedAt: new Date().toISOString()
+        });
+        
+        console.log(`PROCEDURAL QUEST GENERATED: "${generatedQuest.title}" from trigger ${trigger.id}`);
+        
+        // Only generate one quest per scene advancement
+        break;
+      }
+    }
+  } catch (error) {
+    console.error("Error evaluating procedural quest triggers:", error);
+    // Don't fail the main request
+  }
+}
+
+function evaluateQuestTriggerCondition(
+  trigger: any,
+  worldState: any[],
+  npcAttitudes: any[],
+  pressureMeters: any[],
+  normativeResidues: any[]
+): boolean {
+  const { triggerType, condition } = trigger;
+  if (!condition) return false;
+  
+  let currentValue: number | null = null;
+  
+  switch (triggerType) {
+    case "state_threshold":
+      const stateFact = worldState.find((s: any) => s.key === condition.stateKey);
+      currentValue = stateFact?.value ?? null;
+      break;
+      
+    case "npc_attitude":
+      const npc = npcAttitudes.find((n: any) => n.name === condition.npcName);
+      currentValue = npc?.attitude ?? null;
+      break;
+      
+    case "pressure_meter":
+      const meter = pressureMeters.find((m: any) => m.name === condition.meterName);
+      currentValue = meter?.current ?? null;
+      break;
+      
+    case "residue_level":
+      const residue = normativeResidues.find((r: any) => r.id === condition.residueId);
+      currentValue = residue?.severity ?? null;
+      break;
+      
+    default:
+      return false;
+  }
+  
+  if (currentValue === null) return false;
+  
+  const threshold = condition.threshold;
+  switch (condition.operator) {
+    case ">=": return currentValue >= threshold;
+    case "<=": return currentValue <= threshold;
+    case ">": return currentValue > threshold;
+    case "<": return currentValue < threshold;
+    case "==": return currentValue === threshold;
+    default: return false;
+  }
+}
+
+function instantiateQuestTemplate(
+  template: any,
+  campaign: any,
+  worldState: any[],
+  npcAttitudes: any[],
+  currentNarrative: string
+): { title: string; description: string; objectives: any[]; xpReward: number; goldReward: number; questGiver?: string } | null {
+  try {
+    // Extract context from campaign and narrative
+    const location = campaign.startingLocation || "the area";
+    const mainNPC = campaign.mainNPC || "a mysterious figure";
+    const threat = extractThreatFromNarrative(currentNarrative) || "lurking danger";
+    
+    // Find an available NPC for quest giver (prefer neutral/friendly)
+    const availableNPCs = npcAttitudes.filter((n: any) => n.attitude > -50);
+    const questGiver = availableNPCs.length > 0 ? availableNPCs[0].name : mainNPC;
+    
+    // Pick a random title pattern and fill placeholders
+    const titlePattern = template.titlePatterns[Math.floor(Math.random() * template.titlePatterns.length)];
+    const title = fillPlaceholders(titlePattern, { NPC: questGiver, LOCATION: location, THREAT: threat });
+    
+    // Fill description pattern
+    const description = fillPlaceholders(template.descriptionPattern, { 
+      NPC: questGiver, 
+      LOCATION: location, 
+      THREAT: threat,
+      CONTEXT: currentNarrative.slice(0, 100)
+    });
+    
+    // Generate objectives from patterns
+    const objectives = template.objectivePatterns.slice(0, 3).map((pattern: string, idx: number) => ({
+      text: fillPlaceholders(pattern, { NPC: questGiver, LOCATION: location, THREAT: threat }),
+      completed: false
+    }));
+    
+    // Calculate rewards with some variance
+    const xpVariance = Math.floor(Math.random() * 50) - 25;
+    const goldVariance = Math.floor(Math.random() * 20) - 10;
+    
+    return {
+      title,
+      description,
+      objectives,
+      xpReward: Math.max(25, (template.rewards?.xpBase || 100) + xpVariance),
+      goldReward: Math.max(10, (template.rewards?.goldBase || 50) + goldVariance),
+      questGiver
+    };
+  } catch (error) {
+    console.error("Error instantiating quest template:", error);
+    return null;
+  }
+}
+
+function fillPlaceholders(template: string, context: Record<string, string>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(context)) {
+    result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+  }
+  return result;
+}
+
+function extractThreatFromNarrative(narrative: string): string | null {
+  const threatPatterns = [
+    /(?:attacked by|threatened by|chased by|confronted by)\s+(?:a |an |the )?([^,.]+)/i,
+    /(?:danger|threat|menace)\s+(?:of |from )?(?:a |an |the )?([^,.]+)/i,
+    /(?:monsters?|creatures?|enemies?|bandits?|cultists?|undead|orcs?|goblins?)/i
+  ];
+  
+  for (const pattern of threatPatterns) {
+    const match = narrative.match(pattern);
+    if (match) {
+      return match[1] || match[0];
+    }
+  }
+  return null;
+}
+
 async function updateReputationProfileFromEvent(
   characterId: number,
   campaignId: number,
@@ -5603,6 +5860,18 @@ Return your response as a JSON object with these fields:
             });
             console.log(`CAML: Updated campaign ${campaignId} state after story advancement`);
           }
+          
+          // PROCEDURAL QUEST GENERATION: Check triggers and generate quests from world state
+          await evaluateProceduralQuestTriggers(
+            parseInt(campaignId),
+            campaign,
+            updatedWorldState,
+            updatedNpcAttitudes,
+            updatedPressureMeters,
+            updatedNormativeResidues,
+            storyData.narrative,
+            storage
+          );
         } catch (stateError) {
           console.error("Failed to apply CAML state changes:", stateError);
           // Don't fail the request if state update fails

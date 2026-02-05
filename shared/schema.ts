@@ -217,6 +217,9 @@ export const campaigns = pgTable("campaigns", {
   normativeResidues: jsonb("normative_residues"), // Lasting consequences with severity levels
   residueTriggers: jsonb("residue_triggers"), // What creates/increases residue
   repairPathways: jsonb("repair_pathways"), // Costly, risky ways to reduce residue
+  // Procedural Quest Generation System
+  proceduralQuestConfig: jsonb("procedural_quest_config"), // Triggers and templates for dynamic quest generation
+  lastProceduralQuestScene: integer("last_procedural_quest_scene").default(0), // Scene number of last procedural quest
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at"),
 });
