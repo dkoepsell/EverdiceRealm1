@@ -11,6 +11,7 @@ import AdventureHistory from "@/components/adventure/AdventureHistory";
 import QuickStart from "@/components/onboarding/QuickStart";
 import PlayerQuickStart from "@/components/PlayerQuickStart";
 import SinceLastTime from "@/components/SinceLastTime";
+import { WhatsNextModal, useWhatsNextModal } from "@/components/onboarding/WhatsNextModal";
 import { Character, Campaign } from "@shared/schema";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
@@ -28,6 +29,9 @@ export default function Dashboard() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const { toast } = useToast();
+  
+  // What's Next modal for new users after demo/learn-by-playing
+  const { isOpen: whatsNextOpen, completedType, showModal: showWhatsNext, closeModal: closeWhatsNext } = useWhatsNextModal();
   
   // Portrait generation state
   const [generatingPortraitIds, setGeneratingPortraitIds] = useState<Set<number>>(new Set());
@@ -248,6 +252,13 @@ export default function Dashboard() {
 
   return (
     <div className="pb-16 min-h-screen bg-gradient-to-b from-background to-muted/20">
+      {/* What's Next Modal - shown after completing demo/learn campaigns */}
+      <WhatsNextModal 
+        isOpen={whatsNextOpen} 
+        onClose={closeWhatsNext} 
+        completedType={completedType} 
+      />
+      
       {/* Hero Section - Matching Groups page style */}
       <div className="container mx-auto px-4 py-8">
         <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-900/40 via-orange-900/30 to-slate-900/40 border border-amber-500/20 p-8 mb-8">

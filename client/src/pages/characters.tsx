@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { OnboardingHint } from "@/components/onboarding/OnboardingHint";
 import {
   Form,
   FormControl,
@@ -723,14 +724,32 @@ export default function Characters() {
             <User size={16} />
             My Characters
           </TabsTrigger>
-          <TabsTrigger value="quick" className="flex items-center gap-2">
-            <Sparkles size={16} />
-            Quick Create
-          </TabsTrigger>
-          <TabsTrigger value="create" className="flex items-center gap-2">
-            <Plus size={16} />
-            Advanced
-          </TabsTrigger>
+          <OnboardingHint
+            hintId="character_builder_class"
+            title="Quick Character Creation"
+            description="Pick a pre-made hero template and start playing immediately! Each template has balanced stats and abilities for their role."
+            tip="Warriors tank damage, Wizards cast spells, Rogues sneak around - pick what sounds fun!"
+            position="bottom"
+            pulse={true}
+          >
+            <TabsTrigger value="quick" className="flex items-center gap-2">
+              <Sparkles size={16} />
+              Quick Create
+            </TabsTrigger>
+          </OnboardingHint>
+          <OnboardingHint
+            hintId="character_builder_race"
+            title="Custom Character Builder"
+            description="Create a fully customized character by choosing race, class, abilities, and backstory. Full control for experienced players."
+            tip="Hover over any stat to see what it does - we explain everything!"
+            position="bottom"
+            pulse={false}
+          >
+            <TabsTrigger value="create" className="flex items-center gap-2">
+              <Plus size={16} />
+              Advanced
+            </TabsTrigger>
+          </OnboardingHint>
         </TabsList>
         
         <TabsContent value="list">

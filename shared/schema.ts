@@ -17,6 +17,10 @@ export const users = pgTable("users", {
   twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
   discordUserId: text("discord_user_id"),
   discordUsername: text("discord_username"),
+  // Onboarding state - tracks which contextual hints have been seen/dismissed
+  onboardingState: jsonb("onboarding_state"),
+  // Tracks if user completed the demo/learn-by-playing campaign
+  hasCompletedDemo: boolean("has_completed_demo").default(false),
 });
 
 // Discord connection codes for linking accounts

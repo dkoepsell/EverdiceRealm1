@@ -28,10 +28,11 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CampaignPanel from "@/components/campaign/CampaignPanel";
-import { AlertCircle, Book, MapPin, Plus, Scroll, Wand2, Star, Play, Sparkles, ArrowRight } from "lucide-react";
+import { AlertCircle, Book, MapPin, Plus, Scroll, Wand2, Star, Play, Sparkles, ArrowRight, Lightbulb } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
+import { OnboardingHint, OnboardingPulse, useOnboardingHint } from "@/components/onboarding/OnboardingHint";
 
 // Extended schema with validation rules
 const createCampaignSchema = insertCampaignSchema.extend({
@@ -263,10 +264,19 @@ export default function Campaigns() {
             <Book size={16} />
             My Campaigns
           </TabsTrigger>
-          <TabsTrigger value="create" className="flex items-center gap-2">
-            <Plus size={16} />
-            Create New
-          </TabsTrigger>
+          <OnboardingHint
+            hintId="campaign_create"
+            title="Create Your First Adventure"
+            description="Click here to start a new campaign. You can let AI generate everything for you, or customize every detail yourself."
+            tip="Try the AI generator for a quick start - just pick a theme and it does the rest!"
+            position="bottom"
+            pulse={true}
+          >
+            <TabsTrigger value="create" className="flex items-center gap-2">
+              <Plus size={16} />
+              Create New
+            </TabsTrigger>
+          </OnboardingHint>
         </TabsList>
         
         <TabsContent value="list">
@@ -428,11 +438,20 @@ export default function Campaigns() {
                 <div className="mb-6 pb-4 border-b border-gray-200">
                   <div className="flex items-center space-x-2 mb-4">
                     <FormLabel className="text-lg font-semibold !m-0">Quick Campaign Setup</FormLabel>
-                    <Switch
-                      checked={useAIGeneration}
-                      onCheckedChange={setUseAIGeneration}
-                      aria-label="Use AI to generate campaign"
-                    />
+                    <OnboardingHint
+                      hintId="campaign_ai_generate"
+                      title="AI Campaign Generator"
+                      description="Toggle this on to let AI create your entire campaign! Just pick a theme like 'dragon hunt' or 'mystery in the city' and we'll generate the story, NPCs, and encounters."
+                      tip="Perfect for new players - get playing in seconds!"
+                      position="right"
+                      pulse={true}
+                    >
+                      <Switch
+                        checked={useAIGeneration}
+                        onCheckedChange={setUseAIGeneration}
+                        aria-label="Use AI to generate campaign"
+                      />
+                    </OnboardingHint>
                   </div>
                   
                   {useAIGeneration && (
