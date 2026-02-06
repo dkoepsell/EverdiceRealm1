@@ -14515,15 +14515,18 @@ Respond with JSON:
       // CRITICAL FIX: Apply player-initiated damage from rollResult directly to enemy HP
       // This ensures magic item attacks, spell attacks, and weapon attacks from the client
       // actually update enemy HP even if AI doesn't include it in enemyDamage
+      const rollIsHit = rollResult?.isHit || rollResult?.hit || rollResult?.autoHit || false;
+      const rollTarget = rollResult?.target || rollResult?.targetName || null;
       console.log('[Combat Debug] Processing rollResult:', JSON.stringify({
         hasDamage: !!rollResult?.damage,
         damageTotal: rollResult?.damage?.total,
-        isHit: rollResult?.isHit,
-        target: rollResult?.target
+        isHit: rollIsHit,
+        target: rollTarget,
+        type: rollResult?.type
       }));
       
-      if (rollResult?.damage?.total && rollResult?.isHit && rollResult?.target) {
-        const targetName = rollResult.target;
+      if (rollResult?.damage?.total && rollIsHit && rollTarget) {
+        const targetName = rollTarget;
         const damageDealt = rollResult.damage.total;
         console.log(`[Combat Debug] Applying ${damageDealt} damage to ${targetName}`);
         
