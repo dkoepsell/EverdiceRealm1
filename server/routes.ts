@@ -1457,6 +1457,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === D&D 5e Item Recharge System ===
+  // Recharges wands, staves, and other charged items at dawn (long rest / new session)
+  // Per 5e rules: items regain charges based on their description, and if reduced to 0 charges,
+  // roll a d20 — on a 1, the item is destroyed.
+  async function rechargeCharacterItems(characterId: number): Promise<{
+    recharged: { itemId: number; itemName: string; chargesRegained: number; newCharges: number; maxCharges: number }[];
+    destroyed: { itemId: number; itemName: string }[];
+  }> {
+    const result: {
+      recharged: { itemId: number; itemName: string; chargesRegained: number; newCharges: number; maxCharges: number }[];
+      destroyed: { itemId: number; itemName: string }[];
+    } = { recharged: [], destroyed: [] };
+    
+    try {
+      const chargedItems = await db.execute(sql`
+        SELECT id, name, current_charges, max_charges, special_effect
+        FROM character_inventory
+        WHERE character_id = ${characterId}
+          AND max_charges IS NOT NULL
+          AND max_charges > 0
+      `);
+      
+      if (!chargedItems.rows || chargedItems.rows.length === 0) return result;
+      
+      for (const row of chargedItems.rows) {
+        const item = row as any;
+        const currentCharges = item.current_charges ?? 0;
+        const maxCharges = item.max_charges ?? 7;
+        const specialEffect = (item.special_effect || '') as string;
+        
+        // Parse recharge formula from specialEffect text
+        // Supports: "Regains 1d6+1 charges at dawn", "regains 1d4 expended charges daily",
+        //           "regains 2 charges at dawn", "regains 1d6 + 1 expended charges"
+        let rechargeAmount = 0;
+        let hasRechargeClause = false;
+        
+        // Pattern 1: Dice-based recharge (e.g., "regains 1d6+1 charges", "regains 1d4 expended charges")
+        const diceMatch = specialEffect.match(/regains?\s+(\d+)d(\d+)(?:\s*\+\s*(\d+))?\s+(?:expended\s+)?charges?/i);
+        // Pattern 2: Flat recharge (e.g., "regains 2 charges at dawn", "regains 3 expended charges")
+        const flatMatch = specialEffect.match(/regains?\s+(\d+)\s+(?:expended\s+)?charges?/i);
+        
+        if (diceMatch) {
+          hasRechargeClause = true;
+          const numDice = parseInt(diceMatch[1]);
+          const dieSize = parseInt(diceMatch[2]);
+          const bonus = diceMatch[3] ? parseInt(diceMatch[3]) : 0;
+          
+          let rollTotal = 0;
+          for (let i = 0; i < numDice; i++) {
+            rollTotal += Math.floor(Math.random() * dieSize) + 1;
+          }
+          rechargeAmount = rollTotal + bonus;
+          console.log(`[Recharge] ${item.name}: ${numDice}d${dieSize}+${bonus} = ${rechargeAmount} charges regained`);
+        } else if (flatMatch) {
+          hasRechargeClause = true;
+          rechargeAmount = parseInt(flatMatch[1]);
+          console.log(`[Recharge] ${item.name}: flat ${rechargeAmount} charges regained`);
+        }
+        
+        // Skip items that don't have a recognized recharge clause
+        if (!hasRechargeClause) {
+          console.log(`[Recharge] ${item.name}: no recharge clause found, skipping`);
+          continue;
+        }
+        
+        if (rechargeAmount > 0) {
+          const newCharges = Math.min(currentCharges + rechargeAmount, maxCharges);
+          const actualRegained = newCharges - currentCharges;
+          
+          if (actualRegained > 0) {
+            await db.execute(sql`
+              UPDATE character_inventory 
+              SET current_charges = ${newCharges}
+              WHERE id = ${item.id}
+            `);
+            
+            result.recharged.push({
+              itemId: item.id,
+              itemName: item.name,
+              chargesRegained: actualRegained,
+              newCharges,
+              maxCharges
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[Recharge] Error recharging items:', err);
+    }
+    
+    return result;
+  }
+
   // Character Rest Routes - HP Recovery (heals entire party when not in combat)
   app.post("/api/characters/:id/short-rest", async (req, res) => {
     try {
@@ -1584,11 +1677,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? ` Companions also rested: ${companionResults.map(c => `${c.name} fully healed`).join(', ')}.`
         : '';
       
+      // D&D 5e: Recharge magical items at dawn (long rest)
+      const itemRechargeResult = await rechargeCharacterItems(id);
+      
+      let rechargeMsg = '';
+      if (itemRechargeResult.recharged.length > 0) {
+        rechargeMsg = ` Items recharged: ${itemRechargeResult.recharged.map(r => 
+          `${r.itemName} regained ${r.chargesRegained} charges (${r.newCharges}/${r.maxCharges})`
+        ).join(', ')}.`;
+      }
+      if (itemRechargeResult.destroyed.length > 0) {
+        rechargeMsg += ` Items destroyed: ${itemRechargeResult.destroyed.map(d => d.itemName).join(', ')} crumbled to dust!`;
+      }
+      
       res.json({
         character: updatedCharacter,
         healedAmount: actualHeal,
         companionResults,
-        message: `Long rest complete. Fully restored to ${character.maxHitPoints} HP.${companionMsg}`
+        itemRecharge: itemRechargeResult,
+        message: `Long rest complete. Fully restored to ${character.maxHitPoints} HP.${companionMsg}${rechargeMsg}`
       });
     } catch (error: any) {
       console.error("Error during long rest:", error);
@@ -14517,10 +14624,22 @@ Respond with JSON:
               itemId: item.id,
               itemName: item.name,
               currentCharges: newCharges,
-              maxCharges: item.max_charges || 0
+              maxCharges: item.max_charges || 0,
+              destroyed: false
             };
             
             console.log(`[Charges] ${item.name}: ${item.current_charges} -> ${newCharges} charges remaining`);
+            
+            // D&D 5e: When the last charge is expended, roll d20 — on a 1, item crumbles to dust
+            if (newCharges === 0) {
+              const destructionRoll = Math.floor(Math.random() * 20) + 1;
+              console.log(`[Charges] ${item.name} expended last charge - destruction roll: d20(${destructionRoll})`);
+              if (destructionRoll === 1) {
+                await db.execute(sql`DELETE FROM character_inventory WHERE id = ${item.id}`);
+                chargeUpdate.destroyed = true;
+                console.log(`[Charges] ${item.name} crumbled to dust!`);
+              }
+            }
           }
         } catch (chargeErr) {
           console.error('[Charges] Error decrementing charges:', chargeErr);
@@ -16994,6 +17113,21 @@ Choices should include 4 options with at least 2 requiring dice rolls.
             });
             
             console.log(`Auto-advanced campaign ${campaignId} to session ${newSessionData.sessionNumber}`);
+            
+            // D&D 5e: Recharge magical items at dawn (new session/chapter = new day)
+            if (character?.id) {
+              try {
+                const sessionRecharge = await rechargeCharacterItems(character.id);
+                if (sessionRecharge.recharged.length > 0 || sessionRecharge.destroyed.length > 0) {
+                  // Store recharge data so it can be included in the response
+                  (mergedStoryState as any).itemRechargeAtDawn = sessionRecharge;
+                  console.log(`[Session Recharge] Items recharged for character ${character.id}:`, 
+                    sessionRecharge.recharged.map(r => `${r.itemName}: +${r.chargesRegained}`).join(', '));
+                }
+              } catch (rechargeErr) {
+                console.error('[Session Recharge] Error:', rechargeErr);
+              }
+            }
           }
         } catch (advanceError: any) {
           // Check if this is a campaign completion (not an error)
@@ -17200,7 +17334,9 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         // Campaign completion data (if campaign just finished)
         campaignCompletion: campaignCompletionData,
         // Item charge update (wands, staves, etc.)
-        chargeUpdate: chargeUpdate
+        chargeUpdate: chargeUpdate,
+        // Item recharge at dawn (session/chapter advancement)
+        itemRechargeAtDawn: (mergedStoryState as any).itemRechargeAtDawn || null
       });
     } catch (error: any) {
       console.error("Failed to advance story:", error);

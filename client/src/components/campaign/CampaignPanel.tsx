@@ -1240,13 +1240,45 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         // Handle item charge updates (wands, staves, etc.)
         if (data.chargeUpdate) {
           const cu = data.chargeUpdate;
-          toast({
-            title: `✨ ${cu.itemName}`,
-            description: cu.currentCharges > 0 
-              ? `${cu.currentCharges}/${cu.maxCharges} charges remaining`
-              : `All charges spent! Regains charges at dawn.`,
-            variant: cu.currentCharges <= 0 ? "destructive" : undefined,
-          });
+          if (cu.destroyed) {
+            toast({
+              title: `💥 ${cu.itemName} Destroyed!`,
+              description: `The item crumbled to dust after expending its last charge!`,
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: `✨ ${cu.itemName}`,
+              description: cu.currentCharges > 0 
+                ? `${cu.currentCharges}/${cu.maxCharges} charges remaining`
+                : `All charges spent! Regains charges at dawn.`,
+              variant: cu.currentCharges <= 0 ? "destructive" : undefined,
+            });
+          }
+          if (userParticipant?.characterId) {
+            queryClient.invalidateQueries({ queryKey: ['/api/characters', userParticipant.characterId, 'magical-inventory'] });
+          }
+        }
+        
+        // Show item recharge at dawn (session/chapter advancement)
+        if (data.itemRechargeAtDawn) {
+          if (data.itemRechargeAtDawn.recharged?.length > 0) {
+            for (const item of data.itemRechargeAtDawn.recharged) {
+              toast({
+                title: `${item.itemName} Recharged at Dawn`,
+                description: `Regained ${item.chargesRegained} charges (${item.newCharges}/${item.maxCharges})`,
+              });
+            }
+          }
+          if (data.itemRechargeAtDawn.destroyed?.length > 0) {
+            for (const item of data.itemRechargeAtDawn.destroyed) {
+              toast({
+                title: `${item.itemName} Destroyed!`,
+                description: `The item crumbled to dust after expending its last charge.`,
+                variant: "destructive",
+              });
+            }
+          }
           if (userParticipant?.characterId) {
             queryClient.invalidateQueries({ queryKey: ['/api/characters', userParticipant.characterId, 'magical-inventory'] });
           }
@@ -1419,10 +1451,30 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/characters/${activeCharacter?.id}/inventory`] });
       toast({
         title: "Party Long Rest Complete",
         description: data.message,
       });
+      if (data.itemRecharge) {
+        if (data.itemRecharge.recharged?.length > 0) {
+          for (const item of data.itemRecharge.recharged) {
+            toast({
+              title: `${item.itemName} Recharged`,
+              description: `Regained ${item.chargesRegained} charges (${item.newCharges}/${item.maxCharges})`,
+            });
+          }
+        }
+        if (data.itemRecharge.destroyed?.length > 0) {
+          for (const item of data.itemRecharge.destroyed) {
+            toast({
+              title: `${item.itemName} Destroyed!`,
+              description: `The item crumbled to dust after expending its last charge.`,
+              variant: "destructive",
+            });
+          }
+        }
+      }
     },
     onError: (error: Error) => {
       toast({
