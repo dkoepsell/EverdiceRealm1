@@ -138,7 +138,7 @@ export default function CombatSpellPanel({
     damageDice: item.damage_dice || item.damageDice,
     damageType: item.damage_type || item.damageType,
     isEquipped: item.is_equipped || item.isEquipped,
-    charges: item.charges,
+    charges: item.current_charges ?? item.currentCharges ?? item.charges,
     maxCharges: item.max_charges || item.maxCharges
   })).filter((item: MagicItem) => {
     const usableTypes = ['wand', 'staff', 'rod', 'scroll', 'potion'];
@@ -394,15 +394,35 @@ export default function CombatSpellPanel({
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="w-full justify-start h-7 text-xs px-2 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50"
-                            onClick={() => onUseMagicItem?.(item)}
+                            className={`w-full justify-start h-7 text-xs px-2 ${
+                              item.charges !== undefined && item.charges <= 0
+                                ? 'bg-gray-100 dark:bg-gray-800 opacity-50 cursor-not-allowed'
+                                : 'bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50'
+                            }`}
+                            onClick={() => {
+                              if (item.charges !== undefined && item.charges <= 0) return;
+                              onUseMagicItem?.(item);
+                            }}
+                            disabled={item.charges !== undefined && item.charges <= 0}
                           >
                             <Wand2 className="h-3 w-3 mr-1.5 text-purple-500" />
                             <span className="flex-1 text-left truncate">{item.name}</span>
                             {DamageIcon && <DamageIcon className="h-3 w-3 text-red-500" />}
-                            <Badge variant="outline" className="h-4 px-1 text-[10px] bg-purple-100 dark:bg-purple-800">
-                              Magic
-                            </Badge>
+                            {item.charges !== undefined ? (
+                              <Badge variant="outline" className={`h-4 px-1 text-[10px] ${
+                                item.charges <= 0 
+                                  ? 'bg-gray-200 dark:bg-gray-700 text-gray-500' 
+                                  : item.charges <= 2 
+                                  ? 'bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300'
+                                  : 'bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-300'
+                              }`}>
+                                {item.charges}/{item.maxCharges || '?'}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="h-4 px-1 text-[10px] bg-purple-100 dark:bg-purple-800">
+                                Magic
+                              </Badge>
+                            )}
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="left" className="max-w-xs">

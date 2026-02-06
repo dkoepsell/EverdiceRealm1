@@ -1629,6 +1629,9 @@ export const characterInventory = pgTable("character_inventory", {
   equipSlot: text("equip_slot"), // weapon, armor, shield, accessory
   // Quantity for stackable items
   quantity: integer("quantity").default(1),
+  // Charges for wands, staves, and other charged items
+  maxCharges: integer("max_charges"),
+  currentCharges: integer("current_charges"),
   // Value
   value: integer("value").default(0), // Gold value
   createdAt: text("created_at").notNull().default(new Date().toISOString()),

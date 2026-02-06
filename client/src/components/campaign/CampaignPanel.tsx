@@ -1126,15 +1126,22 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           const combat = data.progression.combatEffects;
           
           // Store detailed combat logs for display (with defensive checks)
+          // MERGE server logs with any existing player-initiated logs (wand/spell/weapon attacks)
+          // Player attacks are added to state BEFORE advanceStory fires, so we must preserve them
           if (combat.detailedCombatLogs && Array.isArray(combat.detailedCombatLogs) && combat.detailedCombatLogs.length > 0) {
-            // Filter and validate logs to ensure they have required fields
-            const validLogs = combat.detailedCombatLogs.filter((log: any) => 
+            const validServerLogs = combat.detailedCombatLogs.filter((log: any) => 
               log && log.attacker && log.target && log.attackRoll
             );
-            if (validLogs.length > 0) {
-              setDetailedCombatLogs(validLogs);
+            if (validServerLogs.length > 0) {
+              setDetailedCombatLogs(prev => {
+                const playerLogs = prev.filter(l => l.attackerType === 'player');
+                return [...playerLogs, ...validServerLogs];
+              });
               setShowCombatLogDialog(true);
             }
+          } else if (detailedCombatLogs.length > 0) {
+            // No server logs but we have player-initiated logs — show those
+            setShowCombatLogDialog(true);
           }
           
           if (combat.damageTaken > 0) {
@@ -1228,6 +1235,21 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         const isInCombat = data.storyState?.inCombat;
         if (hasPartyDamage || hasEnemyDamage || isInCombat) {
           queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/npcs`] });
+        }
+        
+        // Handle item charge updates (wands, staves, etc.)
+        if (data.chargeUpdate) {
+          const cu = data.chargeUpdate;
+          toast({
+            title: `✨ ${cu.itemName}`,
+            description: cu.currentCharges > 0 
+              ? `${cu.currentCharges}/${cu.maxCharges} charges remaining`
+              : `All charges spent! Regains charges at dawn.`,
+            variant: cu.currentCharges <= 0 ? "destructive" : undefined,
+          });
+          if (userParticipant?.characterId) {
+            queryClient.invalidateQueries({ queryKey: ['/api/characters', userParticipant.characterId, 'magical-inventory'] });
+          }
         }
         
         // Show progression toast
@@ -5811,7 +5833,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       )}
       
       {/* Detailed Combat Log Dialog - D&D Mechanics Transparency */}
-      <Dialog open={showCombatLogDialog} onOpenChange={setShowCombatLogDialog}>
+      <Dialog open={showCombatLogDialog} onOpenChange={(open) => {
+        setShowCombatLogDialog(open);
+        if (!open) setDetailedCombatLogs([]);
+      }}>
         <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">

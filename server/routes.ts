@@ -14489,6 +14489,44 @@ Respond with JSON:
         }
       }
       
+      // Decrement charges for wands/staves/charged items when used
+      let chargeUpdate: { itemId: number; itemName: string; currentCharges: number; maxCharges: number } | null = null;
+      if (rollResult?.type === 'magic_item' && rollResult?.itemName && character?.id) {
+        try {
+          const chargedItems = await db.execute(sql`
+            SELECT id, name, current_charges, max_charges 
+            FROM character_inventory 
+            WHERE character_id = ${character.id} 
+              AND LOWER(name) = LOWER(${rollResult.itemName})
+              AND current_charges IS NOT NULL 
+              AND current_charges > 0
+            LIMIT 1
+          `);
+          
+          if (chargedItems.rows && chargedItems.rows.length > 0) {
+            const item = chargedItems.rows[0] as any;
+            const newCharges = Math.max(0, (item.current_charges || 0) - 1);
+            
+            await db.execute(sql`
+              UPDATE character_inventory 
+              SET current_charges = ${newCharges}
+              WHERE id = ${item.id}
+            `);
+            
+            chargeUpdate = {
+              itemId: item.id,
+              itemName: item.name,
+              currentCharges: newCharges,
+              maxCharges: item.max_charges || 0
+            };
+            
+            console.log(`[Charges] ${item.name}: ${item.current_charges} -> ${newCharges} charges remaining`);
+          }
+        } catch (chargeErr) {
+          console.error('[Charges] Error decrementing charges:', chargeErr);
+        }
+      }
+      
       // Check for defeated enemies and award XP based on D&D 5e CR table
       // Also track combat completion for adventure progress
       let combatCompleted = false;
@@ -17160,7 +17198,9 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         totalChapters,
         isOnFinalChapter,
         // Campaign completion data (if campaign just finished)
-        campaignCompletion: campaignCompletionData
+        campaignCompletion: campaignCompletionData,
+        // Item charge update (wands, staves, etc.)
+        chargeUpdate: chargeUpdate
       });
     } catch (error: any) {
       console.error("Failed to advance story:", error);
