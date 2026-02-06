@@ -394,10 +394,10 @@ export default function CombatSpellPanel({
                           <Button
                             variant="ghost"
                             size="sm"
-                            className={`w-full justify-start h-7 text-xs px-2 ${
+                            className={`w-full justify-between h-8 text-xs px-2 ${
                               item.charges !== undefined && item.charges <= 0
                                 ? 'bg-gray-100 dark:bg-gray-800 opacity-50 cursor-not-allowed'
-                                : 'bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50'
+                                : 'bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 border border-purple-200 dark:border-purple-700'
                             }`}
                             onClick={() => {
                               if (item.charges !== undefined && item.charges <= 0) return;
@@ -405,24 +405,35 @@ export default function CombatSpellPanel({
                             }}
                             disabled={item.charges !== undefined && item.charges <= 0}
                           >
-                            <Wand2 className="h-3 w-3 mr-1.5 text-purple-500" />
-                            <span className="flex-1 text-left truncate">{item.name}</span>
-                            {DamageIcon && <DamageIcon className="h-3 w-3 text-red-500" />}
-                            {item.charges !== undefined ? (
-                              <Badge variant="outline" className={`h-4 px-1 text-[10px] ${
-                                item.charges <= 0 
-                                  ? 'bg-gray-200 dark:bg-gray-700 text-gray-500' 
-                                  : item.charges <= 2 
-                                  ? 'bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300'
-                                  : 'bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-300'
+                            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                              <Wand2 className="h-3 w-3 flex-shrink-0 text-purple-500" />
+                              <span className="text-left truncate">{item.name}</span>
+                              {DamageIcon && <DamageIcon className="h-3 w-3 flex-shrink-0 text-red-500" />}
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              {item.charges !== undefined ? (
+                                <Badge variant="outline" className={`h-4 px-1 text-[10px] ${
+                                  item.charges <= 0 
+                                    ? 'bg-gray-200 dark:bg-gray-700 text-gray-500' 
+                                    : item.charges <= 2 
+                                    ? 'bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300'
+                                    : 'bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-300'
+                                }`}>
+                                  {item.charges}/{item.maxCharges || '?'}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="h-4 px-1 text-[10px] bg-purple-100 dark:bg-purple-800">
+                                  Magic
+                                </Badge>
+                              )}
+                              <Badge className={`h-5 px-2 text-[10px] font-bold ${
+                                item.charges !== undefined && item.charges <= 0
+                                  ? 'bg-gray-400 text-gray-200'
+                                  : 'bg-purple-600 hover:bg-purple-700 text-white'
                               }`}>
-                                {item.charges}/{item.maxCharges || '?'}
+                                Use
                               </Badge>
-                            ) : (
-                              <Badge variant="outline" className="h-4 px-1 text-[10px] bg-purple-100 dark:bg-purple-800">
-                                Magic
-                              </Badge>
-                            )}
+                            </div>
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="left" className="max-w-xs">

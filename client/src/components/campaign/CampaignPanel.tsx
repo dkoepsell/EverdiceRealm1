@@ -3483,11 +3483,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   } else {
                                     // Other magic items use spell attack roll
                                     const spellAttackBonus = Math.floor((activeCharacter.level || 1) / 4) + 2 + Math.floor(((activeCharacter.intelligence || activeCharacter.wisdom || 10) - 10) / 2);
-                                    const attackResult = rollSpellAttack(spellAttackBonus, targetEnemy.ac || 10);
+                                    const attackResult = rollSpellAttack(spellAttackBonus);
+                                    const targetAC = targetEnemy.ac || 10;
+                                    const isHit = attackResult.total >= targetAC;
                                     
                                     let damageResult: SpellDamageResult | null = null;
-                                    if (attackResult.hit) {
-                                      damageResult = parseAndRollDice(damageDice, attackResult.critical, damageType);
+                                    if (isHit) {
+                                      damageResult = parseAndRollDice(damageDice, attackResult.isCritical, damageType);
                                     }
                                     
                                     const combatLog = {
@@ -3495,14 +3497,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                       attackerType: 'player',
                                       target: targetEnemy.name,
                                       targetType: 'enemy',
-                                      attackRoll: { roll: attackResult.roll, modifier: spellAttackBonus, total: attackResult.total, isCritical: attackResult.critical, isCriticalMiss: attackResult.roll === 1 },
-                                      targetAC: targetEnemy.ac || 10,
-                                      isHit: attackResult.hit,
+                                      attackRoll: { roll: attackResult.roll, modifier: spellAttackBonus, total: attackResult.total, isCritical: attackResult.isCritical, isCriticalMiss: attackResult.isCriticalMiss },
+                                      targetAC,
+                                      isHit,
                                       damage: damageResult,
-                                      description: attackResult.hit 
+                                      description: isHit 
                                         ? `${activeCharacter.name} uses ${item.name}! The attack strikes ${targetEnemy.name} for ${damageResult?.total || 0} ${damageType} damage!`
                                         : `${activeCharacter.name} uses ${item.name} but the attack misses ${targetEnemy.name}!`,
-                                      mechanicsBreakdown: `Spell Attack: d20(${attackResult.roll}) + ${spellAttackBonus} = ${attackResult.total} vs AC ${targetEnemy.ac || 10}${attackResult.hit && damageResult ? `. Damage: ${damageResult.diceRolls.join('+')}${damageResult.modifier ? `+${damageResult.modifier}` : ''} = ${damageResult.total}` : ''}`,
+                                      mechanicsBreakdown: `Spell Attack: d20(${attackResult.roll}) + ${spellAttackBonus} = ${attackResult.total} vs AC ${targetAC}${isHit && damageResult ? `. Damage: ${damageResult.diceRolls.join('+')}${damageResult.modifier ? `+${damageResult.modifier}` : ''} = ${damageResult.total}` : ''}`,
                                     };
                                     
                                     setDetailedCombatLogs(prev => [...prev, combatLog]);
@@ -3516,7 +3518,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                         attackRoll: attackResult,
                                         damage: damageResult,
                                         targetName: targetEnemy.name,
-                                        hit: attackResult.hit
+                                        hit: isHit
                                       }
                                     });
                                   }
@@ -3537,12 +3539,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 const enemies = (parsedStoryState?.combatants as any[] || []).filter(
                                   (c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated' && (c.currentHp > 0 || c.currentHp === undefined)
                                 );
-                                // Use selected target or fall back to first enemy
                                 const validIndex = selectedTargetIndex < enemies.length ? selectedTargetIndex : 0;
                                 const targetEnemy = enemies.length > 0 ? enemies[validIndex] : null;
                                 
-                                if (inCombat && targetEnemy && spell.damage) {
-                                  // Calculate spell attack or saving throw
+                                if (inCombat && targetEnemy && spell.damageDice) {
                                   const spellcastingAbility = ['Wizard'].includes(activeCharacter?.class || '') ? 'intelligence' : 
                                                              ['Cleric', 'Druid', 'Ranger'].includes(activeCharacter?.class || '') ? 'wisdom' : 
                                                              ['Sorcerer', 'Warlock', 'Bard', 'Paladin'].includes(activeCharacter?.class || '') ? 'charisma' : 'intelligence';
@@ -3551,23 +3551,24 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   const profBonus = Math.floor(((activeCharacter?.level || 1) - 1) / 4) + 2;
                                   const spellAttackBonus = abilityMod + profBonus;
                                   
-                                  // For attack spells
-                                  if (spell.attack_type === 'ranged' || spell.attack_type === 'melee') {
-                                    const attackResult = rollSpellAttack(spellAttackBonus, targetEnemy.ac || 10);
+                                  const isAttackSpell = spell.castingTime?.toLowerCase().includes('action') && spell.range?.toLowerCase() !== 'self';
+                                  
+                                  if (isAttackSpell) {
+                                    const attackResult = rollSpellAttack(spellAttackBonus);
+                                    const targetAC = targetEnemy.ac || 10;
+                                    const isHit = attackResult.total >= targetAC;
                                     
                                     let damageResult: SpellDamageResult | null = null;
-                                    if (attackResult.hit && spell.damage) {
-                                      // Scale damage by slot level if needed
-                                      let damageDice = spell.damage;
-                                      // Simple upcast: add 1d per level above base
+                                    if (isHit && spell.damageDice) {
+                                      let damageDice = spell.damageDice;
                                       if (slotLevel > spell.level) {
-                                        const diceMatch = spell.damage.match(/(\d+)d(\d+)/);
+                                        const diceMatch = spell.damageDice.match(/(\d+)d(\d+)/);
                                         if (diceMatch) {
                                           const extraDice = slotLevel - spell.level;
                                           damageDice = `${parseInt(diceMatch[1]) + extraDice}d${diceMatch[2]}`;
                                         }
                                       }
-                                      damageResult = parseAndRollDice(damageDice, attackResult.critical, spell.damage_type || 'magical');
+                                      damageResult = parseAndRollDice(damageDice, attackResult.isCritical, spell.damageType || 'magical');
                                     }
                                     
                                     const combatLog = {
@@ -3575,19 +3576,18 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                       attackerType: 'player',
                                       target: targetEnemy.name,
                                       targetType: 'enemy',
-                                      attackRoll: { roll: attackResult.roll, modifier: spellAttackBonus, total: attackResult.total, isCritical: attackResult.critical, isCriticalMiss: attackResult.roll === 1 },
-                                      targetAC: targetEnemy.ac || 10,
-                                      isHit: attackResult.hit,
+                                      attackRoll: { roll: attackResult.roll, modifier: spellAttackBonus, total: attackResult.total, isCritical: attackResult.isCritical, isCriticalMiss: attackResult.isCriticalMiss },
+                                      targetAC,
+                                      isHit,
                                       damage: damageResult,
-                                      description: attackResult.hit 
-                                        ? `${activeCharacter?.name} casts ${spell.name}! ${attackResult.critical ? 'CRITICAL HIT! ' : ''}The spell strikes ${targetEnemy.name} for ${damageResult?.total || 0} ${spell.damage_type || 'magical'} damage!`
+                                      description: isHit 
+                                        ? `${activeCharacter?.name} casts ${spell.name}! ${attackResult.isCritical ? 'CRITICAL HIT! ' : ''}The spell strikes ${targetEnemy.name} for ${damageResult?.total || 0} ${spell.damageType || 'magical'} damage!`
                                         : `${activeCharacter?.name} casts ${spell.name} but the spell misses ${targetEnemy.name}!`,
-                                      mechanicsBreakdown: `Spell Attack: d20(${attackResult.roll}) + ${spellAttackBonus} = ${attackResult.total} vs AC ${targetEnemy.ac || 10}${attackResult.hit && damageResult ? `. Damage: ${damageResult.diceRolls.join('+')}${damageResult.modifier ? `+${damageResult.modifier}` : ''}${attackResult.critical ? ' (doubled)' : ''} = ${damageResult.total}` : ''}`,
+                                      mechanicsBreakdown: `Spell Attack: d20(${attackResult.roll}) + ${spellAttackBonus} = ${attackResult.total} vs AC ${targetAC}${isHit && damageResult ? `. Damage: ${damageResult.diceRolls.join('+')}${damageResult.modifier ? `+${damageResult.modifier}` : ''}${attackResult.isCritical ? ' (doubled)' : ''} = ${damageResult.total}` : ''}`,
                                     };
                                     
                                     setDetailedCombatLogs(prev => [...prev, combatLog]);
                                     
-                                    // Advance story with spell cast
                                     advanceStory.mutate({
                                       choice: `Cast ${spell.name}`,
                                       rollResult: {
@@ -3597,12 +3597,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                         attackRoll: attackResult,
                                         damage: damageResult,
                                         targetName: targetEnemy.name,
-                                        hit: attackResult.hit
+                                        hit: isHit
                                       }
                                     });
                                   } else {
-                                    // For saving throw spells, just roll damage (enemy save handled by AI)
-                                    const damageResult = parseAndRollDice(spell.damage, false, spell.damage_type || 'magical');
+                                    const damageResult = parseAndRollDice(spell.damageDice, false, spell.damageType || 'magical');
                                     
                                     advanceStory.mutate({
                                       choice: `Cast ${spell.name}`,
@@ -3613,12 +3612,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                         damage: damageResult,
                                         targetName: targetEnemy.name,
                                         saveDC: 8 + profBonus + abilityMod,
-                                        saveType: spell.dc?.dc_type?.index || 'dexterity'
+                                        saveType: 'dexterity'
                                       }
                                     });
                                   }
-                                } else if (!spell.damage) {
-                                  // Utility spell (healing, buff, etc.)
+                                } else if (!spell.damageDice) {
                                   advanceStory.mutate({
                                     choice: `Cast ${spell.name}`,
                                     rollResult: {
