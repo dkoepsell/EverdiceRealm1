@@ -107,42 +107,49 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 
 // ============================================
-// SCENE SCHEMA v2 - ANTI-COMBAT-TREADMILL RULES
+// SCENE SCHEMA v2 - BALANCED ENCOUNTER RULES
 // ============================================
-// These constraints ensure varied scene types and prevent repetitive combat
+// These constraints ensure varied scene types with natural combat encounters
 
 const SCENE_GENERATION_CONSTRAINTS = `
 SCENE GENERATION CONSTRAINTS (FOLLOW STRICTLY):
 
-1. DO NOT generate combat as the default solution. Combat is expensive and world-altering.
+1. Combat is a NATURAL part of adventuring. Dangerous worlds have hostile creatures, bandits, monsters, and enemies. Don't shy away from combat — it keeps players on their toes and makes the world feel alive and dangerous.
 
-2. NEVER generate two Combat scenes in a row unless the player explicitly chooses violence.
+2. NEVER generate two Combat scenes in a row unless the player explicitly chooses violence or an ongoing battle continues.
 
-3. Every scene MUST have a goal that can be resolved WITHOUT violence. Include at least:
+3. Every scene SHOULD have multiple approaches. Include at least:
    - One Dialogue/Social option
    - One Investigation/Exploration option  
-   - One risky or forceful option (which may lead to combat as escalation)
+   - One bold or forceful option (which may involve combat)
+   Combat can also appear organically — ambushes, territorial creatures, hostile patrols, or monsters in lairs don't wait for player permission.
 
-4. Combat may appear ONLY as:
+4. Combat can appear as:
+   - A random encounter while traveling or exploring (bandits, wild creatures, hostile patrols)
+   - An ambush or surprise attack from enemies lurking nearby
+   - Territorial creatures defending their domain
+   - Enemies acting on their own agenda (raiding, hunting, guarding)
    - An escalation from failed checks or player aggression
-   - A consequence of failure (ambush, reinforcements)
-   - A deliberate player choice when other options existed
+   - A consequence of poor choices or failed stealth
+   - A deliberate player choice
 
 5. Scene types should vary. Prefer this distribution:
-   - Exploration (25%): Discover environments, find clues, uncover secrets
-   - Social (20%): Negotiate, persuade, gather information, roleplay
-   - Discovery (18%): Reveal lore, find treasures, learn about the world
+   - Exploration (22%): Discover environments, find clues, uncover secrets
+   - Social (18%): Negotiate, persuade, gather information, roleplay
+   - Combat (15%): Meaningful battles, random encounters, ambushes, monster lairs
+   - Discovery (15%): Reveal lore, find treasures, learn about the world
    - Travel (12%): Journey between locations, random encounters, atmosphere
    - Puzzle (10%): Solve riddles, navigate traps, overcome obstacles cleverly
    - Downtime (8%): Rest, craft, shop, personal character moments
-   - Combat (7%): Meaningful battles with stakes, not routine encounters
 
 6. When presenting choices:
-   - Frame combat as costly and dangerous ("Attack - risky, may alert others")
-   - Frame non-combat options as rewarding ("Investigate - learn valuable secrets")
+   - Include combat-forward options that feel exciting ("Draw your weapon and charge!", "Prepare for battle!")
+   - Frame non-combat options as equally valid ("Try to negotiate", "Sneak past undetected")
    - Ensure at least one option advances the story without fighting
+   - Sometimes the world forces combat — an ambush doesn't offer a dialogue option first
 
-7. Resolution modes beyond violence include:
+7. Resolution modes include:
+   - Combat: Direct confrontation, defensive fighting, tactical retreat
    - Dialogue: Persuasion, deception, intimidation, negotiation
    - Investigation: Perception, arcana, history, tracking clues
    - Ingenuity: Creative problem-solving, using environment, crafting solutions
@@ -13901,6 +13908,84 @@ ${detectedTheme === 'urban' ? '- Use city sounds, crowds, buildings, streets, so
         ? '\n\nIMPORTANT: The previous scene was Combat. This scene MUST be a different type (Exploration, Social, Discovery, Travel, Puzzle, or Downtime) unless the player explicitly initiates another fight.\n'
         : '';
       
+      // Track scenes since last combat for random encounter nudging
+      const sessionStoryState = (currentSession.storyState as any) || {};
+      const scenesSinceCombat = sessionStoryState.scenesSinceCombat ?? 0;
+      const shouldNudgeCombat = previousSceneType !== 'Combat' && scenesSinceCombat >= 4;
+      
+      // Build environment-aware random encounter suggestion when combat is overdue
+      let randomEncounterNudge = '';
+      if (shouldNudgeCombat) {
+        const encounterSuggestions: Record<string, string[]> = {
+          nautical: [
+            'A sea serpent surfaces near the ship, drawn by noise',
+            'Pirates spotted on the horizon — they\'re closing fast',
+            'Sahuagin raiders emerge from the waves and scale the hull',
+            'A kraken tentacle slams onto the deck without warning',
+            'Cursed sailors from a ghost ship board under cover of fog'
+          ],
+          forest: [
+            'Wolves surround the party, drawn by the scent of provisions',
+            'A band of goblins springs an ambush from the undergrowth',
+            'An owlbear crashes through the trees, fiercely territorial',
+            'Bandits block the forest path and demand payment',
+            'Giant spiders drop from the canopy above'
+          ],
+          undead: [
+            'Skeletons burst from the ground, reanimated by dark energy',
+            'A pack of ghouls emerges from a side passage',
+            'Shadows coalesce from the darkness and attack',
+            'A wight leading zombie servants blocks the corridor',
+            'Ghostly apparitions materialize and shriek in rage'
+          ],
+          desert: [
+            'Giant scorpions erupt from the sand beneath the party\'s feet',
+            'Gnoll raiders charge from behind a dune',
+            'A mummy lord\'s servants animate and attack intruders',
+            'Sand elementals whirl into form, blocking the path',
+            'A blue dragon swoops down from a rocky outcrop'
+          ],
+          mountain: [
+            'A cave troll charges from a crevice in the rock',
+            'Kobolds rain stones and javelins from above',
+            'A young wyvern dives from a cliff ledge',
+            'Frost-covered undead emerge from an icy cave',
+            'Giants hurl boulders from a ridge above the pass'
+          ],
+          urban: [
+            'A gang of thugs steps out from an alley, weapons drawn',
+            'An assassin strikes from the rooftops',
+            'Wererats pour from the sewers below',
+            'Corrupt guards corner the party on false charges',
+            'A doppelganger reveals its true form and attacks'
+          ],
+          dungeon: [
+            'An animated suit of armor lurches to life and attacks',
+            'A gelatinous cube slides silently around the corner',
+            'Goblin scouts sound the alarm and reinforcements arrive',
+            'A minotaur charges down the corridor with a bellowing roar',
+            'A mimic disguised as a treasure chest snaps at an unwary hand'
+          ]
+        };
+        
+        const themeEncounters = encounterSuggestions[detectedTheme] || encounterSuggestions.dungeon;
+        const suggestion = themeEncounters[Math.floor(Math.random() * themeEncounters.length)];
+        
+        randomEncounterNudge = `
+RANDOM ENCOUNTER ALERT — COMBAT IS OVERDUE:
+It has been ${scenesSinceCombat} scenes since the last combat. The world should feel dangerous!
+STRONGLY consider introducing a combat encounter this scene. This doesn't have to be the main plot — it can be a random but contextually appropriate threat.
+
+Suggested encounter for this ${detectedTheme} setting: "${suggestion}"
+
+You may use this suggestion or create your own — but it should feel natural for the environment. The encounter should:
+- Be appropriate to the party's level and the adventure's tone
+- Have a reason to exist (territorial creature, hostile patrol, lurking predator, etc.)
+- Still allow the player to react — describe the threat appearing and let the player choose how to respond
+- Set "inCombat": true and provide proper combatants in the storyState if combat begins
+`;
+      }
+      
       // Finale and chapter progress instructions
       const chapterProgressNote = `
 CAMPAIGN PROGRESS: Chapter ${currentChapter} of ${totalChapters}
@@ -13941,6 +14026,7 @@ ${finaleInstructions}
 
 ${SCENE_GENERATION_CONSTRAINTS}
 ${antiCombatRepeatNote}
+${randomEncounterNudge}
 
 ${SCENE_CHOICE_FRAMING}
 
@@ -13961,7 +14047,7 @@ DM PHILOSOPHY (CRITICAL - Follow these core principles):
 
 8. NPCs HAVE MOTIVATIONS: Every NPC wants something, even minor ones. The guard wants to finish their shift. The merchant wants to make a sale. This makes interactions feel real.
 
-9. COMBAT IS EXPENSIVE: Treat combat as narratively expensive and world-altering. Fights have consequences - noise attracts attention, blood leaves evidence, survivors spread word. Non-combat solutions often work better.
+9. COMBAT IS EXCITING: Combat should feel thrilling and dangerous. The world is full of threats — monsters roam the wilds, bandits patrol trade roads, and enemies lurk in dark places. Don't wait for the player to pick a fight; sometimes danger finds them. Fights have consequences — noise attracts attention, blood leaves evidence, and survivors spread word — which makes them dramatic and high-stakes.
 
 Continue this D&D story based on the player's choice and maintain story continuity.
 
@@ -15614,6 +15700,12 @@ Respond with JSON:
         }
       }
       
+      // Track scenes since last combat — reset to 0 when combat occurs, increment otherwise
+      const resolvedSceneType = storyAdvancement.sceneType || (storyAdvancement.storyState?.inCombat ? 'Combat' : null);
+      const newScenesSinceCombat = (resolvedSceneType === 'Combat' || storyAdvancement.storyState?.inCombat) 
+        ? 0 
+        : (scenesSinceCombat + 1);
+      
       const mergedStoryState = {
         ...storyAdvancement.storyState,
         combatants: preservedCombatants, // Use preserved combatants to prevent AI renaming
@@ -15624,6 +15716,7 @@ Respond with JSON:
         adventureRequirements: currentStoryState.adventureRequirements,
         movesWithoutStory: 0, // Reset moves counter after story advancement
         turnsInChapter, // Track turns for time-based chapter advancement
+        scenesSinceCombat: newScenesSinceCombat,
         lastMovement: movement?.occurred ? {
           direction: movement.direction,
           description: movement.description,
