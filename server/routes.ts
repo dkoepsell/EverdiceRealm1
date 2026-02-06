@@ -14597,13 +14597,13 @@ Respond with JSON:
       }
       
       // Decrement charges for wands/staves/charged items when used
-      let chargeUpdate: { itemId: number; itemName: string; currentCharges: number; maxCharges: number } | null = null;
-      if (rollResult?.type === 'magic_item' && rollResult?.itemName && character?.id) {
+      let chargeUpdate: { itemId: number; itemName: string; currentCharges: number; maxCharges: number; destroyed?: boolean } | null = null;
+      if (rollResult?.type === 'magic_item' && rollResult?.itemName && playerCharacter?.id) {
         try {
           const chargedItems = await db.execute(sql`
             SELECT id, name, current_charges, max_charges 
             FROM character_inventory 
-            WHERE character_id = ${character.id} 
+            WHERE character_id = ${playerCharacter.id} 
               AND LOWER(name) = LOWER(${rollResult.itemName})
               AND current_charges IS NOT NULL 
               AND current_charges > 0

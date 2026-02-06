@@ -3521,10 +3521,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                     });
                                   }
                                 } else {
-                                  // Out of combat use
-                                  toast({
-                                    title: `Using ${item.name}`,
-                                    description: item.specialEffect || `You activate the ${item.name}`,
+                                  // Out of combat use - still counts as a turn
+                                  advanceStory.mutate({
+                                    choice: `Use ${item.name} - ${item.specialEffect || 'activate the item'}`,
+                                    rollResult: {
+                                      type: 'magic_item',
+                                      itemName: item.name,
+                                    }
                                   });
                                 }
                               }}
@@ -4736,6 +4739,105 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 )}
                               </div>
                               <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                                {magicItem.special_effect && magicItem.max_charges > 0 && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 text-xs px-2 border-purple-400 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50"
+                                    disabled={advanceStory.isPending || (magicItem.current_charges !== null && magicItem.current_charges <= 0)}
+                                    onClick={() => {
+                                      const inCombat = parsedStoryState?.inCombat;
+                                      const enemies = (parsedStoryState?.combatants as any[] || []).filter(
+                                        (c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated' && (c.currentHp > 0 || c.currentHp === undefined)
+                                      );
+                                      const validIndex = selectedTargetIndex < enemies.length ? selectedTargetIndex : 0;
+                                      const targetEnemy = enemies.length > 0 ? enemies[validIndex] : null;
+                                      const damageDice = magicItem.damage_dice || (magicItem.special_effect?.match(/(\d+d\d+(?:\s*\+\s*\d+)?)/i)?.[1]) || '3d4+3';
+                                      const damageType = magicItem.damage_type || 'force';
+
+                                      if (inCombat && targetEnemy) {
+                                        const isMagicMissile = magicItem.name.toLowerCase().includes('magic missile');
+                                        if (isMagicMissile) {
+                                          const damageResult = parseAndRollDice(damageDice, false, damageType);
+                                          const combatLog = {
+                                            attacker: activeCharacter.name || 'Player',
+                                            attackerType: 'player',
+                                            target: targetEnemy.name,
+                                            targetType: 'enemy',
+                                            attackRoll: { roll: 0, modifier: 0, total: 0, isCritical: false, isCriticalMiss: false },
+                                            targetAC: targetEnemy.ac || 10,
+                                            isHit: true,
+                                            damage: damageResult,
+                                            description: `${activeCharacter.name} uses ${magicItem.name}! The magic missiles strike ${targetEnemy.name} for ${damageResult.total} ${damageType} damage!`,
+                                            mechanicsBreakdown: `Magic Missile (auto-hit): ${damageResult.diceRolls.join('+')} = ${damageResult.total} ${damageType} damage`,
+                                          };
+                                          setDetailedCombatLogs(prev => [...prev, combatLog]);
+                                          advanceStory.mutate({
+                                            choice: `Use ${magicItem.name}`,
+                                            rollResult: {
+                                              type: 'magic_item',
+                                              itemName: magicItem.name,
+                                              damage: damageResult,
+                                              targetName: targetEnemy.name,
+                                              autoHit: true
+                                            }
+                                          });
+                                        } else {
+                                          const spellAttackBonus = Math.floor((activeCharacter.level || 1) / 4) + 2 + Math.floor(((activeCharacter.intelligence || activeCharacter.wisdom || 10) - 10) / 2);
+                                          const attackResult = rollSpellAttack(spellAttackBonus);
+                                          const targetAC = targetEnemy.ac || 10;
+                                          const isHit = attackResult.total >= targetAC;
+                                          let damageResult: SpellDamageResult | null = null;
+                                          if (isHit) {
+                                            damageResult = parseAndRollDice(damageDice, attackResult.isCritical, damageType);
+                                          }
+                                          const combatLog = {
+                                            attacker: activeCharacter.name || 'Player',
+                                            attackerType: 'player',
+                                            target: targetEnemy.name,
+                                            targetType: 'enemy',
+                                            attackRoll: { roll: attackResult.roll, modifier: spellAttackBonus, total: attackResult.total, isCritical: attackResult.isCritical, isCriticalMiss: attackResult.isCriticalMiss },
+                                            targetAC,
+                                            isHit,
+                                            damage: damageResult,
+                                            description: isHit 
+                                              ? `${activeCharacter.name} uses ${magicItem.name}! The attack strikes ${targetEnemy.name} for ${damageResult?.total || 0} ${damageType} damage!`
+                                              : `${activeCharacter.name} uses ${magicItem.name} but the attack misses ${targetEnemy.name}!`,
+                                            mechanicsBreakdown: `Spell Attack: d20(${attackResult.roll}) + ${spellAttackBonus} = ${attackResult.total} vs AC ${targetAC}${isHit && damageResult ? `. Damage: ${damageResult.diceRolls.join('+')}${damageResult.modifier ? `+${damageResult.modifier}` : ''} = ${damageResult.total}` : ''}`,
+                                          };
+                                          setDetailedCombatLogs(prev => [...prev, combatLog]);
+                                          advanceStory.mutate({
+                                            choice: `Use ${magicItem.name}`,
+                                            rollResult: {
+                                              type: 'magic_item',
+                                              itemName: magicItem.name,
+                                              attackRoll: attackResult,
+                                              damage: damageResult,
+                                              targetName: targetEnemy.name,
+                                              hit: isHit
+                                            }
+                                          });
+                                        }
+                                      } else {
+                                        advanceStory.mutate({
+                                          choice: `Use ${magicItem.name} - ${magicItem.special_effect || 'activate the item'}`,
+                                          rollResult: {
+                                            type: 'magic_item',
+                                            itemName: magicItem.name,
+                                          }
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    <Sparkles className="h-3 w-3 mr-1" />
+                                    Use
+                                    {magicItem.current_charges !== null && magicItem.current_charges !== undefined && (
+                                      <span className={`ml-1 ${magicItem.current_charges <= 0 ? 'text-red-500' : magicItem.current_charges <= 2 ? 'text-amber-500' : ''}`}>
+                                        ({magicItem.current_charges}/{magicItem.max_charges})
+                                      </span>
+                                    )}
+                                  </Button>
+                                )}
                                 <Button
                                   size="sm"
                                   variant={magicItem.is_equipped ? "secondary" : "default"}
