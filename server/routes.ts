@@ -16147,8 +16147,10 @@ Respond with JSON:
           let detailedCombatLogs: CombatLogEntry[] = [];
           let enhancedPartyDamage: { name: string; damageTaken: number; newHp: number; maxHp: number; defeated: boolean; attackRoll?: any; targetAC?: number; mechanicsBreakdown?: string }[] = [];
           
-          // Declare companionCombatants outside the if block so it's accessible everywhere
+          // Declare variables outside combat block so they're accessible in re-save logic
           let companionCombatants: Combatant[] = [];
+          let isWeaponAttack = false;
+          let companionAttackResult: CombatTurnResult | null = null;
           
           // ALWAYS fetch companions when in combat (not just when combatEffects exists)
           // This ensures companion attacks are processed even if AI doesn't return combatEffects
@@ -16182,10 +16184,9 @@ Respond with JSON:
               };
             });
           
-          // Build enemy list from EXISTING session's storyState combatants (not AI response)
-          // This ensures consistency - we use the enemies that were already established
-          const existingStoryState = currentSession.storyState as any;
-          const storyEnemies = existingStoryState?.combatants || storyAdvancement.storyState?.combatants || [];
+          // Build enemy list from mergedStoryState combatants (which includes rollResult damage)
+          // This ensures we use the most up-to-date HP values after player attacks
+          const storyEnemies = mergedStoryState?.combatants || storyAdvancement.storyState?.combatants || [];
           const enemyCombatants: Combatant[] = storyEnemies
             .filter((e: any) => (e.type === 'enemy' || e.type === 'boss') && e.status !== 'defeated' && (e.currentHp > 0 || e.currentHp === undefined))
             .map((e: any, index: number) => ({
@@ -16265,8 +16266,79 @@ Respond with JSON:
               const combatResult = processEnemyAttacks(enemyCombatants, partyMembers);
               detailedCombatLogs = combatResult.logs;
               
+              // PLAYER WEAPON ATTACK: Process server-side when choice is a weapon attack
+              // Only triggers when: no rollResult damage (magic items/spells handle that),
+              // AI didn't already report enemy damage, and rollResult looks like an attack roll
+              const aiAlreadyReportedDamage = combatEffects?.enemyDamage?.length > 0;
+              isWeaponAttack = !rollResult?.damage && !rollResult?.type && 
+                !aiAlreadyReportedDamage &&
+                choice && /\b(attack|strike|slash|stab|swing)\b/i.test(choice) && 
+                enemyCombatants.length > 0;
+              
+              if (isWeaponAttack) {
+                // Find the target enemy from choice text or use the first active enemy
+                const activeEnemies = enemyCombatants.filter(e => e.status === 'conscious' && e.currentHp > 0);
+                if (activeEnemies.length > 0) {
+                  // Try to match enemy name from choice text
+                  let targetEnemy = activeEnemies.find(e => 
+                    choice.toLowerCase().includes(e.name.toLowerCase())
+                  ) || activeEnemies[0];
+                  
+                  const playerAttackResult = processPlayerAttack(playerCombatant, targetEnemy);
+                  detailedCombatLogs = [playerAttackResult.log, ...detailedCombatLogs];
+                  
+                  // Update enemy combatant with damage
+                  const targetIdx = enemyCombatants.findIndex(e => e.name === targetEnemy.name);
+                  if (targetIdx !== -1) {
+                    enemyCombatants[targetIdx] = playerAttackResult.updatedTarget;
+                  }
+                  
+                  // Add to combatEffects.enemyDamage and update mergedStoryState
+                  if (playerAttackResult.log.isHit && playerAttackResult.log.damage) {
+                    const dmg = playerAttackResult.log.damage;
+                    const updTarget = playerAttackResult.updatedTarget;
+                    
+                    if (!combatEffects) {
+                      storyAdvancement.combatEffects = { enemyDamage: [] };
+                    }
+                    const cePlayer = storyAdvancement.combatEffects || {};
+                    if (!cePlayer.enemyDamage) cePlayer.enemyDamage = [];
+                    
+                    const existingPlayerDmg = cePlayer.enemyDamage.find((e: any) => e.name === targetEnemy.name);
+                    if (existingPlayerDmg) {
+                      existingPlayerDmg.damageTaken = (existingPlayerDmg.damageTaken || 0) + dmg.total;
+                      existingPlayerDmg.newHp = updTarget.currentHp;
+                      existingPlayerDmg.defeated = updTarget.currentHp <= 0;
+                    } else {
+                      cePlayer.enemyDamage.push({
+                        name: targetEnemy.name,
+                        cr: (targetEnemy as any).cr || "1/4",
+                        damageTaken: dmg.total,
+                        newHp: updTarget.currentHp,
+                        maxHp: targetEnemy.maxHp,
+                        defeated: updTarget.currentHp <= 0
+                      });
+                    }
+                    storyAdvancement.combatEffects = cePlayer;
+                    
+                    // Update mergedStoryState combatants
+                    const mergedTarget = (mergedStoryState.combatants as any[])?.find((c: any) => c.name === targetEnemy.name);
+                    if (mergedTarget) {
+                      mergedTarget.currentHp = updTarget.currentHp;
+                      mergedTarget.status = updTarget.currentHp <= 0 ? 'defeated' : 
+                        updTarget.currentHp <= (targetEnemy.maxHp * 0.25) ? 'bloodied' :
+                        updTarget.currentHp <= (targetEnemy.maxHp * 0.5) ? 'wounded' : 'healthy';
+                    }
+                    
+                    console.log(`[Player Attack] ${playerCombatant.name} hits ${targetEnemy.name} for ${dmg.total} damage: HP ${targetEnemy.currentHp} -> ${updTarget.currentHp}`);
+                  } else {
+                    console.log(`[Player Attack] ${playerCombatant.name} misses ${targetEnemy.name}`);
+                  }
+                }
+              }
+              
               // Process companion attacks against enemies (companions auto-attack!)
-              const companionAttackResult = processCompanionAttacks(companionCombatants, enemyCombatants);
+              companionAttackResult = processCompanionAttacks(companionCombatants, enemyCombatants);
               
               // Merge companion attack logs into detailed combat logs
               detailedCombatLogs = [...detailedCombatLogs, ...companionAttackResult.logs];
@@ -16289,6 +16361,44 @@ Respond with JSON:
                   if (damageEntry.defeated) {
                     storyCombatant.defeated = true;
                   }
+                }
+                
+                // CRITICAL: Add companion damage to combatEffects.enemyDamage so it's included in response
+                if (!combatEffects) {
+                  storyAdvancement.combatEffects = { enemyDamage: [] };
+                }
+                const ce = storyAdvancement.combatEffects || {};
+                if (!ce.enemyDamage) ce.enemyDamage = [];
+                const existingEnemyEntry = ce.enemyDamage.find((e: any) => e.name === damageEntry.name);
+                if (existingEnemyEntry) {
+                  existingEnemyEntry.damageTaken = (existingEnemyEntry.damageTaken || 0) + damageEntry.damageTaken;
+                  existingEnemyEntry.newHp = damageEntry.newHp;
+                  existingEnemyEntry.defeated = damageEntry.defeated;
+                } else {
+                  ce.enemyDamage.push({
+                    name: damageEntry.name,
+                    cr: damageEntry.cr || "1/4",
+                    damageTaken: damageEntry.damageTaken,
+                    newHp: damageEntry.newHp,
+                    maxHp: damageEntry.maxHp,
+                    defeated: damageEntry.defeated
+                  });
+                }
+                storyAdvancement.combatEffects = ce;
+                
+                // CRITICAL: Update mergedStoryState.combatants with companion damage
+                // The session was already saved before combat processing, so we need to keep mergedStoryState in sync
+                const mergedCombatant = (mergedStoryState.combatants as any[])?.find((c: any) => c.name === damageEntry.name);
+                if (mergedCombatant) {
+                  mergedCombatant.currentHp = damageEntry.newHp;
+                  if (damageEntry.defeated) {
+                    mergedCombatant.status = 'defeated';
+                  } else {
+                    const maxHp = mergedCombatant.maxHp || 1;
+                    const hpRatio = damageEntry.newHp / maxHp;
+                    mergedCombatant.status = hpRatio <= 0.25 ? 'bloodied' : hpRatio <= 0.5 ? 'wounded' : 'healthy';
+                  }
+                  console.log(`[Companion Attack] Updated mergedStoryState for ${damageEntry.name}: HP -> ${damageEntry.newHp}, status: ${mergedCombatant.status}`);
                 }
               }
               
@@ -16334,6 +16444,37 @@ Respond with JSON:
                   });
                 }
               }
+            }
+            
+            // CRITICAL: Re-save session with updated combatant HP after combat processing
+            // The initial save at advanceSessionStory happened BEFORE combat processing,
+            // so companion/player damage to enemies was not persisted. Re-save now.
+            const hasCompanionDamage = companionAttackResult !== null && companionAttackResult.enemyDamageDealt.length > 0;
+            const hasPlayerWeaponDamage = isWeaponAttack && storyAdvancement.combatEffects?.enemyDamage?.some((e: any) => e.damageTaken > 0);
+            if (hasCompanionDamage || hasPlayerWeaponDamage) {
+              console.log(`[Combat Re-save] Re-saving session - companion damage: ${hasCompanionDamage}, player weapon damage: ${hasPlayerWeaponDamage}`);
+              // Filter out defeated enemies from mergedStoryState
+              const activeCombatants = (mergedStoryState.combatants as any[])?.filter(
+                (c: any) => c.status !== 'defeated' && (c.currentHp === undefined || c.currentHp > 0)
+              ) || [];
+              mergedStoryState.combatants = activeCombatants;
+              
+              // Check if all enemies defeated
+              const remainingEnemies = activeCombatants.filter((c: any) => c.type === 'enemy' || c.type === 'boss');
+              if (remainingEnemies.length === 0) {
+                mergedStoryState.inCombat = false;
+                console.log(`[Combat Re-save] All enemies defeated by companions - ending combat`);
+              }
+              
+              await storage.advanceSessionStory(campaignId, {
+                narrative: storyAdvancement.narrative,
+                dmNarrative: storyAdvancement.dmNarrative,
+                choices: updatedSession?.choices || storyAdvancement.choices || [],
+                storyState: mergedStoryState,
+                npcInteractions: storyAdvancement.npcInteractions,
+                sceneType: storyAdvancement.sceneType || (mergedStoryState?.inCombat ? 'Combat' : 'Exploration'),
+              });
+              console.log(`[Combat Re-save] Session re-saved with updated enemy HP`);
             }
             
             if (damageTaken > 0) {
