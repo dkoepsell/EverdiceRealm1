@@ -46,6 +46,15 @@ Campaigns have defined chapter structures (currentChapter/totalChapters) to prev
 - Response includes `campaignCompletion` data with epilogue, XP summary, and completion message
 - Chapter progress visible in advance-story response (currentChapter, totalChapters, isOnFinalChapter)
 
+### Crafting System
+The tavern workshop (Crafting tab) offers 25+ recipes spanning weapons, armor, potions, consumables, and ammunition. Each recipe specifies requiredLevel, requiredSkills (proficiency in Medicine/Arcana/etc.), requiredTools (Smith's Tools, Herbalism Kit, etc. must be in inventory), goldCost (consumed on attempt), and a craftingDC. Crafting rolls d20 + proficiency bonus (floor((level+7)/4)) vs DC. Success adds the item to equipment; failure consumes gold. Routes: GET /api/crafting/recipes, POST /api/crafting/craft. Recipes and logic live in `server/economyRoutes.ts`.
+
+### Expanded SRD Shop & Dynamic Pricing
+The tavern shop has 80+ items with accurate D&D 5e SRD pricing (e.g., club 0.1gp, musket 500gp, plate armor 1500gp). Server-side base prices in `server/economyEngine.ts` SHOP_ITEM_PRICES. syncMarketItemStats() on startup syncs all items to the market_item_stats table for demand-based dynamic pricing.
+
+### Player Market (Trading Post)
+Players can list ANY inventory item for sale, including equipped items. Listing an equipped item automatically unequips it. The UI shows an "[Equipped]" badge and warning message. Routes in `server/economyRoutes.ts`, page at `client/src/pages/trading-post.tsx`.
+
 ## External Dependencies
 
 ### Core
