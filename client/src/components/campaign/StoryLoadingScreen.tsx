@@ -101,7 +101,10 @@ export function StoryLoadingScreen({
             "{chosenAction}"
           </span>
           {phase === 'commit' && (
-            <span className="ml-auto text-xs text-green-400 font-medium">Locked in</span>
+            <span className="ml-auto text-xs text-green-400 font-medium animate-pulse">Preparing scene...</span>
+          )}
+          {phase === 'reveal' && (
+            <span className="ml-auto text-xs text-amber-400 font-medium">Full story loading...</span>
           )}
         </div>
       )}
@@ -111,6 +114,16 @@ export function StoryLoadingScreen({
           <p className="whitespace-pre-line text-lg leading-relaxed text-slate-100 font-medium" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>
             {revealText}
           </p>
+          <div className="mt-4 flex items-center gap-3 px-3 py-2.5 bg-amber-900/20 border border-amber-600/20 rounded-lg animate-in fade-in duration-700" style={{ animationDelay: '600ms', animationFillMode: 'both' }}>
+            <div className="flex gap-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+            <span className="text-sm text-amber-300/70 italic">
+              {elapsed > 8000 ? "Almost there — crafting your choices..." : "Weaving the full scene and your choices..."}
+            </span>
+          </div>
         </div>
       ) : showStream && streamedText ? (
         <div className="animate-in fade-in duration-300">
