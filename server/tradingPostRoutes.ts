@@ -445,9 +445,54 @@ export function registerTradingPostRoutes(app: Express) {
   app.post("/api/trading-post/items", isAuthenticated, async (req, res) => {
     try {
       const user = req.user!;
+      const { characterId, itemRaw, lore, tags } = req.body;
+
+      if (!characterId || itemRaw === undefined || itemRaw === null) {
+        return res.status(400).json({ message: "Character and item selection are required" });
+      }
+
+      const charResult = await db.execute(sql`SELECT * FROM characters WHERE id = ${characterId}`);
+      const character = charResult.rows[0] as any;
+
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      if (character.user_id !== user.id) {
+        return res.status(403).json({ message: "You don't own this character" });
+      }
+
+      let parsedItem: any;
+      if (typeof itemRaw === 'string') {
+        try {
+          parsedItem = JSON.parse(itemRaw);
+        } catch {
+          parsedItem = { name: itemRaw };
+        }
+      } else {
+        parsedItem = itemRaw;
+      }
+
+      const itemName = parsedItem.name || "Unknown Item";
+      const itemType = parsedItem.type || "weapon";
+      const rarity = parsedItem.rarity || "common";
+      const stats: Record<string, any> = {};
+      if (parsedItem.damageDice || parsedItem.damage) stats.damage = parsedItem.damageDice || parsedItem.damage;
+      if (parsedItem.damageType) stats.damageType = parsedItem.damageType;
+      if (parsedItem.baseAC || parsedItem.armor) stats.baseAC = parsedItem.baseAC || parsedItem.armor;
+      if (parsedItem.properties) stats.properties = parsedItem.properties;
+      if (parsedItem.magicBonus) stats.magicBonus = parsedItem.magicBonus;
+      if (parsedItem.specialEffect) stats.specialEffect = parsedItem.specialEffect;
+      const description = parsedItem.description || parsedItem.specialEffect || `A ${rarity} ${itemType} item.`;
+
       const body = {
-        ...req.body,
         authorId: user.id,
+        name: itemName,
+        description,
+        itemType,
+        rarity,
+        stats,
+        lore: lore || undefined,
+        tags: Array.isArray(tags) ? tags : [],
         status: "published",
         createdAt: new Date().toISOString(),
       };

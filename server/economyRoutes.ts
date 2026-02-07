@@ -188,7 +188,8 @@ export function registerEconomyRoutes(app: Express) {
       delete itemData.equipped;
 
       equipment.splice(idx, 1);
-      await db.execute(sql`UPDATE characters SET equipment = ${equipment}::text[] WHERE id = ${characterId}`);
+      const equipmentStrings = equipment.map((e: any) => typeof e === 'string' ? e : JSON.stringify(e));
+      await db.execute(sql`UPDATE characters SET equipment = ${equipmentStrings}::text[] WHERE id = ${characterId}`);
 
       const [listing] = await db
         .insert(playerListings)
@@ -254,7 +255,8 @@ export function registerEconomyRoutes(app: Express) {
 
       const buyerEquipment: any[] = buyer.equipment || [];
       buyerEquipment.push(JSON.stringify(listing.itemData));
-      await db.execute(sql`UPDATE characters SET equipment = ${buyerEquipment}::text[] WHERE id = ${characterId}`);
+      const buyerEquipStrings = buyerEquipment.map((e: any) => typeof e === 'string' ? e : JSON.stringify(e));
+      await db.execute(sql`UPDATE characters SET equipment = ${buyerEquipStrings}::text[] WHERE id = ${characterId}`);
 
       await db
         .update(playerListings)
@@ -301,7 +303,8 @@ export function registerEconomyRoutes(app: Express) {
       if (character) {
         const equipment: any[] = character.equipment || [];
         equipment.push(JSON.stringify(listing.itemData));
-        await db.execute(sql`UPDATE characters SET equipment = ${equipment}::text[] WHERE id = ${listing.characterId}`);
+        const cancelEquipStrings = equipment.map((e: any) => typeof e === 'string' ? e : JSON.stringify(e));
+        await db.execute(sql`UPDATE characters SET equipment = ${cancelEquipStrings}::text[] WHERE id = ${listing.characterId}`);
       }
 
       await db
@@ -392,7 +395,8 @@ export function registerEconomyRoutes(app: Express) {
       if (success) {
         const craftedItem = JSON.stringify(recipe.result);
         equipment.push(craftedItem);
-        await db.execute(sql`UPDATE characters SET equipment = ${equipment}::text[] WHERE id = ${characterId}`);
+        const craftEquipStrings = equipment.map((e: any) => typeof e === 'string' ? e : JSON.stringify(e));
+        await db.execute(sql`UPDATE characters SET equipment = ${craftEquipStrings}::text[] WHERE id = ${characterId}`);
       }
 
       res.json({

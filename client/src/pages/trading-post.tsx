@@ -109,16 +109,10 @@ export default function TradingPostPage() {
     coverImageUrl: "",
   });
 
-  const [newItem, setNewItem] = useState({
-    name: "",
-    description: "",
-    itemType: "weapon",
-    rarity: "common",
-    lore: "",
-    tags: "",
-    statKeys: ["damage"],
-    statValues: [""],
-  });
+  const [shareCharacterId, setShareCharacterId] = useState<number | null>(null);
+  const [shareSelectedItem, setShareSelectedItem] = useState<string>("");
+  const [shareLore, setShareLore] = useState("");
+  const [shareTags, setShareTags] = useState("");
 
   const [playerMarketSearch, setPlayerMarketSearch] = useState("");
   const [listItemDialogOpen, setListItemDialogOpen] = useState(false);
@@ -209,23 +203,12 @@ export default function TradingPostPage() {
   });
 
   const publishItemMutation = useMutation({
-    mutationFn: async (data: typeof newItem) => {
-      const stats: Record<string, string> = {};
-      data.statKeys.forEach((key, i) => {
-        if (key.trim() && data.statValues[i]?.trim()) {
-          stats[key.trim()] = data.statValues[i].trim();
-        }
-      });
+    mutationFn: async ({ characterId, itemRaw, lore, tags }: { characterId: number; itemRaw: string; lore: string; tags: string }) => {
       const payload = {
-        name: data.name,
-        description: data.description,
-        itemType: data.itemType,
-        rarity: data.rarity,
-        lore: data.lore || undefined,
-        stats,
-        tags: data.tags ? data.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
-        status: "published",
-        createdAt: new Date().toISOString(),
+        characterId,
+        itemRaw,
+        lore: lore || undefined,
+        tags: tags ? tags.split(",").map((t: string) => t.trim()).filter(Boolean) : [],
       };
       const response = await apiRequest("POST", "/api/trading-post/items", payload);
       return response.json();
@@ -233,11 +216,14 @@ export default function TradingPostPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/trading-post/items"] });
       setShowPublishItem(false);
-      setNewItem({ name: "", description: "", itemType: "weapon", rarity: "common", lore: "", tags: "", statKeys: ["damage"], statValues: [""] });
-      toast({ title: "Item Published!", description: "Your item is now available in the Trading Post." });
+      setShareCharacterId(null);
+      setShareSelectedItem("");
+      setShareLore("");
+      setShareTags("");
+      toast({ title: "Item Shared!", description: "Your item is now available in the Trading Post." });
     },
     onError: (error: any) => {
-      toast({ title: "Failed to publish", description: error.message || "Something went wrong", variant: "destructive" });
+      toast({ title: "Failed to share", description: error.message || "Something went wrong", variant: "destructive" });
     },
   });
 
@@ -1362,156 +1348,121 @@ export default function TradingPostPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Publish Item Dialog */}
-      <Dialog open={showPublishItem} onOpenChange={setShowPublishItem}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+      {/* Publish Item Dialog - Inventory Based */}
+      <Dialog open={showPublishItem} onOpenChange={(open) => {
+        setShowPublishItem(open);
+        if (!open) {
+          setShareCharacterId(null);
+          setShareSelectedItem("");
+          setShareLore("");
+          setShareTags("");
+        }
+      }}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-fantasy text-xl">Share an Item</DialogTitle>
+            <DialogTitle className="font-fantasy text-xl">Share an Item from Inventory</DialogTitle>
           </DialogHeader>
-          <ScrollArea className="flex-1 -mx-6 px-6">
-            <div className="space-y-4 pb-4">
-              <div className="space-y-2">
-                <Label>Name</Label>
-                <Input
-                  placeholder="Vorpal Blade of the Ancients..."
-                  value={newItem.name}
-                  onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Description</Label>
-                <Textarea
-                  placeholder="Describe the item's properties..."
-                  value={newItem.description}
-                  onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                  rows={3}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4">
+            {characters.length === 0 ? (
+              <p className="text-muted-foreground text-sm text-center py-4">You need a character with items to share.</p>
+            ) : (
+              <>
                 <div className="space-y-2">
-                  <Label>Item Type</Label>
-                  <Select value={newItem.itemType} onValueChange={(v) => setNewItem({ ...newItem, itemType: v })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="weapon">Weapon</SelectItem>
-                      <SelectItem value="armor">Armor</SelectItem>
-                      <SelectItem value="potion">Potion</SelectItem>
-                      <SelectItem value="wondrous">Wondrous</SelectItem>
-                      <SelectItem value="ring">Ring</SelectItem>
-                      <SelectItem value="wand">Wand</SelectItem>
-                      <SelectItem value="scroll">Scroll</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Rarity</Label>
-                  <Select value={newItem.rarity} onValueChange={(v) => setNewItem({ ...newItem, rarity: v })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="common">Common</SelectItem>
-                      <SelectItem value="uncommon">Uncommon</SelectItem>
-                      <SelectItem value="rare">Rare</SelectItem>
-                      <SelectItem value="very_rare">Very Rare</SelectItem>
-                      <SelectItem value="legendary">Legendary</SelectItem>
-                      <SelectItem value="artifact">Artifact</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center justify-between">
-                  Stats
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs"
-                    onClick={() => setNewItem({
-                      ...newItem,
-                      statKeys: [...newItem.statKeys, ""],
-                      statValues: [...newItem.statValues, ""],
-                    })}
+                  <Label>Character</Label>
+                  <Select
+                    value={shareCharacterId?.toString() || ""}
+                    onValueChange={(v) => {
+                      setShareCharacterId(parseInt(v));
+                      setShareSelectedItem("");
+                    }}
                   >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Add Stat
-                  </Button>
-                </Label>
-                <div className="space-y-2">
-                  {newItem.statKeys.map((key, i) => (
-                    <div key={i} className="flex gap-2">
-                      <Input
-                        placeholder="Stat name (e.g. damage)"
-                        value={key}
-                        onChange={(e) => {
-                          const keys = [...newItem.statKeys];
-                          keys[i] = e.target.value;
-                          setNewItem({ ...newItem, statKeys: keys });
-                        }}
-                        className="flex-1"
-                      />
-                      <Input
-                        placeholder="Value (e.g. 2d6+3)"
-                        value={newItem.statValues[i]}
-                        onChange={(e) => {
-                          const vals = [...newItem.statValues];
-                          vals[i] = e.target.value;
-                          setNewItem({ ...newItem, statValues: vals });
-                        }}
-                        className="flex-1"
-                      />
-                      {newItem.statKeys.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="shrink-0"
-                          onClick={() => {
-                            const keys = newItem.statKeys.filter((_, idx) => idx !== i);
-                            const vals = newItem.statValues.filter((_, idx) => idx !== i);
-                            setNewItem({ ...newItem, statKeys: keys, statValues: vals });
-                          }}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a character" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {characters.map((c: any) => (
+                        <SelectItem key={c.id} value={c.id.toString()}>
+                          {c.name} (Lv.{c.level || 1} {c.class})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Lore (optional)</Label>
-                <Textarea
-                  placeholder="The history and legends behind this item..."
-                  value={newItem.lore}
-                  onChange={(e) => setNewItem({ ...newItem, lore: e.target.value })}
-                  rows={2}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Tags (comma separated)</Label>
-                <Input
-                  placeholder="magical, cursed, legendary..."
-                  value={newItem.tags}
-                  onChange={(e) => setNewItem({ ...newItem, tags: e.target.value })}
-                />
-              </div>
-            </div>
-          </ScrollArea>
+                {shareCharacterId && (() => {
+                  const selectedChar = characters.find((c: any) => c.id === shareCharacterId);
+                  const equipmentItems: { name: string; index: number; raw: string; type?: string; rarity?: string }[] = [];
+                  if (selectedChar?.equipment) {
+                    selectedChar.equipment.forEach((item: string, idx: number) => {
+                      try {
+                        const parsed = JSON.parse(item);
+                        equipmentItems.push({ name: parsed.name || item, index: idx, raw: item, type: parsed.type, rarity: parsed.rarity });
+                      } catch {
+                        equipmentItems.push({ name: item, index: idx, raw: item });
+                      }
+                    });
+                  }
+                  return equipmentItems.length === 0 ? (
+                    <p className="text-muted-foreground text-sm text-center py-2">This character has no items in their inventory.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label>Item from Inventory</Label>
+                      <Select value={shareSelectedItem} onValueChange={setShareSelectedItem}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an item to share" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {equipmentItems.map((item) => (
+                            <SelectItem key={item.index} value={item.index.toString()}>
+                              {item.name}{item.rarity && item.rarity !== 'common' ? ` (${item.rarity})` : ''}{item.type ? ` - ${item.type}` : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                })()}
+                <div className="space-y-2">
+                  <Label>Lore (optional)</Label>
+                  <Textarea
+                    placeholder="The history and legends behind this item..."
+                    value={shareLore}
+                    onChange={(e) => setShareLore(e.target.value)}
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Tags (comma separated)</Label>
+                  <Input
+                    placeholder="magical, cursed, legendary..."
+                    value={shareTags}
+                    onChange={(e) => setShareTags(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+          </div>
           <DialogFooter className="pt-4 border-t border-slate-700/50">
             <Button variant="outline" onClick={() => setShowPublishItem(false)}>
               Cancel
             </Button>
             <Button
               className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600"
-              disabled={!newItem.name.trim() || !newItem.description.trim() || publishItemMutation.isPending}
-              onClick={() => publishItemMutation.mutate(newItem)}
+              disabled={!shareCharacterId || shareSelectedItem === "" || publishItemMutation.isPending}
+              onClick={() => {
+                if (!shareCharacterId || shareSelectedItem === "") return;
+                const selectedChar = characters.find((c: any) => c.id === shareCharacterId);
+                const idx = parseInt(shareSelectedItem);
+                const itemRaw = selectedChar?.equipment?.[idx] || "";
+                publishItemMutation.mutate({
+                  characterId: shareCharacterId,
+                  itemRaw,
+                  lore: shareLore,
+                  tags: shareTags,
+                });
+              }}
             >
               {publishItemMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Gem className="h-4 w-4 mr-2" />}
-              Publish Item
+              Share Item
             </Button>
           </DialogFooter>
         </DialogContent>
