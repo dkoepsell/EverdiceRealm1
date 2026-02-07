@@ -188,7 +188,7 @@ export function registerEconomyRoutes(app: Express) {
       delete itemData.equipped;
 
       equipment.splice(idx, 1);
-      await db.execute(sql`UPDATE characters SET equipment = ${JSON.stringify(equipment)}::jsonb WHERE id = ${characterId}`);
+      await db.execute(sql`UPDATE characters SET equipment = ${equipment}::text[] WHERE id = ${characterId}`);
 
       const [listing] = await db
         .insert(playerListings)
@@ -254,7 +254,7 @@ export function registerEconomyRoutes(app: Express) {
 
       const buyerEquipment: any[] = buyer.equipment || [];
       buyerEquipment.push(JSON.stringify(listing.itemData));
-      await db.execute(sql`UPDATE characters SET equipment = ${JSON.stringify(buyerEquipment)}::jsonb WHERE id = ${characterId}`);
+      await db.execute(sql`UPDATE characters SET equipment = ${buyerEquipment}::text[] WHERE id = ${characterId}`);
 
       await db
         .update(playerListings)
@@ -301,7 +301,7 @@ export function registerEconomyRoutes(app: Express) {
       if (character) {
         const equipment: any[] = character.equipment || [];
         equipment.push(JSON.stringify(listing.itemData));
-        await db.execute(sql`UPDATE characters SET equipment = ${JSON.stringify(equipment)}::jsonb WHERE id = ${listing.characterId}`);
+        await db.execute(sql`UPDATE characters SET equipment = ${equipment}::text[] WHERE id = ${listing.characterId}`);
       }
 
       await db
@@ -392,7 +392,7 @@ export function registerEconomyRoutes(app: Express) {
       if (success) {
         const craftedItem = JSON.stringify(recipe.result);
         equipment.push(craftedItem);
-        await db.execute(sql`UPDATE characters SET equipment = ${JSON.stringify(equipment)}::jsonb WHERE id = ${characterId}`);
+        await db.execute(sql`UPDATE characters SET equipment = ${equipment}::text[] WHERE id = ${characterId}`);
       }
 
       res.json({

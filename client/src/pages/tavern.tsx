@@ -694,6 +694,22 @@ function SRDShop({
     enabled: category === 'magicitems',
   });
 
+  const { data: economyPriceData } = useQuery<any>({
+    queryKey: ['/api/economy/prices'],
+    queryFn: async () => {
+      const res = await fetch('/api/economy/prices', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+  });
+
+  const srdPriceMap: Record<string, number> = {};
+  if (economyPriceData?.prices) {
+    for (const p of economyPriceData.prices) {
+      srdPriceMap[p.itemSlug] = p.finalPriceGold ?? p.basePrice ?? 10;
+    }
+  }
+
   const isLoading = weaponsLoading || armorLoading || magicItemsLoading;
 
   // Level requirements based on item type/rarity
@@ -720,7 +736,6 @@ function SRDShop({
     return 1;
   };
 
-  // Price calculation based on item type
   const getItemPrice = (item: any, itemCategory: string): number => {
     if (itemCategory === 'magicitems') {
       const rarity = (item.rarity || '').toLowerCase();
@@ -730,15 +745,18 @@ function SRDShop({
       if (rarity.includes('uncommon')) return 400;
       return 100;
     }
-    // Parse cost string like "75 gp" or "10 sp"
+    const slug = item.slug || item.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    if (slug && srdPriceMap[slug] !== undefined) {
+      return srdPriceMap[slug];
+    }
     const costStr = item.cost || '';
-    const match = costStr.match(/(\d+)\s*(gp|sp|cp)/i);
+    const match = costStr.match(/([\d.]+)\s*(gp|sp|cp)/i);
     if (match) {
-      const value = parseInt(match[1]);
+      const value = parseFloat(match[1]);
       const unit = match[2].toLowerCase();
       if (unit === 'gp') return value;
-      if (unit === 'sp') return Math.ceil(value / 10);
-      if (unit === 'cp') return Math.ceil(value / 100);
+      if (unit === 'sp') return Math.max(1, Math.ceil(value / 10));
+      if (unit === 'cp') return Math.max(1, Math.ceil(value / 100));
     }
     return 10;
   };
