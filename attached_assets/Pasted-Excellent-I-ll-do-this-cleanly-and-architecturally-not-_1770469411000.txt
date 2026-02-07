@@ -1,0 +1,373 @@
+Excellent. I’ll do this cleanly and *architecturally*, not as a rewrite of prose scenes.
+
+Below are **two deliverables**:
+
+1. **The Silent Shadows, converted into the corrected CAML structure** (stakes-driven, irreversible, legible).
+2. **A CAML Authoring Checklist for DMs** that can be handed to a human DM *or* encoded as preflight validation for Everdice.
+
+I’ll keep this tight but complete.
+
+---
+
+# PART I — *THE SILENT SHADOWS* (STRUCTURAL CONVERSION)
+
+This is not a new adventure. This is *your* adventure with its latent structure made explicit.
+
+---
+
+## Campaign Spine (Made Explicit)
+
+```yaml
+id: ADV_everdice_the_silent_shadows
+type: Adventure
+tone: mythic-forest
+themes:
+  - warding and neglect
+  - stewardship vs decay
+  - power without memory
+
+campaignQuestion:
+  text: >
+    What is failing beneath Eldermoor, who is responsible for maintaining it,
+    and what breaks if the wards are restored, repurposed, or ignored?
+```
+
+This question is *already present* in your content. We are just naming it.
+
+---
+
+## STAKES (Extracted From Existing Play)
+
+These are already implicit. Now they are tracked.
+
+```yaml
+stakes:
+  wardIntegrity:
+    value: 3
+    max: 5
+    description: "Structural soundness of ancient protections"
+
+  spiritAlignment:
+    value: 2
+    max: 5
+    description: "Disposition of forest spirits toward mortals"
+
+  subterraneanPressure:
+    value: 1
+    max: 5
+    description: "Magical instability beneath the land"
+
+  settlementAnxiety:
+    value: 2
+    max: 5
+    description: "Fear and unrest in Eldermoor"
+```
+
+---
+
+## CHAPTER 1 — *Whispers Beneath the Boughs* (Reframed)
+
+### What This Chapter Is *About*
+
+> Discovering that the forest’s silence is maintained, not natural.
+
+### Entry
+
+```yaml
+entry:
+  location: eldermoor.outskirts
+```
+
+### Key Encounters (Condensed)
+
+* Maren & Gideon
+* Guardian at the oak
+* Forest Spirit
+
+### Structural Choice (Already Happened, Now Formalized)
+
+```yaml
+choice:
+  id: placate_guardian
+  methods:
+    - gift
+    - diplomacy
+    - magic
+  effect:
+    stakes:
+      spiritAlignment: +1
+      wardIntegrity: -1
+  consequence:
+    text: >
+      The guardian relaxes. The ward weakens slightly.
+```
+
+Alternative (not taken but now explicit):
+
+```yaml
+choice:
+  id: force_passage
+  effect:
+    stakes:
+      wardIntegrity: -2
+      settlementAnxiety: +1
+```
+
+### Chapter Advance Condition
+
+```yaml
+exitCondition:
+  reveal: "The guardians are intentional, not accidental"
+```
+
+```yaml
+chapterAdvanced:
+  reason: "Player learns the forest is actively warded"
+```
+
+---
+
+## CHAPTER 2 — *Echoes of the Enshrouded Glade*
+
+### What This Chapter Is *About*
+
+> Learning that the wards are failing due to neglect, not malice.
+
+### New Mechanics Introduced
+
+```yaml
+rule:
+  magicalOveruse:
+    trigger: repeated wand use
+    effect:
+      stakes:
+        subterraneanPressure: +1
+```
+
+This retroactively explains your wand spam problem.
+
+### Key Choice (Formalized)
+
+```yaml
+choice:
+  id: consult_darian
+  cost:
+    socialCapital: 1
+  reward:
+    knowledge: "Purpose of the sarcophagi"
+```
+
+Repeated questioning now *costs something*.
+
+### Combat Reframed
+
+```yaml
+combat:
+  id: goblin_incursion
+  cause: wardIntegrity <= 2
+  resolution:
+    effect:
+      stakes:
+        settlementAnxiety: -1
+        wardIntegrity: -1
+```
+
+Winning still worsens the deeper problem.
+
+---
+
+## CHAPTER 3 — *Veil of the Forgotten Sanctuary*
+
+### What This Chapter Is *About*
+
+> Discovering the original binders and their failure.
+
+### Revelation
+
+```yaml
+reveal:
+  text: >
+    The wards require continual ritual maintenance.
+    No one has fulfilled this role for generations.
+```
+
+### Irreversible Information
+
+```yaml
+flag:
+  id: binderRoleDiscovered
+  irreversible: true
+```
+
+This prevents later “ignorance-based” choices.
+
+---
+
+## CHAPTER 4 — *Veins of Starlight in Shadowed Earth*
+
+### What This Chapter Is *About*
+
+> The system is now unstable, regardless of intent.
+
+### Wyvern Encounter (Reframed)
+
+```yaml
+combat:
+  id: wyvern_emergence
+  trigger: subterraneanPressure >= 3
+  outcome:
+    forcedAdvance: true
+```
+
+The wyvern is not “a fight”. It is a symptom.
+
+### Stakes Shift
+
+```yaml
+stakes:
+  subterraneanPressure: +1
+  wardIntegrity: -1
+```
+
+---
+
+## CHAPTER 5 — *Echoes of Ember’s Shadow* (NOW THE PIVOT)
+
+### Final Choice (This Was Missing Before)
+
+```yaml
+choice:
+  id: fate_of_the_wards
+  irreversible: true
+  options:
+    - restore_wards
+    - rebind_differently
+    - let_system_fail
+```
+
+### Outcomes
+
+```yaml
+finalState:
+  restore_wards:
+    wardIntegrity: locked
+    spiritAlignment: +1
+    cost: "Permanent ritual obligation"
+
+  rebind_differently:
+    wardIntegrity: 2
+    newGuardian: pc.bound
+    cost: "Character scar / legacy"
+
+  let_system_fail:
+    wardIntegrity: 0
+    newBiome: "Ash-Glen"
+    settlementAnxiety: +3
+```
+
+Now *The Silent Shadows* actually ends **about something**.
+
+---
+
+# PART II — CAML AUTHORING CHECKLIST FOR DMs
+
+This is the thing you can laminate, ship, or encode.
+
+---
+
+## CAML DM AUTHORING CHECKLIST (PRE-FLIGHT)
+
+### 1. Campaign Spine
+
+* [ ] Can you state the campaign question in **one sentence**?
+* [ ] Does every chapter move that question forward?
+
+If not, cut content.
+
+---
+
+### 2. Stakes
+
+* [ ] Are there **2–4 stakes only**?
+* [ ] Can each go up *and* down?
+* [ ] Does every major action touch at least one stake?
+
+If an action touches none, it is flavor only.
+
+---
+
+### 3. Choices
+
+* [ ] Does every choice **cost**, **close**, or **escalate**?
+* [ ] Can any choice be repeated safely?
+
+  * If yes, redesign or remove it.
+
+“No cost” = “no choice”.
+
+---
+
+### 4. Combat
+
+* [ ] What stake caused this combat?
+* [ ] What gets worse even if the party wins?
+* [ ] Can the party avoid this fight by making a different commitment earlier?
+
+Combat should be consequence, not content.
+
+---
+
+### 5. Chapters
+
+* [ ] What belief changes in this chapter?
+* [ ] What truth becomes irreversible?
+* [ ] Why does the chapter end *now*?
+
+Never advance chapters due to time spent.
+
+---
+
+### 6. Rewards
+
+* [ ] Is XP awarded per **resolution**, not per action?
+* [ ] Do items change future choices, not just numbers?
+* [ ] Does power increase pressure somewhere else?
+
+Power without cost breaks tension.
+
+---
+
+### 7. Logging & CAML Trace
+
+* [ ] Did you log *why* a chapter advanced?
+* [ ] Did you log *why* XP was awarded?
+* [ ] Are foreclosed options explicitly recorded?
+
+Future-you is a user too.
+
+---
+
+## Final Assessment
+
+What you’ve done here is important:
+
+* *The Silent Shadows* already had a **moral structure**
+* It just wasn’t **formalized**
+* CAML is the right language to make that structure visible
+
+With this conversion, your campaigns stop being:
+
+> “A long series of cool things”
+
+And become:
+
+> “A system the players are morally and narratively entangled with”
+
+If you want next, I can:
+
+* Turn this checklist into a **CAML linter**
+* Write a **DM Trust Manifesto** aligned to these rules
+* Add a **Normative Residue** layer that persists across campaigns
+* Or convert another Everdice adventure as a second test case
+
+You’re no longer fixing bugs. You’re defining a genre.
