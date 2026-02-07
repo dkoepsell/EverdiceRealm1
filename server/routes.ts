@@ -212,66 +212,66 @@ async function improviseDoctrine(campaign: any): Promise<{ campaignQuestion: str
 
   const stakeTemplates: Record<string, { stakes: any[]; questionTemplate: string }> = {
     undead: {
-      questionTemplate: `What ancient wrong unleashed the dead, and what must be sacrificed to end it?`,
+      questionTemplate: `Should the veil between life and death be restored, exploited, or accepted as broken — and who pays the price of each answer?`,
       stakes: [
-        { id: "veil_integrity", name: "Veil Between Life and Death", value: 3, max: 5, description: "The barrier keeping the dead at rest", worsensWhen: ["Disturbing burial sites", "Using necromantic artifacts", "Ignoring growing undead threats"], improvesWhen: ["Consecrating defiled ground", "Discovering the source of corruption", "Allying with ancestral spirits"] },
-        { id: "survivor_hope", name: "Survivor Hope", value: 3, max: 5, description: "The living's will to resist the darkness", worsensWhen: ["Failing to protect innocents", "Losing key allies", "Spreading fear"], improvesWhen: ["Rescuing survivors", "Defeating major undead", "Restoring safe havens"] },
+        { id: "veil_integrity", name: "Veil Between Life and Death", value: 3, max: 5, description: "The barrier keeping the dead at rest", passiveDrift: -1, driftReason: "The veil frays further each day without active intervention", worsensWhen: ["Disturbing burial sites", "Using necromantic artifacts", "Ignoring growing undead threats"], improvesWhen: ["Consecrating defiled ground", "Discovering the source of corruption", "Allying with ancestral spirits"], thresholdConsequence: { at0: { event: "The veil collapses — the dead walk freely and cannot be put down by ordinary means", irreversible: true, forksTo: "world_of_walking_dead" }, at5: { event: "The veil is sealed so tightly that resurrection magic fails permanently", irreversible: true, forksTo: "no_resurrection_world" } } },
+        { id: "survivor_hope", name: "Survivor Hope", value: 3, max: 5, description: "The living's will to resist the darkness", passiveDrift: -1, driftReason: "Without visible victories, despair spreads", worsensWhen: ["Failing to protect innocents", "Losing key allies", "Spreading fear"], improvesWhen: ["Rescuing survivors", "Defeating major undead", "Restoring safe havens"], thresholdConsequence: { at0: { event: "Survivors abandon the region — the land is ceded to the dead", irreversible: true, forksTo: "abandoned_homeland" }, at5: { event: "A militia forms and begins aggressive purges, including of anything 'unnatural' — including friendly magic users", irreversible: false, forksTo: "zealot_militia" } } },
       ]
     },
     wilderness: {
-      questionTemplate: `What ancient balance in the wilds has been broken, and what will the restoration cost?`,
+      questionTemplate: `Must civilization retreat, adapt, or dominate the wilds — and what is lost in each choice?`,
       stakes: [
-        { id: "natural_balance", name: "Natural Balance", value: 3, max: 5, description: "The harmony between civilization and the wild", worsensWhen: ["Destroying natural sites", "Siding with exploiters", "Ignoring corruption in the land"], improvesWhen: ["Healing blighted areas", "Allying with nature guardians", "Finding sustainable solutions"] },
-        { id: "community_survival", name: "Community Survival", value: 3, max: 5, description: "Whether the people can coexist with the wilds", worsensWhen: ["Abandoning settlements", "Provoking territorial beasts", "Resource depletion"], improvesWhen: ["Establishing peace with wildlife", "Strengthening defenses", "Sharing resources wisely"] },
+        { id: "natural_balance", name: "Natural Balance", value: 3, max: 5, description: "The harmony between civilization and the wild", passiveDrift: -1, driftReason: "Unchecked expansion tips the balance further", worsensWhen: ["Destroying natural sites", "Siding with exploiters", "Ignoring corruption in the land"], improvesWhen: ["Healing blighted areas", "Allying with nature guardians", "Finding sustainable solutions"], thresholdConsequence: { at0: { event: "The wilds awaken and strike back — settlements are overrun by awakened beasts and hostile fey", irreversible: true, forksTo: "nature_reclaims" }, at5: { event: "Nature is fully pacified but the land loses its magic — no more druidic power, fey vanish", irreversible: true, forksTo: "dead_magic_zone" } } },
+        { id: "community_survival", name: "Community Survival", value: 3, max: 5, description: "Whether the people can coexist with the wilds", passiveDrift: -1, driftReason: "Food runs short and fear grows without active solutions", worsensWhen: ["Abandoning settlements", "Provoking territorial beasts", "Resource depletion"], improvesWhen: ["Establishing peace with wildlife", "Strengthening defenses", "Sharing resources wisely"], thresholdConsequence: { at0: { event: "The community collapses — refugees scatter and the settlement is lost", irreversible: true, forksTo: "diaspora" }, at5: { event: "The fortress-community thrives but becomes isolationist and hostile to outsiders", irreversible: false, forksTo: "fortress_mentality" } } },
       ]
     },
     political: {
-      questionTemplate: `Who deserves to rule, what cost comes with power, and what fractures when loyalty is tested?`,
+      questionTemplate: `Should the old order be preserved, reformed, or overthrown — and what injustice does each answer require?`,
       stakes: [
-        { id: "political_stability", name: "Political Stability", value: 3, max: 5, description: "The realm's ability to hold together under pressure", worsensWhen: ["Betraying political allies", "Ignoring faction demands", "Public failures of leadership"], improvesWhen: ["Forging alliances", "Resolving disputes diplomatically", "Exposing true enemies"] },
-        { id: "public_trust", name: "Public Trust", value: 3, max: 5, description: "How much the common people trust those in power", worsensWhen: ["Breaking promises to the people", "Collateral damage from conflicts", "Cover-ups exposed"], improvesWhen: ["Delivering justice", "Protecting the vulnerable", "Transparent decisions"] },
+        { id: "political_stability", name: "Political Stability", value: 3, max: 5, description: "The realm's ability to hold together under pressure", passiveDrift: -1, driftReason: "Factions maneuver and tensions simmer without mediation", worsensWhen: ["Betraying political allies", "Ignoring faction demands", "Public failures of leadership"], improvesWhen: ["Forging alliances", "Resolving disputes diplomatically", "Exposing true enemies"], thresholdConsequence: { at0: { event: "Civil war erupts — the realm fractures into hostile territories", irreversible: true, forksTo: "civil_war" }, at5: { event: "A single faction seizes total control — stability at the cost of freedom", irreversible: true, forksTo: "authoritarian_peace" } } },
+        { id: "public_trust", name: "Public Trust", value: 3, max: 5, description: "How much the common people trust those in power", passiveDrift: -1, driftReason: "Rumors and unmet promises erode trust each day", worsensWhen: ["Breaking promises to the people", "Collateral damage from conflicts", "Cover-ups exposed"], improvesWhen: ["Delivering justice", "Protecting the vulnerable", "Transparent decisions"], thresholdConsequence: { at0: { event: "The people revolt — mobs storm the seats of power and justice becomes vigilante", irreversible: true, forksTo: "popular_revolt" }, at5: { event: "Blind trust enables corruption — advisors exploit the people's faith", irreversible: false, forksTo: "exploited_trust" } } },
       ]
     },
     arcane: {
-      questionTemplate: `What forbidden knowledge is being sought, and what price does understanding demand?`,
+      questionTemplate: `Should forbidden knowledge be destroyed, contained, or used — and who decides what's 'forbidden'?`,
       stakes: [
-        { id: "arcane_stability", name: "Arcane Stability", value: 3, max: 5, description: "The stability of magical forces in the region", worsensWhen: ["Reckless spellcasting", "Tampering with wards", "Using forbidden magic"], improvesWhen: ["Restoring magical barriers", "Containing wild magic", "Learning ancient safeguards"] },
-        { id: "knowledge_cost", name: "Price of Knowledge", value: 2, max: 5, description: "How much has been sacrificed in pursuit of understanding", worsensWhen: ["Pushing past warnings", "Ignoring the cost on others", "Choosing power over wisdom"], improvesWhen: ["Accepting limitations", "Sharing discoveries", "Protecting the uninitiated"] },
+        { id: "arcane_stability", name: "Arcane Stability", value: 3, max: 5, description: "The stability of magical forces in the region", passiveDrift: -1, driftReason: "Unstable magic bleeds further into the world without containment", worsensWhen: ["Reckless spellcasting", "Tampering with wards", "Using forbidden magic"], improvesWhen: ["Restoring magical barriers", "Containing wild magic", "Learning ancient safeguards"], thresholdConsequence: { at0: { event: "A wild magic catastrophe reshapes the landscape — spells become unpredictable everywhere", irreversible: true, forksTo: "wild_magic_zone" }, at5: { event: "Magic is locked down so tightly that casting requires institutional approval — mage guilds become tyrannical", irreversible: true, forksTo: "magic_police_state" } } },
+        { id: "knowledge_cost", name: "Price of Knowledge", value: 2, max: 5, description: "How much has been sacrificed in pursuit of understanding", passiveDrift: 0, driftReason: "Knowledge sought stays sought", worsensWhen: ["Pushing past warnings", "Ignoring the cost on others", "Choosing power over wisdom"], improvesWhen: ["Accepting limitations", "Sharing discoveries", "Protecting the uninitiated"], thresholdConsequence: { at0: { event: "The secret is lost forever — sealed by those who paid too much to learn it", irreversible: true, forksTo: "sealed_knowledge" }, at5: { event: "The knowledge transforms its wielder — power corrupts absolutely", irreversible: true, forksTo: "corruption_of_power" } } },
       ]
     },
     heist: {
-      questionTemplate: `What are you really stealing — and from whom does it truly belong?`,
+      questionTemplate: `Is this job worth what it will cost your crew, your principles, and the people caught in the crossfire?`,
       stakes: [
-        { id: "crew_loyalty", name: "Crew Loyalty", value: 3, max: 5, description: "How much the team trusts each other under pressure", worsensWhen: ["Double-crossing allies", "Hoarding loot", "Leaving someone behind"], improvesWhen: ["Sharing risks equally", "Keeping promises under pressure", "Sacrificing for the team"] },
-        { id: "heat_level", name: "Heat Level", value: 2, max: 5, description: "How close the authorities are to catching you", worsensWhen: ["Leaving evidence", "Drawing public attention", "Betraying informants"], improvesWhen: ["Clean getaways", "Planting false trails", "Buying silence"] },
+        { id: "crew_loyalty", name: "Crew Loyalty", value: 3, max: 5, description: "How much the team trusts each other under pressure", passiveDrift: -1, driftReason: "Stress and temptation erode trust without active maintenance", worsensWhen: ["Double-crossing allies", "Hoarding loot", "Leaving someone behind"], improvesWhen: ["Sharing risks equally", "Keeping promises under pressure", "Sacrificing for the team"], thresholdConsequence: { at0: { event: "The crew fractures — someone sells out to the opposition", irreversible: true, forksTo: "betrayed_by_crew" }, at5: { event: "Fanatical loyalty — the crew follows into clearly suicidal plans without question", irreversible: false, forksTo: "blind_loyalty" } } },
+        { id: "heat_level", name: "Heat Level", value: 2, max: 5, description: "How close the authorities are to catching you", passiveDrift: 1, driftReason: "Investigations continue whether you act or not", worsensWhen: ["Leaving evidence", "Drawing public attention", "Betraying informants"], improvesWhen: ["Clean getaways", "Planting false trails", "Buying silence"], thresholdConsequence: { at0: { event: "You're completely off the radar — but so is your reputation; no one will hire you", irreversible: false, forksTo: "ghost_crew" }, at5: { event: "Manhunt — the full weight of the law descends, safe houses are burned, allies arrested", irreversible: true, forksTo: "manhunt" } } },
       ]
     },
     horror: {
-      questionTemplate: `What creeping dread threatens to consume everything — and is it already too late?`,
+      questionTemplate: `Can the horror be stopped, or only survived — and what must you become to endure it?`,
       stakes: [
-        { id: "sanity_grip", name: "Grip on Reality", value: 3, max: 5, description: "The party's mental resilience against the horror", worsensWhen: ["Witnessing traumatic events", "Using cursed items", "Isolation from allies"], improvesWhen: ["Finding moments of hope", "Understanding the threat", "Supporting each other"] },
-        { id: "corruption_spread", name: "Corruption Spread", value: 2, max: 5, description: "How far the darkness has reached", worsensWhen: ["Delay or inaction", "Spreading fear", "Failed containment"], improvesWhen: ["Destroying sources of corruption", "Saving the afflicted", "Sealing breaches"] },
+        { id: "sanity_grip", name: "Grip on Reality", value: 3, max: 5, description: "The party's mental resilience against the horror", passiveDrift: -1, driftReason: "Proximity to the horror erodes sanity even in safety", worsensWhen: ["Witnessing traumatic events", "Using cursed items", "Isolation from allies"], improvesWhen: ["Finding moments of hope", "Understanding the threat", "Supporting each other"], thresholdConsequence: { at0: { event: "Madness claims a party member — they become an unreliable narrator, and reality bends", irreversible: true, forksTo: "fractured_reality" }, at5: { event: "Perfect clarity — but the truth is so terrible that sharing it breaks others", irreversible: false, forksTo: "terrible_knowledge" } } },
+        { id: "corruption_spread", name: "Corruption Spread", value: 2, max: 5, description: "How far the darkness has reached", passiveDrift: 1, driftReason: "The corruption spreads whether you fight it or not", worsensWhen: ["Delay or inaction", "Spreading fear", "Failed containment"], improvesWhen: ["Destroying sources of corruption", "Saving the afflicted", "Sealing breaches"], thresholdConsequence: { at0: { event: "Corruption contained but the sealed zone is permanently lost — a dead zone on the map", irreversible: true, forksTo: "quarantine_zone" }, at5: { event: "The corruption is everywhere — no safe ground remains, survival becomes the only goal", irreversible: true, forksTo: "total_corruption" } } },
       ]
     },
     nautical: {
-      questionTemplate: `What lies beyond the horizon, and what must be left behind to reach it?`,
+      questionTemplate: `What matters more — the destination, the crew, or what you left behind — and you can't save all three?`,
       stakes: [
-        { id: "crew_morale", name: "Crew Morale", value: 3, max: 5, description: "The ship's company's will to continue the voyage", worsensWhen: ["Rationing supplies harshly", "Losing crew members", "Bad omens ignored"], improvesWhen: ["Successful raids or trades", "Shore leave", "Fair leadership"] },
-        { id: "ship_integrity", name: "Ship Integrity", value: 3, max: 5, description: "The vessel's ability to survive what's coming", worsensWhen: ["Storms weathered poorly", "Combat damage", "Neglecting repairs"], improvesWhen: ["Skilled repairs", "Finding safe harbor", "Acquiring better equipment"] },
+        { id: "crew_morale", name: "Crew Morale", value: 3, max: 5, description: "The ship's company's will to continue the voyage", passiveDrift: -1, driftReason: "Every day at sea without progress saps the will", worsensWhen: ["Rationing supplies harshly", "Losing crew members", "Bad omens ignored"], improvesWhen: ["Successful raids or trades", "Shore leave", "Fair leadership"], thresholdConsequence: { at0: { event: "Mutiny — the crew seizes the ship and you must negotiate or fight for command", irreversible: true, forksTo: "mutiny" }, at5: { event: "The crew is blindly devoted — they ignore danger signs and push into suicidal waters", irreversible: false, forksTo: "fanatical_crew" } } },
+        { id: "ship_integrity", name: "Ship Integrity", value: 3, max: 5, description: "The vessel's ability to survive what's coming", passiveDrift: -1, driftReason: "The sea takes its toll on every vessel", worsensWhen: ["Storms weathered poorly", "Combat damage", "Neglecting repairs"], improvesWhen: ["Skilled repairs", "Finding safe harbor", "Acquiring better equipment"], thresholdConsequence: { at0: { event: "The ship is lost — you're stranded, adrift, or marooned on unknown shores", irreversible: true, forksTo: "shipwrecked" }, at5: { event: "The ship is legendary — but it attracts hunters, pirates, and those who covet it", irreversible: false, forksTo: "hunted_vessel" } } },
       ]
     },
     divine: {
-      questionTemplate: `What does faith demand, and what happens when devotion and morality conflict?`,
+      questionTemplate: `When faith demands cruelty and mercy demands heresy, which do you choose — and can you live with either?`,
       stakes: [
-        { id: "divine_favor", name: "Divine Favor", value: 3, max: 5, description: "The deity's attention and support", worsensWhen: ["Acting against the faith's tenets", "Doubting openly", "Allying with enemies of the faith"], improvesWhen: ["Acts of devotion", "Converting others", "Self-sacrifice for the cause"] },
-        { id: "mortal_cost", name: "Mortal Cost", value: 2, max: 5, description: "The toll on ordinary people caught in divine plans", worsensWhen: ["Collateral damage from holy wars", "Ignoring suffering", "Fanaticism"], improvesWhen: ["Protecting innocents", "Finding merciful solutions", "Questioning harmful doctrine"] },
+        { id: "divine_favor", name: "Divine Favor", value: 3, max: 5, description: "The deity's attention and support", passiveDrift: -1, driftReason: "Gods grow distant when not actively served", worsensWhen: ["Acting against the faith's tenets", "Doubting openly", "Allying with enemies of the faith"], improvesWhen: ["Acts of devotion", "Converting others", "Self-sacrifice for the cause"], thresholdConsequence: { at0: { event: "Abandoned by the divine — holy powers fail, and a rival faith fills the void", irreversible: true, forksTo: "divine_abandonment" }, at5: { event: "Chosen instrument — the deity's will overrides free choice, you become a vessel", irreversible: true, forksTo: "divine_puppet" } } },
+        { id: "mortal_cost", name: "Mortal Cost", value: 2, max: 5, description: "The toll on ordinary people caught in divine plans", passiveDrift: 1, driftReason: "Holy conflicts always claim innocent lives", worsensWhen: ["Collateral damage from holy wars", "Ignoring suffering", "Fanaticism"], improvesWhen: ["Protecting innocents", "Finding merciful solutions", "Questioning harmful doctrine"], thresholdConsequence: { at0: { event: "The people are spared but the divine mission fails — was mercy worth the cost?", irreversible: true, forksTo: "mercy_over_mission" }, at5: { event: "The crusade succeeds but the people are broken — a hollow victory over ashes", irreversible: true, forksTo: "pyrrhic_crusade" } } },
       ]
     },
     exploration: {
-      questionTemplate: `What was lost in these forgotten places, and should it be found — or left buried?`,
+      questionTemplate: `Should what sleeps in these ruins be awakened, preserved, or destroyed — and who has the right to decide?`,
       stakes: [
-        { id: "discovery_progress", name: "Discovery Progress", value: 2, max: 5, description: "How much of the mystery has been uncovered", worsensWhen: ["Missing clues", "Triggering traps", "Destroying evidence"], improvesWhen: ["Solving puzzles", "Finding hidden passages", "Deciphering ancient texts"] },
-        { id: "expedition_safety", name: "Expedition Safety", value: 3, max: 5, description: "How safe the party remains in dangerous territory", worsensWhen: ["Splitting the party", "Ignoring warnings", "Exhausting resources"], improvesWhen: ["Careful preparation", "Finding allies underground", "Securing rest areas"] },
+        { id: "discovery_progress", name: "Discovery Progress", value: 2, max: 5, description: "How much of the mystery has been uncovered", passiveDrift: 0, driftReason: "Mysteries wait but don't solve themselves", worsensWhen: ["Missing clues", "Triggering traps", "Destroying evidence"], improvesWhen: ["Solving puzzles", "Finding hidden passages", "Deciphering ancient texts"], thresholdConsequence: { at0: { event: "The mystery is sealed forever — the ruins collapse or seal, taking their secrets with them", irreversible: true, forksTo: "mystery_lost" }, at5: { event: "The full truth is revealed — but it's dangerous knowledge that others will kill for", irreversible: true, forksTo: "dangerous_truth" } } },
+        { id: "expedition_safety", name: "Expedition Safety", value: 3, max: 5, description: "How safe the party remains in dangerous territory", passiveDrift: -1, driftReason: "The deeper you go, the more the ruins resist", worsensWhen: ["Splitting the party", "Ignoring warnings", "Exhausting resources"], improvesWhen: ["Careful preparation", "Finding allies underground", "Securing rest areas"], thresholdConsequence: { at0: { event: "The expedition is lost — survivors must choose between pressing on alone or retreating empty-handed", irreversible: true, forksTo: "lost_expedition" }, at5: { event: "Overconfidence — the party pushes into a trap that exploits their feeling of invincibility", irreversible: false, forksTo: "hubris_trap" } } },
       ]
     },
   };
@@ -315,6 +315,54 @@ async function improviseDoctrine(campaign: any): Promise<{ campaignQuestion: str
   }
 
   return { campaignQuestion, campaignStakes, chapterGates };
+}
+
+function applyStakePassiveDrift(stakes: any[]): { updatedStakes: any[]; driftLog: string[]; thresholdEvents: any[] } {
+  const driftLog: string[] = [];
+  const thresholdEvents: any[] = [];
+  const updatedStakes = stakes.map((s: any) => {
+    const drift = s.passiveDrift || 0;
+    if (drift === 0) return s;
+    
+    const oldValue = s.value;
+    const newValue = Math.max(0, Math.min(s.max || 5, oldValue + drift));
+    if (newValue === oldValue) return s;
+    
+    driftLog.push(`PASSIVE DRIFT: ${s.name} [${s.id}] ${drift > 0 ? '+' : ''}${drift} (${oldValue}→${newValue}/${s.max}) — ${s.driftReason || 'world pressure'}`);
+    
+    const updated = { ...s, value: newValue };
+    
+    if (s.thresholdConsequence) {
+      if (newValue === 0 && oldValue > 0 && s.thresholdConsequence.at0) {
+        const tc = s.thresholdConsequence.at0;
+        thresholdEvents.push({
+          stakeId: s.id,
+          stakeName: s.name,
+          threshold: 0,
+          event: tc.event,
+          irreversible: tc.irreversible || false,
+          forksTo: tc.forksTo || null
+        });
+        driftLog.push(`THRESHOLD BREACHED (0): ${s.name} — ${tc.event}${tc.irreversible ? ' [IRREVERSIBLE]' : ''}`);
+      }
+      if (newValue >= (s.max || 5) && oldValue < (s.max || 5) && s.thresholdConsequence.at5) {
+        const tc = s.thresholdConsequence.at5;
+        thresholdEvents.push({
+          stakeId: s.id,
+          stakeName: s.name,
+          threshold: s.max || 5,
+          event: tc.event,
+          irreversible: tc.irreversible || false,
+          forksTo: tc.forksTo || null
+        });
+        driftLog.push(`THRESHOLD BREACHED (max): ${s.name} — ${tc.event}${tc.irreversible ? ' [IRREVERSIBLE]' : ''}`);
+      }
+    }
+    
+    return updated;
+  });
+  
+  return { updatedStakes, driftLog, thresholdEvents };
 }
 
 async function recordTrace(
@@ -5587,10 +5635,22 @@ Return your response as a JSON object with these fields:
       
       if (campaignStakes.length > 0) {
         campaignSpineContext += `\nCAMPAIGN STAKES (2-4 stakes, 0-5 range — EVERY choice must touch at least one):\n`;
+        campaignSpineContext += `NOTE: Stakes have PASSIVE DRIFT — the world deteriorates each scene automatically. Player must ACTIVELY work to counter drift.\n`;
         campaignSpineContext += campaignStakes.map((s: any) => {
           let line = `- ${s.name} [${s.id}]: ${s.value}/${s.max} — ${s.description}`;
-          if (s.value <= 1) line += ` [CRITICAL LOW — consequences imminent]`;
-          else if (s.value >= 4) line += ` [HIGH — threshold approaching]`;
+          if (s.passiveDrift && s.passiveDrift !== 0) {
+            line += ` [DRIFTS ${s.passiveDrift > 0 ? '+' : ''}${s.passiveDrift}/scene: ${s.driftReason || 'world pressure'}]`;
+          }
+          if (s.value <= 1 && s.thresholdConsequence?.at0) {
+            line += `\n  ⚠ CRITICAL LOW — if this reaches 0: ${s.thresholdConsequence.at0.event}${s.thresholdConsequence.at0.irreversible ? ' [IRREVERSIBLE]' : ''}`;
+          } else if (s.value <= 1) {
+            line += ` [CRITICAL LOW — consequences imminent]`;
+          }
+          if (s.value >= 4 && s.thresholdConsequence?.at5) {
+            line += `\n  ⚠ HIGH — if this reaches ${s.max || 5}: ${s.thresholdConsequence.at5.event}${s.thresholdConsequence.at5.irreversible ? ' [IRREVERSIBLE]' : ''}`;
+          } else if (s.value >= 4) {
+            line += ` [HIGH — threshold approaching]`;
+          }
           line += `\n  Worsens when: ${(s.worsensWhen || []).join(', ')}`;
           line += `\n  Improves when: ${(s.improvesWhen || []).join(', ')}`;
           return line;
@@ -5838,6 +5898,24 @@ DM AUTHORING DOCTRINE - THESE OVERRIDE ALL OTHER RULES:
    - Even winning combat must worsen at least one stake or pressure meter
    - Combat is NEVER the safest option — it always costs something
    - Test: "What gets worse even if they win this fight?" If nothing, remove the fight
+
+0C2. VICTORY IS INCOMPLETE:
+   - Winning a fight must answer: What pressure increased? What opportunity closed? What new problem exists now?
+   - There is no "clean" victory — every resolution creates a new complication or cost
+   - Defeating an enemy should transfer their problems to the party (their debts, their secrets, their enemies)
+   - Test: "After winning, is the situation simply better?" If yes, add a cost or complication
+
+0C3. NPCs ARE AGENTS, NOT VENDING MACHINES:
+   - NPCs have limited patience — each consultation costs something (time, favor, information shared)
+   - Repeated asking reduces NPC attitude by 5-10 per query beyond the first on the same topic
+   - NPCs have their own agendas — helping the party should advance or compromise their own goals
+   - Key NPCs should occasionally REFUSE to help, demand payment, or provide misleading information based on their interests
+   - "Ask until solved" is BANNED — if a player keeps asking the same NPC, that NPC becomes suspicious, annoyed, or exploitative
+
+0C4. PROCESSES CREATE NEW PROBLEMS:
+   - Every completed process (quest, ritual, combat) must leave at least one new problem in its wake
+   - Include "processConsequence" thinking: What broke? What transferred? What was revealed? What cost was deferred?
+   - The world is never simply "fixed" — every fix shifts the problem somewhere else
 
 0D. CHAPTER GATES ARE MEANING-BASED:
    - Chapters advance when: a belief changes, a truth is learned, or a commitment is made
@@ -6350,6 +6428,22 @@ Return your response as a JSON object with these fields:
             }
           }
           
+          // DM AUTHORING DOCTRINE: Apply passive drift (world deteriorates each scene)
+          const { updatedStakes: driftedStakes, driftLog, thresholdEvents } = applyStakePassiveDrift(updatedCampaignStakes);
+          if (driftLog.length > 0) {
+            updatedCampaignStakes = driftedStakes;
+            stateWasUpdated = true;
+            driftLog.forEach(log => console.log(log));
+          }
+          
+          // DM AUTHORING DOCTRINE: Inject threshold events into narrative context for next scene
+          if (thresholdEvents.length > 0) {
+            const thresholdNarrative = thresholdEvents.map((te: any) => 
+              `[THRESHOLD EVENT: ${te.stakeName} hit ${te.threshold} — ${te.event}${te.irreversible ? ' (PERMANENT)' : ''}]`
+            ).join('\n');
+            console.log(`THRESHOLD EVENTS TRIGGERED:\n${thresholdNarrative}`);
+          }
+          
           // DM AUTHORING DOCTRINE: Append narrative log entry
           let updatedNarrativeLog = [...((campaign as any).narrativeLog || [])];
           if (storyData.narrativeLogEntry) {
@@ -6357,7 +6451,8 @@ Return your response as a JSON object with these fields:
               ...storyData.narrativeLogEntry,
               chapter: campaign.currentSession || 1,
               scene: updatedNarrativeLog.length + 1,
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toISOString(),
+              thresholdEvents: thresholdEvents.length > 0 ? thresholdEvents : undefined
             };
             updatedNarrativeLog.push(logEntry);
             stateWasUpdated = true;
@@ -14545,11 +14640,22 @@ You may use this suggestion or create your own — but it should feel natural fo
         campaignDoctrineNote += `\nCAMPAIGN QUESTION: ${advanceCampaignQuestion}\n`;
       }
       if (advanceCampaignStakes.length > 0) {
-        campaignDoctrineNote += `\nCAMPAIGN STAKES (every choice MUST touch at least one):\n`;
+        campaignDoctrineNote += `\nCAMPAIGN STAKES (every choice MUST touch at least one — stakes PASSIVELY DRIFT each scene):\n`;
         campaignDoctrineNote += advanceCampaignStakes.map((s: any) => {
           let line = `- ${s.name} [${s.id}]: ${s.value}/${s.max}`;
-          if (s.value <= 1) line += ` [CRITICAL]`;
-          else if (s.value >= 4) line += ` [HIGH]`;
+          if (s.passiveDrift && s.passiveDrift !== 0) {
+            line += ` [DRIFTS ${s.passiveDrift > 0 ? '+' : ''}${s.passiveDrift}/scene]`;
+          }
+          if (s.value <= 1 && s.thresholdConsequence?.at0) {
+            line += ` [CRITICAL — at 0: ${s.thresholdConsequence.at0.event}${s.thresholdConsequence.at0.irreversible ? ' IRREVERSIBLE' : ''}]`;
+          } else if (s.value <= 1) {
+            line += ` [CRITICAL]`;
+          }
+          if (s.value >= 4 && s.thresholdConsequence?.at5) {
+            line += ` [HIGH — at ${s.max || 5}: ${s.thresholdConsequence.at5.event}${s.thresholdConsequence.at5.irreversible ? ' IRREVERSIBLE' : ''}]`;
+          } else if (s.value >= 4) {
+            line += ` [HIGH]`;
+          }
           return line;
         }).join("\n");
       }
@@ -14566,6 +14672,9 @@ DM AUTHORING DOCTRINE (MANDATORY):
 - Every choice must COST, CLOSE, or ESCALATE something. No free actions.
 - Every choice must touch at least one campaign stake. Include "campaignStakeUpdates" in stateChanges.
 - Combat is consequence, not content. What gets worse even if they win?
+- VICTORY IS INCOMPLETE: Winning must answer — what pressure increased, what opportunity closed, what new problem exists?
+- NPCs ARE AGENTS: Consulting costs something (time, favor, info). Repeated asking drops attitude. "Ask until solved" is BANNED.
+- PROCESSES CREATE NEW PROBLEMS: Every completed quest/ritual/combat leaves at least one new problem in its wake.
 - Chapter advances by meaning (truth learned, belief changed, commitment made), NOT by time elapsed.
 - If the chapter gate condition is met, include "chapterGateMet" in your response.
 - Include "narrativeLogEntry" with: xpReason, stakeReason, foreclosedReason, choiceCost.
@@ -14577,26 +14686,56 @@ CAMPAIGN PROGRESS: Chapter ${currentChapter} of ${totalChapters}
 ${campaignDoctrineNote}
 `;
       
+      // Build forked ending context from stake states
+      let stakeEndingContext = '';
+      if (isOnFinalChapter && advanceCampaignStakes.length > 0) {
+        const endingForks = advanceCampaignStakes.map((s: any) => {
+          const tc = s.thresholdConsequence;
+          if (!tc) return null;
+          let forkDesc = `- ${s.name} [${s.id}] is at ${s.value}/${s.max}`;
+          if (s.value <= 1 && tc.at0) forkDesc += ` → NEAR COLLAPSE: ${tc.at0.event} (fork: ${tc.at0.forksTo})${tc.at0.irreversible ? ' [PERMANENT]' : ''}`;
+          else if (s.value >= 4 && tc.at5) forkDesc += ` → NEAR PEAK: ${tc.at5.event} (fork: ${tc.at5.forksTo})${tc.at5.irreversible ? ' [PERMANENT]' : ''}`;
+          else {
+            forkDesc += ` → If it falls to 0: ${tc.at0?.event || 'catastrophe'}. If it rises to max: ${tc.at5?.event || 'extreme consequence'}.`;
+          }
+          return forkDesc;
+        }).filter(Boolean).join('\n');
+        
+        if (endingForks) {
+          stakeEndingContext = `
+STAKE-DRIVEN ENDINGS — the campaign question must be ANSWERED differently based on where stakes landed:
+${endingForks}
+
+The ending is NOT "win or lose" — it is "which world did your choices create?"
+Different stake states produce DIFFERENT endings. Reflect accumulated consequences.`;
+        }
+      }
+      
       const finaleInstructions = isOnFinalChapter ? `
 ═══════════════════════════════════════════════════════════════════════════════
-FINAL CHAPTER - DRIVE TOWARD CONCLUSION
+FINAL CHAPTER - DRIVE TOWARD FORKED CONCLUSION
 ═══════════════════════════════════════════════════════════════════════════════
 This is the FINAL CHAPTER of the campaign. You MUST:
 1. Drive the narrative toward a satisfying CONCLUSION - no new plot threads
 2. Resolve the main campaign conflict within the next 2-3 story beats
-3. Include one of these finale choice options if appropriate:
-   - "Confront [final boss/antagonist]" 
-   - "Complete the final objective"
-   - "Make the decisive choice that ends this chapter"
-4. When the climax is resolved, include "isCampaignFinale": true in your response
-5. Provide closure for active quests - mark them completed or failed
-6. Set up an epilogue moment showing the consequences of the adventure
-7. Do NOT start new subplots, introduce new mysteries, or extend the story
+3. The ending must ANSWER THE CAMPAIGN QUESTION — not just "defeat the villain"
+4. Present 3-4 finale choices that represent DIFFERENT ANSWERS to the campaign question:
+   - Each choice should produce a fundamentally different world state
+   - No choice should be "the right answer" — each has genuine costs and benefits
+   - At least one choice should involve sacrifice, and another should involve compromise
+5. When the climax is resolved, include "isCampaignFinale": true in your response
+6. Include "endingType" in your response: a short descriptor of which fork was chosen (e.g., "sealed_gate", "controlled_power", "pyrrhic_victory")
+7. Provide closure for active quests - mark them completed or failed
+8. The epilogue must show CONSEQUENCES — not just "and everyone was happy"
+   - What was gained? What was lost forever? What new tension was created?
+9. Do NOT start new subplots, introduce new mysteries, or extend the story
+${stakeEndingContext}
 
-The player deserves a clear, triumphant (or tragic) ending - not an endless story.
-If they defeat the final challenge, respond with:
-- A satisfying narrative conclusion
+The player deserves a clear, meaningful ending — triumphant, tragic, or bittersweet based on their accumulated choices.
+If they resolve the final challenge, respond with:
+- A narrative conclusion that reflects stake states and accumulated decisions
 - "isCampaignFinale": true
+- "endingType": descriptor of the fork chosen
 - Final rewards and XP
 ═══════════════════════════════════════════════════════════════════════════════
 ` : '';
@@ -17898,8 +18037,8 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         let doctrineChanged = false;
         
         // Apply campaign stake updates
+        let currentCampaignStakes = [...((campaign as any).campaignStakes || [])];
         if (storyAdvancement.campaignStakeUpdates && Array.isArray(storyAdvancement.campaignStakeUpdates)) {
-          const currentCampaignStakes = [...((campaign as any).campaignStakes || [])];
           for (const update of storyAdvancement.campaignStakeUpdates) {
             const stakeIndex = currentCampaignStakes.findIndex((s: any) => s.id === update.id);
             if (stakeIndex >= 0) {
@@ -17909,8 +18048,24 @@ Choices should include 4 options with at least 2 requiring dice rolls.
               console.log(`DOCTRINE STAKE (main): ${update.id} ${update.delta > 0 ? '+' : ''}${update.delta} (now ${newValue}/${stake.max}) — ${update.reason}`);
             }
           }
-          doctrineUpdates.campaignStakes = currentCampaignStakes;
           doctrineChanged = true;
+        }
+        
+        // Apply passive drift (world deteriorates each scene)
+        const { updatedStakes: mainDriftedStakes, driftLog: mainDriftLog, thresholdEvents: mainThresholdEvents } = applyStakePassiveDrift(currentCampaignStakes);
+        if (mainDriftLog.length > 0) {
+          currentCampaignStakes = mainDriftedStakes;
+          doctrineChanged = true;
+          mainDriftLog.forEach(log => console.log(log));
+        }
+        doctrineUpdates.campaignStakes = currentCampaignStakes;
+        
+        // Log threshold events from passive drift
+        if (mainThresholdEvents.length > 0) {
+          const thresholdNarrative = mainThresholdEvents.map((te: any) =>
+            `[THRESHOLD EVENT: ${te.stakeName} hit ${te.threshold} — ${te.event}${te.irreversible ? ' (PERMANENT)' : ''}]`
+          ).join('\n');
+          console.log(`THRESHOLD EVENTS TRIGGERED (main):\n${thresholdNarrative}`);
         }
         
         // Append narrative log entry
@@ -17999,6 +18154,25 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           }
         }
         
+        // Build stake summary for completion data
+        const finalStakes = doctrineUpdates.campaignStakes || (campaign as any).campaignStakes || [];
+        const stakesSummary = finalStakes.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          finalValue: s.value,
+          max: s.max || 5,
+          thresholdReached: s.value === 0 ? 'collapsed' : s.value >= (s.max || 5) ? 'peaked' : 'survived',
+          consequence: s.value === 0 && s.thresholdConsequence?.at0 
+            ? s.thresholdConsequence.at0.event 
+            : s.value >= (s.max || 5) && s.thresholdConsequence?.at5 
+              ? s.thresholdConsequence.at5.event 
+              : null,
+          irreversible: (s.value === 0 && s.thresholdConsequence?.at0?.irreversible) || 
+                       (s.value >= (s.max || 5) && s.thresholdConsequence?.at5?.irreversible) || false
+        }));
+        
+        const endingType = storyAdvancement.endingType || 'standard_resolution';
+        
         campaignCompletionData = {
           isCompleted: true,
           completedAt: new Date().toISOString(),
@@ -18007,6 +18181,9 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           totalChapters,
           questsCompleted: completedQuestCount,
           epilogue: storyAdvancement.narrative,
+          endingType,
+          stakesSummary,
+          campaignQuestion: (campaign as any).campaignQuestion || null,
           message: `Congratulations! You have completed "${campaign.title}"!`
         };
         
