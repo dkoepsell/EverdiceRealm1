@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, jsonb, timestamp, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -2090,3 +2090,44 @@ export const insertTradingPostReviewSchema = createInsertSchema(tradingPostRevie
 
 export type InsertTradingPostReview = z.infer<typeof insertTradingPostReviewSchema>;
 export type TradingPostReview = typeof tradingPostReviews.$inferSelect;
+
+export const marketItemStats = pgTable("market_item_stats", {
+  id: serial("id").primaryKey(),
+  itemSlug: text("item_slug").notNull().unique(),
+  basePrice: real("base_price").notNull(),
+  currentPrice: real("current_price").notNull(),
+  demandMultiplier: real("demand_multiplier").notNull().default(1.0),
+  totalPurchases: integer("total_purchases").notNull().default(0),
+  recentPurchases: integer("recent_purchases").notNull().default(0),
+  lastPurchaseAt: text("last_purchase_at"),
+  lastDecayAt: text("last_decay_at"),
+});
+
+export const insertMarketItemStatsSchema = createInsertSchema(marketItemStats).omit({
+  id: true,
+});
+export type InsertMarketItemStats = z.infer<typeof insertMarketItemStatsSchema>;
+export type MarketItemStats = typeof marketItemStats.$inferSelect;
+
+export const playerListings = pgTable("player_listings", {
+  id: serial("id").primaryKey(),
+  sellerId: integer("seller_id").notNull(),
+  characterId: integer("character_id").notNull(),
+  itemName: text("item_name").notNull(),
+  itemData: jsonb("item_data").notNull(),
+  askingPrice: integer("asking_price").notNull(),
+  status: text("status").notNull().default("active"),
+  buyerId: integer("buyer_id"),
+  buyerCharacterId: integer("buyer_character_id"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  soldAt: text("sold_at"),
+});
+
+export const insertPlayerListingSchema = createInsertSchema(playerListings).omit({
+  id: true,
+  buyerId: true,
+  buyerCharacterId: true,
+  soldAt: true,
+});
+export type InsertPlayerListing = z.infer<typeof insertPlayerListingSchema>;
+export type PlayerListing = typeof playerListings.$inferSelect;

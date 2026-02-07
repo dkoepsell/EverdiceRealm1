@@ -33,7 +33,9 @@ import {
   Scroll,
   PenLine,
   MessageSquare,
-  Clock
+  Clock,
+  TrendingUp,
+  TrendingDown
 } from "lucide-react";
 import { Link } from "wouter";
 import { formatDistanceToNow } from "date-fns";
@@ -90,175 +92,42 @@ interface InventoryItem {
 }
 
 const SHOP_INVENTORY: ShopItem[] = [
-  {
-    id: "longsword",
-    name: "Longsword",
-    type: "Martial Melee Weapon",
-    rarity: "common",
-    description: "A versatile sword favored by warriors and adventurers alike.",
-    damage: "1d8 slashing (versatile 1d10)",
-    goldCost: 15,
-    weight: 3,
-    category: "weapons"
-  },
-  {
-    id: "shortbow",
-    name: "Shortbow",
-    type: "Simple Ranged Weapon",
-    rarity: "common",
-    description: "A compact bow ideal for quick shots.",
-    damage: "1d6 piercing",
-    goldCost: 25,
-    weight: 2,
-    category: "weapons"
-  },
-  {
-    id: "battleaxe",
-    name: "Battleaxe",
-    type: "Martial Melee Weapon",
-    rarity: "common",
-    description: "A heavy axe perfect for cleaving through enemies.",
-    damage: "1d8 slashing (versatile 1d10)",
-    goldCost: 10,
-    weight: 4,
-    category: "weapons"
-  },
-  {
-    id: "dagger",
-    name: "Dagger",
-    type: "Simple Melee Weapon",
-    rarity: "common",
-    description: "A small, concealable blade. Light and throwable.",
-    damage: "1d4 piercing",
-    properties: "Finesse, light, thrown (20/60)",
-    goldCost: 2,
-    weight: 1,
-    category: "weapons"
-  },
-  {
-    id: "chain-mail",
-    name: "Chain Mail",
-    type: "Heavy Armor",
-    rarity: "common",
-    description: "Interlocking metal rings provide solid protection.",
-    armor: 16,
-    properties: "Disadvantage on Stealth, Str 13 required",
-    goldCost: 75,
-    weight: 55,
-    category: "armor"
-  },
-  {
-    id: "leather-armor",
-    name: "Leather Armor",
-    type: "Light Armor",
-    rarity: "common",
-    description: "Supple leather that allows for agility.",
-    armor: 11,
-    properties: "+Dex modifier to AC",
-    goldCost: 10,
-    weight: 10,
-    category: "armor"
-  },
-  {
-    id: "scale-mail",
-    name: "Scale Mail",
-    type: "Medium Armor",
-    rarity: "common",
-    description: "Overlapping metal scales like a dragon's hide.",
-    armor: 14,
-    properties: "+Dex modifier (max 2), disadvantage on Stealth",
-    goldCost: 50,
-    weight: 45,
-    category: "armor"
-  },
-  {
-    id: "wooden-shield",
-    name: "Wooden Shield",
-    type: "Shield",
-    rarity: "common",
-    description: "A sturdy wooden shield.",
-    armor: 2,
-    properties: "+2 AC bonus",
-    goldCost: 10,
-    weight: 6,
-    category: "armor"
-  },
-  {
-    id: "healing-potion",
-    name: "Potion of Healing",
-    type: "Potion",
-    rarity: "common",
-    description: "A red liquid that glimmers when agitated. Heals 2d4+2 HP.",
-    properties: "Heals 2d4+2 hit points",
-    goldCost: 50,
-    weight: 0.5,
-    category: "potions"
-  },
-  {
-    id: "greater-healing-potion",
-    name: "Potion of Greater Healing",
-    type: "Potion",
-    rarity: "uncommon",
-    description: "A more potent healing draught. Heals 4d4+4 HP.",
-    properties: "Heals 4d4+4 hit points",
-    goldCost: 150,
-    weight: 0.5,
-    category: "potions"
-  },
-  {
-    id: "antitoxin",
-    name: "Antitoxin",
-    type: "Consumable",
-    rarity: "common",
-    description: "Grants advantage on saves against poison for 1 hour.",
-    properties: "Advantage on poison saves for 1 hour",
-    goldCost: 50,
-    weight: 0.5,
-    category: "potions"
-  },
-  {
-    id: "thieves-tools",
-    name: "Thieves' Tools",
-    type: "Tools",
-    rarity: "common",
-    description: "Lockpicks and small tools for disabling traps and opening locks.",
-    goldCost: 25,
-    weight: 1,
-    category: "tools"
-  },
-  {
-    id: "rope-hemp",
-    name: "Rope (50 ft, Hemp)",
-    type: "Adventuring Gear",
-    rarity: "common",
-    description: "Strong rope for climbing, binding, or other uses.",
-    goldCost: 1,
-    weight: 10,
-    category: "misc"
-  },
-  {
-    id: "torch-bundle",
-    name: "Torches (10)",
-    type: "Adventuring Gear",
-    rarity: "common",
-    description: "A bundle of 10 torches for lighting dark dungeons.",
-    properties: "Bright light 20 ft, dim light additional 20 ft",
-    goldCost: 1,
-    silverCost: 0,
-    weight: 10,
-    category: "misc"
-  },
-  {
-    id: "rations",
-    name: "Rations (5 days)",
-    type: "Adventuring Gear",
-    rarity: "common",
-    description: "Dried food for 5 days of travel.",
-    goldCost: 2,
-    silverCost: 50,
-    weight: 10,
-    category: "misc"
-  }
+  { id: "dagger", name: "Dagger", type: "Simple Melee Weapon", rarity: "common", description: "A small, concealable blade. Light and throwable.", damage: "1d4 piercing", properties: "Finesse, light, thrown (20/60)", goldCost: 2, weight: 1, category: "weapons" },
+  { id: "handaxe", name: "Handaxe", type: "Simple Melee Weapon", rarity: "common", description: "A light axe that can be thrown in a pinch.", damage: "1d6 slashing", properties: "Light, thrown (20/60)", goldCost: 5, weight: 2, category: "weapons" },
+  { id: "mace", name: "Mace", type: "Simple Melee Weapon", rarity: "common", description: "A heavy flanged head atop a sturdy haft.", damage: "1d6 bludgeoning", goldCost: 5, weight: 4, category: "weapons" },
+  { id: "quarterstaff", name: "Quarterstaff", type: "Simple Melee Weapon", rarity: "common", description: "A simple wooden staff, versatile and reliable.", damage: "1d6 bludgeoning (versatile 1d8)", goldCost: 0, silverCost: 2, weight: 4, category: "weapons" },
+  { id: "battleaxe", name: "Battleaxe", type: "Martial Melee Weapon", rarity: "common", description: "A heavy axe perfect for cleaving through enemies.", damage: "1d8 slashing (versatile 1d10)", goldCost: 10, weight: 4, category: "weapons" },
+  { id: "longsword", name: "Longsword", type: "Martial Melee Weapon", rarity: "common", description: "A versatile sword favored by warriors and adventurers alike.", damage: "1d8 slashing (versatile 1d10)", goldCost: 15, weight: 3, category: "weapons" },
+  { id: "warhammer", name: "Warhammer", type: "Martial Melee Weapon", rarity: "common", description: "A fearsome hammer for crushing armor and bone.", damage: "1d8 bludgeoning (versatile 1d10)", goldCost: 15, weight: 2, category: "weapons" },
+  { id: "rapier", name: "Rapier", type: "Martial Melee Weapon", rarity: "common", description: "A slender, sharply pointed blade for precise thrusts.", damage: "1d8 piercing", properties: "Finesse", goldCost: 25, weight: 2, category: "weapons" },
+  { id: "greatsword", name: "Greatsword", type: "Martial Melee Weapon", rarity: "common", description: "A massive two-handed blade of devastating power.", damage: "2d6 slashing", properties: "Heavy, two-handed", goldCost: 50, weight: 6, category: "weapons" },
+  { id: "shortbow", name: "Shortbow", type: "Simple Ranged Weapon", rarity: "common", description: "A compact bow ideal for quick shots.", damage: "1d6 piercing", properties: "Ammunition (80/320), two-handed", goldCost: 25, weight: 2, category: "weapons" },
+  { id: "light-crossbow", name: "Light Crossbow", type: "Simple Ranged Weapon", rarity: "common", description: "A mechanical bow with a trigger mechanism.", damage: "1d8 piercing", properties: "Ammunition (80/320), loading, two-handed", goldCost: 25, weight: 5, category: "weapons" },
+  { id: "longbow", name: "Longbow", type: "Martial Ranged Weapon", rarity: "common", description: "A tall bow that launches arrows with tremendous force.", damage: "1d8 piercing", properties: "Ammunition (150/600), heavy, two-handed", goldCost: 50, weight: 2, category: "weapons" },
+  { id: "leather-armor", name: "Leather Armor", type: "Light Armor", rarity: "common", description: "Supple leather that allows for agility.", armor: 11, properties: "+Dex modifier to AC", goldCost: 10, weight: 10, category: "armor" },
+  { id: "studded-leather", name: "Studded Leather", type: "Light Armor", rarity: "common", description: "Reinforced leather with close-set rivets.", armor: 12, properties: "+Dex modifier to AC", goldCost: 45, weight: 13, category: "armor" },
+  { id: "scale-mail", name: "Scale Mail", type: "Medium Armor", rarity: "common", description: "Overlapping metal scales like a dragon's hide.", armor: 14, properties: "+Dex modifier (max 2), disadvantage on Stealth", goldCost: 50, weight: 45, category: "armor" },
+  { id: "chain-mail", name: "Chain Mail", type: "Heavy Armor", rarity: "common", description: "Interlocking metal rings provide solid protection.", armor: 16, properties: "Disadvantage on Stealth, Str 13 required", goldCost: 75, weight: 55, category: "armor" },
+  { id: "half-plate", name: "Half Plate", type: "Medium Armor", rarity: "common", description: "Shaped metal plates cover most of the body.", armor: 15, properties: "+Dex modifier (max 2), disadvantage on Stealth", goldCost: 750, weight: 40, category: "armor" },
+  { id: "plate-armor", name: "Plate Armor", type: "Heavy Armor", rarity: "common", description: "The finest protection gold can buy. Full body coverage.", armor: 18, properties: "Disadvantage on Stealth, Str 15 required", goldCost: 1500, weight: 65, category: "armor" },
+  { id: "wooden-shield", name: "Wooden Shield", type: "Shield", rarity: "common", description: "A sturdy wooden shield.", armor: 2, properties: "+2 AC bonus", goldCost: 10, weight: 6, category: "armor" },
+  { id: "steel-shield", name: "Steel Shield", type: "Shield", rarity: "common", description: "A reinforced metal shield for serious combat.", armor: 2, properties: "+2 AC bonus, more durable", goldCost: 15, weight: 6, category: "armor" },
+  { id: "healing-potion", name: "Potion of Healing", type: "Potion", rarity: "common", description: "A red liquid that glimmers when agitated. Heals 2d4+2 HP.", properties: "Heals 2d4+2 hit points", goldCost: 50, weight: 0.5, category: "potions" },
+  { id: "greater-healing-potion", name: "Potion of Greater Healing", type: "Potion", rarity: "uncommon", description: "A more potent healing draught. Heals 4d4+4 HP.", properties: "Heals 4d4+4 hit points", goldCost: 150, weight: 0.5, category: "potions" },
+  { id: "superior-healing-potion", name: "Potion of Superior Healing", type: "Potion", rarity: "rare", description: "An exceptional healing elixir. Heals 8d4+8 HP.", properties: "Heals 8d4+8 hit points", goldCost: 500, weight: 0.5, category: "potions" },
+  { id: "antitoxin", name: "Antitoxin", type: "Consumable", rarity: "common", description: "Grants advantage on saves against poison for 1 hour.", properties: "Advantage on poison saves for 1 hour", goldCost: 50, weight: 0.5, category: "potions" },
+  { id: "holy-water", name: "Holy Water", type: "Consumable", rarity: "common", description: "Blessed water that burns undead and fiends. Deals 2d6 radiant.", properties: "2d6 radiant vs undead/fiends (thrown)", goldCost: 25, weight: 1, category: "potions" },
+  { id: "oil-flask", name: "Oil Flask", type: "Consumable", rarity: "common", description: "Can be lit and thrown or used to coat surfaces.", properties: "5 fire damage per round for 2 rounds", goldCost: 0, silverCost: 1, weight: 1, category: "potions" },
+  { id: "thieves-tools", name: "Thieves' Tools", type: "Tools", rarity: "common", description: "Lockpicks and small tools for disabling traps and opening locks.", goldCost: 25, weight: 1, category: "tools" },
+  { id: "component-pouch", name: "Component Pouch", type: "Spellcasting Focus", rarity: "common", description: "A small belt pouch filled with material components for spells.", goldCost: 25, weight: 2, category: "tools" },
+  { id: "explorers-pack", name: "Explorer's Pack", type: "Equipment Pack", rarity: "common", description: "Includes backpack, bedroll, mess kit, tinderbox, torches, rations, and waterskin.", goldCost: 10, weight: 59, category: "tools" },
+  { id: "rope-hemp", name: "Rope (50 ft, Hemp)", type: "Adventuring Gear", rarity: "common", description: "Strong rope for climbing, binding, or other uses.", goldCost: 1, weight: 10, category: "misc" },
+  { id: "torch-bundle", name: "Torches (10)", type: "Adventuring Gear", rarity: "common", description: "A bundle of 10 torches for lighting dark dungeons.", properties: "Bright light 20 ft, dim light additional 20 ft", goldCost: 0, silverCost: 10, weight: 10, category: "misc" },
+  { id: "rations", name: "Rations (5 days)", type: "Adventuring Gear", rarity: "common", description: "Dried food for 5 days of travel.", goldCost: 2, silverCost: 5, weight: 10, category: "misc" },
+  { id: "caltrops", name: "Caltrops (bag of 20)", type: "Adventuring Gear", rarity: "common", description: "Small iron spikes that slow and damage pursuers.", properties: "Covers 5 ft area, DC 15 Dex or 1 piercing + half speed", goldCost: 1, weight: 2, category: "misc" },
+  { id: "grappling-hook", name: "Grappling Hook", type: "Adventuring Gear", rarity: "common", description: "An iron hook for securing ropes at height.", goldCost: 2, weight: 4, category: "misc" },
+  { id: "lantern-hooded", name: "Hooded Lantern", type: "Adventuring Gear", rarity: "common", description: "A lantern with a shutter to control its beam.", properties: "Bright light 30 ft, dim 30 more. 6 hours per flask of oil", goldCost: 5, weight: 2, category: "misc" },
+  { id: "bedroll", name: "Bedroll", type: "Adventuring Gear", rarity: "common", description: "A warm roll for sleeping outdoors.", goldCost: 1, weight: 7, category: "misc" },
 ];
 
 const REPAIR_COSTS: Record<string, { gold: number; silver: number }> = {
@@ -308,6 +177,51 @@ interface DiceGameState {
   gamePhase: 'betting' | 'guessing' | 'reveal' | 'result';
   result: 'win' | 'lose' | null;
   winnings: number;
+  sessionWins: number;
+  sessionLosses: number;
+  sessionProfit: number;
+  streak: number;
+}
+
+function calculateDiceOdds(guessCount: number, guessFace: number, knownDice: number[]): number {
+  const knownMatches = knownDice.filter(d => d === guessFace || d === 1).length;
+  const unknownDice = 7;
+  const needed = Math.max(0, guessCount - knownMatches);
+  if (needed === 0) return 1.0;
+  if (needed > unknownDice) return 0.0;
+  const pSingle = 2 / 6;
+  let prob = 0;
+  for (let k = needed; k <= unknownDice; k++) {
+    const comb = factorial(unknownDice) / (factorial(k) * factorial(unknownDice - k));
+    prob += comb * Math.pow(pSingle, k) * Math.pow(1 - pSingle, unknownDice - k);
+  }
+  return prob;
+}
+
+function factorial(n: number): number {
+  if (n <= 1) return 1;
+  let result = 1;
+  for (let i = 2; i <= n; i++) result *= i;
+  return result;
+}
+
+function getPayoutMultiplier(probability: number): number {
+  if (probability >= 0.95) return 1.05;
+  if (probability >= 0.8) return 1.2;
+  if (probability >= 0.6) return 1.5;
+  if (probability >= 0.4) return 2.0;
+  if (probability >= 0.25) return 3.0;
+  if (probability >= 0.1) return 5.0;
+  return 8.0;
+}
+
+function getDifficultyLabel(probability: number): { label: string; color: string } {
+  if (probability >= 0.8) return { label: "Safe Bet", color: "text-green-500" };
+  if (probability >= 0.6) return { label: "Favorable", color: "text-green-400" };
+  if (probability >= 0.4) return { label: "Even Odds", color: "text-yellow-500" };
+  if (probability >= 0.25) return { label: "Risky", color: "text-orange-500" };
+  if (probability >= 0.1) return { label: "Long Shot", color: "text-red-500" };
+  return { label: "Desperate", color: "text-red-700" };
 }
 
 function getRarityColor(rarity: string): string {
@@ -1063,10 +977,14 @@ export default function TavernPage() {
     playerDice: [],
     houseDice: [],
     playerBet: 5,
-    playerGuess: { count: 1, face: 1 },
+    playerGuess: { count: 2, face: 6 },
     gamePhase: 'betting',
     result: null,
-    winnings: 0
+    winnings: 0,
+    sessionWins: 0,
+    sessionLosses: 0,
+    sessionProfit: 0,
+    streak: 0,
   });
   
   // Gold transfer state
@@ -1110,17 +1028,30 @@ export default function TavernPage() {
     }
   });
   
+  const MAX_SESSION_PROFIT = 100;
+  const MAX_BET = 50;
+  const HOUSE_EDGE = 0.9;
+  
   const startDiceGame = () => {
     if (!activeCharacter || characterGold < diceGame.playerBet) {
       toast({ title: "Not enough gold!", variant: "destructive" });
       return;
     }
-    const playerDice = rollDice(5);
-    const houseDice = rollDice(5);
+    if (diceGame.playerBet > MAX_BET) {
+      toast({ title: `Max bet is ${MAX_BET} gp!`, variant: "destructive" });
+      return;
+    }
+    if (diceGame.sessionProfit >= MAX_SESSION_PROFIT) {
+      toast({ title: "The house cuts you off!", description: "You've won enough for today. Come back tomorrow.", variant: "destructive" });
+      return;
+    }
+    const playerDice = rollDice(3);
+    const houseDice = rollDice(7);
     setDiceGame(prev => ({
       ...prev,
       playerDice,
       houseDice,
+      playerGuess: { count: 2, face: 6 },
       gamePhase: 'guessing'
     }));
   };
@@ -1129,31 +1060,42 @@ export default function TavernPage() {
     const allDice = [...diceGame.playerDice, ...diceGame.houseDice];
     const actualCount = allDice.filter(d => d === diceGame.playerGuess.face || d === 1).length;
     const won = actualCount >= diceGame.playerGuess.count;
-    const winnings = won ? diceGame.playerBet * 2 : -diceGame.playerBet;
     
-    // Actually update the character's gold
+    const probability = calculateDiceOdds(diceGame.playerGuess.count, diceGame.playerGuess.face, diceGame.playerDice);
+    const payoutMult = getPayoutMultiplier(probability);
+    const rawPayout = won ? Math.floor(diceGame.playerBet * payoutMult * HOUSE_EDGE) : 0;
+    const netWinnings = won ? rawPayout - diceGame.playerBet : -diceGame.playerBet;
+    
     if (activeCharacter) {
-      diceGameMutation.mutate({ characterId: activeCharacter.id, goldChange: winnings });
+      diceGameMutation.mutate({ characterId: activeCharacter.id, goldChange: netWinnings });
     }
     
     setDiceGame(prev => ({
       ...prev,
       gamePhase: 'result',
       result: won ? 'win' : 'lose',
-      winnings
+      winnings: netWinnings,
+      sessionWins: won ? prev.sessionWins + 1 : prev.sessionWins,
+      sessionLosses: won ? prev.sessionLosses : prev.sessionLosses + 1,
+      sessionProfit: prev.sessionProfit + netWinnings,
+      streak: won ? prev.streak + 1 : 0,
     }));
   };
   
   const resetDiceGame = () => {
-    setDiceGame({
+    setDiceGame(prev => ({
       playerDice: [],
       houseDice: [],
       playerBet: 5,
-      playerGuess: { count: 1, face: 1 },
+      playerGuess: { count: 2, face: 6 },
       gamePhase: 'betting',
       result: null,
-      winnings: 0
-    });
+      winnings: 0,
+      sessionWins: prev.sessionWins,
+      sessionLosses: prev.sessionLosses,
+      sessionProfit: prev.sessionProfit,
+      streak: prev.streak,
+    }));
   };
 
   const { data: characters = [] } = useQuery<any[]>({
@@ -1175,8 +1117,27 @@ export default function TavernPage() {
     enabled: !!activeCharacter?.id
   });
 
+  const { data: marketPrices } = useQuery<{ prices: Array<{ itemSlug: string; finalPriceGold: number; finalPriceSilver: number; trend: string; demandMultiplier: number; basePrice: number }>, inflationMultiplier: number }>({
+    queryKey: ['/api/economy/prices'],
+    queryFn: async () => {
+      const response = await fetch('/api/economy/prices', { credentials: 'include' });
+      if (!response.ok) return { prices: [], inflationMultiplier: 1.0 };
+      return response.json();
+    },
+    staleTime: 30000,
+  });
+
+  const getDynamicPrice = (item: ShopItem): { gold: number; silver: number; trend: string } => {
+    const priceData = marketPrices?.prices?.find(p => p.itemSlug === item.id);
+    if (priceData) {
+      return { gold: priceData.finalPriceGold, silver: priceData.finalPriceSilver, trend: priceData.trend };
+    }
+    return { gold: item.goldCost, silver: item.silverCost || 0, trend: "stable" };
+  };
+
   const buyItemMutation = useMutation({
     mutationFn: async ({ characterId, item, qty }: { characterId: number; item: ShopItem; qty: number }) => {
+      const dynamicP = getDynamicPrice(item);
       const response = await apiRequest("POST", `/api/characters/${characterId}/buy-item`, {
         itemName: item.name,
         itemType: item.type,
@@ -1185,15 +1146,15 @@ export default function TavernPage() {
         itemProperties: item.properties,
         itemDamage: item.damage,
         itemArmor: item.armor,
-        goldCost: item.goldCost * qty,
-        silverCost: (item.silverCost || 0) * qty,
+        goldCost: dynamicP.gold * qty,
+        silverCost: dynamicP.silver * qty,
         quantity: qty
       });
       return response.json();
     },
     onSuccess: async () => {
-      // Force immediate refetch to update inventory display
       await queryClient.refetchQueries({ queryKey: ["/api/characters"] });
+      queryClient.invalidateQueries({ queryKey: ['/api/economy/prices'] });
       toast({
         title: "Purchase Complete!",
         description: `You bought ${quantity}x ${selectedShopItem?.name}.`
@@ -1451,8 +1412,9 @@ export default function TavernPage() {
 
   const canAfford = (item: ShopItem | null, qty: number = 1) => {
     if (!item) return false;
-    const totalGold = item.goldCost * qty;
-    const totalSilver = (item.silverCost || 0) * qty;
+    const dynamicP = getDynamicPrice(item);
+    const totalGold = dynamicP.gold * qty;
+    const totalSilver = dynamicP.silver * qty;
     const playerTotalSilver = characterGold * 10 + characterSilver;
     const itemTotalSilver = totalGold * 10 + totalSilver;
     return playerTotalSilver >= itemTotalSilver;
@@ -1592,8 +1554,19 @@ export default function TavernPage() {
                   <ShoppingBag className="h-5 w-5" />
                   General Store
                 </CardTitle>
-                <CardDescription>
-                  Browse weapons, armor, potions, and adventuring supplies
+                <CardDescription className="flex items-center justify-between">
+                  <span>Browse weapons, armor, potions, and adventuring supplies</span>
+                  {marketPrices && marketPrices.inflationMultiplier !== 1.0 && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      marketPrices.inflationMultiplier > 1.1 
+                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' 
+                        : marketPrices.inflationMultiplier < 0.9
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                    }`}>
+                      Gold {marketPrices.inflationMultiplier > 1.0 ? 'inflation' : 'deflation'}: {Math.round((marketPrices.inflationMultiplier - 1) * 100)}%
+                    </span>
+                  )}
                 </CardDescription>
                 <div className="flex flex-wrap gap-2 mt-4">
                   <Button 
@@ -1694,9 +1667,17 @@ export default function TavernPage() {
                             <div className="flex items-center gap-1">
                               <Coins className="h-4 w-4 text-yellow-600" />
                               <span className="font-bold text-yellow-700 dark:text-yellow-400">
-                                {item.goldCost} gp
-                                {item.silverCost ? ` ${item.silverCost} sp` : ''}
+                                {(() => {
+                                  const dp = getDynamicPrice(item);
+                                  return `${dp.gold} gp${dp.silver > 0 ? ` ${dp.silver} sp` : ''}`;
+                                })()}
                               </span>
+                              {(() => {
+                                const dp = getDynamicPrice(item);
+                                if (dp.trend === "rising") return <TrendingUp className="h-3 w-3 text-red-500 ml-1" />;
+                                if (dp.trend === "falling") return <TrendingDown className="h-3 w-3 text-green-500 ml-1" />;
+                                return null;
+                              })()}
                             </div>
                             {canAfford(item) ? (
                               <Check className="h-4 w-4 text-green-500" />
@@ -2292,27 +2273,40 @@ export default function TavernPage() {
                       <Zap className="h-5 w-5 text-amber-600" />
                       Liar's Dice
                     </h3>
+                    {(diceGame.sessionWins > 0 || diceGame.sessionLosses > 0) && (
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span>Session: {diceGame.sessionWins}W / {diceGame.sessionLosses}L</span>
+                        <span className={diceGame.sessionProfit >= 0 ? 'text-green-500' : 'text-red-500'}>
+                          {diceGame.sessionProfit >= 0 ? '+' : ''}{diceGame.sessionProfit} gp
+                        </span>
+                        {diceGame.streak >= 3 && <span className="text-amber-500">Hot streak x{diceGame.streak}!</span>}
+                        {diceGame.sessionProfit >= MAX_SESSION_PROFIT && (
+                          <span className="text-red-500 font-medium">House limit reached!</span>
+                        )}
+                      </div>
+                    )}
                     <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-slate-800 dark:to-emerald-900/20 border-green-200 dark:border-green-800/50">
                       <CardContent className="p-6">
                         {diceGame.gamePhase === 'betting' && (
                           <div className="space-y-4 text-center">
-                            <p className="text-muted-foreground">Place your bet and try to guess how many dice of a certain face are on the table!</p>
+                            <p className="text-muted-foreground">You roll 3 dice, the house rolls 7 hidden. Guess how many of a face appear across all 10 dice. Riskier guesses pay more!</p>
                             <div className="flex items-center justify-center gap-4">
                               <span>Bet:</span>
                               <Input 
                                 type="number"
                                 min={1}
-                                max={Math.min(100, characterGold)}
+                                max={Math.min(MAX_BET, characterGold)}
                                 value={diceGame.playerBet}
-                                onChange={(e) => setDiceGame(prev => ({ ...prev, playerBet: Math.max(1, parseInt(e.target.value) || 1) }))}
+                                onChange={(e) => setDiceGame(prev => ({ ...prev, playerBet: Math.max(1, Math.min(MAX_BET, parseInt(e.target.value) || 1)) }))}
                                 className="w-20"
                               />
                               <span className="text-yellow-600">gp</span>
+                              <span className="text-xs text-muted-foreground">(max {MAX_BET})</span>
                             </div>
                             <p className="text-sm text-muted-foreground">Your gold: {characterGold} gp</p>
                             <Button 
                               onClick={startDiceGame}
-                              disabled={!activeCharacter || characterGold < diceGame.playerBet}
+                              disabled={!activeCharacter || characterGold < diceGame.playerBet || diceGame.sessionProfit >= MAX_SESSION_PROFIT}
                               className="bg-green-600 hover:bg-green-700"
                             >
                               Roll the Dice!
@@ -2323,7 +2317,7 @@ export default function TavernPage() {
                         {diceGame.gamePhase === 'guessing' && (
                           <div className="space-y-4">
                             <div className="text-center">
-                              <p className="font-medium mb-2">Your Dice:</p>
+                              <p className="font-medium mb-2">Your 3 Dice:</p>
                               <div className="flex justify-center gap-2 mb-4">
                                 {diceGame.playerDice.map((die, i) => (
                                   <div key={i} className="w-10 h-10 bg-white dark:bg-slate-700 rounded-lg flex items-center justify-center text-xl font-bold border-2 border-amber-300">
@@ -2331,11 +2325,11 @@ export default function TavernPage() {
                                   </div>
                                 ))}
                               </div>
-                              <p className="text-sm text-muted-foreground mb-4">The house has 5 hidden dice. Guess how many dice total show a certain face (1s are wild)!</p>
+                              <p className="text-sm text-muted-foreground mb-4">The house has 7 hidden dice. Guess how many total show a face (1s are wild)!</p>
                             </div>
                             <div className="flex items-center justify-center gap-4 flex-wrap">
                               <div className="flex items-center gap-2">
-                                <span>I bet there are at least</span>
+                                <span>At least</span>
                                 <Select value={diceGame.playerGuess.count.toString()} onValueChange={(v) => setDiceGame(prev => ({ ...prev, playerGuess: { ...prev.playerGuess, count: parseInt(v) } }))}>
                                   <SelectTrigger className="w-16"><SelectValue /></SelectTrigger>
                                   <SelectContent>
@@ -2351,6 +2345,18 @@ export default function TavernPage() {
                                 </Select>
                               </div>
                             </div>
+                            {(() => {
+                              const prob = calculateDiceOdds(diceGame.playerGuess.count, diceGame.playerGuess.face, diceGame.playerDice);
+                              const payout = getPayoutMultiplier(prob);
+                              const diff = getDifficultyLabel(prob);
+                              const potentialWin = Math.floor(diceGame.playerBet * payout * HOUSE_EDGE) - diceGame.playerBet;
+                              return (
+                                <div className="text-center mt-3 space-y-1">
+                                  <p className={`text-sm font-medium ${diff.color}`}>{diff.label} ({Math.round(prob * 100)}% chance)</p>
+                                  <p className="text-xs text-muted-foreground">Payout: {payout}x | Potential win: <span className="text-green-500">+{potentialWin} gp</span></p>
+                                </div>
+                              );
+                            })()}
                             <div className="flex justify-center mt-4">
                               <Button onClick={makeGuess} className="bg-amber-600 hover:bg-amber-700">Make My Guess!</Button>
                             </div>
@@ -2360,7 +2366,7 @@ export default function TavernPage() {
                         {diceGame.gamePhase === 'result' && (
                           <div className="space-y-4 text-center">
                             <div className={`text-2xl font-bold ${diceGame.result === 'win' ? 'text-green-600' : 'text-red-600'}`}>
-                              {diceGame.result === 'win' ? '🎉 You Win!' : '💔 You Lose!'}
+                              {diceGame.result === 'win' ? 'You Win!' : 'You Lose!'}
                             </div>
                             <div>
                               <p className="mb-2">Your Dice:</p>
@@ -2379,6 +2385,9 @@ export default function TavernPage() {
                                   </div>
                                 ))}
                               </div>
+                              <p className="text-xs text-muted-foreground">
+                                Total {diceGame.playerGuess.face}s + wilds: {[...diceGame.playerDice, ...diceGame.houseDice].filter(d => d === diceGame.playerGuess.face || d === 1).length}
+                              </p>
                             </div>
                             <p className="text-lg">
                               {diceGame.result === 'win' 
@@ -2386,7 +2395,9 @@ export default function TavernPage() {
                                 : <span className="text-red-600">{diceGame.winnings} gold</span>
                               }
                             </p>
-                            <Button onClick={resetDiceGame} variant="outline">Play Again</Button>
+                            <Button onClick={resetDiceGame} variant="outline" disabled={diceGame.sessionProfit >= MAX_SESSION_PROFIT}>
+                              {diceGame.sessionProfit >= MAX_SESSION_PROFIT ? "House Limit Reached" : "Play Again"}
+                            </Button>
                           </div>
                         )}
                       </CardContent>

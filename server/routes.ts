@@ -63,6 +63,8 @@ import { registerCampaignDeploymentRoutes } from "./lib/campaignDeploy";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { registerTradingPostRoutes } from "./tradingPostRoutes";
 import { registerStreamingRoutes } from "./storyStreaming";
+import { registerEconomyRoutes } from "./economyRoutes";
+import { recordPurchase, recordSale, getItemPrice, getSellPrice } from "./economyEngine";
 import { db } from "./db";
 import { eq, sql, desc, and, gte } from "drizzle-orm";
 import OpenAI from "openai";
@@ -738,6 +740,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerTradingPostRoutes(app);
   
   registerStreamingRoutes(app);
+  
+  registerEconomyRoutes(app);
   
   // Create HTTP server
   const httpServer = createServer(app);
@@ -2320,6 +2324,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const updatedCharacter = await storage.updateCharacter(id, updateData);
       
+      const itemSlug = itemName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      recordPurchase(itemSlug, quantity).catch(err => console.error("Economy tracking failed:", err));
+      
       res.json({
         success: true,
         character: updatedCharacter,
@@ -2421,7 +2428,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const rarity = (foundItem.rarity || 'common').toLowerCase();
-      const goldReceived = SELL_PRICES[rarity] || 5;
+      const itemSlug = itemName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const dynamicPrice = await getItemPrice(itemSlug);
+      const goldReceived = dynamicPrice 
+        ? getSellPrice(dynamicPrice.finalPrice, dynamicPrice.demandMultiplier)
+        : (SELL_PRICES[rarity] || 5);
+      recordSale(itemSlug).catch(err => console.error("Economy sale tracking failed:", err));
       
       // Remove item from inventory at the correct index
       equipment.splice(foundIndex, 1);

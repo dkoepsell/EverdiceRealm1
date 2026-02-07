@@ -120,6 +120,13 @@ export default function TradingPostPage() {
     statValues: [""],
   });
 
+  const [playerMarketSearch, setPlayerMarketSearch] = useState("");
+  const [listItemDialogOpen, setListItemDialogOpen] = useState(false);
+  const [selectedListCharacter, setSelectedListCharacter] = useState<number | null>(null);
+  const [selectedListItem, setSelectedListItem] = useState<string>("");
+  const [listAskingPrice, setListAskingPrice] = useState(10);
+  const [buyingCharacter, setBuyingCharacter] = useState<number | null>(null);
+
   const adventureQueryParams = new URLSearchParams();
   if (adventureSearch) adventureQueryParams.set("search", adventureSearch);
   if (adventureDifficulty !== "all") adventureQueryParams.set("difficulty", adventureDifficulty);
@@ -298,6 +305,90 @@ export default function TradingPostPage() {
     },
   });
 
+  const { data: characters = [] } = useQuery<any[]>({
+    queryKey: ["/api/characters"],
+    enabled: !!user,
+  });
+
+  const { data: playerListingsData = [], isLoading: playerListingsLoading } = useQuery<any[]>({
+    queryKey: ["/api/trading-post/player-listings", playerMarketSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams({ status: "active" });
+      if (playerMarketSearch) params.set("search", playerMarketSearch);
+      const res = await fetch(`/api/trading-post/player-listings?${params.toString()}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch player listings");
+      return res.json();
+    },
+  });
+
+  const { data: myListings = [] } = useQuery<any[]>({
+    queryKey: ["/api/trading-post/player-listings", "my-listings", user?.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/trading-post/player-listings?status=active`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch listings");
+      const all = await res.json();
+      return all.filter((l: any) => l.seller_id === user?.id);
+    },
+    enabled: !!user,
+  });
+
+  const createListingMutation = useMutation({
+    mutationFn: async (data: { characterId: number; itemName: string; itemData: any; askingPrice: number }) => {
+      const res = await apiRequest("POST", "/api/trading-post/player-listings", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trading-post/player-listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+      setListItemDialogOpen(false);
+      setSelectedListItem("");
+      setListAskingPrice(10);
+      toast({ title: "Item Listed!", description: "Your item is now on the Player Market." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to list item", description: error.message || "Something went wrong", variant: "destructive" });
+    },
+  });
+
+  const buyListingMutation = useMutation({
+    mutationFn: async ({ listingId, characterId }: { listingId: number; characterId: number }) => {
+      const res = await apiRequest("POST", `/api/trading-post/player-listings/${listingId}/buy`, { characterId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trading-post/player-listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+      setBuyingCharacter(null);
+      toast({ title: "Purchase Complete!", description: "The item has been added to your inventory." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Purchase failed", description: error.message || "Something went wrong", variant: "destructive" });
+    },
+  });
+
+  const cancelListingMutation = useMutation({
+    mutationFn: async (listingId: number) => {
+      const res = await apiRequest("DELETE", `/api/trading-post/player-listings/${listingId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trading-post/player-listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+      toast({ title: "Listing Cancelled", description: "Item returned to your inventory." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to cancel", description: error.message || "Something went wrong", variant: "destructive" });
+    },
+  });
+
+  const selectedCharForListing = characters.find((c: any) => c.id === selectedListCharacter);
+  const inventoryItems = selectedCharForListing?.equipment?.map((item: any) => {
+    if (typeof item === 'string') {
+      try { return JSON.parse(item); } catch { return { name: item }; }
+    }
+    return item;
+  }).filter((item: any) => !item.equipped) || [];
+
   const adventures = adventuresData?.adventures || [];
   const itemsList = itemsData?.items || [];
 
@@ -360,6 +451,10 @@ export default function TradingPostPage() {
           <TabsTrigger value="items" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
             <Gem className="h-4 w-4 mr-2" />
             Items
+          </TabsTrigger>
+          <TabsTrigger value="player-market" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
+            <Users className="h-4 w-4 mr-2" />
+            Player Market
           </TabsTrigger>
         </TabsList>
 
@@ -610,7 +705,205 @@ export default function TradingPostPage() {
             </div>
           )}
         </TabsContent>
+
+        {/* Player Market Tab */}
+        <TabsContent value="player-market" className="space-y-6">
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search player listings..."
+                value={playerMarketSearch}
+                onChange={(e) => setPlayerMarketSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            {user && characters.length > 0 && (
+              <Button
+                onClick={() => setListItemDialogOpen(true)}
+                className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                List an Item
+              </Button>
+            )}
+          </div>
+
+          {myListings.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-amber-400 flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                Your Active Listings
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {myListings.map((listing: any) => {
+                  const itemData = typeof listing.item_data === 'string' ? JSON.parse(listing.item_data) : listing.item_data;
+                  return (
+                    <Card key={listing.id} className="bg-amber-500/5 border-amber-500/20">
+                      <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-amber-300">{listing.item_name}</p>
+                          <p className="text-xs text-muted-foreground">Listed by {listing.character_name}</p>
+                          <p className="text-sm text-yellow-500 font-bold mt-1">{listing.asking_price} gp</p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+                          onClick={() => cancelListingMutation.mutate(listing.id)}
+                          disabled={cancelListingMutation.isPending}
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Cancel
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {playerListingsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+            </div>
+          ) : playerListingsData.length === 0 ? (
+            <div className="text-center py-12 space-y-3">
+              <Package className="h-12 w-12 mx-auto text-muted-foreground/50" />
+              <p className="text-muted-foreground">No player items for sale right now.</p>
+              <p className="text-sm text-muted-foreground/70">Be the first to list an item from your inventory!</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {playerListingsData.filter((l: any) => l.seller_id !== user?.id).map((listing: any) => {
+                const itemData = typeof listing.item_data === 'string' ? JSON.parse(listing.item_data) : listing.item_data;
+                return (
+                  <Card key={listing.id} className="bg-slate-800/50 border-slate-700/50 hover:border-amber-500/30 transition-colors">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h4 className="font-medium text-slate-200">{listing.item_name}</h4>
+                          {itemData?.rarity && (
+                            <Badge variant="secondary" className={`text-xs mt-1 ${rarityColors[itemData.rarity] || ''}`}>
+                              {itemData.rarity}
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-lg font-bold text-yellow-500">{listing.asking_price} gp</span>
+                      </div>
+                      {itemData?.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">{itemData.description}</p>
+                      )}
+                      {(itemData?.damage || itemData?.armor) && (
+                        <div className="flex gap-3 text-xs">
+                          {itemData.damage && <span className="flex items-center gap-1"><Swords className="h-3 w-3 text-red-400" />{itemData.damage}</span>}
+                          {itemData.armor && <span className="flex items-center gap-1"><Shield className="h-3 w-3 text-blue-400" />AC {itemData.armor}</span>}
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-700/50">
+                        <span className="text-xs text-muted-foreground">Seller: {listing.seller_username || 'Unknown'}</span>
+                        {user && characters.length > 0 && (
+                          <div className="flex items-center gap-2">
+                            <Select value={buyingCharacter?.toString() || ''} onValueChange={(v) => setBuyingCharacter(parseInt(v))}>
+                              <SelectTrigger className="w-[120px] h-8 text-xs">
+                                <SelectValue placeholder="Character..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {characters.map((c: any) => (
+                                  <SelectItem key={c.id} value={c.id.toString()}>{c.name} ({c.gold || 0}g)</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700 h-8"
+                              disabled={!buyingCharacter || buyListingMutation.isPending}
+                              onClick={() => buyingCharacter && buyListingMutation.mutate({ listingId: listing.id, characterId: buyingCharacter })}
+                            >
+                              Buy
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
+
+      {/* List Item Dialog */}
+      <Dialog open={listItemDialogOpen} onOpenChange={setListItemDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>List an Item for Sale</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Character</Label>
+              <Select value={selectedListCharacter?.toString() || ''} onValueChange={(v) => { setSelectedListCharacter(parseInt(v)); setSelectedListItem(''); }}>
+                <SelectTrigger><SelectValue placeholder="Select character..." /></SelectTrigger>
+                <SelectContent>
+                  {characters.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedListCharacter && (
+              <div className="space-y-2">
+                <Label>Item from Inventory</Label>
+                {inventoryItems.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No unequipped items available.</p>
+                ) : (
+                  <Select value={selectedListItem} onValueChange={setSelectedListItem}>
+                    <SelectTrigger><SelectValue placeholder="Select item..." /></SelectTrigger>
+                    <SelectContent>
+                      {inventoryItems.map((item: any, i: number) => (
+                        <SelectItem key={i} value={`idx-${i}`}>{item.name || `Unknown Item #${i + 1}`}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Asking Price (gp)</Label>
+              <Input
+                type="number"
+                min={1}
+                value={listAskingPrice}
+                onChange={(e) => setListAskingPrice(Math.max(1, parseInt(e.target.value) || 1))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setListItemDialogOpen(false)}>Cancel</Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700"
+              disabled={!selectedListCharacter || !selectedListItem || createListingMutation.isPending}
+              onClick={() => {
+                const idx = parseInt(selectedListItem.replace('idx-', ''));
+                const item = inventoryItems[idx];
+                if (item && selectedListCharacter) {
+                  createListingMutation.mutate({
+                    characterId: selectedListCharacter,
+                    itemName: item.name || `Item #${idx + 1}`,
+                    itemData: item,
+                    askingPrice: listAskingPrice,
+                  });
+                }
+              }}
+            >
+              {createListingMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              List for Sale
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Adventure Detail Dialog */}
       <Dialog open={selectedAdventure !== null} onOpenChange={(open) => { if (!open) { setSelectedAdventure(null); setReviewRating(0); setReviewComment(""); } }}>
