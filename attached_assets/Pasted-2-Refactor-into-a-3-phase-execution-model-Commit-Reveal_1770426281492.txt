@@ -1,0 +1,194 @@
+2) Refactor into a 3-phase execution model (Commit → Reveal → Deepen)
+
+This is the structural fix. The principle:
+
+Commit must be fast and deterministic.
+
+Reveal must start immediately (even if shallow).
+
+Deepen can take time, and should stream.
+
+Phase 1: COMMIT (hard budget: ~150–300ms)
+
+Goal: Acknowledge the choice and lock it in.
+
+What happens:
+
+Validate choice
+
+Apply purely deterministic state deltas (movement, XP, flags you already know)
+
+Append a “ChoiceCommitted” trace event
+
+Return an immediate response:
+
+Return payload (example):
+
+{
+  "status": "committed",
+  "commitId": "c_8f31",
+  "choiceText": "Follow the newly revealed path...",
+  "immediateDeltas": [
+    {"path":"party.location","value":{"x":14,"y":8}},
+    {"path":"character.28.experience","value":15520}
+  ],
+  "revealSeed": {
+    "sceneId":"eld_path_14_8",
+    "tone":"tense",
+    "stakes":["unknown_presence","low_visibility"]
+  }
+}
+
+
+UI behavior:
+
+Immediately shows: choice is locked (no ambiguity)
+
+Updates map/XPs instantly
+
+Shows an in-world “turning moment” transition panel (not a spinner)
+
+Phase 2: REVEAL (budget: ~300–900ms)
+
+Goal: Give something true before the full prose exists.
+
+How to generate it:
+
+Use non-LLM or micro-LLM output:
+
+deterministic “Outcome Summary” template
+
+tiny model call with minimal context
+
+or cached “first paragraph shell”
+
+Reveal content should be:
+
+2–4 sentences
+
+high-confidence, low-detail
+
+never contradict later Deepen output
+
+Return payload:
+
+{
+  "status":"reveal",
+  "commitId":"c_8f31",
+  "revealText":[
+    "You take the narrow path into the darker cut between the trees.",
+    "The air cools and the forest noise thins, as if something is listening.",
+    "Ahead, the trail bends out of sight."
+  ],
+  "uiCues":[
+    {"type":"audio","cue":"forest_low"},
+    {"type":"highlight","target":"map.hex.14.8"}
+  ]
+}
+
+
+UI behavior:
+
+Player starts reading immediately.
+
+You can already animate “new hex discovered,” “light level drops,” etc.
+
+Phase 3: DEEPEN (budget: 1–8s, streamed)
+
+Goal: Deliver the rich narrative + choices + any complex consequences.
+
+What happens:
+
+Full LLM call with full context
+
+Structured extraction
+
+Downstream scene availability computation
+
+New choice set generation
+
+Logging and persistence (can be partially async)
+
+Return:
+
+stream tokens into the narrative panel
+
+send a final “choices ready” packet at the end
+
+Key rule: Deepen is allowed to take time because Reveal already eliminated dead air.
+
+3) Decide what Everdice is allowed to say before it knows everything
+
+This is the part that prevents contradictions.
+
+Safe to say early (Commit/Reveal)
+
+These are “high-confidence” statements that will almost never be invalidated:
+
+A. Confirmation of player action
+
+“You step onto the path.”
+
+“You push the door open.”
+
+“You call out into the dark.”
+
+B. Immediate sensory shift
+
+lighting, sound, temperature, smell
+
+“The air cools.” “The corridor narrows.” “Your voice dies quickly.”
+
+C. Non-committal tension
+
+“Something feels off.”
+
+“You get the sense you’re not alone.”
+
+“For a moment, everything goes quiet.”
+
+D. Spatial facts you already computed
+
+movement to a hex
+
+entering a known location
+
+“You reach the edge of the clearing.” (if deterministic)
+
+E. Stakes framing without resolution
+
+“This choice may draw attention.”
+
+“If there’s a trap, you’ll find it the hard way.” (conditional framing)
+
+Not safe to say early
+
+These are the things that cause “the system lied” feelings if they change:
+
+Exact NPC identity (“It’s Captain Varrin”) unless already known
+
+Combat initiation (“Roll initiative”) unless already committed
+
+Loot/results (“You find a key”) unless deterministic
+
+Specific injuries/status effects
+
+Explicit unlock/foreclose claims (“This closes the village arc”) unless computed
+
+Any hard factual claims about unseen rooms (“There are three guards”) unless you already know
+
+The canonical Reveal contract (1 paragraph rule)
+
+Reveal must be written so it can be true in all Deepen branches.
+
+A great Reveal paragraph uses:
+
+action confirmation
+
+environment shift
+
+a hook line that implies consequence without specifying it
+
+Example template:
+
+“You do X. The environment shifts in Y way. A hook suggests Z, without naming Z.”
