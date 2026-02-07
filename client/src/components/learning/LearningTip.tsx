@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export type LearningTipType = 'dice_roll' | 'choice' | 'combat' | 'social' | 'general';
+export type LearningTipType = 'dice_roll' | 'choice' | 'combat' | 'social' | 'general' | 'pacing';
 
 interface LearningTip {
   id: string;
@@ -107,6 +107,23 @@ const LEARNING_TIPS: Record<LearningTipType, LearningTip[]> = {
       mechanic: "Collaborative Storytelling Game",
       groupPlayNote: "The magic happens when players build on each other's ideas."
     }
+  ],
+  pacing: [
+    {
+      id: 'story_crafting',
+      type: 'pacing',
+      title: "Your Story Is Being Crafted",
+      content: "Just like a real DM takes a moment to describe a vivid scene, Everdice weaves your choices into a rich narrative. The brief pause means your actions truly matter!",
+      mechanic: "AI Dungeon Master at Work",
+      groupPlayNote: "In tabletop games, great DMs take a moment to craft memorable scenes too."
+    },
+    {
+      id: 'choices_consequences',
+      type: 'pacing',
+      title: "Every Choice Has Weight",
+      content: "Your decision is rippling through the world - affecting NPCs, quests, and the story itself. Great adventures take a moment to unfold.",
+      mechanic: "Dynamic World Response",
+    }
   ]
 };
 
@@ -132,6 +149,7 @@ export function LearningTip({ type, show, onClose, onLearnMore, tipId }: Learnin
       case 'choice': return <MessageSquare className="h-5 w-5" />;
       case 'combat': return <Swords className="h-5 w-5" />;
       case 'social': return <Users className="h-5 w-5" />;
+      case 'pacing': return <BookOpen className="h-5 w-5" />;
       default: return <Lightbulb className="h-5 w-5" />;
     }
   };

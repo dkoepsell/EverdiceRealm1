@@ -62,6 +62,7 @@ import { generateUserAvatar } from "./lib/avatarGenerator";
 import { registerCampaignDeploymentRoutes } from "./lib/campaignDeploy";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { registerTradingPostRoutes } from "./tradingPostRoutes";
+import { registerStreamingRoutes } from "./storyStreaming";
 import { db } from "./db";
 import { eq, sql, desc, and, gte } from "drizzle-orm";
 import OpenAI from "openai";
@@ -735,6 +736,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register Trading Post community sharing routes
   registerTradingPostRoutes(app);
+  
+  registerStreamingRoutes(app);
   
   // Create HTTP server
   const httpServer = createServer(app);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Campaign, CampaignSession, Character, Npc, WorldRegion, WorldLocation } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -56,6 +56,7 @@ import { HowToPlayPanel } from "@/components/ui/how-to-play-panel";
 import type { DungeonMapData, MapEntity } from "../dungeon/DungeonMap";
 import { generateDungeon } from "../dungeon/DungeonGenerator";
 import { ProceduralExplorationMap } from "../dungeon/ProceduralExplorationMap";
+import { StoryLoadingScreen } from "./StoryLoadingScreen";
 
 interface CampaignPanelProps {
   campaign: Campaign;
@@ -203,6 +204,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
   const [diceRollResult, setDiceRollResult] = useState<DiceRollResult | null>(null);
   const [isAdvancingStory, setIsAdvancingStory] = useState(false);
+  const [lastChosenAction, setLastChosenAction] = useState<string>("");
+  const [storyPhase, setStoryPhase] = useState<'commit' | 'reveal' | 'deepen' | 'loading'>('loading');
+  const [revealText, setRevealText] = useState<string>("");
+  const [streamedNarrative, setStreamedNarrative] = useState<string>("");
   const [progressionRewards, setProgressionRewards] = useState<{
     xpAwarded: number;
     newLevel: number;
@@ -1397,6 +1402,97 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
   });
   
+  const revealCacheRef = useRef<Map<string, string>>(new Map());
+  const precomputeAbortRef = useRef<AbortController | null>(null);
+  const prevChoicesKeyRef = useRef<string>('');
+
+  useEffect(() => {
+    if (isAdvancingStory || !currentSession?.choices || !Array.isArray(currentSession.choices)) return;
+    if (currentSession.choices.length === 0) return;
+
+    const choicesKey = (currentSession.choices as any[]).map(c => typeof c === 'string' ? c : (c.text || c.action || '')).join('|');
+    if (choicesKey === prevChoicesKeyRef.current) return;
+    prevChoicesKeyRef.current = choicesKey;
+    revealCacheRef.current.clear();
+
+    if (precomputeAbortRef.current) {
+      precomputeAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    precomputeAbortRef.current = controller;
+
+    const inCombat = parsedStoryState?.inCombat || false;
+    const loc = currentLocation;
+
+    const precompute = async () => {
+      for (const choice of currentSession.choices as any[]) {
+        if (controller.signal.aborted) return;
+        const choiceText = typeof choice === 'string' ? choice : (choice.text || choice.action || '');
+        if (!choiceText) continue;
+
+        try {
+          const response = await fetch(`/api/campaigns/${campaign.id}/story-reveal`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            signal: controller.signal,
+            body: JSON.stringify({
+              choice: choiceText,
+              inCombat,
+              location: loc,
+              campaignTitle: campaign.title || ''
+            })
+          });
+          if (response.ok) {
+            const data = await response.json();
+            if (data.revealText) {
+              revealCacheRef.current.set(choiceText, data.revealText);
+            }
+          }
+        } catch (err: any) {
+          if (err.name === 'AbortError') return;
+        }
+      }
+    };
+
+    const timer = setTimeout(precompute, 2000);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [currentSession?.choices, isAdvancingStory, parsedStoryState?.inCombat, currentLocation, campaign.id, campaign.title]);
+
+  const fetchRevealText = useCallback(async (choice: string, inCombat: boolean, loc: string) => {
+    const cached = revealCacheRef.current.get(choice);
+    if (cached) {
+      setRevealText(cached);
+      setStoryPhase('reveal');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/campaigns/${campaign.id}/story-reveal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          choice,
+          inCombat,
+          location: loc,
+          campaignTitle: campaign.title || ''
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.revealText) {
+          setRevealText(data.revealText);
+          setStoryPhase('reveal');
+        }
+      }
+    } catch (err) {
+    }
+  }, [campaign.id, campaign.title]);
+
   // Create dice roll mutation
   const createDiceRollMutation = useMutation({
     mutationFn: async (diceRoll: DiceRoll) => {
@@ -2268,15 +2364,19 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       
       setShowDiceRollDialog(true);
     } else {
-      // Just advance the story with this action - use fallback if action is undefined
+      const actionText = choice.action || choice.text || String(choice);
+      setLastChosenAction(actionText);
+      setStoryPhase('commit');
+      setRevealText("");
+      setStreamedNarrative("");
       setIsAdvancingStory(true);
-      advanceStory.mutate({ choice: choice.action || choice.text || String(choice) }, {
+      showTip('pacing');
+      fetchRevealText(actionText, parsedStoryState?.inCombat || false, currentLocation);
+      advanceStory.mutate({ choice: actionText }, {
         onSettled: () => {
           setIsAdvancingStory(false);
-          // Show learning tip after making a choice (20% chance)
-          if (Math.random() < 0.2) {
-            setTimeout(() => showTip('choice'), 1000);
-          }
+          setStoryPhase('loading');
+          setLastChosenAction("");
         }
       });
     }
@@ -2292,11 +2392,20 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       requiresDiceRoll: false
     };
     
+    const actionText = customChoice.action || customAction.trim();
+    setLastChosenAction(actionText);
+    setStoryPhase('commit');
+    setRevealText("");
+    setStreamedNarrative("");
     setIsAdvancingStory(true);
-    advanceStory.mutate({ choice: customChoice.action || customAction.trim() }, {
+    showTip('pacing');
+    fetchRevealText(actionText, parsedStoryState?.inCombat || false, currentLocation);
+    advanceStory.mutate({ choice: actionText }, {
       onSettled: () => {
         setIsAdvancingStory(false);
-        setCustomAction(""); // Clear the input after submission
+        setStoryPhase('loading');
+        setLastChosenAction("");
+        setCustomAction("");
       }
     });
   };
@@ -2415,10 +2524,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           }
         }
         
-        // Show loading state first
+        const diceActionText = currentDiceRoll.action || 'Take action';
+        setLastChosenAction(diceActionText);
+        setStoryPhase('commit');
+        setRevealText("");
+        setStreamedNarrative("");
         setIsAdvancingStory(true);
+        showTip('pacing');
+        fetchRevealText(diceActionText, parsedStoryState?.inCombat || false, currentLocation);
         
-        // Set a small delay to show the roll result before advancing
         setTimeout(() => {
           // Advance the story with the roll result using enhanced format
           const rollResultData = {
@@ -2435,14 +2549,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             rollResult: rollResultData
           }, {
             onSettled: () => {
-              // When the story advancement is complete (success or error)
               setIsAdvancingStory(false);
-              // Close the dialog and reset all dice roll state
+              setStoryPhase('loading');
+              setLastChosenAction("");
               setShowDiceRollDialog(false);
               setCurrentDiceRoll(null);
               setDiceRollResult(null);
               setIsRolling(false);
-              // Show learning tip after dice roll (30% chance to avoid overwhelming)
               if (Math.random() < 0.3) {
                 setTimeout(() => showTip('dice_roll'), 1500);
               }
@@ -2956,12 +3069,25 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         </div>
                         
                         {isAdvancingStory ? (
-                          <div className="flex flex-col items-center justify-center py-10">
-                            <div className="animate-spin h-12 w-12 rounded-full border-4 border-amber-400 border-t-transparent"></div>
-                            <p className="mt-4 text-center font-medium text-amber-300 text-lg">
-                              Adventure continues...
-                            </p>
-                          </div>
+                          <StoryLoadingScreen
+                            previousNarrative={currentSession?.narrative}
+                            chosenAction={lastChosenAction}
+                            character={activeCharacter ? {
+                              name: activeCharacter.name || '',
+                              class: activeCharacter.class || '',
+                              level: activeCharacter.level || 1,
+                              hitPoints: activeCharacter.hitPoints || 0,
+                              maxHitPoints: activeCharacter.maxHitPoints || 1,
+                              status: activeCharacter.status || 'conscious',
+                              armorClass: activeCharacter.armorClass || 10
+                            } : null}
+                            combatants={parsedStoryState?.combatants}
+                            inCombat={parsedStoryState?.inCombat}
+                            location={currentLocation}
+                            phase={storyPhase}
+                            revealText={revealText}
+                            streamedText={streamedNarrative}
+                          />
                         ) : (
                           <p className="whitespace-pre-line break-words text-lg sm:text-xl leading-relaxed text-slate-100 font-medium overflow-hidden" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)', wordBreak: 'break-word' }}>
                             {currentSession.narrative}
