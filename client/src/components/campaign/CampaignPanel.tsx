@@ -507,6 +507,37 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
   };
   
+  const getValidSlotsForItem = (itemName: string, itemType?: string): string[] => {
+    const name = itemName.toLowerCase().trim();
+    if (itemType) {
+      const t = itemType.toLowerCase();
+      if (t === "weapon" || t === "melee weapon" || t === "ranged weapon") return ["weapon"];
+      if (t === "armor" || t === "light armor" || t === "medium armor" || t === "heavy armor") return ["armor"];
+      if (t === "shield") return ["shield"];
+      if (t === "accessory" || t === "wondrous item" || t === "wondrous" || t === "ring" || t === "wand" || t === "rod" || t === "staff") return ["accessory"];
+      if (t === "potion" || t === "scroll" || t === "consumable" || t === "ammunition") return [];
+      if (t === "tool" || t === "adventuring gear") return [];
+    }
+    const weapons = ["club","dagger","greatclub","handaxe","javelin","light hammer","mace","quarterstaff","sickle","spear","battleaxe","flail","glaive","greataxe","longsword","morningstar","pike","rapier","scimitar","shortsword","trident","war pick","warhammer","whip","greatsword","lance","maul","shortbow","light crossbow","hand crossbow","heavy crossbow","longbow","pistol","musket","blowgun","dart","net","sling","halberd"];
+    if (weapons.includes(name) || weapons.some(w => name.includes(w))) return ["weapon"];
+    if (name.includes("sword") || name.includes("axe") || name.includes("bow") || name.includes("crossbow") || name.includes("dagger") || name.includes("mace") || name.includes("hammer") || name.includes("spear") || name.includes("pike") || name.includes("halberd") || name.includes("glaive") || name.includes("flail") || name.includes("whip") || name.includes("trident") || name.includes("lance") || name.includes("maul") || name.includes("rapier") || name.includes("scimitar") || name.includes("javelin") || name.includes("sickle") || name.includes("club") || name.includes("pistol") || name.includes("musket") || name.includes("blowgun") || name.includes("sling")) {
+      if (!name.includes("potion") && !name.includes("kit") && !name.includes("tools")) return ["weapon"];
+    }
+    const armors = ["padded armor","leather armor","studded leather","hide armor","chain shirt","scale mail","breastplate","half plate","ring mail","chain mail","splint armor","plate armor","padded","leather","studded leather armor","hide","chain","splint","plate","half-plate","scale","mithral armor","adamantine armor"];
+    if (armors.includes(name)) return ["armor"];
+    if (name.includes("armor") || name.includes("mail") || name.includes("plate") || name.includes("breastplate") || name.includes("half plate") || name.includes("scale mail") || name.includes("hide armor") || name.includes("padded armor") || name.includes("studded leather") || name.includes("chain shirt") || name.includes("splint")) {
+      if (!name.includes("shield")) return ["armor"];
+    }
+    if (name.includes("shield") || name === "wooden shield" || name === "steel shield") return ["shield"];
+    const consumables = ["potion","scroll","antitoxin","holy water","oil flask","alchemist's fire","acid vial","rations","torch","candle","ammunition","arrows","bolts","bullets","food","drink"];
+    if (consumables.some(k => name.includes(k))) return [];
+    const tools = ["tools","kit","supplies","pack","pouch","rope","torch bundle","lantern","bedroll","spyglass","manacles","tent","crowbar","caltrops","grappling hook","component pouch","arcane focus","holy symbol","explorer's pack","dungeoneer's pack"];
+    if (tools.some(k => name.includes(k))) return [];
+    const accessories = ["ring","amulet","cloak","boots","gloves","gauntlets","bracers","belt","helm","helmet","circlet","crown","necklace","pendant","brooch","cape","mantle","goggles","periapt","stone","gem","orb","rod","wand","robe","vestment","ioun","headband","hat"];
+    if (accessories.some(k => name.includes(k))) return ["accessory"];
+    return [];
+  };
+
   // Helper to get equipment name (handles both JSON and plain string)
   const getEquipmentName = (item: string | null | undefined): string => {
     if (!item) return 'None';
@@ -4989,8 +5020,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   className="h-6 text-xs px-2"
                                   onClick={async () => {
                                     try {
+                                      const magicSlots = getValidSlotsForItem(magicItem.name, magicItem.equip_slot || magicItem.type);
                                       await apiRequest('POST', `/api/characters/${activeCharacter.id}/inventory/${magicItem.id}/equip`, {
-                                        slot: magicItem.is_equipped ? undefined : (magicItem.equip_slot || magicItem.type || 'accessory')
+                                        slot: magicItem.is_equipped ? undefined : (magicSlots[0] || 'accessory')
                                       });
                                       queryClient.invalidateQueries({ queryKey: ['/api/characters', activeCharacter.id, 'magical-inventory'] });
                                     } catch (err) {
@@ -5065,27 +5097,46 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   )}
                                 </div>
                               <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-                                <Select 
-                                  value=""
-                                  onValueChange={(slot) => {
-                                    if (slot) {
-                                      equipItemMutation.mutate({ characterId: activeCharacter.id, item: itemName, slot });
-                                    }
-                                  }}
-                                >
-                                  <SelectTrigger className="h-6 w-16 text-xs" data-testid={`select-equip-${index}`}>
-                                    <SelectValue placeholder="Equip" />
-                                  </SelectTrigger>
-                                  <SelectContent 
-                                    position="item-aligned"
-                                    className="z-[9999] bg-white dark:bg-slate-800 border shadow-lg"
-                                  >
-                                    <SelectItem value="weapon">Weapon</SelectItem>
-                                    <SelectItem value="armor">Armor</SelectItem>
-                                    <SelectItem value="shield">Shield</SelectItem>
-                                    <SelectItem value="accessory">Accessory</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                                {(() => {
+                                  const validSlots = getValidSlotsForItem(itemName, parsedItem.type);
+                                  const slotLabels: Record<string, string> = { weapon: "Weapon", armor: "Armor", shield: "Shield", accessory: "Accessory" };
+                                  if (validSlots.length === 0) return null;
+                                  if (validSlots.length === 1) {
+                                    return (
+                                      <Button
+                                        size="sm"
+                                        className="h-6 text-xs px-2"
+                                        disabled={equipItemMutation.isPending}
+                                        onClick={() => equipItemMutation.mutate({ characterId: activeCharacter.id, item: itemName, slot: validSlots[0] })}
+                                        data-testid={`select-equip-${index}`}
+                                      >
+                                        Equip as {slotLabels[validSlots[0]]}
+                                      </Button>
+                                    );
+                                  }
+                                  return (
+                                    <Select
+                                      value=""
+                                      onValueChange={(slot) => {
+                                        if (slot) {
+                                          equipItemMutation.mutate({ characterId: activeCharacter.id, item: itemName, slot });
+                                        }
+                                      }}
+                                    >
+                                      <SelectTrigger className="h-6 w-16 text-xs" data-testid={`select-equip-${index}`}>
+                                        <SelectValue placeholder="Equip" />
+                                      </SelectTrigger>
+                                      <SelectContent
+                                        position="item-aligned"
+                                        className="z-[9999] bg-white dark:bg-slate-800 border shadow-lg"
+                                      >
+                                        {validSlots.map(s => (
+                                          <SelectItem key={s} value={s}>{slotLabels[s] || s}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  );
+                                })()}
                                 {(participants?.length > 1 || partyNpcs?.length > 0) && (
                                   <Select 
                                     value=""

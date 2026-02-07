@@ -3035,6 +3035,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Item slot classification for D&D 5e equipment
+  const WEAPON_NAMES = new Set([
+    "club", "dagger", "greatclub", "handaxe", "javelin", "light hammer",
+    "mace", "quarterstaff", "sickle", "spear", "battleaxe", "flail",
+    "glaive", "greataxe", "longsword", "morningstar", "pike", "rapier",
+    "scimitar", "shortsword", "trident", "war pick", "warhammer", "whip",
+    "greatsword", "lance", "maul", "shortbow", "light crossbow",
+    "hand crossbow", "heavy crossbow", "longbow", "pistol", "musket",
+    "blowgun", "dart", "net", "sling", "halberd",
+  ]);
+
+  const ARMOR_NAMES = new Set([
+    "padded armor", "leather armor", "studded leather", "hide armor",
+    "chain shirt", "scale mail", "breastplate", "half plate",
+    "ring mail", "chain mail", "splint armor", "plate armor",
+    "padded", "leather", "studded leather armor", "hide",
+    "chain", "splint", "plate", "half-plate", "scale",
+    "mithral armor", "adamantine armor",
+  ]);
+
+  const SHIELD_NAMES = new Set([
+    "shield", "wooden shield", "steel shield",
+  ]);
+
+  const CONSUMABLE_KEYWORDS = [
+    "potion", "scroll", "antitoxin", "holy water", "oil flask",
+    "alchemist's fire", "acid vial", "rations", "torch", "candle",
+    "ammunition", "arrows", "bolts", "bullets", "food", "drink",
+  ];
+
+  const TOOL_KEYWORDS = [
+    "tools", "kit", "supplies", "pack", "pouch",
+    "rope", "torch bundle", "lantern", "bedroll", "spyglass",
+    "manacles", "tent", "crowbar", "caltrops", "grappling hook",
+    "component pouch", "arcane focus", "holy symbol",
+    "explorer's pack", "dungeoneer's pack",
+  ];
+
+  const ACCESSORY_KEYWORDS = [
+    "ring", "amulet", "cloak", "boots", "gloves", "gauntlets",
+    "bracers", "belt", "helm", "helmet", "circlet", "crown",
+    "necklace", "pendant", "brooch", "cape", "mantle", "goggles",
+    "periapt", "stone", "gem", "orb", "rod", "wand", "staff",
+    "headband", "hat", "robe", "vestment", "ioun",
+  ];
+
+  function getValidSlotsForItem(itemName: string, itemType?: string): string[] {
+    const name = itemName.toLowerCase().trim();
+
+    if (itemType) {
+      const t = itemType.toLowerCase();
+      if (t === "weapon" || t === "melee weapon" || t === "ranged weapon") return ["weapon"];
+      if (t === "armor" || t === "light armor" || t === "medium armor" || t === "heavy armor") return ["armor"];
+      if (t === "shield") return ["shield"];
+      if (t === "accessory" || t === "wondrous item" || t === "wondrous" || t === "ring" || t === "wand" || t === "rod" || t === "staff") return ["accessory"];
+      if (t === "potion" || t === "scroll" || t === "consumable" || t === "ammunition") return [];
+      if (t === "tool" || t === "adventuring gear") return [];
+    }
+
+    if (WEAPON_NAMES.has(name)) return ["weapon"];
+    for (const w of WEAPON_NAMES) {
+      if (name.includes(w)) return ["weapon"];
+    }
+    if (name.includes("sword") || name.includes("axe") || name.includes("bow") ||
+        name.includes("crossbow") || name.includes("dagger") || name.includes("mace") ||
+        name.includes("hammer") || name.includes("spear") || name.includes("pike") ||
+        name.includes("halberd") || name.includes("glaive") || name.includes("flail") ||
+        name.includes("whip") || name.includes("trident") || name.includes("lance") ||
+        name.includes("maul") || name.includes("rapier") || name.includes("scimitar") ||
+        name.includes("javelin") || name.includes("sickle") || name.includes("club") ||
+        name.includes("pistol") || name.includes("musket") ||
+        name.includes("blowgun") || name.includes("sling")) {
+      if (!name.includes("potion") && !name.includes("kit") && !name.includes("tools")) {
+        return ["weapon"];
+      }
+    }
+
+    if (ARMOR_NAMES.has(name)) return ["armor"];
+    if (name.includes("armor") || name.includes("mail") || name.includes("plate") ||
+        name.includes("breastplate") || name.includes("half plate") || name.includes("scale mail") ||
+        name.includes("hide armor") || name.includes("padded armor") || name.includes("studded leather") ||
+        name.includes("chain shirt") || name.includes("splint")) {
+      if (!name.includes("shield")) return ["armor"];
+    }
+
+    if (SHIELD_NAMES.has(name) || name.includes("shield")) return ["shield"];
+
+    for (const keyword of CONSUMABLE_KEYWORDS) {
+      if (name.includes(keyword)) return [];
+    }
+    for (const keyword of TOOL_KEYWORDS) {
+      if (name.includes(keyword)) return [];
+    }
+
+    for (const keyword of ACCESSORY_KEYWORDS) {
+      if (name.includes(keyword)) return ["accessory"];
+    }
+
+    return [];
+  }
+
+  app.get("/api/equipment/valid-slots", (req, res) => {
+    const itemName = req.query.name as string;
+    const itemType = req.query.type as string | undefined;
+    if (!itemName) {
+      return res.status(400).json({ message: "Item name is required" });
+    }
+    const validSlots = getValidSlotsForItem(itemName, itemType);
+    res.json({ itemName, validSlots });
+  });
+
   // Equip an item to a slot
   app.post("/api/characters/:id/equipment/equip", async (req, res) => {
     try {
@@ -3049,9 +3160,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Item and slot are required" });
       }
       
-      const validSlots = ["weapon", "armor", "shield", "accessory"];
-      if (!validSlots.includes(slot)) {
-        return res.status(400).json({ message: `Invalid slot. Use: ${validSlots.join(", ")}` });
+      const allowedSlots = ["weapon", "armor", "shield", "accessory"];
+      if (!allowedSlots.includes(slot)) {
+        return res.status(400).json({ message: `Invalid slot. Use: ${allowedSlots.join(", ")}` });
       }
       
       const character = await storage.getCharacter(id);
@@ -3094,17 +3205,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Item not in inventory" });
       }
       
-      // Build update object based on slot - use foundItem to preserve JSON data
-      const updateData: any = { updatedAt: new Date().toISOString() };
-      
-      // Get display name for message
-      let displayName = item;
+      // Validate that item is appropriate for the chosen slot
+      let itemDisplayName = item;
+      let itemTypeHint: string | undefined;
       try {
         const parsed = JSON.parse(foundItem);
-        displayName = parsed.name || item;
+        itemDisplayName = parsed.name || item;
+        itemTypeHint = parsed.type || parsed.equipSlot || parsed.equip_slot;
       } catch {
-        displayName = foundItem;
+        itemDisplayName = foundItem;
       }
+      
+      const validSlots = getValidSlotsForItem(itemDisplayName, itemTypeHint);
+      if (validSlots.length === 0) {
+        return res.status(400).json({ 
+          message: `${itemDisplayName} cannot be equipped — it's a consumable, tool, or gear item.`,
+          validSlots: []
+        });
+      }
+      if (!validSlots.includes(slot)) {
+        const slotLabels: Record<string, string> = { weapon: "Weapon", armor: "Armor", shield: "Shield", accessory: "Accessory" };
+        return res.status(400).json({ 
+          message: `${itemDisplayName} can only be equipped in the ${validSlots.map(s => slotLabels[s] || s).join(" or ")} slot.`,
+          validSlots
+        });
+      }
+      
+      // Build update object based on slot - use foundItem to preserve JSON data
+      const updateData: any = { updatedAt: new Date().toISOString() };
+      const displayName = itemDisplayName;
       
       switch (slot) {
         case "weapon":
@@ -20789,6 +20918,30 @@ ALWAYS generate:
       const itemId = parseInt(req.params.itemId);
       
       if (slot) {
+        const allowedSlots = ["weapon", "armor", "shield", "accessory"];
+        if (!allowedSlots.includes(slot)) {
+          return res.status(400).json({ message: `Invalid slot. Use: ${allowedSlots.join(", ")}` });
+        }
+        
+        const existingItem = await db.execute(sql`SELECT * FROM character_inventory WHERE id = ${itemId}`);
+        const itemData = existingItem.rows[0] as any;
+        if (itemData) {
+          const validSlots = getValidSlotsForItem(itemData.name || '', itemData.equip_slot || itemData.type);
+          if (validSlots.length === 0) {
+            return res.status(400).json({ 
+              message: `${itemData.name} cannot be equipped — it's a consumable, tool, or gear item.`,
+              validSlots: []
+            });
+          }
+          if (!validSlots.includes(slot)) {
+            const slotLabels: Record<string, string> = { weapon: "Weapon", armor: "Armor", shield: "Shield", accessory: "Accessory" };
+            return res.status(400).json({ 
+              message: `${itemData.name} can only be equipped in the ${validSlots.map(s => slotLabels[s] || s).join(" or ")} slot.`,
+              validSlots
+            });
+          }
+        }
+        
         const item = await storage.equipItem(itemId, slot);
         res.json({ message: "Item equipped!", item });
       } else {
