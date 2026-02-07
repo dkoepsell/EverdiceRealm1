@@ -171,6 +171,152 @@ CHOICE FRAMING REQUIREMENTS:
 - Include skill variety: social (persuasion, insight), mental (investigation, arcana), physical (athletics, stealth)
 `;
 
+async function improviseDoctrine(campaign: any): Promise<{ campaignQuestion: string; campaignStakes: any[]; chapterGates: any[] } | null> {
+  const hasDoctrine = (campaign.campaignQuestion && campaign.campaignStakes?.length > 0 && campaign.chapterGates?.length > 0);
+  if (hasDoctrine) return null;
+
+  // Concurrency guard: re-fetch to avoid duplicate writes if another request just persisted
+  const fresh = await storage.getCampaign(campaign.id);
+  if (fresh && fresh.campaignQuestion && (fresh as any).campaignStakes?.length > 0 && (fresh as any).chapterGates?.length > 0) {
+    return { campaignQuestion: fresh.campaignQuestion!, campaignStakes: (fresh as any).campaignStakes, chapterGates: (fresh as any).chapterGates };
+  }
+
+  const title = campaign.title || "Unknown Adventure";
+  const desc = campaign.description || "";
+  const totalChapters = campaign.totalChapters || 5;
+  const difficulty = campaign.difficulty || "medium";
+  const style = campaign.narrativeStyle || "dramatic";
+
+  const descLower = desc.toLowerCase();
+  const titleLower = title.toLowerCase();
+  const combined = titleLower + " " + descLower;
+
+  const themeKeywords: Record<string, string[]> = {
+    undead: ["undead", "zombie", "skeleton", "necromancer", "lich", "vampire", "death", "grave", "tomb"],
+    wilderness: ["forest", "wild", "beast", "hunt", "nature", "druid", "ranger", "wolf", "bear"],
+    political: ["kingdom", "throne", "king", "queen", "noble", "court", "alliance", "war", "politics", "crown"],
+    arcane: ["magic", "wizard", "arcane", "spell", "enchant", "rune", "sorcerer", "ritual", "tower"],
+    heist: ["thief", "heist", "steal", "rogue", "guild", "smuggl", "crime", "treasure"],
+    horror: ["horror", "curse", "haunt", "dark", "shadow", "demon", "abyss", "madness", "fear"],
+    exploration: ["explore", "discover", "ruin", "ancient", "lost", "forgotten", "dungeon", "cave", "map"],
+    nautical: ["sea", "ocean", "ship", "pirate", "island", "sail", "port", "captain", "kraken"],
+    divine: ["god", "temple", "cleric", "paladin", "holy", "prayer", "divine", "faith", "celestial"],
+  };
+
+  let detectedTheme = "exploration";
+  let bestScore = 0;
+  for (const [theme, keywords] of Object.entries(themeKeywords)) {
+    const score = keywords.filter(kw => combined.includes(kw)).length;
+    if (score > bestScore) { bestScore = score; detectedTheme = theme; }
+  }
+
+  const stakeTemplates: Record<string, { stakes: any[]; questionTemplate: string }> = {
+    undead: {
+      questionTemplate: `What ancient wrong unleashed the dead, and what must be sacrificed to end it?`,
+      stakes: [
+        { id: "veil_integrity", name: "Veil Between Life and Death", value: 3, max: 5, description: "The barrier keeping the dead at rest", worsensWhen: ["Disturbing burial sites", "Using necromantic artifacts", "Ignoring growing undead threats"], improvesWhen: ["Consecrating defiled ground", "Discovering the source of corruption", "Allying with ancestral spirits"] },
+        { id: "survivor_hope", name: "Survivor Hope", value: 3, max: 5, description: "The living's will to resist the darkness", worsensWhen: ["Failing to protect innocents", "Losing key allies", "Spreading fear"], improvesWhen: ["Rescuing survivors", "Defeating major undead", "Restoring safe havens"] },
+      ]
+    },
+    wilderness: {
+      questionTemplate: `What ancient balance in the wilds has been broken, and what will the restoration cost?`,
+      stakes: [
+        { id: "natural_balance", name: "Natural Balance", value: 3, max: 5, description: "The harmony between civilization and the wild", worsensWhen: ["Destroying natural sites", "Siding with exploiters", "Ignoring corruption in the land"], improvesWhen: ["Healing blighted areas", "Allying with nature guardians", "Finding sustainable solutions"] },
+        { id: "community_survival", name: "Community Survival", value: 3, max: 5, description: "Whether the people can coexist with the wilds", worsensWhen: ["Abandoning settlements", "Provoking territorial beasts", "Resource depletion"], improvesWhen: ["Establishing peace with wildlife", "Strengthening defenses", "Sharing resources wisely"] },
+      ]
+    },
+    political: {
+      questionTemplate: `Who deserves to rule, what cost comes with power, and what fractures when loyalty is tested?`,
+      stakes: [
+        { id: "political_stability", name: "Political Stability", value: 3, max: 5, description: "The realm's ability to hold together under pressure", worsensWhen: ["Betraying political allies", "Ignoring faction demands", "Public failures of leadership"], improvesWhen: ["Forging alliances", "Resolving disputes diplomatically", "Exposing true enemies"] },
+        { id: "public_trust", name: "Public Trust", value: 3, max: 5, description: "How much the common people trust those in power", worsensWhen: ["Breaking promises to the people", "Collateral damage from conflicts", "Cover-ups exposed"], improvesWhen: ["Delivering justice", "Protecting the vulnerable", "Transparent decisions"] },
+      ]
+    },
+    arcane: {
+      questionTemplate: `What forbidden knowledge is being sought, and what price does understanding demand?`,
+      stakes: [
+        { id: "arcane_stability", name: "Arcane Stability", value: 3, max: 5, description: "The stability of magical forces in the region", worsensWhen: ["Reckless spellcasting", "Tampering with wards", "Using forbidden magic"], improvesWhen: ["Restoring magical barriers", "Containing wild magic", "Learning ancient safeguards"] },
+        { id: "knowledge_cost", name: "Price of Knowledge", value: 2, max: 5, description: "How much has been sacrificed in pursuit of understanding", worsensWhen: ["Pushing past warnings", "Ignoring the cost on others", "Choosing power over wisdom"], improvesWhen: ["Accepting limitations", "Sharing discoveries", "Protecting the uninitiated"] },
+      ]
+    },
+    heist: {
+      questionTemplate: `What are you really stealing — and from whom does it truly belong?`,
+      stakes: [
+        { id: "crew_loyalty", name: "Crew Loyalty", value: 3, max: 5, description: "How much the team trusts each other under pressure", worsensWhen: ["Double-crossing allies", "Hoarding loot", "Leaving someone behind"], improvesWhen: ["Sharing risks equally", "Keeping promises under pressure", "Sacrificing for the team"] },
+        { id: "heat_level", name: "Heat Level", value: 2, max: 5, description: "How close the authorities are to catching you", worsensWhen: ["Leaving evidence", "Drawing public attention", "Betraying informants"], improvesWhen: ["Clean getaways", "Planting false trails", "Buying silence"] },
+      ]
+    },
+    horror: {
+      questionTemplate: `What creeping dread threatens to consume everything — and is it already too late?`,
+      stakes: [
+        { id: "sanity_grip", name: "Grip on Reality", value: 3, max: 5, description: "The party's mental resilience against the horror", worsensWhen: ["Witnessing traumatic events", "Using cursed items", "Isolation from allies"], improvesWhen: ["Finding moments of hope", "Understanding the threat", "Supporting each other"] },
+        { id: "corruption_spread", name: "Corruption Spread", value: 2, max: 5, description: "How far the darkness has reached", worsensWhen: ["Delay or inaction", "Spreading fear", "Failed containment"], improvesWhen: ["Destroying sources of corruption", "Saving the afflicted", "Sealing breaches"] },
+      ]
+    },
+    nautical: {
+      questionTemplate: `What lies beyond the horizon, and what must be left behind to reach it?`,
+      stakes: [
+        { id: "crew_morale", name: "Crew Morale", value: 3, max: 5, description: "The ship's company's will to continue the voyage", worsensWhen: ["Rationing supplies harshly", "Losing crew members", "Bad omens ignored"], improvesWhen: ["Successful raids or trades", "Shore leave", "Fair leadership"] },
+        { id: "ship_integrity", name: "Ship Integrity", value: 3, max: 5, description: "The vessel's ability to survive what's coming", worsensWhen: ["Storms weathered poorly", "Combat damage", "Neglecting repairs"], improvesWhen: ["Skilled repairs", "Finding safe harbor", "Acquiring better equipment"] },
+      ]
+    },
+    divine: {
+      questionTemplate: `What does faith demand, and what happens when devotion and morality conflict?`,
+      stakes: [
+        { id: "divine_favor", name: "Divine Favor", value: 3, max: 5, description: "The deity's attention and support", worsensWhen: ["Acting against the faith's tenets", "Doubting openly", "Allying with enemies of the faith"], improvesWhen: ["Acts of devotion", "Converting others", "Self-sacrifice for the cause"] },
+        { id: "mortal_cost", name: "Mortal Cost", value: 2, max: 5, description: "The toll on ordinary people caught in divine plans", worsensWhen: ["Collateral damage from holy wars", "Ignoring suffering", "Fanaticism"], improvesWhen: ["Protecting innocents", "Finding merciful solutions", "Questioning harmful doctrine"] },
+      ]
+    },
+    exploration: {
+      questionTemplate: `What was lost in these forgotten places, and should it be found — or left buried?`,
+      stakes: [
+        { id: "discovery_progress", name: "Discovery Progress", value: 2, max: 5, description: "How much of the mystery has been uncovered", worsensWhen: ["Missing clues", "Triggering traps", "Destroying evidence"], improvesWhen: ["Solving puzzles", "Finding hidden passages", "Deciphering ancient texts"] },
+        { id: "expedition_safety", name: "Expedition Safety", value: 3, max: 5, description: "How safe the party remains in dangerous territory", worsensWhen: ["Splitting the party", "Ignoring warnings", "Exhausting resources"], improvesWhen: ["Careful preparation", "Finding allies underground", "Securing rest areas"] },
+      ]
+    },
+  };
+
+  const template = stakeTemplates[detectedTheme] || stakeTemplates.exploration;
+  
+  // Adjust starting stake values based on difficulty
+  const difficultyModifier = difficulty === "hard" ? -1 : difficulty === "easy" ? 1 : 0;
+  
+  const campaignQuestion = campaign.campaignQuestion || 
+    template.questionTemplate.replace(/\?$/, ` in ${title}?`);
+
+  const campaignStakes = campaign.campaignStakes?.length > 0 
+    ? campaign.campaignStakes 
+    : template.stakes.map((s: any) => ({
+        ...s,
+        value: Math.max(1, Math.min(5, s.value + difficultyModifier))
+      }));
+
+  const chapterGates = campaign.chapterGates?.length > 0 
+    ? campaign.chapterGates 
+    : Array.from({ length: totalChapters }, (_, i) => {
+        const chapter = i + 1;
+        if (chapter === 1) return { chapter, advanceWhen: "The party understands the true nature of the threat", requiredTruth: "The real danger is revealed" };
+        if (chapter === totalChapters) return { chapter, advanceWhen: "The final confrontation is resolved and the campaign question is answered", requiredCommitment: "Make the defining choice" };
+        if (chapter <= Math.ceil(totalChapters / 2)) return { chapter, advanceWhen: "A key alliance or commitment is forged that changes the approach", requiredCommitment: "Commit to a path forward" };
+        return { chapter, advanceWhen: "A deeply held belief about the situation changes based on new evidence", requiredBeliefChange: "What seemed true is revealed to be more complex" };
+      });
+
+  console.log(`DOCTRINE IMPROVISED for campaign ${campaign.id} "${title}" (theme: ${detectedTheme}) — question: "${campaignQuestion.substring(0, 60)}...", ${campaignStakes.length} stakes, ${chapterGates.length} gates`);
+
+  try {
+    await storage.updateCampaign(campaign.id, {
+      campaignQuestion,
+      campaignStakes,
+      chapterGates,
+      narrativeLog: campaign.narrativeLog || [],
+    });
+  } catch (err) {
+    console.error(`Failed to persist improvised doctrine for campaign ${campaign.id}:`, err);
+  }
+
+  return { campaignQuestion, campaignStakes, chapterGates };
+}
+
 async function recordTrace(
   campaignId: number,
   kind: TraceEventKind,
@@ -5399,6 +5545,14 @@ Return your response as a JSON object with these fields:
       const campaign = await storage.getCampaign(parseInt(campaignId));
       if (!campaign) {
         return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      // DM Authoring Doctrine: Auto-improvise doctrine fields for campaigns that lack them
+      const improvised = await improviseDoctrine(campaign);
+      if (improvised) {
+        (campaign as any).campaignQuestion = improvised.campaignQuestion;
+        (campaign as any).campaignStakes = improvised.campaignStakes;
+        (campaign as any).chapterGates = improvised.chapterGates;
       }
       
       campaignContext = `Campaign: ${campaign.title}. ${campaign.description || ""}`;
@@ -13747,6 +13901,14 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
       const campaign = await storage.getCampaign(campaignId);
       if (!campaign) {
         return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      // DM Authoring Doctrine: Auto-improvise doctrine fields for campaigns that lack them
+      const improvised = await improviseDoctrine(campaign);
+      if (improvised) {
+        (campaign as any).campaignQuestion = improvised.campaignQuestion;
+        (campaign as any).campaignStakes = improvised.campaignStakes;
+        (campaign as any).chapterGates = improvised.chapterGates;
       }
       
       // Enforce turn order in multiplayer campaigns (unless DM or skipTurnCheck is true)
