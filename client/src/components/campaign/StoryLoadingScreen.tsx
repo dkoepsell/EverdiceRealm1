@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { Sparkles, Sword, Shield, Heart, MapPin, Scroll, Moon, BookOpen } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Sparkles, Sword, Shield, Heart, MapPin, Scroll, Moon, BookOpen, Compass, Users, Search, Footprints, Flame, Skull, Crown, Gem, TreePine, Mountain, Castle, Eye } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 interface StoryLoadingScreenProps {
@@ -41,6 +41,82 @@ const COMBAT_FLAVOR_TEXTS = [
   { text: "The tide of battle shifts...", icon: Shield },
 ];
 
+type SceneContext = 'combat' | 'exploration' | 'social' | 'dungeon' | 'wilderness' | 'town' | 'mystery' | 'magic';
+
+const SCENE_CRAWL_ICONS: Record<SceneContext, typeof Sword[]> = {
+  combat: [Sword, Shield, Skull, Flame],
+  exploration: [Compass, Footprints, MapPin, Eye],
+  social: [Users, Crown, Scroll, BookOpen],
+  dungeon: [Skull, Gem, Eye, Flame],
+  wilderness: [TreePine, Mountain, Compass, Footprints],
+  town: [Castle, Users, Crown, Scroll],
+  mystery: [Eye, Search, Moon, Sparkles],
+  magic: [Sparkles, Gem, Moon, Flame],
+};
+
+function detectSceneContext(
+  inCombat?: boolean,
+  location?: string,
+  chosenAction?: string,
+  previousNarrative?: string
+): SceneContext {
+  if (inCombat) return 'combat';
+
+  const combined = `${location || ''} ${chosenAction || ''} ${previousNarrative || ''}`.toLowerCase();
+
+  if (/cave|dungeon|crypt|tomb|ruin|catacomb|underground|chamber/.test(combined)) return 'dungeon';
+  if (/forest|mountain|wild|river|swamp|desert|gorge|cliff|trail|valley/.test(combined)) return 'wilderness';
+  if (/tavern|inn|town|city|village|market|shop|castle|court|throne/.test(combined)) return 'town';
+  if (/investigate|search|clue|mystery|hidden|secret|shadow|whisper|puzzle/.test(combined)) return 'mystery';
+  if (/spell|magic|arcane|enchant|ritual|rune|amulet|crystal|wand|sorcery/.test(combined)) return 'magic';
+  if (/talk|persuade|convince|negotiate|diplomacy|alliance|trade|barter/.test(combined)) return 'social';
+  if (/explore|discover|scout|travel|journey|path|venture|wander/.test(combined)) return 'exploration';
+
+  return 'exploration';
+}
+
+function CrawlingIcon({ sceneContext, elapsed }: { sceneContext: SceneContext; elapsed: number }) {
+  const icons = SCENE_CRAWL_ICONS[sceneContext];
+  const [iconIndex, setIconIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIconIndex(prev => (prev + 1) % icons.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [icons.length]);
+
+  const Icon = icons[iconIndex];
+
+  const cyclePosition = (elapsed / 6000) % 1;
+  const leftPercent = cyclePosition * 100;
+  const verticalWave = Math.sin(cyclePosition * Math.PI * 3) * 8;
+  const opacity = Math.min(1, Math.max(0.2,
+    leftPercent < 10 ? leftPercent / 10 :
+    leftPercent > 90 ? (100 - leftPercent) / 10 : 1
+  ));
+
+  return (
+    <div
+      className="absolute pointer-events-none"
+      style={{
+        left: `${leftPercent}%`,
+        top: `calc(50% + ${verticalWave}px)`,
+        transform: 'translate(-50%, -50%)',
+        opacity: opacity * 0.35,
+        transition: 'opacity 0.3s ease',
+      }}
+    >
+      <Icon
+        className="h-6 w-6 text-amber-400"
+        style={{
+          filter: 'drop-shadow(0 0 8px rgba(245, 158, 11, 0.4))',
+        }}
+      />
+    </div>
+  );
+}
+
 export function StoryLoadingScreen({
   previousNarrative,
   chosenAction,
@@ -58,6 +134,11 @@ export function StoryLoadingScreen({
   const startTime = useRef(Date.now());
 
   const flavors = inCombat ? COMBAT_FLAVOR_TEXTS : FLAVOR_TEXTS;
+
+  const sceneContext = useMemo(
+    () => detectSceneContext(inCombat, location, chosenAction, previousNarrative),
+    [inCombat, location, chosenAction, previousNarrative]
+  );
 
   useEffect(() => {
     setFlavorIndex(Math.floor(Math.random() * flavors.length));
@@ -77,7 +158,7 @@ export function StoryLoadingScreen({
   useEffect(() => {
     const timer = setInterval(() => {
       setElapsed(Date.now() - startTime.current);
-    }, 100);
+    }, 50);
     return () => clearInterval(timer);
   }, []);
 
@@ -109,105 +190,110 @@ export function StoryLoadingScreen({
         </div>
       )}
 
-      {showReveal && revealText ? (
-        <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <p className="whitespace-pre-line text-lg leading-relaxed text-slate-100 font-medium" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>
-            {revealText}
-          </p>
-          <div className="mt-4 flex items-center gap-3 px-3 py-2.5 bg-amber-900/20 border border-amber-600/20 rounded-lg animate-in fade-in duration-700" style={{ animationDelay: '600ms', animationFillMode: 'both' }}>
-            <div className="flex gap-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '300ms' }} />
-            </div>
-            <span className="text-sm text-amber-300/70 italic">
-              {elapsed > 8000 ? "Almost there — crafting your choices..." : "Weaving the full scene and your choices..."}
-            </span>
-          </div>
-        </div>
-      ) : showStream && streamedText ? (
-        <div className="animate-in fade-in duration-300">
-          <p className="whitespace-pre-line text-lg leading-relaxed text-slate-100 font-medium" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>
-            {streamedText}
-            <span className="inline-block w-0.5 h-5 bg-amber-400 ml-0.5 animate-pulse" />
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className="flex flex-col items-center justify-center py-6">
-            <div className="relative">
-              <div className="h-16 w-16 rounded-full border-2 border-amber-500/30 flex items-center justify-center">
-                <FlavorIcon
-                  className={`h-8 w-8 text-amber-400 transition-all duration-400 ${fadeIn ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}
-                />
-              </div>
-              <div className="absolute inset-0 rounded-full border-2 border-amber-400/60 border-t-transparent animate-spin" style={{ animationDuration: '3s' }} />
-            </div>
+      {/* Crawling contextual icon across the loading area */}
+      <div className="relative min-h-[60px] overflow-hidden">
+        <CrawlingIcon sceneContext={sceneContext} elapsed={elapsed} />
 
-            <p className={`mt-4 text-center font-medium text-amber-300 text-lg transition-opacity duration-400 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}>
-              {phaseLabel}
+        {showReveal && revealText ? (
+          <div className="relative z-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <p className="whitespace-pre-line text-lg leading-relaxed text-slate-100 font-medium" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>
+              {revealText}
             </p>
-
-            {elapsed > 4000 && (
-              <p className="mt-1 text-xs text-amber-200/40 animate-in fade-in duration-1000">
-                Some choices take longer to resolve
-              </p>
-            )}
+            <div className="mt-4 flex items-center gap-3 px-3 py-2.5 bg-amber-900/20 border border-amber-600/20 rounded-lg animate-in fade-in duration-700" style={{ animationDelay: '600ms', animationFillMode: 'both' }}>
+              <div className="flex gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+              <span className="text-sm text-amber-300/70 italic">
+                {elapsed > 8000 ? "Almost there — crafting your choices..." : "Weaving the full scene and your choices..."}
+              </span>
+            </div>
           </div>
-
-          {character && (
-            <div className="flex items-center gap-3 px-3 py-2 bg-slate-800/50 border border-slate-700/40 rounded-lg animate-in fade-in duration-500" style={{ animationDelay: '500ms', animationFillMode: 'both' }}>
-              <div className="flex items-center gap-1.5">
-                <Heart className="h-3.5 w-3.5 text-red-400" />
-                <span className="text-xs text-slate-300">{character.hitPoints}/{character.maxHitPoints}</span>
-              </div>
-              <div className="flex-1">
-                <Progress
-                  value={Math.max(0, (character.hitPoints / character.maxHitPoints) * 100)}
-                  className="h-1.5"
-                />
-              </div>
-              {character.armorClass && (
-                <div className="flex items-center gap-1">
-                  <Shield className="h-3.5 w-3.5 text-blue-400" />
-                  <span className="text-xs text-slate-300">{character.armorClass}</span>
+        ) : showStream && streamedText ? (
+          <div className="relative z-10 animate-in fade-in duration-300">
+            <p className="whitespace-pre-line text-lg leading-relaxed text-slate-100 font-medium" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>
+              {streamedText}
+              <span className="inline-block w-0.5 h-5 bg-amber-400 ml-0.5 animate-pulse" />
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="relative z-10 flex flex-col items-center justify-center py-6">
+              <div className="relative">
+                <div className="h-16 w-16 rounded-full border-2 border-amber-500/30 flex items-center justify-center">
+                  <FlavorIcon
+                    className={`h-8 w-8 text-amber-400 transition-all duration-400 ${fadeIn ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}
+                  />
                 </div>
-              )}
-              <span className="text-xs text-slate-400">Lv.{character.level} {character.class}</span>
-            </div>
-          )}
-
-          {inCombat && combatants && combatants.length > 0 && (
-            <div className="space-y-1.5 px-3 py-2 bg-red-900/20 border border-red-700/30 rounded-lg animate-in fade-in duration-500" style={{ animationDelay: '700ms', animationFillMode: 'both' }}>
-              <div className="flex items-center gap-1.5 mb-1">
-                <Sword className="h-3 w-3 text-red-400" />
-                <span className="text-xs font-medium text-red-300">In Combat</span>
+                <div className="absolute inset-0 rounded-full border-2 border-amber-400/60 border-t-transparent animate-spin" style={{ animationDuration: '3s' }} />
               </div>
-              {combatants.filter((c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated').map((enemy: any, i: number) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="text-xs text-slate-300 truncate flex-1">{enemy.name}</span>
-                  <div className="w-16">
-                    <Progress
-                      value={Math.max(0, ((enemy.currentHp ?? enemy.maxHp) / (enemy.maxHp || 1)) * 100)}
-                      className="h-1"
-                    />
-                  </div>
-                  <span className="text-xs text-slate-400 w-12 text-right">{enemy.currentHp ?? '?'}/{enemy.maxHp ?? '?'}</span>
-                </div>
-              ))}
-            </div>
-          )}
 
-          {previousNarrative && (
-            <div className="relative mt-2 max-h-24 overflow-hidden animate-in fade-in duration-700" style={{ animationDelay: '1000ms', animationFillMode: 'both' }}>
-              <p className="text-sm leading-relaxed text-slate-400/50 italic line-clamp-3">
-                {previousNarrative}
+              <p className={`mt-4 text-center font-medium text-amber-300 text-lg transition-opacity duration-400 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}>
+                {phaseLabel}
               </p>
-              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-slate-900/80 to-transparent" />
+
+              {elapsed > 4000 && (
+                <p className="mt-1 text-xs text-amber-200/40 animate-in fade-in duration-1000">
+                  Some choices take longer to resolve
+                </p>
+              )}
             </div>
-          )}
-        </>
-      )}
+
+            {character && (
+              <div className="flex items-center gap-3 px-3 py-2 bg-slate-800/50 border border-slate-700/40 rounded-lg animate-in fade-in duration-500" style={{ animationDelay: '500ms', animationFillMode: 'both' }}>
+                <div className="flex items-center gap-1.5">
+                  <Heart className="h-3.5 w-3.5 text-red-400" />
+                  <span className="text-xs text-slate-300">{character.hitPoints}/{character.maxHitPoints}</span>
+                </div>
+                <div className="flex-1">
+                  <Progress
+                    value={Math.max(0, (character.hitPoints / character.maxHitPoints) * 100)}
+                    className="h-1.5"
+                  />
+                </div>
+                {character.armorClass && (
+                  <div className="flex items-center gap-1">
+                    <Shield className="h-3.5 w-3.5 text-blue-400" />
+                    <span className="text-xs text-slate-300">{character.armorClass}</span>
+                  </div>
+                )}
+                <span className="text-xs text-slate-400">Lv.{character.level} {character.class}</span>
+              </div>
+            )}
+
+            {inCombat && combatants && combatants.length > 0 && (
+              <div className="space-y-1.5 px-3 py-2 bg-red-900/20 border border-red-700/30 rounded-lg animate-in fade-in duration-500" style={{ animationDelay: '700ms', animationFillMode: 'both' }}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Sword className="h-3 w-3 text-red-400" />
+                  <span className="text-xs font-medium text-red-300">In Combat</span>
+                </div>
+                {combatants.filter((c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated').map((enemy: any, i: number) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xs text-slate-300 truncate flex-1">{enemy.name}</span>
+                    <div className="w-16">
+                      <Progress
+                        value={Math.max(0, ((enemy.currentHp ?? enemy.maxHp) / (enemy.maxHp || 1)) * 100)}
+                        className="h-1"
+                      />
+                    </div>
+                    <span className="text-xs text-slate-400 w-12 text-right">{enemy.currentHp ?? '?'}/{enemy.maxHp ?? '?'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {previousNarrative && (
+              <div className="relative mt-2 max-h-24 overflow-hidden animate-in fade-in duration-700" style={{ animationDelay: '1000ms', animationFillMode: 'both' }}>
+                <p className="text-sm leading-relaxed text-slate-400/50 italic line-clamp-3">
+                  {previousNarrative}
+                </p>
+                <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-slate-900/80 to-transparent" />
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
