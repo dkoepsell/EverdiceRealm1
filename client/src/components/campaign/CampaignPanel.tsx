@@ -1087,18 +1087,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       });
       return await response.json();
     },
-    onSuccess: (data) => {
-      // Invalidate sessions data to refresh
-      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
+    onSuccess: async (data) => {
+      // Await sessions refetch so UI updates BEFORE loading screen hides
+      await queryClient.refetchQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
       
-      // Invalidate characters and participants to reflect HP/status changes from combat
+      // Invalidate other data in background (don't need to wait)
       queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
-      
-      // Invalidate exploration map data so player position updates after movement
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/exploration`] });
       
-      // If the user is the campaign owner, also update the campaign data
       if (campaign.userId === user?.id) {
         queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
       }
