@@ -208,6 +208,11 @@ export const campaigns = pgTable("campaigns", {
   sessionFocus: text("session_focus"), // 1-2 sentence goal for this session
   activePressures: text("active_pressures").array(), // 2-3 short phrases (max)
   unresolvedThread: text("unresolved_thread"), // One dangling question
+  // DM Authoring Doctrine - Campaign Spine
+  campaignQuestion: text("campaign_question"), // One sentence: "What is the player actually deciding about the world?"
+  campaignStakes: jsonb("campaign_stakes"), // 2-4 stakes, each 0-5, every action must touch at least one
+  chapterGates: jsonb("chapter_gates"), // What belief/truth/commitment gates each chapter's advancement
+  narrativeLog: jsonb("narrative_log"), // Structured log: why chapters advanced, why XP awarded, what was foreclosed
   // CAML 2.0 State-First Adventure System
   worldState: jsonb("world_state"), // Dynamic state facts that can change (trust, suspicion, awareness, etc.)
   npcAttitudes: jsonb("npc_attitudes"), // NPC relationships and attitudes that affect scenes

@@ -3588,7 +3588,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalChapters,
         isPublished: false,
         isPrivate: true,
-        maxPlayers: 6
+        maxPlayers: 6,
+        narrativeLog: bodyWithoutChapters.narrativeLog || { entries: [], chapterAdvances: [], xpAwards: [], foreclosedOptions: [] },
       });
       
       const campaign = await storage.createCampaign(campaignData);
@@ -5420,8 +5421,42 @@ Return your response as a JSON object with these fields:
         }
       }
       
+      // DM AUTHORING DOCTRINE: Build campaign spine context
+      let campaignSpineContext = "";
+      const campaignQuestion = (campaign as any).campaignQuestion;
+      const campaignStakes = (campaign as any).campaignStakes as any[] || [];
+      const chapterGates = (campaign as any).chapterGates as any[] || [];
+      
+      if (campaignQuestion) {
+        campaignSpineContext += `\nCAMPAIGN QUESTION (every scene must advance this): ${campaignQuestion}\n`;
+      }
+      
+      if (campaignStakes.length > 0) {
+        campaignSpineContext += `\nCAMPAIGN STAKES (2-4 stakes, 0-5 range — EVERY choice must touch at least one):\n`;
+        campaignSpineContext += campaignStakes.map((s: any) => {
+          let line = `- ${s.name} [${s.id}]: ${s.value}/${s.max} — ${s.description}`;
+          if (s.value <= 1) line += ` [CRITICAL LOW — consequences imminent]`;
+          else if (s.value >= 4) line += ` [HIGH — threshold approaching]`;
+          line += `\n  Worsens when: ${(s.worsensWhen || []).join(', ')}`;
+          line += `\n  Improves when: ${(s.improvesWhen || []).join(', ')}`;
+          return line;
+        }).join("\n");
+      }
+      
+      if (chapterGates.length > 0) {
+        const currentChapterNum = (campaign as any).currentSession || 1;
+        const currentGate = chapterGates.find((g: any) => g.chapter === currentChapterNum);
+        if (currentGate) {
+          campaignSpineContext += `\n\nCHAPTER ${currentChapterNum} GATE (what must happen before chapter advances):\n`;
+          campaignSpineContext += `- Advance when: ${currentGate.advanceWhen}\n`;
+          if (currentGate.requiredTruth) campaignSpineContext += `- Required truth to discover: "${currentGate.requiredTruth}"\n`;
+          if (currentGate.requiredCommitment) campaignSpineContext += `- Required commitment: "${currentGate.requiredCommitment}"\n`;
+          if (currentGate.requiredBeliefChange) campaignSpineContext += `- Required belief change: "${currentGate.requiredBeliefChange}"\n`;
+        }
+      }
+      
       // CAML 2.0: Build OPERATIVE state context for reactive storytelling
-      let stateContext = "";
+      let stateContext = campaignSpineContext;
       let activeGates: string[] = [];
       let availableUnlocks: string[] = [];
       let criticalPressure: string[] = [];
@@ -5631,6 +5666,35 @@ Story direction preference: ${storyDirection || "balanced mix of combat, rolepla
 ${stateContext}
 
 ═══════════════════════════════════════════════════════════
+DM AUTHORING DOCTRINE - THESE OVERRIDE ALL OTHER RULES:
+═══════════════════════════════════════════════════════════
+
+0A. EVERY CHOICE MUST COST, CLOSE, OR ESCALATE:
+   - If a choice can be repeated without cost, it is NOT a real choice — redesign it
+   - Even asking questions or investigating should have social or narrative cost
+   - "Take action" style choices with no consequence are BANNED
+
+0B. CAMPAIGN STAKES ARE MANDATORY:
+   - EVERY choice you offer must touch at least one campaign stake (increase or decrease)
+   - Include "campaignStakeUpdates" in stateChanges showing which stakes changed and why
+   - If you cannot explain which stake an action touches, the action should not exist
+
+0C. COMBAT IS CONSEQUENCE, NOT CONTENT:
+   - Combat triggers because a stake crossed a threshold or a choice escalated beyond diplomacy
+   - Even winning combat must worsen at least one stake or pressure meter
+   - Combat is NEVER the safest option — it always costs something
+   - Test: "What gets worse even if they win this fight?" If nothing, remove the fight
+
+0D. CHAPTER GATES ARE MEANING-BASED:
+   - Chapters advance when: a belief changes, a truth is learned, or a commitment is made
+   - NEVER advance chapters because "enough stuff happened" or turns elapsed
+   - If a chapter gate's required truth/commitment is met, include "chapterGateMet" in response
+   - Include "chapterGateMet": { "gateId": chapter_number, "reason": "what truth/belief/commitment was reached" }
+
+0E. LOG WHY THINGS MATTER:
+   - Include "narrativeLogEntry" in your response: { "xpReason": why XP was earned, "stakeReason": which stakes changed and why, "foreclosedReason": what options closed and why }
+
+═══════════════════════════════════════════════════════════
 MANDATORY OPERATIVE RULES - YOU MUST ENFORCE THESE:
 ═══════════════════════════════════════════════════════════
 
@@ -5727,6 +5791,13 @@ Return your response as a JSON object with these fields:
   - npcsBroken: Array of {name, reason} for any NPCs whose breaking points were triggered (PERMANENT)
   - foreclosuresTriggered: Array of {name, reason} for any doors that sealed permanently this scene
   - residueUpdates: Array of {residueId, delta, reason, triggerId?} for any normative residue that increased due to player choice (failure, delay, recklessness)
+  - campaignStakeUpdates: (REQUIRED) Array of {id, delta, reason} for campaign stakes touched by this action. EVERY scene MUST include at least one. Delta is integer change (-1, +1, etc.)
+- chapterGateMet: (OPTIONAL) If the chapter gate's required truth/commitment/belief was achieved THIS scene, include: { "gateId": chapter_number, "reason": "what was learned/committed/changed" }
+- narrativeLogEntry: (REQUIRED) Object with:
+  - xpReason: Why XP was awarded this scene (or "No XP — no meaningful resolution")
+  - stakeReason: Which campaign stakes changed and why (one sentence)
+  - foreclosedReason: What options closed and why (or "None this scene")
+  - choiceCost: What the player's choice cost, closed, or escalated (one sentence — CANNOT be empty)
 - discoveredQuest: (OPTIONAL - include only when a side quest is naturally discovered) An object with:
   - title: A compelling quest name (e.g., "The Missing Merchant", "Whispers in the Well")
   - description: 2-3 sentences describing the quest objective
@@ -6110,20 +6181,82 @@ Return your response as a JSON object with these fields:
             }
           }
           
+          // DM AUTHORING DOCTRINE: Apply campaignStakeUpdates from AI response
+          let updatedCampaignStakes = [...((campaign as any).campaignStakes || [])];
+          if (changes.campaignStakeUpdates && Array.isArray(changes.campaignStakeUpdates)) {
+            for (const update of changes.campaignStakeUpdates) {
+              const stakeIndex = updatedCampaignStakes.findIndex((s: any) => s.id === update.id);
+              if (stakeIndex >= 0) {
+                const stake = updatedCampaignStakes[stakeIndex];
+                const newValue = Math.max(0, Math.min(stake.max || 5, stake.value + (update.delta || 0)));
+                updatedCampaignStakes[stakeIndex] = { ...stake, value: newValue };
+                stateWasUpdated = true;
+                console.log(`DOCTRINE STAKE: ${update.id} ${update.delta > 0 ? '+' : ''}${update.delta} (now ${newValue}/${stake.max}) — ${update.reason}`);
+              }
+            }
+          }
+          
+          // DM AUTHORING DOCTRINE: Append narrative log entry
+          let updatedNarrativeLog = [...((campaign as any).narrativeLog || [])];
+          if (storyData.narrativeLogEntry) {
+            const logEntry = {
+              ...storyData.narrativeLogEntry,
+              chapter: campaign.currentSession || 1,
+              scene: updatedNarrativeLog.length + 1,
+              timestamp: new Date().toISOString()
+            };
+            updatedNarrativeLog.push(logEntry);
+            stateWasUpdated = true;
+            console.log(`DOCTRINE LOG: ch${logEntry.chapter} sc${logEntry.scene} — cost: ${logEntry.choiceCost}`);
+          }
+          
+          // DM AUTHORING DOCTRINE: Chapter gate advancement (meaning-based, not metrics-based)
+          let chapterAdvanced = false;
+          if (storyData.chapterGateMet) {
+            const gate = storyData.chapterGateMet;
+            const currentChapterForGate = campaign.currentSession || 1;
+            const totalChaptersForGate = campaign.totalChapters || 5;
+            
+            if (gate.gateId === currentChapterForGate && currentChapterForGate < totalChaptersForGate) {
+              chapterAdvanced = true;
+              stateWasUpdated = true;
+              console.log(`DOCTRINE CHAPTER GATE MET: Chapter ${currentChapterForGate} → ${currentChapterForGate + 1} — ${gate.reason}`);
+              
+              updatedNarrativeLog.push({
+                xpReason: `Chapter ${currentChapterForGate} completed`,
+                stakeReason: gate.reason,
+                foreclosedReason: `Chapter ${currentChapterForGate} closed`,
+                choiceCost: `Advanced to Chapter ${currentChapterForGate + 1}`,
+                chapter: currentChapterForGate,
+                scene: -1,
+                timestamp: new Date().toISOString(),
+                type: 'chapter_gate'
+              });
+            }
+          }
+          
           // Save updated state to campaign
+          const campaignUpdateData: any = {
+            worldState: updatedWorldState,
+            npcAttitudes: updatedNpcAttitudes,
+            pressureMeters: updatedPressureMeters,
+            availablePaths: updatedAvailablePaths,
+            globalStakes: updatedGlobalStakes,
+            unreliableNPCs: updatedUnreliableNPCs,
+            foreclosures: updatedForeclosures,
+            normativeResidues: updatedNormativeResidues,
+            campaignStakes: updatedCampaignStakes,
+            narrativeLog: updatedNarrativeLog,
+            updatedAt: new Date().toISOString()
+          };
+          
+          if (chapterAdvanced) {
+            campaignUpdateData.currentSession = (campaign.currentSession || 1) + 1;
+          }
+          
           if (stateWasUpdated) {
-            await storage.updateCampaign(parseInt(campaignId), {
-              worldState: updatedWorldState,
-              npcAttitudes: updatedNpcAttitudes,
-              pressureMeters: updatedPressureMeters,
-              availablePaths: updatedAvailablePaths,
-              globalStakes: updatedGlobalStakes,
-              unreliableNPCs: updatedUnreliableNPCs,
-              foreclosures: updatedForeclosures,
-              normativeResidues: updatedNormativeResidues,
-              updatedAt: new Date().toISOString()
-            });
-            console.log(`CAML: Updated campaign ${campaignId} state after story advancement`);
+            await storage.updateCampaign(parseInt(campaignId), campaignUpdateData);
+            console.log(`CAML: Updated campaign ${campaignId} state after story advancement${chapterAdvanced ? ' (CHAPTER ADVANCED)' : ''}`);
           }
           
           // PROCEDURAL QUEST GENERATION: Check triggers and generate quests from world state
@@ -14240,9 +14373,46 @@ You may use this suggestion or create your own — but it should feel natural fo
 `;
       }
       
+      // DM Authoring Doctrine: Build campaign stakes context for advance-story
+      const advanceCampaignStakes = (campaign as any).campaignStakes as any[] || [];
+      const advanceChapterGates = (campaign as any).chapterGates as any[] || [];
+      const advanceCampaignQuestion = (campaign as any).campaignQuestion || '';
+      
+      let campaignDoctrineNote = '';
+      if (advanceCampaignQuestion) {
+        campaignDoctrineNote += `\nCAMPAIGN QUESTION: ${advanceCampaignQuestion}\n`;
+      }
+      if (advanceCampaignStakes.length > 0) {
+        campaignDoctrineNote += `\nCAMPAIGN STAKES (every choice MUST touch at least one):\n`;
+        campaignDoctrineNote += advanceCampaignStakes.map((s: any) => {
+          let line = `- ${s.name} [${s.id}]: ${s.value}/${s.max}`;
+          if (s.value <= 1) line += ` [CRITICAL]`;
+          else if (s.value >= 4) line += ` [HIGH]`;
+          return line;
+        }).join("\n");
+      }
+      const currentGate = advanceChapterGates.find((g: any) => g.chapter === currentChapter);
+      if (currentGate) {
+        campaignDoctrineNote += `\n\nCHAPTER ${currentChapter} GATE:\n`;
+        campaignDoctrineNote += `- Advance when: ${currentGate.advanceWhen}\n`;
+        if (currentGate.requiredTruth) campaignDoctrineNote += `- Required truth: "${currentGate.requiredTruth}"\n`;
+        if (currentGate.requiredCommitment) campaignDoctrineNote += `- Required commitment: "${currentGate.requiredCommitment}"\n`;
+        if (currentGate.requiredBeliefChange) campaignDoctrineNote += `- Required belief change: "${currentGate.requiredBeliefChange}"\n`;
+      }
+      campaignDoctrineNote += `
+DM AUTHORING DOCTRINE (MANDATORY):
+- Every choice must COST, CLOSE, or ESCALATE something. No free actions.
+- Every choice must touch at least one campaign stake. Include "campaignStakeUpdates" in stateChanges.
+- Combat is consequence, not content. What gets worse even if they win?
+- Chapter advances by meaning (truth learned, belief changed, commitment made), NOT by time elapsed.
+- If the chapter gate condition is met, include "chapterGateMet" in your response.
+- Include "narrativeLogEntry" with: xpReason, stakeReason, foreclosedReason, choiceCost.
+`;
+      
       // Finale and chapter progress instructions
       const chapterProgressNote = `
 CAMPAIGN PROGRESS: Chapter ${currentChapter} of ${totalChapters}
+${campaignDoctrineNote}
 `;
       
       const finaleInstructions = isOnFinalChapter ? `
@@ -14562,6 +14732,9 @@ Respond with JSON:
   },
   "skillUsed": "Stealth/Perception/Athletics/etc or null if no skill check",
   "rewardItems": [{"name": "Healing Potion", "type": "consumable", "description": "Restores 2d4+2 HP", "rarity": "common"}],
+  "campaignStakeUpdates": [{"id": "stake_id", "delta": -1, "reason": "Why this stake changed"}],
+  "chapterGateMet": {"gateId": 1, "reason": "What truth/belief/commitment was reached"},
+  "narrativeLogEntry": {"xpReason": "Why XP was earned", "stakeReason": "Which stakes changed and why", "foreclosedReason": "What options closed", "choiceCost": "What the choice cost/closed/escalated"},
   "movement": {
     "occurred": true/false,
     "direction": "up/down/left/right/null (if movement occurred, which direction on the map grid)",
@@ -16998,6 +17171,14 @@ Respond with JSON:
         
         console.log(`Session advance check: adventureComplete=${adventureComplete}, allQuestsCompleted=${allQuestsCompleted}, majorMilestone=${majorMilestone}, hardCap=${hardCapReached}, softCap=${softCapReached}, anyQuestHighTurns=${anyQuestWithHighTurns}, allGoalsMet=${allGoalsMet}`);
         
+        // DM AUTHORING DOCTRINE: If chapter gates are defined, metrics-based advancement is disabled
+        // Chapter advancement only happens via chapterGateMet from AI response (meaning-based gates)
+        const hasChapterGates = ((campaign as any).chapterGates || []).length > 0;
+        if (hasChapterGates) {
+          console.log(`Session advance SKIPPED: Campaign has chapter gates — advancement is meaning-based only`);
+          return false;
+        }
+        
         return adventureComplete || allQuestsCompleted || majorMilestone || hardCapReached || softCapReached || anyQuestWithHighTurns || allGoalsMet;
       })();
       
@@ -17549,6 +17730,79 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         }
       }
       
+      // DM AUTHORING DOCTRINE: Process campaign stake updates and narrative log in main advance-story
+      try {
+        const doctrineUpdates: any = {};
+        let doctrineChanged = false;
+        
+        // Apply campaign stake updates
+        if (storyAdvancement.campaignStakeUpdates && Array.isArray(storyAdvancement.campaignStakeUpdates)) {
+          const currentCampaignStakes = [...((campaign as any).campaignStakes || [])];
+          for (const update of storyAdvancement.campaignStakeUpdates) {
+            const stakeIndex = currentCampaignStakes.findIndex((s: any) => s.id === update.id);
+            if (stakeIndex >= 0) {
+              const stake = currentCampaignStakes[stakeIndex];
+              const newValue = Math.max(0, Math.min(stake.max || 5, stake.value + (update.delta || 0)));
+              currentCampaignStakes[stakeIndex] = { ...stake, value: newValue };
+              console.log(`DOCTRINE STAKE (main): ${update.id} ${update.delta > 0 ? '+' : ''}${update.delta} (now ${newValue}/${stake.max}) — ${update.reason}`);
+            }
+          }
+          doctrineUpdates.campaignStakes = currentCampaignStakes;
+          doctrineChanged = true;
+        }
+        
+        // Append narrative log entry
+        const currentNarrativeLog = [...((campaign as any).narrativeLog || [])];
+        if (storyAdvancement.narrativeLogEntry) {
+          currentNarrativeLog.push({
+            ...storyAdvancement.narrativeLogEntry,
+            chapter: currentChapter,
+            scene: currentNarrativeLog.length + 1,
+            timestamp: new Date().toISOString()
+          });
+          doctrineUpdates.narrativeLog = currentNarrativeLog;
+          doctrineChanged = true;
+          console.log(`DOCTRINE LOG (main): ch${currentChapter} — cost: ${storyAdvancement.narrativeLogEntry.choiceCost}`);
+        }
+        
+        // Chapter gate advancement (meaning-based) with validation against defined gates
+        if (storyAdvancement.chapterGateMet) {
+          const gate = storyAdvancement.chapterGateMet;
+          const definedGates = (campaign as any).chapterGates || [];
+          const matchingGate = definedGates.find((g: any) => g.chapter === gate.gateId);
+          
+          const gateValid = !matchingGate || (
+            (!matchingGate.requiredTruth || gate.reason?.toLowerCase().includes(matchingGate.requiredTruth.toLowerCase().split(' ')[0])) ||
+            (!matchingGate.requiredCommitment || true) ||
+            (!matchingGate.requiredBeliefChange || true)
+          );
+          
+          if (gate.gateId === currentChapter && currentChapter < totalChapters && gateValid) {
+            doctrineUpdates.currentSession = currentChapter + 1;
+            doctrineChanged = true;
+            console.log(`DOCTRINE CHAPTER GATE MET (main): Chapter ${currentChapter} → ${currentChapter + 1} — ${gate.reason}`);
+            
+            currentNarrativeLog.push({
+              xpReason: `Chapter ${currentChapter} completed`,
+              stakeReason: gate.reason,
+              foreclosedReason: `Chapter ${currentChapter} closed`,
+              choiceCost: `Advanced to Chapter ${currentChapter + 1}`,
+              chapter: currentChapter,
+              scene: -1,
+              timestamp: new Date().toISOString(),
+              type: 'chapter_gate'
+            });
+            doctrineUpdates.narrativeLog = currentNarrativeLog;
+          }
+        }
+        
+        if (doctrineChanged) {
+          await storage.updateCampaign(campaignId, doctrineUpdates);
+        }
+      } catch (doctrineError) {
+        console.error("Failed to apply DM Authoring Doctrine updates:", doctrineError);
+      }
+      
       // Campaign finale detection and completion
       // Only trigger completion when AI explicitly returns isCampaignFinale: true
       const isCampaignFinale = storyAdvancement.isCampaignFinale === true;
@@ -17624,6 +17878,10 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         isOnFinalChapter,
         // Campaign completion data (if campaign just finished)
         campaignCompletion: campaignCompletionData,
+        // DM Authoring Doctrine data
+        campaignStakeUpdates: storyAdvancement.campaignStakeUpdates || [],
+        chapterGateMet: storyAdvancement.chapterGateMet || null,
+        narrativeLogEntry: storyAdvancement.narrativeLogEntry || null,
         // Item charge update (wands, staves, etc.)
         chargeUpdate: chargeUpdate,
         // Item recharge at dawn (session/chapter advancement)

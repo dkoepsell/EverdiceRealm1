@@ -181,6 +181,24 @@ export interface ProceduralQuestConfig {
   };
 }
 
+export interface CampaignStake {
+  id: string;
+  name: string;
+  value: number;
+  max: number;
+  description: string;
+  worsensWhen: string[];
+  improvesWhen: string[];
+}
+
+export interface ChapterGate {
+  chapter: number;
+  advanceWhen: string;
+  requiredTruth?: string;
+  requiredCommitment?: string;
+  requiredBeliefChange?: string;
+}
+
 export interface CampaignGenerationResponse {
   title: string;
   description: string;
@@ -191,21 +209,25 @@ export interface CampaignGenerationResponse {
   mainQuest: string;
   sideQuests: string[];
   suggestedLevel: number;
+  // DM Authoring Doctrine - Campaign Spine
+  campaignQuestion: string;
+  campaignStakes: CampaignStake[];
+  chapterGates: ChapterGate[];
   // CAML 2.0 State-First Adventure Fields
-  worldState: WorldStateFact[]; // Initial state facts that can change
-  npcAttitudes: NPCAttitude[]; // Key NPCs with attitudes and goals (backward compat)
-  pressureMeters: PressureMeter[]; // Tension clocks that drive urgency
-  availablePaths: AlternativePath[]; // Multiple approaches to the main obstacle
+  worldState: WorldStateFact[];
+  npcAttitudes: NPCAttitude[];
+  pressureMeters: PressureMeter[];
+  availablePaths: AlternativePath[];
   // CAML 2.0 World Deterioration Fields
-  globalStakes: GlobalStake[]; // World-level deterioration tracks
-  unreliableNPCs: UnreliableNPC[]; // NPCs with trust thresholds and breaking points
-  foreclosures: Foreclosure[]; // Doors that can seal permanently
+  globalStakes: GlobalStake[];
+  unreliableNPCs: UnreliableNPC[];
+  foreclosures: Foreclosure[];
   // CAML 2.0 Normative Residue System
-  normativeResidues: NormativeResidue[]; // Lasting consequences that constrain future play
-  residueTriggers: ResidueTrigger[]; // What creates/increases residue
-  repairPathways: RepairPathway[]; // Costly, risky ways to reduce residue
+  normativeResidues: NormativeResidue[];
+  residueTriggers: ResidueTrigger[];
+  repairPathways: RepairPathway[];
   // Procedural Quest Generation System
-  proceduralQuestConfig: ProceduralQuestConfig; // Triggers and templates for dynamic quest generation
+  proceduralQuestConfig: ProceduralQuestConfig;
 }
 
 export async function generateCampaign(req: CampaignGenerationRequest): Promise<CampaignGenerationResponse> {
@@ -220,14 +242,37 @@ ${req.difficulty ? `Difficulty: ${req.difficulty}` : 'Difficulty: Normal (balanc
 ${req.narrativeStyle ? `Narrative Style: ${req.narrativeStyle}` : 'Narrative Style: Descriptive'}
 ${req.numberOfSessions ? `Expected Number of Sessions: ${req.numberOfSessions}` : 'Expected Number of Sessions: 5'}
 
-DESIGN PHILOSOPHY (DM AUTHORING RULES):
-- Every scene must threaten something the player cares about
-- Every choice must worsen at least one future
-- No scene may end without changing the campaign state
-- NPCs must be allowed to become hostile or unavailable
-- Curiosity must be dangerous
-- Safety must cost opportunity
-- Inaction must advance the world
+═══════════════════════════════════════════════════════════════════════════════
+DM AUTHORING DOCTRINE (MANDATORY - These are not suggestions, they are constraints)
+═══════════════════════════════════════════════════════════════════════════════
+
+RULE 1 — WRITE THE CAMPAIGN QUESTION FIRST:
+Before NPCs, maps, or lore, answer: "What is the player actually deciding about the world?"
+If you cannot state this in one sentence, the adventure will drift.
+
+RULE 2 — DECLARE STAKES BEFORE PLAY:
+- 2-4 stakes ONLY, each ranges 0-5
+- Each can go UP or DOWN based on player choices
+- Every meaningful action MUST touch at least one stake
+- If an action does not change a stake, it should not exist
+
+RULE 3 — BAN FREE ACTIONS:
+If a choice can be repeated without cost, it is NOT a choice.
+Every action must: Cost something, Close something, or Escalate something.
+Even asking questions should have social or narrative cost.
+
+RULE 4 — COMBAT IS CONSEQUENCE, NOT MODE:
+Combat must: Trigger because of stakes, Advance stakes even when won, Never be the safest option.
+Test: "What gets worse even if they win this fight?" If the answer is "nothing", the fight shouldn't exist.
+
+RULE 5 — CHAPTERS ADVANCE BY MEANING, NOT TIME:
+Chapters advance when: A belief changes, A truth is learned, A commitment is made.
+NEVER advance chapters because "enough stuff happened".
+
+RULE 6 — LOG WHY THINGS MATTER:
+Always annotate: Why XP was awarded, Why a chapter advanced, Why an option disappeared.
+
+═══════════════════════════════════════════════════════════════════════════════
 
 Generate a complete D&D campaign in JSON format with these fields:
 
@@ -241,6 +286,30 @@ BASIC INFO:
 - mainQuest: The primary objective of the campaign
 - sideQuests: An array of 3 side quests that complement the main story
 - suggestedLevel: Recommended starting character level (1-10)
+
+CAMPAIGN SPINE (NEW - REQUIRED):
+
+- campaignQuestion: A ONE SENTENCE question that defines what the player is deciding about the world.
+  Example: "What is failing beneath Eldermoor, who is responsible for maintaining it, and what breaks if the wards are restored, repurposed, or ignored?"
+  This question must be answerable through play, and every chapter must move it forward.
+
+- campaignStakes: An array of 2-4 campaign stakes (NOT the same as globalStakes). Each has:
+  - id: Snake_case identifier (e.g., "ward_integrity", "spirit_alignment")
+  - name: Human-readable name (e.g., "Ward Integrity")
+  - value: Starting value (0-5, usually 2-3 to allow movement in both directions)
+  - max: Always 5
+  - description: Current state in plain language
+  - worsensWhen: Array of 2-3 player actions or conditions that decrease this stake
+  - improvesWhen: Array of 2-3 player actions or conditions that increase this stake
+  Every choice the AI generates MUST touch at least one stake. Stakes that reach 0 or 5 should trigger consequences.
+
+- chapterGates: An array with one entry per chapter. Each has:
+  - chapter: Chapter number (1, 2, 3, etc.)
+  - advanceWhen: One-sentence description of what must be understood/committed to advance
+  - requiredTruth: (optional) A truth the player must discover (e.g., "The guardians are intentional, not accidental")
+  - requiredCommitment: (optional) A commitment the player must make (e.g., "Choose to help or abandon the village")
+  - requiredBeliefChange: (optional) A belief that must shift (e.g., "The forest's silence is maintained, not natural")
+  Each gate must have at least one of requiredTruth, requiredCommitment, or requiredBeliefChange.
 
 CAML STATE-FIRST FIELDS:
 
