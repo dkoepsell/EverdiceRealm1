@@ -208,6 +208,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [storyPhase, setStoryPhase] = useState<'commit' | 'reveal' | 'deepen' | 'loading'>('loading');
   const [revealText, setRevealText] = useState<string>("");
   const [streamedNarrative, setStreamedNarrative] = useState<string>("");
+  const [choicesRevealed, setChoicesRevealed] = useState(true);
+  const choicesRevealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [progressionRewards, setProgressionRewards] = useState<{
     xpAwarded: number;
     newLevel: number;
@@ -368,6 +370,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       window.removeEventListener('typing_indicator' as any, handleTypingIndicator);
       window.removeEventListener('player_action' as any, handlePlayerAction);
       window.removeEventListener('story_advanced' as any, handleStoryAdvanced);
+      if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
     };
   }, [campaign.id, user?.id, toast]);
   
@@ -2367,6 +2370,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       setRevealText("");
       setStreamedNarrative("");
       setIsAdvancingStory(true);
+      setChoicesRevealed(false);
+      if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
       showTip('pacing');
       fetchRevealText(actionText, parsedStoryState?.inCombat || false, currentLocation);
       advanceStory.mutate({ choice: actionText }, {
@@ -2374,6 +2379,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           setIsAdvancingStory(false);
           setStoryPhase('loading');
           setLastChosenAction("");
+          choicesRevealTimer.current = setTimeout(() => setChoicesRevealed(true), 700);
         }
       });
     }
@@ -2382,8 +2388,6 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const handleCustomAction = () => {
     if (!customAction.trim()) return;
     
-    // Treat custom action as a choice that doesn't require dice roll initially
-    // The AI will determine if it needs a roll and respond accordingly
     const customChoice = {
       action: customAction.trim(),
       requiresDiceRoll: false
@@ -2395,6 +2399,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     setRevealText("");
     setStreamedNarrative("");
     setIsAdvancingStory(true);
+    setChoicesRevealed(false);
+    if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
     showTip('pacing');
     fetchRevealText(actionText, parsedStoryState?.inCombat || false, currentLocation);
     advanceStory.mutate({ choice: actionText }, {
@@ -2403,6 +2409,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         setStoryPhase('loading');
         setLastChosenAction("");
         setCustomAction("");
+        choicesRevealTimer.current = setTimeout(() => setChoicesRevealed(true), 700);
       }
     });
   };
@@ -2527,14 +2534,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         setRevealText("");
         setStreamedNarrative("");
         setIsAdvancingStory(true);
+        setChoicesRevealed(false);
+        if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
         showTip('pacing');
         fetchRevealText(diceActionText, parsedStoryState?.inCombat || false, currentLocation);
         
         setTimeout(() => {
-          // Advance the story with the roll result using enhanced format
           const rollResultData = {
             diceType: currentDiceRoll.diceType,
-            result: result.rolls[0], // Get the actual dice roll result
+            result: result.rolls[0],
             modifier: currentDiceRoll.rollModifier,
             total: result.total,
             dc: rollDC,
@@ -2553,6 +2561,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               setCurrentDiceRoll(null);
               setDiceRollResult(null);
               setIsRolling(false);
+              choicesRevealTimer.current = setTimeout(() => setChoicesRevealed(true), 700);
               if (Math.random() < 0.3) {
                 setTimeout(() => showTip('dice_roll'), 1500);
               }
@@ -3091,9 +3100,23 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           </p>
                         )}
                         
+                        {/* Choices loading indicator — shows briefly before choices appear */}
+                        {!isAdvancingStory && !choicesRevealed && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 && (
+                          <div className="mt-6 pt-5 border-t border-amber-500/30 animate-in fade-in duration-300">
+                            <div className="flex items-center gap-3 px-3 py-2.5">
+                              <div className="flex gap-1">
+                                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                              </div>
+                              <span className="text-sm text-amber-300/70 italic">Your choices are appearing...</span>
+                            </div>
+                          </div>
+                        )}
+                        
                         {/* Choices integrated directly after narrative for immediate access */}
-                        {!isAdvancingStory && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 && dmSessionState?.groupChoiceStatus !== 'pending' && (
-                          <div className="mt-6 pt-5 border-t border-amber-500/30">
+                        {!isAdvancingStory && choicesRevealed && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 && dmSessionState?.groupChoiceStatus !== 'pending' && (
+                          <div className="mt-6 pt-5 border-t border-amber-500/30 animate-in fade-in slide-in-from-bottom-3 duration-500">
                             <div className="flex items-center justify-between mb-3">
                               <h4 className="font-bold text-amber-300 flex items-center">
                                 <ArrowRight className="h-5 w-5 mr-2 animate-pulse" />
@@ -3144,7 +3167,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   <Button 
                                     key={index}
                                     variant="outline"
-                                    className={`justify-start h-auto py-3 px-4 bg-slate-800/80 border-2 border-amber-600/40 text-left w-full hover:bg-slate-700 hover:border-amber-500 ${actionDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`justify-start h-auto py-3 px-4 bg-slate-800/80 border-2 border-amber-600/40 text-left w-full hover:bg-slate-700 hover:border-amber-500 animate-in fade-in slide-in-from-bottom-2 duration-400 ${actionDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'both' }}
                                     onClick={() => !actionDisabled && handleChoiceSelection(choice)}
                                     disabled={actionDisabled}
                                     data-testid={`choice-button-${index}`}
