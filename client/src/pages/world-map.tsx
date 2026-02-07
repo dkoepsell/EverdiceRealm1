@@ -410,7 +410,7 @@ export default function WorldMapPage() {
                         </span>
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="top" className="bg-black/90 border-amber-500/30 max-w-64">
+                    <TooltipContent side="top" className="bg-gray-950 border-amber-500/50 max-w-64 shadow-xl shadow-black/50">
                       <div className="space-y-1.5">
                         <div className="font-semibold text-amber-100">{region.name}</div>
                         <div className="text-xs text-amber-100/60">{region.description}</div>
