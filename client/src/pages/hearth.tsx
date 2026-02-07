@@ -30,7 +30,12 @@ import {
   Plus,
   Sparkles,
   ArrowRight,
-  X
+  X,
+  Crown,
+  Trophy,
+  Newspaper,
+  Star,
+  Shield
 } from "lucide-react";
 import hearthBackground from "@assets/image_1769304828468.png";
 
@@ -65,6 +70,47 @@ interface HearthSnapshot {
     text: string;
   }>;
 }
+
+interface RealmNewsData {
+  edition: string;
+  news: Array<{
+    id: string;
+    type: 'achievement' | 'completion' | 'critical' | 'narrative' | 'milestone';
+    headline: string;
+    body: string;
+    characterName: string;
+    characterPortrait: string | null;
+    characterRace?: string;
+    characterClass?: string;
+    timestamp: string;
+  }>;
+  champions: Array<{
+    id: number;
+    name: string;
+    race: string;
+    class: string;
+    level: number;
+    portraitUrl: string | null;
+    xp: number;
+  }>;
+  newArrivals: Array<{
+    id: number;
+    name: string;
+    race: string;
+    class: string;
+    level: number;
+    portraitUrl: string | null;
+    createdAt: string;
+  }>;
+}
+
+const newsTypeIcons: Record<string, string> = {
+  achievement: "scroll",
+  completion: "trophy",
+  critical: "dice",
+  narrative: "quill",
+  milestone: "star"
+};
 
 const seatZones = [
   { value: "fire", label: "By the Fire", icon: Flame },
@@ -125,6 +171,11 @@ export default function HearthPage() {
   const { data: snapshot, isLoading, refetch } = useQuery<HearthSnapshot>({
     queryKey: ["/api/hearth/snapshot"],
     refetchInterval: 30000
+  });
+
+  const { data: realmNews } = useQuery<RealmNewsData>({
+    queryKey: ["/api/hearth/realm-news"],
+    refetchInterval: 300000
   });
 
   useEffect(() => {
@@ -601,6 +652,155 @@ export default function HearthPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* News of The Realm */}
+          <div className="mt-4 realm-news-parchment rounded-lg overflow-hidden border border-amber-800/60" style={{
+            background: 'linear-gradient(168deg, #3d2b1a 0%, #2a1d10 40%, #1f1508 100%)',
+            boxShadow: 'inset 0 0 30px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.5)'
+          }}>
+            <div className="px-4 pt-4 pb-2 text-center border-b border-amber-800/40">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-700/60 to-transparent" />
+                <Newspaper className="w-4 h-4 text-amber-500/80" />
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-700/60 to-transparent" />
+              </div>
+              <h3 className="text-amber-300 font-serif text-lg font-bold tracking-wide" style={{ fontVariant: 'small-caps' }}>
+                News of The Realm
+              </h3>
+              <p className="text-amber-600/70 text-[10px] italic mt-0.5">
+                {realmNews?.edition || "Today's Edition"} — Printed by the Town Crier's Guild
+              </p>
+              <div className="h-px bg-gradient-to-r from-transparent via-amber-700/40 to-transparent mt-2" />
+            </div>
+
+            <div className="px-3 py-3 space-y-3">
+              {/* News Items */}
+              {(realmNews?.news && realmNews.news.length > 0) ? (
+                realmNews.news.slice(0, 4).map((item) => (
+                  <div key={item.id} className="flex gap-2.5 group">
+                    <div className="flex-shrink-0 mt-0.5">
+                      {item.characterPortrait ? (
+                        <img 
+                          src={item.characterPortrait} 
+                          alt={item.characterName}
+                          className="w-9 h-9 rounded-full object-cover border border-amber-700/50 shadow-sm"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-800 to-amber-950 border border-amber-700/50 flex items-center justify-center shadow-sm">
+                          <span className="text-amber-400 text-xs font-bold">
+                            {item.characterName.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-amber-200/90 text-xs font-medium leading-snug">
+                        {item.headline}
+                      </p>
+                      <p className="text-amber-500/60 text-[10px] mt-0.5 leading-snug">
+                        {item.body}
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0">
+                      {item.type === 'critical' && <Dice6 className="w-3.5 h-3.5 text-amber-500/50" />}
+                      {item.type === 'completion' && <Trophy className="w-3.5 h-3.5 text-amber-500/50" />}
+                      {item.type === 'narrative' && <Scroll className="w-3.5 h-3.5 text-amber-500/50" />}
+                      {item.type === 'achievement' && <Star className="w-3.5 h-3.5 text-amber-500/50" />}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-3">
+                  <p className="text-amber-500/50 text-xs italic">
+                    The realm is quiet... for now. Adventure awaits!
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Everdice's Champions */}
+            <div className="px-3 pb-3">
+              <div className="border-t border-amber-800/40 pt-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Crown className="w-3.5 h-3.5 text-yellow-500/80" />
+                  <h4 className="text-amber-300/90 text-xs font-bold tracking-wider" style={{ fontVariant: 'small-caps' }}>
+                    Everdice's Champions
+                  </h4>
+                </div>
+                {(realmNews?.champions && realmNews.champions.length > 0) ? (
+                  <div className="space-y-1.5">
+                    {realmNews.champions.slice(0, 4).map((champ, idx) => (
+                      <div key={champ.id} className="flex items-center gap-2 px-2 py-1 rounded bg-amber-900/20 border border-amber-800/20">
+                        {champ.portraitUrl ? (
+                          <img 
+                            src={champ.portraitUrl} 
+                            alt={champ.name}
+                            className="w-7 h-7 rounded-full object-cover border border-amber-600/40"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-800 to-amber-900 border border-amber-600/40 flex items-center justify-center">
+                            <span className="text-yellow-400 text-[10px] font-bold">{champ.name.charAt(0)}</span>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-amber-200/90 text-[11px] font-medium truncate">{champ.name}</p>
+                          <p className="text-amber-500/50 text-[10px]">Lvl {champ.level} {champ.race} {champ.class}</p>
+                        </div>
+                        {idx === 0 && <Crown className="w-3 h-3 text-yellow-500/70" />}
+                        {idx === 1 && <Shield className="w-3 h-3 text-gray-400/70" />}
+                        {idx === 2 && <Shield className="w-3 h-3 text-amber-700/70" />}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-amber-500/50 text-[10px] italic text-center py-2">
+                    No champions have risen yet. Will you be the first?
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* New Arrivals */}
+            {realmNews?.newArrivals && realmNews.newArrivals.length > 0 && (
+              <div className="px-3 pb-4">
+                <div className="border-t border-amber-800/40 pt-3">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-500/70" />
+                    <h4 className="text-amber-300/90 text-xs font-bold tracking-wider" style={{ fontVariant: 'small-caps' }}>
+                      New Arrivals
+                    </h4>
+                  </div>
+                  <div className="space-y-1">
+                    {realmNews.newArrivals.slice(0, 4).map((arrival) => (
+                      <div key={arrival.id} className="flex items-center gap-2 px-2 py-1">
+                        {arrival.portraitUrl ? (
+                          <img 
+                            src={arrival.portraitUrl}
+                            alt={arrival.name}
+                            className="w-6 h-6 rounded-full object-cover border border-emerald-800/40"
+                          />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-900 to-emerald-950 border border-emerald-800/40 flex items-center justify-center">
+                            <span className="text-emerald-400 text-[9px] font-bold">{arrival.name.charAt(0)}</span>
+                          </div>
+                        )}
+                        <p className="text-amber-300/70 text-[10px] italic flex-1 min-w-0 truncate">
+                          Welcome, <span className="text-amber-200/90 font-medium not-italic">{arrival.name}</span> the {arrival.race} {arrival.class}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="px-4 pb-3">
+              <div className="h-px bg-gradient-to-r from-transparent via-amber-700/30 to-transparent" />
+              <p className="text-amber-700/40 text-[9px] text-center mt-1.5 italic">
+                "All deeds, great and small, are remembered here."
+              </p>
+            </div>
+          </div>
         </div>
       </div>
       

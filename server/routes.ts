@@ -22016,6 +22016,213 @@ ALWAYS generate:
     }
   });
 
+  // GET /api/hearth/realm-news - News of The Realm: daily briefs about character accomplishments
+  app.get("/api/hearth/realm-news", async (req, res) => {
+    try {
+      const now = new Date();
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      // 1. Get recent adventure completions with character + campaign data
+      const recentCompletions = await db.select({
+        completion: adventureCompletions,
+        character: { id: characters.id, name: characters.name, race: characters.race, class: characters.class, level: characters.level, portraitUrl: characters.portraitUrl },
+        campaign: { id: campaigns.id, title: campaigns.title }
+      })
+        .from(adventureCompletions)
+        .leftJoin(characters, eq(adventureCompletions.characterId, characters.id))
+        .leftJoin(campaigns, eq(adventureCompletions.campaignId, campaigns.id))
+        .where(gte(adventureCompletions.completedAt, thirtyDaysAgo))
+        .orderBy(desc(adventureCompletions.completedAt))
+        .limit(10);
+
+      // 2. Get high-level characters (champions) - top by level across all users
+      const champions = await db.select({
+        id: characters.id,
+        name: characters.name,
+        race: characters.race,
+        class: characters.class,
+        level: characters.level,
+        portraitUrl: characters.portraitUrl,
+        experience: characters.experience,
+        userId: characters.userId
+      })
+        .from(characters)
+        .orderBy(desc(characters.level), desc(characters.experience))
+        .limit(6);
+
+      // 3. Get newly created characters (last 14 days)
+      const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
+      const newCharacters = await db.select({
+        id: characters.id,
+        name: characters.name,
+        race: characters.race,
+        class: characters.class,
+        level: characters.level,
+        portraitUrl: characters.portraitUrl,
+        createdAt: characters.createdAt
+      })
+        .from(characters)
+        .where(gte(characters.createdAt, fourteenDaysAgo))
+        .orderBy(desc(characters.createdAt))
+        .limit(8);
+
+      // 4. Get notable dice rolls (nat 20s and high rolls from last 7 days)
+      const notableRolls = await db.select({
+        roll: diceRolls,
+        character: { id: characters.id, name: characters.name, portraitUrl: characters.portraitUrl }
+      })
+        .from(diceRolls)
+        .leftJoin(characters, eq(diceRolls.characterId, characters.id))
+        .where(and(
+          gte(diceRolls.createdAt, sevenDaysAgo),
+          sql`${diceRolls.result} = 20 AND ${diceRolls.diceType} = 'd20'`
+        ))
+        .orderBy(desc(diceRolls.createdAt))
+        .limit(8);
+
+      // 5. Get campaigns with narrative logs for achievement snippets
+      const activeCampaigns = await db.select({
+        id: campaigns.id,
+        title: campaigns.title,
+        narrativeLog: campaigns.narrativeLog,
+        campaignStakes: campaigns.campaignStakes,
+        currentSession: campaigns.currentSession,
+        isCompleted: campaigns.isCompleted
+      })
+        .from(campaigns)
+        .where(sql`${campaigns.narrativeLog} IS NOT NULL AND jsonb_array_length(COALESCE(${campaigns.narrativeLog}, '[]'::jsonb)) > 0`)
+        .orderBy(desc(campaigns.currentSession))
+        .limit(10);
+
+      // Pre-fetch all participants for active campaigns in one query (avoid N+1)
+      const campaignIds = activeCampaigns.map(c => c.id);
+      const allParticipants = campaignIds.length > 0 ? await db.select({
+        campaignId: campaignParticipants.campaignId,
+        character: { id: characters.id, name: characters.name, race: characters.race, class: characters.class, portraitUrl: characters.portraitUrl }
+      })
+        .from(campaignParticipants)
+        .leftJoin(characters, eq(campaignParticipants.characterId, characters.id))
+        .where(sql`${campaignParticipants.campaignId} IN ${campaignIds}`) : [];
+
+      const participantsByCampaign = new Map<number, typeof allParticipants>();
+      for (const p of allParticipants) {
+        if (!participantsByCampaign.has(p.campaignId)) participantsByCampaign.set(p.campaignId, []);
+        participantsByCampaign.get(p.campaignId)!.push(p);
+      }
+
+      // Build news items from real data
+      const newsItems: Array<{
+        id: string;
+        type: 'achievement' | 'completion' | 'critical' | 'narrative' | 'milestone';
+        headline: string;
+        body: string;
+        characterName: string;
+        characterPortrait: string | null;
+        characterRace?: string;
+        characterClass?: string;
+        timestamp: string;
+      }> = [];
+
+      // Achievement news from narrative logs
+      for (const camp of activeCampaigns) {
+        const log = camp.narrativeLog as any[];
+        if (!log || log.length === 0) continue;
+        const recentEntries = log.slice(-3);
+        const campParticipants = participantsByCampaign.get(camp.id) || [];
+        // Rotate which participant is featured
+        const featuredIdx = recentEntries.length > 0 ? log.length % Math.max(campParticipants.length, 1) : 0;
+        const featured = campParticipants[featuredIdx] || campParticipants[0];
+
+        for (const entry of recentEntries) {
+          if (entry.reason || entry.event || entry.summary) {
+            const charData = featured?.character;
+            const charName = charData?.name || "An unknown adventurer";
+            const summary = entry.summary || entry.reason || entry.event || "";
+            if (summary.length < 5) continue;
+
+            newsItems.push({
+              id: `narrative-${camp.id}-${log.indexOf(entry)}`,
+              type: 'narrative',
+              headline: summary.length > 80 ? summary.substring(0, 77) + "..." : summary,
+              body: `During "${camp.title}" — Chapter ${camp.currentSession}`,
+              characterName: charName,
+              characterPortrait: charData?.portraitUrl || null,
+              characterRace: charData?.race || undefined,
+              characterClass: charData?.class || undefined,
+              timestamp: entry.timestamp || new Date().toISOString()
+            });
+          }
+        }
+      }
+
+      // Completion news
+      for (const comp of recentCompletions) {
+        const charName = comp.character?.name || "A brave soul";
+        newsItems.push({
+          id: `completion-${comp.completion.id}`,
+          type: 'completion',
+          headline: `${charName} completed "${comp.campaign?.title || 'an adventure'}"`,
+          body: `Earned ${comp.completion.xpAwarded} XP for their valorous deeds${comp.completion.notes ? '. ' + comp.completion.notes : ''}`,
+          characterName: charName,
+          characterPortrait: comp.character?.portraitUrl || null,
+          characterRace: comp.character?.race || undefined,
+          characterClass: comp.character?.class || undefined,
+          timestamp: comp.completion.completedAt
+        });
+      }
+
+      // Critical hit news
+      for (const roll of notableRolls) {
+        const charName = roll.character?.name || "A lucky adventurer";
+        const purposeText = roll.roll.purpose ? ` during ${roll.roll.purpose}` : "";
+        newsItems.push({
+          id: `crit-${roll.roll.id}`,
+          type: 'critical',
+          headline: `${charName} rolled a natural 20${purposeText}!`,
+          body: "The dice gods smiled upon this hero with a perfect strike.",
+          characterName: charName,
+          characterPortrait: roll.character?.portraitUrl || null,
+          timestamp: roll.roll.createdAt
+        });
+      }
+
+      // Shuffle and pick a rotation for "today's edition"
+      const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
+      const shuffled = newsItems.sort((a, b) => {
+        const hashA = (a.id.length * 31 + dayOfYear) % 1000;
+        const hashB = (b.id.length * 31 + dayOfYear) % 1000;
+        return hashA - hashB;
+      });
+
+      res.json({
+        edition: `${now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}`,
+        news: shuffled.slice(0, 6),
+        champions: champions.map(c => ({
+          id: c.id,
+          name: c.name,
+          race: c.race,
+          class: c.class,
+          level: c.level,
+          portraitUrl: c.portraitUrl,
+          xp: c.experience
+        })),
+        newArrivals: newCharacters.map(c => ({
+          id: c.id,
+          name: c.name,
+          race: c.race,
+          class: c.class,
+          level: c.level,
+          portraitUrl: c.portraitUrl,
+          createdAt: c.createdAt
+        }))
+      });
+    } catch (error) {
+      console.error("Failed to get realm news:", error);
+      res.status(500).json({ message: "The town crier is indisposed" });
+    }
+  });
+
   // Helper to format hearth events for display
   function formatHearthEvent(event: any, displayName?: string): string {
     const name = displayName || "Someone";
