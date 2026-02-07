@@ -55,7 +55,12 @@ import {
   campaignSrdReferences,
   demoAnalytics,
   adventureCompletions,
-  campaignParticipants
+  campaignParticipants,
+  worldEvents,
+  worldDiscoveries,
+  worldWhispers,
+  worldLocations,
+  campaignExplorationHexes,
 } from "@shared/schema";
 import { setupAuth, isAuthenticated, requireAdmin } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";
@@ -68,6 +73,7 @@ import { registerStreamingRoutes } from "./storyStreaming";
 import { registerEconomyRoutes } from "./economyRoutes";
 import { syncMarketItemStats } from "./economyEngine";
 import { recordPurchase, recordSale, getItemPrice, getSellPrice } from "./economyEngine";
+import { generateWorldEvents, aggregateDiscoveries } from "./lib/worldEventEngine";
 import { db } from "./db";
 import { eq, sql, desc, and, gte } from "drizzle-orm";
 import OpenAI from "openai";
@@ -18986,6 +18992,164 @@ Respond with JSON:
     } catch (error) {
       console.error("Failed to fetch world state:", error);
       res.status(500).json({ message: "Failed to fetch world state" });
+    }
+  });
+
+  // ==================== World Events & Discoveries ====================
+
+  app.get("/api/world/events", async (req, res) => {
+    try {
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+      const events = await db.select()
+        .from(worldEvents)
+        .where(eq(worldEvents.isActive, true))
+        .orderBy(desc(worldEvents.createdAt))
+        .limit(limit);
+      res.json(events);
+    } catch (error) {
+      console.error("Failed to fetch world events:", error);
+      res.status(500).json({ message: "Failed to fetch world events" });
+    }
+  });
+
+  app.get("/api/world/events/:regionId", async (req, res) => {
+    try {
+      const regionId = parseInt(req.params.regionId);
+      const events = await db.select()
+        .from(worldEvents)
+        .where(sql`${worldEvents.isActive} = true AND ${regionId} = ANY(${worldEvents.affectedRegionIds})`)
+        .orderBy(desc(worldEvents.createdAt))
+        .limit(10);
+      res.json(events);
+    } catch (error) {
+      console.error("Failed to fetch region events:", error);
+      res.status(500).json({ message: "Failed to fetch region events" });
+    }
+  });
+
+  app.post("/api/world/events/generate", isAuthenticated, async (req, res) => {
+    try {
+      const eventsCreated = await generateWorldEvents();
+      const discoveriesCreated = await aggregateDiscoveries();
+      res.json({ 
+        eventsCreated, 
+        discoveriesCreated,
+        message: `Generated ${eventsCreated} world events and ${discoveriesCreated} discoveries.`
+      });
+    } catch (error) {
+      console.error("Failed to generate world events:", error);
+      res.status(500).json({ message: "Failed to generate world events" });
+    }
+  });
+
+  app.get("/api/world/discoveries", async (req, res) => {
+    try {
+      const regionId = req.query.regionId ? parseInt(req.query.regionId as string) : null;
+      const query = db.select()
+        .from(worldDiscoveries)
+        .where(regionId 
+          ? and(eq(worldDiscoveries.isPublic, true), eq(worldDiscoveries.regionId, regionId))
+          : eq(worldDiscoveries.isPublic, true)
+        )
+        .orderBy(desc(worldDiscoveries.createdAt))
+        .limit(100);
+      const discoveries = await query;
+      res.json(discoveries);
+    } catch (error) {
+      console.error("Failed to fetch discoveries:", error);
+      res.status(500).json({ message: "Failed to fetch discoveries" });
+    }
+  });
+
+  app.get("/api/world/discoveries/summary", async (req, res) => {
+    try {
+      const summary = await db.select({
+        regionId: worldDiscoveries.regionId,
+        count: sql<number>`COUNT(*)::int`,
+        types: sql<string[]>`array_agg(DISTINCT ${worldDiscoveries.discoveryType})`,
+        latestDiscovery: sql<string>`MAX(${worldDiscoveries.createdAt})`,
+      })
+        .from(worldDiscoveries)
+        .where(eq(worldDiscoveries.isPublic, true))
+        .groupBy(worldDiscoveries.regionId);
+
+      const allRegions = await db.select({
+        id: worldRegions.id,
+        name: worldRegions.name,
+        instability: worldRegions.instability,
+        danger: worldRegions.danger,
+        opportunity: worldRegions.opportunity,
+        mystery: worldRegions.mystery,
+        currentMood: worldRegions.currentMood,
+      }).from(worldRegions);
+
+      const totalExploredHexes = await db.select({
+        count: sql<number>`COUNT(DISTINCT (${campaignExplorationHexes.q}, ${campaignExplorationHexes.r}))::int`
+      })
+        .from(campaignExplorationHexes)
+        .where(eq(campaignExplorationHexes.isExplored, true));
+
+      res.json({
+        regionDiscoveries: summary,
+        regions: allRegions,
+        totalExploredHexes: totalExploredHexes[0]?.count || 0,
+      });
+    } catch (error) {
+      console.error("Failed to fetch discovery summary:", error);
+      res.status(500).json({ message: "Failed to fetch discovery summary" });
+    }
+  });
+
+  app.get("/api/world/whispers/:campaignId", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const whispers = await db.select({
+        whisper: worldWhispers,
+        event: {
+          title: worldEvents.title,
+          description: worldEvents.description,
+          eventType: worldEvents.eventType,
+          severity: worldEvents.severity,
+        }
+      })
+        .from(worldWhispers)
+        .leftJoin(worldEvents, eq(worldWhispers.worldEventId, worldEvents.id))
+        .where(and(
+          eq(worldWhispers.campaignId, campaignId),
+          eq(worldWhispers.isDismissed, false)
+        ))
+        .orderBy(desc(worldWhispers.createdAt))
+        .limit(10);
+      res.json(whispers);
+    } catch (error) {
+      console.error("Failed to fetch whispers:", error);
+      res.status(500).json({ message: "Failed to fetch whispers" });
+    }
+  });
+
+  app.post("/api/world/whispers/:id/dismiss", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await db.update(worldWhispers)
+        .set({ isDismissed: true })
+        .where(eq(worldWhispers.id, id));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to dismiss whisper:", error);
+      res.status(500).json({ message: "Failed to dismiss whisper" });
+    }
+  });
+
+  app.post("/api/world/whispers/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await db.update(worldWhispers)
+        .set({ isRead: true })
+        .where(eq(worldWhispers.id, id));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to mark whisper as read:", error);
+      res.status(500).json({ message: "Failed to mark whisper as read" });
     }
   });
 

@@ -899,6 +899,77 @@ export const insertUserWorldProgressSchema = createInsertSchema(userWorldProgres
 export type InsertUserWorldProgress = z.infer<typeof insertUserWorldProgressSchema>;
 export type UserWorldProgress = typeof userWorldProgress.$inferSelect;
 
+// World Events - Persistent cross-campaign events that shape the shared world
+export const worldEvents = pgTable("world_events", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  eventType: text("event_type").notNull().default("narrative"),
+  severity: text("severity").notNull().default("minor"),
+  affectedRegionIds: integer("affected_region_ids").array().default([]),
+  affectedLocationIds: integer("affected_location_ids").array().default([]),
+  pressureEffects: jsonb("pressure_effects").default({}),
+  sourceCampaignId: integer("source_campaign_id"),
+  sourceCharacterId: integer("source_character_id"),
+  sourceCharacterName: text("source_character_name"),
+  triggerType: text("trigger_type").notNull().default("narrative"),
+  triggerDetail: text("trigger_detail"),
+  isActive: boolean("is_active").default(true),
+  expiresAt: text("expires_at"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertWorldEventSchema = createInsertSchema(worldEvents).omit({
+  id: true,
+});
+
+export type InsertWorldEvent = z.infer<typeof insertWorldEventSchema>;
+export type WorldEvent = typeof worldEvents.$inferSelect;
+
+// World Discoveries - Aggregated cross-campaign discoveries revealed on world map
+export const worldDiscoveries = pgTable("world_discoveries", {
+  id: serial("id").primaryKey(),
+  regionId: integer("region_id"),
+  locationId: integer("location_id"),
+  discoveryType: text("discovery_type").notNull().default("exploration"),
+  title: text("title").notNull(),
+  description: text("description"),
+  discoveredByUserId: integer("discovered_by_user_id"),
+  discoveredByCharacterName: text("discovered_by_character_name"),
+  sourceCampaignId: integer("source_campaign_id"),
+  hexQ: integer("hex_q"),
+  hexR: integer("hex_r"),
+  terrainType: text("terrain_type"),
+  isPublic: boolean("is_public").default(true),
+  metadata: jsonb("metadata").default({}),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertWorldDiscoverySchema = createInsertSchema(worldDiscoveries).omit({
+  id: true,
+});
+
+export type InsertWorldDiscovery = z.infer<typeof insertWorldDiscoverySchema>;
+export type WorldDiscovery = typeof worldDiscoveries.$inferSelect;
+
+// World Whispers - Notifications to active campaigns about world events
+export const worldWhispers = pgTable("world_whispers", {
+  id: serial("id").primaryKey(),
+  worldEventId: integer("world_event_id").notNull(),
+  campaignId: integer("campaign_id").notNull(),
+  message: text("message").notNull(),
+  isRead: boolean("is_read").default(false),
+  isDismissed: boolean("is_dismissed").default(false),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertWorldWhisperSchema = createInsertSchema(worldWhispers).omit({
+  id: true,
+});
+
+export type InsertWorldWhisper = z.infer<typeof insertWorldWhisperSchema>;
+export type WorldWhisper = typeof worldWhispers.$inferSelect;
+
 // Bulletin Board - LFG (Looking For Group) posts
 export const bulletinPosts = pgTable("bulletin_posts", {
   id: serial("id").primaryKey(),
