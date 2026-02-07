@@ -29,7 +29,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard, Coffee, Star, Camera, Check } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map as MapIcon, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard, Coffee, Star, Camera, Check } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -3788,7 +3788,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             className="flex-1 flex items-center text-left"
                           >
                             <h5 className="text-sm font-bold text-amber-400 flex items-center">
-                              <Map className="h-4 w-4 mr-2" />
+                              <MapIcon className="h-4 w-4 mr-2" />
                               {currentLocation || 'Exploration Map'}
                             </h5>
                           </button>
@@ -6369,7 +6369,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-600">
-              <Map className="h-5 w-5" />
+              <MapIcon className="h-5 w-5" />
               {currentLocation || 'Dungeon Map'} 
               <span className="text-sm font-normal text-muted-foreground ml-2">⬡ Hex Grid</span>
             </DialogTitle>

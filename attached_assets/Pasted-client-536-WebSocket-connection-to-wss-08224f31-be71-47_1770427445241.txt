@@ -1,0 +1,68 @@
+client:536  WebSocket connection to 'wss://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/?token=4xIps26bpIa5' failed: 
+setupWebSocket @ client:536
+client:536  Uncaught (in promise) SyntaxError: Failed to construct 'WebSocket': The URL 'wss://localhost:undefined/?token=4xIps26bpIa5' is invalid.
+    at setupWebSocket (client:536:19)
+    at fallback (client:509:16)
+    at WebSocket.<anonymous> (client:555:7)
+chunk-RPCDYKBN.js?v=cc4153c2:21551 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+App.tsx:89 Initializing WebSocket connection...
+VM67:6 SW registered: https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/
+08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/:1  <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes">
+CampaignPanel.tsx:1405  Uncaught TypeError: Map is not a constructor
+    at CampaignPanel (CampaignPanel.tsx:1405:54)
+    at renderWithHooks (chunk-RPCDYKBN.js?v=cc4153c2:11548:26)
+    at mountIndeterminateComponent (chunk-RPCDYKBN.js?v=cc4153c2:14926:21)
+    at beginWork (chunk-RPCDYKBN.js?v=cc4153c2:15914:22)
+    at HTMLUnknownElement.callCallback2 (chunk-RPCDYKBN.js?v=cc4153c2:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-RPCDYKBN.js?v=cc4153c2:3699:24)
+    at invokeGuardedCallback (chunk-RPCDYKBN.js?v=cc4153c2:3733:39)
+    at beginWork$1 (chunk-RPCDYKBN.js?v=cc4153c2:19765:15)
+    at performUnitOfWork (chunk-RPCDYKBN.js?v=cc4153c2:19198:20)
+    at workLoopSync (chunk-RPCDYKBN.js?v=cc4153c2:19137:13)
+CampaignPanel.tsx:1405  Uncaught TypeError: Map is not a constructor
+    at CampaignPanel (CampaignPanel.tsx:1405:54)
+    at renderWithHooks (chunk-RPCDYKBN.js?v=cc4153c2:11548:26)
+    at mountIndeterminateComponent (chunk-RPCDYKBN.js?v=cc4153c2:14926:21)
+    at beginWork (chunk-RPCDYKBN.js?v=cc4153c2:15914:22)
+    at HTMLUnknownElement.callCallback2 (chunk-RPCDYKBN.js?v=cc4153c2:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-RPCDYKBN.js?v=cc4153c2:3699:24)
+    at invokeGuardedCallback (chunk-RPCDYKBN.js?v=cc4153c2:3733:39)
+    at beginWork$1 (chunk-RPCDYKBN.js?v=cc4153c2:19765:15)
+    at performUnitOfWork (chunk-RPCDYKBN.js?v=cc4153c2:19198:20)
+    at workLoopSync (chunk-RPCDYKBN.js?v=cc4153c2:19137:13)
+chunk-RPCDYKBN.js?v=cc4153c2:14032  The above error occurred in the <CampaignPanel> component:
+
+    at CampaignPanel (https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/src/components/campaign/CampaignPanel.tsx:73:26)
+    at div
+    at div
+    at div
+    at div
+    at Dashboard (https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/src/pages/dashboard.tsx?t=1770426922166:45:20)
+    at Route (https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=cc4153c2:265:16)
+    at ProtectedRoute (https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/src/lib/protected-route.tsx:22:3)
+    at Switch (https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=cc4153c2:321:17)
+    at main
+    at div
+    at Router
+    at AuthProvider (https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/src/hooks/use-auth.tsx:43:32)
+    at Provider (https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-OXZDJRWN.js?v=cc4153c2:38:15)
+    at TooltipProvider (https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=cc4153c2:64:5)
+    at V (https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/next-themes.js?v=cc4153c2:44:25)
+    at J (https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/next-themes.js?v=cc4153c2:42:18)
+    at QueryClientProvider (https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=cc4153c2:2805:3)
+    at App (https://08224f31-be71-47b0-bd1d-3c6ce664e6e8-00-t8l1e6tw0a27.picard.replit.dev/src/App.tsx?v=3CxMjeMDWcnVVfBSDhPh7:228:3)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+logCapturedError @ chunk-RPCDYKBN.js?v=cc4153c2:14032
+chunk-RPCDYKBN.js?v=cc4153c2:9129  Uncaught TypeError: Map is not a constructor
+    at CampaignPanel (CampaignPanel.tsx:1405:54)
+    at renderWithHooks (chunk-RPCDYKBN.js?v=cc4153c2:11548:26)
+    at mountIndeterminateComponent (chunk-RPCDYKBN.js?v=cc4153c2:14926:21)
+    at beginWork (chunk-RPCDYKBN.js?v=cc4153c2:15914:22)
+    at beginWork$1 (chunk-RPCDYKBN.js?v=cc4153c2:19753:22)
+    at performUnitOfWork (chunk-RPCDYKBN.js?v=cc4153c2:19198:20)
+    at workLoopSync (chunk-RPCDYKBN.js?v=cc4153c2:19137:13)
+    at renderRootSync (chunk-RPCDYKBN.js?v=cc4153c2:19116:15)
+    at recoverFromConcurrentError (chunk-RPCDYKBN.js?v=cc4153c2:18736:28)
+    at performSyncWorkOnRoot (chunk-RPCDYKBN.js?v=cc4153c2:18879:28)
