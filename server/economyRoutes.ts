@@ -5,6 +5,15 @@ import { sql, eq, and, desc } from "drizzle-orm";
 import { playerListings, marketItemStats } from "@shared/schema";
 import { isAuthenticated } from "./auth";
 
+function toTextArray(items: any[]): string {
+  if (items.length === 0) return '{}';
+  const escaped = items.map((e: any) => {
+    const s = typeof e === 'string' ? e : JSON.stringify(e);
+    return '"' + s.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+  });
+  return '{' + escaped.join(',') + '}';
+}
+
 interface CraftingRecipe {
   id: string;
   name: string;
@@ -188,8 +197,8 @@ export function registerEconomyRoutes(app: Express) {
       delete itemData.equipped;
 
       equipment.splice(idx, 1);
-      const equipmentStrings = equipment.map((e: any) => typeof e === 'string' ? e : JSON.stringify(e));
-      await db.execute(sql`UPDATE characters SET equipment = ${equipmentStrings}::text[] WHERE id = ${characterId}`);
+      const equipArrayLiteral = toTextArray(equipment);
+      await db.execute(sql`UPDATE characters SET equipment = ${equipArrayLiteral}::text[] WHERE id = ${characterId}`);
 
       const [listing] = await db
         .insert(playerListings)
@@ -254,9 +263,9 @@ export function registerEconomyRoutes(app: Express) {
       }
 
       const buyerEquipment: any[] = buyer.equipment || [];
-      buyerEquipment.push(JSON.stringify(listing.itemData));
-      const buyerEquipStrings = buyerEquipment.map((e: any) => typeof e === 'string' ? e : JSON.stringify(e));
-      await db.execute(sql`UPDATE characters SET equipment = ${buyerEquipStrings}::text[] WHERE id = ${characterId}`);
+      buyerEquipment.push(listing.itemData);
+      const buyerArrayLiteral = toTextArray(buyerEquipment);
+      await db.execute(sql`UPDATE characters SET equipment = ${buyerArrayLiteral}::text[] WHERE id = ${characterId}`);
 
       await db
         .update(playerListings)
@@ -302,9 +311,9 @@ export function registerEconomyRoutes(app: Express) {
 
       if (character) {
         const equipment: any[] = character.equipment || [];
-        equipment.push(JSON.stringify(listing.itemData));
-        const cancelEquipStrings = equipment.map((e: any) => typeof e === 'string' ? e : JSON.stringify(e));
-        await db.execute(sql`UPDATE characters SET equipment = ${cancelEquipStrings}::text[] WHERE id = ${listing.characterId}`);
+        equipment.push(listing.itemData);
+        const cancelArrayLiteral = toTextArray(equipment);
+        await db.execute(sql`UPDATE characters SET equipment = ${cancelArrayLiteral}::text[] WHERE id = ${listing.characterId}`);
       }
 
       await db
@@ -393,10 +402,9 @@ export function registerEconomyRoutes(app: Express) {
       await db.execute(sql`UPDATE characters SET gold = gold - ${recipe.goldCost} WHERE id = ${characterId}`);
 
       if (success) {
-        const craftedItem = JSON.stringify(recipe.result);
-        equipment.push(craftedItem);
-        const craftEquipStrings = equipment.map((e: any) => typeof e === 'string' ? e : JSON.stringify(e));
-        await db.execute(sql`UPDATE characters SET equipment = ${craftEquipStrings}::text[] WHERE id = ${characterId}`);
+        equipment.push(recipe.result);
+        const craftArrayLiteral = toTextArray(equipment);
+        await db.execute(sql`UPDATE characters SET equipment = ${craftArrayLiteral}::text[] WHERE id = ${characterId}`);
       }
 
       res.json({
