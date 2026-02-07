@@ -35,7 +35,11 @@ import {
   MessageSquare,
   Clock,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Hammer,
+  Anvil,
+  FlaskConical,
+  Lock
 } from "lucide-react";
 import { Link } from "wouter";
 import { formatDistanceToNow } from "date-fns";
@@ -92,23 +96,54 @@ interface InventoryItem {
 }
 
 const SHOP_INVENTORY: ShopItem[] = [
+  { id: "club", name: "Club", type: "Simple Melee Weapon", rarity: "common", description: "A stout, heavy piece of wood.", damage: "1d4 bludgeoning", properties: "Light", goldCost: 0, silverCost: 1, weight: 2, category: "weapons" },
   { id: "dagger", name: "Dagger", type: "Simple Melee Weapon", rarity: "common", description: "A small, concealable blade. Light and throwable.", damage: "1d4 piercing", properties: "Finesse, light, thrown (20/60)", goldCost: 2, weight: 1, category: "weapons" },
+  { id: "greatclub", name: "Greatclub", type: "Simple Melee Weapon", rarity: "common", description: "A large, heavy bludgeon requiring two hands.", damage: "1d8 bludgeoning", properties: "Two-handed", goldCost: 0, silverCost: 2, weight: 10, category: "weapons" },
   { id: "handaxe", name: "Handaxe", type: "Simple Melee Weapon", rarity: "common", description: "A light axe that can be thrown in a pinch.", damage: "1d6 slashing", properties: "Light, thrown (20/60)", goldCost: 5, weight: 2, category: "weapons" },
+  { id: "javelin", name: "Javelin", type: "Simple Melee Weapon", rarity: "common", description: "A light spear designed for throwing.", damage: "1d6 piercing", properties: "Thrown (30/120)", goldCost: 0, silverCost: 5, weight: 2, category: "weapons" },
+  { id: "light-hammer", name: "Light Hammer", type: "Simple Melee Weapon", rarity: "common", description: "A small hammer balanced for throwing.", damage: "1d4 bludgeoning", properties: "Light, thrown (20/60)", goldCost: 2, weight: 2, category: "weapons" },
   { id: "mace", name: "Mace", type: "Simple Melee Weapon", rarity: "common", description: "A heavy flanged head atop a sturdy haft.", damage: "1d6 bludgeoning", goldCost: 5, weight: 4, category: "weapons" },
   { id: "quarterstaff", name: "Quarterstaff", type: "Simple Melee Weapon", rarity: "common", description: "A simple wooden staff, versatile and reliable.", damage: "1d6 bludgeoning (versatile 1d8)", goldCost: 0, silverCost: 2, weight: 4, category: "weapons" },
+  { id: "sickle", name: "Sickle", type: "Simple Melee Weapon", rarity: "common", description: "A curved blade for harvesting or combat.", damage: "1d4 slashing", properties: "Light", goldCost: 1, weight: 2, category: "weapons" },
+  { id: "spear", name: "Spear", type: "Simple Melee Weapon", rarity: "common", description: "A versatile polearm with a pointed tip.", damage: "1d6 piercing (versatile 1d8)", properties: "Thrown (20/60), versatile", goldCost: 1, weight: 3, category: "weapons" },
   { id: "battleaxe", name: "Battleaxe", type: "Martial Melee Weapon", rarity: "common", description: "A heavy axe perfect for cleaving through enemies.", damage: "1d8 slashing (versatile 1d10)", goldCost: 10, weight: 4, category: "weapons" },
+  { id: "flail", name: "Flail", type: "Martial Melee Weapon", rarity: "common", description: "A spiked ball on a chain, devastating against shields.", damage: "1d8 bludgeoning", goldCost: 10, weight: 2, category: "weapons" },
+  { id: "glaive", name: "Glaive", type: "Martial Melee Weapon", rarity: "common", description: "A long blade on a pole for sweeping attacks.", damage: "1d10 slashing", properties: "Heavy, reach, two-handed", goldCost: 20, weight: 6, category: "weapons" },
+  { id: "greataxe", name: "Greataxe", type: "Martial Melee Weapon", rarity: "common", description: "An enormous axe that cleaves through the toughest armor.", damage: "1d12 slashing", properties: "Heavy, two-handed", goldCost: 30, weight: 7, category: "weapons" },
   { id: "longsword", name: "Longsword", type: "Martial Melee Weapon", rarity: "common", description: "A versatile sword favored by warriors and adventurers alike.", damage: "1d8 slashing (versatile 1d10)", goldCost: 15, weight: 3, category: "weapons" },
-  { id: "warhammer", name: "Warhammer", type: "Martial Melee Weapon", rarity: "common", description: "A fearsome hammer for crushing armor and bone.", damage: "1d8 bludgeoning (versatile 1d10)", goldCost: 15, weight: 2, category: "weapons" },
+  { id: "morningstar", name: "Morningstar", type: "Martial Melee Weapon", rarity: "common", description: "A spiked mace that punches through armor.", damage: "1d8 piercing", goldCost: 15, weight: 4, category: "weapons" },
+  { id: "pike", name: "Pike", type: "Martial Melee Weapon", rarity: "common", description: "An extremely long spear for holding formations.", damage: "1d10 piercing", properties: "Heavy, reach, two-handed", goldCost: 5, weight: 18, category: "weapons" },
   { id: "rapier", name: "Rapier", type: "Martial Melee Weapon", rarity: "common", description: "A slender, sharply pointed blade for precise thrusts.", damage: "1d8 piercing", properties: "Finesse", goldCost: 25, weight: 2, category: "weapons" },
+  { id: "scimitar", name: "Scimitar", type: "Martial Melee Weapon", rarity: "common", description: "A curved blade favored by swashbucklers.", damage: "1d6 slashing", properties: "Finesse, light", goldCost: 25, weight: 3, category: "weapons" },
+  { id: "shortsword", name: "Shortsword", type: "Martial Melee Weapon", rarity: "common", description: "A quick, agile blade for close combat.", damage: "1d6 piercing", properties: "Finesse, light", goldCost: 10, weight: 2, category: "weapons" },
+  { id: "trident", name: "Trident", type: "Martial Melee Weapon", rarity: "common", description: "A three-pronged spear, thrown or thrust.", damage: "1d6 piercing (versatile 1d8)", properties: "Thrown (20/60), versatile", goldCost: 5, weight: 4, category: "weapons" },
+  { id: "war-pick", name: "War Pick", type: "Martial Melee Weapon", rarity: "common", description: "A pointed pick that punches through plate.", damage: "1d8 piercing", goldCost: 5, weight: 2, category: "weapons" },
+  { id: "warhammer", name: "Warhammer", type: "Martial Melee Weapon", rarity: "common", description: "A fearsome hammer for crushing armor and bone.", damage: "1d8 bludgeoning (versatile 1d10)", goldCost: 15, weight: 2, category: "weapons" },
+  { id: "whip", name: "Whip", type: "Martial Melee Weapon", rarity: "common", description: "A flexible leather lash with surprising reach.", damage: "1d4 slashing", properties: "Finesse, reach", goldCost: 2, weight: 3, category: "weapons" },
   { id: "greatsword", name: "Greatsword", type: "Martial Melee Weapon", rarity: "common", description: "A massive two-handed blade of devastating power.", damage: "2d6 slashing", properties: "Heavy, two-handed", goldCost: 50, weight: 6, category: "weapons" },
+  { id: "lance", name: "Lance", type: "Martial Melee Weapon", rarity: "common", description: "A mounted weapon requiring one hand while riding.", damage: "1d12 piercing", properties: "Reach, special (disadvantage within 5 ft)", goldCost: 10, weight: 6, category: "weapons" },
+  { id: "maul", name: "Maul", type: "Martial Melee Weapon", rarity: "common", description: "A massive hammer that crushes everything it hits.", damage: "2d6 bludgeoning", properties: "Heavy, two-handed", goldCost: 10, weight: 10, category: "weapons" },
   { id: "shortbow", name: "Shortbow", type: "Simple Ranged Weapon", rarity: "common", description: "A compact bow ideal for quick shots.", damage: "1d6 piercing", properties: "Ammunition (80/320), two-handed", goldCost: 25, weight: 2, category: "weapons" },
   { id: "light-crossbow", name: "Light Crossbow", type: "Simple Ranged Weapon", rarity: "common", description: "A mechanical bow with a trigger mechanism.", damage: "1d8 piercing", properties: "Ammunition (80/320), loading, two-handed", goldCost: 25, weight: 5, category: "weapons" },
+  { id: "hand-crossbow", name: "Hand Crossbow", type: "Martial Ranged Weapon", rarity: "common", description: "A compact crossbow fired with one hand.", damage: "1d6 piercing", properties: "Ammunition (30/120), light, loading", goldCost: 75, weight: 3, category: "weapons" },
+  { id: "heavy-crossbow", name: "Heavy Crossbow", type: "Martial Ranged Weapon", rarity: "common", description: "A powerful crossbow requiring a windlass to load.", damage: "1d10 piercing", properties: "Ammunition (100/400), heavy, loading, two-handed", goldCost: 50, weight: 18, category: "weapons" },
   { id: "longbow", name: "Longbow", type: "Martial Ranged Weapon", rarity: "common", description: "A tall bow that launches arrows with tremendous force.", damage: "1d8 piercing", properties: "Ammunition (150/600), heavy, two-handed", goldCost: 50, weight: 2, category: "weapons" },
+  { id: "pistol", name: "Pistol", type: "Martial Ranged Weapon (Firearm)", rarity: "uncommon", description: "A black-powder handgun. Loud, deadly, and expensive.", damage: "1d10 piercing", properties: "Ammunition (30/90), loading", goldCost: 250, weight: 3, category: "weapons" },
+  { id: "musket", name: "Musket", type: "Martial Ranged Weapon (Firearm)", rarity: "uncommon", description: "A long-barreled firearm with devastating range.", damage: "1d12 piercing", properties: "Ammunition (40/120), loading, two-handed", goldCost: 500, weight: 10, category: "weapons" },
+  { id: "ammunition-arrows", name: "Arrows (20)", type: "Ammunition", rarity: "common", description: "A quiver of 20 arrows for bows.", goldCost: 1, weight: 1, category: "weapons" },
+  { id: "ammunition-bolts", name: "Bolts (20)", type: "Ammunition", rarity: "common", description: "A case of 20 bolts for crossbows.", goldCost: 1, weight: 1.5, category: "weapons" },
+  { id: "ammunition-bullets", name: "Bullets (10)", type: "Ammunition", rarity: "common", description: "Lead balls and black powder for firearms.", goldCost: 3, weight: 2, category: "weapons" },
+  { id: "padded-armor", name: "Padded Armor", type: "Light Armor", rarity: "common", description: "Quilted layers of cloth and batting.", armor: 11, properties: "+Dex modifier, disadvantage on Stealth", goldCost: 5, weight: 8, category: "armor" },
   { id: "leather-armor", name: "Leather Armor", type: "Light Armor", rarity: "common", description: "Supple leather that allows for agility.", armor: 11, properties: "+Dex modifier to AC", goldCost: 10, weight: 10, category: "armor" },
   { id: "studded-leather", name: "Studded Leather", type: "Light Armor", rarity: "common", description: "Reinforced leather with close-set rivets.", armor: 12, properties: "+Dex modifier to AC", goldCost: 45, weight: 13, category: "armor" },
+  { id: "hide-armor", name: "Hide Armor", type: "Medium Armor", rarity: "common", description: "Crude armor made from thick animal hides.", armor: 12, properties: "+Dex modifier (max 2)", goldCost: 10, weight: 12, category: "armor" },
+  { id: "chain-shirt", name: "Chain Shirt", type: "Medium Armor", rarity: "common", description: "Interlocking metal rings worn under clothing.", armor: 13, properties: "+Dex modifier (max 2)", goldCost: 50, weight: 20, category: "armor" },
   { id: "scale-mail", name: "Scale Mail", type: "Medium Armor", rarity: "common", description: "Overlapping metal scales like a dragon's hide.", armor: 14, properties: "+Dex modifier (max 2), disadvantage on Stealth", goldCost: 50, weight: 45, category: "armor" },
-  { id: "chain-mail", name: "Chain Mail", type: "Heavy Armor", rarity: "common", description: "Interlocking metal rings provide solid protection.", armor: 16, properties: "Disadvantage on Stealth, Str 13 required", goldCost: 75, weight: 55, category: "armor" },
+  { id: "breastplate", name: "Breastplate", type: "Medium Armor", rarity: "common", description: "A fitted metal chest piece with leather fittings.", armor: 14, properties: "+Dex modifier (max 2)", goldCost: 400, weight: 20, category: "armor" },
   { id: "half-plate", name: "Half Plate", type: "Medium Armor", rarity: "common", description: "Shaped metal plates cover most of the body.", armor: 15, properties: "+Dex modifier (max 2), disadvantage on Stealth", goldCost: 750, weight: 40, category: "armor" },
+  { id: "ring-mail", name: "Ring Mail", type: "Heavy Armor", rarity: "common", description: "Leather armor with heavy rings sewn into it.", armor: 14, properties: "Disadvantage on Stealth", goldCost: 30, weight: 40, category: "armor" },
+  { id: "chain-mail", name: "Chain Mail", type: "Heavy Armor", rarity: "common", description: "Interlocking metal rings provide solid protection.", armor: 16, properties: "Disadvantage on Stealth, Str 13 required", goldCost: 75, weight: 55, category: "armor" },
+  { id: "splint-armor", name: "Splint Armor", type: "Heavy Armor", rarity: "common", description: "Narrow vertical strips of metal riveted to leather.", armor: 17, properties: "Disadvantage on Stealth, Str 15 required", goldCost: 200, weight: 60, category: "armor" },
   { id: "plate-armor", name: "Plate Armor", type: "Heavy Armor", rarity: "common", description: "The finest protection gold can buy. Full body coverage.", armor: 18, properties: "Disadvantage on Stealth, Str 15 required", goldCost: 1500, weight: 65, category: "armor" },
   { id: "wooden-shield", name: "Wooden Shield", type: "Shield", rarity: "common", description: "A sturdy wooden shield.", armor: 2, properties: "+2 AC bonus", goldCost: 10, weight: 6, category: "armor" },
   { id: "steel-shield", name: "Steel Shield", type: "Shield", rarity: "common", description: "A reinforced metal shield for serious combat.", armor: 2, properties: "+2 AC bonus, more durable", goldCost: 15, weight: 6, category: "armor" },
@@ -118,16 +153,35 @@ const SHOP_INVENTORY: ShopItem[] = [
   { id: "antitoxin", name: "Antitoxin", type: "Consumable", rarity: "common", description: "Grants advantage on saves against poison for 1 hour.", properties: "Advantage on poison saves for 1 hour", goldCost: 50, weight: 0.5, category: "potions" },
   { id: "holy-water", name: "Holy Water", type: "Consumable", rarity: "common", description: "Blessed water that burns undead and fiends. Deals 2d6 radiant.", properties: "2d6 radiant vs undead/fiends (thrown)", goldCost: 25, weight: 1, category: "potions" },
   { id: "oil-flask", name: "Oil Flask", type: "Consumable", rarity: "common", description: "Can be lit and thrown or used to coat surfaces.", properties: "5 fire damage per round for 2 rounds", goldCost: 0, silverCost: 1, weight: 1, category: "potions" },
+  { id: "alchemists-fire", name: "Alchemist's Fire", type: "Consumable", rarity: "common", description: "A flask of sticky, flammable adhesive.", properties: "1d4 fire per turn until extinguished (DC 10 Dex)", goldCost: 50, weight: 1, category: "potions" },
+  { id: "acid-vial", name: "Acid Vial", type: "Consumable", rarity: "common", description: "A vial of corrosive liquid.", properties: "2d6 acid damage (thrown, 20 ft)", goldCost: 25, weight: 1, category: "potions" },
   { id: "thieves-tools", name: "Thieves' Tools", type: "Tools", rarity: "common", description: "Lockpicks and small tools for disabling traps and opening locks.", goldCost: 25, weight: 1, category: "tools" },
+  { id: "smiths-tools", name: "Smith's Tools", type: "Artisan's Tools", rarity: "common", description: "Tongs, hammer, and bellows for metalworking.", goldCost: 20, weight: 8, category: "tools" },
+  { id: "alchemists-supplies", name: "Alchemist's Supplies", type: "Artisan's Tools", rarity: "common", description: "Beakers, chemicals, and instruments for alchemy.", goldCost: 50, weight: 8, category: "tools" },
+  { id: "brewers-supplies", name: "Brewer's Supplies", type: "Artisan's Tools", rarity: "common", description: "A siphon, hops, and fermenting gear.", goldCost: 20, weight: 9, category: "tools" },
+  { id: "herbalism-kit", name: "Herbalism Kit", type: "Kit", rarity: "common", description: "Clippers, mortar, pouches for gathering and preparing herbs.", goldCost: 5, weight: 3, category: "tools" },
+  { id: "poisoners-kit", name: "Poisoner's Kit", type: "Kit", rarity: "common", description: "Vials, chemicals, and tools for crafting poisons.", goldCost: 50, weight: 2, category: "tools" },
+  { id: "tinkers-tools", name: "Tinker's Tools", type: "Artisan's Tools", rarity: "common", description: "Hand tools for crafting small mechanical devices.", goldCost: 50, weight: 10, category: "tools" },
+  { id: "leatherworkers-tools", name: "Leatherworker's Tools", type: "Artisan's Tools", rarity: "common", description: "Knives, awls, and thread for working leather.", goldCost: 5, weight: 5, category: "tools" },
+  { id: "woodcarvers-tools", name: "Woodcarver's Tools", type: "Artisan's Tools", rarity: "common", description: "Knives, gouges, and a small saw for shaping wood.", goldCost: 1, weight: 5, category: "tools" },
   { id: "component-pouch", name: "Component Pouch", type: "Spellcasting Focus", rarity: "common", description: "A small belt pouch filled with material components for spells.", goldCost: 25, weight: 2, category: "tools" },
+  { id: "arcane-focus", name: "Arcane Focus (Crystal)", type: "Spellcasting Focus", rarity: "common", description: "A crystal orb used to channel arcane energy.", goldCost: 10, weight: 1, category: "tools" },
+  { id: "holy-symbol", name: "Holy Symbol (Amulet)", type: "Spellcasting Focus", rarity: "common", description: "A sacred symbol of a deity, used for divine spellcasting.", goldCost: 5, weight: 1, category: "tools" },
   { id: "explorers-pack", name: "Explorer's Pack", type: "Equipment Pack", rarity: "common", description: "Includes backpack, bedroll, mess kit, tinderbox, torches, rations, and waterskin.", goldCost: 10, weight: 59, category: "tools" },
+  { id: "dungeoneers-pack", name: "Dungeoneer's Pack", type: "Equipment Pack", rarity: "common", description: "Backpack, crowbar, hammer, pitons, torches, tinderbox, rations, waterskin, rope.", goldCost: 12, weight: 61.5, category: "tools" },
   { id: "rope-hemp", name: "Rope (50 ft, Hemp)", type: "Adventuring Gear", rarity: "common", description: "Strong rope for climbing, binding, or other uses.", goldCost: 1, weight: 10, category: "misc" },
+  { id: "rope-silk", name: "Rope (50 ft, Silk)", type: "Adventuring Gear", rarity: "common", description: "Lightweight, strong rope prized by thieves and climbers.", goldCost: 10, weight: 5, category: "misc" },
   { id: "torch-bundle", name: "Torches (10)", type: "Adventuring Gear", rarity: "common", description: "A bundle of 10 torches for lighting dark dungeons.", properties: "Bright light 20 ft, dim light additional 20 ft", goldCost: 0, silverCost: 10, weight: 10, category: "misc" },
   { id: "rations", name: "Rations (5 days)", type: "Adventuring Gear", rarity: "common", description: "Dried food for 5 days of travel.", goldCost: 2, silverCost: 5, weight: 10, category: "misc" },
   { id: "caltrops", name: "Caltrops (bag of 20)", type: "Adventuring Gear", rarity: "common", description: "Small iron spikes that slow and damage pursuers.", properties: "Covers 5 ft area, DC 15 Dex or 1 piercing + half speed", goldCost: 1, weight: 2, category: "misc" },
   { id: "grappling-hook", name: "Grappling Hook", type: "Adventuring Gear", rarity: "common", description: "An iron hook for securing ropes at height.", goldCost: 2, weight: 4, category: "misc" },
   { id: "lantern-hooded", name: "Hooded Lantern", type: "Adventuring Gear", rarity: "common", description: "A lantern with a shutter to control its beam.", properties: "Bright light 30 ft, dim 30 more. 6 hours per flask of oil", goldCost: 5, weight: 2, category: "misc" },
+  { id: "lantern-bullseye", name: "Bullseye Lantern", type: "Adventuring Gear", rarity: "common", description: "A focused beam lantern for scouting.", properties: "Bright light 60 ft cone, dim 60 more", goldCost: 10, weight: 2, category: "misc" },
   { id: "bedroll", name: "Bedroll", type: "Adventuring Gear", rarity: "common", description: "A warm roll for sleeping outdoors.", goldCost: 1, weight: 7, category: "misc" },
+  { id: "spyglass", name: "Spyglass", type: "Adventuring Gear", rarity: "common", description: "A small telescope for observing distant objects.", goldCost: 1000, weight: 1, category: "misc" },
+  { id: "manacles", name: "Manacles", type: "Adventuring Gear", rarity: "common", description: "Iron restraints. DC 20 to escape, DC 15 to pick.", goldCost: 2, weight: 6, category: "misc" },
+  { id: "tent", name: "Tent (Two-Person)", type: "Adventuring Gear", rarity: "common", description: "A simple canvas tent for shelter.", goldCost: 2, weight: 20, category: "misc" },
+  { id: "crowbar", name: "Crowbar", type: "Adventuring Gear", rarity: "common", description: "An iron bar for prying. Grants advantage on Strength checks.", goldCost: 2, weight: 5, category: "misc" },
 ];
 
 const REPAIR_COSTS: Record<string, { gold: number; silver: number }> = {
@@ -964,7 +1018,7 @@ export default function TavernPage() {
   const [quantity, setQuantity] = useState(1);
   
   // Tavern social features state
-  const [tavernTab, setTavernTab] = useState<'drinks' | 'party' | 'rumors' | 'games'>('drinks');
+  const [tavernTab, setTavernTab] = useState<'drinks' | 'party' | 'rumors' | 'games' | 'crafting'>('drinks');
   const [currentRumor, setCurrentRumor] = useState<string>(TAVERN_RUMORS[Math.floor(Math.random() * TAVERN_RUMORS.length)]);
   const [rumorNPC, setRumorNPC] = useState<string>(() => {
     const npcs = ["A grizzled dwarf", "An elven merchant", "A hooded stranger", "The bartender", "A traveling bard", "A nervous halfling"];
@@ -1308,6 +1362,36 @@ export default function TavernPage() {
     }
   });
   
+  const [craftingFilter, setCraftingFilter] = useState<string>("all");
+  const [craftResult, setCraftResult] = useState<any>(null);
+
+  const { data: craftingRecipes = [] } = useQuery<any[]>({
+    queryKey: ["/api/crafting/recipes"],
+  });
+
+  const craftMutation = useMutation({
+    mutationFn: async ({ characterId, recipeId }: { characterId: number; recipeId: string }) => {
+      const response = await apiRequest("POST", "/api/crafting/craft", { characterId, recipeId });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setCraftResult(data);
+      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+      toast({
+        title: data.success ? "Crafting Success!" : "Crafting Failed",
+        description: data.message,
+        variant: data.success ? "default" : "destructive"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Cannot Craft",
+        description: error.message || "Crafting failed.",
+        variant: "destructive"
+      });
+    }
+  });
+
   const hearNewRumor = async () => {
     const npcs = ["A grizzled dwarf", "An elven merchant", "A hooded stranger", "The bartender", "A traveling bard", "A nervous halfling"];
     setRumorNPC(npcs[Math.floor(Math.random() * npcs.length)]);
@@ -2102,6 +2186,13 @@ export default function TavernPage() {
                     <Zap className="h-8 w-8 mx-auto mb-2 text-amber-600" />
                     <p className="text-sm font-medium">Mini-Games</p>
                   </button>
+                  <button
+                    onClick={() => setTavernTab('crafting')}
+                    className={`p-4 text-center rounded-lg border-2 transition-all ${tavernTab === 'crafting' ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-500' : 'bg-slate-50 dark:bg-slate-800 border-transparent hover:border-amber-300'}`}
+                  >
+                    <Hammer className="h-8 w-8 mx-auto mb-2 text-amber-600" />
+                    <p className="text-sm font-medium">Crafting</p>
+                  </button>
                 </div>
                 
                 <Separator className="my-4" />
@@ -2402,6 +2493,150 @@ export default function TavernPage() {
                         )}
                       </CardContent>
                     </Card>
+                  </div>
+                )}
+
+                {tavernTab === 'crafting' && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-bold flex items-center gap-2">
+                      <Hammer className="h-5 w-5 text-amber-600" />
+                      Crafting Workshop
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Forge weapons, brew potions, and craft gear. Higher-level recipes require specific skills and tools in your inventory.
+                      Roll a d20 + proficiency bonus against the recipe's DC. Failure consumes gold materials!
+                    </p>
+
+                    {!activeCharacter ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Lock className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>Select a character to access the workshop</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {["all", "Simple Weapon", "Martial Weapon", "Light Armor", "Medium Armor", "Heavy Armor", "Shield", "Potion", "Consumable", "Ammunition", "Adventuring Gear"].map(cat => (
+                            <Button
+                              key={cat}
+                              size="sm"
+                              variant={craftingFilter === cat ? "default" : "outline"}
+                              onClick={() => setCraftingFilter(cat)}
+                              className={craftingFilter === cat ? "bg-amber-600 hover:bg-amber-700" : ""}
+                            >
+                              {cat === "all" ? "All" : cat}
+                            </Button>
+                          ))}
+                        </div>
+
+                        {craftResult && (
+                          <Card className={`border-2 ${craftResult.success ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-red-500 bg-red-50 dark:bg-red-900/20'}`}>
+                            <CardContent className="p-4 text-center">
+                              <p className="text-2xl font-bold mb-1">
+                                {craftResult.success ? "Success!" : "Failed!"}
+                              </p>
+                              <p className="text-sm">
+                                d20: {craftResult.roll}{craftResult.bonus > 0 ? ` + ${craftResult.bonus}` : ''} = {craftResult.total} vs DC {craftResult.dc}
+                              </p>
+                              {craftResult.success && craftResult.item && (
+                                <p className="mt-2 text-green-700 dark:text-green-300 font-medium">
+                                  Crafted: {craftResult.item.name}
+                                </p>
+                              )}
+                              {!craftResult.success && (
+                                <p className="mt-2 text-red-600 dark:text-red-400 text-xs">
+                                  Materials worth {craftResult.goldSpent} gp were consumed.
+                                </p>
+                              )}
+                              <Button size="sm" variant="ghost" onClick={() => setCraftResult(null)} className="mt-2">
+                                <X className="h-3 w-3 mr-1" /> Dismiss
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        <div className="grid gap-3">
+                          {(craftingRecipes as any[])
+                            .filter((r: any) => craftingFilter === "all" || r.type === craftingFilter)
+                            .map((recipe: any) => {
+                              const charLevel = activeCharacter?.level || 1;
+                              const meetsLevel = charLevel >= recipe.requiredLevel;
+                              const charSkills: string[] = (activeCharacter as any)?.skills || [];
+                              const meetsSkill = recipe.requiredSkills.length === 0 || recipe.requiredSkills.some((s: string) =>
+                                charSkills.some((cs: string) => cs.toLowerCase().includes(s.toLowerCase()))
+                              );
+                              const charEquipment: any[] = (activeCharacter as any)?.equipment || [];
+                              const meetsTool = recipe.requiredTools.length === 0 || recipe.requiredTools.every((tool: string) =>
+                                charEquipment.some((item: any) => {
+                                  let parsed = item;
+                                  if (typeof parsed === 'string') {
+                                    try { parsed = JSON.parse(parsed); } catch { parsed = { name: parsed }; }
+                                  }
+                                  return parsed.name && parsed.name.toLowerCase().includes(tool.toLowerCase());
+                                })
+                              );
+                              const canAffordCraft = characterGold >= recipe.goldCost;
+                              const canCraft = meetsLevel && meetsSkill && meetsTool && canAffordCraft;
+
+                              return (
+                                <Card key={recipe.id} className={`transition-all ${canCraft ? 'hover:shadow-md hover:border-amber-300' : 'opacity-60'}`}>
+                                  <CardContent className="p-4">
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <span className="font-bold">{recipe.name}</span>
+                                          <Badge variant="outline" className="text-xs">
+                                            {recipe.rarity}
+                                          </Badge>
+                                          <Badge variant="outline" className="text-xs bg-blue-50 dark:bg-blue-900/20">
+                                            DC {recipe.craftingDC}
+                                          </Badge>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mb-2">{recipe.description}</p>
+                                        <div className="flex flex-wrap gap-1 text-xs">
+                                          <Badge className={`${meetsLevel ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}`}>
+                                            Lv {recipe.requiredLevel}+
+                                          </Badge>
+                                          {recipe.requiredSkills.length > 0 && (
+                                            <Badge className={`${meetsSkill ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}`}>
+                                              {recipe.requiredSkills.join(" / ")}
+                                            </Badge>
+                                          )}
+                                          {recipe.requiredTools.map((tool: string) => (
+                                            <Badge key={tool} className={`${meetsTool ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}`}>
+                                              {tool}
+                                            </Badge>
+                                          ))}
+                                          {recipe.goldCost > 0 && (
+                                            <Badge className={`${canAffordCraft ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}`}>
+                                              <Coins className="h-3 w-3 mr-1" />
+                                              {recipe.goldCost} gp
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        {recipe.result.damage && (
+                                          <p className="text-xs mt-1 text-orange-600">Damage: {recipe.result.damage}</p>
+                                        )}
+                                        {recipe.result.armor && (
+                                          <p className="text-xs mt-1 text-blue-600">AC: {recipe.result.armor}</p>
+                                        )}
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        disabled={!canCraft || craftMutation.isPending}
+                                        onClick={() => craftMutation.mutate({ characterId: activeCharacter.id, recipeId: recipe.id })}
+                                        className="bg-amber-600 hover:bg-amber-700 ml-3"
+                                      >
+                                        <Hammer className="h-3 w-3 mr-1" />
+                                        {craftMutation.isPending ? "..." : "Craft"}
+                                      </Button>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              );
+                            })}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </CardContent>

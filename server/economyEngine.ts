@@ -237,3 +237,57 @@ export function getSellPrice(basePrice: number, demandMultiplier: number): numbe
   const clampedRatio = Math.max(0.25, Math.min(0.6, sellRatio));
   return Math.max(1, Math.floor(basePrice * clampedRatio));
 }
+
+const SHOP_ITEM_PRICES: Record<string, number> = {
+  "club": 0.1, "dagger": 2, "greatclub": 0.2, "handaxe": 5, "javelin": 0.5,
+  "light-hammer": 2, "mace": 5, "quarterstaff": 0.2, "sickle": 1, "spear": 1,
+  "battleaxe": 10, "flail": 10, "glaive": 20, "greataxe": 30, "longsword": 15,
+  "morningstar": 15, "pike": 5, "rapier": 25, "scimitar": 25, "shortsword": 10,
+  "trident": 5, "war-pick": 5, "warhammer": 15, "whip": 2, "greatsword": 50,
+  "lance": 10, "maul": 10, "shortbow": 25, "light-crossbow": 25, "hand-crossbow": 75,
+  "heavy-crossbow": 50, "longbow": 50, "pistol": 250, "musket": 500,
+  "ammunition-arrows": 1, "ammunition-bolts": 1, "ammunition-bullets": 3,
+  "padded-armor": 5, "leather-armor": 10, "studded-leather": 45, "hide-armor": 10,
+  "chain-shirt": 50, "scale-mail": 50, "breastplate": 400, "half-plate": 750,
+  "ring-mail": 30, "chain-mail": 75, "splint-armor": 200, "plate-armor": 1500,
+  "wooden-shield": 10, "steel-shield": 15,
+  "healing-potion": 50, "greater-healing-potion": 150, "superior-healing-potion": 500,
+  "antitoxin": 50, "holy-water": 25, "oil-flask": 0.1, "alchemists-fire": 50, "acid-vial": 25,
+  "thieves-tools": 25, "smiths-tools": 20, "alchemists-supplies": 50, "brewers-supplies": 20,
+  "herbalism-kit": 5, "poisoners-kit": 50, "tinkers-tools": 50, "leatherworkers-tools": 5,
+  "woodcarvers-tools": 1, "component-pouch": 25, "arcane-focus": 10, "holy-symbol": 5,
+  "explorers-pack": 10, "dungeoneers-pack": 12,
+  "rope-hemp": 1, "rope-silk": 10, "torch-bundle": 0.1, "rations": 2.5,
+  "caltrops": 1, "grappling-hook": 2, "lantern-hooded": 5, "lantern-bullseye": 10,
+  "bedroll": 1, "spyglass": 1000, "manacles": 2, "tent": 2, "crowbar": 2,
+};
+
+export async function syncMarketItemStats(): Promise<void> {
+  try {
+    for (const [slug, basePrice] of Object.entries(SHOP_ITEM_PRICES)) {
+      const [existing] = await db
+        .select()
+        .from(marketItemStats)
+        .where(eq(marketItemStats.itemSlug, slug));
+      
+      if (!existing) {
+        await db.insert(marketItemStats).values({
+          itemSlug: slug,
+          basePrice,
+          currentPrice: basePrice,
+          demandMultiplier: 1.0,
+          totalPurchases: 0,
+          recentPurchases: 0,
+        });
+      } else if (existing.basePrice !== basePrice) {
+        await db
+          .update(marketItemStats)
+          .set({ basePrice, currentPrice: basePrice * existing.demandMultiplier })
+          .where(eq(marketItemStats.itemSlug, slug));
+      }
+    }
+    console.log("[Economy] Market item stats synced successfully");
+  } catch (error) {
+    console.error("[Economy] Failed to sync market item stats:", error);
+  }
+}

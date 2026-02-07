@@ -64,6 +64,7 @@ import { registerObjectStorageRoutes } from "./replit_integrations/object_storag
 import { registerTradingPostRoutes } from "./tradingPostRoutes";
 import { registerStreamingRoutes } from "./storyStreaming";
 import { registerEconomyRoutes } from "./economyRoutes";
+import { syncMarketItemStats } from "./economyEngine";
 import { recordPurchase, recordSale, getItemPrice, getSellPrice } from "./economyEngine";
 import { db } from "./db";
 import { eq, sql, desc, and, gte } from "drizzle-orm";
@@ -742,6 +743,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerStreamingRoutes(app);
   
   registerEconomyRoutes(app);
+  
+  syncMarketItemStats().catch(err => console.error("[Economy] Sync failed:", err));
   
   // Create HTTP server
   const httpServer = createServer(app);

@@ -17,7 +17,7 @@ import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
 import {
   Search, Star, Download, Scroll, Gem, Shield, Swords, Wand2,
   Loader2, Plus, Trash2, Filter, TrendingUp, Clock, Users,
-  MapPin, BookOpen, Heart, Package
+  MapPin, BookOpen, Heart, Package, AlertTriangle
 } from "lucide-react";
 import type { SharedAdventure, SharedItem, TradingPostReview } from "@shared/schema";
 import parchmentFrame from "@assets/image_1768600727955.png";
@@ -387,7 +387,7 @@ export default function TradingPostPage() {
       try { return JSON.parse(item); } catch { return { name: item }; }
     }
     return item;
-  }).filter((item: any) => !item.equipped) || [];
+  }) || [];
 
   const adventures = adventuresData?.adventures || [];
   const itemsList = itemsData?.items || [];
@@ -857,19 +857,33 @@ export default function TradingPostPage() {
               <div className="space-y-2">
                 <Label>Item from Inventory</Label>
                 {inventoryItems.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No unequipped items available.</p>
+                  <p className="text-sm text-muted-foreground">No items in inventory.</p>
                 ) : (
                   <Select value={selectedListItem} onValueChange={setSelectedListItem}>
                     <SelectTrigger><SelectValue placeholder="Select item..." /></SelectTrigger>
                     <SelectContent>
                       {inventoryItems.map((item: any, i: number) => (
-                        <SelectItem key={i} value={`idx-${i}`}>{item.name || `Unknown Item #${i + 1}`}</SelectItem>
+                        <SelectItem key={i} value={`idx-${i}`}>
+                          {item.name || `Unknown Item #${i + 1}`}{item.equipped ? " [Equipped]" : ""}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 )}
               </div>
             )}
+            {selectedListItem && (() => {
+              const idx = parseInt(selectedListItem.replace('idx-', ''));
+              const item = inventoryItems[idx];
+              return item?.equipped ? (
+                <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg text-sm">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <span className="text-amber-800 dark:text-amber-300">
+                    This item is currently equipped. Listing it will unequip it from your character.
+                  </span>
+                </div>
+              ) : null;
+            })()}
             <div className="space-y-2">
               <Label>Asking Price (gp)</Label>
               <Input
