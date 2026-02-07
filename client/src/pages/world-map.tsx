@@ -371,7 +371,7 @@ export default function WorldMapPage() {
                 const isSelected = selectedRegion?.id === region.id;
 
                 const left = `${((region.gridX || 0) / 10) * 100}%`;
-                const top = `${((region.gridY || 0) / 10) * 100}%`;
+                const top = `${(((region.gridY || 0) / 10) * 100) + 8}%`;
 
                 return (
                   <Tooltip key={region.id}>
