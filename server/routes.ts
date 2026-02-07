@@ -53,7 +53,9 @@ import {
   hearthMurmur,
   insertHearthBoardPostSchema,
   campaignSrdReferences,
-  demoAnalytics
+  demoAnalytics,
+  adventureCompletions,
+  campaignParticipants
 } from "@shared/schema";
 import { setupAuth, isAuthenticated, requireAdmin } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";
