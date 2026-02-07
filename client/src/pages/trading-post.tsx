@@ -333,7 +333,7 @@ export default function TradingPostPage() {
   });
 
   const createListingMutation = useMutation({
-    mutationFn: async (data: { characterId: number; itemName: string; itemData: any; askingPrice: number }) => {
+    mutationFn: async (data: { characterId: number; inventoryIndex: number; askingPrice: number }) => {
       const res = await apiRequest("POST", "/api/trading-post/player-listings", data);
       return res.json();
     },
@@ -901,12 +901,10 @@ export default function TradingPostPage() {
               disabled={!selectedListCharacter || !selectedListItem || createListingMutation.isPending}
               onClick={() => {
                 const idx = parseInt(selectedListItem.replace('idx-', ''));
-                const item = inventoryItems[idx];
-                if (item && selectedListCharacter) {
+                if (idx >= 0 && idx < inventoryItems.length && selectedListCharacter) {
                   createListingMutation.mutate({
                     characterId: selectedListCharacter,
-                    itemName: item.name || `Item #${idx + 1}`,
-                    itemData: item,
+                    inventoryIndex: idx,
                     askingPrice: listAskingPrice,
                   });
                 }

@@ -148,14 +148,19 @@ export function registerEconomyRoutes(app: Express) {
   app.post("/api/trading-post/player-listings", isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
-      const { characterId, itemName, itemData, askingPrice } = req.body;
+      const { characterId, inventoryIndex, askingPrice } = req.body;
 
-      if (!characterId || !itemName || !itemData || !askingPrice) {
+      if (characterId === undefined || inventoryIndex === undefined || !askingPrice) {
         return res.status(400).json({ message: "Missing required fields" });
       }
 
       if (askingPrice < 1) {
         return res.status(400).json({ message: "Price must be at least 1 gold" });
+      }
+
+      const idx = parseInt(inventoryIndex);
+      if (isNaN(idx) || idx < 0) {
+        return res.status(400).json({ message: "Invalid inventory index" });
       }
 
       const charResult = await db.execute(sql`SELECT * FROM characters WHERE id = ${characterId}`);
@@ -169,23 +174,20 @@ export function registerEconomyRoutes(app: Express) {
       }
 
       const equipment: any[] = character.equipment || [];
-      let foundIndex = -1;
-      for (let i = 0; i < equipment.length; i++) {
-        let parsed = equipment[i];
-        if (typeof parsed === 'string') {
-          try { parsed = JSON.parse(parsed); } catch { parsed = { name: parsed }; }
-        }
-        if (parsed.name === itemName) {
-          foundIndex = i;
-          break;
-        }
+      if (idx >= equipment.length) {
+        return res.status(400).json({ message: "Invalid inventory index - item does not exist" });
       }
 
-      if (foundIndex === -1) {
-        return res.status(400).json({ message: "Item not found in inventory" });
+      let serverItem = equipment[idx];
+      if (typeof serverItem === 'string') {
+        try { serverItem = JSON.parse(serverItem); } catch { serverItem = { name: serverItem }; }
       }
 
-      equipment.splice(foundIndex, 1);
+      const itemName = serverItem.name || `Item #${idx + 1}`;
+      const itemData = { ...serverItem };
+      delete itemData.equipped;
+
+      equipment.splice(idx, 1);
       await db.execute(sql`UPDATE characters SET equipment = ${JSON.stringify(equipment)}::jsonb WHERE id = ${characterId}`);
 
       const [listing] = await db
