@@ -75,45 +75,53 @@ function detectSceneContext(
   return 'exploration';
 }
 
-function CrawlingIcon({ sceneContext, elapsed }: { sceneContext: SceneContext; elapsed: number }) {
+const crawlKeyframes = `
+@keyframes crawl-across {
+  0% { left: -5%; opacity: 0; }
+  5% { opacity: 0.3; }
+  50% { opacity: 0.35; }
+  95% { opacity: 0.3; }
+  100% { left: 105%; opacity: 0; }
+}
+@keyframes gentle-bob {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+`;
+
+function CrawlingIcon({ sceneContext }: { sceneContext: SceneContext }) {
   const icons = SCENE_CRAWL_ICONS[sceneContext];
-  const [iconIndex, setIconIndex] = useState(0);
+  const [iconIndex, setIconIndex] = useState(() => Math.floor(Math.random() * icons.length));
 
   useEffect(() => {
     const interval = setInterval(() => {
       setIconIndex(prev => (prev + 1) % icons.length);
-    }, 4000);
+    }, 15000);
     return () => clearInterval(interval);
   }, [icons.length]);
 
   const Icon = icons[iconIndex];
 
-  const cyclePosition = (elapsed / 6000) % 1;
-  const leftPercent = cyclePosition * 100;
-  const verticalWave = Math.sin(cyclePosition * Math.PI * 3) * 8;
-  const opacity = Math.min(1, Math.max(0.2,
-    leftPercent < 10 ? leftPercent / 10 :
-    leftPercent > 90 ? (100 - leftPercent) / 10 : 1
-  ));
-
   return (
-    <div
-      className="absolute pointer-events-none"
-      style={{
-        left: `${leftPercent}%`,
-        top: `calc(50% + ${verticalWave}px)`,
-        transform: 'translate(-50%, -50%)',
-        opacity: opacity * 0.35,
-        transition: 'opacity 0.3s ease',
-      }}
-    >
-      <Icon
-        className="h-6 w-6 text-amber-400"
+    <>
+      <style>{crawlKeyframes}</style>
+      <div
+        className="absolute pointer-events-none top-1/2"
         style={{
-          filter: 'drop-shadow(0 0 8px rgba(245, 158, 11, 0.4))',
+          animation: 'crawl-across 15s linear infinite',
+          willChange: 'left, opacity',
         }}
-      />
-    </div>
+      >
+        <div style={{ animation: 'gentle-bob 3s ease-in-out infinite' }}>
+          <Icon
+            className="h-6 w-6 text-amber-400"
+            style={{
+              filter: 'drop-shadow(0 0 8px rgba(245, 158, 11, 0.4))',
+            }}
+          />
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -192,7 +200,7 @@ export function StoryLoadingScreen({
 
       {/* Crawling contextual icon across the loading area */}
       <div className="relative min-h-[60px] overflow-hidden">
-        <CrawlingIcon sceneContext={sceneContext} elapsed={elapsed} />
+        <CrawlingIcon sceneContext={sceneContext} />
 
         {showReveal && revealText ? (
           <div className="relative z-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
