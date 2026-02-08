@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,22 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Compass, 
-  MapPin, 
-  Eye, 
-  EyeOff, 
   Footprints,
-  Mountain,
-  Trees,
-  Home,
-  Skull,
   Sparkles,
-  HelpCircle,
   Navigation,
   Loader2,
   ZoomIn,
   ZoomOut,
   Maximize2,
-  Move
 } from "lucide-react";
 
 interface HexEntity {
@@ -91,220 +82,112 @@ function axialToPixel(q: number, r: number, hexSize: number): { x: number; y: nu
   return { x, y };
 }
 
-function getTerrainIcon(terrainType: string) {
-  const terrain = terrainType.toLowerCase();
-  if (terrain.includes("forest") || terrain.includes("tree") || terrain.includes("wood")) {
-    return <Trees className="h-4 w-4" />;
-  }
-  if (terrain.includes("mountain") || terrain.includes("cave") || terrain.includes("rock")) {
-    return <Mountain className="h-4 w-4" />;
-  }
-  if (terrain.includes("village") || terrain.includes("town") || terrain.includes("tavern")) {
-    return <Home className="h-4 w-4" />;
-  }
-  if (terrain.includes("dungeon") || terrain.includes("crypt") || terrain.includes("ruin")) {
-    return <Skull className="h-4 w-4" />;
-  }
-  if (terrain.includes("temple") || terrain.includes("shrine")) {
-    return <Sparkles className="h-4 w-4" />;
-  }
-  return <HelpCircle className="h-4 w-4" />;
+type TerrainCategory = 
+  | "forest" | "grass" | "swamp" | "mountain" | "hill" | "cave" 
+  | "water" | "lake" | "coast" | "desert" | "snow" | "lava"
+  | "path" | "settlement" | "structure" | "sacred" | "dungeon" 
+  | "underground" | "danger" | "unknown";
+
+interface TerrainStyle {
+  fill: string;
+  stroke: string;
+  gradientId: string;
 }
 
-function getHexColor(hex: ExplorationHex, isCurrentPosition: boolean): string {
-  if (isCurrentPosition) {
-    return "fill-amber-500/80 stroke-amber-400";
-  }
-  if (!hex.isRevealed) {
-    return "fill-slate-900/90 stroke-slate-800";
-  }
-  if (!hex.isExplored) {
-    return "fill-slate-700/60 stroke-slate-600 hover:fill-slate-600/80 cursor-pointer";
-  }
-  
-  const terrain = hex.terrainType.toLowerCase();
-  
-  // Vegetation - greens
-  if (terrain.includes("forest") || terrain.includes("wood") || terrain.includes("grove") || terrain.includes("thicket")) {
-    return "fill-green-900/70 stroke-green-600";
-  }
-  if (terrain.includes("grass") || terrain.includes("meadow") || terrain.includes("field") || terrain.includes("plains") || terrain.includes("clearing") || terrain.includes("glade")) {
-    return "fill-lime-800/60 stroke-lime-500";
-  }
-  if (terrain.includes("garden") || terrain.includes("orchard")) {
-    return "fill-emerald-800/60 stroke-emerald-500";
-  }
-  if (terrain.includes("swamp") || terrain.includes("marsh") || terrain.includes("bog")) {
-    return "fill-teal-900/60 stroke-teal-600";
-  }
-  
-  // Elevation - browns/grays
-  if (terrain.includes("mountain") || terrain.includes("peak") || terrain.includes("cliff") || terrain.includes("ridge") || terrain.includes("canyon")) {
-    return "fill-stone-700/70 stroke-stone-500";
-  }
-  if (terrain.includes("hill") || terrain.includes("slope") || terrain.includes("valley")) {
-    return "fill-amber-800/50 stroke-amber-600";
-  }
-  if (terrain.includes("cave") || terrain.includes("cavern") || terrain.includes("mine")) {
-    return "fill-stone-800/70 stroke-stone-600";
-  }
-  
-  // Water - blues
-  if (terrain.includes("river") || terrain.includes("stream") || terrain.includes("brook") || terrain.includes("creek") || terrain.includes("waterfall")) {
-    return "fill-blue-700/60 stroke-blue-400";
-  }
-  if (terrain.includes("lake") || terrain.includes("pond") || terrain.includes("pool")) {
-    return "fill-blue-800/70 stroke-blue-500";
-  }
-  if (terrain.includes("coast") || terrain.includes("shore") || terrain.includes("beach") || terrain.includes("island")) {
-    return "fill-cyan-800/60 stroke-cyan-500";
-  }
-  if (terrain.includes("dock") || terrain.includes("pier") || terrain.includes("harbor")) {
-    return "fill-slate-700/60 stroke-blue-500";
-  }
-  
-  // Harsh terrain
-  if (terrain.includes("desert") || terrain.includes("dune") || terrain.includes("sand")) {
-    return "fill-yellow-700/60 stroke-yellow-500";
-  }
-  if (terrain.includes("volcano") || terrain.includes("lava")) {
-    return "fill-orange-900/70 stroke-red-600";
-  }
-  if (terrain.includes("ice") || terrain.includes("glacier") || terrain.includes("snow") || terrain.includes("tundra")) {
-    return "fill-sky-200/60 stroke-sky-400";
-  }
-  
-  // Paths - tan/brown
-  if (terrain.includes("road") || terrain.includes("path") || terrain.includes("trail") || terrain.includes("track") || terrain.includes("crossroads")) {
-    return "fill-amber-700/50 stroke-amber-500";
-  }
-  if (terrain.includes("bridge")) {
-    return "fill-stone-600/60 stroke-stone-400";
-  }
-  
-  // Buildings & structures
-  if (terrain.includes("castle") || terrain.includes("fortress") || terrain.includes("keep") || terrain.includes("tower")) {
-    return "fill-slate-600/70 stroke-slate-400";
-  }
-  if (terrain.includes("wall") || terrain.includes("gate") || terrain.includes("rampart") || terrain.includes("battlement")) {
-    return "fill-stone-600/70 stroke-stone-400";
-  }
-  if (terrain.includes("house") || terrain.includes("cabin") || terrain.includes("cottage") || terrain.includes("hut") || terrain.includes("building")) {
-    return "fill-amber-800/60 stroke-amber-600";
-  }
-  
-  // Settlements - warm amber/orange
-  if (terrain.includes("village") || terrain.includes("town") || terrain.includes("city")) {
-    return "fill-amber-900/70 stroke-amber-600";
-  }
-  if (terrain.includes("market") || terrain.includes("square") || terrain.includes("plaza") || terrain.includes("street")) {
-    return "fill-orange-900/60 stroke-orange-600";
-  }
-  if (terrain.includes("tavern") || terrain.includes("inn") || terrain.includes("shop")) {
-    return "fill-amber-800/60 stroke-amber-500";
-  }
-  if (terrain.includes("camp")) {
-    return "fill-orange-800/50 stroke-orange-500";
-  }
-  
-  // Religious/magical - purples
-  if (terrain.includes("temple") || terrain.includes("shrine") || terrain.includes("altar") || terrain.includes("sanctuary") || terrain.includes("chapel") || terrain.includes("cathedral")) {
-    return "fill-violet-900/60 stroke-violet-500";
-  }
-  
-  // Dark places - deep purples/grays
-  if (terrain.includes("dungeon") || terrain.includes("crypt") || terrain.includes("tomb") || terrain.includes("catacomb")) {
-    return "fill-purple-950/70 stroke-purple-700";
-  }
-  if (terrain.includes("graveyard") || terrain.includes("cemetery")) {
-    return "fill-slate-800/70 stroke-slate-600";
-  }
-  if (terrain.includes("ruin")) {
-    return "fill-stone-700/60 stroke-stone-500";
-  }
-  
-  // Underground passages
-  if (terrain.includes("tunnel") || terrain.includes("corridor") || terrain.includes("passage") || terrain.includes("hall") || terrain.includes("chamber") || terrain.includes("room")) {
-    return "fill-stone-600/60 stroke-stone-400";
-  }
-  if (terrain.includes("cellar") || terrain.includes("basement")) {
-    return "fill-stone-700/60 stroke-stone-500";
-  }
-  
-  // Danger
-  if (terrain.includes("danger") || terrain.includes("hostile") || terrain.includes("battlefield")) {
-    return "fill-red-900/60 stroke-red-600";
-  }
-  
-  // Fallback
-  if (terrain.includes("explored") || terrain.includes("previous")) {
-    return "fill-slate-500/60 stroke-slate-400";
-  }
-  
-  return "fill-slate-600/60 stroke-slate-500";
+const TERRAIN_STYLES: Record<TerrainCategory, TerrainStyle> = {
+  forest:      { fill: "#1a4a1a", stroke: "#2d7a2d", gradientId: "grad-forest" },
+  grass:       { fill: "#3d6b2e", stroke: "#5a9a3f", gradientId: "grad-grass" },
+  swamp:       { fill: "#1a3a2e", stroke: "#2a5a4a", gradientId: "grad-swamp" },
+  mountain:    { fill: "#5a5a5a", stroke: "#7a7a7a", gradientId: "grad-mountain" },
+  hill:        { fill: "#7a6a3a", stroke: "#9a8a5a", gradientId: "grad-hill" },
+  cave:        { fill: "#2a2a2a", stroke: "#4a4a4a", gradientId: "grad-cave" },
+  water:       { fill: "#1a4a7a", stroke: "#3a7aba", gradientId: "grad-water" },
+  lake:        { fill: "#1a3a6a", stroke: "#2a5a9a", gradientId: "grad-lake" },
+  coast:       { fill: "#3a7a8a", stroke: "#5a9aaa", gradientId: "grad-coast" },
+  desert:      { fill: "#9a8a3a", stroke: "#baaa5a", gradientId: "grad-desert" },
+  snow:        { fill: "#b0c4de", stroke: "#d0e4fe", gradientId: "grad-snow" },
+  lava:        { fill: "#6a1a0a", stroke: "#aa3a1a", gradientId: "grad-lava" },
+  path:        { fill: "#6a5a2a", stroke: "#8a7a4a", gradientId: "grad-path" },
+  settlement:  { fill: "#6a4a2a", stroke: "#9a7a4a", gradientId: "grad-settlement" },
+  structure:   { fill: "#4a4a5a", stroke: "#6a6a7a", gradientId: "grad-structure" },
+  sacred:      { fill: "#4a2a6a", stroke: "#7a4a9a", gradientId: "grad-sacred" },
+  dungeon:     { fill: "#2a1a3a", stroke: "#5a3a6a", gradientId: "grad-dungeon" },
+  underground: { fill: "#3a3a3a", stroke: "#5a5a5a", gradientId: "grad-underground" },
+  danger:      { fill: "#5a1a1a", stroke: "#8a3a3a", gradientId: "grad-danger" },
+  unknown:     { fill: "#3a3a4a", stroke: "#5a5a6a", gradientId: "grad-unknown" },
+};
+
+function classifyTerrain(terrainType: string): TerrainCategory {
+  const t = terrainType.toLowerCase();
+  if (t.includes("forest") || t.includes("wood") || t.includes("grove") || t.includes("thicket") || t.includes("tree")) return "forest";
+  if (t.includes("grass") || t.includes("meadow") || t.includes("field") || t.includes("plains") || t.includes("clearing") || t.includes("glade") || t.includes("garden") || t.includes("orchard")) return "grass";
+  if (t.includes("swamp") || t.includes("marsh") || t.includes("bog")) return "swamp";
+  if (t.includes("mountain") || t.includes("peak") || t.includes("cliff") || t.includes("ridge") || t.includes("canyon")) return "mountain";
+  if (t.includes("hill") || t.includes("slope") || t.includes("valley")) return "hill";
+  if (t.includes("cave") || t.includes("cavern") || t.includes("mine")) return "cave";
+  if (t.includes("river") || t.includes("stream") || t.includes("brook") || t.includes("creek") || t.includes("waterfall")) return "water";
+  if (t.includes("lake") || t.includes("pond") || t.includes("pool")) return "lake";
+  if (t.includes("coast") || t.includes("shore") || t.includes("beach") || t.includes("island") || t.includes("dock") || t.includes("pier") || t.includes("harbor")) return "coast";
+  if (t.includes("desert") || t.includes("dune") || t.includes("sand")) return "desert";
+  if (t.includes("ice") || t.includes("glacier") || t.includes("snow") || t.includes("tundra")) return "snow";
+  if (t.includes("volcano") || t.includes("lava")) return "lava";
+  if (t.includes("road") || t.includes("path") || t.includes("trail") || t.includes("track") || t.includes("crossroads") || t.includes("bridge")) return "path";
+  if (t.includes("village") || t.includes("town") || t.includes("city") || t.includes("market") || t.includes("square") || t.includes("plaza") || t.includes("street") || t.includes("tavern") || t.includes("inn") || t.includes("shop") || t.includes("camp") || t.includes("house") || t.includes("cabin") || t.includes("cottage") || t.includes("hut") || t.includes("building") || t.includes("stable")) return "settlement";
+  if (t.includes("castle") || t.includes("fortress") || t.includes("keep") || t.includes("tower") || t.includes("wall") || t.includes("gate") || t.includes("rampart") || t.includes("battlement") || t.includes("ruin")) return "structure";
+  if (t.includes("temple") || t.includes("shrine") || t.includes("altar") || t.includes("sanctuary") || t.includes("chapel") || t.includes("cathedral")) return "sacred";
+  if (t.includes("dungeon") || t.includes("crypt") || t.includes("tomb") || t.includes("catacomb") || t.includes("graveyard") || t.includes("cemetery")) return "dungeon";
+  if (t.includes("tunnel") || t.includes("corridor") || t.includes("passage") || t.includes("hall") || t.includes("chamber") || t.includes("room") || t.includes("cellar") || t.includes("basement")) return "underground";
+  if (t.includes("danger") || t.includes("hostile") || t.includes("battlefield")) return "danger";
+  return "unknown";
 }
 
-function getTerrainEmoji(terrainType: string): string {
-  const terrain = terrainType.toLowerCase();
-  // Vegetation
-  if (terrain.includes("forest") || terrain.includes("wood") || terrain.includes("grove") || terrain.includes("thicket")) return "🌲";
-  if (terrain.includes("tree")) return "🌳";
-  if (terrain.includes("grass") || terrain.includes("meadow") || terrain.includes("field") || terrain.includes("plains")) return "🌾";
-  if (terrain.includes("garden") || terrain.includes("orchard")) return "🌻";
-  if (terrain.includes("clearing") || terrain.includes("glade")) return "☀️";
-  // Elevation
-  if (terrain.includes("mountain") || terrain.includes("peak")) return "⛰️";
-  if (terrain.includes("hill")) return "🏔️";
-  if (terrain.includes("cliff") || terrain.includes("ridge") || terrain.includes("canyon")) return "🪨";
-  if (terrain.includes("valley")) return "🏞️";
-  // Underground
-  if (terrain.includes("cave") || terrain.includes("cavern")) return "🕳️";
-  if (terrain.includes("tunnel") || terrain.includes("passage") || terrain.includes("corridor")) return "🚪";
-  if (terrain.includes("mine") || terrain.includes("shaft")) return "⛏️";
-  // Water
-  if (terrain.includes("river") || terrain.includes("stream") || terrain.includes("brook") || terrain.includes("creek")) return "🌊";
-  if (terrain.includes("lake") || terrain.includes("pond") || terrain.includes("pool")) return "💧";
-  if (terrain.includes("waterfall")) return "💦";
-  if (terrain.includes("swamp") || terrain.includes("marsh") || terrain.includes("bog")) return "🌿";
-  if (terrain.includes("coast") || terrain.includes("shore") || terrain.includes("beach")) return "🏖️";
-  if (terrain.includes("island")) return "🏝️";
-  if (terrain.includes("dock") || terrain.includes("pier") || terrain.includes("harbor")) return "⚓";
-  // Harsh terrain
-  if (terrain.includes("desert") || terrain.includes("dune") || terrain.includes("sand")) return "🏜️";
-  if (terrain.includes("volcano") || terrain.includes("lava")) return "🌋";
-  if (terrain.includes("ice") || terrain.includes("glacier") || terrain.includes("snow") || terrain.includes("tundra")) return "❄️";
-  // Paths
-  if (terrain.includes("road") || terrain.includes("path") || terrain.includes("trail") || terrain.includes("track")) return "🛤️";
-  if (terrain.includes("bridge")) return "🌉";
-  if (terrain.includes("crossroads")) return "✚";
-  // Buildings
-  if (terrain.includes("castle") || terrain.includes("fortress") || terrain.includes("keep")) return "🏰";
-  if (terrain.includes("tower")) return "🗼";
-  if (terrain.includes("wall") || terrain.includes("gate") || terrain.includes("rampart") || terrain.includes("battlement")) return "🧱";
-  if (terrain.includes("house") || terrain.includes("cabin") || terrain.includes("cottage") || terrain.includes("hut") || terrain.includes("building")) return "🏠";
-  if (terrain.includes("hall") || terrain.includes("chamber") || terrain.includes("room")) return "🚪";
-  // Settlements
-  if (terrain.includes("village") || terrain.includes("town") || terrain.includes("city")) return "🏘️";
-  if (terrain.includes("market") || terrain.includes("square") || terrain.includes("plaza")) return "🏛️";
-  if (terrain.includes("street") || terrain.includes("alley")) return "🏙️";
-  if (terrain.includes("tavern") || terrain.includes("inn")) return "🍺";
-  if (terrain.includes("shop")) return "🛒";
-  if (terrain.includes("stable")) return "🐴";
-  // Religious
-  if (terrain.includes("temple") || terrain.includes("shrine") || terrain.includes("altar") || terrain.includes("sanctuary")) return "⛩️";
-  if (terrain.includes("chapel") || terrain.includes("cathedral")) return "⛪";
-  // Dark places
-  if (terrain.includes("dungeon") || terrain.includes("crypt") || terrain.includes("tomb") || terrain.includes("catacomb")) return "💀";
-  if (terrain.includes("graveyard") || terrain.includes("cemetery")) return "🪦";
-  if (terrain.includes("ruin")) return "🏚️";
-  // Other
-  if (terrain.includes("camp")) return "⛺";
-  if (terrain.includes("library")) return "📚";
-  if (terrain.includes("throne")) return "👑";
-  if (terrain.includes("battlefield")) return "⚔️";
-  if (terrain.includes("cellar") || terrain.includes("basement")) return "🪜";
-  return "❓";
+function isFeatureHex(category: TerrainCategory): boolean {
+  return ["settlement", "structure", "sacred", "dungeon"].includes(category);
 }
+
+function getFeatureIcon(terrainType: string): string | null {
+  const t = terrainType.toLowerCase();
+  if (t.includes("castle") || t.includes("fortress") || t.includes("keep")) return "🏰";
+  if (t.includes("tower")) return "🗼";
+  if (t.includes("village") || t.includes("town") || t.includes("city")) return "🏘️";
+  if (t.includes("tavern") || t.includes("inn")) return "🍺";
+  if (t.includes("shop") || t.includes("market")) return "🛒";
+  if (t.includes("temple") || t.includes("shrine") || t.includes("altar") || t.includes("sanctuary")) return "⛩️";
+  if (t.includes("chapel") || t.includes("cathedral")) return "⛪";
+  if (t.includes("dungeon") || t.includes("crypt") || t.includes("tomb") || t.includes("catacomb")) return "💀";
+  if (t.includes("graveyard") || t.includes("cemetery")) return "🪦";
+  if (t.includes("ruin")) return "🏚️";
+  if (t.includes("camp")) return "⛺";
+  if (t.includes("gate")) return "⛩️";
+  if (t.includes("library")) return "📚";
+  if (t.includes("throne")) return "👑";
+  return null;
+}
+
+const LEGEND_TERRAIN: Array<{ category: TerrainCategory; label: string }> = [
+  { category: "grass", label: "Grassland" },
+  { category: "forest", label: "Forest" },
+  { category: "hill", label: "Hills" },
+  { category: "mountain", label: "Mountains" },
+  { category: "water", label: "River" },
+  { category: "lake", label: "Lake" },
+  { category: "coast", label: "Coast" },
+  { category: "swamp", label: "Swamp" },
+  { category: "desert", label: "Desert" },
+  { category: "snow", label: "Snow/Ice" },
+  { category: "cave", label: "Cave" },
+  { category: "path", label: "Path/Road" },
+  { category: "underground", label: "Underground" },
+];
+
+const LEGEND_FEATURES: Array<{ icon: string; label: string }> = [
+  { icon: "🏘️", label: "Settlement" },
+  { icon: "🏰", label: "Stronghold" },
+  { icon: "⛩️", label: "Sacred Site" },
+  { icon: "💀", label: "Dungeon" },
+  { icon: "⚔️", label: "Hostile" },
+  { icon: "👤", label: "NPC" },
+];
 
 function HexTile({ 
   hex, 
@@ -312,7 +195,6 @@ function HexTile({
   isAdjacent,
   onClick,
   onHover,
-  interactive,
   hexSize,
   compact
 }: { 
@@ -326,10 +208,11 @@ function HexTile({
   compact?: boolean;
 }) {
   const { x, y } = axialToPixel(hex.q, hex.r, hexSize);
-  const colorClass = getHexColor(hex, isCurrentPosition);
+  const category = classifyTerrain(hex.terrainType);
+  const style = TERRAIN_STYLES[category];
   const canClick = false;
   
-  const points = [];
+  const points: string[] = [];
   for (let i = 0; i < 6; i++) {
     const angle = (Math.PI / 180) * (60 * i - 30);
     const px = hexSize * Math.cos(angle);
@@ -337,8 +220,27 @@ function HexTile({
     points.push(`${px},${py}`);
   }
   
-  const iconSize = compact ? 8 : 12;
-  const fontSize = compact ? "6px" : "10px";
+  let fillColor = style.fill;
+  let strokeColor = style.stroke;
+  let strokeWidth = 1;
+  
+  if (isCurrentPosition) {
+    fillColor = "#d97706";
+    strokeColor = "#fbbf24";
+    strokeWidth = 2.5;
+  } else if (!hex.isRevealed) {
+    fillColor = "#0f172a";
+    strokeColor = "#1e293b";
+  } else if (!hex.isExplored) {
+    fillColor = "#334155";
+    strokeColor = "#475569";
+  }
+  
+  const useGradient = hex.isExplored && !isCurrentPosition && hex.isRevealed;
+  const featureIcon = hex.isExplored ? getFeatureIcon(hex.terrainType) : null;
+  const showFeatureIcon = featureIcon && isFeatureHex(category);
+  const hasEntities = hex.hexMeta?.entities && hex.hexMeta.entities.length > 0;
+  const hasHostile = hex.hexMeta?.entities?.some(e => e.hostile);
   
   return (
     <g 
@@ -346,89 +248,79 @@ function HexTile({
       onClick={canClick ? onClick : undefined}
       onMouseEnter={() => onHover?.(hex)}
       onMouseLeave={() => onHover?.(null)}
-      className={canClick ? "cursor-pointer" : ""}
+      style={{ cursor: canClick ? "pointer" : "default" }}
     >
       <polygon
         points={points.join(" ")}
-        className={`${colorClass} stroke-[1.5] transition-all duration-200 ${canClick ? "hover:brightness-125 hover:stroke-amber-400" : ""}`}
+        fill={useGradient ? `url(#${style.gradientId})` : fillColor}
+        stroke={strokeColor}
+        strokeWidth={strokeWidth}
+        opacity={hex.isRevealed ? 0.9 : 0.7}
+        style={{ transition: "all 0.2s ease" }}
       />
       
       {hex.isRevealed && (
-        <g className="pointer-events-none">
+        <g style={{ pointerEvents: "none" }}>
           {isCurrentPosition && (
             <>
-              <circle r={hexSize * 0.25} className="fill-white animate-pulse" />
-              <circle r={hexSize * 0.4} className="fill-none stroke-amber-300 stroke-1 animate-ping" style={{ animationDuration: '2s' }} />
+              <circle r={hexSize * 0.3} fill="white" opacity={0.9}>
+                <animate attributeName="opacity" values="0.7;1;0.7" dur="2s" repeatCount="indefinite" />
+              </circle>
+              <circle r={hexSize * 0.45} fill="none" stroke="#fcd34d" strokeWidth={1.5} opacity={0.6}>
+                <animate attributeName="r" values={`${hexSize * 0.35};${hexSize * 0.5};${hexSize * 0.35}`} dur="2s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.6;0.2;0.6" dur="2s" repeatCount="indefinite" />
+              </circle>
             </>
           )}
           
           {!isCurrentPosition && hex.isExplored && (
             <>
-              <text 
-                textAnchor="middle" 
-                dominantBaseline="middle"
-                style={{ fontSize: compact ? '10px' : '14px' }}
-              >
-                {getTerrainEmoji(hex.terrainType)}
-              </text>
-              {/* Entity markers */}
-              {hex.hexMeta?.entities && hex.hexMeta.entities.length > 0 && (
-                <g transform={`translate(${hexSize * 0.4}, ${-hexSize * 0.3})`}>
-                  {hex.hexMeta.entities.some(e => e.hostile) ? (
-                    <text 
-                      textAnchor="middle" 
-                      dominantBaseline="middle"
-                      style={{ fontSize: compact ? '8px' : '10px' }}
-                    >
-                      ⚔️
-                    </text>
-                  ) : (
-                    <text 
-                      textAnchor="middle" 
-                      dominantBaseline="middle"
-                      style={{ fontSize: compact ? '8px' : '10px' }}
-                    >
-                      👤
-                    </text>
-                  )}
+              {showFeatureIcon && (
+                <text 
+                  textAnchor="middle" 
+                  dominantBaseline="middle"
+                  style={{ fontSize: compact ? '10px' : '13px' }}
+                >
+                  {featureIcon}
+                </text>
+              )}
+              {hasEntities && (
+                <g transform={`translate(${hexSize * 0.35}, ${-hexSize * 0.3})`}>
+                  <circle r={compact ? 4 : 6} fill={hasHostile ? "#991b1b" : "#1e40af"} stroke={hasHostile ? "#ef4444" : "#60a5fa"} strokeWidth={1} />
+                  <text 
+                    textAnchor="middle" 
+                    dominantBaseline="middle"
+                    style={{ fontSize: compact ? '6px' : '8px' }}
+                  >
+                    {hasHostile ? "⚔️" : "👤"}
+                  </text>
                 </g>
               )}
             </>
           )}
           
-          {/* Revealed but unexplored hex with entities (monsters sighted) */}
-          {!isCurrentPosition && !hex.isExplored && hex.isRevealed && hex.hexMeta?.entities && hex.hexMeta.entities.length > 0 && (
+          {!isCurrentPosition && !hex.isExplored && hex.isRevealed && hasEntities && (
             <text 
               textAnchor="middle" 
               dominantBaseline="middle"
-              style={{ fontSize: compact ? '10px' : '14px' }}
+              style={{ fontSize: compact ? '10px' : '13px' }}
             >
-              {hex.hexMeta.entities.some(e => e.hostile) ? "⚠️" : "❓"}
+              {hasHostile ? "⚠️" : "❓"}
             </text>
           )}
           
-          {!isCurrentPosition && !hex.isExplored && isAdjacent && !(hex.hexMeta?.entities && hex.hexMeta.entities.length > 0) && (
+          {!isCurrentPosition && !hex.isExplored && isAdjacent && !hasEntities && (
             <text 
               textAnchor="middle" 
               dominantBaseline="middle" 
-              className="fill-amber-400/80"
-              style={{ fontSize }}
+              fill="#fbbf24"
+              opacity={0.7}
+              style={{ fontSize: compact ? "6px" : "10px" }}
             >
               ?
             </text>
           )}
         </g>
-      )}
-      
-      {!hex.isRevealed && (
-        <text 
-          textAnchor="middle" 
-          dominantBaseline="middle" 
-          className="fill-slate-600/40"
-          style={{ fontSize: compact ? '8px' : '12px' }}
-        >
-          ☁️
-        </text>
       )}
     </g>
   );
@@ -443,6 +335,7 @@ export function ProceduralExplorationMap({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [hoveredHex, setHoveredHex] = useState<ExplorationHex | null>(null);
+  const [hoveredTerrainCategory, setHoveredTerrainCategory] = useState<TerrainCategory | null>(null);
   const [isMoving, setIsMoving] = useState(false);
   
   // Zoom and pan state
@@ -562,6 +455,15 @@ export function ProceduralExplorationMap({
     return coords;
   }, [state]);
   
+  const handleHexHover = useCallback((hex: ExplorationHex | null) => {
+    setHoveredHex(hex);
+    if (hex && hex.isRevealed && hex.terrainType !== "unknown") {
+      setHoveredTerrainCategory(classifyTerrain(hex.terrainType));
+    } else {
+      setHoveredTerrainCategory(null);
+    }
+  }, []);
+
   const handleHexClick = useCallback((hex: ExplorationHex) => {
     if (isMoving) return;
     if (!adjacentCoords.has(`${hex.q},${hex.r}`)) return;
@@ -707,6 +609,14 @@ export function ProceduralExplorationMap({
               transformOrigin: 'center center'
             }}
           >
+            <defs>
+              {Object.entries(TERRAIN_STYLES).map(([key, s]) => (
+                <radialGradient key={key} id={s.gradientId} cx="40%" cy="35%" r="70%">
+                  <stop offset="0%" stopColor={s.stroke} stopOpacity="0.9" />
+                  <stop offset="100%" stopColor={s.fill} stopOpacity="0.85" />
+                </radialGradient>
+              ))}
+            </defs>
             {allHexesWithFog.map((hex) => (
               <HexTile
                 key={`${hex.q},${hex.r}`}
@@ -714,7 +624,7 @@ export function ProceduralExplorationMap({
                 isCurrentPosition={hex.q === state?.currentHexQ && hex.r === state?.currentHexR}
                 isAdjacent={adjacentCoords.has(`${hex.q},${hex.r}`)}
                 onClick={() => handleHexClick(hex)}
-                onHover={setHoveredHex}
+                onHover={handleHexHover}
                 interactive={interactive && !isMoving && !isPanning}
                 hexSize={hexSize}
                 compact={compact}
@@ -769,79 +679,48 @@ export function ProceduralExplorationMap({
         
         {/* Map Legend */}
         <div className="mt-2 p-2 bg-slate-800/80 rounded text-xs border border-slate-700">
-          <div className="text-slate-400 mb-1 font-medium">Legend</div>
-          <div className="grid grid-cols-3 gap-x-2 gap-y-1">
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-amber-500/80 border border-amber-400"></div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-slate-400 font-medium">Terrain</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-full bg-amber-500 border border-amber-400"></div>
               <span className="text-slate-300">You</span>
             </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-green-900/70 border border-green-600"></div>
-              <span className="text-slate-300">🌲 Forest</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-lime-800/60 border border-lime-500"></div>
-              <span className="text-slate-300">🌾 Grass</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-stone-700/70 border border-stone-500"></div>
-              <span className="text-slate-300">⛰️ Mountain</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-amber-800/50 border border-amber-600"></div>
-              <span className="text-slate-300">🏔️ Hills</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-stone-800/70 border border-stone-600"></div>
-              <span className="text-slate-300">🕳️ Cave</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-blue-700/60 border border-blue-400"></div>
-              <span className="text-slate-300">🌊 River</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-blue-800/70 border border-blue-500"></div>
-              <span className="text-slate-300">💧 Lake</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-amber-700/50 border border-amber-500"></div>
-              <span className="text-slate-300">🛤️ Path</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-amber-900/70 border border-amber-600"></div>
-              <span className="text-slate-300">🏘️ Town</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-slate-600/70 border border-slate-400"></div>
-              <span className="text-slate-300">🏰 Castle</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-stone-600/70 border border-stone-400"></div>
-              <span className="text-slate-300">🧱 Wall</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-purple-950/70 border border-purple-700"></div>
-              <span className="text-slate-300">💀 Dungeon</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-stone-600/60 border border-stone-400"></div>
-              <span className="text-slate-300">🚪 Passage</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-red-900/60 border border-red-600"></div>
-              <span className="text-slate-300">⚔️ Danger</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-slate-700/60 border border-slate-600"></div>
-              <span className="text-slate-300">? Unexplored</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-slate-900/90 border border-slate-800"></div>
-              <span className="text-slate-300">☁️ Unknown</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-sky-200/60 border border-sky-400"></div>
-              <span className="text-slate-300">❄️ Ice</span>
+          </div>
+          <div className="grid grid-cols-4 gap-x-3 gap-y-1">
+            {LEGEND_TERRAIN.map(({ category, label }) => {
+              const s = TERRAIN_STYLES[category];
+              const isHighlighted = hoveredTerrainCategory === category;
+              return (
+                <div 
+                  key={category}
+                  className={`flex items-center gap-1.5 px-1 py-0.5 rounded transition-all duration-150 ${
+                    isHighlighted ? "bg-white/10 ring-1 ring-amber-400/50" : ""
+                  }`}
+                >
+                  <div 
+                    className="w-3 h-3 rounded-sm flex-shrink-0"
+                    style={{ 
+                      background: `linear-gradient(135deg, ${s.stroke}, ${s.fill})`,
+                      border: `1px solid ${s.stroke}`,
+                      boxShadow: isHighlighted ? `0 0 4px ${s.stroke}` : "none"
+                    }}
+                  />
+                  <span className={`${isHighlighted ? "text-amber-300 font-medium" : "text-slate-300"} truncate`}>
+                    {label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="border-t border-slate-700/50 mt-1.5 pt-1.5">
+            <span className="text-slate-400 font-medium text-[10px] uppercase tracking-wide">Features</span>
+            <div className="grid grid-cols-3 gap-x-3 gap-y-0.5 mt-0.5">
+              {LEGEND_FEATURES.map(({ icon, label }) => (
+                <div key={label} className="flex items-center gap-1">
+                  <span className="text-[10px]">{icon}</span>
+                  <span className="text-slate-400">{label}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -849,7 +728,16 @@ export function ProceduralExplorationMap({
         {hoveredHex && (hoveredHex.isRevealed || adjacentCoords.has(`${hoveredHex.q},${hoveredHex.r}`)) && (
           <div className="mt-2 p-2 bg-slate-800/90 rounded text-sm border border-slate-700">
             <div className="flex items-center gap-2">
-              <span className="text-lg">{getTerrainEmoji(hoveredHex.terrainType)}</span>
+              {(() => {
+                const cat = classifyTerrain(hoveredHex.terrainType);
+                const s = TERRAIN_STYLES[cat];
+                return (
+                  <div 
+                    className="w-5 h-5 rounded flex-shrink-0"
+                    style={{ background: `linear-gradient(135deg, ${s.stroke}, ${s.fill})`, border: `1px solid ${s.stroke}` }}
+                  />
+                );
+              })()}
               <div>
                 <div className="font-medium text-amber-300">
                   {hoveredHex.locationName || (hoveredHex.isExplored ? hoveredHex.terrainType : "Unexplored")}
