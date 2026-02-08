@@ -306,7 +306,7 @@ export function HowToPlayPanel({ triggerClassName, variant = 'icon' }: HowToPlay
 
 export function HowToPlayFloatingButton() {
   return (
-    <div className="fixed bottom-4 right-4 z-40">
+    <div className="fixed bottom-4 right-4 left-auto z-50">
       <HowToPlayPanel
         variant="button"
         triggerClassName="shadow-lg bg-gradient-to-r from-amber-600 to-orange-600 text-white hover:from-amber-500 hover:to-orange-500 border-0"

@@ -1103,7 +1103,7 @@ export default function Dashboard() {
       </div>
       
       {/* How to Play floating button for new users */}
-      <div className="fixed bottom-6 right-6 z-40">
+      <div className="fixed bottom-6 right-6 left-auto z-50">
         <HowToPlayPanel
           variant="button"
           triggerClassName="shadow-lg bg-gradient-to-r from-amber-600 to-orange-600 text-white hover:from-amber-500 hover:to-orange-500 border-0"
