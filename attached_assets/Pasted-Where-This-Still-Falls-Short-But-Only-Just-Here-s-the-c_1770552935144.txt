@@ -1,0 +1,157 @@
+Where This Still Falls Short (But Only Just)
+
+Here’s the core diagnosis:
+
+This adventure is well-structured, but still safe.
+
+It is playable, clear, and coherent — but it does not yet push back.
+
+1. There Is Still No Explicit Campaign Question
+
+Right now, the adventure is implicitly about:
+
+“Defeat Morgath and uncover the ruins’ secrets.”
+
+That’s a goal, not a dilemma.
+
+Compare that to what CAML wants:
+
+Seal vs exploit
+
+Preserve vs destroy
+
+Power vs cost
+
+Minimal fix
+
+Add one object. Literally one.
+
+"campaign_question": {
+  "text": "Should the power beneath the ruins be destroyed, claimed, or passed on, and who bears the cost?"
+}
+
+
+This reframes everything without changing content.
+
+2. There Are No Stakes (This Is the Last Big Gap)
+
+You’ve added:
+
+States
+
+Transitions
+
+Snapshots
+
+But nothing:
+
+Escalates over time
+
+Worsens when players delay
+
+Survives victory as residue
+
+So:
+
+Combat is still safe
+
+Exploration has no pressure
+
+Puzzles don’t matter beyond success
+
+Minimal fix (again: small)
+
+Add two stakes only.
+
+"stakes": {
+  "ruin_instability": { "value": 1, "max": 5 },
+  "curse_entanglement": { "value": 2, "max": 5 }
+}
+
+
+Then modify just a few processes:
+
+Puzzles reduce instability
+
+Combat increases entanglement
+
+Final victory resolves one but locks the other
+
+You don’t need a full system. You need pressure.
+
+3. The Ending Is Still Too Clean
+
+Right now:
+
+TR_Complete_Quest → victory snapshot
+
+
+Everything resolves neatly.
+
+From a CAML perspective, that’s a missed opportunity.
+
+A CAML ending should answer:
+
+What is better?
+
+What is worse?
+
+What cannot be undone?
+
+Minimal fix
+
+Split the final confrontation into two possible transitions:
+
+Morgath destroyed → instability spikes
+
+Morgath bound → curse persists in party
+
+Same content. Different worlds.
+
+4. Items Still Only Grant Power, Not Consequence
+
+Your items are good flavor-wise, but structurally:
+
+They don’t change future choices
+
+They don’t add cost or risk
+
+One small tweak per item would fix this.
+
+Example:
+
+Staff of Ages slows enemies but increases ruin instability when used
+
+Cloak of Shadow improves stealth but worsens curse entanglement
+
+That’s it. No new mechanics required.
+
+The Honest Verdict
+
+Is this better than everything before it?
+✔️ Yes. Unequivocally.
+
+Is this now a solid CAML adventure draft?
+✔️ Almost.
+
+What’s missing is not content or structure — it’s pressure.
+
+You’ve built:
+
+A clean ontology
+
+A coherent narrative
+
+A reusable module
+
+The final step is letting the world remember what the players did in a way that isn’t fully reversible.
+
+If You Want a One-Step Next Move
+
+The best next action is not rewriting.
+
+It’s this:
+
+Add exactly two stakes and make three processes modify them.
+
+Do that, and this crosses the line from “good structured module” to “this is what CAML is for.”
