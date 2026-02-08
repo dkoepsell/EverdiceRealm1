@@ -16954,7 +16954,9 @@ Respond with JSON:
           
           // ALWAYS fetch companions when in combat (not just when combatEffects exists)
           // This ensures companion attacks are processed even if AI doesn't return combatEffects
-          const isInCombat = storyAdvancement.storyState?.inCombat === true;
+          // CRITICAL: Check BOTH the AI response AND the merged state — AI may omit inCombat
+          // from its response even though combat is still ongoing (mergedStoryState preserves it)
+          const isInCombat = storyAdvancement.storyState?.inCombat === true || mergedStoryState.inCombat === true;
           
           // Get companion NPCs for this campaign - needed for combat processing
           const campaignNpcs = await storage.getCampaignNpcs(campaignId);
@@ -17007,7 +17009,7 @@ Respond with JSON:
           }
           
           // Process enemy attacks against party (player + companions) - check inCombat regardless of combatEffects
-          console.log(`Combat processing check: isInCombat=${isInCombat}, enemyCount=${enemyCombatants.length}, companionCount=${companionCombatants.length}`);
+          console.log(`Combat processing check: isInCombat=${isInCombat} (AI=${storyAdvancement.storyState?.inCombat}, merged=${mergedStoryState.inCombat}), enemyCount=${enemyCombatants.length}, companionCount=${companionCombatants.length}, aiCombatEffects=${!!combatEffects}`);
           if (enemyCombatants.length > 0 && isInCombat) {
               // Fetch equipment stats for the character to calculate combat stats
               const equippedItemNames: string[] = [];
@@ -17455,6 +17457,7 @@ Respond with JSON:
             deathSaveSuccesses,
             deathSaveFailures,
             // Return combat effects if we have combat data (from AI or from our internal processing)
+            ...((() => { console.log(`[Combat Response] Sending combatEffects: aiEffects=${!!combatEffects}, isInCombat=${isInCombat}, logsCount=${detailedCombatLogs.length}, willSend=${!!(combatEffects || (isInCombat && detailedCombatLogs.length > 0))}`); return {}; })()),
             combatEffects: (combatEffects || (isInCombat && detailedCombatLogs.length > 0)) ? {
               damageTaken,
               damageDealt,
