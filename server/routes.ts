@@ -3796,6 +3796,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const campaign = await storage.createCampaign(campaignData);
       
+      // Wire doctrine from generated CAML 2.0 content into campaign
+      const generatedContent = req.body.generatedContent;
+      if (generatedContent?.caml2?.doctrine || generatedContent?.doctrine) {
+        const camlDoctrine = generatedContent.caml2?.doctrine || generatedContent.doctrine;
+        const doctrineUpdate: any = {};
+        if (camlDoctrine.campaign_question) {
+          doctrineUpdate.campaignQuestion = camlDoctrine.campaign_question;
+        }
+        if (camlDoctrine.stakes && Array.isArray(camlDoctrine.stakes) && camlDoctrine.stakes.length > 0) {
+          doctrineUpdate.campaignStakes = camlDoctrine.stakes;
+        }
+        if (Object.keys(doctrineUpdate).length > 0) {
+          await storage.updateCampaign(campaign.id, doctrineUpdate);
+          console.log(`[Campaign Create] Wired CAML doctrine: question="${doctrineUpdate.campaignQuestion?.substring(0, 50)}...", ${doctrineUpdate.campaignStakes?.length || 0} stakes`);
+        }
+      }
+      
       // Add the creator as a DM participant if a characterId is provided
       if (req.body.characterId) {
         await storage.addCampaignParticipant({
@@ -12552,7 +12569,14 @@ Create a specific creature (pick one of the reskins or create a thematic variant
 CAML 2.0 EXACT SCHEMA (every field shown is REQUIRED):
 {
   "caml_version": "2.0",
-  "meta": { "id": "adventure.xxx", "title": "...", "authors": ["..."], "tags": ["..."], "levels": {"min": 1, "max": 5} },
+  "meta": { "id": "adventure.xxx", "title": "...", "authors": ["..."], "tags": ["..."], "levels": {"min": 1, "max": 5}, "summary": "A vivid 2-3 sentence synopsis — what players face, what's at stake, why it matters. Written like the back cover of a D&D module.", "table_of_contents": [{"chapter": 1, "title": "Evocative chapter title matching a process", "summary": "Brief description of what happens"}] },
+  "doctrine": {
+    "campaign_question": "A genuine dilemma, NOT a goal. E.g. 'Should the power beneath the ruins be destroyed, claimed, or passed on — and who bears the cost?' Must frame a choice with no clean answer.",
+    "stakes": [
+      {"id": "stake_1", "name": "...", "value": 2, "max": 5, "drift": "up", "driftRate": 0.2, "thresholdConsequence": {"at0": {"event": "...", "irreversible": false}, "at5": {"event": "...", "irreversible": true}}},
+      {"id": "stake_2", "name": "...", "value": 1, "max": 5, "drift": "up", "driftRate": 0.15, "thresholdConsequence": {"at0": {"event": "...", "irreversible": false}, "at5": {"event": "...", "irreversible": true}}}
+    ]
+  },
   "world": {
     "entities": {
       "characters": [
@@ -12563,7 +12587,7 @@ CAML 2.0 EXACT SCHEMA (every field shown is REQUIRED):
         {"id": "LOC_Name", "kind": "location", "name": "...", "description": "...", "tags": ["dungeon"], "features": ["..."]}
       ],
       "items": [
-        {"id": "ITEM_Name", "kind": "item", "name": "...", "rarity": "rare", "description": "..."}
+        {"id": "ITEM_Name", "kind": "item", "name": "...", "rarity": "rare", "description": "...", "consequence": "What cost or risk does using this item create? E.g. 'Increases ruin instability when activated'"}
       ],
       "factions": []
     },
@@ -12584,7 +12608,7 @@ CAML 2.0 EXACT SCHEMA (every field shown is REQUIRED):
   },
   "processes": {
     "catalog": [
-      {"id": "PROC_Name", "type": "combat", "timebox": {"id": "TB_1", "label": "..."}, "participants": ["PC_Party", "NPC_Name"], "location": "LOC_Name", "notes": "..."}
+      {"id": "PROC_Name", "type": "combat", "timebox": {"id": "TB_1", "label": "..."}, "participants": ["PC_Party", "NPC_Name"], "location": "LOC_Name", "notes": "...", "stake_effects": [{"stake_id": "stake_1", "delta": 1, "reason": "Combat escalates the threat"}]}
     ]
   },
   "transitions": {
@@ -12594,11 +12618,24 @@ CAML 2.0 EXACT SCHEMA (every field shown is REQUIRED):
   },
   "snapshots": {
     "timeline": [
-      {"id": "SNAP_Initial", "time_utc": "${timestamp}", "world_hash": "initial", "state_hash": "initial", "roles_hash": "initial", "narration": "..."},
-      {"id": "SNAP_Victory", "time_utc": "${timestamp}", "world_hash": "final", "state_hash": "final", "roles_hash": "final", "narration": "...", "derived_from_transition": "TR_Name"}
+      {"id": "SNAP_Initial", "time_utc": "${timestamp}", "world_hash": "initial", "state_hash": "initial", "roles_hash": "initial", "narration": "Opening scene..."},
+      {"id": "SNAP_Ending_A", "time_utc": "${timestamp}", "world_hash": "final_a", "state_hash": "final_a", "roles_hash": "final_a", "narration": "Ending where one stake is resolved but the other worsens. What is better? What is worse? What cannot be undone?", "derived_from_transition": "TR_EndingA"},
+      {"id": "SNAP_Ending_B", "time_utc": "${timestamp}", "world_hash": "final_b", "state_hash": "final_b", "roles_hash": "final_b", "narration": "Alternative ending with different tradeoffs. The opposite stake resolves but a new cost emerges.", "derived_from_transition": "TR_EndingB"}
     ]
   }
 }
+
+PRESSURE SYSTEM (MANDATORY — this is what makes CAML 2.0 adventures meaningful):
+1. doctrine.campaign_question MUST be a DILEMMA (seal vs exploit, preserve vs destroy, power vs cost) — NOT a goal ("defeat the villain")
+2. doctrine.stakes MUST have at least 2 pressure tracks that escalate over time via drift
+3. At least 3 processes MUST have stake_effects that modify stakes (puzzles might reduce one, combat increases another)
+4. Every item MUST have a "consequence" field describing what cost or risk using it creates
+5. snapshots.timeline MUST have at least 2 different endings (forked) — victory resolves one stake but locks or worsens the other
+6. The final answer to the campaign_question must NOT be clean — one ending answers it one way, another ending answers it differently
+
+MODULE STRUCTURE (MANDATORY):
+7. meta.summary MUST be a vivid 2-3 sentence hook describing what players face, what's at stake, and why it matters
+8. meta.table_of_contents MUST list one entry per process/chapter in order, each with chapter number, evocative title, and brief summary
 
 REQUIRED FIELDS (validation will fail without these):
 - Every character/location/item MUST have "kind" field
@@ -12607,13 +12644,15 @@ REQUIRED FIELDS (validation will fail without these):
 - Every role assignment MUST use "holder" (NOT "character_id") and have "id" field
 - Every process MUST have "type" (combat/social/puzzle/exploration), "participants", "location"
 - transitions.changes MUST NOT be empty
-- snapshots.timeline MUST NOT be empty
+- snapshots.timeline MUST have at least 2 ending snapshots (forked endings)
 
 FORBIDDEN (CAML 1.x patterns):
 - "type": "AdventureModule"
 - Root-level "encounters", "quests", "npcs" arrays
 - "attitude" property on characters
 - "encounterType", "questGiver", "gates", "outcomes", "startsAt", "occursAt"
+- Clean endings where everything resolves perfectly
+- Items that only grant power with no consequence
 
 ${attempt > 0 ? `PREVIOUS ATTEMPT FAILED: ${lastError}. Fix these issues.` : ''}`;
 
@@ -12628,9 +12667,17 @@ REQUIREMENTS:
 - All NPC attitudes in state.facts (NOT on character objects)
 - Use SRD 5.1 content only
 
+PRESSURE SYSTEM REQUIREMENTS (CRITICAL):
+- doctrine.campaign_question: Frame a DILEMMA not a goal. "Should X be done, and at what cost?" not "Defeat the villain"
+- doctrine.stakes: At least 2 pressure tracks (e.g. "ruin_instability", "curse_entanglement") with drift that worsens over time
+- At least 3 processes must include stake_effects that modify stakes (puzzles reduce one stake, combat increases another)
+- Every item must have a "consequence" field (e.g. "Staff slows enemies but increases ruin instability when used")
+- At least 2 forked ending snapshots: one resolves stake A but worsens B, the other resolves B but costs A
+- The campaign question must NOT have a clean answer — endings reflect tradeoffs
+
 ${customPrompt ? `THEME NOTES: ${customPrompt}` : ''}
 
-Generate a complete CAML 2.0 JSON adventure.`;
+Generate a complete CAML 2.0 JSON adventure with built-in pressure.`;
 
         const completion = await openai.chat.completions.create({
           model: "gpt-4o",
@@ -12773,6 +12820,23 @@ Generate a complete CAML 2.0 JSON adventure.`;
         findForbiddenKeys(generatedContent);
         if (foundForbiddenKeys.length > 0) {
           validationErrors.push(`Contains forbidden CAML 1.x properties: ${foundForbiddenKeys.slice(0, 5).join(', ')}`);
+        }
+        
+        // Validate pressure system (doctrine)
+        if (!generatedContent.doctrine?.campaign_question) {
+          validationErrors.push('Missing doctrine.campaign_question (must be a dilemma, not a goal)');
+        }
+        const doctrineStakes = generatedContent.doctrine?.stakes || [];
+        if (doctrineStakes.length < 2) {
+          validationErrors.push(`doctrine.stakes has ${doctrineStakes.length} entries (need at least 2 pressure tracks)`);
+        }
+        const processesWithStakeEffects = processes.filter((p: any) => p.stake_effects && p.stake_effects.length > 0);
+        if (processesWithStakeEffects.length < 2) {
+          validationErrors.push(`Only ${processesWithStakeEffects.length} processes have stake_effects (need at least 2)`);
+        }
+        const endingSnapshots = snapshots.filter((s: any) => s.id !== 'SNAP_Initial' && s.derived_from_transition);
+        if (endingSnapshots.length < 2) {
+          validationErrors.push(`Only ${endingSnapshots.length} ending snapshots (need at least 2 forked endings)`);
         }
         
         // Check for placeholders
@@ -19397,6 +19461,23 @@ Respond with JSON:
           createdAt: new Date().toISOString()
         });
         
+        // Wire doctrine fields from CAML 2.0 data into campaign
+        const rawContent = format === 'yaml' || format === 'yml' ? pack : (typeof content === 'string' ? JSON.parse(content) : content);
+        const camlDoctrine = rawContent?.doctrine;
+        if (camlDoctrine) {
+          const doctrineUpdate: any = {};
+          if (camlDoctrine.campaign_question) {
+            doctrineUpdate.campaignQuestion = camlDoctrine.campaign_question;
+          }
+          if (camlDoctrine.stakes && Array.isArray(camlDoctrine.stakes) && camlDoctrine.stakes.length > 0) {
+            doctrineUpdate.campaignStakes = camlDoctrine.stakes;
+          }
+          if (Object.keys(doctrineUpdate).length > 0) {
+            await storage.updateCampaign(campaign.id, doctrineUpdate);
+            console.log(`[CAML Import] Wired doctrine into campaign ${campaign.id}: question="${doctrineUpdate.campaignQuestion?.substring(0, 50)}...", ${doctrineUpdate.campaignStakes?.length || 0} stakes`);
+          }
+        }
+        
         // Generate initial story content using AI based on CAML adventure data
         let initialNarrative = `Welcome to ${campaignData.title}. ${campaignData.description}`;
         let initialChoices: any[] = [];
@@ -19887,7 +19968,7 @@ Return your response as a JSON object with these fields:
       const adventureId = `adventure.${(title || 'adventure').toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
       const timestamp = new Date().toISOString();
       
-      const prompt = `Generate a complete CAML 2.0 D&D 5e adventure with ORIGINAL content.
+      const prompt = `Generate a complete CAML 2.0 D&D 5e adventure with ORIGINAL content and BUILT-IN PRESSURE.
 
 ADVENTURE TO CREATE:
 - ID: ${adventureId}
@@ -19900,8 +19981,8 @@ ADVENTURE TO CREATE:
 REQUIREMENTS:
 - 5 unique locations with logical connections
 - 4-5 NPCs (mix of allies and enemies) with ORIGINAL names
-- 3 items with rarity
-- ${encounterCount || 3} processes (combat/social/puzzle/exploration mix)
+- 3 items with rarity AND consequence (cost/risk of using each item)
+- ${encounterCount || 3} processes (combat/social/puzzle/exploration mix) — at least 3 MUST modify stakes
 - 1 hidden location requiring discovery
 - All IDs must use YOUR adventure's names, not example names
 
@@ -19909,7 +19990,14 @@ CAML 2.0 JSON STRUCTURE (generate with your unique content):
 
 {
   "caml_version": "2.0",
-  "meta": { "id": "${adventureId}", "title": "${title || 'The Lost Temple'}", "created_utc": "${timestamp}", "authors": ["Everdice DM Toolkit"], "tags": ["fantasy"], "levels": {"min": ${minLevel || 1}, "max": ${maxLevel || 5}} },
+  "meta": { "id": "${adventureId}", "title": "${title || 'The Lost Temple'}", "created_utc": "${timestamp}", "authors": ["Everdice DM Toolkit"], "tags": ["fantasy"], "levels": {"min": ${minLevel || 1}, "max": ${maxLevel || 5}}, "summary": "A 2-3 sentence evocative synopsis of the adventure — what's at stake, what the players face, and why it matters. Written like the back cover of a D&D module.", "table_of_contents": [{"chapter": 1, "title": "Chapter title matching first process/scene", "summary": "Brief description of what happens"}, {"chapter": 2, "title": "Chapter title", "summary": "Brief description"}] },
+  "doctrine": {
+    "campaign_question": "A genuine DILEMMA — not 'defeat the villain' but 'Should X be preserved or exploited, and who pays the cost?' Must have no clean answer.",
+    "stakes": [
+      {"id": "stake_<name1>", "name": "<PressureTrack1>", "value": 2, "max": 5, "drift": "up", "driftRate": 0.2, "thresholdConsequence": {"at0": {"event": "<WhatHappensIfResolved>", "irreversible": false}, "at5": {"event": "<WhatHappensIfMaxed>", "irreversible": true}}},
+      {"id": "stake_<name2>", "name": "<PressureTrack2>", "value": 1, "max": 5, "drift": "up", "driftRate": 0.15, "thresholdConsequence": {"at0": {"event": "<WhatHappensIfResolved>", "irreversible": false}, "at5": {"event": "<WhatHappensIfMaxed>", "irreversible": true}}}
+    ]
+  },
   "world": {
     "entities": {
       "characters": [
@@ -19920,7 +20008,7 @@ CAML 2.0 JSON STRUCTURE (generate with your unique content):
         {"id": "LOC_<YourName>", "kind": "location", "name": "<FullName>", "description": "<Description>", "tags": ["dungeon"], "features": ["<Feature>"]}
       ],
       "items": [
-        {"id": "ITEM_<YourName>", "kind": "item", "name": "<FullName>", "rarity": "<uncommon|rare|legendary>", "description": "<Description>"}
+        {"id": "ITEM_<YourName>", "kind": "item", "name": "<FullName>", "rarity": "<uncommon|rare|legendary>", "description": "<Description>", "consequence": "<What cost or risk does using this item create?>"}
       ],
       "factions": []
     },
@@ -19944,18 +20032,21 @@ CAML 2.0 JSON STRUCTURE (generate with your unique content):
   },
   "processes": {
     "catalog": [
-      {"id": "PROC_<Type>_<Loc>", "type": "<combat|social|puzzle|exploration>", "timebox": {"id": "TB_1", "label": "<Title>"}, "participants": ["PC_Party", "NPC_<YourNPC>"], "location": "LOC_<YourLoc>", "notes": "<Description>"}
+      {"id": "PROC_<Type>_<Loc>", "type": "<combat|social|puzzle|exploration>", "timebox": {"id": "TB_1", "label": "<Title>"}, "participants": ["PC_Party", "NPC_<YourNPC>"], "location": "LOC_<YourLoc>", "notes": "<Description>", "stake_effects": [{"stake_id": "stake_<name>", "delta": 1, "reason": "Why this process changes this stake"}]}
     ]
   },
   "transitions": {
     "changes": [
-      {"id": "TR_<Description>", "caused_by": "PROC_<YourProcess>", "ops": [{"op": "update_state", "state_id": "STATE_<YourState>", "value": <newValue>}]}
+      {"id": "TR_<Description>", "caused_by": "PROC_<YourProcess>", "ops": [{"op": "update_state", "state_id": "STATE_<YourState>", "value": "<newValue>"}]},
+      {"id": "TR_EndingA", "caused_by": "PROC_<FinalProcess>", "ops": [{"op": "update_state", "state_id": "STATE_Quest_Main_Status", "value": "complete"}]},
+      {"id": "TR_EndingB", "caused_by": "PROC_<FinalProcess>", "ops": [{"op": "update_state", "state_id": "STATE_Quest_Main_Status", "value": "complete"}]}
     ]
   },
   "snapshots": {
     "timeline": [
       {"id": "SNAP_Initial", "time_utc": "${timestamp}", "world_hash": "initial", "state_hash": "initial", "roles_hash": "initial", "narration": "<OpeningScene>"},
-      {"id": "SNAP_Victory", "time_utc": "${timestamp}", "world_hash": "final", "state_hash": "final", "roles_hash": "final", "narration": "<VictoryScene>", "derived_from_transition": "TR_<YourFinalTransition>"}
+      {"id": "SNAP_Ending_A", "time_utc": "${timestamp}", "world_hash": "final_a", "state_hash": "final_a", "roles_hash": "final_a", "narration": "<Ending where stake A is resolved but stake B worsens. What is better? What is worse? What cannot be undone?>", "derived_from_transition": "TR_EndingA"},
+      {"id": "SNAP_Ending_B", "time_utc": "${timestamp}", "world_hash": "final_b", "state_hash": "final_b", "roles_hash": "final_b", "narration": "<Alternative ending — opposite tradeoff. The other stake resolves but a new cost emerges.>", "derived_from_transition": "TR_EndingB"}
     ]
   }
 }
@@ -19966,7 +20057,13 @@ CRITICAL RULES:
 3. STATE_Quest_Main_Status bearer MUST be "${adventureId}"
 4. NO "attitude" property on NPCs - attitude is ONLY in state.facts
 5. All IDs must cross-reference correctly (NPC_Wizard in state.facts must exist in world.entities.characters)
-6. Use only SRD 5.1 content`;
+6. Use only SRD 5.1 content
+7. doctrine.campaign_question MUST be a dilemma (not a goal) with no clean answer
+8. doctrine.stakes MUST have at least 2 escalating pressure tracks
+9. Items MUST have "consequence" — what cost or risk using them creates
+10. At least 2 forked ending snapshots with different tradeoffs
+11. meta.summary MUST be a vivid 2-3 sentence hook — what the players face, what's at stake, and why it matters
+12. meta.table_of_contents MUST list one entry per process/chapter in order, with evocative titles and brief summaries`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
@@ -19982,12 +20079,21 @@ CAML 2.0 MANDATORY STRUCTURE:
 - Encounters are in processes.catalog as processes with timeboxes
 - Quests are expressed via roles.assignments (QuestGiver) + state.facts (quest_status)
 - All changes occur via transitions.changes caused by processes
+- doctrine.campaign_question MUST be a DILEMMA (not a goal) — "Should X be done, and at what cost?"
+- doctrine.stakes MUST have at least 2 pressure tracks with drift and threshold consequences
+- Items MUST have "consequence" field describing cost/risk of use
+- Processes MUST include "stake_effects" showing how they modify pressure tracks
+- Snapshots MUST include at least 2 forked endings with different tradeoffs
+- meta.summary MUST be a vivid 2-3 sentence synopsis (like back cover of a D&D module)
+- meta.table_of_contents MUST list chapters with titles and summaries matching processes
 
 NEVER generate:
 - "type": "AdventureModule"
 - "encounters": [...] array at root
 - "quests": [...] array at root  
 - "attitude": "neutral" on NPC objects
+- Clean endings where everything resolves perfectly
+- Items that only grant power with no consequence
 
 ALWAYS generate:
 - "caml_version": "2.0"
@@ -20107,6 +20213,78 @@ ALWAYS generate:
     } catch (error) {
       console.error("Failed to parse CAML:", error);
       res.status(500).json({ message: "Failed to parse CAML content" });
+    }
+  });
+
+  // =====================================================
+  // ADVENTURE LIBRARY ROUTES
+  // =====================================================
+
+  app.get("/api/adventures/my", isAuthenticated, async (req: any, res) => {
+    try {
+      const adventures = await storage.getSharedAdventuresByUser(req.user.id);
+      res.json(adventures);
+    } catch (error) {
+      console.error("Failed to get user adventures:", error);
+      res.status(500).json({ message: "Failed to get adventures" });
+    }
+  });
+
+  app.get("/api/adventures/:id", async (req, res) => {
+    try {
+      const adventure = await storage.getSharedAdventure(parseInt(req.params.id));
+      if (!adventure) {
+        return res.status(404).json({ message: "Adventure not found" });
+      }
+      res.json(adventure);
+    } catch (error) {
+      console.error("Failed to get adventure:", error);
+      res.status(500).json({ message: "Failed to get adventure" });
+    }
+  });
+
+  app.post("/api/adventures", isAuthenticated, async (req: any, res) => {
+    try {
+      const { title, description, camlData, tags, difficulty, genre } = req.body;
+      if (!title || !camlData) {
+        return res.status(400).json({ message: "Title and CAML data are required" });
+      }
+
+      const summary = camlData?.meta?.summary || description || '';
+      const adventure = await storage.createSharedAdventure({
+        authorId: req.user.id,
+        title,
+        description: summary,
+        shortDescription: summary.substring(0, 150),
+        camlData,
+        tags: tags || camlData?.meta?.tags || [],
+        difficulty: difficulty || 'medium',
+        genre: genre || 'fantasy',
+        status: 'published',
+        createdAt: new Date().toISOString(),
+      });
+
+      res.json(adventure);
+    } catch (error) {
+      console.error("Failed to save adventure:", error);
+      res.status(500).json({ message: "Failed to save adventure" });
+    }
+  });
+
+  app.delete("/api/adventures/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const adventure = await storage.getSharedAdventure(parseInt(req.params.id));
+      if (!adventure) {
+        return res.status(404).json({ message: "Adventure not found" });
+      }
+      if (adventure.authorId !== req.user.id) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      await storage.deleteSharedAdventure(adventure.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete adventure:", error);
+      res.status(500).json({ message: "Failed to delete adventure" });
     }
   });
 

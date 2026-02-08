@@ -59,7 +59,9 @@ import {
   characterSpellSlots, type CharacterSpellSlots, type InsertCharacterSpellSlots,
   // Badge system
   badges, type Badge, type InsertBadge,
-  userBadges, type UserBadge, type InsertUserBadge
+  userBadges, type UserBadge, type InsertUserBadge,
+  // Shared adventures
+  sharedAdventures, type SharedAdventure, type InsertSharedAdventure
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or, inArray } from "drizzle-orm";
@@ -453,6 +455,13 @@ export interface IStorage {
   // Tavern Magic Shop operations
   getShopMagicItems(characterLevel?: number, characterClass?: string): Promise<any[]>;
   purchaseMagicItem(characterId: number, templateId: number): Promise<{ success: boolean; item?: any; error?: string }>;
+  
+  // Shared Adventures (Adventure Library) operations
+  createSharedAdventure(adventure: InsertSharedAdventure): Promise<SharedAdventure>;
+  getSharedAdventure(id: number): Promise<SharedAdventure | undefined>;
+  getSharedAdventuresByUser(userId: number): Promise<SharedAdventure[]>;
+  getAllSharedAdventures(options?: { limit?: number; genre?: string; difficulty?: string }): Promise<SharedAdventure[]>;
+  deleteSharedAdventure(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -780,6 +789,12 @@ export class MemStorage implements IStorage {
       createdAt: new Date().toISOString()
     });
   }
+
+  async createSharedAdventure(adventure: InsertSharedAdventure): Promise<SharedAdventure> { throw new Error("Not implemented"); }
+  async getSharedAdventure(id: number): Promise<SharedAdventure | undefined> { return undefined; }
+  async getSharedAdventuresByUser(userId: number): Promise<SharedAdventure[]> { return []; }
+  async getAllSharedAdventures(): Promise<SharedAdventure[]> { return []; }
+  async deleteSharedAdventure(id: number): Promise<boolean> { return false; }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4200,6 +4215,37 @@ export class DatabaseStorage implements IStorage {
     `);
     
     return { success: true, item: itemResult.rows[0] };
+  }
+
+  async createSharedAdventure(adventure: InsertSharedAdventure): Promise<SharedAdventure> {
+    const [result] = await db.insert(sharedAdventures).values(adventure).returning();
+    return result;
+  }
+
+  async getSharedAdventure(id: number): Promise<SharedAdventure | undefined> {
+    const [result] = await db.select().from(sharedAdventures).where(eq(sharedAdventures.id, id));
+    return result;
+  }
+
+  async getSharedAdventuresByUser(userId: number): Promise<SharedAdventure[]> {
+    return await db.select().from(sharedAdventures).where(eq(sharedAdventures.authorId, userId)).orderBy(desc(sharedAdventures.id));
+  }
+
+  async getAllSharedAdventures(options?: { limit?: number; genre?: string; difficulty?: string }): Promise<SharedAdventure[]> {
+    const conditions = [eq(sharedAdventures.status, 'published')];
+    if (options?.genre) conditions.push(eq(sharedAdventures.genre, options.genre));
+    if (options?.difficulty) conditions.push(eq(sharedAdventures.difficulty, options.difficulty));
+    
+    let query = db.select().from(sharedAdventures).where(and(...conditions)).orderBy(desc(sharedAdventures.id));
+    if (options?.limit) {
+      query = query.limit(options.limit) as any;
+    }
+    return await query;
+  }
+
+  async deleteSharedAdventure(id: number): Promise<boolean> {
+    const result = await db.delete(sharedAdventures).where(eq(sharedAdventures.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 

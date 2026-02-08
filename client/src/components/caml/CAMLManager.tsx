@@ -20,9 +20,12 @@ import {
   Loader2,
   Check,
   Copy,
-  ExternalLink
+  ExternalLink,
+  BookOpen,
+  Save
 } from 'lucide-react';
 import { AdventureGraph } from './AdventureGraph';
+import { AdventureModuleReader } from '@/components/adventure/AdventureModuleReader';
 
 interface CAMLManagerProps {
   campaignId?: number;
@@ -47,6 +50,8 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
   const [includeQuests, setIncludeQuests] = useState(true);
   const [includePuzzles, setIncludePuzzles] = useState(true);
   const [generatedAdventure, setGeneratedAdventure] = useState<any>(null);
+  const [readerOpen, setReaderOpen] = useState(false);
+  const [readerData, setReaderData] = useState<any>(null);
 
   const campaignLengthOptions = [
     { value: 'quick', label: 'Quick Adventure (3 chapters)', description: '~30 minutes' },
@@ -170,6 +175,41 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
       });
     }
   });
+
+  const saveToLibraryMutation = useMutation({
+    mutationFn: async (adventureData: any) => {
+      const camlData = adventureData.adventure || adventureData;
+      const response = await apiRequest('POST', '/api/adventures', {
+        title: camlData.meta?.title || 'Untitled Adventure',
+        description: camlData.meta?.summary || '',
+        camlData: camlData,
+        tags: camlData.meta?.tags || [],
+        difficulty: 'medium',
+        genre: 'fantasy',
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Saved to Library',
+        description: 'Adventure has been saved to your library for future use.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/adventures/my'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to Save',
+        description: error.message || 'Could not save adventure to library',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const openReader = (adventureData: any) => {
+    const camlData = adventureData.adventure || adventureData;
+    setReaderData(camlData);
+    setReaderOpen(true);
+  };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -495,24 +535,27 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
                     <div>Quests: {generatedAdventure.adventure?.quests?.length || 0}</div>
                   </div>
                   
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       size="sm"
-                      variant="outline"
-                      onClick={() => copyToClipboard(generatedAdventure.json)}
-                      data-testid="button-copy-json"
+                      onClick={() => openReader(generatedAdventure)}
+                      className="bg-amber-600 hover:bg-amber-700"
                     >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copy JSON
+                      <BookOpen className="h-4 w-4 mr-2" />
+                      Read Module
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => copyToClipboard(generatedAdventure.yaml)}
-                      data-testid="button-copy-yaml"
+                      onClick={() => saveToLibraryMutation.mutate(generatedAdventure)}
+                      disabled={saveToLibraryMutation.isPending}
                     >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copy YAML
+                      {saveToLibraryMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      Save to Library
                     </Button>
                     <Button
                       size="sm"
@@ -528,6 +571,15 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
                       ) : (
                         'Use This Adventure'
                       )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(generatedAdventure.json)}
+                      data-testid="button-copy-json"
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copy JSON
                     </Button>
                   </div>
                 </CardContent>
@@ -575,6 +627,17 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
           </TabsContent>
         </Tabs>
       </CardContent>
+
+      <AdventureModuleReader
+        open={readerOpen}
+        onOpenChange={setReaderOpen}
+        camlData={readerData}
+        onCreateCampaign={readerData ? () => {
+          setReaderOpen(false);
+          const json = JSON.stringify(readerData);
+          useAdventureMutation.mutate(json);
+        } : undefined}
+      />
     </Card>
   );
 }
