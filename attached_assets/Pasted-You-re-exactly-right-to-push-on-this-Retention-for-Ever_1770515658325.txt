@@ -1,0 +1,317 @@
+You’re exactly right to push on this.
+Retention for Everdice will not come from *plot alone*. It will come from **felt character formation**.
+
+Below is a **concrete, implementable guide** in three parts:
+
+1. How Session 1 should be reshaped overall
+2. A **Session 1 Retention Contract** (explicit design rules)
+3. A **mandatory first-session ending scene** you can literally drop in as a template
+
+This is written to align with Everdice’s quiet, non-performative ethos while still creating obligation and return pull.
+
+---
+
+# 1. How to Improve Session 1 (Design Guide)
+
+## The core shift
+
+Session 1 must answer this question **for the player**:
+
+> “What kind of person is my character becoming?”
+
+Not:
+
+* “What happened in the story?”
+* “What system is this?”
+* “What’s the world like?”
+
+Those are secondary.
+
+---
+
+## A. Session 1 is about *trajectory*, not mastery
+
+You do **not** want players to:
+
+* level up dramatically
+* unlock complex abilities
+* optimize builds
+
+You want them to:
+
+* *notice themselves changing*
+* *sense direction*
+* *see a difference between before and after*
+
+### Practical rules
+
+In Session 1:
+
+* At least **one skill improves slightly**
+* At least **one habit is formed**
+* At least **one tool is used better the second time than the first**
+* At least **one choice reveals something about how they act under uncertainty**
+
+This can be subtle. Subtle is good.
+
+---
+
+## B. Make growth *interpretive*, not numeric (at first)
+
+Early growth should feel like:
+
+* “I’m getting better at this”
+* “I handled that differently than before”
+* “I’m learning how to approach problems”
+
+Not:
+
+* “+2 stealth”
+* “Unlocked perk”
+
+Those come later.
+
+### Examples
+
+* First lockpick attempt: clumsy, slow, uncertain
+* Second attempt (same session): calmer, more deliberate
+* The text reflects *improvement*, even if the mechanic is identical
+
+Narrative acknowledgment of growth is *huge* for retention.
+
+---
+
+## C. Tools must visibly improve through use
+
+This is one of your strongest levers.
+
+In Session 1:
+
+* Give the character **one simple tool**
+* Force them to use it imperfectly once
+* Let them use it *better* later
+
+Example tools:
+
+* Lantern
+* Rope
+* Map
+* Charm
+* Blade
+* Spell focus
+
+The key is that the **tool feels dumb at first** and *smarter later*, even if the system is faking it.
+
+---
+
+## D. Teach the player how Everdice wants to be played
+
+Session 1 should quietly teach:
+
+* patience is rewarded
+* observation matters
+* preparation changes outcomes
+* rash action leaves residue
+
+Do this *through outcomes*, not tutorial text.
+
+---
+
+## E. End Session 1 before resolution, after identity formation
+
+The worst thing you could do is let Session 1 “wrap up nicely.”
+
+The best thing is to let it end at the moment where:
+
+> “Oh. I see who I might become.”
+
+And then stop.
+
+---
+
+# 2. Session 1 Retention Contract (Non-Negotiable)
+
+This is the internal design contract you enforce on yourself and the system.
+
+### Contract name
+
+**“Session 1 Must Create Obligation”**
+
+### The contract rules
+
+#### Rule 1: The character must change in a describable way
+
+By the end of Session 1, the player should be able to say:
+
+* “My character is becoming more cautious / perceptive / resolute / conflicted / skilled at X.”
+
+If you cannot summarize the change in one sentence, the session failed.
+
+---
+
+#### Rule 2: One skill must show narrative improvement
+
+Even if the mechanics don’t change yet, the narration must clearly signal:
+
+* improvement
+* learning
+* adaptation
+
+This creates future-oriented motivation.
+
+---
+
+#### Rule 3: One tool must feel more competent by the end
+
+The same tool must:
+
+* feel awkward or insufficient early
+* feel more effective later
+
+This teaches investment and mastery.
+
+---
+
+#### Rule 4: One choice must create deferred consequences
+
+Not resolved.
+Not explained.
+Named, but postponed.
+
+This is the hook.
+
+---
+
+#### Rule 5: Session 1 must end with an explicit *return promise*
+
+The system must say, in-world or near-world:
+
+> “This is not finished.”
+
+Never imply it. Always state it.
+
+---
+
+# 3. Mandatory First-Session Ending Scene (Drop-In Template)
+
+This is a **required scene** that always triggers at the end of Session 1, regardless of branch.
+
+It adapts its flavor, but not its function.
+
+---
+
+## Scene Title (internal)
+
+**The Quiet Reckoning**
+
+---
+
+## Trigger Conditions
+
+* Session length reached (or)
+* First meaningful choice arc completed (or)
+* Player attempts to continue beyond designed Session 1 scope
+
+---
+
+## Scene Structure
+
+### 1. Acknowledge the character’s growth
+
+This must reference:
+
+* how they acted
+* what they learned
+* what improved
+
+Example (adaptive text):
+
+> You pause, if only for a moment.
+>
+> Earlier, you would have rushed this. Now, you hesitate.
+> You’ve learned how the light falls here.
+> You’ve learned when to move, and when not to.
+>
+> You’re not the same as when you began.
+
+This is *crucial*. This makes the character feel worth returning to.
+
+---
+
+### 2. Acknowledge a tool’s improved use
+
+Example:
+
+> You adjust your grip on the lantern.
+> Before, it was just something you carried.
+> Now, it’s something you use.
+
+This subtly signals mastery progression.
+
+---
+
+### 3. Name the unresolved consequence
+
+This must be explicit and concrete, but unresolved.
+
+Examples:
+
+* “Someone has noticed the path you took.”
+* “A decision you made has shifted something nearby.”
+* “What you avoided will not remain avoided.”
+* “This will surface again.”
+
+No explanation yet.
+
+---
+
+### 4. Freeze the moment
+
+End *before* action.
+
+Example:
+
+> You have the sense that the next step will matter more than the last.
+>
+> That is where things pause.
+
+This creates narrative tension without cliffhanger melodrama.
+
+---
+
+### 5. Return promise (out-of-world, but soft)
+
+This can be UI-adjacent text:
+
+> **This choice is still unfolding.**
+>
+> You can return to see what it becomes.
+
+This legitimizes stopping while encouraging return.
+
+---
+
+## Why this works
+
+* The player leaves feeling **formed, not stalled**
+* The character feels **invested-with**, not disposable
+* The world feels **responsive but patient**
+* Returning feels like **continuing responsibility**, not replaying content
+
+---
+
+## One last blunt truth
+
+People return for:
+
+* characters they care about becoming
+* tools they are learning to use
+* consequences that haven’t finished speaking
+
+This design gives you all three **in Session 1**, without betraying Everdice’s quiet soul.
+
+If you want next:
+
+* I can write the **exact adaptive text variants** for different play styles
+* Or design the **data flags Session 1 must set**
+* Or map this directly onto CAML fields so it’s enforceable, not aspirational
