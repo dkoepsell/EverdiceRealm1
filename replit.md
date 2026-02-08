@@ -36,6 +36,8 @@ AI-Discovered Side Quests are short, thematic quests generated naturally by AI d
 
 **Campaign Completion System (Forked Endings)**: Campaigns have defined chapter structures. Final chapter detection triggers AI finale prompts offering 3-4 choices representing different answers to the campaign question, reflecting accumulated consequences. Completion is triggered by `isCampaignFinale: true`, records `endingType`, `stakesSummary`, and `campaignQuestion`, and marks the campaign as completed.
 
+**Session 1 Retention Contract**: A system ensuring first-session players form character identity through three pillars: (1) Interpretive Growth — AI shows trajectory not stats ("you notice your grip is steadier"), (2) Tool Competence Arcs — a simple tool assigned early is narrated from clumsy → learning → competent, (3) Deferred Consequences — unresolved hooks planted that surface later. Tracking lives in `storyState.session1Retention` (no schema changes). At 7+ scenes, "The Quiet Reckoning" triggers: a 5-paragraph AI-generated reflective ending acknowledging growth, tool mastery, unresolved threads, a frozen moment, and a return promise. Frontend displays as a styled dialog with growth/unresolved summary cards.
+
 The Crafting System in the tavern workshop offers 25+ recipes for weapons, armor, potions, and ammunition, with required skills, tools, gold cost, and a crafting DC. The Expanded SRD Shop features 80+ items with accurate D&D 5e SRD pricing and dynamic pricing. The Player Market allows players to list any inventory item for sale.
 
 ## External Dependencies

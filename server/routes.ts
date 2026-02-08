@@ -14638,6 +14638,85 @@ You may use this suggestion or create your own — but it should feel natural fo
 `;
       }
       
+      // ═══════════════════════════════════════════════════════════════════
+      // SESSION 1 RETENTION CONTRACT
+      // ═══════════════════════════════════════════════════════════════════
+      const session1SceneCount = (currentSession.playerChoicesMade as any[] || []).length;
+      const isSession1 = currentChapter === 1;
+      const session1Retention = sessionStoryState.session1Retention || {
+        growthObservations: [],
+        toolArc: { toolName: null, firstUseScene: null, improvedUseScene: null },
+        deferredConsequences: [],
+        identityFormation: null,
+        sceneCount: 0,
+        quietReckoningTriggered: false
+      };
+      
+      const SESSION1_RECKONING_THRESHOLD = 7;
+      const shouldTriggerQuietReckoning = isSession1 && 
+        session1SceneCount >= SESSION1_RECKONING_THRESHOLD && 
+        !session1Retention.quietReckoningTriggered &&
+        !sessionStoryState.inCombat;
+      
+      let session1ContractPrompt = '';
+      if (isSession1 && !session1Retention.quietReckoningTriggered) {
+        const isEarlySession1 = session1SceneCount <= 3;
+        const isMidSession1 = session1SceneCount > 3 && session1SceneCount < SESSION1_RECKONING_THRESHOLD;
+        
+        session1ContractPrompt = `
+═══════════════════════════════════════════════════════════════════════════════
+SESSION 1 RETENTION CONTRACT (MANDATORY — This is the player's FIRST session)
+═══════════════════════════════════════════════════════════════════════════════
+
+This is Session 1. The player is forming their character's identity. Follow these rules:
+
+RULE 1 — SHOW TRAJECTORY, NOT MASTERY:
+- The character should notice themselves changing, sense direction, see difference between before and after
+- At least one skill should improve subtly through use (narrate it interpretively, not numerically)
+- Growth should feel like "I'm getting better at this" not "+2 stealth"
+
+RULE 2 — TOOL COMPETENCE ARC:
+${isEarlySession1 ? `- Give the character ONE simple tool early (lantern, rope, map, charm, blade, spell focus)
+- Make their FIRST use of it feel clumsy, uncertain, imperfect
+- The tool should feel "dumb" at first — just something they carry` : ''}
+${isMidSession1 ? `- The character has been using their tools. NOW make them feel more competent with at least one.
+- The same tool that felt awkward earlier should feel more effective now
+- Describe the improvement narratively: "Before, it was just something you carried. Now, it's something you use."
+- Current tool tracked: ${session1Retention.toolArc?.toolName || 'not yet assigned — assign one NOW'}` : ''}
+
+RULE 3 — INTERPRETIVE GROWTH:
+- Narrate growth through behavior change, not stats
+- "You pause before acting — earlier, you wouldn't have" > "You gained +1 Wisdom"
+- Describe first attempts as clumsy, later attempts as more deliberate
+
+RULE 4 — TEACH THROUGH OUTCOMES:
+- Patience should be rewarded (careful observation reveals secrets)
+- Observation should matter (noticing details opens new paths)
+- Preparation should change outcomes (planning ahead pays off)
+- Rash action should leave residue (but not punishment — interesting complications)
+
+RULE 5 — PLANT DEFERRED CONSEQUENCES:
+- Create at least one consequence that is NAMED but NOT RESOLVED
+- Examples: "Someone has noticed the path you took." "A decision you made has shifted something nearby."
+- These should feel like seeds, not threats
+
+SESSION 1 RETENTION TRACKING — include "session1Retention" in your JSON response:
+{
+  "session1Retention": {
+    "growthObservations": ["one-sentence descriptions of character growth moments this scene"],
+    "toolArc": {
+      "toolName": "the simple tool the character is learning to use",
+      "competenceLevel": "clumsy/learning/competent",
+      "narrativeNote": "how the tool was used this scene"
+    },
+    "deferredConsequences": ["unresolved consequences planted this scene"],
+    "identityFormation": "one sentence: what kind of person is the character becoming?"
+  }
+}
+═══════════════════════════════════════════════════════════════════════════════
+`;
+      }
+      
       // DM Authoring Doctrine: Build campaign stakes context for advance-story
       const advanceCampaignStakes = (campaign as any).campaignStakes as any[] || [];
       const advanceChapterGates = (campaign as any).chapterGates as any[] || [];
@@ -14756,6 +14835,7 @@ Difficulty: ${difficulty}
 ${chapterProgressNote}
 ${themeContext}
 ${finaleInstructions}
+${session1ContractPrompt}
 
 ${SCENE_GENERATION_CONSTRAINTS}
 ${antiCombatRepeatNote}
@@ -16495,22 +16575,49 @@ Respond with JSON:
         ? 0 
         : (scenesSinceCombat + 1);
       
+      // ═══════════════════════════════════════════════════════════════════
+      // SESSION 1 RETENTION — Merge tracking data from AI response
+      // ═══════════════════════════════════════════════════════════════════
+      const aiRetention = storyAdvancement.session1Retention || {};
+      const updatedSession1Retention = isSession1 ? {
+        growthObservations: [
+          ...(session1Retention.growthObservations || []),
+          ...(aiRetention.growthObservations || [])
+        ].slice(-10),
+        toolArc: aiRetention.toolArc?.toolName ? {
+          toolName: aiRetention.toolArc.toolName,
+          competenceLevel: aiRetention.toolArc.competenceLevel || 'clumsy',
+          narrativeNote: aiRetention.toolArc.narrativeNote || null,
+          firstUseScene: session1Retention.toolArc?.firstUseScene || session1SceneCount,
+          improvedUseScene: (aiRetention.toolArc.competenceLevel === 'competent' || aiRetention.toolArc.competenceLevel === 'learning')
+            ? session1SceneCount : session1Retention.toolArc?.improvedUseScene
+        } : session1Retention.toolArc,
+        deferredConsequences: [
+          ...(session1Retention.deferredConsequences || []),
+          ...(aiRetention.deferredConsequences || [])
+        ].slice(-5),
+        identityFormation: aiRetention.identityFormation || session1Retention.identityFormation,
+        sceneCount: session1SceneCount + 1,
+        quietReckoningTriggered: session1Retention.quietReckoningTriggered
+      } : session1Retention;
+      
       const mergedStoryState = {
         ...storyAdvancement.storyState,
-        combatants: preservedCombatants, // Use preserved combatants to prevent AI renaming
+        combatants: preservedCombatants,
         explorationLimit: newExplorationLimit,
         startPosition: currentStoryState.startPosition || { x: 4, y: 4 },
         journeyLog: updatedJourneyLog,
         adventureProgress: updatedAdventureProgress,
         adventureRequirements: currentStoryState.adventureRequirements,
-        movesWithoutStory: 0, // Reset moves counter after story advancement
-        turnsInChapter, // Track turns for time-based chapter advancement
+        movesWithoutStory: 0,
+        turnsInChapter,
         scenesSinceCombat: newScenesSinceCombat,
         lastMovement: movement?.occurred ? {
           direction: movement.direction,
           description: movement.description,
           timestamp: new Date().toISOString()
-        } : currentStoryState.lastMovement
+        } : currentStoryState.lastMovement,
+        session1Retention: updatedSession1Retention
       };
       
       // Add movement choices if not in combat
@@ -18198,6 +18305,85 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         console.log(`[Campaign Completion] Campaign ${campaignId} completed successfully`);
       }
       
+      // ═══════════════════════════════════════════════════════════════════
+      // THE QUIET RECKONING — Mandatory Session 1 ending scene
+      // ═══════════════════════════════════════════════════════════════════
+      let quietReckoningData: any = null;
+      if (shouldTriggerQuietReckoning) {
+        try {
+          console.log(`[Quiet Reckoning] Triggering for campaign ${campaignId} after ${session1SceneCount} scenes`);
+          
+          const retention = updatedSession1Retention || session1Retention;
+          const characterName = playerCharacter?.name || 'the adventurer';
+          const toolName = retention.toolArc?.toolName || 'their equipment';
+          const growthSummary = (retention.growthObservations || []).slice(-3).join('. ') || 'subtle changes in how they approach the world';
+          const unresolvedHooks = (retention.deferredConsequences || []).slice(-2).join('. ') || 'Something unnamed stirs in the distance.';
+          const identity = retention.identityFormation || 'someone still finding their way';
+          
+          const reckoningPrompt = `
+You are writing the MANDATORY ending scene for Session 1 of a D&D campaign. This scene is called "The Quiet Reckoning."
+It must be reflective, quiet, and powerful — NOT a cliffhanger. It is about the character pausing and realizing they have changed.
+
+CHARACTER: ${characterName} (${playerCharacter?.class || 'adventurer'}, Level ${playerCharacter?.level || 1})
+CAMPAIGN: ${campaign.title}
+CURRENT LOCATION: ${mergedStoryState?.location || 'the adventure'}
+NARRATIVE STYLE: ${narrativeStyle}
+
+GROWTH THIS SESSION: ${growthSummary}
+TOOL THEY'VE BEEN LEARNING: ${toolName} (competence: ${retention.toolArc?.competenceLevel || 'growing'})
+UNRESOLVED THREADS: ${unresolvedHooks}
+EMERGING IDENTITY: ${identity}
+
+Write exactly 5 paragraphs following this structure:
+
+1. ACKNOWLEDGE GROWTH: Reference how the character acted, what they learned, what improved. Show the difference between how they started and where they are now. Use second person ("You pause..."). This must feel earned, not generic.
+
+2. ACKNOWLEDGE TOOL MASTERY: Reference the specific tool (${toolName}) and how it felt different now than when they first used it. "Before, it was just something you carried. Now, it's something you use."
+
+3. NAME THE UNRESOLVED: State explicitly what consequence is still unfolding. Be concrete but mysterious. "Someone has noticed." "This will surface again." Do NOT resolve it.
+
+4. FREEZE THE MOMENT: End before the next action. "You have the sense that the next step will matter more than the last. That is where things pause." Create tension without melodrama.
+
+5. RETURN PROMISE: A soft out-of-world note. "This story is still unfolding. You can return to see what it becomes." This legitimizes stopping while encouraging return.
+
+Respond with JSON:
+{
+  "reckoningNarrative": "The complete 5-paragraph Quiet Reckoning scene text",
+  "growthSummary": "One sentence: what kind of person is the character becoming?",
+  "toolMastery": "One sentence about their relationship with their tool",
+  "unresolvedHook": "The single most compelling unresolved thread",
+  "returnPromise": "The closing return promise line"
+}`;
+
+          const reckoningOpenai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+          const reckoningResponse = await reckoningOpenai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [{ role: "user", content: reckoningPrompt }],
+            response_format: { type: "json_object" },
+            max_tokens: 800,
+          });
+          
+          quietReckoningData = JSON.parse(reckoningResponse.choices[0].message.content || '{}');
+          console.log(`[Quiet Reckoning] Generated successfully for campaign ${campaignId}`);
+          
+          mergedStoryState.session1Retention = {
+            ...updatedSession1Retention,
+            quietReckoningTriggered: true
+          };
+          
+          await storage.advanceSessionStory(campaignId, {
+            narrative: storyAdvancement.narrative,
+            dmNarrative: storyAdvancement.dmNarrative,
+            choices: finalChoices,
+            storyState: mergedStoryState,
+            npcInteractions: storyAdvancement.npcInteractions,
+            sceneType: 'The Quiet Reckoning',
+          });
+        } catch (reckoningError) {
+          console.error("[Quiet Reckoning] Failed to generate:", reckoningError);
+        }
+      }
+      
       res.json({
         ...(sessionAdvanced && newSessionData ? newSessionData : updatedSession),
         progression: characterProgression,
@@ -18219,20 +18405,16 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           discoveriesMade: discoveriesDone,
           trapsOvercome: trapDone
         } : null,
-        // Campaign chapter tracking
         currentChapter,
         totalChapters,
         isOnFinalChapter,
-        // Campaign completion data (if campaign just finished)
         campaignCompletion: campaignCompletionData,
-        // DM Authoring Doctrine data
         campaignStakeUpdates: storyAdvancement.campaignStakeUpdates || [],
         chapterGateMet: storyAdvancement.chapterGateMet || null,
         narrativeLogEntry: storyAdvancement.narrativeLogEntry || null,
-        // Item charge update (wands, staves, etc.)
         chargeUpdate: chargeUpdate,
-        // Item recharge at dawn (session/chapter advancement)
-        itemRechargeAtDawn: (mergedStoryState as any).itemRechargeAtDawn || null
+        itemRechargeAtDawn: (mergedStoryState as any).itemRechargeAtDawn || null,
+        quietReckoning: quietReckoningData
       });
     } catch (error: any) {
       console.error("Failed to advance story:", error);

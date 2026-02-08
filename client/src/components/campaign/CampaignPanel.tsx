@@ -225,6 +225,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     gold: number;
     items: { name: string; type: string; description: string; rarity: string; properties: string }[];
   } | null>(null);
+
+  // Session 1 Quiet Reckoning state
+  const [quietReckoningData, setQuietReckoningData] = useState<{
+    reckoningNarrative: string;
+    growthSummary: string;
+    toolMastery: string;
+    unresolvedHook: string;
+    returnPromise: string;
+  } | null>(null);
+  const [showQuietReckoning, setShowQuietReckoning] = useState(false);
   
   // Combat log state for D&D mechanics transparency
   const [detailedCombatLogs, setDetailedCombatLogs] = useState<{
@@ -1419,6 +1429,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       // Update chapter progress state if available
       if (data.chapterProgress) {
         setChapterProgress(data.chapterProgress);
+      }
+      
+      // Handle Session 1 Quiet Reckoning
+      if (data.quietReckoning && data.quietReckoning.reckoningNarrative) {
+        setQuietReckoningData(data.quietReckoning);
+        setShowQuietReckoning(true);
       }
       
       // Close dialogs
@@ -6431,6 +6447,74 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               className="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white font-bold px-8"
             >
               🎉 Celebrate Victory!
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Session 1: The Quiet Reckoning Dialog */}
+      <Dialog open={showQuietReckoning} onOpenChange={setShowQuietReckoning}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-serif text-center text-amber-700 dark:text-amber-300">
+              The Quiet Reckoning
+            </DialogTitle>
+            <DialogDescription className="text-center text-amber-600/80 dark:text-amber-400/80 italic">
+              A moment of reflection at the end of your first session
+            </DialogDescription>
+          </DialogHeader>
+          
+          {quietReckoningData && (
+            <div className="space-y-6 py-4">
+              <div className="prose prose-amber dark:prose-invert max-w-none">
+                {quietReckoningData.reckoningNarrative.split('\n\n').map((paragraph: string, i: number) => (
+                  <p key={i} className="text-base leading-relaxed text-stone-700 dark:text-stone-300 first:first-letter:text-3xl first:first-letter:font-serif first:first-letter:text-amber-600 dark:first:first-letter:text-amber-400 first:first-letter:float-left first:first-letter:mr-1">
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+              
+              <div className="border-t border-amber-200 dark:border-amber-800 pt-4 space-y-3">
+                {quietReckoningData.growthSummary && (
+                  <div className="flex items-start gap-2 p-3 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200/50 dark:border-emerald-800/50">
+                    <span className="text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0">&#9650;</span>
+                    <div>
+                      <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">Character Growth</div>
+                      <div className="text-sm text-emerald-800 dark:text-emerald-200 mt-0.5">{quietReckoningData.growthSummary}</div>
+                    </div>
+                  </div>
+                )}
+                
+                {quietReckoningData.unresolvedHook && (
+                  <div className="flex items-start gap-2 p-3 bg-purple-50/50 dark:bg-purple-950/20 rounded-lg border border-purple-200/50 dark:border-purple-800/50">
+                    <span className="text-purple-600 dark:text-purple-400 mt-0.5 shrink-0">&#9679;</span>
+                    <div>
+                      <div className="text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wider">Unresolved</div>
+                      <div className="text-sm text-purple-800 dark:text-purple-200 mt-0.5 italic">{quietReckoningData.unresolvedHook}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {quietReckoningData.returnPromise && (
+                <div className="text-center p-4 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 dark:from-amber-950/30 dark:via-orange-950/30 dark:to-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <p className="text-amber-800 dark:text-amber-200 italic font-serif">
+                    {quietReckoningData.returnPromise}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-center mt-2">
+            <Button 
+              onClick={() => {
+                setShowQuietReckoning(false);
+                setQuietReckoningData(null);
+              }}
+              className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-semibold px-8"
+            >
+              Until Next Time
             </Button>
           </div>
         </DialogContent>

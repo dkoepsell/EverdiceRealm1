@@ -1,0 +1,104 @@
+Why people bond with characters
+
+Across games, novels, RPGs, and even therapy research, attachment forms when three conditions are met:
+
+Continuity – the character persists and remembers
+
+Interpretability – the player can explain who the character is becoming
+
+Responsibility – the character’s future depends on the player
+
+Everdice currently nails (1).
+Your new design adds (2) and (3).
+
+How your Session 1 changes create connection
+1. Growth turns the character into a record of the player
+
+When the system says:
+
+“Earlier, you would have rushed this. Now, you hesitate.”
+
+It is doing something very powerful:
+
+It attributes change to the player’s behavior
+
+It treats the character as a memory of past action
+
+It collapses player and character into a single evolving agent
+
+This is exactly how people form attachment in games like Disco Elysium, Planescape: Torment, and Outer Wilds—quiet acknowledgment, not stat fireworks.
+
+The character starts to feel like:
+
+“This is me, but remembered.”
+
+2. Subtle skill improvement creates pride, not optimization
+
+Big level-ups create excitement.
+Small improvements create ownership.
+
+When a tool is used awkwardly, then competently, the player feels:
+
+earned familiarity
+
+learning
+
+authorship
+
+This mirrors real skill acquisition, which makes the character feel lived-in, not constructed.
+
+That’s emotional glue.
+
+3. Deferred consequences create responsibility without pressure
+
+When the session ends with:
+
+“This choice is still unfolding.”
+
+The player feels:
+
+accountable
+
+but not punished
+
+and not rushed
+
+That’s a sweet spot.
+
+The character becomes a standing commitment, not a completed experience.
+
+4. The ending scene legitimizes care
+
+This is underrated.
+
+By explicitly acknowledging:
+
+how the character has changed
+
+what they’ve learned
+
+what remains unresolved
+
+You are telling the player:
+
+“It is reasonable to care about this character.”
+
+That permission matters, especially for quieter players, anxious players, or people new to RPGs.
+
+The key difference from “just better writing”
+
+This isn’t about prose quality.
+
+It’s about feedback loops.
+
+Your design ensures:
+
+choice → recognition → growth → unresolved future
+
+That loop is what produces attachment.
+
+Without recognition, choices feel empty.
+Without growth, recognition feels cosmetic.
+Without unresolved future, growth feels finished.
+
+You’re closing the loop.
