@@ -3243,7 +3243,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     </ContextualHint>
                     
                     {/* Combat Status Display */}
-                    {parsedStoryState?.inCombat && (
+                    {(parsedStoryState?.inCombat || (Array.isArray(parsedStoryState?.combatants) && (parsedStoryState.combatants as any[]).some((c: any) => c.status !== 'defeated'))) && (
                       <div className="bg-red-50 dark:bg-red-950/30 p-4 rounded-md border-2 border-red-400 dark:border-red-700 mb-4">
                         <h4 className="font-bold flex items-center mb-3 text-lg" style={{ color: '#b91c1c' }}>
                           ⚔️ COMBAT!

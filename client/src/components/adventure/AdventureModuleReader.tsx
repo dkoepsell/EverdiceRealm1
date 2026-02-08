@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -174,9 +173,9 @@ export function AdventureModuleReader({ open, onOpenChange, camlData, onCreateCa
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] w-[1200px] h-[90vh] p-0 gap-0 bg-gradient-to-b from-slate-950 to-slate-900 border-amber-900/30 overflow-hidden [&>button]:hidden">
-        <div className="flex h-full">
+        <div className="flex h-full overflow-hidden">
           {/* Sidebar TOC */}
-          <div className="w-64 flex-shrink-0 border-r border-amber-900/20 bg-slate-950/80 flex flex-col">
+          <div className="w-56 lg:w-64 flex-shrink-0 border-r border-amber-900/20 bg-slate-950/80 flex flex-col overflow-hidden">
             <div className="p-4 border-b border-amber-900/20">
               <div className="flex items-center justify-between mb-2">
                 <Badge variant="outline" className="text-amber-400 border-amber-500/30 text-[10px]">
@@ -196,28 +195,26 @@ export function AdventureModuleReader({ open, onOpenChange, camlData, onCreateCa
               )}
             </div>
 
-            <ScrollArea className="flex-1">
-              <nav className="p-2 space-y-0.5">
-                {tocSections.map((section) => {
-                  const Icon = section.icon;
-                  const isActive = activeSection === section.id;
-                  return (
-                    <button
-                      key={section.id}
-                      onClick={() => scrollToSection(section.id)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors text-left ${
-                        isActive
-                          ? 'bg-amber-500/15 text-amber-300 font-medium'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                      }`}
-                    >
-                      <Icon className="h-4 w-4 flex-shrink-0" />
-                      <span className="truncate">{section.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
-            </ScrollArea>
+            <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
+              {tocSections.map((section) => {
+                const Icon = section.icon;
+                const isActive = activeSection === section.id;
+                return (
+                  <button
+                    key={section.id}
+                    onClick={() => scrollToSection(section.id)}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors text-left ${
+                      isActive
+                        ? 'bg-amber-500/15 text-amber-300 font-medium'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">{section.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
 
             {onCreateCampaign && (
               <div className="p-3 border-t border-amber-900/20">
@@ -234,8 +231,8 @@ export function AdventureModuleReader({ open, onOpenChange, camlData, onCreateCa
           </div>
 
           {/* Main Content */}
-          <ScrollArea className="flex-1" ref={contentRef}>
-            <div className="max-w-3xl mx-auto p-8 pb-16">
+          <div className="flex-1 overflow-y-auto" ref={contentRef}>
+            <div className="max-w-3xl mx-auto p-6 lg:p-8 pb-16">
 
               {/* OVERVIEW SECTION */}
               <div ref={el => { sectionRefs.current['overview'] = el; }}>
@@ -498,7 +495,7 @@ export function AdventureModuleReader({ open, onOpenChange, camlData, onCreateCa
                     <Users className="h-6 w-6 text-green-400" />
                     Characters & NPCs
                   </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div className="space-y-4 mb-6">
                     {npcs.map((npc: any, i: number) => {
                       const attitude = getNpcAttitude(npc.id);
                       const role = roles.find((r: any) => r.holder === npc.id);
@@ -510,8 +507,8 @@ export function AdventureModuleReader({ open, onOpenChange, camlData, onCreateCa
                               {(npc.name || '?')[0]}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold text-slate-100 truncate">{npc.name}</h3>
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <h3 className="font-semibold text-slate-100">{npc.name}</h3>
                                 <span className={`text-xs ${attitudeColor(attitude)}`}>
                                   {attitude}
                                 </span>
@@ -519,7 +516,7 @@ export function AdventureModuleReader({ open, onOpenChange, camlData, onCreateCa
                               <p className="text-xs text-slate-500 mb-2">
                                 {[npc.species, npc.class].filter(Boolean).join(' ')}
                               </p>
-                              <p className="text-sm text-slate-400 line-clamp-3">{npc.description}</p>
+                              <p className="text-sm text-slate-400">{npc.description}</p>
                               {role && (
                                 <div className="mt-2">
                                   <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-500/30">
@@ -738,7 +735,7 @@ export function AdventureModuleReader({ open, onOpenChange, camlData, onCreateCa
                 </p>
               </div>
             </div>
-          </ScrollArea>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
