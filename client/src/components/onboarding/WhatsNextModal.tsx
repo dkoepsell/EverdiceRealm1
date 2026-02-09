@@ -10,7 +10,9 @@ import {
   ArrowRight, 
   Trophy,
   Wand2,
-  Sword
+  Sword,
+  Coffee,
+  Coins
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -66,20 +68,34 @@ export function WhatsNextModal({ isOpen, onClose, completedType = "demo" }: What
 
   const descriptionByType = {
     demo: "You've got the basics down. Now it's time to create your own adventure!",
-    learn_by_playing: "You've learned the ropes. Ready to take control of your own story?",
-    first_campaign: "Congratulations! Here's what you can do next...",
+    learn_by_playing: "You've learned the ropes and earned gold and XP along the way! Ready for what's next?",
+    first_campaign: "Congratulations! You've earned rewards that carry into your next adventure.",
   };
 
+  const isPostCampaign = completedType === "learn_by_playing" || completedType === "first_campaign";
+
   const nextSteps = [
+    ...(isPostCampaign ? [{
+      id: "visit_tavern",
+      icon: Coffee,
+      title: "Visit the Tavern",
+      description: "Spend your hard-earned gold at the shop! Buy powerful gear, sell loot you picked up, or try your luck at Liar's Dice.",
+      actionLabel: "Go to Tavern",
+      path: "/tavern",
+      color: "from-emerald-500 to-teal-500",
+      recommended: true,
+    }] : []),
     {
       id: "create_campaign",
       icon: Sparkles,
       title: "Create Your Own Campaign",
-      description: "Let AI generate a unique adventure based on your preferences. Choose your setting, tone, and let the magic happen.",
+      description: isPostCampaign 
+        ? "Your character keeps growing! Start a new adventure and your XP, gold, and items carry forward."
+        : "Let AI generate a unique adventure based on your preferences. Choose your setting, tone, and let the magic happen.",
       actionLabel: "Generate Campaign",
       path: "/campaigns?tab=create",
       color: "from-amber-500 to-orange-500",
-      recommended: true,
+      recommended: !isPostCampaign,
     },
     {
       id: "build_character",
@@ -166,6 +182,24 @@ export function WhatsNextModal({ isOpen, onClose, completedType = "demo" }: What
               );
             })}
           </div>
+
+          {isPostCampaign && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="mt-4 p-3 rounded-lg bg-purple-500/10 border border-purple-500/20"
+            >
+              <div className="flex items-start gap-2">
+                <Coins className="h-4 w-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-purple-300">
+                  <span className="font-semibold">Your progress carries forward!</span> The XP, gold, skills, and items 
+                  your character earned will follow them into every future adventure. The world of Everdice remembers 
+                  your deeds — other adventurers may hear whispers of your heroic journey.
+                </p>
+              </div>
+            </motion.div>
+          )}
 
           <div className="mt-6 pt-4 border-t border-border flex justify-between items-center">
             <p className="text-xs text-muted-foreground">

@@ -17791,13 +17791,43 @@ Respond with JSON:
             // Set completion flag but DON'T advance to a new session
             sessionAdvanced = false;
             
+            // Build character growth summary for post-campaign guidance
+            const characterGrowth: {
+              level: number;
+              xpBefore: number;
+              xpAfter: number;
+              xpToNextLevel: number;
+              goldTotal: number;
+              skillsUsed: string[];
+              chaptersCompleted: number;
+              inventoryCount: number;
+              campaignType: string;
+            } = {
+              level: character?.level || 1,
+              xpBefore: character?.experience || 0,
+              xpAfter: (character?.experience || 0) + completionXP,
+              xpToNextLevel: (() => {
+                const xpThresholds = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
+                const currentLevel = character?.level || 1;
+                const nextThreshold = xpThresholds[currentLevel] || 999999;
+                return Math.max(0, nextThreshold - ((character?.experience || 0) + completionXP));
+              })(),
+              goldTotal: (character?.gold || 0) + goldReward,
+              skillsUsed: Object.keys((character?.skillProgress as Record<string, any>) || {}),
+              chaptersCompleted: campaignTotalChapters,
+              inventoryCount: ((character?.inventory as any[]) || []).length + lootChestItems.length,
+              campaignType: campaignForChapter.campaignLength || 'standard',
+            };
+            
             // Include completion data in response
             if (characterProgression) {
               characterProgression.campaignComplete = true;
               characterProgression.completionRewards = {
                 xp: completionXP,
                 gold: goldReward,
-                items: lootChestItems
+                silver: silverReward,
+                items: lootChestItems,
+                characterGrowth,
               };
             }
             
@@ -17805,7 +17835,7 @@ Respond with JSON:
             console.log(`Campaign completion rewards: ${completionXP} XP, ${goldReward} gold, ${lootChestItems.length} items`);
             
             // Return early from the advancement block
-            throw { type: 'campaign_complete', rewards: { xp: completionXP, gold: goldReward, silver: silverReward, items: lootChestItems } };
+            throw { type: 'campaign_complete', rewards: { xp: completionXP, gold: goldReward, silver: silverReward, items: lootChestItems, characterGrowth } };
           }
           
           // Get all previous sessions to understand the story arc so far

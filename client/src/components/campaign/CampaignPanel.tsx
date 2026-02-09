@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Campaign, CampaignSession, Character, Npc, WorldRegion, WorldLocation } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -66,6 +67,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const { currentTip, showTip, hideTip } = useLearningTips();
+  const [, navigate] = useLocation();
   
   const isDM = campaign.userId === user?.id;
   
@@ -223,7 +225,19 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [completionRewards, setCompletionRewards] = useState<{
     xp: number;
     gold: number;
+    silver?: number;
     items: { name: string; type: string; description: string; rarity: string; properties: string }[];
+    characterGrowth?: {
+      level: number;
+      xpBefore: number;
+      xpAfter: number;
+      xpToNextLevel: number;
+      goldTotal: number;
+      skillsUsed: string[];
+      chaptersCompleted: number;
+      inventoryCount: number;
+      campaignType: string;
+    };
   } | null>(null);
 
   // Session 1 Quiet Reckoning state
@@ -6290,7 +6304,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       
       {/* Campaign Completion Dialog - Victory! */}
       <Dialog open={campaignComplete} onOpenChange={setCampaignComplete}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-2xl">
               🏆 Victory! Campaign Complete!
@@ -6302,7 +6316,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           
           {completionRewards && (
             <div className="space-y-4">
-              {/* XP and Gold Summary */}
+              {/* XP, Gold, Silver Summary */}
               <div className="flex gap-4 justify-center p-4 bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-900/30 dark:to-yellow-900/30 rounded-lg">
                 <div className="text-center">
                   <div className="text-3xl font-bold text-amber-600 dark:text-amber-400">
@@ -6316,7 +6330,67 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   </div>
                   <div className="text-sm text-yellow-700 dark:text-yellow-300">Gold Pieces</div>
                 </div>
+                {(completionRewards.silver || 0) > 0 && (
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-slate-500 dark:text-slate-300">
+                      +{completionRewards.silver}
+                    </div>
+                    <div className="text-sm text-slate-600 dark:text-slate-400">Silver Pieces</div>
+                  </div>
+                )}
               </div>
+
+              {/* Character Growth Summary */}
+              {completionRewards.characterGrowth && (
+                <div className="p-4 bg-gradient-to-b from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                  <h4 className="font-bold text-lg text-indigo-800 dark:text-indigo-200 mb-3 flex items-center gap-2">
+                    <Star className="h-5 w-5 text-indigo-500" /> Your Character Grew!
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-2 bg-white/60 dark:bg-slate-800/60 rounded-md">
+                      <div className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">Level</div>
+                      <div className="text-lg font-bold text-indigo-800 dark:text-indigo-200">
+                        {completionRewards.characterGrowth.level}
+                      </div>
+                    </div>
+                    <div className="p-2 bg-white/60 dark:bg-slate-800/60 rounded-md">
+                      <div className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">XP to Next Level</div>
+                      <div className="text-lg font-bold text-indigo-800 dark:text-indigo-200">
+                        {completionRewards.characterGrowth.xpToNextLevel > 0 
+                          ? `${completionRewards.characterGrowth.xpToNextLevel} XP`
+                          : "Level Up!"}
+                      </div>
+                    </div>
+                    <div className="p-2 bg-white/60 dark:bg-slate-800/60 rounded-md">
+                      <div className="text-xs text-amber-600 dark:text-amber-400 font-medium">Gold in Pocket</div>
+                      <div className="text-lg font-bold text-amber-700 dark:text-amber-300">
+                        {completionRewards.characterGrowth.goldTotal} gp
+                      </div>
+                    </div>
+                    <div className="p-2 bg-white/60 dark:bg-slate-800/60 rounded-md">
+                      <div className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">Items in Inventory</div>
+                      <div className="text-lg font-bold text-indigo-800 dark:text-indigo-200">
+                        {completionRewards.characterGrowth.inventoryCount}
+                      </div>
+                    </div>
+                  </div>
+                  {completionRewards.characterGrowth.skillsUsed.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-indigo-200 dark:border-indigo-700">
+                      <div className="text-xs text-indigo-600 dark:text-indigo-400 font-medium mb-1">Skills You Practiced</div>
+                      <div className="flex flex-wrap gap-1">
+                        {completionRewards.characterGrowth.skillsUsed.map((skill) => (
+                          <span key={skill} className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 capitalize">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-1 italic">
+                        Every skill you use makes your character better at it over time. Keep practicing!
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
               
               {/* Loot Chest */}
               <div className="p-4 bg-gradient-to-b from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 rounded-lg border-2 border-amber-300 dark:border-amber-700">
@@ -6353,18 +6427,86 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   ))}
                 </div>
               </div>
-              
-              {/* Completion Message */}
-              <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800 text-center">
-                <p className="text-purple-800 dark:text-purple-200 text-sm">
-                  Your heroic deeds will be remembered throughout the realm! 
-                  The items have been added to your character's inventory.
+
+              {/* Tavern Shop Call-to-Action */}
+              <div className="p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-lg border-2 border-emerald-300 dark:border-emerald-700">
+                <h4 className="font-bold text-lg text-emerald-800 dark:text-emerald-200 mb-2 flex items-center gap-2">
+                  <Coins className="h-5 w-5 text-emerald-500" /> Spend Your Rewards!
+                </h4>
+                <p className="text-sm text-emerald-700 dark:text-emerald-300 mb-3">
+                  You've earned <span className="font-bold text-yellow-600 dark:text-yellow-400">{completionRewards.gold} gold</span> and found 
+                  {' '}<span className="font-bold">{completionRewards.items.length} items</span>! 
+                  Visit the <span className="font-semibold">Tavern</span> to buy powerful new gear from the shop, 
+                  or sell items you don't need for extra gold.
                 </p>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setCampaignComplete(false);
+                    setCompletionRewards(null);
+                    navigate("/tavern");
+                  }}
+                  className="w-full border-emerald-400 dark:border-emerald-600 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 font-semibold"
+                >
+                  <Coffee className="h-4 w-4 mr-2" /> Visit the Tavern Shop
+                </Button>
+              </div>
+              
+              {/* World of Everdice - Shared World Perception */}
+              <div className="p-4 bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-950/30 dark:to-violet-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                <h4 className="font-bold text-lg text-purple-800 dark:text-purple-200 mb-2 flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-purple-500" /> The World of Everdice Remembers
+                </h4>
+                <p className="text-sm text-purple-700 dark:text-purple-300 mb-2">
+                  Your choices in "{campaign.title}" ripple across the shared world of Everdice. 
+                  Every battle fought, every quest completed, and every decision made shapes the realm for all adventurers.
+                </p>
+                <div className="space-y-2 mt-3">
+                  <div className="flex items-start gap-2">
+                    <div className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-xs text-white font-bold">XP</span>
+                    </div>
+                    <p className="text-xs text-purple-600 dark:text-purple-400">
+                      <span className="font-semibold">Experience builds your legacy.</span> The {completionRewards.xp} XP you earned brings your character 
+                      closer to leveling up, unlocking new abilities, and becoming more powerful in future campaigns.
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <div className="w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Coins className="h-3 w-3 text-white" />
+                    </div>
+                    <p className="text-xs text-purple-600 dark:text-purple-400">
+                      <span className="font-semibold">Gold carries between adventures.</span> Your 
+                      {' '}{completionRewards.characterGrowth?.goldTotal || completionRewards.gold} gold travels with your character 
+                      into every campaign. Spend wisely at the Tavern Shop or save for something special.
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <MapIcon className="h-3 w-3 text-white" />
+                    </div>
+                    <p className="text-xs text-purple-600 dark:text-purple-400">
+                      <span className="font-semibold">Your deeds shape the world.</span> Completing campaigns creates world events 
+                      that affect all adventurers. Other players may hear whispers of your heroic deeds in their own journeys.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
-          <div className="flex justify-center mt-4">
+          <div className="flex gap-3 justify-center mt-4">
+            <Button 
+              onClick={() => {
+                setCampaignComplete(false);
+                setCompletionRewards(null);
+                navigate("/tavern");
+              }}
+              variant="outline"
+              className="border-emerald-400 dark:border-emerald-600 text-emerald-700 dark:text-emerald-300"
+            >
+              <Coffee className="h-4 w-4 mr-2" /> Visit Tavern
+            </Button>
             <Button 
               onClick={() => {
                 setCampaignComplete(false);
