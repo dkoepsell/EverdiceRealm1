@@ -18,7 +18,8 @@ import {
   Loader2,
   Check,
   Sparkles,
-  Play
+  Play,
+  Users
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Character } from "@shared/schema";
@@ -93,6 +94,15 @@ const adventureThemes = [
   { id: "exploration", name: "Exploration", description: "Discover new lands and treasures", icon: "🗺️" },
 ];
 
+const companionByClass: Record<string, { name: string; role: string; personality: string; companionType: string }> = {
+  Fighter: { name: "Sister Maeve", role: "Healer & Support", personality: "A kind cleric who keeps you alive and offers guidance during your adventures", companionType: "healer" },
+  Paladin: { name: "Elara the Sage", role: "Mentor & Guide", personality: "A wise mage who teaches you about the world as you adventure together", companionType: "social" },
+  Wizard: { name: "Grimjaw the Bold", role: "Battle Companion", personality: "A veteran warrior who protects you while you cast your spells", companionType: "combat" },
+  Rogue: { name: "Grimjaw the Bold", role: "Battle Companion", personality: "A tough warrior who draws attention so you can strike from the shadows", companionType: "combat" },
+  Cleric: { name: "Grimjaw the Bold", role: "Battle Companion", personality: "A seasoned fighter who charges in while you support from the back line", companionType: "combat" },
+  Sorcerer: { name: "Sister Maeve", role: "Healer & Support", personality: "A kind cleric who patches you up between powerful magical blasts", companionType: "healer" },
+};
+
 interface QuickStartProps {
   onComplete?: () => void;
   existingCharacters?: Character[];
@@ -105,6 +115,7 @@ export default function QuickStart({ onComplete, existingCharacters = [] }: Quic
     existingCharacters.length > 0 ? existingCharacters[0].id : null
   );
   const [selectedTheme, setSelectedTheme] = useState<string>("classic");
+  const [assignedCompanion, setAssignedCompanion] = useState<{ name: string; role: string } | null>(null);
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
@@ -165,18 +176,39 @@ export default function QuickStart({ onComplete, existingCharacters = [] }: Quic
         });
       }
 
-      return campaign;
-    },
-    onSuccess: (campaign) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
-      toast({
-        title: "Adventure Created!",
-        description: "Your quest awaits. Let the adventure begin!",
+      const characterClass = selectedTemplate 
+        ? characterTemplates.find(t => t.id === selectedTemplate)?.class
+        : existingCharacters.find(c => c.id === selectedCharacter)?.class;
+      
+      const companionInfo = companionByClass[characterClass || "Fighter"] || companionByClass.Fighter;
+      
+      const npcResponse = await apiRequest("POST", "/api/npcs", {
+        name: companionInfo.name,
+        race: "Human",
+        occupation: companionInfo.role,
+        personality: companionInfo.personality,
+        appearance: "Friendly and approachable, with a warm demeanor",
+        motivation: "Help the hero on their journey",
+        hitPoints: 25,
+        maxHitPoints: 25,
+        armorClass: 14,
+        level: 3,
+        isCompanion: true,
+        companionType: companionInfo.companionType,
       });
-      if (onComplete) {
-        onComplete();
-      }
-      navigate("/dashboard");
+      const companion = await npcResponse.json();
+
+      await apiRequest("POST", `/api/campaigns/${campaign.id}/npcs`, {
+        npcId: companion.id,
+        role: "companion",
+      });
+
+      return { campaign, companionName: companionInfo.name, companionRole: companionInfo.role };
+    },
+    onSuccess: ({ campaign, companionName, companionRole }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+      setAssignedCompanion({ name: companionName, role: companionRole });
+      setStep(3);
     },
   });
 
@@ -206,6 +238,7 @@ export default function QuickStart({ onComplete, existingCharacters = [] }: Quic
     { label: "Choose Hero", icon: Sword },
     { label: "Select Character", icon: Check },
     { label: "Pick Adventure", icon: Play },
+    { label: "Ready!", icon: Users },
   ];
 
   return (
@@ -416,6 +449,59 @@ export default function QuickStart({ onComplete, existingCharacters = [] }: Quic
                   )}
                 </Button>
               </div>
+            </motion.div>
+          )}
+
+          {step === 3 && assignedCompanion && (
+            <motion.div
+              key="step3"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="space-y-6 text-center"
+            >
+              <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                <Check className="h-10 w-10 text-white" />
+              </div>
+              
+              <div>
+                <h3 className="text-xl font-bold mb-2">You're All Set!</h3>
+                <p className="text-muted-foreground">
+                  Your adventure is ready and you won't be going alone.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 text-left">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
+                    <Users className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-blue-300">{assignedCompanion.name}</h4>
+                    <p className="text-sm text-blue-400/80">{assignedCompanion.role}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      A companion has been assigned to your party! They'll fight alongside you, 
+                      offer advice, and help you on your journey.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Button 
+                onClick={() => {
+                  toast({
+                    title: "Adventure Created!",
+                    description: `${assignedCompanion.name} is ready to join you. Let the adventure begin!`,
+                  });
+                  if (onComplete) {
+                    onComplete();
+                  }
+                  navigate("/dashboard");
+                }}
+                className="w-full bg-gradient-to-r from-amber-500 to-orange-500 py-6 text-lg"
+              >
+                <Play className="mr-2 h-5 w-5" />
+                Begin Your Adventure!
+              </Button>
             </motion.div>
           )}
         </AnimatePresence>

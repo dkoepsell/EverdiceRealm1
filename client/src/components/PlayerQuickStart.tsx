@@ -22,7 +22,8 @@ import {
   Map,
   Castle,
   Skull,
-  TreePine
+  TreePine,
+  Check
 } from "lucide-react";
 
 interface CharacterTemplate {
@@ -166,7 +167,8 @@ const ADVENTURE_THEMES: AdventureTheme[] = [
 const STEP_TITLES = [
   "Choose Your Hero",
   "Pick a Companion",
-  "Select Your Adventure"
+  "Select Your Adventure",
+  "Ready to Go!"
 ];
 
 // Fantasy name parts for generating unique character names
@@ -202,7 +204,8 @@ function generateFantasyName(characterClass: string): string {
 const STEP_DESCRIPTIONS = [
   "Who do you want to be? Pick a hero that sounds fun!",
   "You won't be alone! Choose a friend to adventure with.",
-  "What kind of story do you want to experience?"
+  "What kind of story do you want to experience?",
+  "Your party is assembled and your adventure awaits!"
 ];
 
 export default function PlayerQuickStart({ 
@@ -217,6 +220,7 @@ export default function PlayerQuickStart({
   const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
   const [selectedCompanion, setSelectedCompanion] = useState<string | null>(null);
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
+  const [createdResult, setCreatedResult] = useState<{ campaignId: number; characterId: number; companionName: string; companionRole: string } | null>(null);
 
   const createAdventureMutation = useMutation({
     mutationFn: async () => {
@@ -305,14 +309,13 @@ export default function PlayerQuickStart({
       queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
       queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
 
-      return { campaignId: campaign.id, characterId: character.id };
+      const companionName = companionTemplate.name;
+      const companionRole = companionTemplate.role;
+      return { campaignId: campaign.id, characterId: character.id, companionName, companionRole };
     },
     onSuccess: (result) => {
-      toast({
-        title: "Adventure awaits!",
-        description: "Your journey begins now. Have fun learning!",
-      });
-      onComplete(result.campaignId, result.characterId);
+      setCreatedResult(result);
+      setCurrentStep(3);
     },
     onError: (error: any) => {
       toast({
@@ -344,7 +347,7 @@ export default function PlayerQuickStart({
     }
   };
 
-  const progress = ((currentStep + 1) / 3) * 100;
+  const progress = ((currentStep + 1) / 4) * 100;
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -461,51 +464,98 @@ export default function PlayerQuickStart({
             })}
           </div>
         )}
+
+        {currentStep === 3 && createdResult && (
+          <div className="text-center space-y-6">
+            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+              <Check className="h-10 w-10 text-white" />
+            </div>
+            
+            <div>
+              <h3 className="text-xl font-bold mb-2">Your Party is Ready!</h3>
+              <p className="text-muted-foreground">
+                You've got a hero and a companion by your side. Time to adventure!
+              </p>
+            </div>
+
+            <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 text-left">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
+                  <Users className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-blue-300">{createdResult.companionName}</h4>
+                  <p className="text-sm text-blue-400/80">{createdResult.companionRole}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Your companion will fight alongside you, offer guidance, and help you learn the 
+                    ropes as you play. They're part of your party from the start!
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Button 
+              onClick={() => {
+                toast({
+                  title: "Adventure awaits!",
+                  description: `${createdResult.companionName} is ready to join you. Let the adventure begin!`,
+                });
+                onComplete(createdResult.campaignId, createdResult.characterId);
+              }}
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 py-6 text-lg"
+            >
+              <Play className="mr-2 h-5 w-5" />
+              Begin Your Adventure!
+            </Button>
+          </div>
+        )}
       </div>
 
-      <div className="flex justify-between items-center pt-4 border-t">
-        <Button
-          variant="ghost"
-          onClick={currentStep === 0 ? onCancel : handleBack}
-        >
-          <ChevronLeft className="h-4 w-4 mr-2" />
-          {currentStep === 0 ? "Cancel" : "Back"}
-        </Button>
+      {currentStep < 3 && (
+        <div className="flex justify-between items-center pt-4 border-t">
+          <Button
+            variant="ghost"
+            onClick={currentStep === 0 ? onCancel : handleBack}
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            {currentStep === 0 ? "Cancel" : "Back"}
+          </Button>
 
-        <div className="flex items-center gap-2">
-          {[0, 1, 2].map((step) => (
-            <div 
-              key={step}
-              className={`w-2 h-2 rounded-full transition-colors ${
-                step <= currentStep ? 'bg-primary' : 'bg-muted'
-              }`}
-            />
-          ))}
+          <div className="flex items-center gap-2">
+            {[0, 1, 2, 3].map((step) => (
+              <div 
+                key={step}
+                className={`w-2 h-2 rounded-full transition-colors ${
+                  step <= currentStep ? 'bg-primary' : 'bg-muted'
+                }`}
+              />
+            ))}
+          </div>
+
+          <Button
+            onClick={handleNext}
+            disabled={!canProceed() || createAdventureMutation.isPending}
+            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+          >
+            {createAdventureMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : currentStep === 2 ? (
+              <>
+                <Play className="h-4 w-4 mr-2" />
+                Start Adventure!
+              </>
+            ) : (
+              <>
+                Next
+                <ChevronRight className="h-4 w-4 ml-2" />
+              </>
+            )}
+          </Button>
         </div>
-
-        <Button
-          onClick={handleNext}
-          disabled={!canProceed() || createAdventureMutation.isPending}
-          className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-        >
-          {createAdventureMutation.isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Creating...
-            </>
-          ) : currentStep === 2 ? (
-            <>
-              <Play className="h-4 w-4 mr-2" />
-              Start Adventure!
-            </>
-          ) : (
-            <>
-              Next
-              <ChevronRight className="h-4 w-4 ml-2" />
-            </>
-          )}
-        </Button>
-      </div>
+      )}
     </div>
   );
 }
