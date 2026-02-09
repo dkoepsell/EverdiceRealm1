@@ -16716,9 +16716,21 @@ Respond with JSON:
         session1Retention: updatedSession1Retention
       };
       
+      // CRITICAL: If there are still living enemy combatants, force inCombat to stay true
+      // The AI sometimes incorrectly sets inCombat: false while enemies are still alive
+      const livingEnemiesInMerged = (preservedCombatants || []).filter(
+        (c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated' && (c.currentHp === undefined || c.currentHp > 0)
+      );
+      if (livingEnemiesInMerged.length > 0 && !combatCompleted) {
+        if (!mergedStoryState.inCombat) {
+          console.log(`[Combat Debug] Forcing inCombat=true: ${livingEnemiesInMerged.length} living enemies still present`);
+        }
+        mergedStoryState.inCombat = true;
+      }
+      
       // Add movement choices if not in combat
       let finalChoices = storyAdvancement.choices || [];
-      const inCombat = storyAdvancement.storyState?.inCombat || mergedStoryState.inCombat;
+      const inCombat = mergedStoryState.inCombat;
       
       // CRITICAL: Ensure ALL player characters and companions are in partyMembers during combat
       if (inCombat) {

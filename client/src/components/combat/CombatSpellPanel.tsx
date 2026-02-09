@@ -79,6 +79,7 @@ interface CombatSpellPanelProps {
   characterLevel: number;
   onCastSpell?: (spell: Spell, slotLevel: number) => void;
   onUseMagicItem?: (item: MagicItem) => void;
+  disabled?: boolean;
 }
 
 const SCHOOL_ICONS: Record<string, any> = {
@@ -105,7 +106,8 @@ export default function CombatSpellPanel({
   characterClass, 
   characterLevel,
   onCastSpell,
-  onUseMagicItem
+  onUseMagicItem,
+  disabled = false
 }: CombatSpellPanelProps) {
   const [showAllSpells, setShowAllSpells] = useState(false);
 
@@ -296,8 +298,9 @@ export default function CombatSpellPanel({
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="w-full justify-start h-7 text-xs px-2"
+                            className={`w-full justify-start h-7 text-xs px-2 ${disabled ? 'opacity-50' : ''}`}
                             onClick={() => handleCastSpell(cs.spell)}
+                            disabled={disabled}
                           >
                             <SchoolIcon className="h-3 w-3 mr-1.5 text-purple-500" />
                             <span className="flex-1 text-left truncate">{cs.spell.name}</span>
@@ -339,10 +342,10 @@ export default function CombatSpellPanel({
                             variant="ghost"
                             size="sm"
                             className={`w-full justify-start h-7 text-xs px-2 ${
-                              !canCast ? 'opacity-50' : ''
+                              !canCast || disabled ? 'opacity-50' : ''
                             }`}
-                            onClick={() => canCast && handleCastSpell(cs.spell)}
-                            disabled={!canCast}
+                            onClick={() => canCast && !disabled && handleCastSpell(cs.spell)}
+                            disabled={!canCast || disabled}
                           >
                             <SchoolIcon className="h-3 w-3 mr-1.5 text-purple-500" />
                             <span className="flex-1 text-left truncate">{cs.spell.name}</span>
@@ -400,10 +403,11 @@ export default function CombatSpellPanel({
                                 : 'bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 border border-purple-200 dark:border-purple-700'
                             }`}
                             onClick={() => {
+                              if (disabled) return;
                               if (item.charges !== undefined && item.charges <= 0) return;
                               onUseMagicItem?.(item);
                             }}
-                            disabled={item.charges !== undefined && item.charges <= 0}
+                            disabled={disabled || (item.charges !== undefined && item.charges <= 0)}
                           >
                             <div className="flex items-center gap-1.5 flex-1 min-w-0">
                               <Wand2 className="h-3 w-3 flex-shrink-0 text-purple-500" />

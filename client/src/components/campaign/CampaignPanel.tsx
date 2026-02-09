@@ -3566,6 +3566,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               characterId={activeCharacter.id}
                               characterClass={activeCharacter.class || ''}
                               characterLevel={activeCharacter.level || 1}
+                              disabled={isAdvancingStory || advanceStory.isPending}
                               onUseMagicItem={(item) => {
                                 // Handle using a magic item in combat
                                 const inCombat = parsedStoryState?.inCombat;
