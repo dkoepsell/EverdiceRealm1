@@ -695,9 +695,10 @@ function SRDShop({
   });
 
   const { data: economyPriceData } = useQuery<any>({
-    queryKey: ['/api/economy/prices'],
+    queryKey: ['/api/economy/prices', characterId],
     queryFn: async () => {
-      const res = await fetch('/api/economy/prices', { credentials: 'include' });
+      const url = characterId ? `/api/economy/prices?characterId=${characterId}` : '/api/economy/prices';
+      const res = await fetch(url, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch');
       return res.json();
     },
@@ -1190,9 +1191,10 @@ export default function TavernPage() {
   });
 
   const { data: marketPrices } = useQuery<{ prices: Array<{ itemSlug: string; finalPriceGold: number; finalPriceSilver: number; trend: string; demandMultiplier: number; basePrice: number }>, inflationMultiplier: number }>({
-    queryKey: ['/api/economy/prices'],
+    queryKey: ['/api/economy/prices', activeCharacter?.id],
     queryFn: async () => {
-      const response = await fetch('/api/economy/prices', { credentials: 'include' });
+      const url = activeCharacter?.id ? `/api/economy/prices?characterId=${activeCharacter.id}` : '/api/economy/prices';
+      const response = await fetch(url, { credentials: 'include' });
       if (!response.ok) return { prices: [], inflationMultiplier: 1.0 };
       return response.json();
     },

@@ -1,8 +1,8 @@
 import type { Express } from "express";
-import { getAllPrices, getItemPrice, recordPurchase, recordSale, getSellPrice, getInflationMultiplier } from "./economyEngine";
+import { getAllPrices, getItemPrice, recordPurchase, recordSale, getSellPrice, getInflationMultiplier, getPlayerAdjustedInflation } from "./economyEngine";
 import { db } from "./db";
 import { sql, eq, and, desc } from "drizzle-orm";
-import { playerListings, marketItemStats } from "@shared/schema";
+import { playerListings, marketItemStats, characters } from "@shared/schema";
 import { isAuthenticated } from "./auth";
 
 function toTextArray(items: any[]): string {
@@ -65,10 +65,22 @@ const CRAFTING_RECIPES: CraftingRecipe[] = [
 ];
 
 export function registerEconomyRoutes(app: Express) {
-  app.get("/api/economy/prices", async (_req, res) => {
+  app.get("/api/economy/prices", async (req, res) => {
     try {
-      const prices = await getAllPrices();
-      const inflation = await getInflationMultiplier();
+      let playerGold: number | undefined;
+      const characterId = req.query.characterId ? parseInt(req.query.characterId as string) : undefined;
+      
+      if (characterId && !isNaN(characterId)) {
+        const [char] = await db.select({ gold: characters.gold }).from(characters).where(eq(characters.id, characterId));
+        if (char) {
+          playerGold = char.gold || 0;
+        }
+      }
+      
+      const prices = await getAllPrices(playerGold);
+      const inflation = playerGold !== undefined
+        ? await getPlayerAdjustedInflation(playerGold)
+        : await getInflationMultiplier();
       res.json({ prices, inflationMultiplier: inflation });
     } catch (error: any) {
       console.error("[Economy] Failed to get prices:", error);

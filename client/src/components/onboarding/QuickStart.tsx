@@ -94,6 +94,47 @@ const adventureThemes = [
   { id: "exploration", name: "Exploration", description: "Discover new lands and treasures", icon: "🗺️" },
 ];
 
+const FIRST_NAMES: Record<string, string[]> = {
+  Fighter: ["Gar", "Thor", "Bran", "Kord", "Vorn", "Rok", "Drak", "Mal", "Grim", "Tor", "Sten", "Hald", "Borg", "Kael", "Rik"],
+  Wizard: ["Thal", "Eld", "Myr", "Zeph", "Cal", "Nar", "Ven", "Sar", "Lyr", "Gor", "Aelm", "Quen", "Rune", "Nyx", "Ior"],
+  Paladin: ["Val", "Aur", "Rad", "Sol", "Lux", "Gal", "Cer", "Dom", "Jor", "Cas", "Brae", "Lorn", "Pel", "Hest", "Zan"],
+  Rogue: ["Sly", "Nim", "Shade", "Vex", "Fox", "Dash", "Flick", "Jinx", "Trick", "Sneak", "Fen", "Wren", "Pip", "Rook", "Dex"],
+  Cleric: ["Bael", "Thun", "Orm", "Eld", "Sag", "Prim", "Hael", "Dur", "Cael", "Wynn", "Isen", "Bren", "Tav", "Yar", "Morn"],
+  Sorcerer: ["Zar", "Pyr", "Ash", "Viv", "Rex", "Nox", "Blaze", "Lux", "Crys", "Flux", "Ember", "Storm", "Ignis", "Hex", "Dusk"],
+};
+
+const LAST_NAMES: Record<string, string[]> = {
+  Fighter: ["axe", "hammer", "iron", "steel", "stone", "fist", "blade", "shield", "forge", "ridge"],
+  Wizard: ["wind", "star", "moon", "fire", "frost", "storm", "spark", "shadow", "sage", "weave"],
+  Paladin: ["light", "heart", "soul", "dawn", "glory", "valor", "hope", "grace", "oath", "shield"],
+  Rogue: ["foot", "hand", "eye", "blade", "shadow", "whisper", "step", "knife", "lock", "cloak"],
+  Cleric: ["prayer", "ward", "keep", "bless", "faith", "mantle", "shrine", "hymn", "light", "stone"],
+  Sorcerer: ["flame", "spark", "surge", "flare", "bolt", "void", "tide", "glow", "pulse", "wrath"],
+};
+
+function generateUniqueName(characterClass: string, existingNames: string[]): string {
+  const firstNames = FIRST_NAMES[characterClass] || FIRST_NAMES.Fighter;
+  const lastNames = LAST_NAMES[characterClass] || LAST_NAMES.Fighter;
+  const existingSet = new Set(existingNames.map(n => n.toLowerCase()));
+  
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const first = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const last = lastNames[Math.floor(Math.random() * lastNames.length)];
+    const capitalizedLast = last.charAt(0).toUpperCase() + last.slice(1);
+    const name = `${first}${capitalizedLast}`;
+    
+    if (!existingSet.has(name.toLowerCase())) {
+      return name;
+    }
+  }
+  
+  const first = firstNames[Math.floor(Math.random() * firstNames.length)];
+  const last = lastNames[Math.floor(Math.random() * lastNames.length)];
+  const capitalizedLast = last.charAt(0).toUpperCase() + last.slice(1);
+  const suffix = Math.floor(Math.random() * 900) + 100;
+  return `${first}${capitalizedLast}${suffix}`;
+}
+
 const companionByClass: Record<string, { name: string; role: string; personality: string; companionType: string }> = {
   Fighter: { name: "Sister Maeve", role: "Healer & Support", personality: "A kind cleric who keeps you alive and offers guidance during your adventures", companionType: "healer" },
   Paladin: { name: "Elara the Sage", role: "Mentor & Guide", personality: "A wise mage who teaches you about the world as you adventure together", companionType: "social" },
@@ -123,8 +164,10 @@ export default function QuickStart({ onComplete, existingCharacters = [] }: Quic
     mutationFn: async (template: typeof characterTemplates[0]) => {
       const hp = 10 + Math.floor((template.stats.constitution - 10) / 2);
       const ac = 10 + Math.floor((template.stats.dexterity - 10) / 2);
+      const existingNames = existingCharacters.map(c => c.name);
+      const uniqueName = generateUniqueName(template.class, existingNames);
       const characterData = {
-        name: `${template.name.split(" ")[0]} the ${template.class}`,
+        name: uniqueName,
         race: template.race,
         class: template.class,
         level: 1,

@@ -186,19 +186,27 @@ const LAST_NAME_PARTS = {
   Rogue: ["foot", "hand", "eye", "blade", "shadow", "whisper", "step", "knife"]
 };
 
-function generateFantasyName(characterClass: string): string {
+function generateFantasyName(characterClass: string, existingNames: string[] = []): string {
   const firstParts = FIRST_NAME_PARTS[characterClass as keyof typeof FIRST_NAME_PARTS] || FIRST_NAME_PARTS.Fighter;
   const lastParts = LAST_NAME_PARTS[characterClass as keyof typeof LAST_NAME_PARTS] || LAST_NAME_PARTS.Fighter;
+  const existingSet = new Set(existingNames.map(n => n.toLowerCase()));
+  
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const firstName = firstParts[Math.floor(Math.random() * firstParts.length)];
+    const lastName = lastParts[Math.floor(Math.random() * lastParts.length)];
+    const capitalizedLast = lastName.charAt(0).toUpperCase() + lastName.slice(1);
+    const name = `${firstName}${capitalizedLast}`;
+    
+    if (!existingSet.has(name.toLowerCase())) {
+      return name;
+    }
+  }
   
   const firstName = firstParts[Math.floor(Math.random() * firstParts.length)];
   const lastName = lastParts[Math.floor(Math.random() * lastParts.length)];
-  // Add a short random suffix for uniqueness
-  const uniqueSuffix = Math.floor(Math.random() * 900) + 100;
-  
-  // Capitalize first letter of lastName properly
   const capitalizedLast = lastName.charAt(0).toUpperCase() + lastName.slice(1);
-  
-  return `${firstName}${capitalizedLast}${uniqueSuffix}`;
+  const suffix = Math.floor(Math.random() * 900) + 100;
+  return `${firstName}${capitalizedLast}${suffix}`;
 }
 
 const STEP_DESCRIPTIONS = [
@@ -216,6 +224,9 @@ export default function PlayerQuickStart({
   onCancel: () => void;
 }) {
   const { toast } = useToast();
+  const { data: existingCharacters = [] } = useQuery<any[]>({
+    queryKey: ["/api/characters"],
+  });
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
   const [selectedCompanion, setSelectedCompanion] = useState<string | null>(null);
@@ -244,7 +255,7 @@ export default function PlayerQuickStart({
       const ac = charTemplate.class === "Fighter" || charTemplate.class === "Paladin" ? 16 : 12;
       
       const characterData = {
-        name: generateFantasyName(charTemplate.class),
+        name: generateFantasyName(charTemplate.class, existingCharacters.map((c: any) => c.name)),
         race: charTemplate.race,
         class: charTemplate.class,
         level: 1,

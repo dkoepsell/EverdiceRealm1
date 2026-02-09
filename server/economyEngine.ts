@@ -61,6 +61,20 @@ export async function getInflationMultiplier(): Promise<number> {
   }
 }
 
+export async function getPlayerAdjustedInflation(playerGold: number): Promise<number> {
+  const globalInflation = await getInflationMultiplier();
+  
+  if (globalInflation <= 1.0) return globalInflation;
+  
+  const ratio = playerGold / BASELINE_GOLD_PER_CHARACTER;
+  
+  if (ratio >= 1.0) return globalInflation;
+  
+  const relief = 1.0 - ratio;
+  const adjustedInflation = globalInflation - (globalInflation - 1.0) * relief;
+  return Math.max(1.0, adjustedInflation);
+}
+
 export async function getItemPrice(itemSlug: string): Promise<DynamicPrice | null> {
   try {
     await decayDemandIfNeeded(itemSlug);
@@ -100,10 +114,12 @@ export async function getItemPrice(itemSlug: string): Promise<DynamicPrice | nul
   }
 }
 
-export async function getAllPrices(): Promise<DynamicPrice[]> {
+export async function getAllPrices(playerGold?: number): Promise<DynamicPrice[]> {
   try {
     const allStats = await db.select().from(marketItemStats);
-    const inflationMultiplier = await getInflationMultiplier();
+    const inflationMultiplier = playerGold !== undefined
+      ? await getPlayerAdjustedInflation(playerGold)
+      : await getInflationMultiplier();
 
     return allStats.map((stats) => {
       const finalPrice = stats.basePrice * stats.demandMultiplier * inflationMultiplier;
