@@ -1146,8 +1146,41 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       return await response.json();
     },
     onSuccess: async (data) => {
-      // Await sessions refetch so UI updates BEFORE loading screen hides
+      // CRITICAL: Update sessions cache AND currentSession immediately to avoid stale combat HP.
+      // The response includes the latest session data (post-combat re-save), so use it to
+      // update the React Query cache deterministically before the refetch.
+      if (data && data.storyState && data.sessionNumber !== undefined) {
+        const sessionsKey = `/api/campaigns/${campaign.id}/sessions`;
+        queryClient.setQueryData<any[]>([sessionsKey], (oldSessions) => {
+          if (!oldSessions) return oldSessions;
+          return oldSessions.map((s: any) =>
+            s.sessionNumber === data.sessionNumber
+              ? { ...s, narrative: data.narrative, choices: data.choices, storyState: data.storyState, npcInteractions: data.npcInteractions }
+              : s
+          );
+        });
+        const currentSessionNumber = campaign?.currentSession || 1;
+        if (data.sessionNumber === currentSessionNumber) {
+          setCurrentSession((prev: any) => prev ? { ...prev, narrative: data.narrative, choices: data.choices, storyState: data.storyState, npcInteractions: data.npcInteractions } : prev);
+        }
+      }
+      
+      // Also refetch to ensure full consistency with DB
       await queryClient.refetchQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
+      
+      // Update currentSession from refetched cache (most accurate source)
+      try {
+        const updatedSessions = queryClient.getQueryData<any[]>([`/api/campaigns/${campaign.id}/sessions`]);
+        const currentSessionNumber = campaign?.currentSession || 1;
+        if (updatedSessions && updatedSessions.length > 0) {
+          const foundSession = updatedSessions.find((s: any) => s.sessionNumber === currentSessionNumber);
+          if (foundSession) {
+            setCurrentSession(foundSession);
+          }
+        }
+      } catch (e) {
+        console.error('[Combat] Failed to update currentSession from cache:', e);
+      }
       
       // Invalidate other data in background (don't need to wait)
       queryClient.invalidateQueries({ queryKey: ['/api/characters'] });

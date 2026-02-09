@@ -16874,7 +16874,7 @@ Respond with JSON:
       // Update session with story advancement
       console.log(`[Combat Debug] Saving session with combatants:`, JSON.stringify(mergedStoryState.combatants?.map((c: any) => ({ name: c.name, currentHp: c.currentHp, status: c.status })) || []));
       
-      const updatedSession = await storage.advanceSessionStory(campaignId, {
+      let updatedSession = await storage.advanceSessionStory(campaignId, {
         narrative: storyAdvancement.narrative,
         dmNarrative: storyAdvancement.dmNarrative,
         choices: finalChoices,
@@ -17294,11 +17294,13 @@ Respond with JSON:
             
             // CRITICAL: Re-save session with updated combatant HP after combat processing
             // The initial save at advanceSessionStory happened BEFORE combat processing,
-            // so companion/player damage to enemies was not persisted. Re-save now.
+            // so any post-save changes (companion attacks, player weapon attacks, enemy state updates)
+            // need to be persisted. Always re-save when in combat to ensure consistency.
             const hasCompanionDamage = companionAttackResult !== null && companionAttackResult.enemyDamageDealt.length > 0;
             const hasPlayerWeaponDamage = isWeaponAttack && storyAdvancement.combatEffects?.enemyDamage?.some((e: any) => e.damageTaken > 0);
-            if (hasCompanionDamage || hasPlayerWeaponDamage) {
-              console.log(`[Combat Re-save] Re-saving session - companion damage: ${hasCompanionDamage}, player weapon damage: ${hasPlayerWeaponDamage}`);
+            const hasCombatProcessing = isInCombat && enemyCombatants.length > 0;
+            if (hasCompanionDamage || hasPlayerWeaponDamage || hasCombatProcessing) {
+              console.log(`[Combat Re-save] Re-saving session - companion damage: ${hasCompanionDamage}, player weapon damage: ${hasPlayerWeaponDamage}, combat processing: ${hasCombatProcessing}`);
               // Filter out defeated enemies from mergedStoryState
               const activeCombatants = (mergedStoryState.combatants as any[])?.filter(
                 (c: any) => c.status !== 'defeated' && (c.currentHp === undefined || c.currentHp > 0)
@@ -17312,7 +17314,7 @@ Respond with JSON:
                 console.log(`[Combat Re-save] All enemies defeated by companions - ending combat`);
               }
               
-              await storage.advanceSessionStory(campaignId, {
+              const reSavedSession = await storage.advanceSessionStory(campaignId, {
                 narrative: storyAdvancement.narrative,
                 dmNarrative: storyAdvancement.dmNarrative,
                 choices: updatedSession?.choices || storyAdvancement.choices || [],
@@ -17320,6 +17322,7 @@ Respond with JSON:
                 npcInteractions: storyAdvancement.npcInteractions,
                 sceneType: storyAdvancement.sceneType || (mergedStoryState?.inCombat ? 'Combat' : 'Exploration'),
               });
+              updatedSession = reSavedSession;
               console.log(`[Combat Re-save] Session re-saved with updated enemy HP`);
             }
             
