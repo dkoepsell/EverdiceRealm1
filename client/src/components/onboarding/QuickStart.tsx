@@ -156,7 +156,16 @@ export default function QuickStart({ onComplete, existingCharacters = [] }: Quic
         narrativeStyle: "descriptive",
         setting: theme?.id || "classic",
       });
-      return response.json();
+      const campaign = await response.json();
+
+      if (selectedCharacter) {
+        await apiRequest("POST", `/api/campaigns/${campaign.id}/participants`, {
+          characterId: selectedCharacter,
+          role: "player",
+        });
+      }
+
+      return campaign;
     },
     onSuccess: (campaign) => {
       queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
