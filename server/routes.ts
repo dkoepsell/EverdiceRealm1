@@ -15438,7 +15438,8 @@ Respond with JSON:
         }
         
         // CRITICAL: Update combatants in storyState with damage dealt
-        // This ensures enemy HP changes are persisted and sent back to frontend
+        // Use damageTaken to CALCULATE new HP from saved state — don't trust AI's newHp
+        const savedCombatants = (currentSession.storyState as any)?.combatants || [];
         if (storyAdvancement.storyState?.combatants) {
           for (const damageEntry of combatEffects.enemyDamage) {
             const combatantIndex = storyAdvancement.storyState.combatants.findIndex(
@@ -15446,15 +15447,20 @@ Respond with JSON:
             );
             if (combatantIndex !== -1) {
               const combatant = storyAdvancement.storyState.combatants[combatantIndex];
-              combatant.currentHp = damageEntry.newHp;
-              if (damageEntry.defeated) {
+              const savedEnemy = savedCombatants.find((c: any) => c.name === damageEntry.name);
+              const savedHp = savedEnemy?.currentHp ?? combatant.maxHp ?? 20;
+              const damageTakenAmount = damageEntry.damageTaken || 0;
+              const calculatedHp = Math.max(0, savedHp - damageTakenAmount);
+              combatant.currentHp = calculatedHp;
+              if (calculatedHp <= 0 || damageEntry.defeated) {
                 combatant.status = 'defeated';
-              } else if (damageEntry.newHp <= (combatant.maxHp * 0.25)) {
+                combatant.currentHp = 0;
+              } else if (calculatedHp <= (combatant.maxHp * 0.25)) {
                 combatant.status = 'bloodied';
-              } else if (damageEntry.newHp <= (combatant.maxHp * 0.5)) {
+              } else if (calculatedHp <= (combatant.maxHp * 0.5)) {
                 combatant.status = 'wounded';
               }
-              console.log(`Updated enemy ${damageEntry.name} HP: ${damageEntry.newHp}/${combatant.maxHp} (status: ${combatant.status})`);
+              console.log(`Updated enemy ${damageEntry.name} HP: ${savedHp} - ${damageTakenAmount} = ${combatant.currentHp}/${combatant.maxHp} (AI said ${damageEntry.newHp}) (status: ${combatant.status})`);
             }
           }
           
@@ -16531,8 +16537,10 @@ Respond with JSON:
       const wasInCombatBefore = currentStoryState.inCombat;
       
       // Build a map of defeated enemies from combatEffects.enemyDamage (most accurate source)
+      // CRITICAL: Use damageTaken to CALCULATE new HP from saved state, don't trust AI's newHp
+      // The AI often miscalculates cumulative HP across turns (e.g., reports newHp from maxHp instead of currentHp)
       const defeatedEnemyNames = new Set<string>();
-      const enemyHpUpdates = new Map<string, { newHp: number; status: string }>();
+      const enemyDamageMap = new Map<string, { damageTaken: number; aiNewHp: number; maxHp: number }>();
       
       if (combatEffects?.enemyDamage) {
         for (const enemy of combatEffects.enemyDamage) {
@@ -16540,10 +16548,10 @@ Respond with JSON:
             defeatedEnemyNames.add(enemy.name);
             console.log(`[Combat Debug] Enemy ${enemy.name} marked as defeated in enemyDamage`);
           } else {
-            enemyHpUpdates.set(enemy.name, { 
-              newHp: enemy.newHp, 
-              status: enemy.newHp <= (enemy.maxHp * 0.25) ? 'bloodied' : 
-                      enemy.newHp <= (enemy.maxHp * 0.5) ? 'wounded' : 'healthy'
+            enemyDamageMap.set(enemy.name, { 
+              damageTaken: enemy.damageTaken || 0,
+              aiNewHp: enemy.newHp,
+              maxHp: enemy.maxHp || 0
             });
           }
         }
@@ -16561,20 +16569,44 @@ Respond with JSON:
             return { ...existingEnemy, currentHp: 0, status: 'defeated' };
           }
           
-          // Check if this enemy has HP updates from enemyDamage
-          const hpUpdate = enemyHpUpdates.get(existingEnemy.name);
-          if (hpUpdate) {
-            console.log(`[Combat Debug] ${existingEnemy.name}: HP ${existingEnemy.currentHp} -> ${hpUpdate.newHp}, status: ${hpUpdate.status}`);
-            return { ...existingEnemy, currentHp: hpUpdate.newHp, status: hpUpdate.status };
+          // Check if this enemy has damage from enemyDamage — calculate HP from saved state
+          const damageInfo = enemyDamageMap.get(existingEnemy.name);
+          if (damageInfo) {
+            const savedHp = existingEnemy.currentHp ?? existingEnemy.maxHp ?? 20;
+            const calculatedHp = Math.max(0, savedHp - damageInfo.damageTaken);
+            const maxHp = existingEnemy.maxHp || damageInfo.maxHp || 20;
+            const hpStatus = calculatedHp <= 0 ? 'defeated' :
+              calculatedHp <= (maxHp * 0.25) ? 'bloodied' :
+              calculatedHp <= (maxHp * 0.5) ? 'wounded' : 'healthy';
+            console.log(`[Combat Debug] ${existingEnemy.name}: HP ${savedHp} - ${damageInfo.damageTaken} damage = ${calculatedHp} (AI said ${damageInfo.aiNewHp}), status: ${hpStatus}`);
+            if (calculatedHp <= 0) {
+              defeatedEnemyNames.add(existingEnemy.name);
+              return { ...existingEnemy, currentHp: 0, status: 'defeated' };
+            }
+            return { ...existingEnemy, currentHp: calculatedHp, status: hpStatus };
           }
           
           // Check if this enemy has updates in storyAdvancement
+          // ONLY accept AI advancement HP if it's LOWER than saved HP (damage was dealt, not healed)
           const advancementEnemy = advancementCombatants.find(
             (ae: any) => ae.name === existingEnemy.name
           );
           if (advancementEnemy && advancementEnemy.currentHp !== undefined) {
-            console.log(`[Combat Debug] ${existingEnemy.name}: HP ${existingEnemy.currentHp} -> ${advancementEnemy.currentHp} (from advancement)`);
-            return { ...existingEnemy, currentHp: advancementEnemy.currentHp, status: advancementEnemy.status || existingEnemy.status };
+            const savedHp = existingEnemy.currentHp ?? existingEnemy.maxHp ?? 20;
+            if (advancementEnemy.currentHp < savedHp) {
+              const maxHp = existingEnemy.maxHp || advancementEnemy.maxHp || 20;
+              const hpStatus = advancementEnemy.currentHp <= 0 ? 'defeated' :
+                advancementEnemy.currentHp <= (maxHp * 0.25) ? 'bloodied' :
+                advancementEnemy.currentHp <= (maxHp * 0.5) ? 'wounded' : 'healthy';
+              console.log(`[Combat Debug] ${existingEnemy.name}: HP ${savedHp} -> ${advancementEnemy.currentHp} (from advancement, accepted as lower)`);
+              if (advancementEnemy.currentHp <= 0) {
+                defeatedEnemyNames.add(existingEnemy.name);
+                return { ...existingEnemy, currentHp: 0, status: 'defeated' };
+              }
+              return { ...existingEnemy, currentHp: advancementEnemy.currentHp, status: hpStatus };
+            } else {
+              console.log(`[Combat Debug] ${existingEnemy.name}: AI advancement HP ${advancementEnemy.currentHp} >= saved HP ${savedHp} — REJECTING (would heal enemy)`);
+            }
           }
           
           return existingEnemy;
@@ -16995,12 +17027,12 @@ Respond with JSON:
               id: index + 1000,
               name: e.name,
               type: 'enemy' as const,
-              currentHp: e.currentHp || e.maxHp || 20,
-              maxHp: e.maxHp || 20,
-              armorClass: e.ac || 12,
-              attackBonus: e.attackBonus || 3,
+              currentHp: e.currentHp ?? e.maxHp ?? 20,
+              maxHp: e.maxHp ?? 20,
+              armorClass: e.ac ?? 12,
+              attackBonus: e.attackBonus ?? 3,
               damageRoll: e.damage || '1d6+2',
-              status: 'conscious' as const
+              status: (e.currentHp !== undefined && e.currentHp <= 0) ? 'unconscious' as const : 'conscious' as const
             }));
           
           if (combatEffects) {
