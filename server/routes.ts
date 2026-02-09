@@ -16631,8 +16631,8 @@ Respond with JSON:
       // This fixes cases where AI returns incorrect status (e.g., "healthy" with 2/30 HP)
       if (preservedCombatants && Array.isArray(preservedCombatants)) {
         preservedCombatants = preservedCombatants.map((c: any) => {
-          const hp = c.currentHp ?? 0;
-          const maxHp = c.maxHp ?? 1;
+          const hp = c.currentHp ?? c.maxHp ?? 20;
+          const maxHp = c.maxHp ?? 20;
           const hpRatio = hp / maxHp;
           
           let correctStatus: string;
@@ -16650,8 +16650,8 @@ Respond with JSON:
             console.log(`[Combat Debug] Correcting ${c.name} status: ${c.status} -> ${correctStatus} (HP: ${hp}/${maxHp})`);
           }
           
-          return { ...c, status: correctStatus };
-        }).filter((c: any) => c.status !== 'defeated' && c.currentHp > 0);
+          return { ...c, currentHp: hp, maxHp, status: correctStatus };
+        }).filter((c: any) => c.status !== 'defeated' && (c.currentHp === undefined || c.currentHp > 0));
         
         // Check if all enemies defeated after status correction
         const remainingEnemiesAfterCorrection = preservedCombatants.filter(
