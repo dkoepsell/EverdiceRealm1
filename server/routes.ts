@@ -5902,7 +5902,154 @@ Return your response as a JSON object with these fields:
       }
       
       stateContext += operativeSummary;
-      
+
+      // ============================================
+      // SCENE HISTORY DIGEST — Anti-Repetition Memory
+      // ============================================
+      const allSessions = await storage.getCampaignSessions(campaign.id);
+      const recentSessions = allSessions.slice(-8);
+      let sceneHistoryDigest = "";
+      if (recentSessions.length > 0) {
+        const usedTitles = recentSessions.map(s => s.title).filter(Boolean);
+        const usedLocations = recentSessions.map(s => s.location).filter(Boolean);
+        const usedSceneTypes = recentSessions.map(s => (s as any).sceneType).filter(Boolean);
+
+        const extractMotifs = (text: string): string[] => {
+          const motifPatterns = /\b(runestone|altar|shrine|portal|crystal|artifact|tome|scroll|relic|idol|obelisk|monolith|totem|sigil|glyph|rune|amulet|pendant|orb|scepter|throne|fountain|well|mirror|gate|door|chest|vault|crypt|tomb|statue|pillar|tower|bridge|cave|tunnel|clearing|grove|camp|ruins|temple|library|forge|market|tavern|dock|harbor|lighthouse|watchtower|graveyard|battlefield|arena|colosseum|labyrinth|maze|garden|sanctuary|chamber|hall|corridor)\b/gi;
+          const matches = text.match(motifPatterns) || [];
+          return [...new Set(matches.map(m => m.toLowerCase()))];
+        };
+
+        const allNarrativeText = recentSessions.map(s => (s.narrative || "").substring(0, 500)).join(" ");
+        const usedMotifs = extractMotifs(allNarrativeText).slice(0, 15);
+
+        const recentNarrativeText = recentSessions.slice(-3).map(s => (s.narrative || "").substring(0, 500)).join(" ");
+        const veryRecentMotifs = extractMotifs(recentNarrativeText).slice(0, 10);
+
+        sceneHistoryDigest += `\n\n═══════════════════════════════════════════════════════════
+SCENE HISTORY — ANTI-REPETITION MEMORY (MANDATORY):
+═══════════════════════════════════════════════════════════
+
+RECENT SCENE TITLES (DO NOT reuse or closely echo these):
+${usedTitles.map(t => `- "${t}"`).join("\n")}
+
+RECENTLY VISITED LOCATIONS (introduce NEW locations — do NOT return here without strong narrative reason):
+${[...new Set(usedLocations)].map(l => `- ${l}`).join("\n")}
+
+RECENT SCENE TYPES: ${usedSceneTypes.join(", ")}
+→ Choose a DIFFERENT scene type from the most recent 2 scenes.
+
+OVERUSED MOTIFS/OBJECTS (these have appeared in recent scenes — DO NOT USE THESE AGAIN):
+${veryRecentMotifs.map(m => `- "${m}"`).join("\n")}
+
+MOTIFS USED IN THIS CAMPAIGN ARC (use sparingly, at most once more if narratively essential):
+${usedMotifs.map(m => `- "${m}"`).join("\n")}
+
+CONTENT VARIETY RULES (STRICTLY ENFORCED):
+1. EVERY scene MUST introduce at least ONE element the campaign has never seen:
+   - A new NPC (name + personality + agenda)
+   - A new location (not just a renamed version of a previous one)
+   - A new type of challenge (if recent scenes had puzzles, try social intrigue or exploration)
+   - A new narrative motif or object (if runestones were used, try something completely different: a merchant's ledger, a dying soldier's confession, a strange weather phenomenon, animal behavior, architectural clues, overheard conversations)
+2. NEVER repeat the same environmental feature, puzzle element, or discovery type from the last 3 scenes
+3. If the story involves a recurring theme (e.g., ancient magic), express it through DIFFERENT manifestations each time — different senses, different sources, different consequences
+4. Scene titles MUST be distinct in tone and content from recent titles
+5. Vary the PACING: if recent scenes were tense, allow a moment of quiet reflection or unexpected humor. If recent scenes were slow, introduce urgency or danger.
+`;
+      }
+
+      // ============================================
+      // CAML STORY SPINE — Narrative Compass
+      // ============================================
+      const totalChapters = (campaign as any).totalChapters || 5;
+      const currentChapterNum = (campaign as any).currentSession || 1;
+      const previousChapterSessionCount = currentChapterNum > 1 
+        ? Math.floor(allSessions.length * ((currentChapterNum - 1) / totalChapters))
+        : 0;
+      const scenesInCurrentChapter = Math.max(1, allSessions.length - previousChapterSessionCount);
+      const currentGateForSpine = chapterGates.find((g: any) => g.chapter === currentChapterNum);
+      const completedGates = chapterGates.filter((g: any) => g.chapter < currentChapterNum);
+
+      let camlStorySpine = `\n\n═══════════════════════════════════════════════════════════
+CAML STORY SPINE — YOUR NARRATIVE COMPASS (FOLLOW THIS):
+═══════════════════════════════════════════════════════════
+
+CAMPAIGN QUESTION (the thematic heart — every scene must relate to this):
+"${(campaign as any).campaignQuestion || 'What choices define who we become?'}"
+
+OVERALL ARC: Chapter ${currentChapterNum} of ${totalChapters}
+- Scenes played so far: ${allSessions.length}
+- Scenes in current chapter: ${scenesInCurrentChapter}
+`;
+
+      if (completedGates.length > 0) {
+        camlStorySpine += `\nCOMPLETED CHAPTER MILESTONES (the story so far):
+${completedGates.map((g: any) => `- Chapter ${g.chapter}: "${g.advanceWhen}" — ACHIEVED`).join("\n")}
+`;
+      }
+
+      if (currentGateForSpine) {
+        camlStorySpine += `\nCURRENT CHAPTER ${currentChapterNum} OBJECTIVE:
+- What must happen: "${currentGateForSpine.advanceWhen}"
+${currentGateForSpine.requiredTruth ? `- Truth to discover: "${currentGateForSpine.requiredTruth}"` : ''}
+${currentGateForSpine.requiredCommitment ? `- Commitment to make: "${currentGateForSpine.requiredCommitment}"` : ''}
+${currentGateForSpine.requiredBeliefChange ? `- Belief to change: "${currentGateForSpine.requiredBeliefChange}"` : ''}
+`;
+      }
+
+      const upcomingGates = chapterGates.filter((g: any) => g.chapter > currentChapterNum);
+      if (upcomingGates.length > 0) {
+        camlStorySpine += `\nFUTURE ARC (foreshadow these, but don't resolve yet):
+${upcomingGates.slice(0, 2).map((g: any) => `- Chapter ${g.chapter}: "${g.advanceWhen}"`).join("\n")}
+`;
+      }
+
+      camlStorySpine += `\nSTORY SPINE RULES:
+1. Each scene should plant seeds for the current chapter gate — even if indirectly
+2. Foreshadow future chapters through hints, rumors, environmental storytelling
+3. The campaign question should be reflected in character dilemmas and NPC motivations
+4. Build toward the chapter gate through escalating revelations, not repetitive clue-finding
+5. Each scene should feel like it MOVES THE STORY FORWARD — if removing this scene wouldn't change the narrative, it shouldn't exist
+`;
+
+      // ============================================
+      // CHAPTER PROGRESSION NUDGING
+      // ============================================
+      let chapterNudge = "";
+      const GENTLE_THRESHOLD = 5;
+      const MODERATE_THRESHOLD = 8;
+      const URGENT_THRESHOLD = 11;
+
+      if (currentGateForSpine && scenesInCurrentChapter >= GENTLE_THRESHOLD) {
+        if (scenesInCurrentChapter >= URGENT_THRESHOLD) {
+          chapterNudge = `\n\n⚡ URGENT CHAPTER PROGRESSION:
+This chapter has run for ${scenesInCurrentChapter} scenes — it MUST advance NOW.
+THIS SCENE should directly address the chapter gate: "${currentGateForSpine.advanceWhen}"
+- Present a pivotal moment, revelation, or confrontation that satisfies the gate condition
+- The player's choice in this scene should determine HOW the gate is met, not WHETHER
+- Do not introduce new subplots — resolve the current chapter's central question
+- Include "chapterGateMet" in your response if the condition is fulfilled
+`;
+        } else if (scenesInCurrentChapter >= MODERATE_THRESHOLD) {
+          chapterNudge = `\n\n⚠️ CHAPTER PROGRESSION — MODERATE URGENCY:
+This chapter has run for ${scenesInCurrentChapter} scenes. The story should converge toward the chapter gate within the next 2-3 scenes.
+- Chapter gate: "${currentGateForSpine.advanceWhen}"
+- Begin closing subplots and consolidating threads toward the gate condition
+- Raise the stakes — make the chapter's central tension unavoidable
+- Ensure THIS scene creates momentum toward resolution, not more questions
+- The next few scenes should feel like a clear crescendo, not more wandering
+`;
+        } else {
+          chapterNudge = `\n\n📌 CHAPTER PROGRESSION — GENTLE NUDGE:
+This chapter has run for ${scenesInCurrentChapter} scenes. Begin steering the narrative toward the chapter gate.
+- Chapter gate: "${currentGateForSpine.advanceWhen}"
+- Plant clearer clues, create situations that force the relevant truth/commitment/belief
+- The story should feel like it's building toward something specific, not meandering
+- Reduce tangential content — each scene should advance the chapter's arc
+`;
+        }
+      }
+
       const promptWithContext = `
 You are an expert Dungeon Master using OPERATIVE STATE-FIRST storytelling (CAML 2.0).
 ${campaignContext}
@@ -5910,6 +6057,9 @@ ${locationContext}
 Difficulty level: ${difficulty || "Normal - Balanced Challenge"}
 Story direction preference: ${storyDirection || "balanced mix of combat, roleplay, and exploration"}
 ${stateContext}
+${sceneHistoryDigest}
+${camlStorySpine}
+${chapterNudge}
 
 ═══════════════════════════════════════════════════════════
 DM AUTHORING DOCTRINE - THESE OVERRIDE ALL OTHER RULES:
@@ -14898,6 +15048,152 @@ If they resolve the final challenge, respond with:
 ═══════════════════════════════════════════════════════════════════════════════
 ` : '';
       
+      // ============================================
+      // SCENE HISTORY DIGEST — Anti-Repetition Memory (Route 2)
+      // ============================================
+      const allCampaignSessions = await storage.getCampaignSessions(campaignId);
+      const recentCampaignSessions = allCampaignSessions.slice(-8);
+      let sceneHistoryDigest2 = "";
+      if (recentCampaignSessions.length > 0) {
+        const usedTitles2 = recentCampaignSessions.map(s => s.title).filter(Boolean);
+        const usedLocations2 = recentCampaignSessions.map(s => s.location).filter(Boolean);
+        const usedSceneTypes2 = recentCampaignSessions.map(s => (s as any).sceneType).filter(Boolean);
+
+        const extractMotifs2 = (text: string): string[] => {
+          const motifPatterns = /\b(runestone|altar|shrine|portal|crystal|artifact|tome|scroll|relic|idol|obelisk|monolith|totem|sigil|glyph|rune|amulet|pendant|orb|scepter|throne|fountain|well|mirror|gate|door|chest|vault|crypt|tomb|statue|pillar|tower|bridge|cave|tunnel|clearing|grove|camp|ruins|temple|library|forge|market|tavern|dock|harbor|lighthouse|watchtower|graveyard|battlefield|arena|colosseum|labyrinth|maze|garden|sanctuary|chamber|hall|corridor)\b/gi;
+          const matches = text.match(motifPatterns) || [];
+          return [...new Set(matches.map(m => m.toLowerCase()))];
+        };
+
+        const allNarrativeText2 = recentCampaignSessions.map(s => (s.narrative || "").substring(0, 500)).join(" ");
+        const usedMotifs2 = extractMotifs2(allNarrativeText2).slice(0, 15);
+
+        const recentNarrativeText2 = recentCampaignSessions.slice(-3).map(s => (s.narrative || "").substring(0, 500)).join(" ");
+        const veryRecentMotifs2 = extractMotifs2(recentNarrativeText2).slice(0, 10);
+
+        sceneHistoryDigest2 += `
+═══════════════════════════════════════════════════════════
+SCENE HISTORY — ANTI-REPETITION MEMORY (MANDATORY):
+═══════════════════════════════════════════════════════════
+
+RECENT SCENE TITLES (DO NOT reuse or closely echo these):
+${usedTitles2.map(t => `- "${t}"`).join("\n")}
+
+RECENTLY VISITED LOCATIONS (introduce NEW locations — do NOT return here without strong narrative reason):
+${[...new Set(usedLocations2)].map(l => `- ${l}`).join("\n")}
+
+RECENT SCENE TYPES: ${usedSceneTypes2.join(", ")}
+→ Choose a DIFFERENT scene type from the most recent 2 scenes.
+
+OVERUSED MOTIFS/OBJECTS (these have appeared in recent scenes — DO NOT USE THESE AGAIN):
+${veryRecentMotifs2.map(m => `- "${m}"`).join("\n")}
+
+MOTIFS USED IN THIS CAMPAIGN ARC (use sparingly, at most once more if narratively essential):
+${usedMotifs2.map(m => `- "${m}"`).join("\n")}
+
+CONTENT VARIETY RULES (STRICTLY ENFORCED):
+1. EVERY scene MUST introduce at least ONE element the campaign has never seen:
+   - A new NPC (name + personality + agenda)
+   - A new location (not just a renamed version of a previous one)
+   - A new type of challenge (if recent scenes had puzzles, try social intrigue or exploration)
+   - A new narrative motif or object (if runestones were used, try something completely different: a merchant's ledger, a dying soldier's confession, a strange weather phenomenon, animal behavior, architectural clues, overheard conversations)
+2. NEVER repeat the same environmental feature, puzzle element, or discovery type from the last 3 scenes
+3. If the story involves a recurring theme (e.g., ancient magic), express it through DIFFERENT manifestations each time — different senses, different sources, different consequences
+4. Scene titles MUST be distinct in tone and content from recent titles
+5. Vary the PACING: if recent scenes were tense, allow a moment of quiet reflection or unexpected humor. If recent scenes were slow, introduce urgency or danger.
+`;
+      }
+
+      // ============================================
+      // CAML STORY SPINE — Narrative Compass (Route 2)
+      // ============================================
+      const advanceChapterGatesList = (campaign as any).chapterGates as any[] || [];
+      const currentGateForSpine2 = advanceChapterGatesList.find((g: any) => g.chapter === currentChapter);
+      const completedGates2 = advanceChapterGatesList.filter((g: any) => g.chapter < currentChapter);
+      const prevChapterSessions2 = currentChapter > 1
+        ? Math.floor(allCampaignSessions.length * ((currentChapter - 1) / totalChapters))
+        : 0;
+      const scenesInChapter2 = Math.max(1, allCampaignSessions.length - prevChapterSessions2);
+
+      let camlStorySpine2 = `
+═══════════════════════════════════════════════════════════
+CAML STORY SPINE — YOUR NARRATIVE COMPASS (FOLLOW THIS):
+═══════════════════════════════════════════════════════════
+
+CAMPAIGN QUESTION (the thematic heart — every scene must relate to this):
+"${(campaign as any).campaignQuestion || 'What choices define who we become?'}"
+
+OVERALL ARC: Chapter ${currentChapter} of ${totalChapters}
+- Scenes played so far: ${allCampaignSessions.length}
+- Scenes in current chapter: ${scenesInChapter2}
+`;
+
+      if (completedGates2.length > 0) {
+        camlStorySpine2 += `\nCOMPLETED CHAPTER MILESTONES (the story so far):
+${completedGates2.map((g: any) => `- Chapter ${g.chapter}: "${g.advanceWhen}" — ACHIEVED`).join("\n")}
+`;
+      }
+
+      if (currentGateForSpine2) {
+        camlStorySpine2 += `\nCURRENT CHAPTER ${currentChapter} OBJECTIVE:
+- What must happen: "${currentGateForSpine2.advanceWhen}"
+${currentGateForSpine2.requiredTruth ? `- Truth to discover: "${currentGateForSpine2.requiredTruth}"` : ''}
+${currentGateForSpine2.requiredCommitment ? `- Commitment to make: "${currentGateForSpine2.requiredCommitment}"` : ''}
+${currentGateForSpine2.requiredBeliefChange ? `- Belief to change: "${currentGateForSpine2.requiredBeliefChange}"` : ''}
+`;
+      }
+
+      const upcomingGates2 = advanceChapterGatesList.filter((g: any) => g.chapter > currentChapter);
+      if (upcomingGates2.length > 0) {
+        camlStorySpine2 += `\nFUTURE ARC (foreshadow these, but don't resolve yet):
+${upcomingGates2.slice(0, 2).map((g: any) => `- Chapter ${g.chapter}: "${g.advanceWhen}"`).join("\n")}
+`;
+      }
+
+      camlStorySpine2 += `\nSTORY SPINE RULES:
+1. Each scene should plant seeds for the current chapter gate — even if indirectly
+2. Foreshadow future chapters through hints, rumors, environmental storytelling
+3. The campaign question should be reflected in character dilemmas and NPC motivations
+4. Build toward the chapter gate through escalating revelations, not repetitive clue-finding
+5. Each scene should feel like it MOVES THE STORY FORWARD — if removing this scene wouldn't change the narrative, it shouldn't exist
+`;
+
+      // ============================================
+      // CHAPTER PROGRESSION NUDGING (Route 2)
+      // ============================================
+      let chapterNudge2 = "";
+      const GENTLE2 = 5;
+      const MODERATE2 = 8;
+      const URGENT2 = 11;
+
+      if (currentGateForSpine2 && scenesInChapter2 >= GENTLE2) {
+        if (scenesInChapter2 >= URGENT2) {
+          chapterNudge2 = `\n⚡ URGENT CHAPTER PROGRESSION:
+This chapter has run for ${scenesInChapter2} scenes — it MUST advance NOW.
+THIS SCENE should directly address the chapter gate: "${currentGateForSpine2.advanceWhen}"
+- Present a pivotal moment, revelation, or confrontation that satisfies the gate condition
+- The player's choice in this scene should determine HOW the gate is met, not WHETHER
+- Do not introduce new subplots — resolve the current chapter's central question
+- Include "chapterGateMet" in your response if the condition is fulfilled
+`;
+        } else if (scenesInChapter2 >= MODERATE2) {
+          chapterNudge2 = `\n⚠️ CHAPTER PROGRESSION — MODERATE URGENCY:
+This chapter has run for ${scenesInChapter2} scenes. The story should converge toward the chapter gate within the next 2-3 scenes.
+- Chapter gate: "${currentGateForSpine2.advanceWhen}"
+- Begin closing subplots and consolidating threads toward the gate condition
+- Raise the stakes — make the chapter's central tension unavoidable
+- Ensure THIS scene creates momentum toward resolution, not more questions
+`;
+        } else {
+          chapterNudge2 = `\n📌 CHAPTER PROGRESSION — GENTLE NUDGE:
+This chapter has run for ${scenesInChapter2} scenes. Begin steering the narrative toward the chapter gate.
+- Chapter gate: "${currentGateForSpine2.advanceWhen}"
+- Plant clearer clues, create situations that force the relevant truth/commitment/belief
+- The story should feel like it's building toward something specific, not meandering
+`;
+        }
+      }
+
       // Generate story continuation based on choice and previous context
       const prompt = `
 You are an expert Dungeon Master for a D&D game with a ${narrativeStyle} storytelling style.
@@ -14907,6 +15203,9 @@ ${chapterProgressNote}
 ${themeContext}
 ${finaleInstructions}
 ${session1ContractPrompt}
+${sceneHistoryDigest2}
+${camlStorySpine2}
+${chapterNudge2}
 
 ${SCENE_GENERATION_CONSTRAINTS}
 ${antiCombatRepeatNote}
