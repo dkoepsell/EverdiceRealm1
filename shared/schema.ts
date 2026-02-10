@@ -2207,3 +2207,191 @@ export const insertPlayerListingSchema = createInsertSchema(playerListings).omit
 });
 export type InsertPlayerListing = z.infer<typeof insertPlayerListingSchema>;
 export type PlayerListing = typeof playerListings.$inferSelect;
+
+// ==========================================
+// Wander Mode - Hex Exploration System
+// ==========================================
+
+export const wanderRuns = pgTable("wander_runs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  campaignId: integer("campaign_id").notNull(),
+  characterId: integer("character_id").notNull(),
+  startHexQ: integer("start_hex_q").notNull(),
+  startHexR: integer("start_hex_r").notNull(),
+  currentHexQ: integer("current_hex_q").notNull(),
+  currentHexR: integer("current_hex_r").notNull(),
+  tick: integer("tick").notNull().default(0),
+  fatigue: integer("fatigue").notNull().default(0),
+  lastOutcomeType: text("last_outcome_type"),
+  status: text("status").notNull().default("active"),
+  flags: jsonb("flags"),
+  startedAt: text("started_at").notNull().default(new Date().toISOString()),
+  endedAt: text("ended_at"),
+});
+
+export const insertWanderRunSchema = createInsertSchema(wanderRuns).omit({
+  id: true,
+});
+
+export type InsertWanderRun = z.infer<typeof insertWanderRunSchema>;
+export type WanderRun = typeof wanderRuns.$inferSelect;
+
+export const wanderOutcomeLog = pgTable("wander_outcome_log", {
+  id: serial("id").primaryKey(),
+  runId: integer("run_id").notNull(),
+  tick: integer("tick").notNull(),
+  fromHexQ: integer("from_hex_q").notNull(),
+  fromHexR: integer("from_hex_r").notNull(),
+  toHexQ: integer("to_hex_q").notNull(),
+  toHexR: integer("to_hex_r").notNull(),
+  outcomeType: text("outcome_type").notNull(),
+  outcomePayload: jsonb("outcome_payload"),
+  rewardPayload: jsonb("reward_payload"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertWanderOutcomeLogSchema = createInsertSchema(wanderOutcomeLog).omit({
+  id: true,
+});
+
+export type InsertWanderOutcomeLog = z.infer<typeof insertWanderOutcomeLogSchema>;
+export type WanderOutcomeLog = typeof wanderOutcomeLog.$inferSelect;
+
+export const wanderMarkers = pgTable("wander_markers", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  hexQ: integer("hex_q").notNull(),
+  hexR: integer("hex_r").notNull(),
+  markerType: text("marker_type").notNull(),
+  title: text("title").notNull(),
+  blurb: text("blurb"),
+  tags: text("tags").array(),
+  discoveredBy: integer("discovered_by").notNull(),
+  persistence: text("persistence").notNull().default("permanent"),
+  linkedDungeonId: integer("linked_dungeon_id"),
+  linkedSceneId: text("linked_scene_id"),
+  linkedFactionId: text("linked_faction_id"),
+  linkedItemId: text("linked_item_id"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  expiresAtTick: integer("expires_at_tick"),
+});
+
+export const insertWanderMarkerSchema = createInsertSchema(wanderMarkers).omit({
+  id: true,
+});
+
+export type InsertWanderMarker = z.infer<typeof insertWanderMarkerSchema>;
+export type WanderMarker = typeof wanderMarkers.$inferSelect;
+
+export const hexExplorationStates = pgTable("hex_exploration_states", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  campaignId: integer("campaign_id").notNull(),
+  hexQ: integer("hex_q").notNull(),
+  hexR: integer("hex_r").notNull(),
+  state: text("state").notNull().default("unknown"),
+  markers: jsonb("markers"),
+  notes: text("notes"),
+  dangerOverride: integer("danger_override"),
+  depletionUntilTick: integer("depletion_until_tick"),
+  discoveredAt: text("discovered_at"),
+  lastVisitedAt: text("last_visited_at"),
+});
+
+export const insertHexExplorationStateSchema = createInsertSchema(hexExplorationStates).omit({
+  id: true,
+});
+
+export type InsertHexExplorationState = z.infer<typeof insertHexExplorationStateSchema>;
+export type HexExplorationState = typeof hexExplorationStates.$inferSelect;
+
+// ==========================================
+// Delve Mode - Dungeon Exploration System
+// ==========================================
+
+export const dungeonDefinitions = pgTable("dungeon_definitions", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  themeTags: text("theme_tags").array(),
+  recommendedLevelMin: integer("recommended_level_min").notNull().default(1),
+  recommendedLevelMax: integer("recommended_level_max").notNull().default(5),
+  mapWidth: integer("map_width").notNull().default(9),
+  mapHeight: integer("map_height").notNull().default(9),
+  mapLayout: jsonb("map_layout").notNull(),
+  nodeTable: jsonb("node_table").notNull(),
+  rewardProfile: jsonb("reward_profile"),
+  completionHooks: jsonb("completion_hooks"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertDungeonDefinitionSchema = createInsertSchema(dungeonDefinitions).omit({
+  id: true,
+});
+
+export type InsertDungeonDefinition = z.infer<typeof insertDungeonDefinitionSchema>;
+export type DungeonDefinition = typeof dungeonDefinitions.$inferSelect;
+
+export const dungeonRuns = pgTable("dungeon_runs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  campaignId: integer("campaign_id").notNull(),
+  characterId: integer("character_id").notNull(),
+  dungeonId: integer("dungeon_id").notNull(),
+  currentQ: integer("current_q").notNull().default(0),
+  currentR: integer("current_r").notNull().default(0),
+  revealedCoords: jsonb("revealed_coords").notNull(),
+  clearedNodes: jsonb("cleared_nodes"),
+  disarmedTraps: jsonb("disarmed_traps"),
+  solvedPuzzles: jsonb("solved_puzzles"),
+  lightTicks: integer("light_ticks").notNull().default(20),
+  supplies: integer("supplies").notNull().default(10),
+  status: text("status").notNull().default("active"),
+  flags: jsonb("flags"),
+  startedAt: text("started_at").notNull().default(new Date().toISOString()),
+  endedAt: text("ended_at"),
+});
+
+export const insertDungeonRunSchema = createInsertSchema(dungeonRuns).omit({
+  id: true,
+});
+
+export type InsertDungeonRun = z.infer<typeof insertDungeonRunSchema>;
+export type DungeonRun = typeof dungeonRuns.$inferSelect;
+
+export const dungeonNodeStates = pgTable("dungeon_node_states", {
+  id: serial("id").primaryKey(),
+  runId: integer("run_id").notNull(),
+  nodeId: text("node_id").notNull(),
+  state: text("state").notNull().default("hidden"),
+  resolutionPayload: jsonb("resolution_payload"),
+  lastResolvedAt: text("last_resolved_at"),
+});
+
+export const insertDungeonNodeStateSchema = createInsertSchema(dungeonNodeStates).omit({
+  id: true,
+});
+
+export type InsertDungeonNodeState = z.infer<typeof insertDungeonNodeStateSchema>;
+export type DungeonNodeState = typeof dungeonNodeStates.$inferSelect;
+
+export const dungeonRewards = pgTable("dungeon_rewards", {
+  id: serial("id").primaryKey(),
+  runId: integer("run_id").notNull(),
+  userId: integer("user_id").notNull(),
+  characterId: integer("character_id").notNull(),
+  itemDrops: jsonb("item_drops"),
+  knowledgeDrops: jsonb("knowledge_drops"),
+  unlockDrops: jsonb("unlock_drops"),
+  goldValue: integer("gold_value").notNull().default(0),
+  xpValue: integer("xp_value").notNull().default(0),
+  grantedAt: text("granted_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertDungeonRewardSchema = createInsertSchema(dungeonRewards).omit({
+  id: true,
+});
+
+export type InsertDungeonReward = z.infer<typeof insertDungeonRewardSchema>;
+export type DungeonReward = typeof dungeonRewards.$inferSelect;

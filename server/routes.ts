@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
+import { registerWanderRoutes } from "./wanderRoutes";
+import { registerDelveRoutes } from "./delveRoutes";
 import { parseNarrativeForLocations, generateHexMetaFromKeywords, getAllAdjacentCoordinates, getAdjacentHexCoordinates, detectMovementInNarrative, detectAdventureSetting, ENVIRONMENT_KEYWORDS, type HexDirection, type AdventureSetting } from "./narrativeHexParser";
 import { z } from "zod";
 import { getDiscordStatus, sendToChannel, createSessionStartEmbed, createRecapEmbed, createRollEmbed, postCampaignEvent } from "./discord";
@@ -946,6 +948,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerStreamingRoutes(app);
   
   registerEconomyRoutes(app);
+  
+  registerWanderRoutes(app);
+  
+  registerDelveRoutes(app);
   
   syncMarketItemStats().catch(err => console.error("[Economy] Sync failed:", err));
   

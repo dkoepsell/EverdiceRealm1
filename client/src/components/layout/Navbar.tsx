@@ -33,7 +33,9 @@ import {
   Home,
   Beer,
   Flame,
-  Store
+  Store,
+  Compass,
+  Pickaxe
 } from "lucide-react";
 
 export default function Navbar() {
@@ -78,6 +80,8 @@ export default function Navbar() {
   ] : [];
   
   const moreLinks = [
+    { name: "Wander", path: "/wander", icon: Compass },
+    { name: "Delve", path: "/delve", icon: Pickaxe },
     { name: "Trading Post", path: "/trading-post", icon: Store },
     { name: "Tavern", path: "/tavern", icon: Beer },
     { name: "Guilds", path: "/groups", icon: Shield },

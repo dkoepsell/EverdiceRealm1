@@ -30,6 +30,8 @@ import ProfilePage from "@/pages/profile";
 import HearthPage from "@/pages/hearth";
 import DMGuidePage from "@/pages/dm-guide";
 import TradingPostPage from "@/pages/trading-post";
+import WanderPage from "@/pages/wander";
+import DelvePage from "@/pages/delve";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import InvitationAlert from "@/components/InvitationAlert";
@@ -66,6 +68,8 @@ function Router() {
           <ProtectedRoute path="/hearth" component={HearthPage} />
           <ProtectedRoute path="/groups" component={GroupsPage} />
           <Route path="/trading-post" component={TradingPostPage} />
+          <ProtectedRoute path="/wander" component={WanderPage} />
+          <ProtectedRoute path="/delve" component={DelvePage} />
           <Route path="/caml" component={CAMLPage} />
           <ProtectedRoute path="/test" component={TestPage} />
           <ProtectedRoute path="/admin" component={AdminPage} />

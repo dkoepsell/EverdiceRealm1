@@ -42,6 +42,10 @@ AI-Discovered Side Quests are short, thematic quests generated naturally by AI d
 
 The Crafting System in the tavern workshop offers 25+ recipes for weapons, armor, potions, and ammunition, with required skills, tools, gold cost, and a crafting DC. The Expanded SRD Shop features 80+ items with accurate D&D 5e SRD pricing and dynamic pricing. The Player Market allows players to list any inventory item for sale.
 
+**Wander Mode (Free-Explore)** (`server/wanderEngine.ts`, `server/wanderRoutes.ts`, `client/src/pages/wander.tsx`): A low-pressure hex exploration mode ("Wander the Wilds") where players move across the map, discover points of interest, and trigger light narrative moments. Features curated outcome tables for 11 biomes (89+ entries), danger rating calculator based on biome/fatigue/proximity/level, weighted outcome roller (Discovery 45%, Quiet 25%, Risk 20%, Nothing 10%), investigation micro-scenes, map markers (landmark/trace/hazard/resource/npc_echo/opportunity), and a time-tick/fatigue system. Designed for 2-10 minute micro-play sessions. REST API: start/move/choose/end plus marker and hex state queries. Routes at `/wander`.
+
+**Delve Mode (Dungeon Crawl)** (`server/delveEngine.ts`, `server/delveRoutes.ts`, `client/src/pages/delve.tsx`): A contained hex-dungeon experience ("Enter the Depths") with fog of war, tactical fights, traps, puzzles, and boss encounters. Includes an authored "Goblin Warren" dungeon (17 nodes: entrance, 4 encounters, 3 traps, 2 puzzles, 2 lore, 1 cache, 1 safe room, 1 boss, 1 chest). Features resource pressure (light ticks, supplies), retreat with consequences (enemy respawn, boss advantage), chest reward system (3 choices: safe/risk/knowledge), and post-run rating (novice/adventurer/veteran/master). Designed for 10-30 minute sessions. REST API: dungeons/start/move/action/chest/rest/retreat/end plus run state queries. Routes at `/delve`.
+
 ## External Dependencies
 
 ### Core

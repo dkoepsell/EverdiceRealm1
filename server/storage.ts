@@ -61,7 +61,17 @@ import {
   badges, type Badge, type InsertBadge,
   userBadges, type UserBadge, type InsertUserBadge,
   // Shared adventures
-  sharedAdventures, type SharedAdventure, type InsertSharedAdventure
+  sharedAdventures, type SharedAdventure, type InsertSharedAdventure,
+  // Wander Mode
+  wanderRuns, type WanderRun, type InsertWanderRun,
+  wanderOutcomeLog, type WanderOutcomeLog, type InsertWanderOutcomeLog,
+  wanderMarkers, type WanderMarker, type InsertWanderMarker,
+  hexExplorationStates, type HexExplorationState, type InsertHexExplorationState,
+  // Delve Mode
+  dungeonDefinitions, type DungeonDefinition, type InsertDungeonDefinition,
+  dungeonRuns, type DungeonRun, type InsertDungeonRun,
+  dungeonNodeStates, type DungeonNodeState, type InsertDungeonNodeState,
+  dungeonRewards, type DungeonReward, type InsertDungeonReward
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or, inArray } from "drizzle-orm";
@@ -462,6 +472,35 @@ export interface IStorage {
   getSharedAdventuresByUser(userId: number): Promise<SharedAdventure[]>;
   getAllSharedAdventures(options?: { limit?: number; genre?: string; difficulty?: string }): Promise<SharedAdventure[]>;
   deleteSharedAdventure(id: number): Promise<boolean>;
+
+  // Wander Mode operations
+  createWanderRun(run: InsertWanderRun): Promise<WanderRun>;
+  getWanderRun(id: number): Promise<WanderRun | undefined>;
+  getActiveWanderRun(userId: number, campaignId: number): Promise<WanderRun | undefined>;
+  updateWanderRun(id: number, updates: Partial<WanderRun>): Promise<WanderRun | undefined>;
+  createWanderOutcome(outcome: InsertWanderOutcomeLog): Promise<WanderOutcomeLog>;
+  getWanderOutcomes(runId: number): Promise<WanderOutcomeLog[]>;
+  createWanderMarker(marker: InsertWanderMarker): Promise<WanderMarker>;
+  getWanderMarkers(campaignId: number): Promise<WanderMarker[]>;
+  getWanderMarkersForHex(campaignId: number, hexQ: number, hexR: number): Promise<WanderMarker[]>;
+  getHexExplorationState(userId: number, campaignId: number, hexQ: number, hexR: number): Promise<HexExplorationState | undefined>;
+  upsertHexExplorationState(state: InsertHexExplorationState): Promise<HexExplorationState>;
+  getExploredHexes(userId: number, campaignId: number): Promise<HexExplorationState[]>;
+
+  // Delve Mode operations
+  createDungeonDefinition(dungeon: InsertDungeonDefinition): Promise<DungeonDefinition>;
+  getDungeonDefinition(id: number): Promise<DungeonDefinition | undefined>;
+  getAllDungeonDefinitions(): Promise<DungeonDefinition[]>;
+  createDungeonRun(run: InsertDungeonRun): Promise<DungeonRun>;
+  getDungeonRun(id: number): Promise<DungeonRun | undefined>;
+  getActiveDungeonRun(userId: number, campaignId: number): Promise<DungeonRun | undefined>;
+  updateDungeonRun(id: number, updates: Partial<DungeonRun>): Promise<DungeonRun | undefined>;
+  createDungeonNodeState(nodeState: InsertDungeonNodeState): Promise<DungeonNodeState>;
+  getDungeonNodeStates(runId: number): Promise<DungeonNodeState[]>;
+  updateDungeonNodeState(id: number, updates: Partial<DungeonNodeState>): Promise<DungeonNodeState | undefined>;
+  upsertDungeonNodeState(runId: number, nodeId: string, updates: Partial<DungeonNodeState>): Promise<DungeonNodeState>;
+  createDungeonReward(reward: InsertDungeonReward): Promise<DungeonReward>;
+  getDungeonRewards(runId: number): Promise<DungeonReward[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -4246,6 +4285,171 @@ export class DatabaseStorage implements IStorage {
   async deleteSharedAdventure(id: number): Promise<boolean> {
     const result = await db.delete(sharedAdventures).where(eq(sharedAdventures.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // Wander Mode operations
+  async createWanderRun(run: InsertWanderRun): Promise<WanderRun> {
+    const [result] = await db.insert(wanderRuns).values(run).returning();
+    return result;
+  }
+
+  async getWanderRun(id: number): Promise<WanderRun | undefined> {
+    const [result] = await db.select().from(wanderRuns).where(eq(wanderRuns.id, id));
+    return result;
+  }
+
+  async getActiveWanderRun(userId: number, campaignId: number): Promise<WanderRun | undefined> {
+    const [result] = await db.select().from(wanderRuns).where(
+      and(
+        eq(wanderRuns.userId, userId),
+        eq(wanderRuns.campaignId, campaignId),
+        eq(wanderRuns.status, 'active')
+      )
+    );
+    return result;
+  }
+
+  async updateWanderRun(id: number, updates: Partial<WanderRun>): Promise<WanderRun | undefined> {
+    const [result] = await db.update(wanderRuns).set(updates).where(eq(wanderRuns.id, id)).returning();
+    return result;
+  }
+
+  async createWanderOutcome(outcome: InsertWanderOutcomeLog): Promise<WanderOutcomeLog> {
+    const [result] = await db.insert(wanderOutcomeLog).values(outcome).returning();
+    return result;
+  }
+
+  async getWanderOutcomes(runId: number): Promise<WanderOutcomeLog[]> {
+    return await db.select().from(wanderOutcomeLog).where(eq(wanderOutcomeLog.runId, runId)).orderBy(asc(wanderOutcomeLog.tick));
+  }
+
+  async createWanderMarker(marker: InsertWanderMarker): Promise<WanderMarker> {
+    const [result] = await db.insert(wanderMarkers).values(marker).returning();
+    return result;
+  }
+
+  async getWanderMarkers(campaignId: number): Promise<WanderMarker[]> {
+    return await db.select().from(wanderMarkers).where(eq(wanderMarkers.campaignId, campaignId));
+  }
+
+  async getWanderMarkersForHex(campaignId: number, hexQ: number, hexR: number): Promise<WanderMarker[]> {
+    return await db.select().from(wanderMarkers).where(
+      and(
+        eq(wanderMarkers.campaignId, campaignId),
+        eq(wanderMarkers.hexQ, hexQ),
+        eq(wanderMarkers.hexR, hexR)
+      )
+    );
+  }
+
+  async getHexExplorationState(userId: number, campaignId: number, hexQ: number, hexR: number): Promise<HexExplorationState | undefined> {
+    const [result] = await db.select().from(hexExplorationStates).where(
+      and(
+        eq(hexExplorationStates.userId, userId),
+        eq(hexExplorationStates.campaignId, campaignId),
+        eq(hexExplorationStates.hexQ, hexQ),
+        eq(hexExplorationStates.hexR, hexR)
+      )
+    );
+    return result;
+  }
+
+  async upsertHexExplorationState(state: InsertHexExplorationState): Promise<HexExplorationState> {
+    const existing = await this.getHexExplorationState(state.userId, state.campaignId, state.hexQ, state.hexR);
+    if (existing) {
+      const [result] = await db.update(hexExplorationStates).set(state).where(eq(hexExplorationStates.id, existing.id)).returning();
+      return result;
+    }
+    const [result] = await db.insert(hexExplorationStates).values(state).returning();
+    return result;
+  }
+
+  async getExploredHexes(userId: number, campaignId: number): Promise<HexExplorationState[]> {
+    return await db.select().from(hexExplorationStates).where(
+      and(
+        eq(hexExplorationStates.userId, userId),
+        eq(hexExplorationStates.campaignId, campaignId)
+      )
+    );
+  }
+
+  // Delve Mode operations
+  async createDungeonDefinition(dungeon: InsertDungeonDefinition): Promise<DungeonDefinition> {
+    const [result] = await db.insert(dungeonDefinitions).values(dungeon).returning();
+    return result;
+  }
+
+  async getDungeonDefinition(id: number): Promise<DungeonDefinition | undefined> {
+    const [result] = await db.select().from(dungeonDefinitions).where(eq(dungeonDefinitions.id, id));
+    return result;
+  }
+
+  async getAllDungeonDefinitions(): Promise<DungeonDefinition[]> {
+    return await db.select().from(dungeonDefinitions);
+  }
+
+  async createDungeonRun(run: InsertDungeonRun): Promise<DungeonRun> {
+    const [result] = await db.insert(dungeonRuns).values(run).returning();
+    return result;
+  }
+
+  async getDungeonRun(id: number): Promise<DungeonRun | undefined> {
+    const [result] = await db.select().from(dungeonRuns).where(eq(dungeonRuns.id, id));
+    return result;
+  }
+
+  async getActiveDungeonRun(userId: number, campaignId: number): Promise<DungeonRun | undefined> {
+    const [result] = await db.select().from(dungeonRuns).where(
+      and(
+        eq(dungeonRuns.userId, userId),
+        eq(dungeonRuns.campaignId, campaignId),
+        eq(dungeonRuns.status, 'active')
+      )
+    );
+    return result;
+  }
+
+  async updateDungeonRun(id: number, updates: Partial<DungeonRun>): Promise<DungeonRun | undefined> {
+    const [result] = await db.update(dungeonRuns).set(updates).where(eq(dungeonRuns.id, id)).returning();
+    return result;
+  }
+
+  async createDungeonNodeState(nodeState: InsertDungeonNodeState): Promise<DungeonNodeState> {
+    const [result] = await db.insert(dungeonNodeStates).values(nodeState).returning();
+    return result;
+  }
+
+  async getDungeonNodeStates(runId: number): Promise<DungeonNodeState[]> {
+    return await db.select().from(dungeonNodeStates).where(eq(dungeonNodeStates.runId, runId));
+  }
+
+  async updateDungeonNodeState(id: number, updates: Partial<DungeonNodeState>): Promise<DungeonNodeState | undefined> {
+    const [result] = await db.update(dungeonNodeStates).set(updates).where(eq(dungeonNodeStates.id, id)).returning();
+    return result;
+  }
+
+  async upsertDungeonNodeState(runId: number, nodeId: string, updates: Partial<DungeonNodeState>): Promise<DungeonNodeState> {
+    const [existing] = await db.select().from(dungeonNodeStates).where(
+      and(
+        eq(dungeonNodeStates.runId, runId),
+        eq(dungeonNodeStates.nodeId, nodeId)
+      )
+    );
+    if (existing) {
+      const [result] = await db.update(dungeonNodeStates).set(updates).where(eq(dungeonNodeStates.id, existing.id)).returning();
+      return result;
+    }
+    const [result] = await db.insert(dungeonNodeStates).values({ runId, nodeId, ...updates }).returning();
+    return result;
+  }
+
+  async createDungeonReward(reward: InsertDungeonReward): Promise<DungeonReward> {
+    const [result] = await db.insert(dungeonRewards).values(reward).returning();
+    return result;
+  }
+
+  async getDungeonRewards(runId: number): Promise<DungeonReward[]> {
+    return await db.select().from(dungeonRewards).where(eq(dungeonRewards.runId, runId));
   }
 }
 
