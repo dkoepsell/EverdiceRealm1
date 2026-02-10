@@ -14,9 +14,9 @@ export function registerDelveRoutes(router: Router) {
 
       res.json([{
         id: -1,
-        name: "Goblin Warren",
-        description: "A jagged fissure splits the hillside, belching the stink of rotting meat and wood smoke. Each delve generates a unique layout — no two warrens are the same.",
-        themeTags: ["goblin", "underdark", "procedural"],
+        name: "Enter the Depths",
+        description: "Descend into a procedurally generated dungeon. Every delve carves a unique layout of traps, puzzles, encounters, and a fearsome boss. No two runs are the same.",
+        themeTags: ["procedural", "dungeon", "adventure"],
         recommendedLevelMin: 1,
         recommendedLevelMax: 3,
       }]);
@@ -42,10 +42,24 @@ export function registerDelveRoutes(router: Router) {
 
       const dungeonNodes = generateProceduralDungeon('goblin');
 
+      const DUNGEON_PREFIXES = [
+        "The Sunken", "The Forsaken", "The Shattered", "The Burning", "The Frozen",
+        "The Rotting", "The Howling", "The Silent", "The Cursed", "The Forgotten",
+        "The Writhing", "The Blighted", "The Dread", "The Iron", "The Bone",
+      ];
+      const DUNGEON_NOUNS = [
+        "Warren", "Catacombs", "Tunnels", "Depths", "Hollows",
+        "Burrow", "Undercroft", "Labyrinth", "Passages", "Caverns",
+        "Lair", "Den", "Pit", "Vault", "Warrens",
+      ];
+      const prefix = DUNGEON_PREFIXES[Math.floor(Math.random() * DUNGEON_PREFIXES.length)];
+      const noun = DUNGEON_NOUNS[Math.floor(Math.random() * DUNGEON_NOUNS.length)];
+      const dungeonName = `${prefix} ${noun}`;
+
       const dungeonDef = await storage.createDungeonDefinition({
-        name: `Goblin Warren (Run ${Date.now()})`,
-        description: "A procedurally generated goblin warren. Each delve is different.",
-        themeTags: ["goblin", "underdark", "procedural"],
+        name: dungeonName,
+        description: `A procedurally generated dungeon: ${dungeonName}. Each delve is different.`,
+        themeTags: ["procedural", "dungeon", "adventure"],
         recommendedLevelMin: 1,
         recommendedLevelMax: 3,
         mapWidth: 9,
