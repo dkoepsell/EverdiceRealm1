@@ -74,6 +74,7 @@ import { registerEconomyRoutes } from "./economyRoutes";
 import { syncMarketItemStats } from "./economyEngine";
 import { recordPurchase, recordSale, getItemPrice, getSellPrice } from "./economyEngine";
 import { generateWorldEvents, aggregateDiscoveries } from "./lib/worldEventEngine";
+import { generatePostCombatRewards, type PostCombatRewards, type DefeatedEnemy } from "./postCombatRewards";
 import { db } from "./db";
 import { eq, sql, desc, and, gte } from "drizzle-orm";
 import OpenAI from "openai";
@@ -15032,6 +15033,12 @@ COMBAT END CONDITIONS:
 - Set "inCombat": false when ALL enemies are defeated, fled, or surrendered
 - Combat can also end via successful disengage/retreat by the party
 - Describe the combat resolution clearly in the narrative
+- When combat ends in VICTORY, narrate the spoils dramatically:
+  * Describe searching the fallen enemies and discovering treasure
+  * For boss fights: narrate an EPIC loot discovery — a gleaming weapon, enchanted armor, or powerful artifact among the hoard
+  * Mention gold coins scattered or found in pouches/chests
+  * If it was a boss fight, describe it as a turning point in the story — a moment that changes everything
+  * The specific loot items, gold, and XP will be provided by the system — your job is to make the discovery feel dramatic and earned
 
 TACTICAL COMBAT OPTIONS (include diverse choices each round):
 - Attack with current weapon (requires attack roll)
@@ -15241,6 +15248,7 @@ Respond with JSON:
       // Calculate XP and item rewards based on story advancement
       let xpAwarded = 0;
       let itemsFound: any[] = [];
+      let postCombatRewardsData: PostCombatRewards | null = null;
       let skillProgressUpdate: { skill: string, wasSuccessful: boolean } | null = null;
       const consequences = storyAdvancement.consequencesOfChoice || "";
       
@@ -16456,6 +16464,98 @@ Respond with JSON:
           }
         };
         console.log("Combat completed - incrementing counter:", updatedAdventureProgress.encounters);
+        
+        // POST-COMBAT REWARDS ENGINE: Generate loot, bonus XP, gold, and check chapter advancement
+        // ONLY trigger rewards when combat ended via VICTORY (all enemies defeated), NOT retreat/disengage
+        try {
+          const allCombatants = storyAdvancement.storyState?.combatants || currentStoryState.combatants || [];
+          const savedEnemyCombatants = (currentStoryState.combatants || []).filter(
+            (c: any) => c.type === 'enemy' || c.type === 'boss'
+          );
+          
+          // Check if this is an actual victory: all enemy combatants must be defeated
+          const allEnemiesDefeated = savedEnemyCombatants.length > 0 && savedEnemyCombatants.every(
+            (c: any) => c.status === 'defeated' || c.currentHp <= 0
+          );
+          // Also check merged state (post-combat processing may have updated it)
+          const mergedEnemyCombatants = (mergedStoryState.combatants || []).filter(
+            (c: any) => c.type === 'enemy' || c.type === 'boss'
+          );
+          const allMergedEnemiesDefeated = mergedEnemyCombatants.length === 0 && savedEnemyCombatants.length > 0;
+          
+          const isVictory = allEnemiesDefeated || allMergedEnemiesDefeated || 
+            ((combatEffects?.enemyDamage || []).filter((e: any) => e.defeated).length > 0 &&
+             (combatEffects?.enemyDamage || []).filter((e: any) => e.defeated).length >= savedEnemyCombatants.length);
+          
+          if (!isVictory) {
+            console.log(`[Post-Combat Rewards] Skipping rewards - combat ended without full victory (retreat/disengage)`);
+          }
+          
+          const defeatedEnemyList: DefeatedEnemy[] = isVictory ? (combatEffects?.enemyDamage || [])
+            .filter((e: any) => e.defeated)
+            .map((e: any) => {
+              const combatant = allCombatants.find((c: any) => c.name === e.name) ||
+                savedEnemyCombatants.find((c: any) => c.name === e.name);
+              return {
+                name: e.name,
+                cr: combatant?.cr || e.cr || "1/4",
+                type: combatant?.type || 'enemy',
+                maxHp: combatant?.maxHp || e.maxHp || 20,
+                currentHp: 0,
+                status: 'defeated'
+              };
+            }) : [];
+          
+          // Fallback: if victory is confirmed but enemyDamage didn't capture all defeated, use saved combatants
+          if (isVictory && defeatedEnemyList.length === 0) {
+            for (const c of savedEnemyCombatants) {
+              defeatedEnemyList.push({
+                name: c.name,
+                cr: c.cr || "1/4",
+                type: c.type,
+                maxHp: c.maxHp || 20,
+                currentHp: 0,
+                status: 'defeated'
+              });
+            }
+          }
+          
+          if (isVictory && defeatedEnemyList.length > 0) {
+            const characterLevel = character?.level || 1;
+            
+            postCombatRewardsData = generatePostCombatRewards(
+              defeatedEnemyList,
+              characterLevel,
+              currentChapter,
+              totalChapters,
+              campaign.title
+            );
+            
+            console.log(`[Post-Combat Rewards] ${postCombatRewardsData.isBossFight ? 'BOSS FIGHT' : 'Standard encounter'} - ` +
+              `XP: ${postCombatRewardsData.xpAwarded}, Gold: ${postCombatRewardsData.goldAwarded}, ` +
+              `Items: ${postCombatRewardsData.lootItems.length}, Chapter advance: ${postCombatRewardsData.shouldAdvanceChapter}`);
+            
+            xpAwarded += postCombatRewardsData.xpAwarded;
+            
+            for (const lootItem of postCombatRewardsData.lootItems) {
+              itemsFound.push({
+                name: lootItem.name,
+                type: lootItem.type,
+                rarity: lootItem.rarity,
+                description: lootItem.description,
+                properties: lootItem.specialEffect || lootItem.properties || '',
+                value: lootItem.value,
+                magicBonus: lootItem.magicBonus,
+                damageDice: lootItem.damageDice,
+                damageType: lootItem.damageType,
+                baseAC: lootItem.baseAC,
+                requiresAttunement: lootItem.requiresAttunement
+              });
+            }
+          }
+        } catch (rewardsErr) {
+          console.error('[Post-Combat Rewards] Error generating rewards:', rewardsErr);
+        }
       }
       
       // Detect and track traps, puzzles, and discoveries from the narrative and choice
@@ -17419,11 +17519,15 @@ Respond with JSON:
             }
           }
           
+          const goldFromCombat = postCombatRewardsData?.goldAwarded || 0;
+          const newGold = (character.gold || 0) + goldFromCombat;
+          
           await storage.updateCharacter(characterId, {
             experience: newXP,
             level: newLevel,
             hitPoints: newHitPoints,
             maxHitPoints: newMaxHitPoints,
+            gold: newGold,
             status: newStatus,
             deathSaveSuccesses,
             deathSaveFailures,
@@ -17490,6 +17594,8 @@ Respond with JSON:
           
           characterProgression = {
             xpAwarded,
+            goldAwarded: postCombatRewardsData?.goldAwarded || 0,
+            newGold,
             newXP,
             newLevel,
             leveledUp,
@@ -17503,6 +17609,7 @@ Respond with JSON:
             currentStatus: newStatus,
             deathSaveSuccesses,
             deathSaveFailures,
+            postCombatRewards: postCombatRewardsData,
             // Return combat effects if we have combat data (from AI or from our internal processing)
             ...((() => { console.log(`[Combat Response] Sending combatEffects: aiEffects=${!!combatEffects}, isInCombat=${isInCombat}, logsCount=${detailedCombatLogs.length}, willSend=${!!(combatEffects || (isInCombat && detailedCombatLogs.length > 0))}`); return {}; })()),
             combatEffects: (combatEffects || (isInCombat && detailedCombatLogs.length > 0)) ? {
@@ -18528,6 +18635,20 @@ Respond with JSON:
         }
       }
       
+      // Persist chapter advancement from boss defeat (if applicable and not already advanced by CAML doctrine)
+      if (postCombatRewardsData?.shouldAdvanceChapter && !storyAdvancement.chapterGateMet) {
+        try {
+          const newChapter = (campaign.currentSession || 1) + 1;
+          await storage.updateCampaign(campaignId, {
+            currentSession: newChapter,
+            updatedAt: new Date().toISOString()
+          });
+          console.log(`[Post-Combat Rewards] Boss defeat chapter advancement: ${campaign.currentSession} → ${newChapter}`);
+        } catch (chapterErr) {
+          console.error('[Post-Combat Rewards] Failed to persist chapter advancement:', chapterErr);
+        }
+      }
+      
       res.json({
         ...(sessionAdvanced && newSessionData ? newSessionData : updatedSession),
         progression: characterProgression,
@@ -18554,11 +18675,15 @@ Respond with JSON:
         isOnFinalChapter,
         campaignCompletion: campaignCompletionData,
         campaignStakeUpdates: storyAdvancement.campaignStakeUpdates || [],
-        chapterGateMet: storyAdvancement.chapterGateMet || null,
+        chapterGateMet: storyAdvancement.chapterGateMet || (postCombatRewardsData?.shouldAdvanceChapter ? {
+          gateId: currentChapter,
+          reason: postCombatRewardsData.chapterAdvanceReason || 'Boss defeated'
+        } : null),
         narrativeLogEntry: storyAdvancement.narrativeLogEntry || null,
         chargeUpdate: chargeUpdate,
         itemRechargeAtDawn: (mergedStoryState as any).itemRechargeAtDawn || null,
-        quietReckoning: quietReckoningData
+        quietReckoning: quietReckoningData,
+        postCombatRewards: postCombatRewardsData
       });
     } catch (error: any) {
       console.error("Failed to advance story:", error);

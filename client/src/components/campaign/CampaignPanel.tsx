@@ -267,6 +267,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     mechanicsBreakdown: string;
   }[]>([]);
   const [showCombatLogDialog, setShowCombatLogDialog] = useState(false);
+  const [postCombatRewards, setPostCombatRewards] = useState<any>(null);
   const [selectedTargetIndex, setSelectedTargetIndex] = useState(0); // Combat target selection
   const [narrativeStyle, setNarrativeStyle] = useState(campaign.narrativeStyle);
   const [difficulty, setDifficulty] = useState(campaign.difficulty);
@@ -1293,6 +1294,31 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   variant: damage.defeated ? "destructive" : undefined,
                 });
               }
+            }
+          }
+          
+          // Show post-combat rewards (loot, gold, XP from defeated enemies)
+          if (data.postCombatRewards) {
+            const rewards = data.postCombatRewards;
+            setPostCombatRewards(rewards);
+            
+            if (rewards.isBossFight) {
+              toast({
+                title: `Boss Defeated: ${rewards.bossName || 'Unknown'}!`,
+                description: rewards.encounterSummary,
+              });
+            } else if (rewards.goldAwarded > 0 || rewards.lootItems?.length > 0) {
+              toast({
+                title: `Victory Spoils!`,
+                description: `${rewards.goldAwarded > 0 ? `${rewards.goldAwarded} gold` : ''}${rewards.lootItems?.length > 0 ? ` + ${rewards.lootItems.length} item${rewards.lootItems.length > 1 ? 's' : ''}` : ''}`,
+              });
+            }
+            
+            if (rewards.shouldAdvanceChapter) {
+              toast({
+                title: `Chapter ${data.currentChapter} Complete!`,
+                description: rewards.chapterAdvanceReason || 'A defining victory advances the story!',
+              });
             }
           }
           
@@ -6175,7 +6201,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       {/* Detailed Combat Log Dialog - D&D Mechanics Transparency */}
       <Dialog open={showCombatLogDialog} onOpenChange={(open) => {
         setShowCombatLogDialog(open);
-        if (!open) setDetailedCombatLogs([]);
+        if (!open) { setDetailedCombatLogs([]); setPostCombatRewards(null); }
       }}>
         <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -6317,19 +6343,95 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             ))}
           </div>
           
+          {/* Post-Combat Rewards Section */}
+          {postCombatRewards && (
+            <div className={`mt-4 p-4 rounded-lg border-2 ${
+              postCombatRewards.isBossFight 
+                ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-400 dark:border-amber-600' 
+                : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700'
+            }`}>
+              <h4 className={`font-bold text-lg mb-3 flex items-center gap-2 ${
+                postCombatRewards.isBossFight ? 'text-amber-800 dark:text-amber-200' : 'text-emerald-800 dark:text-emerald-200'
+              }`}>
+                {postCombatRewards.isBossFight ? '👑' : '🏆'} Victory Rewards
+                {postCombatRewards.isBossFight && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-200 text-amber-800 dark:bg-amber-800 dark:text-amber-200 uppercase tracking-wide">
+                    {postCombatRewards.victoryTier} Victory
+                  </span>
+                )}
+              </h4>
+              
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="bg-white dark:bg-gray-800 p-3 rounded-md text-center">
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{postCombatRewards.xpAwarded}</div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wide">XP Earned</div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 p-3 rounded-md text-center">
+                  <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{postCombatRewards.goldAwarded}</div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wide">Gold Found</div>
+                </div>
+              </div>
+              
+              {postCombatRewards.lootItems && postCombatRewards.lootItems.length > 0 && (
+                <div className="space-y-2">
+                  <h5 className="font-semibold text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1">
+                    Loot Found
+                  </h5>
+                  {postCombatRewards.lootItems.map((item: any, i: number) => (
+                    <div key={i} className={`bg-white dark:bg-gray-800 p-3 rounded-md border-l-4 ${
+                      item.rarity === 'legendary' ? 'border-orange-500' :
+                      item.rarity === 'very_rare' ? 'border-purple-500' :
+                      item.rarity === 'rare' ? 'border-blue-500' :
+                      item.rarity === 'uncommon' ? 'border-green-500' :
+                      'border-gray-400'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold">{item.name}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold uppercase ${
+                          item.rarity === 'legendary' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' :
+                          item.rarity === 'very_rare' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                          item.rarity === 'rare' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                          item.rarity === 'uncommon' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                          'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                        }`}>
+                          {item.rarity?.replace('_', ' ')}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{item.description}</p>
+                      {item.specialEffect && (
+                        <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 font-medium">{item.specialEffect}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {postCombatRewards.shouldAdvanceChapter && (
+                <div className="mt-3 p-3 bg-amber-100 dark:bg-amber-900/40 rounded-md border border-amber-300 dark:border-amber-700 text-center">
+                  <div className="font-bold text-amber-800 dark:text-amber-200">
+                    Chapter Advancing!
+                  </div>
+                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                    {postCombatRewards.chapterAdvanceReason}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Educational Footer */}
           <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-            <h4 className="font-bold text-blue-800 dark:text-blue-200 text-sm mb-1">📚 D&D 5e Combat Rules</h4>
+            <h4 className="font-bold text-blue-800 dark:text-blue-200 text-sm mb-1">D&D 5e Combat Rules</h4>
             <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
-              <li>• <b>Attack Roll:</b> Roll d20 + attack modifier vs target's Armor Class (AC)</li>
-              <li>• <b>Natural 20:</b> Critical hit! Automatically hits and doubles damage dice</li>
-              <li>• <b>Natural 1:</b> Critical miss! Always fails regardless of modifiers</li>
-              <li>• <b>Damage:</b> On hit, roll damage dice + modifier to determine damage dealt</li>
+              <li>* <b>Attack Roll:</b> Roll d20 + attack modifier vs target's Armor Class (AC)</li>
+              <li>* <b>Natural 20:</b> Critical hit! Automatically hits and doubles damage dice</li>
+              <li>* <b>Natural 1:</b> Critical miss! Always fails regardless of modifiers</li>
+              <li>* <b>Damage:</b> On hit, roll damage dice + modifier to determine damage dealt</li>
             </ul>
           </div>
 
           <div className="flex justify-end mt-4">
-            <Button onClick={() => setShowCombatLogDialog(false)}>
+            <Button onClick={() => { setShowCombatLogDialog(false); setPostCombatRewards(null); }}>
               Continue Adventure
             </Button>
           </div>
