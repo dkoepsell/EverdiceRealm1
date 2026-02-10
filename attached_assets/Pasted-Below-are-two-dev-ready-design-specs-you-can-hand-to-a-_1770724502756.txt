@@ -1,0 +1,857 @@
+Below are **two dev-ready design specs** you can hand to a team. They assume your current Everdice foundations: hex map UI, scene generation pipeline, character persistence, combat handling, CAML assets (or CAML-like), and your emphasis on low-pressure onboarding.
+
+I wrote these as if they are going straight into an internal product doc.
+
+---
+
+# SPEC 1: Free-Explore Mode
+
+## 1. Overview
+
+**Feature name:** Free-Explore (internally), “Wander” (UI label)
+**Purpose:** A low-pressure loop where players move across the world map, discover points of interest, trigger light narrative moments, and occasionally face danger, with meaningful rewards and breadcrumbs into deeper content.
+
+**Primary outcomes**
+
+* Make the map feel alive and playable without committing to a full narrative session.
+* Increase session frequency by enabling 2–10 minute “micro-play.”
+* Generate durable world knowledge: landmarks, rumors, faction signals, keys, and hooks that later connect to story arcs and dungeon crawls.
+
+**Non-goals**
+
+* Not a full campaign replacement.
+* Not a loot grind.
+* Not “random fights per tile.”
+
+## 2. Player Experience
+
+### Entry points
+
+* From map screen: button “Wander”
+* From Lantern Hall: “Take a walk outside the walls”
+* From character page: “Go exploring”
+
+### Core loop (2–10 min)
+
+1. Player selects a character party (solo or party) and clicks a neighboring hex.
+2. Move resolves.
+3. The system generates one of:
+
+   * Discovery: landmark, trail, rumor, resource, NPC trace
+   * Quiet event: weather, strange sound, minor choice
+   * Risk event: hazard, ambush, pursuit
+   * Nothing notable (rare, and never consecutive more than once)
+4. Player chooses to:
+
+   * Continue wandering
+   * Investigate further (spawns a micro-scene)
+   * Return to safety (Lantern Hall or last safe node)
+5. Outcomes produce: map annotations, journal entries, minor loot, or hooks.
+
+### Key UX principles
+
+* Low latency. Post-click response should begin immediately with a short “reveal” line, then deep detail can stream in.
+* Quiet tone. Avoid heavy exposition unless player opts into “Investigate.”
+* Always offer a safe exit. “Head back” should never punish.
+* Information is a reward. Players should feel they learned something even without combat.
+
+## 3. World Model and Content Types
+
+### Hex states
+
+Each hex can be:
+
+* **Unknown** (fog of war)
+* **Seen** (visited or revealed)
+* **Noted** (player added a note, or system added a discovered marker)
+* **Hot** (temporary danger, pursuit, storm front)
+* **Depleted** (resource harvested recently)
+
+### Discoverable content categories
+
+Each discovery has:
+
+* id
+* name
+* category
+* short description (one sentence)
+* long description (optional, only when investigating)
+* tags (faction, biome, danger, mystery, resource)
+* persistence behavior (permanent, time-limited, repeatable)
+
+Recommended categories:
+
+* Landmark (ruin, standing stone, shrine, bridge)
+* Trace (tracks, campsite, blood trail, broken wagon)
+* Resource (herbs, ore, water, salvage)
+* NPC Echo (rumor, sign, note, dropped token)
+* Hazard (quicksand, unstable ridge, cursed fog)
+* Opportunity (merchant camp, lost satchel, friendly guide)
+
+## 4. Mechanics
+
+### Movement
+
+* One move per action.
+* Only adjacent hexes by default.
+* Optional sprint: move two hexes, increases risk roll and fatigue.
+
+**Constraints**
+
+* Locked hexes may exist (cliffs, borders) and require tools, skills, or keys.
+
+### Risk and Encounter Frequency
+
+Free-Explore must feel alive but not punishing.
+
+**Recommended baseline probabilities (modifiable by biome and player level):**
+
+* Discovery: 45%
+* Quiet event: 25%
+* Risk event: 20%
+* Nothing notable: 10% (never twice in a row)
+
+**Risk event internal split:**
+
+* Hazard: 45%
+* Ambush: 35%
+* Pursuit: 20%
+
+### Investigation mechanic
+
+After a Discovery or Trace, offer:
+
+* “Mark it and move on”
+* “Investigate” (creates a micro-scene card with 1–3 choices)
+* “Set camp” (optional, requires supplies, time passes)
+
+Investigation can trigger:
+
+* A small social interaction
+* A trap check
+* A minor combat
+* A clue that unlocks a dungeon crawl or a story scene
+
+### Rewards philosophy
+
+Reward types ranked by frequency:
+
+1. Knowledge and map markers (most common)
+2. Consumables and small trinkets
+3. Keys, fragments, faction tokens (rare)
+4. Equipment upgrades (very rare in Free-Explore)
+
+### Difficulty scaling
+
+Use a “Danger Rating” per hex computed from:
+
+* biome base danger
+* proximity to known lairs
+* time since last rest
+* party level
+* hot state
+
+This rating influences risk event chance and encounter strength.
+
+### Resting and time
+
+A minimal time model is enough:
+
+* Each move advances “time ticks”
+* Certain events change by time
+* Rest consumes ticks, reduces fatigue, lowers danger
+
+You can start with a simple integer tick counter per run.
+
+## 5. Data and Persistence
+
+### Data models
+
+**HexExplorationState**
+
+* userId
+* campaignId
+* hexId
+* discoveredAt
+* lastVisitedAt
+* state: unknown | seen | noted | hot | depleted
+* markers: [MarkerId]
+* notes: string (optional)
+* dangerOverride: number (optional)
+* depletionUntilTick: number (optional)
+
+**Marker**
+
+* id
+* campaignId
+* hexId
+* type: landmark | trace | hazard | resource | npc_echo | opportunity
+* title
+* blurb
+* tags: string[]
+* discoveredBy: userId
+* createdAt
+* persistence: permanent | untilTick | repeatableCooldown
+* linkedContent:
+
+  * dungeonId (optional)
+  * sceneId (optional)
+  * factionId (optional)
+  * itemId (optional)
+
+**WanderRun**
+
+* id
+* userId
+* campaignId
+* partyId
+* startedAt
+* endedAt (nullable)
+* currentHexId
+* tick
+* fatigue
+* lastOutcomeType
+* flags: json (small)
+
+**WanderOutcomeLog**
+
+* runId
+* tick
+* fromHexId
+* toHexId
+* outcomeType
+* outcomePayload (json)
+* rewardPayload (json)
+
+### Persistence rules
+
+* Seen persists.
+* Markers persist based on their persistence field.
+* Hot states decay by tick.
+* Depletion prevents immediate re-harvest.
+
+## 6. AI and Content Generation
+
+This mode needs controlled generation. Use templates plus AI as a filler, not as the sole authority.
+
+### Content generation pipeline
+
+On move:
+
+1. Determine biome and danger context.
+2. Roll outcome category (weighted).
+3. If Discovery or Quiet event: select from curated tables where possible.
+4. If no curated match: call AI with strict schema.
+5. Persist marker or log event.
+6. Return a short reveal immediately, stream longer text only if player selects Investigate.
+
+### Required output schema (AI)
+
+**WanderOutcome**
+
+* type: discovery | quiet | risk | none
+* title: string (max 60 chars)
+* reveal: string (max 180 chars)
+* detail: string (max 800 chars, optional)
+* choices: array of 1–3 choices
+
+  * id
+  * label (max 40 chars)
+  * intentTag: investigate | avoid | engage | retreat | camp
+  * mechanicalEffects: json (optional)
+* rewards: array
+
+  * kind: knowledge | consumable | trinket | key_fragment | faction_token
+  * idOrName
+  * quantity
+* markerToCreate: Marker or null
+* combatHook: CombatSeed or null
+
+**CombatSeed**
+
+* encounterType: ambush | pursuit | lair_scout
+* enemyTheme: string
+* difficulty: easy | medium | hard
+* battlefieldTag: woods | road | ruins | swamp
+* stakes: string (one sentence)
+* fleeAllowed: boolean
+
+### Prompt constraints
+
+* Keep reveal short.
+* No long monologues.
+* Provide at least one non-combat option whenever possible.
+* Rewards must be consistent with rarity rules.
+
+## 7. Combat Integration
+
+When combat triggers:
+
+* Create a standard combat session using existing combat engine.
+* Ensure “Flee” is available by default.
+* Free-Explore combats should end quickly:
+
+  * fewer enemies
+  * simpler abilities
+  * clear escape conditions
+
+Combat outcomes should feed back:
+
+* Injury or resource loss
+* Loot or clue drops
+* “Hot” state added to nearby hexes if pursuit occurs
+
+## 8. UI Requirements
+
+### Map UI
+
+* Toggle: Explore mode indicator “Wandering”
+* Hex hover shows:
+
+  * biome
+  * danger meter
+  * any markers
+* Clicking neighbor hex triggers Move and shows a bottom drawer or right panel “Outcome Card”
+* Marker icons minimal and consistent.
+
+### Outcome Card
+
+* Title
+* Reveal line
+* Buttons for 1–3 choices
+* Optional: “Mark on map”
+* Optional: “Add note”
+* Optional: “Head back to Lantern Hall”
+
+### Journal
+
+* “Wander Log” tab with chronological entries
+* Markers list and filters
+
+## 9. APIs
+
+Assume REST, adjust if you use websockets.
+
+### Endpoints
+
+* POST /api/wander/start
+
+  * body: { campaignId, partyId, startHexId }
+  * returns: WanderRun
+
+* POST /api/wander/move
+
+  * body: { runId, toHexId }
+  * returns: WanderOutcome (and maybe streaming token)
+
+* POST /api/wander/choose
+
+  * body: { runId, choiceId }
+  * returns: resolution payload (may create marker, start combat, grant reward)
+
+* POST /api/wander/end
+
+  * body: { runId }
+  * returns: summary
+
+* GET /api/map/hex/:hexId/state
+
+* GET /api/map/markers?campaignId=...
+
+### Idempotency
+
+* move should be idempotent per tick and target hex.
+* choose should be idempotent per outcome.
+
+## 10. Telemetry and Success Metrics
+
+Log:
+
+* time-to-first-outcome after move
+* average wander session length
+* number of moves per session
+* % sessions that include at least one marker
+* % sessions that include combat
+* return rate within 24h and 7d for wander users
+
+Success targets:
+
+* 30–60% of active users try Wander within first week
+* Wander sessions average 4–8 minutes
+* At least 65% of Wander sessions produce a marker or journal entry
+
+## 11. Edge Cases
+
+* Player moves repeatedly between two hexes. Use diminishing returns to avoid farming.
+* No content available. Guarantee fallback generic events per biome.
+* Party death. Offer “rescued back to Lantern Hall” with consequence (lost items, debt, injury).
+* Offline refresh mid-run. Run state must be recoverable.
+
+## 12. Rollout Plan
+
+Phase 1: Minimal Wander
+
+* movement + outcomes + markers + simple rewards
+* low combat frequency
+
+Phase 2: Investigate micro-scenes
+
+* choice cards that can start mini encounters or clues
+
+Phase 3: Hooks into Dungeon Crawl and campaign scenes
+
+* keys and fragments that unlock delves
+
+---
+
+# SPEC 2: Dungeon Crawl Mode
+
+## 1. Overview
+
+**Feature name:** Dungeon Crawl (internally), “Delve” (UI label)
+**Purpose:** A contained, replayable hex-dungeon experience with navigation, tactical fights, traps, and a culminating reward, designed to feel like tabletop dungeon delving, not a grindy roguelike.
+
+**Primary outcomes**
+
+* Provide a satisfying 10–30 minute play session with clear progression.
+* Offer a combat-forward option without making the entire product “one battle after another.”
+* Create a strong reward moment: boss, chest, and an unlock that matters outside the dungeon.
+
+**Non-goals**
+
+* Not a full procedural roguelike.
+* Not endless scaling difficulty.
+* Not purely combat rooms.
+
+## 2. Player Experience
+
+### Entry points
+
+* From a map marker: “Delve the Ruin”
+* From Lantern Hall: “Enter a known dungeon” list
+* From a discovery hook: “Follow the trail into the earth”
+
+### Core loop (10–30 min)
+
+1. Player selects a dungeon and party.
+2. Enters dungeon map (small hex grid).
+3. Movement reveals tiles with fog of war.
+4. Each tile can host:
+
+   * encounter
+   * trap
+   * puzzle choice
+   * resource cache
+   * lore node
+   * safe room
+5. Player manages resources, chooses routes, can retreat.
+6. Reaches boss area.
+7. Defeats boss or negotiates, obtains chest reward.
+8. Exit and post-run summary and world consequence.
+
+### Tone and philosophy
+
+* Encourage non-combat solutions sometimes.
+* Running away is valid.
+* The dungeon “remembers” if you leave and return.
+
+## 3. Dungeon Map Model
+
+### Dungeon as a hex micro-map
+
+* Recommended size: 7x7 to 11x11 hexes, depending on desired session length.
+* Must include:
+
+  * entrance node
+  * boss node
+  * 1–3 optional branches
+  * at least one shortcut or secret if discovered
+
+### Generation types
+
+Support both:
+
+* **Authored** (preferred for flagship delves, CAML-based)
+* **Semi-procedural** (for replayable side delves)
+
+Phase 1 can ship with authored only.
+
+## 4. Mechanics
+
+### Fog of war
+
+* Initially only entrance visible.
+* Adjacent hexes revealed on move.
+* Some hexes reveal further if “scout” action used.
+
+### Movement and actions
+
+Per turn:
+
+* Move to adjacent hex, or
+* Take action in current hex: search, disarm, rest, listen, interact.
+
+### Encounter pacing
+
+Recommended distribution for a 9x9:
+
+* 4–6 encounters
+* 2–3 traps
+* 1–2 puzzles or social nodes
+* 1 boss
+* 2 safe or quiet nodes
+* 1–2 loot caches
+
+### Combat design constraints
+
+* Standardize encounter length.
+* Prefer 2–5 enemies.
+* Boss fight can be more involved but must have clear phases.
+
+### Resource pressure
+
+Use simple pressures:
+
+* torches or “light” ticks
+* food or “supplies”
+* HP and limited consumables
+* optional “stress” or “fatigue” counter
+
+### Retreat
+
+* Always possible unless explicitly blocked by boss lock.
+* Retreat has cost:
+
+  * dungeon state changes
+  * some enemies respawn
+  * boss may gain an advantage
+
+## 5. Dungeon Persistence and Memory
+
+The dungeon should feel like a place.
+
+### Persistent elements
+
+* revealed map stays revealed for that party
+* cleared encounters remain cleared for a cooldown or until boss defeated
+* unlocked doors remain unlocked
+* traps disarmed stay disarmed
+* puzzles solved stay solved
+
+### Reset logic
+
+After boss defeat:
+
+* dungeon enters “completed” state
+* optional weekly reset if you want replayability
+* reward table changes and story hooks update
+
+## 6. Data and Persistence
+
+### Data models
+
+**DungeonDefinition**
+
+* id
+* name
+* themeTags: goblin | undead | ruins | cult
+* recommendedLevelRange
+* mapLayout:
+
+  * width, height, hex coordinates
+  * special nodes list (entrance, boss, chest)
+* nodeTable:
+
+  * nodeId
+  * coord
+  * type: encounter | trap | puzzle | lore | cache | safe | boss | chest
+  * contentRef: encounterId | trapId | puzzleId | sceneId
+  * onEnterScript: json (optional)
+* rewardProfileId
+* completionHooks: json (unlock marker, faction change, etc.)
+
+**DungeonRun**
+
+* id
+* userId
+* campaignId
+* dungeonId
+* partyId
+* startedAt
+* endedAt
+* currentCoord
+* revealedCoords: [coord]
+* clearedNodes: [nodeId]
+* disarmedTraps: [nodeId]
+* solvedPuzzles: [nodeId]
+* lightTick
+* supplies
+* flags: json
+
+**DungeonNodeState**
+
+* runId
+* nodeId
+* state: hidden | revealed | cleared | failed | locked
+* lastResolvedAt
+* resolutionPayload: json
+
+**DungeonReward**
+
+* runId
+* itemDrops
+* knowledgeDrops
+* unlockDrops
+* goldValue (if you track gold)
+* grantedAt
+
+## 7. Encounter, Trap, Puzzle Content Specs
+
+### EncounterDefinition
+
+* id
+* theme
+* difficulty
+* enemyRoster (with counts)
+* battlefieldTag
+* tacticsHint
+* alternateResolutions:
+
+  * bribe
+  * intimidate
+  * sneak
+  * negotiate
+* lootProfileId
+* clueDrops (optional)
+
+### TrapDefinition
+
+* id
+* trigger
+* detectDC
+* disarmDC
+* consequences
+* partialSuccess outcomes
+
+### PuzzleDefinition
+
+Keep puzzles simple and choice-based at first:
+
+* id
+* setupText
+* options (2–4)
+* correctOutcome
+* failOutcome
+* hintMechanic (spend time, spend resource, skill check)
+
+## 8. AI and Authoring
+
+For Dungeon Crawl you want higher determinism.
+
+### Two-tier content strategy
+
+* Tier A: authored content for nodes (best)
+* Tier B: AI fills text wrappers and variation while respecting node schema
+
+AI should not invent new mechanics mid-run.
+
+### AI output schema for node narration
+
+**DungeonNodeNarration**
+
+* title (max 60)
+* description (max 500)
+* options (array)
+
+  * id
+  * label (max 40)
+  * resolutionType: combat | check | choice | loot | lore
+  * dc (optional)
+  * successText (optional)
+  * failText (optional)
+
+Use AI mainly for tone and flavor, not rules.
+
+## 9. Combat Integration
+
+### Entry
+
+When player enters an encounter node:
+
+* lock movement until resolved or retreat option chosen
+* spawn combat session with node’s enemy roster and battlefieldTag
+
+### Flee behavior
+
+* always present unless boss node
+* fleeing moves party back one node and increases lightTick
+* may mark node as “alerted” raising difficulty next time
+
+### Boss node
+
+Boss should have:
+
+* phase triggers based on HP or rounds
+* at least one non-combat alternative if discovered (secret, bargain, hostage, relic)
+
+## 10. Rewards and External Consequences
+
+### Chest design
+
+Chest reward should feel like a moment:
+
+* choose 1 of 3 rewards, or
+* take all but trigger a consequence, cursed item, faction hostility
+
+### Reward profile
+
+Include:
+
+* one meaningful item or upgrade
+* one knowledge unlock
+* one world hook (marker appears, NPC becomes available, new rumor in Lantern Hall)
+
+### External consequences examples
+
+* Unlock “Wander” marker chain in adjacent region
+* Unlock a story scene in main campaign
+* Increase reputation with faction
+* Decrease danger in nearby hexes for a time
+* Spawn a new rival or threat meter tick
+
+## 11. UI Requirements
+
+### Dungeon map screen
+
+* Hex micro-map with fog of war
+* Node iconography minimal:
+
+  * unknown
+  * revealed
+  * cleared
+  * danger
+  * chest
+* Side panel:
+
+  * party status
+  * resources: light, supplies, HP
+  * current node details and actions
+* Controls:
+
+  * click-to-move
+  * “Search”
+  * “Rest”
+  * “Retreat”
+
+### Node resolution modal or panel
+
+* short title
+* description
+* 2–4 buttons for actions
+* optional skill check UI
+* optional “start combat”
+
+### Post-run summary
+
+* nodes cleared
+* loot gained
+* consequences unlocked
+* “return to map” button that highlights new markers
+
+## 12. APIs
+
+* POST /api/delve/start
+
+  * body: { campaignId, dungeonId, partyId }
+  * returns: DungeonRun + initial revealed nodes
+
+* POST /api/delve/move
+
+  * body: { runId, toCoord }
+  * returns: node state and narration if any
+
+* POST /api/delve/action
+
+  * body: { runId, actionType, nodeId, optionId? }
+  * returns: resolution payload, may start combat
+
+* POST /api/delve/retreat
+
+  * body: { runId }
+  * returns: updated run state
+
+* POST /api/delve/end
+
+  * body: { runId }
+  * returns: summary + rewards + unlocks
+
+Idempotency required per node resolution.
+
+## 13. Telemetry and Success Metrics
+
+Track:
+
+* start rate from Wander markers vs Lantern Hall
+* completion rate
+* average duration
+* number of retreats
+* combat win rate and wipe rate
+* chest reward choice distribution
+* how often delves unlock further content
+
+Targets:
+
+* 40% of players who start a delve finish it or retreat intentionally
+* boss defeat rate around 60–75% depending on difficulty
+* at least 50% of completed delves produce a new map marker or story hook
+
+## 14. Edge Cases
+
+* Player disconnect mid-combat: combat session must resume.
+* Party wipe: offer “escape with scars” option that costs items and adds a consequence.
+* Farming: implement cooldowns or diminishing loot returns for repeat runs.
+* Sequence breaking: if boss reached too early, allow but raise difficulty or lock behind key.
+
+## 15. Rollout Plan
+
+Phase 1: Authored “Goblin Warren” delve
+
+* fixed map
+* simple encounters
+* one boss
+* one chest reward choice
+
+Phase 2: Add 2–3 more authored delves with different themes.
+
+Phase 3: Semi-procedural delves from templates.
+
+---
+
+## Shared Implementation Notes (both features)
+
+### Latency strategy (important for stickiness)
+
+Adopt a 3-step response pattern for every move:
+
+1. **Commit:** confirm move instantly, update map position.
+2. **Reveal:** show one-sentence outcome immediately.
+3. **Deepen:** stream detail only if player investigates or engages.
+
+This prevents the “post-choice waiting” problem you identified.
+
+### Consistency with DnD feel
+
+To keep these from feeling like a video game:
+
+* Give non-combat options regularly.
+* Make information and consequences matter.
+* Let retreat be valid.
+* Keep the world persistent and reactive.
+
+---
+
+If you want, I can also produce:
+
+* a single consolidated “engineering task list” with tickets and estimated complexity buckets
+* JSON schemas for all the objects above
+* a minimal CAML2 extension for dungeon nodes and wander outcomes that fits your existing exporter approach
