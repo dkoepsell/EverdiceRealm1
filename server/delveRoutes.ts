@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { storage } from "./storage";
 import {
-  GOBLIN_WARREN, revealAdjacentNodes, canMoveTo, resolveNodeEntry,
+  generateProceduralDungeon, revealAdjacentNodes, canMoveTo, resolveNodeEntry,
   resolveAction, consumeResources, restInSafeRoom, processRetreat,
   generateDelveSummary, getChestOptions, DungeonNode
 } from "./delveEngine";
@@ -12,37 +12,14 @@ export function registerDelveRoutes(router: Router) {
     try {
       if (!req.user) return res.status(401).json({ error: "Not authenticated" });
 
-      const dbDungeons = await storage.getAllDungeonDefinitions();
-
-      const hasBuiltIn = dbDungeons.some(d => d.name === "Goblin Warren");
-      if (!hasBuiltIn) {
-        const entranceNode = GOBLIN_WARREN.find(n => n.type === "entrance");
-        await storage.createDungeonDefinition({
-          name: "Goblin Warren",
-          description: "A jagged fissure splits the hillside, belching the stink of rotting meat and wood smoke. Crude totems of bone and feather flank the opening. Within lurks a goblin chieftain touched by dark powers.",
-          themeTags: ["goblin", "underdark", "starter"],
-          recommendedLevelMin: 1,
-          recommendedLevelMax: 3,
-          mapWidth: 9,
-          mapHeight: 9,
-          mapLayout: GOBLIN_WARREN.map(n => ({ q: n.q, r: n.r, nodeId: n.nodeId })),
-          nodeTable: GOBLIN_WARREN,
-          rewardProfile: null,
-          completionHooks: null,
-          createdAt: new Date().toISOString(),
-        });
-      }
-
-      const allDungeons = await storage.getAllDungeonDefinitions();
-
-      res.json(allDungeons.map(d => ({
-        id: d.id,
-        name: d.name,
-        description: d.description,
-        themeTags: d.themeTags,
-        recommendedLevelMin: d.recommendedLevelMin,
-        recommendedLevelMax: d.recommendedLevelMax,
-      })));
+      res.json([{
+        id: -1,
+        name: "Goblin Warren",
+        description: "A jagged fissure splits the hillside, belching the stink of rotting meat and wood smoke. Each delve generates a unique layout — no two warrens are the same.",
+        themeTags: ["goblin", "underdark", "procedural"],
+        recommendedLevelMin: 1,
+        recommendedLevelMax: 3,
+      }]);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -63,16 +40,24 @@ export function registerDelveRoutes(router: Router) {
         return res.status(409).json({ error: "An active dungeon run already exists for this campaign", run: existingRun });
       }
 
-      let dungeonNodes: DungeonNode[];
-      if (dungeonId === -1) {
-        dungeonNodes = GOBLIN_WARREN;
-      } else {
-        const dungeon = await storage.getDungeonDefinition(dungeonId);
-        if (!dungeon) {
-          return res.status(404).json({ error: "Dungeon definition not found" });
-        }
-        dungeonNodes = dungeon.nodeTable as DungeonNode[];
-      }
+      const dungeonNodes = generateProceduralDungeon('goblin');
+
+      const dungeonDef = await storage.createDungeonDefinition({
+        name: `Goblin Warren (Run ${Date.now()})`,
+        description: "A procedurally generated goblin warren. Each delve is different.",
+        themeTags: ["goblin", "underdark", "procedural"],
+        recommendedLevelMin: 1,
+        recommendedLevelMax: 3,
+        mapWidth: 9,
+        mapHeight: 9,
+        mapLayout: dungeonNodes.map(n => ({ q: n.q, r: n.r, nodeId: n.nodeId })),
+        nodeTable: dungeonNodes,
+        rewardProfile: null,
+        completionHooks: null,
+        createdAt: new Date().toISOString(),
+      });
+
+      const actualDungeonId = dungeonDef.id;
 
       const entranceNode = dungeonNodes.find(n => n.type === "entrance");
       if (!entranceNode) {
@@ -85,7 +70,7 @@ export function registerDelveRoutes(router: Router) {
         userId,
         campaignId,
         characterId,
-        dungeonId,
+        dungeonId: actualDungeonId,
         currentQ: entranceNode.q,
         currentR: entranceNode.r,
         revealedCoords: initialRevealed,
@@ -133,14 +118,9 @@ export function registerDelveRoutes(router: Router) {
       if (run.userId !== userId) return res.status(403).json({ error: "Not your dungeon run" });
       if (run.status !== "active") return res.status(400).json({ error: "Dungeon run is not active" });
 
-      let dungeonNodes: DungeonNode[];
-      if (run.dungeonId === -1) {
-        dungeonNodes = GOBLIN_WARREN;
-      } else {
-        const dungeon = await storage.getDungeonDefinition(run.dungeonId);
-        if (!dungeon) return res.status(404).json({ error: "Dungeon definition not found" });
-        dungeonNodes = dungeon.nodeTable as DungeonNode[];
-      }
+      const dungeon = await storage.getDungeonDefinition(run.dungeonId);
+      if (!dungeon) return res.status(404).json({ error: "Dungeon definition not found" });
+      const dungeonNodes = dungeon.nodeTable as DungeonNode[];
 
       const currentNode = dungeonNodes.find(n => n.q === run.currentQ && n.r === run.currentR);
       if (!currentNode) return res.status(500).json({ error: "Current node not found in dungeon" });
@@ -220,14 +200,9 @@ export function registerDelveRoutes(router: Router) {
       if (run.userId !== userId) return res.status(403).json({ error: "Not your dungeon run" });
       if (run.status !== "active") return res.status(400).json({ error: "Dungeon run is not active" });
 
-      let dungeonNodes: DungeonNode[];
-      if (run.dungeonId === -1) {
-        dungeonNodes = GOBLIN_WARREN;
-      } else {
-        const dungeon = await storage.getDungeonDefinition(run.dungeonId);
-        if (!dungeon) return res.status(404).json({ error: "Dungeon definition not found" });
-        dungeonNodes = dungeon.nodeTable as DungeonNode[];
-      }
+      const dungeon = await storage.getDungeonDefinition(run.dungeonId);
+      if (!dungeon) return res.status(404).json({ error: "Dungeon definition not found" });
+      const dungeonNodes = dungeon.nodeTable as DungeonNode[];
 
       const node = dungeonNodes.find(n => n.nodeId === nodeId);
       if (!node) return res.status(404).json({ error: "Node not found in dungeon" });
@@ -329,14 +304,9 @@ export function registerDelveRoutes(router: Router) {
       if (!run) return res.status(404).json({ error: "Dungeon run not found" });
       if (run.userId !== userId) return res.status(403).json({ error: "Not your dungeon run" });
 
-      let dungeonNodes: DungeonNode[];
-      if (run.dungeonId === -1) {
-        dungeonNodes = GOBLIN_WARREN;
-      } else {
-        const dungeon = await storage.getDungeonDefinition(run.dungeonId);
-        if (!dungeon) return res.status(404).json({ error: "Dungeon definition not found" });
-        dungeonNodes = dungeon.nodeTable as DungeonNode[];
-      }
+      const dungeon = await storage.getDungeonDefinition(run.dungeonId);
+      if (!dungeon) return res.status(404).json({ error: "Dungeon definition not found" });
+      const dungeonNodes = dungeon.nodeTable as DungeonNode[];
 
       const bossNode = dungeonNodes.find(n => n.type === "boss");
       const clearedNodes = (run.clearedNodes as string[]) || [];
@@ -388,14 +358,9 @@ export function registerDelveRoutes(router: Router) {
       if (run.userId !== userId) return res.status(403).json({ error: "Not your dungeon run" });
       if (run.status !== "active") return res.status(400).json({ error: "Dungeon run is not active" });
 
-      let dungeonNodes: DungeonNode[];
-      if (run.dungeonId === -1) {
-        dungeonNodes = GOBLIN_WARREN;
-      } else {
-        const dungeon = await storage.getDungeonDefinition(run.dungeonId);
-        if (!dungeon) return res.status(404).json({ error: "Dungeon definition not found" });
-        dungeonNodes = dungeon.nodeTable as DungeonNode[];
-      }
+      const dungeon = await storage.getDungeonDefinition(run.dungeonId);
+      if (!dungeon) return res.status(404).json({ error: "Dungeon definition not found" });
+      const dungeonNodes = dungeon.nodeTable as DungeonNode[];
 
       const currentNode = dungeonNodes.find(n => n.q === run.currentQ && n.r === run.currentR);
       if (!currentNode || currentNode.type !== "safe") {
@@ -428,19 +393,14 @@ export function registerDelveRoutes(router: Router) {
       if (run.userId !== userId) return res.status(403).json({ error: "Not your dungeon run" });
       if (run.status !== "active") return res.status(400).json({ error: "Dungeon run is not active" });
 
-      let dungeonNodes: DungeonNode[];
-      if (run.dungeonId === -1) {
-        dungeonNodes = GOBLIN_WARREN;
-      } else {
-        const dungeon = await storage.getDungeonDefinition(run.dungeonId);
-        if (!dungeon) return res.status(404).json({ error: "Dungeon definition not found" });
-        dungeonNodes = dungeon.nodeTable as DungeonNode[];
-      }
+      const dungeon = await storage.getDungeonDefinition(run.dungeonId);
+      if (!dungeon) return res.status(404).json({ error: "Dungeon definition not found" });
+      const dungeonNodes = dungeon.nodeTable as DungeonNode[];
 
       const currentNode = dungeonNodes.find(n => n.q === run.currentQ && n.r === run.currentR);
       if (!currentNode) return res.status(500).json({ error: "Current node not found" });
 
-      const retreatResult = processRetreat(currentNode, (run.clearedNodes as string[]) || []);
+      const retreatResult = processRetreat(currentNode, (run.clearedNodes as string[]) || [], dungeonNodes);
 
       const updatedRun = await storage.updateDungeonRun(run.id, {
         status: "retreated",
@@ -470,14 +430,9 @@ export function registerDelveRoutes(router: Router) {
       if (run.userId !== userId) return res.status(403).json({ error: "Not your dungeon run" });
       if (run.status !== "active") return res.status(400).json({ error: "Dungeon run is already ended" });
 
-      let dungeonNodes: DungeonNode[];
-      if (run.dungeonId === -1) {
-        dungeonNodes = GOBLIN_WARREN;
-      } else {
-        const dungeon = await storage.getDungeonDefinition(run.dungeonId);
-        if (!dungeon) return res.status(404).json({ error: "Dungeon definition not found" });
-        dungeonNodes = dungeon.nodeTable as DungeonNode[];
-      }
+      const dungeon = await storage.getDungeonDefinition(run.dungeonId);
+      if (!dungeon) return res.status(404).json({ error: "Dungeon definition not found" });
+      const dungeonNodes = dungeon.nodeTable as DungeonNode[];
 
       const summary = generateDelveSummary({
         clearedNodes: (run.clearedNodes as string[]) || [],
@@ -517,13 +472,8 @@ export function registerDelveRoutes(router: Router) {
       const nodeStates = await storage.getDungeonNodeStates(runId);
       const rewards = await storage.getDungeonRewards(runId);
 
-      let dungeonNodes: DungeonNode[];
-      if (run.dungeonId === -1) {
-        dungeonNodes = GOBLIN_WARREN;
-      } else {
-        const dungeon = await storage.getDungeonDefinition(run.dungeonId);
-        dungeonNodes = dungeon ? (dungeon.nodeTable as DungeonNode[]) : [];
-      }
+      const dungeon = await storage.getDungeonDefinition(run.dungeonId);
+      const dungeonNodes = dungeon ? (dungeon.nodeTable as DungeonNode[]) : [];
 
       const revealedCoords = (run.revealedCoords as Array<{ q: number; r: number }>) || [];
       const revealedNodes = dungeonNodes.filter(n =>

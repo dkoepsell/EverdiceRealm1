@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, getQueryFn } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -232,8 +232,16 @@ function DungeonHexMap({
   clearedNodes: string[];
   onNodeClick: (node: DungeonNode) => void;
 }) {
-  const hexSize = 36;
-  const padding = 60;
+  const hexSize = 26;
+  const padding = 50;
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const lastTouchDist = useRef<number | null>(null);
+  const lastTouchCenter = useRef<{ x: number; y: number } | null>(null);
 
   const positions = revealedNodes.map(n => axialToPixel(n.q, n.r, hexSize));
   const allPositions = allRevealedCoords.map(c => axialToPixel(c.q, c.r, hexSize));
@@ -246,161 +254,244 @@ function DungeonHexMap({
   const minY = Math.min(...allYs, 0) - padding;
   const maxY = Math.max(...allYs, 0) + padding;
 
-  const width = maxX - minX;
-  const height = maxY - minY;
-
-  const revealedSet = new Set(allRevealedCoords.map(c => `${c.q},${c.r}`));
-  const nodeMap = new Map(revealedNodes.map(n => [`${n.q},${n.r}`, n]));
+  const svgWidth = maxX - minX;
+  const svgHeight = maxY - minY;
 
   const currentNode = revealedNodes.find(n => n.q === currentQ && n.r === currentR);
   const adjacentIds = currentNode ? new Set(currentNode.adjacentNodes) : new Set<string>();
 
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    setZoom(z => Math.min(4, Math.max(0.5, z * delta)));
+  }, []);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    setIsPanning(true);
+    panStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+  }, [pan]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isPanning) return;
+    const dx = e.clientX - panStart.current.x;
+    const dy = e.clientY - panStart.current.y;
+    setPan({ x: panStart.current.panX + dx, y: panStart.current.panY + dy });
+  }, [isPanning]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsPanning(false);
+  }, []);
+
+  const getTouchDist = (t1: Touch, t2: Touch) =>
+    Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      lastTouchDist.current = getTouchDist(e.touches[0], e.touches[1]);
+      lastTouchCenter.current = {
+        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+      };
+    } else if (e.touches.length === 1) {
+      setIsPanning(true);
+      panStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, panX: pan.x, panY: pan.y };
+    }
+  }, [pan]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2 && lastTouchDist.current !== null) {
+      e.preventDefault();
+      const newDist = getTouchDist(e.touches[0], e.touches[1]);
+      const scale = newDist / lastTouchDist.current;
+      setZoom(z => Math.min(4, Math.max(0.5, z * scale)));
+      lastTouchDist.current = newDist;
+
+      const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      if (lastTouchCenter.current) {
+        setPan(p => ({
+          x: p.x + (cx - lastTouchCenter.current!.x),
+          y: p.y + (cy - lastTouchCenter.current!.y),
+        }));
+      }
+      lastTouchCenter.current = { x: cx, y: cy };
+    } else if (e.touches.length === 1 && isPanning) {
+      const dx = e.touches[0].clientX - panStart.current.x;
+      const dy = e.touches[0].clientY - panStart.current.y;
+      setPan({ x: panStart.current.panX + dx, y: panStart.current.panY + dy });
+    }
+  }, [isPanning]);
+
+  const handleTouchEnd = useCallback(() => {
+    lastTouchDist.current = null;
+    lastTouchCenter.current = null;
+    setIsPanning(false);
+  }, []);
+
+  const resetView = useCallback(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, []);
+
   return (
-    <svg
-      viewBox={`${minX} ${minY} ${width} ${height}`}
-      className="w-full h-full"
-      style={{ minHeight: 300, maxHeight: 500 }}
-    >
-      <defs>
-        <filter id="glow-current">
-          <feGaussianBlur stdDeviation="4" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-        <filter id="glow-adjacent">
-          <feGaussianBlur stdDeviation="2" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-        <radialGradient id="fog-gradient">
-          <stop offset="0%" stopColor="#1e293b" stopOpacity="0.6" />
-          <stop offset="100%" stopColor="#0f172a" stopOpacity="0.9" />
-        </radialGradient>
-      </defs>
+    <div className="relative w-full h-full">
+      <div className="absolute top-2 right-2 z-10 flex flex-col gap-1">
+        <button
+          onClick={() => setZoom(z => Math.min(4, z * 1.25))}
+          className="w-7 h-7 rounded bg-stone-800/90 border border-stone-600 text-stone-300 hover:bg-stone-700 text-sm font-bold flex items-center justify-center"
+        >+</button>
+        <button
+          onClick={() => setZoom(z => Math.max(0.5, z * 0.8))}
+          className="w-7 h-7 rounded bg-stone-800/90 border border-stone-600 text-stone-300 hover:bg-stone-700 text-sm font-bold flex items-center justify-center"
+        >−</button>
+        <button
+          onClick={resetView}
+          className="w-7 h-7 rounded bg-stone-800/90 border border-stone-600 text-stone-300 hover:bg-stone-700 text-xs flex items-center justify-center"
+          title="Reset view"
+        >⊙</button>
+      </div>
+      <div className="absolute bottom-2 left-2 z-10 text-[10px] text-stone-500 bg-stone-900/80 px-2 py-0.5 rounded">
+        {Math.round(zoom * 100)}% — scroll/pinch to zoom, drag to pan
+      </div>
+      <div
+        ref={containerRef}
+        className="w-full h-full overflow-hidden"
+        style={{ cursor: isPanning ? 'grabbing' : 'grab', touchAction: 'none' }}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <svg
+          viewBox={`${minX} ${minY} ${svgWidth} ${svgHeight}`}
+          className="w-full h-full"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: 'center center',
+            transition: isPanning ? 'none' : 'transform 0.1s ease-out',
+          }}
+        >
+          <defs>
+            <filter id="glow-current">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <filter id="glow-adjacent">
+              <feGaussianBlur stdDeviation="2" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
 
-      {revealedNodes.map(node => {
-        node.adjacentNodes.forEach(adjId => {
-          const adjNode = revealedNodes.find(n => n.nodeId === adjId);
-          if (adjNode) {
-            const from = axialToPixel(node.q, node.r, hexSize);
-            const to = axialToPixel(adjNode.q, adjNode.r, hexSize);
+          {revealedNodes.flatMap(node =>
+            node.adjacentNodes
+              .map(adjId => {
+                const adjNode = revealedNodes.find(n => n.nodeId === adjId);
+                if (!adjNode) return null;
+                if (node.nodeId > adjNode.nodeId) return null;
+                const from = axialToPixel(node.q, node.r, hexSize);
+                const to = axialToPixel(adjNode.q, adjNode.r, hexSize);
+                return (
+                  <line
+                    key={`edge-${node.nodeId}-${adjNode.nodeId}`}
+                    x1={from.x} y1={from.y}
+                    x2={to.x} y2={to.y}
+                    stroke="#475569"
+                    strokeWidth="1.5"
+                    strokeDasharray="4,4"
+                    opacity={0.5}
+                  />
+                );
+              })
+              .filter(Boolean)
+          )}
+
+          {revealedNodes.map(node => {
+            const { x, y } = axialToPixel(node.q, node.r, hexSize);
+            const isCurrentPos = node.q === currentQ && node.r === currentR;
+            const isCleared = clearedNodes.includes(node.nodeId);
+            const isAdjacent = adjacentIds.has(node.nodeId) && !isCurrentPos;
+            const style = isCleared ? CLEARED_STYLE : NODE_STYLES[node.type] || NODE_STYLES.entrance;
+            const isBoss = node.type === 'boss';
+            const nodeHexSize = isBoss ? hexSize * 1.15 : hexSize;
+            const canClick = isAdjacent && !isCurrentPos;
+
             return (
-              <line
-                key={`edge-${node.nodeId}-${adjId}`}
-                x1={from.x} y1={from.y}
-                x2={to.x} y2={to.y}
-                stroke="#475569"
-                strokeWidth="2"
-                strokeDasharray="4,4"
-                opacity={0.5}
-              />
+              <g
+                key={node.nodeId}
+                onClick={(e) => { if (canClick) { e.stopPropagation(); onNodeClick(node); } }}
+                style={{ cursor: canClick ? 'pointer' : 'default' }}
+              >
+                {isCurrentPos && (
+                  <polygon
+                    points={hexPoints(x, y, nodeHexSize + 5)}
+                    fill="none"
+                    stroke="#f59e0b"
+                    strokeWidth="2.5"
+                    filter="url(#glow-current)"
+                    opacity={0.8}
+                  />
+                )}
+                {isAdjacent && !isCurrentPos && (
+                  <polygon
+                    points={hexPoints(x, y, nodeHexSize + 3)}
+                    fill="none"
+                    stroke="#94a3b8"
+                    strokeWidth="1"
+                    filter="url(#glow-adjacent)"
+                    opacity={0.6}
+                    strokeDasharray="5,3"
+                  />
+                )}
+                <polygon
+                  points={hexPoints(x, y, nodeHexSize)}
+                  fill={style.fill}
+                  stroke={style.stroke}
+                  strokeWidth={isCurrentPos ? 2.5 : 1.5}
+                  opacity={isCleared ? 0.5 : 1}
+                />
+                <text
+                  x={x}
+                  y={y + 1}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize={isBoss ? 14 : 11}
+                  opacity={isCleared ? 0.4 : 1}
+                >
+                  {isCleared ? "✓" : (NODE_STYLES[node.type]?.icon || "?")}
+                </text>
+                <text
+                  x={x}
+                  y={y + nodeHexSize + 9}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize={7}
+                  fill={isCleared ? "#64748b" : "#cbd5e1"}
+                  fontWeight={isCurrentPos ? "bold" : "normal"}
+                >
+                  {node.name.length > 14 ? node.name.slice(0, 12) + "…" : node.name}
+                </text>
+                {isCurrentPos && (
+                  <circle cx={x} cy={y - nodeHexSize - 5} r={3} fill="#f59e0b">
+                    <animate attributeName="opacity" values="1;0.4;1" dur="1.5s" repeatCount="indefinite" />
+                  </circle>
+                )}
+              </g>
             );
-          }
-        });
-        return null;
-      })}
-
-      {revealedNodes.flatMap(node =>
-        node.adjacentNodes
-          .map(adjId => {
-            const adjNode = revealedNodes.find(n => n.nodeId === adjId);
-            if (!adjNode) return null;
-            if (node.nodeId > adjNode.nodeId) return null;
-            const from = axialToPixel(node.q, node.r, hexSize);
-            const to = axialToPixel(adjNode.q, adjNode.r, hexSize);
-            return (
-              <line
-                key={`edge-${node.nodeId}-${adjNode.nodeId}`}
-                x1={from.x} y1={from.y}
-                x2={to.x} y2={to.y}
-                stroke="#475569"
-                strokeWidth="2"
-                strokeDasharray="4,4"
-                opacity={0.5}
-              />
-            );
-          })
-          .filter(Boolean)
-      )}
-
-      {revealedNodes.map(node => {
-        const { x, y } = axialToPixel(node.q, node.r, hexSize);
-        const isCurrentPos = node.q === currentQ && node.r === currentR;
-        const isCleared = clearedNodes.includes(node.nodeId);
-        const isAdjacent = adjacentIds.has(node.nodeId) && !isCurrentPos;
-        const style = isCleared ? CLEARED_STYLE : NODE_STYLES[node.type] || NODE_STYLES.entrance;
-        const isBoss = node.type === 'boss';
-        const nodeHexSize = isBoss ? hexSize * 1.15 : hexSize;
-        const canClick = isAdjacent && !isCurrentPos;
-
-        return (
-          <g
-            key={node.nodeId}
-            onClick={() => canClick && onNodeClick(node)}
-            style={{ cursor: canClick ? 'pointer' : 'default' }}
-          >
-            {isCurrentPos && (
-              <polygon
-                points={hexPoints(x, y, nodeHexSize + 6)}
-                fill="none"
-                stroke="#f59e0b"
-                strokeWidth="3"
-                filter="url(#glow-current)"
-                opacity={0.8}
-              />
-            )}
-            {isAdjacent && !isCurrentPos && (
-              <polygon
-                points={hexPoints(x, y, nodeHexSize + 4)}
-                fill="none"
-                stroke="#94a3b8"
-                strokeWidth="1.5"
-                filter="url(#glow-adjacent)"
-                opacity={0.6}
-                strokeDasharray="6,3"
-              />
-            )}
-            <polygon
-              points={hexPoints(x, y, nodeHexSize)}
-              fill={style.fill}
-              stroke={style.stroke}
-              strokeWidth={isCurrentPos ? 3 : 2}
-              opacity={isCleared ? 0.5 : 1}
-            />
-            <text
-              x={x}
-              y={y + 1}
-              textAnchor="middle"
-              dominantBaseline="central"
-              fontSize={isBoss ? 18 : 14}
-              opacity={isCleared ? 0.4 : 1}
-            >
-              {isCleared ? "✓" : (NODE_STYLES[node.type]?.icon || "?")}
-            </text>
-            <text
-              x={x}
-              y={y + nodeHexSize + 12}
-              textAnchor="middle"
-              dominantBaseline="central"
-              fontSize={9}
-              fill={isCleared ? "#64748b" : "#cbd5e1"}
-              fontWeight={isCurrentPos ? "bold" : "normal"}
-            >
-              {node.name.length > 14 ? node.name.slice(0, 12) + "…" : node.name}
-            </text>
-            {isCurrentPos && (
-              <circle cx={x} cy={y - nodeHexSize - 6} r={4} fill="#f59e0b">
-                <animate attributeName="opacity" values="1;0.4;1" dur="1.5s" repeatCount="indefinite" />
-              </circle>
-            )}
-          </g>
-        );
-      })}
-    </svg>
+          })}
+        </svg>
+      </div>
+    </div>
   );
 }
 

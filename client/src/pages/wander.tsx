@@ -148,6 +148,31 @@ const MARKER_ICONS: Record<string, string> = {
   opportunity: "✨",
 };
 
+const TERRAIN_TYPES = ['plains', 'forest', 'mountain', 'swamp', 'desert', 'ocean'] as const;
+type TerrainType = typeof TERRAIN_TYPES[number];
+
+const TERRAIN_COLORS: Record<TerrainType, { fill: string; stroke: string; exploredFill: string; label: string; icon: string }> = {
+  plains:   { fill: "#1a2a1a", stroke: "#3a5a3a", exploredFill: "#2a3d1e", label: "Plains",   icon: "🌾" },
+  forest:   { fill: "#0f2a1a", stroke: "#1e5a3a", exploredFill: "#1a3d28", label: "Forest",   icon: "🌲" },
+  mountain: { fill: "#2a2530", stroke: "#5a4f6a", exploredFill: "#3a3545", label: "Mountain", icon: "⛰️" },
+  swamp:    { fill: "#1a2520", stroke: "#3a5a50", exploredFill: "#253830", label: "Swamp",    icon: "🌿" },
+  desert:   { fill: "#2a2518", stroke: "#5a4f30", exploredFill: "#3d3520", label: "Desert",   icon: "🏜️" },
+  ocean:    { fill: "#0f1a2a", stroke: "#1e3a5a", exploredFill: "#1a2840", label: "Ocean",    icon: "🌊" },
+};
+
+function getTerrainForHex(q: number, r: number): TerrainType {
+  let h = ((q * 374761393 + r * 668265263) ^ 0x5f3759df) >>> 0;
+  h = ((h >> 16) ^ h) * 0x45d9f3b;
+  h = ((h >> 16) ^ h) >>> 0;
+  const idx = h % 100;
+  if (idx < 35) return 'plains';
+  if (idx < 60) return 'forest';
+  if (idx < 75) return 'mountain';
+  if (idx < 85) return 'swamp';
+  if (idx < 93) return 'desert';
+  return 'ocean';
+}
+
 function getDangerColor(rating: number) {
   if (rating < 20) return "bg-emerald-500";
   if (rating < 40) return "bg-yellow-500";
@@ -363,11 +388,16 @@ export default function WanderPage() {
     (q: number, r: number) => {
       if (!activeRun || isMoving) return;
       setIsMoving(true);
+      const terrain = getTerrainForHex(q, r);
+      const terrainToBiome: Record<TerrainType, string> = {
+        plains: 'grass', forest: 'forest', mountain: 'mountain',
+        swamp: 'swamp', desert: 'desert', ocean: 'coast',
+      };
       moveMutation.mutate({
         runId: activeRun.id,
         toHexQ: q,
         toHexR: r,
-        terrainType: "grass",
+        terrainType: terrainToBiome[terrain],
       });
     },
     [activeRun, isMoving, moveMutation]
@@ -392,7 +422,7 @@ export default function WanderPage() {
     const centerQ = activeRun.currentHexQ;
     const centerR = activeRun.currentHexR;
     const radius = 7;
-    const hexes: Array<{ q: number; r: number; explored: boolean; isCurrent: boolean; isAdjacent: boolean; marker?: WanderMarker }> = [];
+    const hexes: Array<{ q: number; r: number; explored: boolean; isCurrent: boolean; isAdjacent: boolean; terrain: TerrainType; marker?: WanderMarker }> = [];
 
     for (let dq = -radius; dq <= radius; dq++) {
       for (let dr = Math.max(-radius, -dq - radius); dr <= Math.min(radius, -dq + radius); dr++) {
@@ -403,7 +433,8 @@ export default function WanderPage() {
         const isCurrent = q === centerQ && r === centerR;
         const isAdjacent = hexDistance(q, r, centerQ, centerR) === 1;
         const marker = markers.find((m) => m.hexQ === q && m.hexR === r);
-        hexes.push({ q, r, explored, isCurrent, isAdjacent, marker });
+        const terrain = getTerrainForHex(q, r);
+        hexes.push({ q, r, explored, isCurrent, isAdjacent, terrain, marker });
       }
     }
     return hexes;
@@ -622,6 +653,15 @@ export default function WanderPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-2">
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 px-2 pb-2">
+                      {TERRAIN_TYPES.map(t => (
+                        <div key={t} className="flex items-center gap-1 text-[10px] text-slate-400">
+                          <span className="inline-block w-3 h-3 rounded-sm border border-slate-600" style={{ background: TERRAIN_COLORS[t].exploredFill }} />
+                          <span>{TERRAIN_COLORS[t].icon}</span>
+                          <span>{TERRAIN_COLORS[t].label}</span>
+                        </div>
+                      ))}
+                    </div>
                     <div className="relative h-[400px] md:h-[500px] bg-slate-950 rounded-lg overflow-hidden border border-slate-800">
                       <svg
                         viewBox={`${svgBounds.minX} ${svgBounds.minY} ${svgBounds.maxX - svgBounds.minX} ${svgBounds.maxY - svgBounds.minY}`}
@@ -632,6 +672,7 @@ export default function WanderPage() {
                           const { x, y } = axialToPixel(hex.q, hex.r, hexSize);
                           const pts = hexPoints(x, y, hexSize);
                           const dist = activeRun ? hexDistance(hex.q, hex.r, activeRun.currentHexQ, activeRun.currentHexR) : 999;
+                          const tc = TERRAIN_COLORS[hex.terrain];
 
                           let fill = "#0a0e1a";
                           let stroke = "#1a1f2e";
@@ -640,26 +681,26 @@ export default function WanderPage() {
                           let cursor = "default";
 
                           if (hex.isCurrent) {
-                            fill = "#d97706";
+                            fill = tc.exploredFill;
                             stroke = "#fbbf24";
-                            strokeWidth = 2;
+                            strokeWidth = 2.5;
                             opacity = 1;
                           } else if (hex.explored) {
-                            fill = "#3d2e1a";
-                            stroke = "#6b5a3a";
+                            fill = tc.exploredFill;
+                            stroke = tc.stroke;
                             strokeWidth = 1;
                             opacity = 0.85;
                           } else if (hex.isAdjacent) {
-                            fill = "#1a2a1a";
-                            stroke = "#3a5a3a";
+                            fill = tc.fill;
+                            stroke = tc.stroke;
                             strokeWidth = 1;
                             opacity = 0.7;
                             cursor = "pointer";
                           } else if (dist <= 3) {
-                            fill = "#121822";
-                            stroke = "#1e293b";
+                            fill = tc.fill;
+                            stroke = tc.stroke;
                             strokeWidth = 0.5;
-                            opacity = 0.5;
+                            opacity = 0.35;
                           }
 
                           return (
@@ -677,6 +718,17 @@ export default function WanderPage() {
                                   }
                                 }}
                               />
+                              {hex.explored && !hex.isCurrent && !hex.marker && (
+                                <text
+                                  x={x}
+                                  y={y}
+                                  textAnchor="middle"
+                                  dominantBaseline="middle"
+                                  style={{ fontSize: "9px", pointerEvents: "none", opacity: 0.5 }}
+                                >
+                                  {tc.icon}
+                                </text>
+                              )}
                               {hex.isCurrent && (
                                 <>
                                   <circle cx={x} cy={y} r={hexSize * 0.3} fill="white" opacity={0.9}>
@@ -707,14 +759,14 @@ export default function WanderPage() {
                               {hex.isAdjacent && !hex.explored && !hex.isCurrent && (
                                 <text
                                   x={x}
-                                  y={y}
+                                  y={y + 1}
                                   textAnchor="middle"
                                   dominantBaseline="middle"
                                   fill="#fbbf24"
-                                  opacity={0.6}
-                                  style={{ fontSize: "10px", pointerEvents: "none" }}
+                                  opacity={0.5}
+                                  style={{ fontSize: "8px", pointerEvents: "none" }}
                                 >
-                                  ?
+                                  {tc.icon}
                                 </text>
                               )}
                             </g>
