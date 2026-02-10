@@ -283,7 +283,7 @@ function DungeonHexMap({
     setIsPanning(false);
   }, []);
 
-  const getTouchDist = (t1: Touch, t2: Touch) =>
+  const getTouchDist = (t1: React.Touch, t2: React.Touch) =>
     Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -533,7 +533,11 @@ export default function DelvePage() {
 
   const { data: activeRunCheck } = useQuery<{ run: DungeonRun | null }>({
     queryKey: ['/api/delve/active', selectedCampaignId],
-    queryFn: getQueryFn({ on401: "throw" }),
+    queryFn: async () => {
+      const res = await fetch(`/api/delve/active/${selectedCampaignId}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to check active run');
+      return res.json();
+    },
     enabled: !!selectedCampaignId,
   });
 
@@ -588,10 +592,11 @@ export default function DelvePage() {
         moveMutation.mutate({ runId: data.run.id, toQ: data.currentNode.q, toR: data.currentNode.r });
       }
     },
-    onError: (err: any) => {
+    onError: async (err: any) => {
       const msg = err.message || "Failed to start delve";
       if (msg.includes("active dungeon run already exists")) {
         toast({ title: "Active Run Found", description: "Loading your existing run..." });
+        queryClient.invalidateQueries({ queryKey: ['/api/delve/active', selectedCampaignId] });
       } else {
         toast({ title: "Error", description: msg, variant: "destructive" });
       }
