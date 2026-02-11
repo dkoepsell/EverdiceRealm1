@@ -71,7 +71,9 @@ import {
   dungeonDefinitions, type DungeonDefinition, type InsertDungeonDefinition,
   dungeonRuns, type DungeonRun, type InsertDungeonRun,
   dungeonNodeStates, type DungeonNodeState, type InsertDungeonNodeState,
-  dungeonRewards, type DungeonReward, type InsertDungeonReward
+  dungeonRewards, type DungeonReward, type InsertDungeonReward,
+  // LLM Config
+  llmConfigs, type LlmConfig, type InsertLlmConfig
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or, inArray } from "drizzle-orm";
@@ -501,6 +503,13 @@ export interface IStorage {
   upsertDungeonNodeState(runId: number, nodeId: string, updates: Partial<DungeonNodeState>): Promise<DungeonNodeState>;
   createDungeonReward(reward: InsertDungeonReward): Promise<DungeonReward>;
   getDungeonRewards(runId: number): Promise<DungeonReward[]>;
+
+  // LLM Config operations
+  getLlmConfig(userId: number): Promise<LlmConfig | undefined>;
+  getLlmConfigs(userId: number): Promise<LlmConfig[]>;
+  createLlmConfig(config: InsertLlmConfig): Promise<LlmConfig>;
+  updateLlmConfig(id: number, updates: Partial<LlmConfig>): Promise<LlmConfig | undefined>;
+  deleteLlmConfig(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -834,6 +843,12 @@ export class MemStorage implements IStorage {
   async getSharedAdventuresByUser(userId: number): Promise<SharedAdventure[]> { return []; }
   async getAllSharedAdventures(): Promise<SharedAdventure[]> { return []; }
   async deleteSharedAdventure(id: number): Promise<boolean> { return false; }
+
+  async getLlmConfig(userId: number): Promise<LlmConfig | undefined> { return undefined; }
+  async getLlmConfigs(userId: number): Promise<LlmConfig[]> { return []; }
+  async createLlmConfig(config: InsertLlmConfig): Promise<LlmConfig> { throw new Error("Not implemented"); }
+  async updateLlmConfig(id: number, updates: Partial<LlmConfig>): Promise<LlmConfig | undefined> { return undefined; }
+  async deleteLlmConfig(id: number): Promise<boolean> { return false; }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4450,6 +4465,50 @@ export class DatabaseStorage implements IStorage {
 
   async getDungeonRewards(runId: number): Promise<DungeonReward[]> {
     return await db.select().from(dungeonRewards).where(eq(dungeonRewards.runId, runId));
+  }
+
+  async getLlmConfig(userId: number): Promise<LlmConfig | undefined> {
+    const results = await db.select().from(llmConfigs)
+      .where(and(eq(llmConfigs.userId, userId), eq(llmConfigs.isActive, true)))
+      .limit(1);
+    return results[0];
+  }
+
+  async getLlmConfigs(userId: number): Promise<LlmConfig[]> {
+    return await db.select().from(llmConfigs)
+      .where(eq(llmConfigs.userId, userId))
+      .orderBy(desc(llmConfigs.createdAt));
+  }
+
+  async createLlmConfig(config: InsertLlmConfig): Promise<LlmConfig> {
+    if (config.isActive) {
+      await db.update(llmConfigs)
+        .set({ isActive: false })
+        .where(eq(llmConfigs.userId, config.userId));
+    }
+    const [result] = await db.insert(llmConfigs).values(config).returning();
+    return result;
+  }
+
+  async updateLlmConfig(id: number, updates: Partial<LlmConfig>): Promise<LlmConfig | undefined> {
+    if (updates.isActive) {
+      const [existing] = await db.select().from(llmConfigs).where(eq(llmConfigs.id, id));
+      if (existing) {
+        await db.update(llmConfigs)
+          .set({ isActive: false })
+          .where(and(eq(llmConfigs.userId, existing.userId), eq(llmConfigs.isActive, true)));
+      }
+    }
+    const [result] = await db.update(llmConfigs)
+      .set({ ...updates, updatedAt: new Date().toISOString() })
+      .where(eq(llmConfigs.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteLlmConfig(id: number): Promise<boolean> {
+    const result = await db.delete(llmConfigs).where(eq(llmConfigs.id, id));
+    return true;
   }
 }
 

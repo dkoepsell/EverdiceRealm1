@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { ImagesResponse } from "openai/resources";
 import { objectStorageClient } from "../replit_integrations/object_storage";
 import { randomUUID } from "crypto";
+import { getAppOpenAI, getAIClient } from "./aiProvider";
 
 // This function generates character portraits using OpenAI's DALL-E and stores them permanently
 export async function generateCharacterPortrait(characterDescription: {
@@ -10,7 +11,7 @@ export async function generateCharacterPortrait(characterDescription: {
   class: string;
   background?: string;
   appearance?: string;
-}): Promise<{ url: string }> {
+}, userId?: number): Promise<{ url: string }> {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("OpenAI API key is not configured");
   }
@@ -20,7 +21,7 @@ export async function generateCharacterPortrait(characterDescription: {
   // Create a detailed prompt for the image generation
   const prompt = createImagePrompt(name, race, characterClass, background, appearance);
 
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const openai = getAppOpenAI();
 
   try {
     console.log(`Generating character portrait with prompt: ${prompt}`);
@@ -152,7 +153,7 @@ export async function generateMonsterPortrait(monsterDescription: {
   type: string;
   size: string;
   description?: string;
-}): Promise<{ url: string }> {
+}, userId?: number): Promise<{ url: string }> {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("OpenAI API key is not configured");
   }
@@ -162,7 +163,7 @@ export async function generateMonsterPortrait(monsterDescription: {
   // Create a safe, fantasy-appropriate prompt for monster art
   const prompt = createMonsterPrompt(name, type, size, description);
 
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const openai = getAppOpenAI();
 
   try {
     console.log(`Generating monster portrait with prompt: ${prompt}`);
@@ -228,14 +229,14 @@ export async function generateCharacterBackground(characterInfo: {
   race: string;
   class: string;
   background?: string;
-}): Promise<string> {
+}, userId?: number): Promise<string> {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("OpenAI API key is not configured");
   }
 
   const { name, race, class: characterClass, background } = characterInfo;
   
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const { client: openai, model } = await getAIClient(userId);
 
   const prompt = `Create a brief but compelling background story (maximum 3 paragraphs) for ${name}, a ${race} ${characterClass}${background ? ` with a background as a ${background}` : ''}.
   Focus on their motivations, a key event from their past, and what drives them to adventure.
@@ -244,7 +245,7 @@ export async function generateCharacterBackground(characterInfo: {
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+      model: model,
       messages: [{ role: "user", content: prompt }],
       max_tokens: 500,
     });

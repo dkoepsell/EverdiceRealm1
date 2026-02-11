@@ -2395,3 +2395,23 @@ export const insertDungeonRewardSchema = createInsertSchema(dungeonRewards).omit
 
 export type InsertDungeonReward = z.infer<typeof insertDungeonRewardSchema>;
 export type DungeonReward = typeof dungeonRewards.$inferSelect;
+
+export const llmConfigs = pgTable("llm_configs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  provider: text("provider").notNull().default("openai"),
+  apiKey: text("api_key").notNull(),
+  endpoint: text("endpoint"),
+  model: text("model"),
+  isActive: boolean("is_active").notNull().default(true),
+  label: text("label").notNull().default("My LLM"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  updatedAt: text("updated_at"),
+});
+
+export const insertLlmConfigSchema = createInsertSchema(llmConfigs).omit({
+  id: true,
+});
+
+export type InsertLlmConfig = z.infer<typeof insertLlmConfigSchema>;
+export type LlmConfig = typeof llmConfigs.$inferSelect;

@@ -32,6 +32,7 @@ import DMGuidePage from "@/pages/dm-guide";
 import TradingPostPage from "@/pages/trading-post";
 import WanderPage from "@/pages/wander";
 import DelvePage from "@/pages/delve";
+import AISettingsPage from "@/pages/ai-settings";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import InvitationAlert from "@/components/InvitationAlert";
@@ -74,6 +75,7 @@ function Router() {
           <ProtectedRoute path="/test" component={TestPage} />
           <ProtectedRoute path="/admin" component={AdminPage} />
           <ProtectedRoute path="/profile" component={ProfilePage} />
+          <ProtectedRoute path="/ai-settings" component={AISettingsPage} />
           <Route path="/how-it-works" component={HowItWorks} />
           <Route path="/dm-guide" component={DMGuidePage} />
           <Route path="/legal" component={LegalPage} />

@@ -35,7 +35,8 @@ import {
   Flame,
   Store,
   Compass,
-  Pickaxe
+  Pickaxe,
+  Brain
 } from "lucide-react";
 
 export default function Navbar() {
@@ -277,6 +278,12 @@ export default function Navbar() {
                         Profile Settings
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/ai-settings" className="flex items-center cursor-pointer">
+                        <Brain className="h-4 w-4 mr-2" />
+                        AI Settings
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
                       onClick={handleLogout}
@@ -384,6 +391,16 @@ export default function Navbar() {
                     >
                       <Settings className="h-4 w-4 mr-3" />
                       Profile Settings
+                    </Button>
+                  </Link>
+                  <Link href="/ai-settings">
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start text-white/90 hover:text-white hover:bg-white/10"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Brain className="h-4 w-4 mr-3" />
+                      AI Settings
                     </Button>
                   </Link>
                   <Button

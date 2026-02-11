@@ -13,7 +13,7 @@ import {
 import { isAuthenticated } from "./auth";
 import { objectStorageClient } from "./replit_integrations/object_storage";
 import { randomUUID } from "crypto";
-import OpenAI from "openai";
+import { getAppOpenAI } from "./lib/aiProvider";
 
 async function generateAdventureCoverArt(title: string, description: string, genre: string): Promise<string> {
   try {
@@ -21,7 +21,7 @@ async function generateAdventureCoverArt(title: string, description: string, gen
       return "";
     }
 
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const openai = getAppOpenAI();
 
     const prompt = `Create a stunning fantasy adventure cover art for a tabletop RPG adventure called "${title}". Genre: ${genre}. ${description.substring(0, 200)}. Style: Epic fantasy book cover art with dramatic lighting, rich colors, and an atmosphere of mystery and adventure. The image should evoke the feeling of an exciting quest ahead, suitable for a fantasy RPG module cover.`;
 

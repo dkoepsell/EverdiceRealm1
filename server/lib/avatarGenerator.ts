@@ -1,7 +1,7 @@
-import OpenAI from "openai";
 import { ImagesResponse } from "openai/resources";
 import { objectStorageClient } from "../replit_integrations/object_storage";
 import { randomUUID } from "crypto";
+import { getAppOpenAI } from "./aiProvider";
 
 export async function generateUserAvatar(options: {
   username: string;
@@ -15,7 +15,7 @@ export async function generateUserAvatar(options: {
   
   const prompt = createAvatarPrompt(username, style);
 
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const openai = getAppOpenAI();
 
   try {
     console.log(`Generating avatar with prompt: ${prompt}`);

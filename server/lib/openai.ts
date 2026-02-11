@@ -1,7 +1,7 @@
 import OpenAI from "openai";
+import { getAIClient } from "./aiProvider";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export interface CampaignGenerationRequest {
   theme?: string;
@@ -230,8 +230,10 @@ export interface CampaignGenerationResponse {
   proceduralQuestConfig: ProceduralQuestConfig;
 }
 
-export async function generateCampaign(req: CampaignGenerationRequest): Promise<CampaignGenerationResponse> {
+export async function generateCampaign(req: CampaignGenerationRequest, userId?: number): Promise<CampaignGenerationResponse> {
   try {
+    const { client: openai, model } = await getAIClient(userId);
+
     const prompt = `
 You are designing a STATE-FIRST adventure using CAML (Canonical Adventure Markup Language) principles.
 The key principle: Design facts that can change, then make scenes care about them. If nothing changes, nothing branches.
@@ -448,7 +450,7 @@ Format the response as a valid JSON object without explanation.
 `;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: model,
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
       temperature: 0.7,

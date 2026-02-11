@@ -117,7 +117,9 @@ import {
   type ItemStats
 } from "./combatManager";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { getAIClient, getAppOpenAI } from "./lib/aiProvider";
+
+const openai = getAppOpenAI();
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 
@@ -3875,9 +3877,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate and create the initial session for this campaign
       try {
         // Generate initial narrative based on campaign description
-        const openaiClient = new OpenAI({ 
-          apiKey: process.env.OPENAI_API_KEY
-        });
+        const { client: openaiClient, model: aiModel } = await getAIClient(req.user?.id);
         
         // CAML 2.0: Build state context if available for initial scene
         let initialStateContext = "";
@@ -3969,7 +3969,7 @@ Return your response as a JSON object with these fields:
 `;
         
         const response = await openaiClient.chat.completions.create({
-          model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+          model: aiModel,
           messages: [{ role: "user", content: prompt }],
           response_format: { type: "json_object" },
           max_tokens: 1500,
@@ -6232,12 +6232,10 @@ Return your response as a JSON object with these fields:
 `;
 
       // Generate story directly using OpenAI
-      const openaiClient = new OpenAI({ 
-        apiKey: process.env.OPENAI_API_KEY
-      });
+      const { client: openaiClient, model: aiModel } = await getAIClient(req.user?.id);
       
       const response = await openaiClient.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+        model: aiModel,
         messages: [{ role: "user", content: promptWithContext }],
         response_format: { type: "json_object" },
         max_tokens: 1500,
@@ -7048,12 +7046,10 @@ Respond in structured JSON format for structured consequence tracking:
   "dmNotes": "Private notes for the DM about consequences, hidden information, or plot hooks arising from the skill check"
 }`;
 
-      const openaiClient = new OpenAI({ 
-        apiKey: process.env.OPENAI_API_KEY
-      });
+      const { client: openaiClient, model: aiModel } = await getAIClient(req.user?.id);
       
       const response = await openaiClient.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+        model: aiModel,
         messages: [{ role: "user", content: scenePrompt }],
         response_format: { type: "json_object" },
         max_tokens: 1200,
@@ -7211,12 +7207,10 @@ Return your response as a JSON object with these fields:
 - treasureFound: Optional array of treasure/items discovered in this scene (only if exploration reveals treasure)
 `;
 
-      const openaiClient = new OpenAI({ 
-        apiKey: process.env.OPENAI_API_KEY
-      });
+      const { client: openaiClient, model: aiModel } = await getAIClient(req.user?.id);
       
       const response = await openaiClient.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+        model: aiModel,
         messages: [{ role: "user", content: promptWithContext }],
         response_format: { type: "json_object" },
         max_tokens: 1500,
@@ -7298,13 +7292,10 @@ Return your response as a JSON object with these fields:
 - backstory: A short paragraph about the character's history
 `;
 
-      // Import the OpenAI client from our module
-      const openaiClient = new OpenAI({ 
-        apiKey: process.env.OPENAI_API_KEY
-      });
+      const { client: openaiClient, model: aiModel } = await getAIClient(req.user?.id);
       
       const response = await openaiClient.chat.completions.create({
-        model: "gpt-4o",
+        model: aiModel,
         messages: [{ role: "user", content: characterPrompt }],
         response_format: { type: "json_object" },
         max_tokens: 1000,
@@ -7346,13 +7337,10 @@ Return your response as a JSON object with these fields:
 - examples: An array of 2-3 practical examples of how this rule is applied in gameplay
 `;
 
-      // Import the OpenAI client from our module
-      const openaiClient = new OpenAI({ 
-        apiKey: process.env.OPENAI_API_KEY
-      });
+      const { client: openaiClient, model: aiModel } = await getAIClient(req.user?.id);
       
       const response = await openaiClient.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+        model: aiModel,
         messages: [{ role: "user", content: rulePrompt }],
         response_format: { type: "json_object" },
         max_tokens: 1000,
@@ -11016,9 +11004,9 @@ Focus on:
 4. Potential plot hooks or character arcs
 5. Combat tactical considerations (if in combat)`;
 
-      const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const { client: openaiClient, model: aiModel } = await getAIClient(req.user?.id);
       const response = await openaiClient.chat.completions.create({
-        model: "gpt-4o",
+        model: aiModel,
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         max_tokens: 800,
@@ -15572,9 +15560,9 @@ Respond with JSON:
   ]
 }`;
 
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      const { client: openaiClient, model: aiModel } = await getAIClient(req.user?.id);
+      const response = await openaiClient.chat.completions.create({
+        model: aiModel,
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
       });
@@ -15883,9 +15871,9 @@ Respond with JSON:
             Respond with JSON: {"name": "Item Name", "type": "weapon/armor/wondrous/consumable", "rarity": "${itemRarity}", "description": "Brief description", "properties": "Game mechanics"}`;
             
             try {
-              const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-              const itemResponse = await openai.chat.completions.create({
-                model: "gpt-4o",
+              const { client: itemClient, model: itemModel } = await getAIClient(req.user?.id);
+              const itemResponse = await itemClient.chat.completions.create({
+                model: itemModel,
                 messages: [{ role: "user", content: itemPrompt }],
                 response_format: { type: "json_object" },
               });
@@ -18356,9 +18344,7 @@ Respond with JSON:
           const isNextChapterFinal = nextChapterNumber >= estimatedTotalChapters && nextChapterNumber >= 4;
           
           // Generate chapter content using AI
-          const openaiClientForChapter = new OpenAI({ 
-            apiKey: process.env.OPENAI_API_KEY
-          });
+          const { client: openaiClientForChapter, model: chapterModel } = await getAIClient(req.user?.id);
           
           const chapterPrompt = `
 You are an expert Dungeon Master. Generate the next chapter for this D&D campaign.
@@ -18446,7 +18432,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
 `;
           
           const chapterResponse = await openaiClientForChapter.chat.completions.create({
-            model: "gpt-4o",
+            model: chapterModel,
             messages: [{ role: "user", content: chapterPrompt }],
             response_format: { type: "json_object" },
             max_tokens: 1500,
@@ -18962,9 +18948,9 @@ Respond with JSON:
   "returnPromise": "The closing return promise line"
 }`;
 
-          const reckoningOpenai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+          const { client: reckoningOpenai, model: reckoningModel } = await getAIClient(req.user?.id);
           const reckoningResponse = await reckoningOpenai.chat.completions.create({
-            model: "gpt-4o",
+            model: reckoningModel,
             messages: [{ role: "user", content: reckoningPrompt }],
             response_format: { type: "json_object" },
             max_tokens: 800,
@@ -19121,9 +19107,9 @@ Respond with JSON: {"type": "npc", "name": "", "appearance": "", "personality": 
           return res.status(400).json({ message: "Invalid content type" });
       }
 
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      const { client: openaiClient, model: aiModel } = await getAIClient(req.user?.id);
+      const response = await openaiClient.chat.completions.create({
+        model: aiModel,
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
       });
@@ -19249,9 +19235,9 @@ Respond with JSON:
   "nextChoices": [{"text": "", "type": "attack/spell/move", "description": ""}]
 }`;
 
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      const { client: openaiClient, model: aiModel } = await getAIClient(req.user?.id);
+      const response = await openaiClient.chat.completions.create({
+        model: aiModel,
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
       });
@@ -20086,9 +20072,9 @@ Return your response as a JSON object with these fields:
   - requiresDiceRoll: Boolean (false for most opening choices)
 `;
 
-            const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+            const { client: openaiClient, model: aiModel } = await getAIClient(req.user?.id);
             const response = await openaiClient.chat.completions.create({
-              model: "gpt-4o",
+              model: aiModel,
               messages: [{ role: "user", content: adventurePrompt }],
               response_format: { type: "json_object" },
               max_tokens: 1200,
@@ -23333,6 +23319,131 @@ ALWAYS generate:
         return "";
     }
   }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // LLM Configuration Routes
+  // ═══════════════════════════════════════════════════════════════════════
+
+  app.get("/api/llm-config", isAuthenticated, async (req: any, res) => {
+    try {
+      const configs = await storage.getLlmConfigs(req.user.id);
+      const sanitized = configs.map(c => ({
+        ...c,
+        apiKey: c.apiKey ? `${c.apiKey.substring(0, 8)}...${c.apiKey.substring(c.apiKey.length - 4)}` : "",
+      }));
+      res.json(sanitized);
+    } catch (error) {
+      console.error("Failed to get LLM configs:", error);
+      res.status(500).json({ message: "Failed to load AI configurations" });
+    }
+  });
+
+  app.get("/api/llm-config/active", isAuthenticated, async (req: any, res) => {
+    try {
+      const config = await storage.getLlmConfig(req.user.id);
+      if (!config) {
+        return res.json({ provider: "everdice", isCustom: false });
+      }
+      res.json({
+        id: config.id,
+        provider: config.provider,
+        label: config.label,
+        model: config.model,
+        endpoint: config.endpoint,
+        isCustom: true,
+        isActive: config.isActive,
+      });
+    } catch (error) {
+      console.error("Failed to get active LLM config:", error);
+      res.status(500).json({ message: "Failed to load active AI configuration" });
+    }
+  });
+
+  app.post("/api/llm-config", isAuthenticated, async (req: any, res) => {
+    try {
+      const { provider, apiKey, endpoint, model, label, isActive } = req.body;
+      if (!provider || !apiKey) {
+        return res.status(400).json({ message: "Provider and API key are required" });
+      }
+      const config = await storage.createLlmConfig({
+        userId: req.user.id,
+        provider,
+        apiKey,
+        endpoint: endpoint || null,
+        model: model || null,
+        label: label || "My LLM",
+        isActive: isActive !== false,
+        createdAt: new Date().toISOString(),
+        updatedAt: null,
+      });
+      res.json({
+        ...config,
+        apiKey: `${config.apiKey.substring(0, 8)}...${config.apiKey.substring(config.apiKey.length - 4)}`,
+      });
+    } catch (error) {
+      console.error("Failed to create LLM config:", error);
+      res.status(500).json({ message: "Failed to save AI configuration" });
+    }
+  });
+
+  app.patch("/api/llm-config/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const configId = parseInt(req.params.id);
+      const existing = (await storage.getLlmConfigs(req.user.id)).find(c => c.id === configId);
+      if (!existing) {
+        return res.status(404).json({ message: "Configuration not found" });
+      }
+      const updates: any = {};
+      if (req.body.provider !== undefined) updates.provider = req.body.provider;
+      if (req.body.apiKey !== undefined) updates.apiKey = req.body.apiKey;
+      if (req.body.endpoint !== undefined) updates.endpoint = req.body.endpoint;
+      if (req.body.model !== undefined) updates.model = req.body.model;
+      if (req.body.label !== undefined) updates.label = req.body.label;
+      if (req.body.isActive !== undefined) updates.isActive = req.body.isActive;
+      const updated = await storage.updateLlmConfig(configId, updates);
+      if (updated) {
+        res.json({
+          ...updated,
+          apiKey: `${updated.apiKey.substring(0, 8)}...${updated.apiKey.substring(updated.apiKey.length - 4)}`,
+        });
+      } else {
+        res.status(404).json({ message: "Configuration not found" });
+      }
+    } catch (error) {
+      console.error("Failed to update LLM config:", error);
+      res.status(500).json({ message: "Failed to update AI configuration" });
+    }
+  });
+
+  app.delete("/api/llm-config/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const configId = parseInt(req.params.id);
+      const existing = (await storage.getLlmConfigs(req.user.id)).find(c => c.id === configId);
+      if (!existing) {
+        return res.status(404).json({ message: "Configuration not found" });
+      }
+      await storage.deleteLlmConfig(configId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete LLM config:", error);
+      res.status(500).json({ message: "Failed to delete AI configuration" });
+    }
+  });
+
+  app.post("/api/llm-config/test", isAuthenticated, async (req: any, res) => {
+    try {
+      const { provider, apiKey, endpoint, model } = req.body;
+      if (!apiKey) {
+        return res.status(400).json({ message: "API key is required" });
+      }
+      const { testAIConnection } = await import("./lib/aiProvider");
+      const result = await testAIConnection(provider || "openai", apiKey, endpoint, model);
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to test LLM connection:", error);
+      res.status(500).json({ success: false, message: "Failed to test connection" });
+    }
+  });
 
   return httpServer;
 }
