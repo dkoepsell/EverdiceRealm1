@@ -493,7 +493,7 @@ export default function Dashboard() {
                               <SelectItem key={campaign.id} value={campaign.id.toString()}>
                                 <div className="flex items-center gap-2">
                                   {selectedCampaignId === campaign.id && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
-                                  {campaign.title} (Session {campaign.currentSession})
+                                  {campaign.title} (Ch. {campaign.currentSession})
                                 </div>
                               </SelectItem>
                             ))}

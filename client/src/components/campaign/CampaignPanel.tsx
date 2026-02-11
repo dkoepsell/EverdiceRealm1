@@ -693,11 +693,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     );
   }, [narrativeStyle, difficulty, worldRegionId, worldLocationId, campaign]);
   
-  // Set the current session
+  // Set the current session — find the latest non-completed session (not by chapter number)
   useEffect(() => {
     if (sessions && sessions.length > 0 && campaign) {
-      const currentSessionNumber = campaign.currentSession || 1;
-      const foundSession = sessions.find(session => session.sessionNumber === currentSessionNumber);
+      const activeSessions = sessions.filter((s: any) => !s.isCompleted);
+      const foundSession = activeSessions.length > 0
+        ? activeSessions.reduce((latest: any, s: any) => s.sessionNumber > latest.sessionNumber ? s : latest, activeSessions[0])
+        : sessions[sessions.length - 1];
       if (foundSession) {
         setCurrentSession(foundSession);
       }
@@ -1160,21 +1162,20 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               : s
           );
         });
-        const currentSessionNumber = campaign?.currentSession || 1;
-        if (data.sessionNumber === currentSessionNumber) {
-          setCurrentSession((prev: any) => prev ? { ...prev, narrative: data.narrative, choices: data.choices, storyState: data.storyState, npcInteractions: data.npcInteractions } : prev);
-        }
+        setCurrentSession((prev: any) => prev ? { ...prev, narrative: data.narrative, choices: data.choices, storyState: data.storyState, npcInteractions: data.npcInteractions } : prev);
       }
       
       // Also refetch to ensure full consistency with DB
       await queryClient.refetchQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
       
-      // Update currentSession from refetched cache (most accurate source)
+      // Update currentSession from refetched cache — find latest non-completed session
       try {
         const updatedSessions = queryClient.getQueryData<any[]>([`/api/campaigns/${campaign.id}/sessions`]);
-        const currentSessionNumber = campaign?.currentSession || 1;
         if (updatedSessions && updatedSessions.length > 0) {
-          const foundSession = updatedSessions.find((s: any) => s.sessionNumber === currentSessionNumber);
+          const activeSessions = updatedSessions.filter((s: any) => !s.isCompleted);
+          const foundSession = activeSessions.length > 0
+            ? activeSessions.reduce((latest: any, s: any) => s.sessionNumber > latest.sessionNumber ? s : latest, activeSessions[0])
+            : updatedSessions[updatedSessions.length - 1];
           if (foundSession) {
             setCurrentSession(foundSession);
           }

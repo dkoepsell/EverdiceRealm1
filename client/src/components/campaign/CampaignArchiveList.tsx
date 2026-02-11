@@ -279,7 +279,7 @@ export default function CampaignArchiveList() {
                     </div>
                     <div className="flex items-center text-muted-foreground">
                       <Bookmark className="mr-2 h-4 w-4" />
-                      <span>Session {campaign.currentSession || 1}</span>
+                      <span>Ch. {campaign.currentSession || 1}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -384,7 +384,7 @@ export default function CampaignArchiveList() {
                     </div>
                     <div className="flex items-center text-muted-foreground">
                       <Bookmark className="mr-2 h-4 w-4" />
-                      <span>{campaign.currentSession || 1} sessions total</span>
+                      <span>Ch. {campaign.currentSession || 1} of {campaign.totalChapters || '?'}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -461,7 +461,7 @@ export default function CampaignArchiveList() {
                     </div>
                     <div className="flex items-center text-muted-foreground">
                       <Bookmark className="mr-2 h-4 w-4" />
-                      <span>Session {campaign.currentSession || 1}</span>
+                      <span>Ch. {campaign.currentSession || 1}</span>
                     </div>
                   </div>
                 </CardContent>
