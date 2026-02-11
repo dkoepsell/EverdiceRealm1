@@ -5963,10 +5963,12 @@ CONTENT VARIETY RULES (STRICTLY ENFORCED):
       // ============================================
       const totalChapters = (campaign as any).totalChapters || 5;
       const currentChapterNum = (campaign as any).currentSession || 1;
-      const previousChapterSessionCount = currentChapterNum > 1 
-        ? Math.floor(allSessions.length * ((currentChapterNum - 1) / totalChapters))
-        : 0;
-      const scenesInCurrentChapter = Math.max(1, allSessions.length - previousChapterSessionCount);
+      const narrativeLog = (campaign as any).narrativeLog || [];
+      const lastChapterGateEntry = [...narrativeLog].reverse().find((e: any) => e.type === 'chapter_gate');
+      const lastGateMs = lastChapterGateEntry?.timestamp ? Date.parse(lastChapterGateEntry.timestamp) : NaN;
+      const scenesInCurrentChapter = !isNaN(lastGateMs)
+        ? allSessions.filter(s => s.createdAt && new Date(s.createdAt).getTime() > lastGateMs).length
+        : allSessions.length;
       const currentGateForSpine = chapterGates.find((g: any) => g.chapter === currentChapterNum);
       const completedGates = chapterGates.filter((g: any) => g.chapter < currentChapterNum);
 
@@ -6099,11 +6101,14 @@ DM AUTHORING DOCTRINE - THESE OVERRIDE ALL OTHER RULES:
    - Include "processConsequence" thinking: What broke? What transferred? What was revealed? What cost was deferred?
    - The world is never simply "fixed" — every fix shifts the problem somewhere else
 
-0D. CHAPTER GATES ARE MEANING-BASED:
-   - Chapters advance when: a belief changes, a truth is learned, or a commitment is made
-   - NEVER advance chapters because "enough stuff happened" or turns elapsed
-   - If a chapter gate's required truth/commitment is met, include "chapterGateMet" in response
+0D. CHAPTER GATE IS YOUR PRIMARY NARRATIVE GOAL:
+   - The current chapter gate defines WHAT THIS CHAPTER IS ABOUT — every scene must build toward it
+   - Your scenes should create situations, encounters, and choices that NATURALLY lead toward satisfying the gate condition
+   - Do NOT wait for the player to stumble onto the gate — actively steer the narrative toward it through NPC actions, environmental pressures, and consequences of choices
+   - When the gate condition is met (a belief changes, a truth is learned, or a commitment is made), you MUST include "chapterGateMet" in your response
    - Include "chapterGateMet": { "gateId": chapter_number, "reason": "what truth/belief/commitment was reached" }
+   - NEVER generate aimless dungeon crawling or random encounters that don't connect to the chapter's purpose
+   - If you're unsure how to connect the current action to the gate, have an NPC deliver urgent news, reveal a clue, or create a consequence that forces engagement with the gate theme
 
 0E. LOG WHY THINGS MATTER:
    - Include "narrativeLogEntry" in your response: { "xpReason": why XP was earned, "stakeReason": which stakes changed and why, "foreclosedReason": what options closed and why }
@@ -6258,8 +6263,9 @@ Return your response as a JSON object with these fields:
         });
       }
       
-      // Create new session
-      const sessionNumber = (campaign.currentSession || 0) + 1;
+      // Create new session — use actual session count, NOT currentSession (which tracks chapter)
+      const actualSessionCount = allSessions.length;
+      const sessionNumber = actualSessionCount + 1;
       const sessionData = {
         campaignId: parseInt(campaignId),
         sessionNumber,
@@ -6267,14 +6273,14 @@ Return your response as a JSON object with these fields:
         narrative: storyData.narrative,
         location: storyData.location,
         choices: storyData.choices,
-        createdAt: new Date().toISOString(), // Add required createdAt field
+        createdAt: new Date().toISOString(),
       };
       
       // Save the session
       const session = await storage.createCampaignSession(sessionData);
       
-      // Update campaign's current session
-      await storage.updateCampaignSession(parseInt(campaignId), sessionNumber);
+      // NOTE: Do NOT call updateCampaignSession here — currentSession tracks the CHAPTER number,
+      // not the session count. Chapter advancement only happens via chapterGateMet below.
       
       // CAML 2.0: Apply state changes from the AI response
       if (storyData.stateChanges) {
@@ -6666,6 +6672,28 @@ Return your response as a JSON object with these fields:
             }
           }
           
+          // HARD-CAP FAILSAFE: If 12+ sessions in this chapter without AI triggering gate, force-advance
+          const CHAPTER_HARD_CAP = 12;
+          if (!chapterAdvanced && scenesInCurrentChapter >= CHAPTER_HARD_CAP) {
+            const currentChapterForHardCap = campaign.currentSession || 1;
+            const totalChaptersForHardCap = campaign.totalChapters || 5;
+            if (currentChapterForHardCap < totalChaptersForHardCap) {
+              chapterAdvanced = true;
+              stateWasUpdated = true;
+              console.log(`HARD-CAP CHAPTER ADVANCE: Chapter ${currentChapterForHardCap} → ${currentChapterForHardCap + 1} after ${scenesInCurrentChapter} sessions without gate met`);
+              updatedNarrativeLog.push({
+                xpReason: `Chapter ${currentChapterForHardCap} completed (narrative pressure)`,
+                stakeReason: `Story momentum forced chapter progression after ${scenesInCurrentChapter} scenes`,
+                foreclosedReason: `Chapter ${currentChapterForHardCap} closed by narrative pressure`,
+                choiceCost: `Advanced to Chapter ${currentChapterForHardCap + 1}`,
+                chapter: currentChapterForHardCap,
+                scene: -1,
+                timestamp: new Date().toISOString(),
+                type: 'chapter_gate'
+              });
+            }
+          }
+
           // Save updated state to campaign
           const campaignUpdateData: any = {
             worldState: updatedWorldState,
@@ -14983,8 +15011,10 @@ DM AUTHORING DOCTRINE (MANDATORY):
 - VICTORY IS INCOMPLETE: Winning must answer — what pressure increased, what opportunity closed, what new problem exists?
 - NPCs ARE AGENTS: Consulting costs something (time, favor, info). Repeated asking drops attitude. "Ask until solved" is BANNED.
 - PROCESSES CREATE NEW PROBLEMS: Every completed quest/ritual/combat leaves at least one new problem in its wake.
-- Chapter advances by meaning (truth learned, belief changed, commitment made), NOT by time elapsed.
-- If the chapter gate condition is met, include "chapterGateMet" in your response.
+- CHAPTER GATE IS YOUR PRIMARY NARRATIVE GOAL: The gate defines what this chapter is ABOUT. Every scene must build toward it.
+- Do NOT generate aimless dungeon crawling or random encounters disconnected from the chapter's purpose.
+- Actively steer toward the gate through NPC actions, environmental pressures, and choice consequences.
+- When the gate condition is met, you MUST include "chapterGateMet": { "gateId": chapter_number, "reason": "what was reached" }.
 - Include "narrativeLogEntry" with: xpReason, stakeReason, foreclosedReason, choiceCost.
 `;
       
@@ -15110,10 +15140,12 @@ CONTENT VARIETY RULES (STRICTLY ENFORCED):
       const advanceChapterGatesList = (campaign as any).chapterGates as any[] || [];
       const currentGateForSpine2 = advanceChapterGatesList.find((g: any) => g.chapter === currentChapter);
       const completedGates2 = advanceChapterGatesList.filter((g: any) => g.chapter < currentChapter);
-      const prevChapterSessions2 = currentChapter > 1
-        ? Math.floor(allCampaignSessions.length * ((currentChapter - 1) / totalChapters))
-        : 0;
-      const scenesInChapter2 = Math.max(1, allCampaignSessions.length - prevChapterSessions2);
+      const narrativeLog2 = (campaign as any).narrativeLog || [];
+      const lastGateEntry2 = [...narrativeLog2].reverse().find((e: any) => e.type === 'chapter_gate');
+      const lastGateMs2 = lastGateEntry2?.timestamp ? Date.parse(lastGateEntry2.timestamp) : NaN;
+      const scenesInChapter2 = !isNaN(lastGateMs2)
+        ? allCampaignSessions.filter(s => s.createdAt && new Date(s.createdAt).getTime() > lastGateMs2).length
+        : allCampaignSessions.length;
 
       let camlStorySpine2 = `
 ═══════════════════════════════════════════════════════════
@@ -18782,6 +18814,25 @@ Choices should include 4 options with at least 2 requiring dice rolls.
             });
             doctrineUpdates.narrativeLog = currentNarrativeLog;
           }
+        }
+        
+        // HARD-CAP FAILSAFE: If 12+ sessions in this chapter without gate met, force-advance
+        const CHAPTER_HARD_CAP_R2 = 12;
+        if (!doctrineUpdates.currentSession && scenesInChapter2 >= CHAPTER_HARD_CAP_R2 && currentChapter < totalChapters) {
+          doctrineUpdates.currentSession = currentChapter + 1;
+          doctrineChanged = true;
+          console.log(`HARD-CAP CHAPTER ADVANCE (main): Chapter ${currentChapter} → ${currentChapter + 1} after ${scenesInChapter2} sessions`);
+          currentNarrativeLog.push({
+            xpReason: `Chapter ${currentChapter} completed (narrative pressure)`,
+            stakeReason: `Story momentum forced chapter progression after ${scenesInChapter2} scenes`,
+            foreclosedReason: `Chapter ${currentChapter} closed by narrative pressure`,
+            choiceCost: `Advanced to Chapter ${currentChapter + 1}`,
+            chapter: currentChapter,
+            scene: -1,
+            timestamp: new Date().toISOString(),
+            type: 'chapter_gate'
+          });
+          doctrineUpdates.narrativeLog = currentNarrativeLog;
         }
         
         if (doctrineChanged) {
