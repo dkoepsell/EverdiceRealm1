@@ -19175,6 +19175,90 @@ Respond with JSON:
     }
   });
 
+  app.post("/api/campaigns/:campaignId/advance-story-stream", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const campaignId = parseInt(req.params.campaignId);
+      const { choice, currentLocation } = req.body;
+
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+      });
+
+      const sendEvent = (event: string, data: any) => {
+        res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      };
+
+      sendEvent("start", { status: "generating" });
+
+      const participants = await storage.getCampaignParticipants(campaignId);
+      const characters = await Promise.all(
+        participants.map(async (p) => await storage.getCharacter(p.characterId))
+      );
+      const validCharacters = characters.filter(Boolean);
+      const partyDesc = validCharacters.map(c => c ? `${c.name} (Level ${c.level || 1} ${c.race || "Human"} ${c.class || "Fighter"})` : "").filter(Boolean).join(", ");
+
+      const sessions = await storage.getCampaignSessions(campaignId);
+      const latestSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
+      const previousNarrative = latestSession?.narrative || "";
+
+      const streamPrompt = `You are an expert Dungeon Master. Write the next scene for this D&D 5e campaign.
+
+Campaign: ${campaign.title}. ${(campaign.description || "").slice(0, 200)}
+Party: ${partyDesc}
+Location: ${currentLocation || "Unknown"}
+${previousNarrative ? `Previous scene (summary): ${previousNarrative.slice(0, 300)}` : ""}
+
+The player chose: "${choice || "Continue the adventure"}"
+
+Write ONLY the narrative text for the next scene. 2-3 paragraphs, vivid and immersive. No JSON, no choices, just the story text.`;
+
+      try {
+        const { client: openaiClient, model: aiModel } = await getAIClient(req.user?.id);
+        const stream = await openaiClient.chat.completions.create({
+          model: aiModel,
+          messages: [{ role: "user", content: streamPrompt }],
+          max_tokens: 600,
+          stream: true,
+        });
+
+        let accumulated = "";
+        for await (const chunk of stream) {
+          const delta = chunk.choices[0]?.delta?.content || "";
+          if (delta) {
+            accumulated += delta;
+            sendEvent("narrative", { text: accumulated });
+          }
+        }
+
+        sendEvent("complete", { narrative: accumulated });
+      } catch (aiError: any) {
+        sendEvent("error", { message: aiError?.message || "AI generation failed" });
+      }
+
+      res.write("event: done\ndata: {}\n\n");
+      res.end();
+    } catch (error: any) {
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Streaming failed" });
+      } else {
+        res.write(`event: error\ndata: ${JSON.stringify({ message: error?.message || "Unknown error" })}\n\n`);
+        res.end();
+      }
+    }
+  });
+
   // Generate quick content for DMs
   app.post("/api/campaigns/:campaignId/generate-quick-content", async (req, res) => {
     try {

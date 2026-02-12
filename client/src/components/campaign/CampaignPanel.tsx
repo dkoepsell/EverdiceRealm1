@@ -1614,6 +1614,63 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
   }, [campaign.id, campaign.title]);
 
+  const streamAbortRef = useRef<AbortController | null>(null);
+
+  const startNarrativeStream = useCallback(async (choice: string, loc: string) => {
+    if (streamAbortRef.current) {
+      streamAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
+
+    try {
+      const response = await fetch(`/api/campaigns/${campaign.id}/advance-story-stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        signal: controller.signal,
+        body: JSON.stringify({ choice, currentLocation: loc }),
+      });
+
+      if (!response.ok || !response.body) return;
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() || "";
+
+        for (const part of parts) {
+          let eventType = "";
+          let dataStr = "";
+          for (const line of part.split("\n")) {
+            if (line.startsWith("event: ")) eventType = line.slice(7);
+            if (line.startsWith("data: ")) dataStr = line.slice(6);
+          }
+          if (eventType === "narrative" && dataStr) {
+            try {
+              const payload = JSON.parse(dataStr);
+              if (payload.text) {
+                setStreamedNarrative(payload.text);
+                setStoryPhase("deepen");
+              }
+            } catch {}
+          }
+        }
+      }
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        console.error("[Stream] narrative streaming error:", err);
+      }
+    }
+  }, [campaign.id]);
+
   // Create dice roll mutation
   const createDiceRollMutation = useMutation({
     mutationFn: async (diceRoll: DiceRoll) => {
@@ -2495,8 +2552,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
       showTip('pacing');
       fetchRevealText(actionText, parsedStoryState?.inCombat || false, currentLocation);
+      startNarrativeStream(actionText, currentLocation);
       advanceStory.mutate({ choice: actionText }, {
         onSettled: () => {
+          if (streamAbortRef.current) streamAbortRef.current.abort();
           setIsAdvancingStory(false);
           setStoryPhase('loading');
           setLastChosenAction("");
@@ -2524,8 +2583,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
     showTip('pacing');
     fetchRevealText(actionText, parsedStoryState?.inCombat || false, currentLocation);
+    startNarrativeStream(actionText, currentLocation);
     advanceStory.mutate({ choice: actionText }, {
       onSettled: () => {
+        if (streamAbortRef.current) streamAbortRef.current.abort();
         setIsAdvancingStory(false);
         setStoryPhase('loading');
         setLastChosenAction("");
@@ -2659,6 +2720,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
         showTip('pacing');
         fetchRevealText(diceActionText, parsedStoryState?.inCombat || false, currentLocation);
+        startNarrativeStream(diceActionText, currentLocation);
         
         setTimeout(() => {
           const rollResultData = {
@@ -2675,6 +2737,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             rollResult: rollResultData
           }, {
             onSettled: () => {
+              if (streamAbortRef.current) streamAbortRef.current.abort();
               setIsAdvancingStory(false);
               setStoryPhase('loading');
               setLastChosenAction("");

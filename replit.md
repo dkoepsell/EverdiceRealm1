@@ -53,6 +53,12 @@ The Crafting System in the tavern workshop offers 25+ recipes for weapons, armor
 
 **Delve Mode (Dungeon Crawl)** (`server/delveEngine.ts`, `server/delveRoutes.ts`, `client/src/pages/delve.tsx`): A contained hex-dungeon experience ("Enter the Depths") with fog of war, tactical fights, traps, puzzles, and boss encounters. Includes an authored "Goblin Warren" dungeon (17 nodes: entrance, 4 encounters, 3 traps, 2 puzzles, 2 lore, 1 cache, 1 safe room, 1 boss, 1 chest). Features resource pressure (light ticks, supplies), retreat with consequences (enemy respawn, boss advantage), chest reward system (3 choices: safe/risk/knowledge), and post-run rating (novice/adventurer/veteran/master). Designed for 10-30 minute sessions. REST API: dungeons/start/move/action/chest/rest/retreat/end plus run state queries. Routes at `/delve`.
 
+**Performance Optimizations** (Feb 2026):
+- *Response Compression*: Express middleware with gzip/brotli compression for all API responses (SSE streaming routes excluded to prevent buffering).
+- *Structured Logging*: Production-ready pino logger (`server/lib/logger.ts`) with redaction of sensitive fields, replaces verbose console.log calls.
+- *Route-Level Code Splitting*: React.lazy + Suspense for 20+ heavy pages, reducing initial bundle size significantly.
+- *Streaming AI Narrative*: SSE endpoint (`/api/campaigns/:campaignId/advance-story-stream`) streams OpenAI narrative tokens in real-time. Frontend CampaignPanel runs SSE stream in parallel with the full advance-story mutation — stream provides immediate visual feedback (progressive text with blinking cursor in the "deepen" phase) while the mutation processes the complete structured response. StoryLoadingScreen prioritizes streamed text over reveal text during the deepen phase.
+
 ## External Dependencies
 
 ### Core

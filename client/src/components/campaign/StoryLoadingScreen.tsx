@@ -178,8 +178,8 @@ export function StoryLoadingScreen({
     : phase === 'deepen' ? 'Story unfolding...'
     : currentFlavor.text;
 
-  const showReveal = phase === 'reveal' || phase === 'deepen';
   const showStream = phase === 'deepen' && streamedText;
+  const showReveal = (phase === 'reveal' || (phase === 'deepen' && !streamedText));
 
   return (
     <div className="space-y-4">

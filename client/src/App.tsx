@@ -7,36 +7,47 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "./lib/protected-route";
 import { createWSConnection } from "./lib/websocket";
-import { useEffect } from "react";
-import NotFound from "@/pages/not-found";
-import LandingPage from "@/pages/landing";
-import Dashboard from "@/pages/dashboard";
-import Characters from "@/pages/characters";
-import Campaigns from "@/pages/campaigns";
-import DiceRoller from "@/pages/dice-roller";
-import AuthPage from "@/pages/auth-page";
-import TestPage from "@/pages/test-page";
-import HowItWorks from "@/pages/how-it-works";
-import DMToolkit from "@/pages/dm-toolkit";
-import LearnPage from "@/pages/learn";
-import WorldMapPage from "@/pages/world-map";
-import CAMLPage from "@/pages/CAMLPage";
-import BulletinBoardPage from "@/pages/bulletin-board";
-import AdminPage from "@/pages/admin";
-import LegalPage from "@/pages/legal";
-import TavernPage from "@/pages/tavern";
-import GroupsPage from "@/pages/groups";
-import ProfilePage from "@/pages/profile";
-import HearthPage from "@/pages/hearth";
-import DMGuidePage from "@/pages/dm-guide";
-import TradingPostPage from "@/pages/trading-post";
-import WanderPage from "@/pages/wander";
-import DelvePage from "@/pages/delve";
-import AISettingsPage from "@/pages/ai-settings";
+import { useEffect, lazy, Suspense } from "react";
+import { Loader2 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import InvitationAlert from "@/components/InvitationAlert";
 import parchmentFrame from "@assets/image_1768600727955.png";
+
+import NotFound from "@/pages/not-found";
+import LandingPage from "@/pages/landing";
+import AuthPage from "@/pages/auth-page";
+
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const Characters = lazy(() => import("@/pages/characters"));
+const Campaigns = lazy(() => import("@/pages/campaigns"));
+const DiceRoller = lazy(() => import("@/pages/dice-roller"));
+const DMToolkit = lazy(() => import("@/pages/dm-toolkit"));
+const LearnPage = lazy(() => import("@/pages/learn"));
+const WorldMapPage = lazy(() => import("@/pages/world-map"));
+const CAMLPage = lazy(() => import("@/pages/CAMLPage"));
+const BulletinBoardPage = lazy(() => import("@/pages/bulletin-board"));
+const AdminPage = lazy(() => import("@/pages/admin"));
+const LegalPage = lazy(() => import("@/pages/legal"));
+const TavernPage = lazy(() => import("@/pages/tavern"));
+const GroupsPage = lazy(() => import("@/pages/groups"));
+const ProfilePage = lazy(() => import("@/pages/profile"));
+const HearthPage = lazy(() => import("@/pages/hearth"));
+const DMGuidePage = lazy(() => import("@/pages/dm-guide"));
+const TradingPostPage = lazy(() => import("@/pages/trading-post"));
+const WanderPage = lazy(() => import("@/pages/wander"));
+const DelvePage = lazy(() => import("@/pages/delve"));
+const AISettingsPage = lazy(() => import("@/pages/ai-settings"));
+const HowItWorks = lazy(() => import("@/pages/how-it-works"));
+const TestPage = lazy(() => import("@/pages/test-page"));
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+    </div>
+  );
+}
 
 function Router() {
   return (
@@ -54,34 +65,36 @@ function Router() {
       <Navbar />
       <InvitationAlert />
       <main className="flex-grow relative z-10">
-        <Switch>
-          <Route path="/" component={LandingPage} />
-          <ProtectedRoute path="/dashboard" component={Dashboard} />
-          <ProtectedRoute path="/play" component={Dashboard} />
-          <ProtectedRoute path="/characters" component={Characters} />
-          <ProtectedRoute path="/campaigns" component={Campaigns} />
-          <ProtectedRoute path="/dice-roller" component={DiceRoller} />
-          <ProtectedRoute path="/dm-toolkit" component={DMToolkit} />
-          <ProtectedRoute path="/learn" component={LearnPage} />
-          <Route path="/world-map" component={WorldMapPage} />
-          <ProtectedRoute path="/bulletin" component={BulletinBoardPage} />
-          <ProtectedRoute path="/tavern" component={TavernPage} />
-          <ProtectedRoute path="/hearth" component={HearthPage} />
-          <ProtectedRoute path="/groups" component={GroupsPage} />
-          <Route path="/trading-post" component={TradingPostPage} />
-          <ProtectedRoute path="/wander" component={WanderPage} />
-          <ProtectedRoute path="/delve" component={DelvePage} />
-          <Route path="/caml" component={CAMLPage} />
-          <ProtectedRoute path="/test" component={TestPage} />
-          <ProtectedRoute path="/admin" component={AdminPage} />
-          <ProtectedRoute path="/profile" component={ProfilePage} />
-          <ProtectedRoute path="/ai-settings" component={AISettingsPage} />
-          <Route path="/how-it-works" component={HowItWorks} />
-          <Route path="/dm-guide" component={DMGuidePage} />
-          <Route path="/legal" component={LegalPage} />
-          <Route path="/auth" component={AuthPage} />
-          <Route component={NotFound} />
-        </Switch>
+        <Suspense fallback={<PageLoader />}>
+          <Switch>
+            <Route path="/" component={LandingPage} />
+            <ProtectedRoute path="/dashboard" component={Dashboard} />
+            <ProtectedRoute path="/play" component={Dashboard} />
+            <ProtectedRoute path="/characters" component={Characters} />
+            <ProtectedRoute path="/campaigns" component={Campaigns} />
+            <ProtectedRoute path="/dice-roller" component={DiceRoller} />
+            <ProtectedRoute path="/dm-toolkit" component={DMToolkit} />
+            <ProtectedRoute path="/learn" component={LearnPage} />
+            <Route path="/world-map" component={WorldMapPage} />
+            <ProtectedRoute path="/bulletin" component={BulletinBoardPage} />
+            <ProtectedRoute path="/tavern" component={TavernPage} />
+            <ProtectedRoute path="/hearth" component={HearthPage} />
+            <ProtectedRoute path="/groups" component={GroupsPage} />
+            <Route path="/trading-post" component={TradingPostPage} />
+            <ProtectedRoute path="/wander" component={WanderPage} />
+            <ProtectedRoute path="/delve" component={DelvePage} />
+            <Route path="/caml" component={CAMLPage} />
+            <ProtectedRoute path="/test" component={TestPage} />
+            <ProtectedRoute path="/admin" component={AdminPage} />
+            <ProtectedRoute path="/profile" component={ProfilePage} />
+            <ProtectedRoute path="/ai-settings" component={AISettingsPage} />
+            <Route path="/how-it-works" component={HowItWorks} />
+            <Route path="/dm-guide" component={DMGuidePage} />
+            <Route path="/legal" component={LegalPage} />
+            <Route path="/auth" component={AuthPage} />
+            <Route component={NotFound} />
+          </Switch>
+        </Suspense>
       </main>
       <Footer />
     </div>
@@ -89,21 +102,15 @@ function Router() {
 }
 
 function App() {
-  // Initialize WebSocket connection
   useEffect(() => {
-    // Initialize WebSocket connection when app loads
-    console.log("Initializing WebSocket connection...");
     createWSConnection();
     
-    // Set up a periodic check to ensure WebSocket stays connected
     const wsHealthCheck = setInterval(() => {
-      createWSConnection(); // This will only connect if not already connected
-    }, 30000); // Check every 30 seconds
+      createWSConnection();
+    }, 30000);
     
-    // Listen for online/offline events to reconnect when network is restored
     const handleOnline = () => {
-      console.log("Network online, attempting to reconnect WebSocket");
-      createWSConnection(true); // Force reconnection
+      createWSConnection(true);
     };
     
     window.addEventListener('online', handleOnline);
