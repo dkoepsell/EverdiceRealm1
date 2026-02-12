@@ -1657,8 +1657,17 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             try {
               const payload = JSON.parse(dataStr);
               if (payload.text) {
-                setStreamedNarrative(payload.text);
-                setStoryPhase("deepen");
+                const words = payload.text.split(/\s+/);
+                if (words.length <= 120) {
+                  setStreamedNarrative(payload.text);
+                  setStoryPhase("deepen");
+                } else {
+                  const capped = words.slice(0, 120).join(" ") + "...";
+                  setStreamedNarrative(capped);
+                  setStoryPhase("deepen");
+                  controller.abort();
+                  return;
+                }
               }
             } catch {}
           }
