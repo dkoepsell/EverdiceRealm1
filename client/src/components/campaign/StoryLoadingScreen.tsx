@@ -220,24 +220,10 @@ export function StoryLoadingScreen({
           </div>
         ) : showStream && streamedText ? (
           <div className="relative z-10 animate-in fade-in duration-300">
-            <p className="whitespace-pre-line text-lg leading-relaxed text-slate-100/80 font-medium" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>
+            <p className="whitespace-pre-line text-lg leading-relaxed text-slate-100 font-medium" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>
               {streamedText}
-              {!streamedText.endsWith("...") && (
-                <span className="inline-block w-0.5 h-5 bg-amber-400 ml-0.5 animate-pulse" />
-              )}
+              <span className="inline-block w-0.5 h-5 bg-amber-400 ml-0.5 animate-pulse" />
             </p>
-            {streamedText.endsWith("...") && (
-              <div className="mt-4 flex items-center gap-3 px-3 py-2.5 bg-amber-900/20 border border-amber-600/20 rounded-lg animate-in fade-in duration-500">
-                <div className="flex gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
-                <span className="text-sm text-amber-300/70 italic">
-                  {elapsed > 8000 ? "Almost there — crafting your choices..." : "Weaving the complete scene..."}
-                </span>
-              </div>
-            )}
           </div>
         ) : (
           <>
