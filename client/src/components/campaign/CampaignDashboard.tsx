@@ -78,6 +78,7 @@ export default function CampaignDashboard({
   const [questsOpen, setQuestsOpen] = useState(true);
   const [partyOpen, setPartyOpen] = useState(true);
   const [eventsOpen, setEventsOpen] = useState(true);
+  const [factionsOpen, setFactionsOpen] = useState(true);
 
   const storyState = currentSession?.storyState as any || {};
   const partyMembers = storyState.partyMembers || [];
@@ -576,6 +577,148 @@ export default function CampaignDashboard({
           </CollapsibleContent>
         </Card>
       </Collapsible>
+
+      {((campaign as any).factionModels || (campaign as any).campaignInstability) && (
+        <Collapsible open={factionsOpen} onOpenChange={setFactionsOpen}>
+          <Card className="border-purple-200 dark:border-purple-800">
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-purple-50/50 dark:hover:bg-purple-950/20 transition-colors">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-purple-600" />
+                    Factions & World State
+                  </CardTitle>
+                  {factionsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </div>
+                {(campaign as any).campaignInstability && (
+                  <CardDescription className="text-purple-700 dark:text-purple-300 italic">
+                    {(campaign as any).campaignInstability}
+                  </CardDescription>
+                )}
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="space-y-4">
+                {(() => {
+                  const factionModels = (campaign as any).factionModels as any[] | null;
+                  const factionStrengths = ((campaign as any).factionStrengths || {}) as Record<string, number>;
+                  const milestones = (campaign as any).milestoneThresholds as any[] | null;
+                  const scenes = (campaign as any).sceneEligibility as any[] | null;
+
+                  return (
+                    <>
+                      {(!factionModels || factionModels.length === 0) && (!milestones || milestones.length === 0) && (!scenes || scenes.length === 0) && (
+                        <p className="text-sm text-slate-500 italic">The world is in motion. Factions and events will emerge as your campaign progresses.</p>
+                      )}
+                      {factionModels && factionModels.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold text-sm text-purple-600 mb-3 flex items-center gap-1">
+                            <Users className="h-4 w-4" /> Active Factions
+                          </h4>
+                          <div className="grid gap-3 md:grid-cols-2">
+                            {factionModels.map((faction: any, i: number) => {
+                              const factionKey = faction.id || faction.name;
+                              const rawStrength = factionStrengths[factionKey] ?? faction.strength ?? 50;
+                              const strength = Math.max(0, Math.min(100, rawStrength));
+                              const strengthColor = strength >= 70 ? 'bg-red-500' : strength >= 40 ? 'bg-amber-500' : 'bg-blue-500';
+                              const strengthLabel = strength >= 70 ? 'Dominant' : strength >= 40 ? 'Stable' : 'Weakened';
+                              const goal = faction.publicGoal || faction.goal || null;
+                              const method = faction.operationalMethod || faction.method || null;
+                              return (
+                                <div key={i} className="p-3 rounded-lg border border-purple-100 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20">
+                                  <div className="flex items-start justify-between mb-2">
+                                    <h5 className="font-bold text-slate-900 dark:text-slate-100 text-sm">{faction.name}</h5>
+                                    <Badge variant="outline" className={`text-xs ${strength >= 70 ? 'text-red-600 border-red-300' : strength >= 40 ? 'text-amber-600 border-amber-300' : 'text-blue-600 border-blue-300'}`}>
+                                      {strengthLabel}
+                                    </Badge>
+                                  </div>
+                                  <div className="mb-2">
+                                    <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                                      <span>Power</span>
+                                      <span>{strength}/100</span>
+                                    </div>
+                                    <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                      <div className={`h-full ${strengthColor} rounded-full transition-all duration-500`} style={{ width: `${strength}%` }} />
+                                    </div>
+                                  </div>
+                                  {goal && (
+                                    <p className="text-xs text-slate-600 dark:text-slate-400 mb-1">
+                                      <span className="font-medium text-slate-700 dark:text-slate-300">Goal:</span> {goal}
+                                    </p>
+                                  )}
+                                  {method && (
+                                    <p className="text-xs text-slate-600 dark:text-slate-400 mb-1">
+                                      <span className="font-medium text-slate-700 dark:text-slate-300">Method:</span> {method}
+                                    </p>
+                                  )}
+                                  {faction.hiddenTruth && (
+                                    <details className="mt-1">
+                                      <summary className="text-xs text-purple-500 cursor-pointer hover:text-purple-400">Hidden Truth</summary>
+                                      <p className="text-xs text-purple-400 dark:text-purple-300 mt-1 pl-2 border-l-2 border-purple-300">{faction.hiddenTruth}</p>
+                                    </details>
+                                  )}
+                                  {faction.vulnerability && (
+                                    <details className="mt-1">
+                                      <summary className="text-xs text-amber-500 cursor-pointer hover:text-amber-400">Vulnerability</summary>
+                                      <p className="text-xs text-amber-400 dark:text-amber-300 mt-1 pl-2 border-l-2 border-amber-300">{faction.vulnerability}</p>
+                                    </details>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {milestones && milestones.length > 0 && (
+                        <div>
+                          <Separator className="my-3" />
+                          <h4 className="font-semibold text-sm text-purple-600 mb-3 flex items-center gap-1">
+                            <TrendingUp className="h-4 w-4" /> Milestone Thresholds
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {milestones.map((m: any, i: number) => (
+                              <Badge key={i} variant="outline" className="text-xs px-3 py-1 border-purple-300 text-purple-700 dark:text-purple-300">
+                                <Zap className="h-3 w-3 mr-1" />
+                                {m.phase || m.name || `Phase ${i + 1}`}: {m.trigger || m.condition || 'Pending'}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {scenes && scenes.length > 0 && (
+                        <div>
+                          <Separator className="my-3" />
+                          <h4 className="font-semibold text-sm text-purple-600 mb-3 flex items-center gap-1">
+                            <Sparkles className="h-4 w-4" /> Conditional Scenes
+                          </h4>
+                          <div className="space-y-2">
+                            {scenes.map((scene: any, i: number) => {
+                              const isEligible = scene.eligible !== false;
+                              return (
+                                <div key={i} className={`p-2 rounded text-xs border ${isEligible ? 'border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20' : 'border-slate-200 bg-slate-50/50 dark:border-slate-700 dark:bg-slate-900/20 opacity-60'}`}>
+                                  <div className="flex items-center gap-2">
+                                    {isEligible ? <CheckCircle2 className="h-3 w-3 text-green-500" /> : <Clock className="h-3 w-3 text-slate-400" />}
+                                    <span className="font-medium text-slate-800 dark:text-slate-200">{scene.title || scene.name || `Scene ${i + 1}`}</span>
+                                  </div>
+                                  {scene.occursIf && (
+                                    <p className="text-slate-500 mt-1 pl-5">Condition: {Array.isArray(scene.occursIf) ? scene.occursIf.join(' AND ') : String(scene.occursIf)}</p>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      )}
     </div>
   );
 }

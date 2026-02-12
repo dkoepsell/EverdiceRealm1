@@ -226,6 +226,12 @@ export const campaigns = pgTable("campaigns", {
   normativeResidues: jsonb("normative_residues"), // Lasting consequences with severity levels
   residueTriggers: jsonb("residue_triggers"), // What creates/increases residue
   repairPathways: jsonb("repair_pathways"), // Costly, risky ways to reduce residue
+  // CAML Campaign Architecture - Faction & Instability System
+  campaignInstability: text("campaign_instability"), // Core instability that drives the campaign: "Ancient magic reawakens beneath a fractured kingdom"
+  factionModels: jsonb("faction_models"), // Structured faction data: goals, methods, hidden truths, reaction triggers, strength scores
+  milestoneThresholds: jsonb("milestone_thresholds"), // Phase-based milestone triggers (Arrival, Revelation, Complication, Escalation, Resolution)
+  sceneEligibility: jsonb("scene_eligibility"), // Conditional scene pools that unlock based on world state thresholds
+  factionStrengths: jsonb("faction_strengths"), // Current faction power levels: { faction_name: number }
   // Procedural Quest Generation System
   proceduralQuestConfig: jsonb("procedural_quest_config"), // Triggers and templates for dynamic quest generation
   lastProceduralQuestScene: integer("last_procedural_quest_scene").default(0), // Scene number of last procedural quest

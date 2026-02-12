@@ -5871,6 +5871,28 @@ Return your response as a JSON object with these fields:
         }
       }
       
+      // CAML Campaign Architecture: Add faction and instability context
+      const r1Instability = (campaign as any).campaignInstability;
+      const r1FactionModels = (campaign as any).factionModels as any[] || [];
+      const r1FactionStrengths = (campaign as any).factionStrengths as Record<string, number> || {};
+
+      if (r1Instability) {
+        stateContext += `\n\nCORE INSTABILITY (the engine driving ALL events):
+"${r1Instability}"
+This instability is ACTIVE — reference its effects. The world changes whether players act or not.\n`;
+      }
+
+      if (r1FactionModels.length > 0) {
+        stateContext += `\n\nACTIVE FACTIONS (independent agents that act between scenes):`;
+        for (const f of r1FactionModels) {
+          const strength = r1FactionStrengths[f.id] ?? f.strength ?? 50;
+          stateContext += `\n- ${f.name} [${f.id}] — Strength: ${strength}/100
+  Goal: ${f.publicGoal} | Method: ${f.operationalMethod}
+  Hidden Truth: ${f.hiddenTruth} | Vulnerability: ${f.vulnerability}`;
+        }
+        stateContext += `\nFACTION RULES: Report faction changes in "factionUpdates" array. Factions must act logically based on goals/strength.\n`;
+      }
+
       // Build operative summary
       let operativeSummary = "";
       if (activeGates.length > 0) {
@@ -6692,6 +6714,24 @@ Return your response as a JSON object with these fields:
             }
           }
 
+          // CAML Campaign Architecture: Process faction updates from AI response (Route 1)
+          if (storyData.factionUpdates && Array.isArray(storyData.factionUpdates)) {
+            const r1CurrentFactionStrengths = { ...((campaign as any).factionStrengths || {}) };
+            const r1CurrentFactionModels = (campaign as any).factionModels as any[] || [];
+            
+            for (const update of storyData.factionUpdates) {
+              if (update.factionId && typeof update.strengthDelta === 'number') {
+                const factionModel = r1CurrentFactionModels.find((f: any) => f.id === update.factionId);
+                const currentStr = r1CurrentFactionStrengths[update.factionId] ?? factionModel?.strength ?? 50;
+                const newStr = Math.max(0, Math.min(100, currentStr + update.strengthDelta));
+                r1CurrentFactionStrengths[update.factionId] = newStr;
+                stateWasUpdated = true;
+                console.log(`FACTION UPDATE (R1): ${update.factionId} ${update.strengthDelta > 0 ? '+' : ''}${update.strengthDelta} (now ${newStr}/100) — ${update.action}`);
+              }
+            }
+            (campaign as any).factionStrengths = r1CurrentFactionStrengths;
+          }
+
           // Save updated state to campaign
           const campaignUpdateData: any = {
             worldState: updatedWorldState,
@@ -6704,6 +6744,7 @@ Return your response as a JSON object with these fields:
             normativeResidues: updatedNormativeResidues,
             campaignStakes: updatedCampaignStakes,
             narrativeLog: updatedNarrativeLog,
+            factionStrengths: (campaign as any).factionStrengths || undefined,
             updatedAt: new Date().toISOString()
           };
           
@@ -15006,10 +15047,86 @@ DM AUTHORING DOCTRINE (MANDATORY):
 - Include "narrativeLogEntry" with: xpReason, stakeReason, foreclosedReason, choiceCost.
 `;
       
+      // ============================================
+      // CAML CAMPAIGN ARCHITECTURE — Faction & Instability Context
+      // ============================================
+      let factionArchitecturePrompt = '';
+      const campaignInstability = (campaign as any).campaignInstability;
+      const factionModels = (campaign as any).factionModels as any[] || [];
+      const factionStrengths = (campaign as any).factionStrengths as Record<string, number> || {};
+      const milestoneThresholds = (campaign as any).milestoneThresholds as any[] || [];
+      const sceneEligibilityPool = (campaign as any).sceneEligibility as any[] || [];
+
+      if (campaignInstability || factionModels.length > 0) {
+        factionArchitecturePrompt += `
+═══════════════════════════════════════════════════════════
+CAML CAMPAIGN ARCHITECTURE — LIVING WORLD (MANDATORY):
+═══════════════════════════════════════════════════════════
+`;
+        if (campaignInstability) {
+          factionArchitecturePrompt += `\nCORE INSTABILITY (the engine driving ALL events):
+"${campaignInstability}"
+This instability is ACTIVE and EVOLVING. Reference its effects in the scene — the world is changing whether the players act or not.\n`;
+        }
+
+        if (factionModels.length > 0) {
+          factionArchitecturePrompt += `\nACTIVE FACTIONS (these are independent agents — they ACT between scenes):`;
+          for (const f of factionModels) {
+            const currentStrength = factionStrengths[f.id] ?? f.strength ?? 50;
+            factionArchitecturePrompt += `\n- ${f.name} [${f.id}] — Strength: ${currentStrength}/100
+  Public Goal: ${f.publicGoal}
+  Method: ${f.operationalMethod}
+  Hidden Truth: ${f.hiddenTruth}
+  Vulnerability: ${f.vulnerability}
+  Reaction Triggers: ${(f.reactionTriggers || []).join(', ')}`;
+            const rels = f.relationships || [];
+            if (rels.length > 0) {
+              factionArchitecturePrompt += `\n  Relationships: ${rels.map((r: any) => `${r.factionId}: ${r.stance}`).join(', ')}`;
+            }
+          }
+
+          factionArchitecturePrompt += `\n
+FACTION RULES FOR THIS SCENE:
+1. At least ONE faction should be visibly active or referenced in this scene
+2. Faction actions should be LOGICAL based on their goals, methods, and current strength
+3. If a reaction trigger condition is met, that faction MUST act (visibly or behind the scenes)
+4. Faction strength shifts based on events: successful operations +5-10, setbacks -5-10
+5. Report faction changes in "factionUpdates" in your response
+6. Hidden truths can be partially revealed through clues, NPC gossip, or environmental evidence
+`;
+        }
+
+        if (sceneEligibilityPool.length > 0) {
+          const worldStateVars = (campaign as any).worldState as any[] || [];
+          const eligibleScenes = sceneEligibilityPool.filter((scene: any) => {
+            if (!scene.occursIf || scene.occursIf.length === 0) return true;
+            return true;
+          });
+          if (eligibleScenes.length > 0) {
+            factionArchitecturePrompt += `\nCONDITIONAL SCENE POOL (use these as inspiration — scenes unlock based on world state):`;
+            for (const scene of eligibleScenes.slice(0, 5)) {
+              factionArchitecturePrompt += `\n- "${scene.title}" [${scene.pillarType}] — Stakes: ${scene.stakes}
+  Occurs if: ${(scene.occursIf || []).join(' AND ')}
+  ${scene.blockedIf ? `Blocked if: ${scene.blockedIf.join(' OR ')}` : ''}`;
+            }
+            factionArchitecturePrompt += `\nUse these scenes when their conditions match the current world state. You may adapt or combine them.\n`;
+          }
+        }
+
+        if (milestoneThresholds.length > 0) {
+          const currentMilestone = milestoneThresholds.find((m: any) => !m.reached);
+          if (currentMilestone) {
+            factionArchitecturePrompt += `\nNEXT MILESTONE: "${currentMilestone.phase}" — Trigger: ${currentMilestone.trigger}
+When reached, factions will react: ${(currentMilestone.factionReactions || []).map((r: any) => `${r.factionId}: ${r.action}`).join('; ')}\n`;
+          }
+        }
+      }
+
       // Finale and chapter progress instructions
       const chapterProgressNote = `
 CAMPAIGN PROGRESS: Chapter ${currentChapter} of ${totalChapters}
 ${campaignDoctrineNote}
+${factionArchitecturePrompt}
 `;
       
       // Build forked ending context from stake states
@@ -15518,6 +15635,8 @@ Respond with JSON:
   "skillUsed": "Stealth/Perception/Athletics/etc or null if no skill check",
   "rewardItems": [{"name": "Healing Potion", "type": "consumable", "description": "Restores 2d4+2 HP", "rarity": "common"}],
   "campaignStakeUpdates": [{"id": "stake_id", "delta": -1, "reason": "Why this stake changed"}],
+  "factionUpdates": [{"factionId": "faction.id", "strengthDelta": 5, "action": "What the faction did this scene (visible or behind-the-scenes)", "reason": "Why their strength changed"}],
+  "instabilityUpdate": {"delta": 1, "manifestation": "How the instability visibly changed this scene"},
   "chapterGateMet": {"gateId": 1, "reason": "What truth/belief/commitment was reached"},
   "narrativeLogEntry": {"xpReason": "Why XP was earned", "stakeReason": "Which stakes changed and why", "foreclosedReason": "What options closed", "choiceCost": "What the choice cost/closed/escalated"},
   "movement": {
@@ -18821,6 +18940,24 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           doctrineUpdates.narrativeLog = currentNarrativeLog;
         }
         
+        // CAML Campaign Architecture: Process faction updates from AI response
+        if (storyAdvancement.factionUpdates && Array.isArray(storyAdvancement.factionUpdates)) {
+          const currentFactionStrengths = { ...((campaign as any).factionStrengths || {}) };
+          const currentFactionModels = [...((campaign as any).factionModels || [])];
+          
+          for (const update of storyAdvancement.factionUpdates) {
+            if (update.factionId && typeof update.strengthDelta === 'number') {
+              const factionModel = currentFactionModels.find((f: any) => f.id === update.factionId);
+              const currentStrength = currentFactionStrengths[update.factionId] ?? factionModel?.strength ?? 50;
+              const newStrength = Math.max(0, Math.min(100, currentStrength + update.strengthDelta));
+              currentFactionStrengths[update.factionId] = newStrength;
+              console.log(`FACTION UPDATE: ${update.factionId} ${update.strengthDelta > 0 ? '+' : ''}${update.strengthDelta} (now ${newStrength}/100) — ${update.action}`);
+            }
+          }
+          doctrineUpdates.factionStrengths = currentFactionStrengths;
+          doctrineChanged = true;
+        }
+
         if (doctrineChanged) {
           await storage.updateCampaign(campaignId, doctrineUpdates);
         }

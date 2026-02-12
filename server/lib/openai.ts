@@ -130,6 +130,40 @@ export interface RepairPathway {
   canBeRefused: boolean; // NPC/institution can refuse to even try
 }
 
+// CAML Campaign Architecture - Faction Model
+export interface FactionModel {
+  id: string; // e.g., "faction.iron_circle"
+  name: string;
+  publicGoal: string; // What they claim to want
+  operationalMethod: string; // How they pursue their goal
+  hiddenTruth: string; // Secret condition or agenda
+  moralJustification: string; // Why they believe they're right
+  resourceConstraint: string; // What limits their power
+  vulnerability: string; // How they can be undermined
+  strength: number; // 0-100, current faction power level
+  reactionTriggers: string[]; // Events that cause this faction to act
+  relationships: { factionId: string; stance: "allied" | "neutral" | "rival" | "hostile"; reason: string }[];
+}
+
+// CAML Campaign Architecture - Milestone Threshold
+export interface MilestoneThreshold {
+  phase: string; // e.g., "Arrival", "Revelation", "Complication", "Escalation", "Resolution"
+  trigger: string; // What unlocks this phase
+  unlocksScenePool: string[]; // Scene IDs that become available
+  factionReactions: { factionId: string; action: string }[]; // What factions do when this milestone is reached
+}
+
+// CAML Campaign Architecture - Conditional Scene
+export interface ConditionalScene {
+  id: string; // e.g., "scene.forest_ambush"
+  title: string;
+  occursIf: string[]; // Conditions like "world_state.stability < 60", "faction.iron_circle.strength > 70"
+  blockedIf?: string[]; // Conditions that prevent this scene
+  stakes: string; // What's at risk
+  pillarType: "combat" | "exploration" | "social" | "mystery"; // Scene type for balance tracking
+  outcomes: { description: string; stateChanges: string[] }[]; // Possible results and their effects
+}
+
 // Procedural Quest Generation - quests generated from world state conditions
 export interface QuestTrigger {
   id: string; // e.g., "QT_HIGH_SUSPICION"
@@ -228,6 +262,11 @@ export interface CampaignGenerationResponse {
   repairPathways: RepairPathway[];
   // Procedural Quest Generation System
   proceduralQuestConfig: ProceduralQuestConfig;
+  // CAML Campaign Architecture
+  campaignInstability: string;
+  factionModels: FactionModel[];
+  milestoneThresholds: MilestoneThreshold[];
+  sceneEligibility: ConditionalScene[];
 }
 
 export async function generateCampaign(req: CampaignGenerationRequest, userId?: number): Promise<CampaignGenerationResponse> {
@@ -445,6 +484,81 @@ DESIGN GUIDELINES FOR PROCEDURAL QUESTS:
 - Templates should be SPECIFIC to the adventure's theme and location
 - Quests should have MEANINGFUL consequences (state changes, NPC attitude shifts)
 - Avoid generic "fetch X" quests - tie them to the narrative
+
+═══════════════════════════════════════════════════════════════════════════════
+CAML CAMPAIGN ARCHITECTURE — LIVING WORLD SYSTEM (MANDATORY)
+═══════════════════════════════════════════════════════════════════════════════
+
+A CAML campaign is NOT a story. It is a structured world under tension. Players do not follow a path — they reshape a system. Design INSTABILITY first, then build factions that compete over it.
+
+- campaignInstability: A single sentence defining the core instability that drives ALL events in this campaign.
+  This instability EVOLVES WITHOUT PLAYERS — it is the engine that makes the world feel alive.
+  Example: "Ancient ward-stones beneath the kingdom are failing, and three factions compete to control what emerges"
+  Example: "A magical plague spreads from a sealed vault, and those who profit from it resist the cure"
+  The instability must be:
+  1. Observable — players can see its effects getting worse
+  2. Actionable — players can intervene (but intervention has costs)
+  3. Contested — at least 2 factions disagree about what to do about it
+
+- factionModels: An array of 3+ factions that are ACTIVE AGENTS in the world. Each has:
+  - id: Identifier (e.g., "faction.iron_circle", "faction.verdant_veil")
+  - name: Faction name
+  - publicGoal: What they publicly claim to want (1 sentence)
+  - operationalMethod: HOW they pursue their goal (e.g., "Military enforcement", "Scholarly research", "Underground sabotage")
+  - hiddenTruth: What they're ACTUALLY doing or what they caused (this is a SECRET the players can discover)
+  - moralJustification: Why they believe they're RIGHT — no faction is purely evil
+  - resourceConstraint: What limits their power (e.g., "Low on soldiers", "Funding depends on noble patrons")
+  - vulnerability: How players can undermine them (e.g., "Their leader's legitimacy depends on a lie")
+  - strength: Starting power level 20-80 (these shift during play based on events)
+  - reactionTriggers: Array of 2-3 world events or state changes that cause this faction to ACT
+    (e.g., ["world_state.stability < 40", "faction.verdant_veil.strength > 60", "event.magic_surge"])
+  - relationships: Array of relationships with OTHER factions:
+    - { factionId: "faction.other_id", stance: "allied" | "neutral" | "rival" | "hostile", reason: "Why this stance exists" }
+
+  FACTION DESIGN RULES:
+  1. No faction is purely evil or purely good — each has moral justification
+  2. Every faction has a resource constraint AND a vulnerability
+  3. At least 2 factions must be in TENSION over the instability
+  4. Hidden truths should create dramatic reveals when discovered
+  5. Faction strength CHANGES when their reaction triggers fire — they don't sit still
+
+- milestoneThresholds: An array of 4-6 milestone phases. Each has:
+  - phase: Phase name (e.g., "Arrival", "First Contact", "Revelation", "Complication", "Escalation", "Resolution")
+  - trigger: What state condition unlocks this phase (e.g., "First faction contact", "campaignInstability visible effects", "stability < 30")
+  - unlocksScenePool: Array of scene IDs from sceneEligibility that become available
+  - factionReactions: Array of what each faction does when this milestone is reached:
+    - { factionId: "faction.id", action: "What this faction does in response" }
+  
+  Milestones unlock NEW SCENE POOLS rather than force events. They are thresholds, not plot points.
+
+- sceneEligibility: An array of 6-10 conditional scenes. Each has:
+  - id: Scene identifier (e.g., "scene.forest_ambush", "scene.faction_negotiation")
+  - title: Scene title
+  - occursIf: Array of conditions that must ALL be true for this scene to be eligible
+    (e.g., ["world_state.stability < 60", "faction.iron_circle.strength > 40"])
+  - blockedIf: (optional) Array of conditions that PREVENT this scene
+    (e.g., ["foreclosure.peaceful_resolution.isSealed"])
+  - stakes: What's at risk in this scene (1 sentence)
+  - pillarType: "combat" | "exploration" | "social" | "mystery" — for balance tracking
+  - outcomes: Array of 2-3 possible results, each with:
+    - description: What happens
+    - stateChanges: Array of state changes (e.g., ["stability -10", "faction.iron_circle.strength +5"])
+
+  SCENE DESIGN RULES:
+  1. Scenes are NOT guaranteed — they only fire when conditions are met
+  2. Every scene must modify at least one persistent variable
+  3. Balance pillarTypes across combat/exploration/social/mystery
+  4. At least 2 scenes should be faction-initiated (factions acting on their own)
+  5. At least 1 scene should be BLOCKED by a foreclosure condition
+  6. Scene outcomes must feed back into world state, creating cascading effects
+
+ARCHITECTURE COMPLIANCE CHECKLIST:
+- Does the instability evolve without player action? YES required.
+- Do all factions act independently based on triggers? YES required.
+- Do all major scenes modify world state? YES required.
+- Can failure create new content (not dead ends)? YES required.
+- Are pillar types balanced (combat/exploration/social/mystery)? YES required.
+- Does the ending reflect player faction alignment? YES required.
 
 Format the response as a valid JSON object without explanation.
 `;
