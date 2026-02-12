@@ -1,0 +1,353 @@
+Excellent. Below is a CAML-aligned campaign authoring guide structured as a DM-facing PDF handbook outline.
+
+This is written as something you could directly format into a PDF for Everdice DMs or CAML authors. It preserves D&D philosophy while making branching logic, consequences, and world-state explicit.
+
+CAML Campaign Architecture Handbook
+A Structured Guide for Designing Living D&D Worlds
+1. Introduction
+What This Handbook Is
+
+This guide helps you design D&D campaigns using CAML (Canonical Adventure Modeling Language) so that:
+
+Player choice is real
+
+World state persists
+
+Consequences are traceable
+
+Adventures are modular and reusable
+
+You avoid railroading without losing structure
+
+This is not a script-writing guide.
+It is a tension modeling guide.
+
+2. Design Philosophy
+
+A CAML campaign is:
+
+A structured instability that players interact with.
+
+Not:
+
+A linear story
+
+A pre-written novel
+
+A fixed sequence of encounters
+
+Instead, it is:
+
+A world model
+
+With factions
+
+Operating under pressure
+
+That reacts to player action
+
+3. Campaign Core Layer (CAML Meta)
+
+Every CAML campaign begins with a meta block.
+
+Required Core Fields
+{
+  "meta": {
+    "id": "campaign.whispers_of_ash",
+    "title": "Whispers of Ash",
+    "theme": "Order vs. Freedom",
+    "instability": "Ancient magic reawakens beneath a fractured kingdom",
+    "levels": { "min": 1, "max": 8 }
+  }
+}
+
+Required Design Elements
+Element	Purpose
+Theme	Guides moral tension
+Instability	Drives events forward
+Scope	Defines progression scale
+Tone	Signals expected play style
+4. Faction Modeling in CAML
+
+CAML requires factions to be defined as entities.
+
+Minimum: Three Factions
+
+Each faction must include:
+
+Public Goal
+
+Operational Method
+
+Hidden Condition
+
+Trigger Events
+
+Relationship Graph
+
+Example CAML Structure
+{
+  "id": "faction.iron_circle",
+  "type": "Faction",
+  "goal": "Restore order through military control",
+  "method": "Martial enforcement",
+  "hidden_truth": "They awakened the instability",
+  "reacts_to": ["event.magic_surge", "event.city_riot"]
+}
+
+DM Guidance
+
+Do not make factions purely evil or good.
+
+Give each faction:
+
+A moral justification
+
+A resource constraint
+
+A vulnerability
+
+5. World State Architecture
+
+CAML campaigns track persistent variables.
+
+Required State Trackers
+
+At minimum:
+
+Regional Stability
+
+Faction Reputation
+
+Escalation Index
+
+Corruption or Threat Meter
+
+Example:
+
+{
+  "world_state": {
+    "stability": 70,
+    "arcane_corruption": 10,
+    "faction_strength": {
+      "iron_circle": 50,
+      "verdant_veil": 40
+    }
+  }
+}
+
+DM Principle
+
+State variables must:
+
+Change visibly
+
+Affect scene eligibility
+
+Influence faction behavior
+
+6. Scene Architecture (Encounter as Conditional Node)
+
+In CAML, scenes are not guaranteed events.
+
+They are:
+
+Conditional narrative objects.
+
+Required Scene Components
+{
+  "id": "scene.forest_ambush",
+  "type": "Scene",
+  "occurs_if": ["world_state.stability < 60"],
+  "participants": ["bandit_captain", "forest_scout"],
+  "stakes": "Trade route disruption",
+  "outcomes": [
+    "stability -10",
+    "faction.iron_circle +5 reputation"
+  ]
+}
+
+Required Fields
+
+occurs_if
+
+stakes
+
+branching outcomes
+
+persistent consequences
+
+7. Campaign Spine as Milestone Triggers
+
+Instead of acts, CAML uses milestone thresholds.
+
+Example Milestone Map
+Phase	Trigger
+Arrival	First faction contact
+Revelation	Instability > 40
+Complication	Players align with a faction
+Escalation	Regional stability < 30
+Resolution	Faction dominance achieved
+
+Milestones unlock new scene pools rather than force events.
+
+8. Branching Design Standards
+
+Every major scene must:
+
+Offer 2+ meaningful approaches
+
+Change at least one persistent variable
+
+Affect future eligibility
+
+Avoid:
+
+Single outcome resolution
+
+Dead-end narrative branches
+
+Invisible state shifts
+
+9. Recurring NPC Structure
+
+Recurring NPCs are entities with:
+
+Memory flag
+
+Alignment drift
+
+Relationship score
+
+Example:
+
+{
+  "id": "npc.zara_the_sentinel",
+  "memory": true,
+  "relationship": {
+    "party": 10
+  }
+}
+
+
+NPC reactions must depend on prior outcomes.
+
+10. Failure Modeling
+
+Failure must:
+
+Modify state
+
+Shift faction power
+
+Unlock alternative scenes
+
+CAML never resets.
+
+Instead, it branches.
+
+11. Variable Encounter Density
+
+Balance across pillars:
+
+Combat
+
+Exploration
+
+Social
+
+CAML tagging example:
+
+"tags": ["exploration", "mystery", "low_combat"]
+
+
+Campaign-level tracking should prevent overuse of one tag.
+
+12. Designing for Replayability
+
+Replay value emerges from:
+
+Variable faction outcomes
+
+Alternate scene eligibility
+
+Divergent resolution states
+
+Do not lock critical content behind single binary choices.
+
+PDF Handbook Structure
+
+Below is the recommended final PDF layout.
+
+CAML Campaign Architecture Handbook
+Part I: Foundations
+
+Philosophy of Living Campaigns
+
+Designing Instability
+
+Thematic Anchoring
+
+Part II: Structural Modeling
+
+CAML Meta Schema
+
+Faction Modeling
+
+World State Variables
+
+Scene Design as Conditional Nodes
+
+Part III: Campaign Flow
+
+Milestone Thresholds
+
+Escalation Systems
+
+Consequence Architecture
+
+Part IV: Practical Design Tools
+
+Branch Testing Checklist
+
+Failure Matrix
+
+Replayability Audit
+
+Pillar Balance Tracker
+
+Appendix
+
+Full Example Campaign
+
+Annotated CAML JSON
+
+State Tracker Templates
+
+DM Debugging Checklist
+
+DM Quick Checklist Page (for end of PDF)
+
+Before Publishing a Campaign:
+
+Does instability evolve without players?
+
+Do factions act independently?
+
+Do all major scenes modify state?
+
+Can failure create new content?
+
+Is combat balanced with exploration and social?
+
+Does the ending reflect player alignment?
+
+Final Framing Statement (for inside cover)
+
+A CAML campaign is not a story.
+
+It is a structured world under tension.
+
+Players do not follow a path.
+
+They reshape a system.
