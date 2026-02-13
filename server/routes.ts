@@ -965,6 +965,10 @@ type ClientWebSocket = WebSocket;
 const activeConnections = new Set<ClientWebSocket>();
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok' });
+  });
+
   // Setup authentication
   setupAuth(app);
   
