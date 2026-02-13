@@ -121,6 +121,29 @@ import { getAIClient, getAppOpenAI } from "./lib/aiProvider";
 
 const openai = getAppOpenAI();
 
+const narrativeCache = new Map<string, { narrative: string; timestamp: number }>();
+const NARRATIVE_CACHE_TTL = 5 * 60 * 1000;
+
+function getCachedNarrative(campaignId: number, userId: number): string | null {
+  const key = `${campaignId}:${userId}`;
+  const entry = narrativeCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > NARRATIVE_CACHE_TTL) {
+    narrativeCache.delete(key);
+    return null;
+  }
+  return entry.narrative;
+}
+
+function setCachedNarrative(campaignId: number, userId: number, narrative: string) {
+  const key = `${campaignId}:${userId}`;
+  narrativeCache.set(key, { narrative, timestamp: Date.now() });
+}
+
+function deleteCachedNarrative(campaignId: number, userId: number) {
+  narrativeCache.delete(`${campaignId}:${userId}`);
+}
+
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 
 // ============================================
@@ -15680,14 +15703,39 @@ Respond with JSON:
 }`;
 
       const { client: openaiClient, model: aiModel } = await getAIClient(req.user?.id);
+
+      const cachedNarrative = getCachedNarrative(campaignId, req.user!.id);
+      let finalPrompt = prompt;
+      if (cachedNarrative) {
+        finalPrompt = prompt + `
+
+═══════════════════════════════════════════════════════════════════════════════
+NARRATIVE CONTINUITY LOCK (CRITICAL — HIGHEST PRIORITY):
+═══════════════════════════════════════════════════════════════════════════════
+The following narrative has ALREADY been shown to the player via streaming.
+You MUST use this EXACT text as your "narrative" field — do NOT rewrite, rephrase, or generate different narrative text.
+Generate all other fields (choices, storyState, combatEffects, quests, etc.) to be CONSISTENT with this narrative.
+Your choices should follow logically from what happens in this narrative.
+
+LOCKED NARRATIVE (copy verbatim into "narrative"):
+"""
+${cachedNarrative}
+"""
+═══════════════════════════════════════════════════════════════════════════════`;
+        console.log(`[Advance Story] Using cached narrative (${cachedNarrative.length} chars) for campaign ${campaignId}`);
+      }
+
       const response = await openaiClient.chat.completions.create({
         model: aiModel,
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "user", content: finalPrompt }],
         response_format: { type: "json_object" },
       });
 
       const storyAdvancement = JSON.parse(response.choices[0].message.content);
-      console.log(`[Advance Story] AI response received - narrative length: ${storyAdvancement.narrative?.length || 0}, choices: ${storyAdvancement.choices?.length || 0}`);
+      if (cachedNarrative) {
+        deleteCachedNarrative(campaignId, req.user!.id);
+      }
+      console.log(`[Advance Story] AI response received - narrative length: ${storyAdvancement.narrative?.length || 0}, choices: ${storyAdvancement.choices?.length || 0}${cachedNarrative ? ' (cached narrative injected)' : ''}`);
 
       // Calculate XP and item rewards based on story advancement
       let xpAwarded = 0;
@@ -19212,24 +19260,104 @@ Respond with JSON:
       const sessions = await storage.getCampaignSessions(campaignId);
       const latestSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
       const previousNarrative = latestSession?.narrative || "";
+      const storyState = (latestSession?.storyState as any) || {};
+      const currentQuests = storyState.activeQuests || [];
+      const inCombat = storyState.inCombat || false;
 
-      const streamPrompt = `You are an expert Dungeon Master. Write the next scene for this D&D 5e campaign.
+      const narrativeStyle = campaign?.narrativeStyle || "Descriptive";
+      const currentChapter = campaign.currentSession || 1;
+      const totalChapters = campaign.totalChapters || 5;
+      const campaignQuestion = (campaign as any).campaignQuestion || '';
 
-Campaign: ${campaign.title}. ${(campaign.description || "").slice(0, 200)}
-Party: ${partyDesc}
+      const recentSessions = sessions.slice(-5);
+      const recentTitles = recentSessions.map(s => s.title).filter(Boolean);
+      const recentLocations = recentSessions.map(s => s.location).filter(Boolean);
+
+      const extractMotifs = (text: string): string[] => {
+        const motifPatterns = /\b(runestone|altar|shrine|portal|crystal|artifact|tome|scroll|relic|idol|obelisk|monolith|totem|sigil|glyph|rune|amulet|pendant|orb|scepter|throne|fountain|well|mirror|gate|door|chest|vault|crypt|tomb|statue|pillar|tower|bridge|cave|tunnel|clearing|grove|camp|ruins|temple|library|forge|market|tavern|dock|harbor|lighthouse|watchtower|graveyard|battlefield|arena)\b/gi;
+        return [...new Set((text.match(motifPatterns) || []).map(m => m.toLowerCase()))];
+      };
+      const recentNarText = recentSessions.slice(-3).map(s => (s.narrative || "").substring(0, 400)).join(" ");
+      const recentMotifs = extractMotifs(recentNarText).slice(0, 10);
+
+      const campaignText = `${campaign?.title || ''} ${campaign?.description || ''} ${previousNarrative}`.toLowerCase();
+      let detectedTheme = 'dungeon';
+      if (/ship|sea|ocean|pirate|nautical|harbor/.test(campaignText)) detectedTheme = 'nautical';
+      else if (/forest|wood|tree|grove|wilderness/.test(campaignText)) detectedTheme = 'forest';
+      else if (/city|town|urban|guild|tavern/.test(campaignText)) detectedTheme = 'urban';
+      else if (/desert|sand|pyramid|oasis/.test(campaignText)) detectedTheme = 'desert';
+      else if (/mountain|cave|mine|dwarf/.test(campaignText)) detectedTheme = 'mountain';
+
+      let playerCharInfo = "";
+      if (validCharacters.length > 0) {
+        const pc = validCharacters[0];
+        if (pc) {
+          playerCharInfo = `\nPlayer Character: ${pc.name} (Level ${pc.level || 1} ${pc.class || "Fighter"}, HP ${pc.hitPoints || 0}/${pc.maxHitPoints || 1}, AC ${pc.armorClass || 10}, Status: ${pc.status || 'conscious'})`;
+        }
+      }
+
+      let combatContext = "";
+      if (inCombat && storyState.combatants?.length > 0) {
+        const enemies = storyState.combatants.filter((c: any) => c.type === 'enemy' || c.type === 'boss');
+        if (enemies.length > 0) {
+          combatContext = `\nACTIVE COMBAT — Use these EXACT enemy names:\n${enemies.map((e: any) => `- "${e.name}" HP ${e.currentHp}/${e.maxHp}`).join('\n')}`;
+        }
+      }
+
+      const chapterGates = (campaign as any).chapterGates as any[] || [];
+      const currentGate = chapterGates.find((g: any) => g.chapter === currentChapter);
+      let chapterObjective = "";
+      if (currentGate) {
+        chapterObjective = `\nChapter ${currentChapter} Objective: "${currentGate.advanceWhen}"`;
+      }
+
+      const campaignStakes = (campaign as any).campaignStakes as any[] || [];
+      let stakesContext = "";
+      if (campaignStakes.length > 0) {
+        stakesContext = `\nCampaign Stakes: ${campaignStakes.map((s: any) => `${s.name}: ${s.value}/${s.max}`).join(', ')}`;
+      }
+
+      const streamPrompt = `You are an expert Dungeon Master for a D&D 5e campaign with a ${narrativeStyle} storytelling style.
+Campaign: "${campaign.title}" — ${(campaign.description || "").slice(0, 300)}
+Theme: ${detectedTheme.toUpperCase()}
+Chapter ${currentChapter} of ${totalChapters}
+${campaignQuestion ? `Campaign Question: "${campaignQuestion}"` : ''}
+${chapterObjective}
+${stakesContext}
+${playerCharInfo}
+${partyDesc ? `Party: ${partyDesc}` : ''}
 Location: ${currentLocation || "Unknown"}
-${previousNarrative ? `Previous scene (summary): ${previousNarrative.slice(0, 300)}` : ""}
+${combatContext}
+
+Active Quests: ${currentQuests.length > 0 ? currentQuests.map((q: any) => q.title).join(', ') : 'None'}
+
+Previous scene: ${previousNarrative.slice(0, 500)}
+
+Current Story State: ${JSON.stringify({
+  location: storyState.location,
+  inCombat: storyState.inCombat,
+  inventory: storyState.inventory?.slice(0, 5),
+  npcsEncountered: storyState.npcsEncountered?.slice(-3)
+})}
 
 The player chose: "${choice || "Continue the adventure"}"
 
-Write ONLY the narrative text for the next scene. 2-3 paragraphs, vivid and immersive. No JSON, no choices, just the story text.`;
+ANTI-REPETITION — DO NOT reuse these:
+- Recent titles: ${recentTitles.map(t => `"${t}"`).join(', ')}
+- Recent locations: ${[...new Set(recentLocations)].join(', ')}
+- Overused motifs: ${recentMotifs.join(', ')}
+
+Write ONLY the narrative prose for the next scene. 2-4 paragraphs, vivid and immersive.
+Match the ${detectedTheme} theme. Stay consistent with the story state and combat status.
+${inCombat ? 'This is a COMBAT scene — describe the battle action using the EXACT enemy names listed above.' : ''}
+No JSON, no choices, no game mechanics — just the story text.`;
 
       try {
         const { client: openaiClient, model: aiModel } = await getAIClient(req.user?.id);
         const stream = await openaiClient.chat.completions.create({
           model: aiModel,
           messages: [{ role: "user", content: streamPrompt }],
-          max_tokens: 600,
+          max_tokens: 800,
           stream: true,
         });
 
@@ -19240,6 +19368,11 @@ Write ONLY the narrative text for the next scene. 2-3 paragraphs, vivid and imme
             accumulated += delta;
             sendEvent("narrative", { text: accumulated });
           }
+        }
+
+        if (accumulated.trim()) {
+          setCachedNarrative(campaignId, req.user!.id, accumulated);
+          console.log(`[Stream] Cached narrative for campaign ${campaignId}, user ${req.user!.id} (${accumulated.length} chars)`);
         }
 
         sendEvent("complete", { narrative: accumulated });
