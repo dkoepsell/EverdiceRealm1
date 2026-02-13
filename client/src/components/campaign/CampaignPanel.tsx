@@ -30,7 +30,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map as MapIcon, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard, Coffee, Star, Camera, Check } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map as MapIcon, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Swords, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard, Coffee, Star, Camera, Check } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -2594,6 +2594,96 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       }
     });
   };
+
+  const triggerCombatAdvance = useCallback((actionText: string, rollResult?: any) => {
+    setLastChosenAction(actionText);
+    setStoryPhase('commit');
+    setRevealText("");
+    setStreamedNarrative("");
+    setIsAdvancingStory(true);
+    setMutationReady(false);
+    setChoicesRevealed(false);
+    if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
+    fetchRevealText(actionText, true, currentLocation);
+    startNarrativeStream(actionText, currentLocation);
+    advanceStory.mutate({ choice: actionText, rollResult }, {
+      onSettled: () => {
+        if (streamAbortRef.current) streamAbortRef.current.abort();
+        setMutationReady(true);
+        setLastChosenAction("");
+      }
+    });
+  }, [currentLocation, fetchRevealText, startNarrativeStream, advanceStory]);
+
+  const handleQuickWeaponAttack = useCallback(() => {
+    if (!activeCharacter || isAdvancingStory || advanceStory.isPending) return;
+
+    const enemies = (parsedStoryState?.combatants as any[] || []).filter(
+      (c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated' && (c.currentHp > 0 || c.currentHp === undefined)
+    );
+    const validIndex = selectedTargetIndex < enemies.length ? selectedTargetIndex : 0;
+    const targetEnemy = enemies.length > 0 ? enemies[validIndex] : null;
+    if (!targetEnemy) return;
+
+    const weaponName = getEquipmentName((activeCharacter as any).equippedWeapon) || 'Unarmed';
+    const weaponStats = itemStatsMap?.[weaponName];
+
+    const strMod = Math.floor(((activeCharacter.strength || 10) - 10) / 2);
+    const dexMod = Math.floor(((activeCharacter.dexterity || 10) - 10) / 2);
+    const nameLower = weaponName.toLowerCase();
+    const finesseWeapons = ['dagger', 'dart', 'rapier', 'scimitar', 'shortsword', 'whip'];
+    const isFinesse = finesseWeapons.some(w => nameLower.includes(w)) || weaponStats?.properties?.includes('finesse');
+    const isRanged = nameLower.match(/bow|crossbow|sling|dart|pistol|musket|blowgun/);
+    const abilityMod = isRanged ? dexMod : isFinesse ? Math.max(strMod, dexMod) : strMod;
+    const profBonus = Math.floor(((activeCharacter.level || 1) - 1) / 4) + 2;
+    const magicBonus = weaponStats?.magicBonus || weaponStats?.attackBonus || 0;
+    const attackBonus = abilityMod + profBonus + magicBonus;
+
+    const roll = Math.floor(Math.random() * 20) + 1;
+    const isCritical = roll === 20;
+    const isCriticalMiss = roll === 1;
+    const attackTotal = roll + attackBonus;
+    const targetAC = targetEnemy.ac || 10;
+    const isHit = isCritical || (!isCriticalMiss && attackTotal >= targetAC);
+
+    let damageDice = weaponStats?.damageDice || '1d8';
+    const damageType = weaponStats?.damageType || 'slashing';
+    let damageResult: SpellDamageResult | null = null;
+    if (isHit) {
+      damageResult = parseAndRollDice(damageDice, isCritical, damageType);
+      if (damageResult) {
+        damageResult.total += abilityMod + magicBonus;
+        if (damageResult.total < 1) damageResult.total = 1;
+        damageResult.modifier = (damageResult.modifier || 0) + abilityMod + magicBonus;
+      }
+    }
+
+    const combatLog = {
+      attacker: activeCharacter.name || 'Player',
+      attackerType: 'player',
+      target: targetEnemy.name,
+      targetType: 'enemy',
+      attackRoll: { roll, modifier: attackBonus, total: attackTotal, isCritical, isCriticalMiss },
+      targetAC,
+      isHit,
+      damage: damageResult,
+      description: isHit
+        ? `${activeCharacter.name} attacks ${targetEnemy.name} with ${weaponName}!${isCritical ? ' CRITICAL HIT!' : ''} ${damageResult?.total || 0} ${damageType} damage!`
+        : `${activeCharacter.name} swings ${weaponName} at ${targetEnemy.name} but ${isCriticalMiss ? 'fumbles badly!' : 'misses!'}`,
+      mechanicsBreakdown: `Attack: d20(${roll}) + ${attackBonus} = ${attackTotal} vs AC ${targetAC}${isHit && damageResult ? `. Damage: ${damageResult.diceRolls.join('+')}${damageResult.modifier ? `+${damageResult.modifier}` : ''} = ${damageResult.total}` : ''}`,
+    };
+
+    setDetailedCombatLogs(prev => [...prev, combatLog]);
+
+    triggerCombatAdvance(`Attack ${targetEnemy.name} with ${weaponName}`, {
+      type: 'weapon_attack',
+      weaponName,
+      attackRoll: { roll, modifier: attackBonus, total: attackTotal, isCritical, isCriticalMiss },
+      damage: damageResult,
+      targetName: targetEnemy.name,
+      hit: isHit
+    });
+  }, [activeCharacter, parsedStoryState, selectedTargetIndex, isAdvancingStory, advanceStory, itemStatsMap, triggerCombatAdvance]);
   
   const handleDiceRoll = async () => {
     if (!currentDiceRoll) return;
@@ -3688,6 +3778,39 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           return null;
                         })()}
                         
+                        {/* Quick Weapon Attack */}
+                        {activeCharacter && (activeCharacter as any).equippedWeapon && (() => {
+                          const enemies = (parsedStoryState?.combatants as any[] || []).filter(
+                            (c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated' && (c.currentHp > 0 || c.currentHp === undefined)
+                          );
+                          if (enemies.length === 0) return null;
+                          const weaponName = getEquipmentName((activeCharacter as any).equippedWeapon);
+                          const weaponStats = itemStatsMap?.[weaponName];
+                          const strMod = Math.floor(((activeCharacter.strength || 10) - 10) / 2);
+                          const dexMod = Math.floor(((activeCharacter.dexterity || 10) - 10) / 2);
+                          const wNameLower = weaponName.toLowerCase();
+                          const isRanged = wNameLower.match(/bow|crossbow|sling|dart|pistol|musket|blowgun/);
+                          const finesseList = ['dagger', 'dart', 'rapier', 'scimitar', 'shortsword', 'whip'];
+                          const isFinesse = finesseList.some(w => wNameLower.includes(w)) || weaponStats?.properties?.includes('finesse');
+                          const abilityMod = isRanged ? dexMod : isFinesse ? Math.max(strMod, dexMod) : strMod;
+                          const profBonus = Math.floor(((activeCharacter.level || 1) - 1) / 4) + 2;
+                          const magicBonus = weaponStats?.magicBonus || weaponStats?.attackBonus || 0;
+                          const totalBonus = abilityMod + profBonus + magicBonus;
+                          return (
+                            <div className="mt-3">
+                              <Button
+                                onClick={handleQuickWeaponAttack}
+                                disabled={isAdvancingStory || advanceStory.isPending}
+                                className="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-3 text-base border border-red-500"
+                              >
+                                <Swords className="h-5 w-5 mr-2" />
+                                Attack with {weaponName} (+{totalBonus})
+                                {weaponStats?.damageDice ? ` — ${weaponStats.damageDice} ${weaponStats.damageType || ''}` : ''}
+                              </Button>
+                            </div>
+                          );
+                        })()}
+
                         {/* Combat Spells & Magic Items for active character */}
                         {activeCharacter && (
                           <div className="mt-3">
@@ -3733,19 +3856,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                     
                                     setDetailedCombatLogs(prev => [...prev, combatLog]);
                                     
-                                    // Advance story with magic item use
-                                    advanceStory.mutate({
-                                      choice: `Use ${item.name}`,
-                                      rollResult: {
-                                        type: 'magic_item',
-                                        itemName: item.name,
-                                        damage: damageResult,
-                                        targetName: targetEnemy.name,
-                                        autoHit: true
-                                      }
+                                    triggerCombatAdvance(`Use ${item.name}`, {
+                                      type: 'magic_item',
+                                      itemName: item.name,
+                                      damage: damageResult,
+                                      targetName: targetEnemy.name,
+                                      autoHit: true
                                     });
                                   } else {
-                                    // Other magic items use spell attack roll
                                     const spellAttackBonus = Math.floor((activeCharacter.level || 1) / 4) + 2 + Math.floor(((activeCharacter.intelligence || activeCharacter.wisdom || 10) - 10) / 2);
                                     const attackResult = rollSpellAttack(spellAttackBonus);
                                     const targetAC = targetEnemy.ac || 10;
@@ -3773,27 +3891,19 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                     
                                     setDetailedCombatLogs(prev => [...prev, combatLog]);
                                     
-                                    // Advance story with magic item use
-                                    advanceStory.mutate({
-                                      choice: `Use ${item.name}`,
-                                      rollResult: {
-                                        type: 'magic_item',
-                                        itemName: item.name,
-                                        attackRoll: attackResult,
-                                        damage: damageResult,
-                                        targetName: targetEnemy.name,
-                                        hit: isHit
-                                      }
+                                    triggerCombatAdvance(`Use ${item.name}`, {
+                                      type: 'magic_item',
+                                      itemName: item.name,
+                                      attackRoll: attackResult,
+                                      damage: damageResult,
+                                      targetName: targetEnemy.name,
+                                      hit: isHit
                                     });
                                   }
                                 } else {
-                                  // Out of combat use - still counts as a turn
-                                  advanceStory.mutate({
-                                    choice: `Use ${item.name} - ${item.specialEffect || 'activate the item'}`,
-                                    rollResult: {
-                                      type: 'magic_item',
-                                      itemName: item.name,
-                                    }
+                                  triggerCombatAdvance(`Use ${item.name} - ${item.specialEffect || 'activate the item'}`, {
+                                    type: 'magic_item',
+                                    itemName: item.name,
                                   });
                                 }
                               }}
@@ -3852,42 +3962,33 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                     
                                     setDetailedCombatLogs(prev => [...prev, combatLog]);
                                     
-                                    advanceStory.mutate({
-                                      choice: `Cast ${spell.name}`,
-                                      rollResult: {
-                                        type: 'spell_attack',
-                                        spellName: spell.name,
-                                        slotLevel,
-                                        attackRoll: attackResult,
-                                        damage: damageResult,
-                                        targetName: targetEnemy.name,
-                                        hit: isHit
-                                      }
+                                    triggerCombatAdvance(`Cast ${spell.name}`, {
+                                      type: 'spell_attack',
+                                      spellName: spell.name,
+                                      slotLevel,
+                                      attackRoll: attackResult,
+                                      damage: damageResult,
+                                      targetName: targetEnemy.name,
+                                      hit: isHit
                                     });
                                   } else {
                                     const damageResult = parseAndRollDice(spell.damageDice, false, spell.damageType || 'magical');
                                     
-                                    advanceStory.mutate({
-                                      choice: `Cast ${spell.name}`,
-                                      rollResult: {
-                                        type: 'spell_save',
-                                        spellName: spell.name,
-                                        slotLevel,
-                                        damage: damageResult,
-                                        targetName: targetEnemy.name,
-                                        saveDC: 8 + profBonus + abilityMod,
-                                        saveType: 'dexterity'
-                                      }
+                                    triggerCombatAdvance(`Cast ${spell.name}`, {
+                                      type: 'spell_save',
+                                      spellName: spell.name,
+                                      slotLevel,
+                                      damage: damageResult,
+                                      targetName: targetEnemy.name,
+                                      saveDC: 8 + profBonus + abilityMod,
+                                      saveType: 'dexterity'
                                     });
                                   }
                                 } else if (!spell.damageDice) {
-                                  advanceStory.mutate({
-                                    choice: `Cast ${spell.name}`,
-                                    rollResult: {
-                                      type: 'spell_utility',
-                                      spellName: spell.name,
-                                      slotLevel
-                                    }
+                                  triggerCombatAdvance(`Cast ${spell.name}`, {
+                                    type: 'spell_utility',
+                                    spellName: spell.name,
+                                    slotLevel
                                   });
                                 }
                               }}
@@ -5034,15 +5135,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                             mechanicsBreakdown: `Magic Missile (auto-hit): ${damageResult.diceRolls.join('+')} = ${damageResult.total} ${damageType} damage`,
                                           };
                                           setDetailedCombatLogs(prev => [...prev, combatLog]);
-                                          advanceStory.mutate({
-                                            choice: `Use ${magicItem.name}`,
-                                            rollResult: {
-                                              type: 'magic_item',
-                                              itemName: magicItem.name,
-                                              damage: damageResult,
-                                              targetName: targetEnemy.name,
-                                              autoHit: true
-                                            }
+                                          triggerCombatAdvance(`Use ${magicItem.name}`, {
+                                            type: 'magic_item',
+                                            itemName: magicItem.name,
+                                            damage: damageResult,
+                                            targetName: targetEnemy.name,
+                                            autoHit: true
                                           });
                                         } else {
                                           const spellAttackBonus = Math.floor((activeCharacter.level || 1) / 4) + 2 + Math.floor(((activeCharacter.intelligence || activeCharacter.wisdom || 10) - 10) / 2);
@@ -5068,25 +5166,19 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                             mechanicsBreakdown: `Spell Attack: d20(${attackResult.roll}) + ${spellAttackBonus} = ${attackResult.total} vs AC ${targetAC}${isHit && damageResult ? `. Damage: ${damageResult.diceRolls.join('+')}${damageResult.modifier ? `+${damageResult.modifier}` : ''} = ${damageResult.total}` : ''}`,
                                           };
                                           setDetailedCombatLogs(prev => [...prev, combatLog]);
-                                          advanceStory.mutate({
-                                            choice: `Use ${magicItem.name}`,
-                                            rollResult: {
-                                              type: 'magic_item',
-                                              itemName: magicItem.name,
-                                              attackRoll: attackResult,
-                                              damage: damageResult,
-                                              targetName: targetEnemy.name,
-                                              hit: isHit
-                                            }
+                                          triggerCombatAdvance(`Use ${magicItem.name}`, {
+                                            type: 'magic_item',
+                                            itemName: magicItem.name,
+                                            attackRoll: attackResult,
+                                            damage: damageResult,
+                                            targetName: targetEnemy.name,
+                                            hit: isHit
                                           });
                                         }
                                       } else {
-                                        advanceStory.mutate({
-                                          choice: `Use ${magicItem.name} - ${magicItem.special_effect || 'activate the item'}`,
-                                          rollResult: {
-                                            type: 'magic_item',
-                                            itemName: magicItem.name,
-                                          }
+                                        triggerCombatAdvance(`Use ${magicItem.name} - ${magicItem.special_effect || 'activate the item'}`, {
+                                          type: 'magic_item',
+                                          itemName: magicItem.name,
                                         });
                                       }
                                     }}
