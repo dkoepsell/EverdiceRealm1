@@ -3228,56 +3228,65 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 {/* Current Session */}
                 {currentSession && !parsedStoryState?.adventureEnded ? (
                   <div className="mt-6 space-y-4">
-                    {/* Chapter Header - Above narrative pane */}
-                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 px-4 py-3 rounded-lg border border-amber-200 dark:border-amber-800">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                          <Scroll className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                          <div>
-                            <div className="flex items-center gap-2">
+                    {/* Chapter & Scene Header - Above narrative pane */}
+                    <div className="rounded-lg border border-amber-200 dark:border-amber-800 overflow-hidden">
+                      <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 px-4 py-3">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-3">
+                            <Scroll className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                            <div>
                               <span className="text-sm text-amber-700 dark:text-amber-300 font-semibold">
                                 Chapter {campaign.currentSession || 1} of {campaign.totalChapters || 5}
                               </span>
-                              <span className="text-xs text-slate-500 dark:text-slate-400">
-                                (Scene {currentSession.sessionNumber})
-                              </span>
+                              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                                {currentSession.title.replace(/^(Session|Chapter)\s*\d+:\s*/i, '')}
+                              </h3>
                             </div>
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                              {currentSession.title.replace(/^(Session|Chapter)\s*\d+:\s*/i, '')}
-                            </h3>
+                          </div>
+                          <Badge variant="outline" className="bg-white dark:bg-slate-800 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300">
+                            <MapPin className="h-3 w-3 mr-1" />
+                            {currentLocation}
+                          </Badge>
+                        </div>
+                        <div className="mt-2">
+                          <div className="flex justify-between items-center">
+                            <div className="flex gap-1 flex-1">
+                              {Array.from({ length: campaign.totalChapters || 5 }).map((_, i) => {
+                                const chapterNum = campaign.currentSession || 1;
+                                const isCurrent = i === chapterNum - 1;
+                                const isCompleted = i < chapterNum - 1;
+                                return (
+                                  <div
+                                    key={i}
+                                    className={`h-2 rounded-full transition-all ${
+                                      isCurrent
+                                        ? 'bg-amber-500 dark:bg-amber-400 animate-pulse'
+                                        : isCompleted
+                                        ? 'bg-amber-500 dark:bg-amber-400'
+                                        : 'bg-amber-200 dark:bg-amber-900/50'
+                                    }`}
+                                    style={{ width: `${100 / (campaign.totalChapters || 5) - 1}%`, minWidth: '12px' }}
+                                  />
+                                );
+                              })}
+                            </div>
+                            {(campaign.currentSession || 1) >= (campaign.totalChapters || 5) && (
+                              <span className="text-xs ml-2">🏆</span>
+                            )}
                           </div>
                         </div>
-                        
-                        <Badge variant="outline" className="bg-white dark:bg-slate-800 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300">
-                          <MapPin className="h-3 w-3 mr-1" />
-                          {currentLocation}
-                        </Badge>
                       </div>
-                      <div className="mt-2">
-                        <div className="flex justify-between items-center mb-1">
-                          <div className="flex gap-1">
-                            {Array.from({ length: campaign.totalChapters || 5 }).map((_, i) => {
-                              const chapterNum = campaign.currentSession || 1;
-                              const isCurrent = i === chapterNum - 1;
-                              const isCompleted = i < chapterNum - 1;
-                              return (
-                                <div
-                                  key={i}
-                                  className={`h-2 rounded-full transition-all ${
-                                    isCurrent
-                                      ? 'bg-amber-500 dark:bg-amber-400 animate-pulse'
-                                      : isCompleted
-                                      ? 'bg-amber-500 dark:bg-amber-400'
-                                      : 'bg-amber-200 dark:bg-amber-900/50'
-                                  }`}
-                                  style={{ width: `${100 / (campaign.totalChapters || 5) - 1}%`, minWidth: '12px' }}
-                                />
-                              );
-                            })}
+                      <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-950/30 px-4 py-2 border-t border-amber-200 dark:border-amber-800">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
+                            <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300">
+                              Scene {currentSession.sessionNumber}
+                            </span>
                           </div>
-                          {(campaign.currentSession || 1) >= (campaign.totalChapters || 5) && (
-                            <span className="text-xs ml-2">🏆</span>
-                          )}
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                            {currentSession.sessionNumber} {currentSession.sessionNumber === 1 ? 'turn' : 'turns'} played
+                          </span>
                         </div>
                       </div>
                     </div>

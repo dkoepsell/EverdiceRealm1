@@ -1178,7 +1178,7 @@ export default function AdminPage() {
                               <Badge variant="outline">User #{campaign.userId}</Badge>
                             </TableCell>
                             <TableCell>
-                              <Badge variant="secondary">Ch. {campaign.currentSession}</Badge>
+                              <Badge variant="secondary">Chapter {campaign.currentSession}</Badge>
                             </TableCell>
                             <TableCell className="text-sm">{campaign.difficulty}</TableCell>
                             <TableCell>

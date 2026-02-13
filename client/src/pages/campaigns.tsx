@@ -327,7 +327,7 @@ export default function Campaigns() {
                               )}
                             </div>
                             <div className="flex-shrink-0 bg-white/20 text-white text-xs px-2.5 py-1 rounded-full font-medium">
-                              Ch. {campaign.currentSession}/{campaign.totalChapters || '?'}
+                              Chapter {campaign.currentSession}/{campaign.totalChapters || '?'}
                             </div>
                           </div>
                         </CardHeader>

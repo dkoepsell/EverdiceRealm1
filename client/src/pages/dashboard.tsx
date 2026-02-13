@@ -493,7 +493,7 @@ export default function Dashboard() {
                               <SelectItem key={campaign.id} value={campaign.id.toString()}>
                                 <div className="flex items-center gap-2">
                                   {selectedCampaignId === campaign.id && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
-                                  {campaign.title} (Ch. {campaign.currentSession})
+                                  {campaign.title} (Chapter {campaign.currentSession})
                                 </div>
                               </SelectItem>
                             ))}
@@ -952,7 +952,7 @@ export default function Dashboard() {
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-900 dark:text-slate-100">{activeCampaign.title}</span>
                         <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/50 dark:text-amber-200 dark:border-amber-700 text-xs">
-                          Ch. {activeCampaign.currentSession}
+                          Chapter {activeCampaign.currentSession}
                         </Badge>
                       </div>
                     </div>
@@ -974,7 +974,7 @@ export default function Dashboard() {
                               <div className="flex items-center gap-2">
                                 {campaign.id === selectedCampaignId && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
                                 <span>{campaign.title}</span>
-                                <span className="text-xs text-muted-foreground">Ch. {campaign.currentSession}</span>
+                                <span className="text-xs text-muted-foreground">Chapter {campaign.currentSession}</span>
                               </div>
                             </SelectItem>
                           ))}
