@@ -205,6 +205,13 @@ CHOICE FRAMING REQUIREMENTS:
 - Combat options should note risk level and potential consequences
 - Frame choices to encourage player creativity and varied approaches
 - Include skill variety: social (persuasion, insight), mental (investigation, arcana), physical (athletics, stealth)
+
+NARRATIVE-CHOICE ALIGNMENT (CRITICAL):
+- If your narrative presents a moral dilemma, fork, or decision between two paths, the CHOICES MUST include clear options representing EACH SIDE of that decision
+- Example: If the story says "you must choose between preserving the balance or unleashing the chaos," the choices MUST include one option for preserving and one for unleashing — do NOT replace them with generic utility actions like "heal wounds" or "explore the area"
+- The choices are WHERE THE PLAYER MAKES THE DECISION the narrative sets up. If the narrative builds toward a fork and the choices dodge it, the story feels hollow and unsatisfying
+- At least 2 of the 4 choices must directly engage with the central tension or dilemma of the current scene
+- Generic "housekeeping" choices (heal, rest, search, meditate) may fill remaining slots but must NEVER crowd out the actual narrative decision
 `;
 
 async function improviseDoctrine(campaign: any): Promise<{ campaignQuestion: string; campaignStakes: any[]; chapterGates: any[] } | null> {
@@ -3973,7 +3980,7 @@ Return your response as a JSON object with these fields:
 - narrative: The descriptive text of the opening scene (keep under 150 words). Naturally show the world state through environmental details and NPC behavior.
 - sessionTitle: A short, engaging title for this scene
 - location: The current location or setting where the campaign begins
-- choices: An array of 4 objects, each with:
+- choices: An array of 4 objects. If the narrative presents a moral dilemma or decision fork, at least 2 choices MUST represent opposing sides of that decision — do NOT replace them with generic utility actions. Each with:
   - action: A short description of a possible action
   - description: A brief explanation of what this action entails 
   - requiresDiceRoll: Boolean indicating if this action requires a dice roll
@@ -6117,6 +6124,12 @@ DM AUTHORING DOCTRINE - THESE OVERRIDE ALL OTHER RULES:
    - Even asking questions or investigating should have social or narrative cost
    - "Take action" style choices with no consequence are BANNED
 
+0A2. CHOICES MUST REFLECT THE NARRATIVE'S DECISION:
+   - If your narrative presents a moral dilemma, ideological fork, or "choose your path" moment, at least 2 of the 4 choices MUST directly represent opposing sides of that decision
+   - Do NOT write a narrative about choosing between light and dark, then offer choices like "heal wounds" and "search the area" — the player NEEDS to be able to pick a side
+   - The narrative creates the tension; the choices are where the player RESOLVES it
+   - Test: "Does my narrative promise a decision the player can actually make with these choices?" If not, rewrite the choices to match
+
 0B. CAMPAIGN STAKES ARE MANDATORY:
    - EVERY choice you offer must touch at least one campaign stake (increase or decrease)
    - Include "campaignStakeUpdates" in stateChanges showing which stakes changed and why
@@ -6230,7 +6243,7 @@ Return your response as a JSON object with these fields:
 - narrative: The descriptive text of what happens next (3-4 paragraphs). Show how world state affects the scene.
 - sessionTitle: A short, engaging title for this scene
 - location: The current location or setting where this scene takes place
-- choices: An array of 4 objects, each with:
+- choices: An array of 4 objects. CRITICAL: If the narrative above presents a moral dilemma, fork, or "choose your path" moment, at least 2 choices MUST represent the opposing sides of that decision. Do NOT dodge the narrative's tension with generic utility choices. Each object has:
   - action: A short description of a possible action
   - description: A brief explanation of what this action entails 
   - icon: A simple icon identifier (use: "search", "hand-sparkles", "running", "sword", or any basic icon name)
@@ -7244,7 +7257,7 @@ Return your response as a JSON object with these fields:
 - narrative: The descriptive text of what happens next (2-3 paragraphs, keep it moving)
 - sessionTitle: A short, engaging title for this scene
 - location: The current location or setting where this scene takes place
-- choices: An array of 4 objects, each with:
+- choices: An array of 4 objects. If the narrative presents a moral dilemma or decision fork, at least 2 choices MUST represent opposing sides of that decision — do NOT replace them with generic utility actions. Each with:
   - action: A short description of a possible action
   - description: A brief explanation of what this action entails 
   - icon: A simple icon identifier (use: "search", "hand-sparkles", "running", "sword", "door", "treasure", "key", "talk", or any basic icon name)
@@ -20419,7 +20432,7 @@ Return your response as a JSON object with these fields:
 - narrative: An evocative 2-3 paragraph opening that describes the scene, atmosphere, and hints at the adventure ahead
 - sessionTitle: A short, engaging title for this opening scene
 - location: The starting location name
-- choices: An array of 4 objects, each with:
+- choices: An array of 4 objects. If the narrative presents a moral dilemma or decision fork, at least 2 choices MUST represent opposing sides of that decision — do NOT replace them with generic utility actions. Each with:
   - action: A short description of a possible action
   - description: A brief explanation of what this action entails
   - icon: A simple icon identifier (use: "search", "door", "talk", "sword", "treasure", "key", "running", "hand-sparkles")
