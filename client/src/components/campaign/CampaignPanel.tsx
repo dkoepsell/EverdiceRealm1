@@ -3229,24 +3229,57 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 {currentSession && !parsedStoryState?.adventureEnded ? (
                   <div className="mt-6 space-y-4">
                     {/* Chapter Header - Above narrative pane */}
-                    <div className="flex justify-between items-center bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 px-4 py-3 rounded-lg border border-amber-200 dark:border-amber-800">
-                      <div className="flex items-center gap-3">
-                        <Scroll className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                        <div>
-                          <span className="text-sm text-amber-700 dark:text-amber-300 font-medium">
-                            Chapter {currentSession.sessionNumber} of {campaign.totalChapters || 5}
-                          </span>
-                          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                            {currentSession.title.replace(/^(Session|Chapter)\s*\d+:\s*/i, '')}
-                          </h3>
+                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 px-4 py-3 rounded-lg border border-amber-200 dark:border-amber-800">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <Scroll className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-amber-700 dark:text-amber-300 font-semibold">
+                                Chapter {campaign.currentSession || 1} of {campaign.totalChapters || 5}
+                              </span>
+                              <span className="text-xs text-slate-500 dark:text-slate-400">
+                                (Scene {currentSession.sessionNumber})
+                              </span>
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                              {currentSession.title.replace(/^(Session|Chapter)\s*\d+:\s*/i, '')}
+                            </h3>
+                          </div>
+                        </div>
+                        
+                        <Badge variant="outline" className="bg-white dark:bg-slate-800 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300">
+                          <MapPin className="h-3 w-3 mr-1" />
+                          {currentLocation}
+                        </Badge>
+                      </div>
+                      <div className="mt-2">
+                        <div className="flex justify-between items-center mb-1">
+                          <div className="flex gap-1">
+                            {Array.from({ length: campaign.totalChapters || 5 }).map((_, i) => {
+                              const chapterNum = campaign.currentSession || 1;
+                              const isCurrent = i === chapterNum - 1;
+                              const isCompleted = i < chapterNum - 1;
+                              return (
+                                <div
+                                  key={i}
+                                  className={`h-2 rounded-full transition-all ${
+                                    isCurrent
+                                      ? 'bg-amber-500 dark:bg-amber-400 animate-pulse'
+                                      : isCompleted
+                                      ? 'bg-amber-500 dark:bg-amber-400'
+                                      : 'bg-amber-200 dark:bg-amber-900/50'
+                                  }`}
+                                  style={{ width: `${100 / (campaign.totalChapters || 5) - 1}%`, minWidth: '12px' }}
+                                />
+                              );
+                            })}
+                          </div>
+                          {(campaign.currentSession || 1) >= (campaign.totalChapters || 5) && (
+                            <span className="text-xs ml-2">🏆</span>
+                          )}
                         </div>
                       </div>
-                      
-                      {/* Current location */}
-                      <Badge variant="outline" className="bg-white dark:bg-slate-800 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300">
-                        <MapPin className="h-3 w-3 mr-1" />
-                        {currentLocation}
-                      </Badge>
                     </div>
                     
                     {/* ===== CURRENT SCENE - The main story area with glowing pulsing border ===== */}
@@ -4003,15 +4036,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-xs font-semibold text-indigo-900 dark:text-indigo-100 flex items-center">
                           <BookOpen className="h-3 w-3 mr-1" />
-                          Progress
+                          Chapter Progress
                         </span>
                         <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">
-                          Ch. {currentSession.sessionNumber}/{campaign.totalChapters || 5}
-                          {currentSession.sessionNumber === (campaign.totalChapters || 5) && ' 🏆'}
+                          {campaign.currentSession || 1}/{campaign.totalChapters || 5}
+                          {(campaign.currentSession || 1) >= (campaign.totalChapters || 5) && ' 🏆'}
                         </span>
                       </div>
                       <Progress 
-                        value={(currentSession.sessionNumber / (campaign.totalChapters || 5)) * 100} 
+                        value={((campaign.currentSession || 1) / (campaign.totalChapters || 5)) * 100} 
                         className="h-2 bg-indigo-200 dark:bg-indigo-900"
                         data-testid="progress-campaign-chapters"
                       />
