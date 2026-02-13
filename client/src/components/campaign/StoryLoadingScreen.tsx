@@ -20,6 +20,8 @@ interface StoryLoadingScreenProps {
   phase?: 'commit' | 'reveal' | 'deepen' | 'loading';
   revealText?: string;
   streamedText?: string;
+  mutationReady?: boolean;
+  onContinue?: () => void;
 }
 
 const FLAVOR_TEXTS = [
@@ -134,7 +136,9 @@ export function StoryLoadingScreen({
   location,
   phase = 'loading',
   revealText,
-  streamedText
+  streamedText,
+  mutationReady,
+  onContinue
 }: StoryLoadingScreenProps) {
   const [flavorIndex, setFlavorIndex] = useState(0);
   const [fadeIn, setFadeIn] = useState(true);
@@ -181,6 +185,12 @@ export function StoryLoadingScreen({
   const showStream = phase === 'deepen' && streamedText;
   const showReveal = (phase === 'reveal' || (phase === 'deepen' && !streamedText));
 
+  useEffect(() => {
+    if (mutationReady && !streamedText?.trim() && onContinue) {
+      onContinue();
+    }
+  }, [mutationReady, streamedText, onContinue]);
+
   return (
     <div className="space-y-4">
       {chosenAction && (
@@ -222,8 +232,22 @@ export function StoryLoadingScreen({
           <div className="relative z-10 animate-in fade-in duration-300">
             <p className="whitespace-pre-line text-lg leading-relaxed text-slate-100 font-medium" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>
               {streamedText}
-              <span className="inline-block w-0.5 h-5 bg-amber-400 ml-0.5 animate-pulse" />
+              {!mutationReady && (
+                <span className="inline-block w-0.5 h-5 bg-amber-400 ml-0.5 animate-pulse" />
+              )}
             </p>
+            {mutationReady && onContinue && (
+              <div className="mt-5 flex justify-center animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <button
+                  onClick={onContinue}
+                  className="group flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-semibold rounded-lg shadow-lg shadow-amber-900/30 transition-all duration-200 hover:scale-105 active:scale-95"
+                >
+                  <Scroll className="h-4 w-4" />
+                  Continue
+                  <Sparkles className="h-3.5 w-3.5 opacity-60 group-hover:opacity-100 transition-opacity" />
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <>

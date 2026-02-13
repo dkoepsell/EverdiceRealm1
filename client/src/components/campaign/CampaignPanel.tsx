@@ -206,6 +206,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
   const [diceRollResult, setDiceRollResult] = useState<DiceRollResult | null>(null);
   const [isAdvancingStory, setIsAdvancingStory] = useState(false);
+  const [mutationReady, setMutationReady] = useState(false);
   const [lastChosenAction, setLastChosenAction] = useState<string>("");
   const [storyPhase, setStoryPhase] = useState<'commit' | 'reveal' | 'deepen' | 'loading'>('loading');
   const [revealText, setRevealText] = useState<string>("");
@@ -2548,6 +2549,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       setRevealText("");
       setStreamedNarrative("");
       setIsAdvancingStory(true);
+      setMutationReady(false);
       setChoicesRevealed(false);
       if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
       showTip('pacing');
@@ -2556,11 +2558,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       advanceStory.mutate({ choice: actionText }, {
         onSettled: () => {
           if (streamAbortRef.current) streamAbortRef.current.abort();
-          setIsAdvancingStory(false);
-          setStoryPhase('loading');
+          setMutationReady(true);
           setLastChosenAction("");
-          setTimeout(() => setStreamedNarrative(""), 600);
-          choicesRevealTimer.current = setTimeout(() => setChoicesRevealed(true), 700);
         }
       });
     }
@@ -2580,6 +2579,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     setRevealText("");
     setStreamedNarrative("");
     setIsAdvancingStory(true);
+    setMutationReady(false);
     setChoicesRevealed(false);
     if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
     showTip('pacing');
@@ -2588,12 +2588,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     advanceStory.mutate({ choice: actionText }, {
       onSettled: () => {
         if (streamAbortRef.current) streamAbortRef.current.abort();
-        setIsAdvancingStory(false);
-        setStoryPhase('loading');
+        setMutationReady(true);
         setLastChosenAction("");
         setCustomAction("");
-        setTimeout(() => setStreamedNarrative(""), 600);
-        choicesRevealTimer.current = setTimeout(() => setChoicesRevealed(true), 700);
       }
     });
   };
@@ -2718,6 +2715,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         setRevealText("");
         setStreamedNarrative("");
         setIsAdvancingStory(true);
+        setMutationReady(false);
         setChoicesRevealed(false);
         if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
         showTip('pacing');
@@ -2740,15 +2738,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           }, {
             onSettled: () => {
               if (streamAbortRef.current) streamAbortRef.current.abort();
-              setIsAdvancingStory(false);
-              setStoryPhase('loading');
+              setMutationReady(true);
               setLastChosenAction("");
               setShowDiceRollDialog(false);
               setCurrentDiceRoll(null);
               setDiceRollResult(null);
               setIsRolling(false);
-              setTimeout(() => setStreamedNarrative(""), 600);
-              choicesRevealTimer.current = setTimeout(() => setChoicesRevealed(true), 700);
               if (Math.random() < 0.3) {
                 setTimeout(() => showTip('dice_roll'), 1500);
               }
@@ -3206,6 +3201,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             phase={storyPhase}
                             revealText={revealText}
                             streamedText={streamedNarrative}
+                            mutationReady={mutationReady}
+                            onContinue={() => {
+                              setIsAdvancingStory(false);
+                              setMutationReady(false);
+                              setStoryPhase('loading');
+                              setStreamedNarrative("");
+                              choicesRevealTimer.current = setTimeout(() => setChoicesRevealed(true), 700);
+                            }}
                           />
                         ) : (
                           <p className="whitespace-pre-line break-words text-lg sm:text-xl leading-relaxed text-slate-100 font-medium overflow-hidden animate-in fade-in duration-500" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)', wordBreak: 'break-word' }}>
