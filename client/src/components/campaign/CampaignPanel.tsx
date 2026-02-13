@@ -3517,8 +3517,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </div>
                     </ContextualHint>
                     
-                    {/* Combat Status Display */}
-                    {(parsedStoryState?.inCombat || (Array.isArray(parsedStoryState?.combatants) && (parsedStoryState.combatants as any[]).some((c: any) => c.status !== 'defeated'))) && (
+                    {/* Combat Status Display - only show when AI explicitly says inCombat is true AND there are living enemies */}
+                    {parsedStoryState?.inCombat && Array.isArray(parsedStoryState?.combatants) && (parsedStoryState.combatants as any[]).some((c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated' && (c.currentHp === undefined || c.currentHp > 0)) && (
                       <div className="bg-red-50 dark:bg-red-950/30 p-4 rounded-md border-2 border-red-400 dark:border-red-700 mb-4">
                         <h4 className="font-bold flex items-center mb-3 text-lg" style={{ color: '#b91c1c' }}>
                           ⚔️ COMBAT!
