@@ -6074,9 +6074,9 @@ ${upcomingGates.slice(0, 2).map((g: any) => `- Chapter ${g.chapter}: "${g.advanc
       // CHAPTER PROGRESSION NUDGING
       // ============================================
       let chapterNudge = "";
-      const GENTLE_THRESHOLD = 5;
-      const MODERATE_THRESHOLD = 8;
-      const URGENT_THRESHOLD = 11;
+      const GENTLE_THRESHOLD = 8;
+      const MODERATE_THRESHOLD = 12;
+      const URGENT_THRESHOLD = 16;
 
       if (currentGateForSpine && scenesInCurrentChapter >= GENTLE_THRESHOLD) {
         if (scenesInCurrentChapter >= URGENT_THRESHOLD) {
@@ -6732,8 +6732,8 @@ Return your response as a JSON object with these fields:
             }
           }
           
-          // HARD-CAP FAILSAFE: If 12+ sessions in this chapter without AI triggering gate, force-advance
-          const CHAPTER_HARD_CAP = 12;
+          // HARD-CAP FAILSAFE: If 20+ sessions in this chapter without AI triggering gate, force-advance
+          const CHAPTER_HARD_CAP = 20;
           if (!chapterAdvanced && scenesInCurrentChapter >= CHAPTER_HARD_CAP) {
             const currentChapterForHardCap = campaign.currentSession || 1;
             const totalChaptersForHardCap = campaign.totalChapters || 5;
@@ -15339,9 +15339,9 @@ ${upcomingGates2.slice(0, 2).map((g: any) => `- Chapter ${g.chapter}: "${g.advan
       // CHAPTER PROGRESSION NUDGING (Route 2)
       // ============================================
       let chapterNudge2 = "";
-      const GENTLE2 = 5;
-      const MODERATE2 = 8;
-      const URGENT2 = 11;
+      const GENTLE2 = 8;
+      const MODERATE2 = 12;
+      const URGENT2 = 16;
 
       if (currentGateForSpine2 && scenesInChapter2 >= GENTLE2) {
         if (scenesInChapter2 >= URGENT2) {
@@ -18962,9 +18962,9 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           const matchingGate = definedGates.find((g: any) => g.chapter === gate.gateId);
           
           const gateValid = !matchingGate || (
-            (!matchingGate.requiredTruth || gate.reason?.toLowerCase().includes(matchingGate.requiredTruth.toLowerCase().split(' ')[0])) ||
-            (!matchingGate.requiredCommitment || true) ||
-            (!matchingGate.requiredBeliefChange || true)
+            (!matchingGate.requiredTruth || gate.reason?.toLowerCase().includes(matchingGate.requiredTruth.toLowerCase().split(' ')[0])) &&
+            (!matchingGate.requiredCommitment || (gate.reason && gate.reason.length > 10)) &&
+            (!matchingGate.requiredBeliefChange || (gate.reason && gate.reason.length > 10))
           );
           
           if (gate.gateId === currentChapter && currentChapter < totalChapters && gateValid) {
@@ -18986,8 +18986,8 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           }
         }
         
-        // HARD-CAP FAILSAFE: If 12+ sessions in this chapter without gate met, force-advance
-        const CHAPTER_HARD_CAP_R2 = 12;
+        // HARD-CAP FAILSAFE: If 20+ sessions in this chapter without gate met, force-advance
+        const CHAPTER_HARD_CAP_R2 = 20;
         if (!doctrineUpdates.currentSession && scenesInChapter2 >= CHAPTER_HARD_CAP_R2 && currentChapter < totalChapters) {
           doctrineUpdates.currentSession = currentChapter + 1;
           doctrineChanged = true;
