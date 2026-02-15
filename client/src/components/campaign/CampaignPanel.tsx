@@ -3342,10 +3342,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               choicesRevealTimer.current = setTimeout(() => setChoicesRevealed(true), 700);
                             }}
                           />
-                        ) : (
+                        ) : currentSession.narrative ? (
                           <p className="whitespace-pre-line break-words text-lg sm:text-xl leading-relaxed text-slate-100 font-medium overflow-hidden animate-in fade-in duration-500" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)', wordBreak: 'break-word' }}>
                             {currentSession.narrative}
                           </p>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-8 animate-pulse">
+                            <Sparkles className="h-8 w-8 text-amber-400 mb-3" />
+                            <p className="text-amber-300/70 text-sm italic">Loading scene...</p>
+                          </div>
                         )}
                         
                         {/* Choices loading indicator — shows briefly before choices appear */}

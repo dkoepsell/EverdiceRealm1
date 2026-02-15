@@ -187,7 +187,8 @@ export function StoryLoadingScreen({
 
   useEffect(() => {
     if (mutationReady && !streamedText?.trim() && onContinue) {
-      onContinue();
+      const timer = setTimeout(() => onContinue(), 500);
+      return () => clearTimeout(timer);
     }
   }, [mutationReady, streamedText, onContinue]);
 

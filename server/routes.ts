@@ -17325,16 +17325,27 @@ ${cachedNarrative}
         session1Retention: updatedSession1Retention
       };
       
-      // CRITICAL: If there are still living enemy combatants, force inCombat to stay true
-      // The AI sometimes incorrectly sets inCombat: false while enemies are still alive
-      const livingEnemiesInMerged = (preservedCombatants || []).filter(
-        (c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated' && (c.currentHp === undefined || c.currentHp > 0)
-      );
-      if (livingEnemiesInMerged.length > 0 && !combatCompleted) {
-        if (!mergedStoryState.inCombat) {
-          console.log(`[Combat Debug] Forcing inCombat=true: ${livingEnemiesInMerged.length} living enemies still present`);
+      // When combat is completed, clear all combatants so stale data doesn't persist
+      if (combatCompleted) {
+        console.log(`[Combat Debug] Combat completed — clearing combatants array`);
+        mergedStoryState.combatants = [];
+        mergedStoryState.inCombat = false;
+      } else {
+        // CRITICAL: If there are still living enemy combatants, force inCombat to stay true
+        // The AI sometimes incorrectly sets inCombat: false while enemies are still alive
+        const livingEnemiesInMerged = (preservedCombatants || []).filter(
+          (c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated' && (c.currentHp === undefined || c.currentHp > 0)
+        );
+        if (livingEnemiesInMerged.length > 0) {
+          if (!mergedStoryState.inCombat) {
+            console.log(`[Combat Debug] Forcing inCombat=true: ${livingEnemiesInMerged.length} living enemies still present`);
+          }
+          mergedStoryState.inCombat = true;
+        } else if (!mergedStoryState.inCombat && wasInCombatBefore) {
+          // Combat ended naturally (AI set inCombat: false and no living enemies) — clear combatants
+          console.log(`[Combat Debug] Combat ended naturally — clearing combatants array`);
+          mergedStoryState.combatants = [];
         }
-        mergedStoryState.inCombat = true;
       }
       
       // Add movement choices if not in combat
