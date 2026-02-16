@@ -214,6 +214,34 @@ NARRATIVE-CHOICE ALIGNMENT (CRITICAL):
 - Generic "housekeeping" choices (heal, rest, search, meditate) may fill remaining slots but must NEVER crowd out the actual narrative decision
 `;
 
+const SCENE_TEMPERATURE_SCALING = `
+SCENE TEMPERATURE — MATCH INTENSITY TO CONTEXT (CRITICAL):
+Not every scene is a world-changing event. Scale your narrative intensity to fit the actual situation:
+
+LOW TEMPERATURE (calm, routine, transitional) — 30-50 words:
+- Walking between locations, shopping, resting, casual conversation
+- 2-3 sentences max. One sensory detail, what happens, move on.
+- Choices should be simple and practical: "Head north" / "Browse the stall" / "Ask about local rumors"
+- NO cosmic stakes, ancient prophecies, or mystical revelations in mundane moments
+
+MEDIUM TEMPERATURE (engaging, purposeful) — 60-90 words:
+- Meeting an NPC with information, discovering a clue, entering a new area, social encounters
+- 3-5 sentences. Focus on what's interesting and what the player can interact with.
+- Choices should offer meaningful variety but proportionate stakes
+
+HIGH TEMPERATURE (dramatic, climactic) — 80-120 words:
+- Boss fights, betrayals, major reveals, critical story turning points
+- Full prose, emotional weight, dramatic tension — this is where you pull out all the stops
+- Choices carry real consequences and should feel weighty
+
+RULES:
+- Default to LOW or MEDIUM temperature. HIGH should be rare — maybe 1 in every 5-6 scenes.
+- If the player just chose "walk down the road" or "continue forward," respond with LOW temperature. Do NOT turn a simple step into a mystical encounter with glowing runes.
+- Travel scenes, shopping, and idle moments should feel grounded and natural, not portentous.
+- Save dramatic language (ancient, mystical, cosmic, fate, destiny, prophecy) for moments that earn it.
+- Variety in pacing is what makes dramatic moments land. A story that's always at 10 has no impact.
+`;
+
 async function improviseDoctrine(campaign: any): Promise<{ campaignQuestion: string; campaignStakes: any[]; chapterGates: any[] } | null> {
   const hasDoctrine = (campaign.campaignQuestion && campaign.campaignStakes?.length > 0 && campaign.chapterGates?.length > 0);
   if (hasDoctrine) return null;
@@ -15579,12 +15607,14 @@ ENVIRONMENTAL CONSTRAINTS (CRITICAL):
 WRITING STYLE REQUIREMENTS:
 - Apply the ${narrativeStyle} storytelling style consistently
 - Lead with what HAPPENS as a result of the player action
-- Keep narrative between 80-120 words - tight and punchy
-- Every sentence must advance the plot or show consequences
-- IMPORTANT: Make each story beat SIGNIFICANT - big reveals, meaningful encounters, plot twists
-- Advance the story rapidly - skip mundane travel or waiting periods
-- Jump to the next interesting moment or encounter
+- Keep narrative concise — word count depends on scene temperature (30-50 for low, 60-90 for medium, 80-120 for high)
+- Every sentence must advance the plot, reveal character, or show consequences — cut filler
+- Do NOT pad with atmospheric descriptions that repeat what the player already knows
+- Vary your pacing: not every scene needs to be dramatic. Quiet moments make dramatic ones hit harder.
 - REFLECT SKILL CHECK OUTCOMES: Clearly show success or failure consequences in the narrative
+- Avoid repeating phrases, imagery, or sentence structures from the previous 3 scenes
+
+${SCENE_TEMPERATURE_SCALING}
 
 Generate the next story segment that:
 1. IMMEDIATELY shows what happened because of their specific action/roll
@@ -15624,7 +15654,7 @@ CHOICE REQUIREMENTS:
 
 Respond with JSON:
 {
-  "narrative": "CONCISE story segment focused on immediate action results and character reactions (2-3 sentences maximum)",
+  "narrative": "Match word count to scene temperature: LOW 30-50, MEDIUM 60-90, HIGH 80-120. Lead with what happened, show consequences, cut filler.",
   "sceneType": "Exploration/Social/Discovery/Travel/Puzzle/Downtime/Combat - the type of scene this is",
   "dmNarrative": "Behind-the-scenes context for DM about consequences and what NPCs are thinking/planning",
   "choices": [
@@ -19375,8 +19405,16 @@ ANTI-REPETITION — DO NOT reuse these:
 - Recent locations: ${[...new Set(recentLocations)].join(', ')}
 - Overused motifs: ${recentMotifs.join(', ')}
 
-Write ONLY the narrative prose for the next scene. 2-4 paragraphs, vivid and immersive.
+Write ONLY the narrative prose for the next scene. 2-3 short paragraphs maximum.
 Match the ${detectedTheme} theme. Stay consistent with the story state and combat status.
+
+SCENE TEMPERATURE — MATCH INTENSITY TO CONTEXT:
+- If the player chose something mundane (walking, resting, shopping, "continue forward"), write LOW temperature: 30-50 words, 2-3 sentences, grounded and brief. No mystical encounters, no cosmic stakes.
+- For meaningful interactions (NPCs, clues, new areas): MEDIUM temperature, 60-90 words, focused on what matters.
+- For combat, boss fights, betrayals, major reveals: HIGH temperature, 80-120 words, full dramatic prose.
+- Default to LOW or MEDIUM. HIGH should be rare — 1 in every 5-6 scenes.
+- A story always at maximum intensity becomes exhausting. Vary pacing so dramatic moments land.
+- Do NOT reuse imagery, phrasing, or sentence structures from the previous scene.
 ${inCombat ? 'This is a COMBAT scene — describe the battle action using the EXACT enemy names listed above.' : ''}
 No JSON, no choices, no game mechanics — just the story text.`;
 
