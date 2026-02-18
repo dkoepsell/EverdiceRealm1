@@ -796,6 +796,7 @@ export const trekRoutes = pgTable("trek_routes", {
   path: jsonb("path").notNull(),
   currentStep: integer("current_step").default(0),
   status: text("status").notNull().default("active"),
+  pendingEncounter: jsonb("pending_encounter"),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
 });
 

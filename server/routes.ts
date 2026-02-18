@@ -10962,6 +10962,10 @@ Return your response as a JSON object with these fields:
       if (!route) {
         return res.status(404).json({ message: "No active trek" });
       }
+
+      if (route.status === "encounter") {
+        return res.status(400).json({ message: "Resolve or dismiss the current encounter before continuing your trek." });
+      }
       
       const path = route.path as Array<{ q: number; r: number }>;
       const nextStep = (route.currentStep || 0) + 1;
@@ -11010,15 +11014,92 @@ Return your response as a JSON object with these fields:
       
       await storage.updateTrekRoute(route.id, { currentStep: nextStep });
       
-      // Random encounter chance (20% per step)
+      // Random encounter chance (25% per step)
       const encounterRoll = Math.random();
       let encounter = null;
-      if (encounterRoll < 0.2) {
-        const encounterTypes = ["ambush", "traveler", "discovery", "weather", "wildlife"];
+      if (encounterRoll < 0.25) {
+        const encounterTemplates = [
+          {
+            type: "ambush",
+            descriptions: [
+              "Bandits emerge from the brush, weapons drawn, blocking your path!",
+              "A snarling pack of wolves surrounds your party from the treeline.",
+              "Goblin raiders leap from behind rocks, cackling with malice!",
+              "Dark shapes materialize from the shadows — an ambush!",
+            ],
+            hook: "Your party must fight or find a way to escape.",
+            sceneType: "combat",
+            narrativeCategory: "combat",
+          },
+          {
+            type: "traveler",
+            descriptions: [
+              "A weathered merchant with a laden cart flags you down, seeking company on the road.",
+              "A wounded knight stumbles toward you, clutching a sealed letter and begging for aid.",
+              "A mysterious hooded figure stands at a crossroads, offering cryptic advice.",
+              "A traveling bard shares tales of treasure hidden in nearby ruins.",
+            ],
+            hook: "An opportunity for conversation, trade, or a new quest awaits.",
+            sceneType: "social",
+            narrativeCategory: "quest",
+          },
+          {
+            type: "discovery",
+            descriptions: [
+              "You stumble upon ancient ruins half-buried beneath vines and moss.",
+              "A glowing spring bubbles up from the earth, radiating faint magical energy.",
+              "Carved stones mark the entrance to a forgotten shrine.",
+              "An old campsite reveals a tattered journal with a hand-drawn map.",
+            ],
+            hook: "Something significant lies here — explore further to uncover its secrets.",
+            sceneType: "exploration",
+            narrativeCategory: "discovery",
+          },
+          {
+            type: "weather",
+            descriptions: [
+              "A sudden, violent storm forces your party to seek shelter immediately.",
+              "A thick, unnatural fog rolls in, distorting sound and direction.",
+              "The sky darkens as an arcane tempest crackles with wild magic overhead.",
+              "Freezing winds and driving sleet threaten to sap your party's strength.",
+            ],
+            hook: "Survive the elements and decide whether to press on or wait it out.",
+            sceneType: "exploration",
+            narrativeCategory: "discovery",
+          },
+          {
+            type: "wildlife",
+            descriptions: [
+              "A massive owlbear crashes through the underbrush, guarding its territory.",
+              "A wounded dire wolf limps across your path — it could be dangerous, or in need of help.",
+              "Giant spiders drop silently from the canopy above, webs glistening.",
+              "A majestic griffon circles overhead and lands before you, regarding your party with keen eyes.",
+            ],
+            hook: "A creature encounter — fight, tame, or carefully retreat.",
+            sceneType: "combat",
+            narrativeCategory: "combat",
+          },
+        ];
+        const template = encounterTemplates[Math.floor(Math.random() * encounterTemplates.length)];
+        const description = template.descriptions[Math.floor(Math.random() * template.descriptions.length)];
+        const encounterId = `trek-enc-${campaignId}-${nextStep}-${Date.now()}`;
         encounter = {
-          type: encounterTypes[Math.floor(Math.random() * encounterTypes.length)],
+          id: encounterId,
+          type: template.type,
+          description,
+          hook: template.hook,
+          sceneType: template.sceneType,
+          narrativeCategory: template.narrativeCategory,
           step: nextStep,
+          hexQ: nextHex.q,
+          hexR: nextHex.r,
+          destinationName: route.destinationName || "Unknown",
         };
+
+        await storage.updateTrekRoute(route.id, {
+          status: "encounter",
+          pendingEncounter: encounter,
+        });
       }
       
       res.json({
@@ -11036,6 +11117,197 @@ Return your response as a JSON object with these fields:
     }
   });
   
+  // Enter narrative from a trek encounter - generates AI scene
+  app.post("/api/campaigns/:campaignId/trek/enter-narrative", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = (req.user as any).id;
+      const { encounter } = req.body;
+
+      if (!encounter || !encounter.type || !encounter.description) {
+        return res.status(400).json({ message: "Encounter data is required" });
+      }
+
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+
+      const route = await storage.getActiveTrekRoute(campaignId, userId);
+      if (!route || route.status !== "encounter") {
+        return res.status(400).json({ message: "No active encounter to enter" });
+      }
+
+      const characters = await storage.getCampaignCharacters(campaignId);
+      const characterNames = characters.map((c: any) => c.name).join(", ") || "The party";
+      const characterSummary = characters.map((c: any) =>
+        `${c.name} (Level ${c.level || 1} ${c.race || ''} ${c.class || ''})`
+      ).join(", ") || "An unnamed party of adventurers";
+
+      const encounterPrompt = `You are an expert D&D 5th Edition Dungeon Master. Generate a vivid, immersive narrative scene for a trek encounter.
+
+Campaign: "${campaign.title}"
+${campaign.description ? `Campaign Description: ${campaign.description}` : ''}
+Party: ${characterSummary}
+Encounter Type: ${encounter.type}
+Encounter Description: ${encounter.description}
+Location: Hex (${encounter.hexQ}, ${encounter.hexR}), traveling toward ${encounter.destinationName || "an unknown destination"}
+Scene Type: ${encounter.sceneType || "exploration"}
+
+Generate an engaging D&D narrative scene. Return valid JSON with this exact structure:
+{
+  "narrative": "A 2-3 paragraph vivid narrative description of the scene, written in second person ('You see...'). Set the atmosphere, describe the environment, and present the situation.",
+  "title": "A dramatic short title for this encounter (3-6 words)",
+  "choices": [
+    {"id": "choice_1", "text": "First choice the party can make", "type": "action"},
+    {"id": "choice_2", "text": "Second choice", "type": "action"},
+    {"id": "choice_3", "text": "Third choice (if combat: option to fight)", "type": "action"},
+    {"id": "choice_4", "text": "A creative or unexpected option", "type": "action"}
+  ],
+  "sceneType": "${encounter.sceneType || 'exploration'}",
+  "combatReady": ${encounter.narrativeCategory === 'combat' ? 'true' : 'false'},
+  "npcs": [{"name": "NPC Name", "role": "Brief role description"}],
+  "possibleRewards": ["Possible reward 1", "Possible reward 2"],
+  "difficultyHint": "Easy/Medium/Hard/Deadly"
+}
+
+Make choices varied and interesting. For combat encounters, include both fighting and non-combat resolution options. For social encounters, include persuasion, deception, and investigation options. For discoveries, include exploration, study, and interaction options. Always include at least one creative or unexpected option.`;
+
+      const { client, model } = await getAIClient(userId);
+
+      const completion = await client.chat.completions.create({
+        model,
+        messages: [
+          { role: "system", content: "You are a creative D&D Dungeon Master. Generate immersive encounter narratives. Always respond with valid JSON." },
+          { role: "user", content: encounterPrompt }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.8,
+        max_tokens: 2000,
+      });
+
+      let sceneData: any;
+      try {
+        sceneData = JSON.parse(completion.choices[0].message.content || "{}");
+      } catch {
+        sceneData = {
+          narrative: encounter.description + "\n\nThe party must decide what to do next.",
+          title: `${encounter.type.charAt(0).toUpperCase() + encounter.type.slice(1)} on the Road`,
+          choices: [
+            { id: "investigate", text: "Investigate carefully", type: "action" },
+            { id: "engage", text: "Engage directly", type: "action" },
+            { id: "avoid", text: "Try to avoid or go around", type: "action" },
+            { id: "observe", text: "Observe from a safe distance", type: "action" },
+          ],
+          sceneType: encounter.sceneType || "exploration",
+          combatReady: encounter.narrativeCategory === "combat",
+          npcs: [],
+          possibleRewards: [],
+          difficultyHint: "Medium",
+        };
+      }
+
+      const currentSession = await storage.getCurrentSession(campaignId);
+      let sessionId = currentSession?.id;
+
+      if (currentSession) {
+        const existingLog = (currentSession.actionLog as any[]) || [];
+        const newEntry = {
+          id: Date.now(),
+          timestamp: new Date().toISOString(),
+          type: "trek_encounter",
+          encounterType: encounter.type,
+          narrative: sceneData.narrative,
+          title: sceneData.title,
+        };
+        const updatedLog = [...existingLog, newEntry].slice(-200);
+
+        await storage.advanceSessionStory(campaignId, {
+          narrative: sceneData.narrative,
+          choices: sceneData.choices,
+          sceneType: sceneData.sceneType || encounter.sceneType,
+          storyState: {
+            ...(currentSession.storyState as any || {}),
+            trekEncounter: {
+              encounterId: encounter.id,
+              type: encounter.type,
+              hexQ: encounter.hexQ,
+              hexR: encounter.hexR,
+              sceneData,
+            },
+          },
+          actionLogEntries: [newEntry],
+        });
+      } else {
+        const newSession = await storage.createCampaignSession({
+          campaignId,
+          sessionNumber: 1,
+          title: sceneData.title || `Trek Encounter: ${encounter.type}`,
+          narrative: sceneData.narrative,
+          choices: sceneData.choices,
+          createdAt: new Date().toISOString(),
+          sceneType: sceneData.sceneType || encounter.sceneType,
+          storyState: {
+            trekEncounter: {
+              encounterId: encounter.id,
+              type: encounter.type,
+              hexQ: encounter.hexQ,
+              hexR: encounter.hexR,
+              sceneData,
+            },
+          },
+          actionLog: [{
+            id: Date.now(),
+            timestamp: new Date().toISOString(),
+            type: "trek_encounter",
+            encounterType: encounter.type,
+            narrative: sceneData.narrative,
+            title: sceneData.title,
+          }],
+        });
+        sessionId = newSession.id;
+      }
+
+      await storage.updateTrekRoute(route.id, { status: "active", pendingEncounter: null });
+
+      res.json({
+        success: true,
+        sessionId,
+        scene: sceneData,
+        campaignId,
+      });
+    } catch (error) {
+      console.error("Error entering trek narrative:", error);
+      res.status(500).json({ message: "Failed to generate encounter narrative" });
+    }
+  });
+
+  // Dismiss trek encounter without entering narrative - resume trek
+  app.post("/api/campaigns/:campaignId/trek/dismiss-encounter", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = (req.user as any).id;
+
+      const route = await storage.getActiveTrekRoute(campaignId, userId);
+      if (!route) {
+        return res.status(404).json({ message: "No active trek" });
+      }
+      if (route.status === "encounter") {
+        await storage.updateTrekRoute(route.id, { status: "active", pendingEncounter: null });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error dismissing encounter:", error);
+      res.status(500).json({ message: "Failed to dismiss encounter" });
+    }
+  });
+
   // Cancel active trek
   app.post("/api/campaigns/:campaignId/trek/cancel", async (req, res) => {
     try {

@@ -5,15 +5,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { 
   Map, MapPin, Mountain, Trees, Waves, Skull, Flame, Building2, 
   Castle, Landmark, Compass, ChevronLeft, User, Crown,
   CircleDot, Eye, CheckCircle2, Lock, Swords, Users,
   Scroll, AlertTriangle, Shield, Sparkles, Globe, Clock, 
   TrendingUp, TrendingDown, Activity, Zap, BookOpen, Hexagon,
-  Navigation, X, Footprints
+  Navigation, X, Footprints, Loader2
 } from "lucide-react";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { useLocation } from "wouter";
 import type { WorldRegion, WorldLocation, UserWorldProgress, WorldEvent, WorldDiscovery, Campaign } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -173,10 +175,33 @@ function WorldEventCard({ event }: { event: WorldEvent }) {
 export default function WorldMapPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [selectedRegion, setSelectedRegion] = useState<WorldRegion | null>(null);
   const [sidePanel, setSidePanel] = useState<'regions' | 'events' | 'discoveries'>('regions');
   const [mapView, setMapView] = useState<'illustrated' | 'hex'>('illustrated');
   const [cityMapOpen, setCityMapOpen] = useState<{ locationId: number; locationName: string } | null>(null);
+  const [activeEncounter, setActiveEncounter] = useState<{
+    id: string;
+    type: string;
+    description: string;
+    hook: string;
+    sceneType: string;
+    narrativeCategory: string;
+    step: number;
+    hexQ: number;
+    hexR: number;
+    destinationName: string;
+  } | null>(null);
+  const [narrativeScene, setNarrativeScene] = useState<{
+    narrative: string;
+    title: string;
+    choices: Array<{ id: string; text: string; type: string }>;
+    sceneType: string;
+    combatReady: boolean;
+    npcs: Array<{ name: string; role: string }>;
+    possibleRewards: string[];
+    difficultyHint: string;
+  } | null>(null);
 
   const { data: userCampaigns = [] } = useQuery<Campaign[]>({
     queryKey: ["/api/campaigns"],
@@ -195,10 +220,28 @@ export default function WorldMapPage() {
     currentStep: number;
     destinationName: string | null;
     status: string;
+    pendingEncounter: {
+      id: string;
+      type: string;
+      description: string;
+      hook: string;
+      sceneType: string;
+      narrativeCategory: string;
+      step: number;
+      hexQ: number;
+      hexR: number;
+      destinationName: string;
+    } | null;
   } | null>({
     queryKey: [`/api/campaigns/${activeCampaignId}/trek/active`],
     enabled: !!activeCampaignId,
   });
+
+  useEffect(() => {
+    if (activeTrek?.status === 'encounter' && activeTrek.pendingEncounter && !activeEncounter) {
+      setActiveEncounter(activeTrek.pendingEncounter);
+    }
+  }, [activeTrek?.status, activeTrek?.pendingEncounter]);
 
   const trekStartMutation = useMutation({
     mutationFn: (data: { destinationQ: number; destinationR: number; destinationName?: string }) => {
@@ -223,14 +266,47 @@ export default function WorldMapPage() {
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${activeCampaignId}/trek/active`] });
       const data = await res.json();
       if (data.encounter) {
-        toast({
-          title: `Encounter: ${data.encounter.type}`,
-          description: data.encounter.description,
-        });
+        setActiveEncounter(data.encounter);
+        setNarrativeScene(null);
       }
       if (data.completed) {
         toast({ title: "Trek Complete", description: `You have arrived at your destination!` });
       }
+    },
+    onError: (error: any) => {
+      const msg = error?.message || "Failed to take step";
+      if (msg.includes("encounter")) {
+        toast({ title: "Encounter Active", description: msg, variant: "destructive" });
+      }
+    },
+  });
+
+  const enterNarrativeMutation = useMutation({
+    mutationFn: (encounter: typeof activeEncounter) => {
+      if (!activeCampaignId || !encounter) return Promise.reject(new Error("Missing data"));
+      return apiRequest("POST", `/api/campaigns/${activeCampaignId}/trek/enter-narrative`, { encounter });
+    },
+    onSuccess: async (res) => {
+      const data = await res.json();
+      if (data.scene) {
+        setNarrativeScene(data.scene);
+      }
+    },
+    onError: () => {
+      toast({ title: "Narrative Generation Failed", description: "Could not generate the encounter narrative. Try again.", variant: "destructive" });
+    },
+  });
+
+  const dismissEncounterMutation = useMutation({
+    mutationFn: () => {
+      if (!activeCampaignId) return Promise.reject(new Error("No active campaign"));
+      return apiRequest("POST", `/api/campaigns/${activeCampaignId}/trek/dismiss-encounter`);
+    },
+    onSuccess: () => {
+      setActiveEncounter(null);
+      setNarrativeScene(null);
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${activeCampaignId}/trek/active`] });
+      toast({ title: "Encounter Passed", description: "You continue on your journey." });
     },
   });
 
@@ -482,7 +558,7 @@ export default function WorldMapPage() {
                   trekStep={activeTrek?.currentStep}
                   partyPositions={partyPositions}
                 />
-                {activeTrek && activeTrek.status === 'active' && (
+                {activeTrek && (activeTrek.status === 'active' || activeTrek.status === 'encounter') && (
                   <div className="flex items-center gap-3 p-3 bg-amber-900/30 rounded-lg border border-amber-500/30">
                     <Footprints className="h-5 w-5 text-amber-400" />
                     <div className="flex-1">
@@ -493,16 +569,34 @@ export default function WorldMapPage() {
                         Step {activeTrek.currentStep} / {activeTrek.path.length}
                       </span>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1 bg-amber-500/20 border-amber-500/40 text-amber-200 hover:bg-amber-500/30"
-                      onClick={() => trekStepMutation.mutate()}
-                      disabled={trekStepMutation.isPending}
-                    >
-                      <Navigation className="h-3 w-3" />
-                      {trekStepMutation.isPending ? "Moving..." : "Take Step"}
-                    </Button>
+                    {activeTrek.status === 'encounter' ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1 bg-red-500/20 border-red-500/40 text-red-200 hover:bg-red-500/30 animate-pulse"
+                        onClick={() => {
+                          if (activeEncounter) {
+                            setActiveEncounter(activeEncounter);
+                          } else {
+                            toast({ title: "Encounter Active", description: "An encounter is blocking your path. Resolve or dismiss it to continue.", variant: "destructive" });
+                          }
+                        }}
+                      >
+                        <AlertTriangle className="h-3 w-3" />
+                        Encounter!
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1 bg-amber-500/20 border-amber-500/40 text-amber-200 hover:bg-amber-500/30"
+                        onClick={() => trekStepMutation.mutate()}
+                        disabled={trekStepMutation.isPending}
+                      >
+                        <Navigation className="h-3 w-3" />
+                        {trekStepMutation.isPending ? "Moving..." : "Take Step"}
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="ghost"
@@ -1056,6 +1150,199 @@ export default function WorldMapPage() {
         onClose={() => setCityMapOpen(null)}
       />
     )}
+
+    <Dialog open={!!activeEncounter} onOpenChange={(open) => {
+      if (!open && !enterNarrativeMutation.isPending && !narrativeScene) {
+        setActiveEncounter(null);
+      }
+    }}>
+      <DialogContent className="max-w-2xl bg-gradient-to-b from-gray-900 via-gray-900 to-black border-2 border-amber-500/40 text-amber-50 max-h-[85vh] overflow-y-auto">
+        {activeEncounter && !narrativeScene && (
+          <>
+            <DialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  activeEncounter.narrativeCategory === 'combat' ? 'bg-red-500/20 border border-red-500/40' :
+                  activeEncounter.narrativeCategory === 'quest' ? 'bg-violet-500/20 border border-violet-500/40' :
+                  'bg-emerald-500/20 border border-emerald-500/40'
+                }`}>
+                  {activeEncounter.narrativeCategory === 'combat' ? <Swords className="h-5 w-5 text-red-400" /> :
+                   activeEncounter.narrativeCategory === 'quest' ? <Scroll className="h-5 w-5 text-violet-400" /> :
+                   <Compass className="h-5 w-5 text-emerald-400" />}
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-bold text-amber-100">
+                    {activeEncounter.type.charAt(0).toUpperCase() + activeEncounter.type.slice(1)} Encounter
+                  </DialogTitle>
+                  <DialogDescription className="text-amber-100/50 text-xs">
+                    Hex ({activeEncounter.hexQ}, {activeEncounter.hexR}) · Step {activeEncounter.step} · En route to {activeEncounter.destinationName}
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="space-y-4 mt-2">
+              <div className="p-4 rounded-lg bg-black/40 border border-amber-500/20">
+                <p className="text-sm leading-relaxed text-amber-100/90 italic">
+                  "{activeEncounter.description}"
+                </p>
+              </div>
+
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <p className="text-xs text-amber-200/80">
+                  <Sparkles className="h-3 w-3 inline mr-1 text-amber-400" />
+                  {activeEncounter.hook}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-amber-100/40">
+                <Badge variant="outline" className={`text-[10px] ${
+                  activeEncounter.sceneType === 'combat' ? 'border-red-500/40 text-red-300' :
+                  activeEncounter.sceneType === 'social' ? 'border-violet-500/40 text-violet-300' :
+                  'border-emerald-500/40 text-emerald-300'
+                }`}>
+                  {activeEncounter.sceneType}
+                </Badge>
+                <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-300">
+                  {activeEncounter.type}
+                </Badge>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  className="flex-1 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-semibold gap-2"
+                  onClick={() => enterNarrativeMutation.mutate(activeEncounter)}
+                  disabled={enterNarrativeMutation.isPending}
+                >
+                  {enterNarrativeMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Generating Narrative...
+                    </>
+                  ) : (
+                    <>
+                      <BookOpen className="h-4 w-4" />
+                      Enter Narrative
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-amber-500/30 text-amber-200 hover:bg-amber-500/10"
+                  onClick={() => dismissEncounterMutation.mutate()}
+                  disabled={dismissEncounterMutation.isPending || enterNarrativeMutation.isPending}
+                >
+                  Pass By
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeEncounter && narrativeScene && (
+          <>
+            <DialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  narrativeScene.combatReady ? 'bg-red-500/20 border border-red-500/40' : 'bg-amber-500/20 border border-amber-500/40'
+                }`}>
+                  {narrativeScene.combatReady ? <Swords className="h-5 w-5 text-red-400" /> : <BookOpen className="h-5 w-5 text-amber-400" />}
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-bold text-amber-100">
+                    {narrativeScene.title}
+                  </DialogTitle>
+                  <DialogDescription className="text-amber-100/50 text-xs flex items-center gap-2">
+                    <Badge variant="outline" className={`text-[10px] ${
+                      narrativeScene.sceneType === 'combat' ? 'border-red-500/40 text-red-300' :
+                      narrativeScene.sceneType === 'social' ? 'border-violet-500/40 text-violet-300' :
+                      'border-emerald-500/40 text-emerald-300'
+                    }`}>
+                      {narrativeScene.sceneType}
+                    </Badge>
+                    <Badge variant="outline" className={`text-[10px] ${
+                      narrativeScene.difficultyHint === 'Easy' ? 'border-green-500/40 text-green-300' :
+                      narrativeScene.difficultyHint === 'Medium' ? 'border-yellow-500/40 text-yellow-300' :
+                      narrativeScene.difficultyHint === 'Hard' ? 'border-orange-500/40 text-orange-300' :
+                      'border-red-500/40 text-red-300'
+                    }`}>
+                      {narrativeScene.difficultyHint}
+                    </Badge>
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="space-y-4 mt-2">
+              <div className="p-4 rounded-lg bg-black/40 border border-amber-500/20">
+                <p className="text-sm leading-relaxed text-amber-100/90 whitespace-pre-line">
+                  {narrativeScene.narrative}
+                </p>
+              </div>
+
+              {narrativeScene.npcs.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {narrativeScene.npcs.map((npc, i) => (
+                    <div key={i} className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-violet-500/15 border border-violet-500/30">
+                      <Users className="h-3 w-3 text-violet-400" />
+                      <span className="text-xs text-violet-200">{npc.name}</span>
+                      <span className="text-[10px] text-violet-300/50">· {npc.role}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {narrativeScene.possibleRewards.length > 0 && (
+                <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <span className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider">Possible Rewards</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {narrativeScene.possibleRewards.map((r, i) => (
+                      <Badge key={i} variant="outline" className="text-[10px] border-amber-500/30 text-amber-200">
+                        {r}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2 pt-1">
+                <span className="text-xs text-amber-400 font-semibold uppercase tracking-wider">What does the party do?</span>
+                {narrativeScene.choices.map((choice) => (
+                  <Button
+                    key={choice.id}
+                    variant="outline"
+                    className="w-full justify-start text-left h-auto py-3 px-4 border-amber-500/20 text-amber-100 hover:bg-amber-500/10 hover:border-amber-500/40 transition-all"
+                    onClick={() => {
+                      setActiveEncounter(null);
+                      setNarrativeScene(null);
+                      dismissEncounterMutation.mutate();
+                      navigate("/play");
+                    }}
+                  >
+                    <span className="text-sm">{choice.text}</span>
+                  </Button>
+                ))}
+              </div>
+
+              <div className="flex gap-3 pt-2 border-t border-amber-500/10">
+                <Button
+                  variant="ghost"
+                  className="text-amber-200/60 hover:text-amber-200 hover:bg-amber-500/10 text-xs"
+                  onClick={() => {
+                    setActiveEncounter(null);
+                    setNarrativeScene(null);
+                    dismissEncounterMutation.mutate();
+                  }}
+                >
+                  Dismiss & Continue Trek
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+
     </TooltipProvider>
   );
 }
