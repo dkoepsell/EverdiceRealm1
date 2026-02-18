@@ -1219,8 +1219,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         }
         
         // Show combat effects with D&D mechanics transparency
+        const stillInCombat = data.storyState?.inCombat === true;
         if (data.progression.combatEffects) {
           const combat = data.progression.combatEffects;
+          
+          // Clear stale combat logs if combat has ended
+          if (!stillInCombat && !combat.combatCompleted) {
+            setDetailedCombatLogs([]);
+          }
           
           // Store detailed combat logs for display (with defensive checks)
           // MERGE server logs with any existing player-initiated logs (wand/spell/weapon attacks)
@@ -1236,8 +1242,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               });
               setShowCombatLogDialog(true);
             }
-          } else if (detailedCombatLogs.length > 0) {
-            // No server logs but we have player-initiated logs — show those
+          } else if (detailedCombatLogs.length > 0 && stillInCombat) {
+            // No server logs but we have player-initiated logs — only show if still in combat
             setShowCombatLogDialog(true);
           }
           
