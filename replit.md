@@ -25,6 +25,8 @@ A persistent Combat Log (Battle tab) records all player actions, AI narratives, 
 
 Post-Combat Rewards Engine automatically generates loot, gold, and XP based on combat outcomes and boss detection. Crafting, an Expanded SRD Shop, and a Player Market provide in-game economy and item management. Dedicated "Wander Mode" and "Delve Mode" offer distinct exploration and dungeon-crawling experiences with curated content and mechanics. Performance optimizations include response compression, structured logging, route-level code splitting, and streaming AI narrative with a Continuity Lock to prevent divergence between streamed and final AI outputs.
 
+A procedural World Hex Map (`client/src/lib/worldHexGenerator.ts`, `client/src/components/world/WorldHexMap.tsx`) generates a 100x100 hex grid from the 8 existing world regions (scaled from their gridX/gridY/width/height at REGION_SCALE=8). Terrain variety within each region uses simplex noise (elevation + moisture layers). All 16 existing world locations are placed at their correct posX/posY within region bounds. Rivers flow from mountains to coast, roads connect settlements. The canvas-based renderer supports zoom/pan, fog-of-war (toggled via button, uses `userWorldProgress` data for region/location reveal), minimap, and hex hover/click details. Accessible via Illustrated/Hex Map toggle on the World Map page.
+
 ## External Dependencies
 
 ### Core
