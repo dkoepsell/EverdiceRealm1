@@ -11141,7 +11141,10 @@ Return your response as a JSON object with these fields:
         return res.status(400).json({ message: "No active encounter to enter" });
       }
 
-      const characters = await storage.getCampaignCharacters(campaignId);
+      const participants = await storage.getCampaignParticipants(campaignId);
+      const characters = (await Promise.all(
+        participants.map(async (p) => await storage.getCharacter(p.characterId))
+      )).filter(Boolean);
       const characterNames = characters.map((c: any) => c.name).join(", ") || "The party";
       const characterSummary = characters.map((c: any) =>
         `${c.name} (Level ${c.level || 1} ${c.race || ''} ${c.class || ''})`
