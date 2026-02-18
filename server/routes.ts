@@ -6300,7 +6300,9 @@ Return your response as a JSON object with these fields:
   - npcsBroken: Array of {name, reason} for any NPCs whose breaking points were triggered (PERMANENT)
   - foreclosuresTriggered: Array of {name, reason} for any doors that sealed permanently this scene
   - residueUpdates: Array of {residueId, delta, reason, triggerId?} for any normative residue that increased due to player choice (failure, delay, recklessness)
-  - campaignStakeUpdates: (REQUIRED) Array of {id, delta, reason} for campaign stakes touched by this action. EVERY scene MUST include at least one. Delta is integer change (-1, +1, etc.)
+  - campaignStakeUpdates: (REQUIRED) Array of {id, delta, reason} for campaign stakes touched by this action. EVERY scene MUST include at least one.
+    DELTA SIZING: Use delta ±1 for minor/indirect effects. Use delta ±2 for DECISIVE player choices that clearly commit to one direction (e.g., "harness the dark power" = +2, "destroy the artifact" = -2). The player's INTENT matters — if they chose something dramatic, the world should respond dramatically.
+    ANTI-OSCILLATION: Do NOT reverse a stake change in the very next scene unless something dramatically changed. If a player chose to embrace blood magic and the stake went +2, it should NOT go -1 next turn just because "the situation calmed." Momentum matters — committed choices have lasting effects.
 - chapterGateMet: (OPTIONAL) If the chapter gate's required truth/commitment/belief was achieved THIS scene, include: { "gateId": chapter_number, "reason": "what was learned/committed/changed" }
 - narrativeLogEntry: (REQUIRED) Object with:
   - xpReason: Why XP was awarded this scene (or "No XP — no meaningful resolution")
@@ -15076,6 +15078,9 @@ SESSION 1 RETENTION TRACKING — include "session1Retention" in your JSON respon
         campaignDoctrineNote += `\nCAMPAIGN STAKES (every choice MUST touch at least one — stakes PASSIVELY DRIFT each scene):\n`;
         campaignDoctrineNote += advanceCampaignStakes.map((s: any) => {
           let line = `- ${s.name} [${s.id}]: ${s.value}/${s.max}`;
+          if (s.lastDelta && s.lastDelta !== 0) {
+            line += ` [MOMENTUM: ${s.lastDelta > 0 ? 'rising' : 'falling'} — do NOT reverse unless the player makes a decisive opposing choice]`;
+          }
           if (s.passiveDrift && s.passiveDrift !== 0) {
             line += ` [DRIFTS ${s.passiveDrift > 0 ? '+' : ''}${s.passiveDrift}/scene]`;
           }
@@ -15110,6 +15115,8 @@ DM AUTHORING DOCTRINE (MANDATORY):
 - PROCESSES CREATE NEW PROBLEMS: Every completed quest/ritual/combat leaves at least one new problem in its wake.
 - CHAPTER GATE IS YOUR PRIMARY NARRATIVE GOAL: The gate defines what this chapter is ABOUT. Every scene must build toward it.
 - Do NOT generate aimless dungeon crawling or random encounters disconnected from the chapter's purpose.
+- SHOW CONSEQUENCES IN THE NARRATIVE: When a player makes a decisive choice (embracing dark power, betraying an ally, sacrificing something), the narrative MUST visibly reflect the change — describe physical transformations, NPC reactions, environmental shifts, or new abilities/costs. Do NOT just silently adjust stake numbers. The player should READ about the world changing because of their decision.
+- If a stake is at CRITICAL level (0-1 or 4-5), the narrative should hint at impending catastrophe or breakthrough — make the player FEEL the pressure in the story text.
 - Actively steer toward the gate through NPC actions, environmental pressures, and choice consequences.
 - When the gate condition is met, you MUST include "chapterGateMet": { "gateId": chapter_number, "reason": "what was reached" }.
 - Include "narrativeLogEntry" with: xpReason, stakeReason, foreclosedReason, choiceCost.
@@ -15704,7 +15711,7 @@ Respond with JSON:
   },
   "skillUsed": "Stealth/Perception/Athletics/etc or null if no skill check",
   "rewardItems": [{"name": "Healing Potion", "type": "consumable", "description": "Restores 2d4+2 HP", "rarity": "common"}],
-  "campaignStakeUpdates": [{"id": "stake_id", "delta": -1, "reason": "Why this stake changed"}],
+  "campaignStakeUpdates": [{"id": "stake_id", "delta": -1, "reason": "Why this stake changed — use ±1 for minor, ±2 for decisive player commitments. Do NOT oscillate — if the player committed to a direction, maintain that momentum."}],
   "factionUpdates": [{"factionId": "faction.id", "strengthDelta": 5, "action": "What the faction did this scene (visible or behind-the-scenes)", "reason": "Why their strength changed"}],
   "instabilityUpdate": {"delta": 1, "manifestation": "How the instability visibly changed this scene"},
   "chapterGateMet": {"gateId": 1, "reason": "What truth/belief/commitment was reached"},
@@ -16976,12 +16983,24 @@ ${cachedNarrative}
       };
       const updatedJourneyLog = [...existingJourneyLog, newJourneyEntry].slice(-50);
       
-      // Update adventure progress if combat was completed
-      // Check if combat just ended (was in combat, now not) - must be done AFTER currentStoryState is defined
+      // Track combat rounds — how many turns the player has been in combat
+      const currentCombatRounds = currentStoryState.combatRoundCount || 0;
       const wasInCombat = currentStoryState.inCombat || false;
       const nowInCombat = storyAdvancement.storyState?.inCombat || false;
-      if (wasInCombat && !nowInCombat) {
+      
+      // CRITICAL: Do NOT set combatCompleted just because AI says inCombat changed to false.
+      // Combat can only end legitimately when:
+      // 1. All enemies are actually defeated (HP <= 0), verified later in the merge step, OR
+      // 2. At least 2 combat rounds have passed AND the AI says combat ended (retreat/flee)
+      // This prevents the AI from narratively resolving combat in a single turn.
+      if (wasInCombat && !nowInCombat && currentCombatRounds >= 2) {
         combatCompleted = true;
+        console.log(`[Combat] AI ended combat after ${currentCombatRounds} rounds — allowing (retreat/disengage)`);
+      } else if (wasInCombat && !nowInCombat && currentCombatRounds < 2) {
+        console.log(`[Combat] AI tried to end combat after only ${currentCombatRounds} rounds — BLOCKING (too soon, requires enemy defeat or 2+ rounds)`);
+        if (storyAdvancement.storyState) {
+          storyAdvancement.storyState.inCombat = true;
+        }
       }
       
       let updatedAdventureProgress = currentStoryState.adventureProgress || {
@@ -17336,6 +17355,10 @@ ${cachedNarrative}
         quietReckoningTriggered: session1Retention.quietReckoningTriggered
       } : session1Retention;
       
+      // Track combat round count: increment when in combat, reset when combat ends
+      const isInCombatNow = storyAdvancement.storyState?.inCombat || false;
+      const newCombatRoundCount = isInCombatNow ? (currentCombatRounds + 1) : 0;
+      
       const mergedStoryState = {
         ...storyAdvancement.storyState,
         combatants: preservedCombatants,
@@ -17346,6 +17369,7 @@ ${cachedNarrative}
         adventureRequirements: currentStoryState.adventureRequirements,
         movesWithoutStory: 0,
         turnsInChapter,
+        combatRoundCount: newCombatRoundCount,
         scenesSinceCombat: newScenesSinceCombat,
         lastMovement: movement?.occurred ? {
           direction: movement.direction,
@@ -17360,6 +17384,7 @@ ${cachedNarrative}
         console.log(`[Combat Debug] Combat completed — clearing combatants array`);
         mergedStoryState.combatants = [];
         mergedStoryState.inCombat = false;
+        mergedStoryState.combatRoundCount = 0;
       } else {
         // CRITICAL: If there are still living enemy combatants, force inCombat to stay true
         // The AI sometimes incorrectly sets inCombat: false while enemies are still alive
@@ -17375,6 +17400,7 @@ ${cachedNarrative}
           // Combat ended naturally (AI set inCombat: false and no living enemies) — clear combatants
           console.log(`[Combat Debug] Combat ended naturally — clearing combatants array`);
           mergedStoryState.combatants = [];
+          mergedStoryState.combatRoundCount = 0;
         }
       }
       
@@ -18950,16 +18976,30 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         const doctrineUpdates: any = {};
         let doctrineChanged = false;
         
-        // Apply campaign stake updates
+        // Apply campaign stake updates with anti-oscillation enforcement
         let currentCampaignStakes = [...((campaign as any).campaignStakes || [])];
         if (storyAdvancement.campaignStakeUpdates && Array.isArray(storyAdvancement.campaignStakeUpdates)) {
           for (const update of storyAdvancement.campaignStakeUpdates) {
             const stakeIndex = currentCampaignStakes.findIndex((s: any) => s.id === update.id);
             if (stakeIndex >= 0) {
               const stake = currentCampaignStakes[stakeIndex];
-              const newValue = Math.max(0, Math.min(stake.max || 5, stake.value + (update.delta || 0)));
-              currentCampaignStakes[stakeIndex] = { ...stake, value: newValue };
-              console.log(`DOCTRINE STAKE (main): ${update.id} ${update.delta > 0 ? '+' : ''}${update.delta} (now ${newValue}/${stake.max}) — ${update.reason}`);
+              let effectiveDelta = update.delta || 0;
+              
+              // ANTI-OSCILLATION: Check if the AI is reversing the previous turn's change
+              const lastDelta = stake.lastDelta || 0;
+              if (lastDelta !== 0 && effectiveDelta !== 0 && Math.sign(lastDelta) !== Math.sign(effectiveDelta)) {
+                // AI is trying to reverse direction immediately — only allow if the delta is ≥ 2 (decisive choice)
+                if (Math.abs(effectiveDelta) < 2) {
+                  console.log(`DOCTRINE STAKE (main): ${update.id} BLOCKED oscillation (was ${lastDelta > 0 ? '+' : ''}${lastDelta} last turn, AI wants ${effectiveDelta > 0 ? '+' : ''}${effectiveDelta} — too small to reverse)`);
+                  effectiveDelta = 0;
+                }
+              }
+              
+              const newValue = Math.max(0, Math.min(stake.max || 5, stake.value + effectiveDelta));
+              currentCampaignStakes[stakeIndex] = { ...stake, value: newValue, lastDelta: effectiveDelta !== 0 ? effectiveDelta : lastDelta };
+              if (effectiveDelta !== 0) {
+                console.log(`DOCTRINE STAKE (main): ${update.id} ${effectiveDelta > 0 ? '+' : ''}${effectiveDelta} (now ${newValue}/${stake.max}) — ${update.reason}`);
+              }
             }
           }
           doctrineChanged = true;
@@ -18974,12 +19014,20 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         }
         doctrineUpdates.campaignStakes = currentCampaignStakes;
         
-        // Log threshold events from passive drift
+        // Log threshold events from passive drift AND inject them into the narrative
         if (mainThresholdEvents.length > 0) {
           const thresholdNarrative = mainThresholdEvents.map((te: any) =>
             `[THRESHOLD EVENT: ${te.stakeName} hit ${te.threshold} — ${te.event}${te.irreversible ? ' (PERMANENT)' : ''}]`
           ).join('\n');
           console.log(`THRESHOLD EVENTS TRIGGERED (main):\n${thresholdNarrative}`);
+          
+          // CRITICAL: Append threshold event descriptions to the narrative so the player SEES the consequence
+          const thresholdDescriptions = mainThresholdEvents.map((te: any) =>
+            `\n\n${te.event}${te.irreversible ? ' The change feels permanent — there is no going back.' : ''}`
+          ).join('');
+          if (storyAdvancement.narrative) {
+            storyAdvancement.narrative += thresholdDescriptions;
+          }
         }
         
         // Append narrative log entry
