@@ -210,40 +210,53 @@ function getRegionBounds(region: WorldRegionData): RegionBounds {
   };
 }
 
-function findRegionForHex(q: number, r: number, regions: WorldRegionData[]): WorldRegionData | null {
+function getRegionCenter(region: WorldRegionData): { q: number; r: number } {
+  const bounds = getRegionBounds(region);
+  return {
+    q: (bounds.minQ + bounds.maxQ) / 2,
+    r: (bounds.minR + bounds.maxR) / 2,
+  };
+}
+
+function findRegionVoronoi(
+  q: number, r: number,
+  regions: WorldRegionData[],
+  warpNoise: (x: number, y: number) => number
+): { region: WorldRegionData; secondRegion: WorldRegionData | null; blendFactor: number } {
+  const warpStrength = 6;
+  const wq = q + warpNoise(q * 0.06, r * 0.06) * warpStrength;
+  const wr = r + warpNoise(q * 0.06 + 100, r * 0.06 + 100) * warpStrength;
+
+  let bestDist = Infinity;
+  let secondDist = Infinity;
+  let bestRegion: WorldRegionData = regions[0];
+  let secondRegion: WorldRegionData | null = null;
+
   for (const region of regions) {
+    const center = getRegionCenter(region);
     const bounds = getRegionBounds(region);
-    if (q >= bounds.minQ && q <= bounds.maxQ && r >= bounds.minR && r <= bounds.maxR) {
-      return region;
+    const regionW = bounds.maxQ - bounds.minQ;
+    const regionH = bounds.maxR - bounds.minR;
+    const scaleQ = regionW > 0 ? 1 / (regionW * 0.6) : 1;
+    const scaleR = regionH > 0 ? 1 / (regionH * 0.6) : 1;
+    const dq = (wq - center.q) * scaleQ;
+    const dr = (wr - center.r) * scaleR;
+    const dist = dq * dq + dr * dr;
+
+    if (dist < bestDist) {
+      secondDist = bestDist;
+      secondRegion = bestRegion;
+      bestDist = dist;
+      bestRegion = region;
+    } else if (dist < secondDist) {
+      secondDist = dist;
+      secondRegion = region;
     }
   }
-  return null;
-}
 
-function distToBorder(q: number, r: number, bounds: RegionBounds): number {
-  const dLeft = q - bounds.minQ;
-  const dRight = bounds.maxQ - q;
-  const dTop = r - bounds.minR;
-  const dBottom = bounds.maxR - r;
-  return Math.min(dLeft, dRight, dTop, dBottom);
-}
+  const blendFactor = secondDist > 0 ? Math.max(0, Math.min(1, (secondDist - bestDist) / (bestDist + 0.01) )) : 1;
 
-function findNearestOtherRegion(q: number, r: number, currentRegion: WorldRegionData, regions: WorldRegionData[]): WorldRegionData | null {
-  const bounds = getRegionBounds(currentRegion);
-  const dLeft = q - bounds.minQ;
-  const dRight = bounds.maxQ - q;
-  const dTop = r - bounds.minR;
-  const dBottom = bounds.maxR - r;
-  const minD = Math.min(dLeft, dRight, dTop, dBottom);
-
-  let searchQ = q;
-  let searchR = r;
-  if (minD === dLeft) searchQ = bounds.minQ - 1;
-  else if (minD === dRight) searchQ = bounds.maxQ + 1;
-  else if (minD === dTop) searchR = bounds.minR - 1;
-  else searchR = bounds.maxR + 1;
-
-  return findRegionForHex(searchQ, searchR, regions);
+  return { region: bestRegion, secondRegion, blendFactor };
 }
 
 function getTerrainForRegion(
@@ -402,9 +415,10 @@ export function generateWorldHexMap(
     }
   }
 
+  const warpNoise = simplexNoise2D(seed + 4000);
+
   for (let q = 0; q < GRID_SIZE; q++) {
     for (let r = 0; r < GRID_SIZE; r++) {
-      const region = findRegionForHex(q, r, regions);
       const key = `${q},${r}`;
 
       const elevation = (fbm(elevationNoise, q * 0.04, r * 0.04, 5) + 1) / 2;
@@ -412,46 +426,24 @@ export function generateWorldHexMap(
       const isRiver = riverPaths.has(key);
       const isRoad = roadHexes.has(key);
 
-      if (!region) {
-        hexMap.set(key, {
-          q, r,
-          terrain: elevation > 0.5 ? "plains" : "shallow_water",
-          regionId: 0,
-          regionName: "Unclaimed Wilds",
-          elevation, moisture,
-          isRiver, isRoad,
-          isCoast: false,
-          isBorder: false,
-        });
-        continue;
-      }
+      const { region, secondRegion, blendFactor } = findRegionVoronoi(q, r, regions, warpNoise);
 
       const bounds = getRegionBounds(region);
-      const localQ = (q - bounds.minQ) / Math.max(1, bounds.maxQ - bounds.minQ);
-      const localR = (r - bounds.minR) / Math.max(1, bounds.maxR - bounds.minR);
+      const localQ = Math.max(0, Math.min(1, (q - bounds.minQ) / Math.max(1, bounds.maxQ - bounds.minQ)));
+      const localR = Math.max(0, Math.min(1, (r - bounds.minR) / Math.max(1, bounds.maxR - bounds.minR)));
 
       let terrain: TerrainType;
       if (isRiver) {
         terrain = "shallow_water";
-      } else {
-        const borderDist = distToBorder(q, r, bounds);
-        const blendZone = 3;
-        if (borderDist < blendZone) {
-          const neighborRegion = findNearestOtherRegion(q, r, region, regions);
-          if (neighborRegion) {
-            const blendNoise = (detailNoise(q * 0.15, r * 0.15) + 1) / 2;
-            const blendChance = (1 - borderDist / blendZone) * 0.6;
-            if (blendNoise < blendChance) {
-              terrain = getTerrainForRegion(neighborRegion, localQ, localR, elevation, moisture, rng);
-            } else {
-              terrain = getTerrainForRegion(region, localQ, localR, elevation, moisture, rng);
-            }
-          } else {
-            terrain = getTerrainForRegion(region, localQ, localR, elevation, moisture, rng);
-          }
+      } else if (blendFactor < 0.3 && secondRegion) {
+        const blendNoise = (detailNoise(q * 0.12, r * 0.12) + 1) / 2;
+        if (blendNoise > blendFactor * 2) {
+          terrain = getTerrainForRegion(secondRegion, localQ, localR, elevation, moisture, rng);
         } else {
           terrain = getTerrainForRegion(region, localQ, localR, elevation, moisture, rng);
         }
+      } else {
+        terrain = getTerrainForRegion(region, localQ, localR, elevation, moisture, rng);
       }
 
       let locationId: number | undefined;
