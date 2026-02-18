@@ -294,6 +294,7 @@ export const campaignSessions = pgTable("campaign_sessions", {
   sceneType: text("scene_type"), // Current scene type: Combat, Exploration, Social, Puzzle, Discovery, Travel, Downtime
   sceneData: jsonb("scene_data"), // Full SceneV2 object with goal, obstacles, stakes, actions
   previousSceneType: text("previous_scene_type"), // For anti-combat-treadmill tracking
+  actionLog: jsonb("action_log"), // Persistent log of player actions, AI narratives, and combat results
 });
 
 export const insertCampaignSessionSchema = createInsertSchema(campaignSessions).omit({
