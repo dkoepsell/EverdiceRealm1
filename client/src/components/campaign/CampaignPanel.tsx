@@ -49,6 +49,7 @@ import TurnManager from "./TurnManager";
 import CampaignDeploymentTab from "./CampaignDeploymentTab";
 import CampaignDashboard from "./CampaignDashboard";
 import { QuestBoard } from "./QuestBoard";
+import { CombatLogPanel } from "./CombatLogPanel";
 import TableChat from "@/components/dm-toolkit/TableChat";
 import CombatSpellPanel from "@/components/combat/CombatSpellPanel";
 import { LearningTip, useLearningTips } from "@/components/learning/LearningTip";
@@ -3116,6 +3117,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   <span className="flex items-center">
                     <Scroll className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
                     <span>Log</span>
+                  </span>
+                </TabsTrigger>
+
+                <TabsTrigger value="combat-log" title="Combat Log - Review past actions, dice rolls, and AI narratives" className="flex-1 text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
+                  <span className="flex items-center">
+                    <Swords className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
+                    <span>Battle</span>
                   </span>
                 </TabsTrigger>
 
@@ -6340,6 +6348,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   </div>
                 </div>
               </div>
+            </TabsContent>
+            
+            <TabsContent value="combat-log" className="p-4">
+              <CombatLogPanel campaignId={campaign.id} />
             </TabsContent>
             
             <TabsContent value="quests" className="p-4">

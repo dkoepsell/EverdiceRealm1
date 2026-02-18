@@ -4545,6 +4545,38 @@ Return your response as a JSON object with these fields:
     }
   });
   
+  app.get("/api/campaigns/:campaignId/action-log", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const campaignId = parseInt(req.params.campaignId);
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign || campaign.userId !== req.user.id) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      const sessions = await storage.getCampaignSessions(campaignId);
+      const logs: any[] = [];
+      for (const session of sessions) {
+        const sessionLog = (session as any).actionLog || [];
+        for (const entry of sessionLog) {
+          logs.push({
+            ...entry,
+            sessionNumber: session.sessionNumber,
+            sessionTitle: session.title,
+            chapterNumber: (session as any).chapterNumber || null,
+          });
+        }
+      }
+      logs.sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      const limit = Math.min(parseInt(req.query.limit as string) || 500, 500);
+      res.json(logs.slice(-limit));
+    } catch (error) {
+      console.error("Failed to fetch action log:", error);
+      res.status(500).json({ message: "Failed to fetch action log" });
+    }
+  });
+
   // Multi-user Campaign Participant Management
   // Note: The main /api/campaigns/:campaignId/participants GET route is defined in the Multi-user Campaign Management section below
   
@@ -14792,7 +14824,13 @@ You may create a new character or start a new adventure to continue playing.`;
             adventureEnded: true,
             endReason: 'player_death',
             inCombat: false
-          }
+          },
+          actionLogEntries: [{
+            type: 'narrative',
+            timestamp: new Date().toISOString(),
+            text: adventureEndNarrative,
+            sceneType: 'Death',
+          }]
         });
         
         return res.json({
@@ -17550,6 +17588,43 @@ ${cachedNarrative}
       // Update session with story advancement
       console.log(`[Combat Debug] Saving session with combatants:`, JSON.stringify(mergedStoryState.combatants?.map((c: any) => ({ name: c.name, currentHp: c.currentHp, status: c.status })) || []));
       
+      const actionLogEntries: any[] = [];
+      const nowTs = new Date().toISOString();
+      
+      if (choice) {
+        actionLogEntries.push({
+          type: 'player_action',
+          timestamp: nowTs,
+          text: choice,
+          rollResult: rollResult || null,
+          sceneType: storyAdvancement.sceneType || (mergedStoryState?.inCombat ? 'Combat' : 'Exploration'),
+        });
+      }
+      
+      if (storyAdvancement.narrative) {
+        actionLogEntries.push({
+          type: 'narrative',
+          timestamp: nowTs,
+          text: storyAdvancement.narrative,
+          sceneType: storyAdvancement.sceneType || (mergedStoryState?.inCombat ? 'Combat' : 'Exploration'),
+        });
+      }
+      
+      if (storyAdvancement.combatResults && Array.isArray(storyAdvancement.combatResults)) {
+        for (const cr of storyAdvancement.combatResults) {
+          actionLogEntries.push({
+            type: 'combat',
+            timestamp: nowTs,
+            attacker: cr.attacker,
+            target: cr.target,
+            attackRoll: cr.attackRoll,
+            isHit: cr.isHit,
+            damage: cr.damage,
+            description: cr.description || `${cr.attacker} attacks ${cr.target}`,
+          });
+        }
+      }
+      
       let updatedSession = await storage.advanceSessionStory(campaignId, {
         narrative: storyAdvancement.narrative,
         dmNarrative: storyAdvancement.dmNarrative,
@@ -17557,6 +17632,7 @@ ${cachedNarrative}
         storyState: mergedStoryState,
         npcInteractions: storyAdvancement.npcInteractions,
         sceneType: storyAdvancement.sceneType || (mergedStoryState?.inCombat ? 'Combat' : 'Exploration'),
+        actionLogEntries,
         playerChoicesMade: [...(currentSession.playerChoicesMade || []), {
           choice,
           rollResult,
@@ -17997,6 +18073,7 @@ ${cachedNarrative}
                 storyState: mergedStoryState,
                 npcInteractions: storyAdvancement.npcInteractions,
                 sceneType: storyAdvancement.sceneType || (mergedStoryState?.inCombat ? 'Combat' : 'Exploration'),
+                actionLogEntries: [],
               });
               updatedSession = reSavedSession;
               console.log(`[Combat Re-save] Session re-saved with updated enemy HP`);
@@ -18766,7 +18843,13 @@ Choices should include 4 options with at least 2 requiring dice rolls.
               choices: generatedChapter.choices,
               storyState: enhancedStoryState,
               npcInteractions: [],
-              playerChoicesMade: []
+              playerChoicesMade: [],
+              actionLogEntries: [{
+                type: 'chapter_start',
+                timestamp: new Date().toISOString(),
+                text: `Chapter ${nextChapterNumber}: ${generatedChapter.chapterTitle}`,
+                sceneType: 'Chapter',
+              }]
             });
             
             // Update the session title separately
@@ -19262,6 +19345,12 @@ Respond with JSON:
             storyState: mergedStoryState,
             npcInteractions: storyAdvancement.npcInteractions,
             sceneType: 'The Quiet Reckoning',
+            actionLogEntries: [{
+              type: 'narrative',
+              timestamp: new Date().toISOString(),
+              text: storyAdvancement.narrative,
+              sceneType: 'The Quiet Reckoning',
+            }],
           });
         } catch (reckoningError) {
           console.error("[Quiet Reckoning] Failed to generate:", reckoningError);

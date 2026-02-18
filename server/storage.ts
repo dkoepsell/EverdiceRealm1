@@ -2337,6 +2337,11 @@ export class DatabaseStorage implements IStorage {
     const previousSceneType = (currentSession as any).sceneType || null;
     const newSceneType = storyData.sceneType || (inCombat ? 'Combat' : null);
 
+    const existingLog = (currentSession as any).actionLog || [];
+    const newLogEntries = storyData.actionLogEntries || [];
+    const MAX_LOG_ENTRIES = 200;
+    const combinedLog = [...existingLog, ...newLogEntries].slice(-MAX_LOG_ENTRIES);
+    
     const updateData: any = {
       narrative: storyData.narrative,
       dmNarrative: storyData.dmNarrative,
@@ -2345,7 +2350,8 @@ export class DatabaseStorage implements IStorage {
       npcInteractions: storyData.npcInteractions,
       playerChoicesMade: storyData.playerChoicesMade,
       isInCombat: inCombat,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      actionLog: combinedLog
     };
     
     // Update scene type tracking if we have a new scene type
