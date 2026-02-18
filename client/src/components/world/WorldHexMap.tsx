@@ -17,6 +17,14 @@ import {
   type TerrainType,
 } from "@/lib/worldHexGenerator";
 
+export interface PartyPosition {
+  campaignId: number;
+  campaignTitle: string;
+  hexQ: number;
+  hexR: number;
+  isOwner: boolean;
+}
+
 interface WorldHexMapProps {
   campaignId?: number;
   revealedHexes?: Set<string>;
@@ -26,6 +34,7 @@ interface WorldHexMapProps {
   onTrekTo?: (hex: WorldHex) => void;
   trekPath?: Array<{ q: number; r: number }>;
   trekStep?: number;
+  partyPositions?: PartyPosition[];
   compact?: boolean;
   showFogByDefault?: boolean;
 }
@@ -84,6 +93,7 @@ export default function WorldHexMap({
   onTrekTo,
   trekPath,
   trekStep,
+  partyPositions,
   compact = false,
   showFogByDefault = false,
 }: WorldHexMapProps) {
@@ -385,10 +395,58 @@ export default function WorldHexMap({
       }
     }
 
+    if (partyPositions && partyPositions.length > 0) {
+      const partyColors = ["#22d3ee", "#a78bfa", "#34d399", "#fb923c", "#f472b6", "#facc15"];
+      const hexGroups = new Map<string, Array<{ party: PartyPosition; globalIdx: number }>>();
+      partyPositions.forEach((party, idx) => {
+        const key = `${party.hexQ},${party.hexR}`;
+        if (!hexGroups.has(key)) hexGroups.set(key, []);
+        hexGroups.get(key)!.push({ party, globalIdx: idx });
+      });
+
+      hexGroups.forEach((group) => {
+        group.forEach(({ party, globalIdx }, localIdx) => {
+          const pp = hexToPixel(party.hexQ, party.hexR, HEX_SIZE);
+          const color = partyColors[globalIdx % partyColors.length];
+          const markerRadius = HEX_SIZE * 0.65;
+          const spread = group.length > 1 ? HEX_SIZE * 0.35 : 0;
+          const offsetAngle = (localIdx * Math.PI * 2) / group.length;
+          const mx = pp.x + Math.cos(offsetAngle) * spread;
+          const my = pp.y + Math.sin(offsetAngle) * spread;
+
+          ctx.save();
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 6;
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(mx, my, markerRadius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+
+          ctx.fillStyle = "#000";
+          ctx.font = `bold ${markerRadius * 1.1}px sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("⚑", mx, my + 0.5);
+
+          const labelSize = Math.max(4, Math.min(7, 5 / zoom * 2));
+          ctx.font = `bold ${labelSize}px 'Georgia', serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          ctx.fillStyle = color;
+          ctx.strokeStyle = "rgba(0,0,0,0.8)";
+          ctx.lineWidth = 2;
+          ctx.strokeText(party.campaignTitle, mx, my + markerRadius + 2);
+          ctx.fillText(party.campaignTitle, mx, my + markerRadius + 2);
+          ctx.restore();
+        });
+      });
+    }
+
     ctx.restore();
 
     drawMinimap(ctx, rect.width, rect.height);
-  }, [worldHexMap, zoom, offset, hoveredHex, playerPosition, fogEnabled, effectiveRevealed, regions, trekPath, trekStep]);
+  }, [worldHexMap, zoom, offset, hoveredHex, playerPosition, fogEnabled, effectiveRevealed, regions, trekPath, trekStep, partyPositions]);
 
   const drawMinimap = useCallback((ctx: CanvasRenderingContext2D, canvasW: number, canvasH: number) => {
     if (!worldHexMap) return;

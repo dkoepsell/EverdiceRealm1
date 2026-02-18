@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import parchmentFrame from "@assets/image_1768600727955.png";
 import worldMapBackground from "@assets/image_1768601537026.png";
 import WorldHexMap from "@/components/world/WorldHexMap";
+import type { PartyPosition } from "@/components/world/WorldHexMap";
 import CityMap from "@/components/world/CityMap";
 import type { WorldHex } from "@/lib/worldHexGenerator";
 
@@ -242,6 +243,12 @@ export default function WorldMapPage() {
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${activeCampaignId}/trek/active`] });
       toast({ title: "Trek Cancelled", description: "You have abandoned your journey." });
     },
+  });
+
+  const { data: partyPositions = [] } = useQuery<PartyPosition[]>({
+    queryKey: ["/api/world/party-positions"],
+    enabled: !!user,
+    refetchInterval: 30000,
   });
 
   const { data: regions = [], isLoading: regionsLoading } = useQuery<WorldRegion[]>({
@@ -473,6 +480,7 @@ export default function WorldMapPage() {
                   }}
                   trekPath={activeTrek?.path}
                   trekStep={activeTrek?.currentStep}
+                  partyPositions={partyPositions}
                 />
                 {activeTrek && activeTrek.status === 'active' && (
                   <div className="flex items-center gap-3 p-3 bg-amber-900/30 rounded-lg border border-amber-500/30">
@@ -996,6 +1004,46 @@ export default function WorldMapPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {partyPositions.length > 0 && (
+              <Card className="border-2 border-amber-500/30 bg-black/40 backdrop-blur-sm">
+                <CardHeader className="pb-2 border-b border-amber-500/20">
+                  <CardTitle className="text-sm flex items-center gap-2 text-amber-100">
+                    <Navigation className="h-4 w-4 text-cyan-400" />
+                    Your Parties
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-3">
+                  <div className="space-y-2">
+                    {partyPositions.map((party, idx) => {
+                      const colors = ["text-cyan-400", "text-violet-400", "text-emerald-400", "text-orange-400", "text-pink-400", "text-yellow-400"];
+                      const bgColors = ["bg-cyan-500/15", "bg-violet-500/15", "bg-emerald-500/15", "bg-orange-500/15", "bg-pink-500/15", "bg-yellow-500/15"];
+                      const borderColors = ["border-cyan-500/30", "border-violet-500/30", "border-emerald-500/30", "border-orange-500/30", "border-pink-500/30", "border-yellow-500/30"];
+                      const color = colors[idx % colors.length];
+                      const bg = bgColors[idx % bgColors.length];
+                      const border = borderColors[idx % borderColors.length];
+                      return (
+                        <div key={party.campaignId} className={`flex items-center gap-2 p-2 rounded-lg ${bg} border ${border}`}>
+                          <div className={`w-3 h-3 rounded-full ${color.replace('text-', 'bg-')} animate-pulse`} />
+                          <div className="flex-1 min-w-0">
+                            <span className={`text-xs font-medium ${color} truncate block`}>
+                              {party.campaignTitle}
+                            </span>
+                            <span className="text-[10px] text-amber-100/40">
+                              Hex ({party.hexQ}, {party.hexR})
+                              {party.isOwner && " · DM"}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-amber-100/30 mt-2 italic">
+                    Switch to Hex Map view to see party locations
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>

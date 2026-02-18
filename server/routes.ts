@@ -20486,6 +20486,46 @@ Respond with JSON:
   // ========================================
   // World Map API Routes
   // ========================================
+
+  app.get("/api/world/party-positions", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const userId = (req.user as any).id;
+      const allCampaigns = await storage.getAllCampaigns();
+      const positions: Array<{
+        campaignId: number;
+        campaignTitle: string;
+        hexQ: number;
+        hexR: number;
+        isOwner: boolean;
+      }> = [];
+
+      for (const campaign of allCampaigns) {
+        if (campaign.isCompleted || campaign.isArchived) continue;
+        const participants = await storage.getCampaignParticipants(campaign.id);
+        const isInvolved = campaign.userId === userId || participants.some((p: any) => p.userId === userId);
+        if (!isInvolved) continue;
+
+        const state = await storage.getExplorationState(campaign.id);
+        if (state && state.currentHexQ != null && state.currentHexR != null) {
+          positions.push({
+            campaignId: campaign.id,
+            campaignTitle: campaign.title,
+            hexQ: state.currentHexQ,
+            hexR: state.currentHexR,
+            isOwner: campaign.userId === userId,
+          });
+        }
+      }
+
+      res.json(positions);
+    } catch (error) {
+      console.error("Error fetching party positions:", error);
+      res.status(500).json({ message: "Failed to fetch party positions" });
+    }
+  });
   
   // Get active campaigns/adventures per world region and location
   app.get("/api/world/activity", async (req, res) => {
