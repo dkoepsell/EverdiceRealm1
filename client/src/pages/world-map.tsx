@@ -10,13 +10,14 @@ import {
   Castle, Landmark, Compass, ChevronLeft, User, Crown,
   CircleDot, Eye, CheckCircle2, Lock, Swords, Users,
   Scroll, AlertTriangle, Shield, Sparkles, Globe, Clock, 
-  TrendingUp, TrendingDown, Activity, Zap, BookOpen
+  TrendingUp, TrendingDown, Activity, Zap, BookOpen, Hexagon
 } from "lucide-react";
 import { useState } from "react";
 import type { WorldRegion, WorldLocation, UserWorldProgress, WorldEvent, WorldDiscovery } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import parchmentFrame from "@assets/image_1768600727955.png";
 import worldMapBackground from "@assets/image_1768601537026.png";
+import WorldHexMap from "@/components/world/WorldHexMap";
 
 const terrainIcons: Record<string, typeof Mountain> = {
   mountain: Mountain,
@@ -168,6 +169,7 @@ export default function WorldMapPage() {
   const { user } = useAuth();
   const [selectedRegion, setSelectedRegion] = useState<WorldRegion | null>(null);
   const [sidePanel, setSidePanel] = useState<'regions' | 'events' | 'discoveries'>('regions');
+  const [mapView, setMapView] = useState<'illustrated' | 'hex'>('illustrated');
 
   const { data: regions = [], isLoading: regionsLoading } = useQuery<WorldRegion[]>({
     queryKey: ["/api/world/regions"],
@@ -329,6 +331,30 @@ export default function WorldMapPage() {
                   <Sparkles className="h-3 w-3" />
                   {discoverySummary?.totalExploredHexes || 0} Hexes Charted
                 </Badge>
+                <div className="flex gap-1 p-0.5 bg-black/30 rounded-lg border border-white/10">
+                  <button
+                    onClick={() => setMapView('illustrated')}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs transition-all ${
+                      mapView === 'illustrated'
+                        ? 'bg-amber-500/30 text-amber-100 border border-amber-400/50'
+                        : 'text-white/50 hover:text-white/80 border border-transparent'
+                    }`}
+                  >
+                    <Map className="h-3 w-3" />
+                    <span className="hidden sm:inline">Illustrated</span>
+                  </button>
+                  <button
+                    onClick={() => setMapView('hex')}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs transition-all ${
+                      mapView === 'hex'
+                        ? 'bg-amber-500/30 text-amber-100 border border-amber-400/50'
+                        : 'text-white/50 hover:text-white/80 border border-transparent'
+                    }`}
+                  >
+                    <Hexagon className="h-3 w-3" />
+                    <span className="hidden sm:inline">Hex Map</span>
+                  </button>
+                </div>
                 {user && (
                   <Button 
                     size="sm" 
@@ -350,6 +376,9 @@ export default function WorldMapPage() {
       <div className="container mx-auto px-4 pb-6">
         <div className="flex gap-4">
           <div className="flex-1 space-y-4">
+            {mapView === 'hex' ? (
+              <WorldHexMap />
+            ) : (
             <div 
               className="relative rounded-2xl overflow-hidden border-4 border-amber-800/50 shadow-2xl"
               style={{
@@ -447,6 +476,7 @@ export default function WorldMapPage() {
                 );
               })}
             </div>
+            )}
 
             {worldEventsList.length > 0 && (
               <Card className="border-2 border-amber-500/30 bg-black/40 backdrop-blur-sm">
