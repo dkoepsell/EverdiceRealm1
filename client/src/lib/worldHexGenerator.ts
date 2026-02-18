@@ -367,12 +367,26 @@ export function generateWorldHexMap(
     if (nearestIdx >= 0 && nearestDist < 30) {
       const from = locationPositions[i][1];
       const to = locationPositions[nearestIdx][1];
-      const steps = Math.max(Math.abs(to.q - from.q), Math.abs(to.r - from.r));
-      for (let s = 0; s <= steps; s++) {
-        const t = steps === 0 ? 0 : s / steps;
-        const rq = Math.round(from.q + (to.q - from.q) * t);
-        const rr = Math.round(from.r + (to.r - from.r) * t);
-        roadHexes.add(`${rq},${rr}`);
+      let cq = from.q;
+      let cr = from.r;
+      const maxSteps = Math.round(nearestDist * 1.5) + 10;
+      for (let s = 0; s < maxSteps; s++) {
+        roadHexes.add(`${cq},${cr}`);
+        if (cq === to.q && cr === to.r) break;
+        const dq = to.q - cq;
+        const dr = to.r - cr;
+        const n = detailNoise(cq * 0.2 + i * 7, cr * 0.2 + i * 7);
+        if (Math.abs(dq) > Math.abs(dr)) {
+          cq += dq > 0 ? 1 : -1;
+          if (n > 0.1) cr += dr > 0 ? 1 : (dr < 0 ? -1 : 0);
+        } else if (Math.abs(dr) > 0) {
+          cr += dr > 0 ? 1 : -1;
+          if (n > 0.1) cq += dq > 0 ? 1 : (dq < 0 ? -1 : 0);
+        } else {
+          cq += dq > 0 ? 1 : -1;
+        }
+        cq = Math.max(0, Math.min(GRID_SIZE - 1, cq));
+        cr = Math.max(0, Math.min(GRID_SIZE - 1, cr));
       }
     }
   }
