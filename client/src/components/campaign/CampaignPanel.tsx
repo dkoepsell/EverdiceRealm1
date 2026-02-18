@@ -3080,71 +3080,62 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             {/* First-time tab tour wraps the tabs for proper positioning */}
             <ContextualHint hintId="campaign_tabs_intro" position="bottom" delay={800}>
-              <TabsList className="flex w-full bg-slate-900 rounded-none border-b-2 border-amber-500 h-12">
-                <TabsTrigger value="narrative" title="Your Adventure Story - Read the story, make choices, and drive the adventure forward" className="relative flex-1 text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700 group">
-                  <span className="flex items-center">
-                    <BookOpen className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
-                    <span>Narrative</span>
+              <TabsList className="flex w-full bg-slate-900 rounded-none border-b-2 border-amber-500 h-10 sm:h-12 overflow-x-auto overflow-y-hidden">
+                <TabsTrigger value="narrative" title="Story" className="relative flex-1 min-w-0 px-1 sm:px-3 text-[10px] sm:text-sm text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700 group">
+                  <span className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1">
+                    <BookOpen className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">Story</span>
                   </span>
                   <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-amber-400 rounded-full animate-pulse group-data-[state=active]:hidden" />
                 </TabsTrigger>
 
-                <TabsTrigger value="party" title="Your Adventuring Party - Manage character, companions, inventory, and consumables" className="relative flex-1 text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700 group">
-                  <span className="flex items-center">
-                    <Users className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
-                    <span>Party</span>
+                <TabsTrigger value="party" title="Party" className="relative flex-1 min-w-0 px-1 sm:px-3 text-[10px] sm:text-sm text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700 group">
+                  <span className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1">
+                    <Users className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">Party</span>
                   </span>
                   <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse group-data-[state=active]:hidden" />
                 </TabsTrigger>
 
-                <TabsTrigger value="chat" title="Party Chat - Talk with other players in real-time" className="flex-1 text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700" data-testid="tab-chat">
-                  <span className="flex items-center">
-                    <MessageCircle className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
-                    <span>Chat</span>
+                <TabsTrigger value="chat" title="Chat" className="flex-1 min-w-0 px-1 sm:px-3 text-[10px] sm:text-sm text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700" data-testid="tab-chat">
+                  <span className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1">
+                    <MessageCircle className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">Chat</span>
                   </span>
                 </TabsTrigger>
 
-                {isDM && (
-                  <TabsTrigger value="dashboard" title="DM Command Center - Campaign insights, quest tracking, party status" className="flex-1 text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
-                    <span className="flex items-center">
-                      <LayoutDashboard className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
-                      <span>Dashboard</span>
-                    </span>
-                  </TabsTrigger>
-                )}
-
-                <TabsTrigger value="journey-log" title="Journey Log - Review past events, completed quests, and key moments" className="flex-1 text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
-                  <span className="flex items-center">
-                    <Scroll className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
-                    <span>Log</span>
+                <TabsTrigger value="journey-log" title="Log" className="flex-1 min-w-0 px-1 sm:px-3 text-[10px] sm:text-sm text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
+                  <span className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1">
+                    <Scroll className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">Log</span>
                   </span>
                 </TabsTrigger>
 
-                <TabsTrigger value="combat-log" title="Combat Log - Review past actions, dice rolls, and AI narratives" className="flex-1 text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
-                  <span className="flex items-center">
-                    <Swords className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
-                    <span>Battle</span>
+                <TabsTrigger value="combat-log" title="Battle" className="flex-1 min-w-0 px-1 sm:px-3 text-[10px] sm:text-sm text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
+                  <span className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1">
+                    <Swords className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">Battle</span>
                   </span>
                 </TabsTrigger>
 
-                <TabsTrigger value="quests" title="Quest Board - Browse and accept quests to track objectives and earn rewards" className="flex-1 text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
-                  <span className="flex items-center">
-                    <Target className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
-                    <span>Quests</span>
+                <TabsTrigger value="quests" title="Quests" className="flex-1 min-w-0 px-1 sm:px-3 text-[10px] sm:text-sm text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
+                  <span className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1">
+                    <Target className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">Quests</span>
                   </span>
                 </TabsTrigger>
 
-                <TabsTrigger value="settings" title="Campaign Settings - Adjust options, difficulty, and configurations" className="flex-1 text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
-                  <span className="flex items-center">
-                    <Settings className="h-3.5 w-3.5 mr-1 hidden sm:inline-block" />
-                    <span>Settings</span>
+                <TabsTrigger value="settings" title="Settings" className="flex-1 min-w-0 px-1 sm:px-3 text-[10px] sm:text-sm text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none border-r border-slate-700">
+                  <span className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1">
+                    <Settings className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">Settings</span>
                   </span>
                 </TabsTrigger>
 
-                <TabsTrigger value="deploy" title="Share & Invite - Get invite links and manage who can join" className="flex-1 text-xs sm:text-sm md:text-base text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none">
-                  <span className="flex items-center">
-                    <Share2 className="h-3.5 w-3.5 mr-1 md:mr-2 hidden sm:inline-block" />
-                    <span>Deploy</span>
+                <TabsTrigger value="deploy" title="Share" className="flex-1 min-w-0 px-1 sm:px-3 text-[10px] sm:text-sm text-slate-200 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-900 data-[state=active]:font-bold data-[state=active]:shadow-lg hover:bg-slate-700 hover:text-white transition-all rounded-none">
+                  <span className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1">
+                    <Share2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">Share</span>
                   </span>
                 </TabsTrigger>
               </TabsList>
@@ -6362,18 +6353,6 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 userId={user?.id}
               />
             </TabsContent>
-            
-            {isDM && (
-              <TabsContent value="dashboard" className="p-0">
-                <CampaignDashboard 
-                  campaign={campaign}
-                  currentSession={currentSession || null}
-                  participants={participants}
-                  campaignNpcs={campaignNpcs}
-                  campaignQuests={campaignQuests}
-                />
-              </TabsContent>
-            )}
             
             <TabsContent value="deploy" className="p-4">
               <CampaignDeploymentTab campaign={campaign} isCreator={isDM} />
