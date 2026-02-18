@@ -192,16 +192,6 @@ export default function WorldMapPage() {
     hexR: number;
     destinationName: string;
   } | null>(null);
-  const [narrativeScene, setNarrativeScene] = useState<{
-    narrative: string;
-    title: string;
-    choices: Array<{ id: string; text: string; type: string }>;
-    sceneType: string;
-    combatReady: boolean;
-    npcs: Array<{ name: string; role: string }>;
-    possibleRewards: string[];
-    difficultyHint: string;
-  } | null>(null);
 
   const { data: userCampaigns = [] } = useQuery<Campaign[]>({
     queryKey: ["/api/campaigns"],
@@ -267,7 +257,6 @@ export default function WorldMapPage() {
       const data = await res.json();
       if (data.encounter) {
         setActiveEncounter(data.encounter);
-        setNarrativeScene(null);
       }
       if (data.completed) {
         toast({ title: "Trek Complete", description: `You have arrived at your destination!` });
@@ -288,9 +277,13 @@ export default function WorldMapPage() {
     },
     onSuccess: async (res) => {
       const data = await res.json();
-      if (data.scene) {
-        setNarrativeScene(data.scene);
+      setActiveEncounter(null);
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${activeCampaignId}/trek/active`] });
+      if (activeCampaignId) {
+        localStorage.setItem('activeCampaignId', activeCampaignId.toString());
+        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${activeCampaignId}/sessions`] });
       }
+      navigate("/play");
     },
     onError: () => {
       toast({ title: "Narrative Generation Failed", description: "Could not generate the encounter narrative. Try again.", variant: "destructive" });
@@ -304,7 +297,6 @@ export default function WorldMapPage() {
     },
     onSuccess: () => {
       setActiveEncounter(null);
-      setNarrativeScene(null);
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${activeCampaignId}/trek/active`] });
       toast({ title: "Encounter Passed", description: "You continue on your journey." });
     },
@@ -1152,12 +1144,12 @@ export default function WorldMapPage() {
     )}
 
     <Dialog open={!!activeEncounter} onOpenChange={(open) => {
-      if (!open && !enterNarrativeMutation.isPending && !narrativeScene) {
+      if (!open && !enterNarrativeMutation.isPending) {
         setActiveEncounter(null);
       }
     }}>
       <DialogContent className="max-w-2xl bg-gradient-to-b from-gray-900 via-gray-900 to-black border-2 border-amber-500/40 text-amber-50 max-h-[85vh] overflow-y-auto">
-        {activeEncounter && !narrativeScene && (
+        {activeEncounter && (
           <>
             <DialogHeader>
               <div className="flex items-center gap-3 mb-2">
@@ -1239,107 +1231,6 @@ export default function WorldMapPage() {
           </>
         )}
 
-        {activeEncounter && narrativeScene && (
-          <>
-            <DialogHeader>
-              <div className="flex items-center gap-3 mb-2">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  narrativeScene.combatReady ? 'bg-red-500/20 border border-red-500/40' : 'bg-amber-500/20 border border-amber-500/40'
-                }`}>
-                  {narrativeScene.combatReady ? <Swords className="h-5 w-5 text-red-400" /> : <BookOpen className="h-5 w-5 text-amber-400" />}
-                </div>
-                <div>
-                  <DialogTitle className="text-lg font-bold text-amber-100">
-                    {narrativeScene.title}
-                  </DialogTitle>
-                  <DialogDescription className="text-amber-100/50 text-xs flex items-center gap-2">
-                    <Badge variant="outline" className={`text-[10px] ${
-                      narrativeScene.sceneType === 'combat' ? 'border-red-500/40 text-red-300' :
-                      narrativeScene.sceneType === 'social' ? 'border-violet-500/40 text-violet-300' :
-                      'border-emerald-500/40 text-emerald-300'
-                    }`}>
-                      {narrativeScene.sceneType}
-                    </Badge>
-                    <Badge variant="outline" className={`text-[10px] ${
-                      narrativeScene.difficultyHint === 'Easy' ? 'border-green-500/40 text-green-300' :
-                      narrativeScene.difficultyHint === 'Medium' ? 'border-yellow-500/40 text-yellow-300' :
-                      narrativeScene.difficultyHint === 'Hard' ? 'border-orange-500/40 text-orange-300' :
-                      'border-red-500/40 text-red-300'
-                    }`}>
-                      {narrativeScene.difficultyHint}
-                    </Badge>
-                  </DialogDescription>
-                </div>
-              </div>
-            </DialogHeader>
-
-            <div className="space-y-4 mt-2">
-              <div className="p-4 rounded-lg bg-black/40 border border-amber-500/20">
-                <p className="text-sm leading-relaxed text-amber-100/90 whitespace-pre-line">
-                  {narrativeScene.narrative}
-                </p>
-              </div>
-
-              {narrativeScene.npcs.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {narrativeScene.npcs.map((npc, i) => (
-                    <div key={i} className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-violet-500/15 border border-violet-500/30">
-                      <Users className="h-3 w-3 text-violet-400" />
-                      <span className="text-xs text-violet-200">{npc.name}</span>
-                      <span className="text-[10px] text-violet-300/50">· {npc.role}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {narrativeScene.possibleRewards.length > 0 && (
-                <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                  <span className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider">Possible Rewards</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {narrativeScene.possibleRewards.map((r, i) => (
-                      <Badge key={i} variant="outline" className="text-[10px] border-amber-500/30 text-amber-200">
-                        {r}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-2 pt-1">
-                <span className="text-xs text-amber-400 font-semibold uppercase tracking-wider">What does the party do?</span>
-                {narrativeScene.choices.map((choice) => (
-                  <Button
-                    key={choice.id}
-                    variant="outline"
-                    className="w-full justify-start text-left h-auto py-3 px-4 border-amber-500/20 text-amber-100 hover:bg-amber-500/10 hover:border-amber-500/40 transition-all"
-                    onClick={() => {
-                      setActiveEncounter(null);
-                      setNarrativeScene(null);
-                      dismissEncounterMutation.mutate();
-                      navigate("/play");
-                    }}
-                  >
-                    <span className="text-sm">{choice.text}</span>
-                  </Button>
-                ))}
-              </div>
-
-              <div className="flex gap-3 pt-2 border-t border-amber-500/10">
-                <Button
-                  variant="ghost"
-                  className="text-amber-200/60 hover:text-amber-200 hover:bg-amber-500/10 text-xs"
-                  onClick={() => {
-                    setActiveEncounter(null);
-                    setNarrativeScene(null);
-                    dismissEncounterMutation.mutate();
-                  }}
-                >
-                  Dismiss & Continue Trek
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
       </DialogContent>
     </Dialog>
 
