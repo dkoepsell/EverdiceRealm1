@@ -254,10 +254,7 @@ export default function WorldHexMap({
         }
         ctx.fill(cornerPath);
 
-        if (hex.isBorder) {
-          ctx.strokeStyle = "rgba(255,255,255,0.15)";
-          ctx.lineWidth = 0.8;
-        } else if (hex.isRiver) {
+        if (hex.isRiver) {
           ctx.strokeStyle = "#3a7aba";
           ctx.lineWidth = 0.8;
         } else {

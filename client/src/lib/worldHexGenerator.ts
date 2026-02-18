@@ -220,6 +220,32 @@ function findRegionForHex(q: number, r: number, regions: WorldRegionData[]): Wor
   return null;
 }
 
+function distToBorder(q: number, r: number, bounds: RegionBounds): number {
+  const dLeft = q - bounds.minQ;
+  const dRight = bounds.maxQ - q;
+  const dTop = r - bounds.minR;
+  const dBottom = bounds.maxR - r;
+  return Math.min(dLeft, dRight, dTop, dBottom);
+}
+
+function findNearestOtherRegion(q: number, r: number, currentRegion: WorldRegionData, regions: WorldRegionData[]): WorldRegionData | null {
+  const bounds = getRegionBounds(currentRegion);
+  const dLeft = q - bounds.minQ;
+  const dRight = bounds.maxQ - q;
+  const dTop = r - bounds.minR;
+  const dBottom = bounds.maxR - r;
+  const minD = Math.min(dLeft, dRight, dTop, dBottom);
+
+  let searchQ = q;
+  let searchR = r;
+  if (minD === dLeft) searchQ = bounds.minQ - 1;
+  else if (minD === dRight) searchQ = bounds.maxQ + 1;
+  else if (minD === dTop) searchR = bounds.minR - 1;
+  else searchR = bounds.maxR + 1;
+
+  return findRegionForHex(searchQ, searchR, regions);
+}
+
 function getTerrainForRegion(
   region: WorldRegionData,
   localQ: number,
@@ -401,14 +427,31 @@ export function generateWorldHexMap(
       }
 
       const bounds = getRegionBounds(region);
-      const localQ = (q - bounds.minQ) / (bounds.maxQ - bounds.minQ);
-      const localR = (r - bounds.minR) / (bounds.maxR - bounds.minR);
+      const localQ = (q - bounds.minQ) / Math.max(1, bounds.maxQ - bounds.minQ);
+      const localR = (r - bounds.minR) / Math.max(1, bounds.maxR - bounds.minR);
 
       let terrain: TerrainType;
       if (isRiver) {
         terrain = "shallow_water";
       } else {
-        terrain = getTerrainForRegion(region, localQ, localR, elevation, moisture, rng);
+        const borderDist = distToBorder(q, r, bounds);
+        const blendZone = 3;
+        if (borderDist < blendZone) {
+          const neighborRegion = findNearestOtherRegion(q, r, region, regions);
+          if (neighborRegion) {
+            const blendNoise = (detailNoise(q * 0.15, r * 0.15) + 1) / 2;
+            const blendChance = (1 - borderDist / blendZone) * 0.6;
+            if (blendNoise < blendChance) {
+              terrain = getTerrainForRegion(neighborRegion, localQ, localR, elevation, moisture, rng);
+            } else {
+              terrain = getTerrainForRegion(region, localQ, localR, elevation, moisture, rng);
+            }
+          } else {
+            terrain = getTerrainForRegion(region, localQ, localR, elevation, moisture, rng);
+          }
+        } else {
+          terrain = getTerrainForRegion(region, localQ, localR, elevation, moisture, rng);
+        }
       }
 
       let locationId: number | undefined;
@@ -427,7 +470,6 @@ export function generateWorldHexMap(
         }
       }
 
-      const isEdge = q === bounds.minQ || q === bounds.maxQ || r === bounds.minR || r === bounds.maxR;
       const isCoast = region.terrain === "ocean" && elevation > 0.55;
 
       hexMap.set(key, {
@@ -443,7 +485,7 @@ export function generateWorldHexMap(
         isRiver,
         isRoad,
         isCoast,
-        isBorder: isEdge,
+        isBorder: false,
       });
     }
   }
