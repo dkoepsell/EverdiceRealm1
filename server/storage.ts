@@ -73,7 +73,10 @@ import {
   dungeonNodeStates, type DungeonNodeState, type InsertDungeonNodeState,
   dungeonRewards, type DungeonReward, type InsertDungeonReward,
   // LLM Config
-  llmConfigs, type LlmConfig, type InsertLlmConfig
+  llmConfigs, type LlmConfig, type InsertLlmConfig,
+  // City maps and trek routes
+  cityMaps, type CityMap, type InsertCityMap,
+  trekRoutes, type TrekRoute, type InsertTrekRoute
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or, inArray } from "drizzle-orm";
@@ -272,6 +275,17 @@ export interface IStorage {
   getExplorationState(campaignId: number): Promise<CampaignExplorationState | undefined>;
   createExplorationState(state: InsertCampaignExplorationState): Promise<CampaignExplorationState>;
   updateExplorationState(campaignId: number, updates: Partial<CampaignExplorationState>): Promise<CampaignExplorationState | undefined>;
+  
+  // City Map operations
+  getCityMap(campaignId: number, worldLocationId: number): Promise<CityMap | undefined>;
+  createCityMap(cityMap: InsertCityMap): Promise<CityMap>;
+  updateCityMap(id: number, updates: Partial<CityMap>): Promise<CityMap | undefined>;
+  
+  // Trek Route operations
+  getActiveTrekRoute(campaignId: number, userId: number): Promise<TrekRoute | undefined>;
+  createTrekRoute(route: InsertTrekRoute): Promise<TrekRoute>;
+  updateTrekRoute(id: number, updates: Partial<TrekRoute>): Promise<TrekRoute | undefined>;
+  cancelTrekRoute(id: number): Promise<boolean>;
   
   // Campaign Quest operations
   getCampaignQuests(campaignId: number): Promise<CampaignQuest[]>;
@@ -2735,6 +2749,55 @@ export class DatabaseStorage implements IStorage {
       .where(eq(campaignExplorationState.campaignId, campaignId))
       .returning();
     return updated || undefined;
+  }
+  
+  // City Map operations
+  async getCityMap(campaignId: number, worldLocationId: number): Promise<CityMap | undefined> {
+    const [map] = await db.select().from(cityMaps)
+      .where(and(eq(cityMaps.campaignId, campaignId), eq(cityMaps.worldLocationId, worldLocationId)));
+    return map || undefined;
+  }
+  
+  async createCityMap(cityMap: InsertCityMap): Promise<CityMap> {
+    const [newMap] = await db.insert(cityMaps).values({
+      ...cityMap,
+      createdAt: new Date().toISOString()
+    }).returning();
+    return newMap;
+  }
+  
+  async updateCityMap(id: number, updates: Partial<CityMap>): Promise<CityMap | undefined> {
+    const [updated] = await db.update(cityMaps).set(updates).where(eq(cityMaps.id, id)).returning();
+    return updated || undefined;
+  }
+  
+  // Trek Route operations
+  async getActiveTrekRoute(campaignId: number, userId: number): Promise<TrekRoute | undefined> {
+    const [route] = await db.select().from(trekRoutes)
+      .where(and(
+        eq(trekRoutes.campaignId, campaignId),
+        eq(trekRoutes.userId, userId),
+        eq(trekRoutes.status, "active")
+      ));
+    return route || undefined;
+  }
+  
+  async createTrekRoute(route: InsertTrekRoute): Promise<TrekRoute> {
+    const [newRoute] = await db.insert(trekRoutes).values({
+      ...route,
+      createdAt: new Date().toISOString()
+    }).returning();
+    return newRoute;
+  }
+  
+  async updateTrekRoute(id: number, updates: Partial<TrekRoute>): Promise<TrekRoute | undefined> {
+    const [updated] = await db.update(trekRoutes).set(updates).where(eq(trekRoutes.id, id)).returning();
+    return updated || undefined;
+  }
+  
+  async cancelTrekRoute(id: number): Promise<boolean> {
+    const [result] = await db.update(trekRoutes).set({ status: "cancelled" }).where(eq(trekRoutes.id, id)).returning();
+    return !!result;
   }
   
   // Campaign Quest operations

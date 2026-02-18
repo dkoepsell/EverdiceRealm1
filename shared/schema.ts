@@ -767,6 +767,44 @@ export const insertCampaignExplorationStateSchema = createInsertSchema(campaignE
 export type InsertCampaignExplorationHex = z.infer<typeof insertCampaignExplorationHexSchema>;
 export type CampaignExplorationHex = typeof campaignExplorationHexes.$inferSelect;
 export type InsertCampaignExplorationState = z.infer<typeof insertCampaignExplorationStateSchema>;
+
+export const cityMaps = pgTable("city_maps", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  worldLocationId: integer("world_location_id").notNull(),
+  locationName: text("location_name").notNull(),
+  seed: integer("seed").notNull(),
+  layout: jsonb("layout").notNull(),
+  discoveredBuildings: jsonb("discovered_buildings").default([]),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertCityMapSchema = createInsertSchema(cityMaps).omit({
+  id: true,
+});
+
+export type InsertCityMap = z.infer<typeof insertCityMapSchema>;
+export type CityMap = typeof cityMaps.$inferSelect;
+
+export const trekRoutes = pgTable("trek_routes", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  userId: integer("user_id").notNull(),
+  destinationQ: integer("destination_q").notNull(),
+  destinationR: integer("destination_r").notNull(),
+  destinationName: text("destination_name"),
+  path: jsonb("path").notNull(),
+  currentStep: integer("current_step").default(0),
+  status: text("status").notNull().default("active"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertTrekRouteSchema = createInsertSchema(trekRoutes).omit({
+  id: true,
+});
+
+export type InsertTrekRoute = z.infer<typeof insertTrekRouteSchema>;
+export type TrekRoute = typeof trekRoutes.$inferSelect;
 export type CampaignExplorationState = typeof campaignExplorationState.$inferSelect;
 
 // Campaign Quests - Milestone tracking within adventures

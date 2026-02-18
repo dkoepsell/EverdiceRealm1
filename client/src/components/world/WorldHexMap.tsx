@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  ZoomIn, ZoomOut, Maximize2, Compass, Eye, EyeOff
+  ZoomIn, ZoomOut, Maximize2, Compass, Eye, EyeOff, Building2, Navigation
 } from "lucide-react";
 import type { WorldRegion, WorldLocation, UserWorldProgress } from "@shared/schema";
 import {
@@ -22,6 +22,10 @@ interface WorldHexMapProps {
   revealedHexes?: Set<string>;
   playerPosition?: { q: number; r: number };
   onHexClick?: (hex: WorldHex) => void;
+  onEnterLocation?: (hex: WorldHex) => void;
+  onTrekTo?: (hex: WorldHex) => void;
+  trekPath?: Array<{ q: number; r: number }>;
+  trekStep?: number;
   compact?: boolean;
   showFogByDefault?: boolean;
 }
@@ -76,6 +80,10 @@ export default function WorldHexMap({
   revealedHexes,
   playerPosition,
   onHexClick,
+  onEnterLocation,
+  onTrekTo,
+  trekPath,
+  trekStep,
   compact = false,
   showFogByDefault = false,
 }: WorldHexMapProps) {
@@ -342,10 +350,45 @@ export default function WorldHexMap({
       });
     }
 
+    if (trekPath && trekPath.length > 1) {
+      ctx.strokeStyle = "rgba(255,200,50,0.6)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      for (let i = 0; i < trekPath.length; i++) {
+        const tp = hexToPixel(trekPath[i].q, trekPath[i].r, HEX_SIZE);
+        if (i === 0) ctx.moveTo(tp.x, tp.y);
+        else ctx.lineTo(tp.x, tp.y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      const dest = trekPath[trekPath.length - 1];
+      const dp = hexToPixel(dest.q, dest.r, HEX_SIZE);
+      ctx.fillStyle = "#ef4444";
+      ctx.beginPath();
+      ctx.arc(dp.x, dp.y, HEX_SIZE * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.font = `${HEX_SIZE * 0.6}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("✕", dp.x, dp.y + 1);
+
+      if (typeof trekStep === "number" && trekStep < trekPath.length) {
+        const sp = hexToPixel(trekPath[trekStep].q, trekPath[trekStep].r, HEX_SIZE);
+        ctx.strokeStyle = "#22c55e";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, HEX_SIZE * 0.9, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
     ctx.restore();
 
     drawMinimap(ctx, rect.width, rect.height);
-  }, [worldHexMap, zoom, offset, hoveredHex, playerPosition, fogEnabled, effectiveRevealed, regions]);
+  }, [worldHexMap, zoom, offset, hoveredHex, playerPosition, fogEnabled, effectiveRevealed, regions, trekPath, trekStep]);
 
   const drawMinimap = useCallback((ctx: CanvasRenderingContext2D, canvasW: number, canvasH: number) => {
     if (!worldHexMap) return;
@@ -612,18 +655,43 @@ export default function WorldHexMap({
         </div>
       )}
 
-      {selectedHex && selectedHex.locationName && (
-        <div className="absolute top-3 left-3 bg-black/85 border border-amber-500/40 rounded-lg p-3 text-sm text-amber-100 max-w-64">
+      {selectedHex && (
+        <div className="absolute top-3 left-3 bg-black/85 border border-amber-500/40 rounded-lg p-3 text-sm text-amber-100 max-w-72">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-lg">{LOCATION_ICONS[selectedHex.locationType || "landmark"] || "📍"}</span>
+            <span className="text-lg">{selectedHex.locationName ? (LOCATION_ICONS[selectedHex.locationType || "landmark"] || "📍") : "🗺️"}</span>
             <div>
-              <div className="font-semibold text-amber-200">{selectedHex.locationName}</div>
-              <div className="text-[10px] text-amber-100/50">{selectedHex.regionName}</div>
+              <div className="font-semibold text-amber-200">{selectedHex.locationName || TERRAIN_LABELS[selectedHex.terrain] || selectedHex.terrain}</div>
+              <div className="text-[10px] text-amber-100/50">{selectedHex.regionName} ({selectedHex.q}, {selectedHex.r})</div>
             </div>
           </div>
-          <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-200">
-            {selectedHex.locationType}
-          </Badge>
+          {selectedHex.locationType && (
+            <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-200 mb-2">
+              {selectedHex.locationType}
+            </Badge>
+          )}
+          <div className="flex gap-1.5 mt-2">
+            {selectedHex.locationName && selectedHex.locationId && ["city", "town", "village"].includes(selectedHex.locationType || "") && onEnterLocation && (
+              <Button
+                size="sm"
+                className="h-7 text-xs bg-amber-600 hover:bg-amber-500 text-white"
+                onClick={() => onEnterLocation(selectedHex)}
+              >
+                <Building2 className="w-3 h-3 mr-1" />
+                Enter
+              </Button>
+            )}
+            {onTrekTo && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs border-amber-500/40 text-amber-200 hover:bg-amber-500/20"
+                onClick={() => { onTrekTo(selectedHex); setSelectedHex(null); }}
+              >
+                <Navigation className="w-3 h-3 mr-1" />
+                Trek Here
+              </Button>
+            )}
+          </div>
           <Button
             size="sm"
             variant="ghost"

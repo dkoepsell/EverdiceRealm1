@@ -10,14 +10,18 @@ import {
   Castle, Landmark, Compass, ChevronLeft, User, Crown,
   CircleDot, Eye, CheckCircle2, Lock, Swords, Users,
   Scroll, AlertTriangle, Shield, Sparkles, Globe, Clock, 
-  TrendingUp, TrendingDown, Activity, Zap, BookOpen, Hexagon
+  TrendingUp, TrendingDown, Activity, Zap, BookOpen, Hexagon,
+  Navigation, X, Footprints
 } from "lucide-react";
-import { useState } from "react";
-import type { WorldRegion, WorldLocation, UserWorldProgress, WorldEvent, WorldDiscovery } from "@shared/schema";
+import { useState, useCallback, useMemo } from "react";
+import type { WorldRegion, WorldLocation, UserWorldProgress, WorldEvent, WorldDiscovery, Campaign } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import parchmentFrame from "@assets/image_1768600727955.png";
 import worldMapBackground from "@assets/image_1768601537026.png";
 import WorldHexMap from "@/components/world/WorldHexMap";
+import CityMap from "@/components/world/CityMap";
+import type { WorldHex } from "@/lib/worldHexGenerator";
 
 const terrainIcons: Record<string, typeof Mountain> = {
   mountain: Mountain,
@@ -167,9 +171,78 @@ function WorldEventCard({ event }: { event: WorldEvent }) {
 
 export default function WorldMapPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [selectedRegion, setSelectedRegion] = useState<WorldRegion | null>(null);
   const [sidePanel, setSidePanel] = useState<'regions' | 'events' | 'discoveries'>('regions');
   const [mapView, setMapView] = useState<'illustrated' | 'hex'>('illustrated');
+  const [cityMapOpen, setCityMapOpen] = useState<{ locationId: number; locationName: string } | null>(null);
+
+  const { data: userCampaigns = [] } = useQuery<Campaign[]>({
+    queryKey: ["/api/campaigns"],
+    enabled: !!user,
+  });
+
+  const activeCampaignId = useMemo(() => {
+    if (!userCampaigns.length) return null;
+    const active = userCampaigns.find((c: any) => c.status === 'active' || c.isActive);
+    return active?.id || userCampaigns[0]?.id || null;
+  }, [userCampaigns]);
+
+  const { data: activeTrek } = useQuery<{
+    id: number;
+    path: Array<{ q: number; r: number }>;
+    currentStep: number;
+    destinationName: string | null;
+    status: string;
+  } | null>({
+    queryKey: [`/api/campaigns/${activeCampaignId}/trek/active`],
+    enabled: !!activeCampaignId,
+  });
+
+  const trekStartMutation = useMutation({
+    mutationFn: (data: { destinationQ: number; destinationR: number; destinationName?: string }) => {
+      if (!activeCampaignId) return Promise.reject(new Error("No active campaign"));
+      return apiRequest("POST", `/api/campaigns/${activeCampaignId}/trek/start`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${activeCampaignId}/trek/active`] });
+      toast({ title: "Trek Started", description: "Your journey has begun! Take steps to travel across the map." });
+    },
+    onError: () => {
+      toast({ title: "Trek Failed", description: "Could not start the trek. Make sure you have an active campaign.", variant: "destructive" });
+    },
+  });
+
+  const trekStepMutation = useMutation({
+    mutationFn: () => {
+      if (!activeCampaignId) return Promise.reject(new Error("No active campaign"));
+      return apiRequest("POST", `/api/campaigns/${activeCampaignId}/trek/step`);
+    },
+    onSuccess: async (res) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${activeCampaignId}/trek/active`] });
+      const data = await res.json();
+      if (data.encounter) {
+        toast({
+          title: `Encounter: ${data.encounter.type}`,
+          description: data.encounter.description,
+        });
+      }
+      if (data.completed) {
+        toast({ title: "Trek Complete", description: `You have arrived at your destination!` });
+      }
+    },
+  });
+
+  const trekCancelMutation = useMutation({
+    mutationFn: () => {
+      if (!activeCampaignId) return Promise.reject(new Error("No active campaign"));
+      return apiRequest("POST", `/api/campaigns/${activeCampaignId}/trek/cancel`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${activeCampaignId}/trek/active`] });
+      toast({ title: "Trek Cancelled", description: "You have abandoned your journey." });
+    },
+  });
 
   const { data: regions = [], isLoading: regionsLoading } = useQuery<WorldRegion[]>({
     queryKey: ["/api/world/regions"],
@@ -377,7 +450,63 @@ export default function WorldMapPage() {
         <div className="flex gap-4">
           <div className="flex-1 space-y-4">
             {mapView === 'hex' ? (
-              <WorldHexMap />
+              <div className="space-y-2">
+                <WorldHexMap
+                  campaignId={activeCampaignId || undefined}
+                  onEnterLocation={(hex: WorldHex) => {
+                    if (hex.locationId && hex.locationName && activeCampaignId) {
+                      setCityMapOpen({ locationId: hex.locationId, locationName: hex.locationName });
+                    } else if (!activeCampaignId) {
+                      toast({ title: "No Campaign", description: "Create or join a campaign to enter locations.", variant: "destructive" });
+                    }
+                  }}
+                  onTrekTo={(hex: WorldHex) => {
+                    if (!activeCampaignId) {
+                      toast({ title: "No Campaign", description: "Create or join a campaign to trek across the map.", variant: "destructive" });
+                      return;
+                    }
+                    trekStartMutation.mutate({
+                      destinationQ: hex.q,
+                      destinationR: hex.r,
+                      destinationName: hex.locationName || `Hex (${hex.q}, ${hex.r})`,
+                    });
+                  }}
+                  trekPath={activeTrek?.path}
+                  trekStep={activeTrek?.currentStep}
+                />
+                {activeTrek && activeTrek.status === 'active' && (
+                  <div className="flex items-center gap-3 p-3 bg-amber-900/30 rounded-lg border border-amber-500/30">
+                    <Footprints className="h-5 w-5 text-amber-400" />
+                    <div className="flex-1">
+                      <span className="text-sm text-amber-100 font-medium">
+                        Trekking to {activeTrek.destinationName || 'destination'}
+                      </span>
+                      <span className="text-xs text-amber-100/60 ml-2">
+                        Step {activeTrek.currentStep} / {activeTrek.path.length}
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1 bg-amber-500/20 border-amber-500/40 text-amber-200 hover:bg-amber-500/30"
+                      onClick={() => trekStepMutation.mutate()}
+                      disabled={trekStepMutation.isPending}
+                    >
+                      <Navigation className="h-3 w-3" />
+                      {trekStepMutation.isPending ? "Moving..." : "Take Step"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      onClick={() => trekCancelMutation.mutate()}
+                      disabled={trekCancelMutation.isPending}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
             ) : (
             <div 
               className="relative rounded-2xl overflow-hidden border-4 border-amber-800/50 shadow-2xl"
@@ -871,6 +1000,14 @@ export default function WorldMapPage() {
         </div>
       </div>
     </div>
+    {cityMapOpen && activeCampaignId && (
+      <CityMap
+        campaignId={activeCampaignId}
+        locationId={cityMapOpen.locationId}
+        locationName={cityMapOpen.locationName}
+        onClose={() => setCityMapOpen(null)}
+      />
+    )}
     </TooltipProvider>
   );
 }

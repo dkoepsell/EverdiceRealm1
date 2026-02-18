@@ -988,6 +988,247 @@ async function updateReputationProfileFromEvent(
   await storage.markReputationEventProcessed(event.id);
 }
 
+// === City Map & Trek Helpers ===
+
+interface CityBuilding {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  x: number;
+  y: number;
+  size: number;
+  district: string;
+  services: string[];
+  npcHint?: string;
+}
+
+interface CityDistrict {
+  id: string;
+  name: string;
+  description: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface CityLayout {
+  districts: CityDistrict[];
+  buildings: CityBuilding[];
+  gates: Array<{ id: string; name: string; x: number; y: number; direction: string }>;
+  size: string;
+}
+
+function seededRandom(seed: number): () => number {
+  let s = seed;
+  return () => {
+    s = (s * 1103515245 + 12345) & 0x7fffffff;
+    return s / 0x7fffffff;
+  };
+}
+
+function generateCityLayout(locationName: string, locationType: string, seed: number): CityLayout {
+  const rng = seededRandom(seed);
+  
+  const sizeMap: Record<string, { districts: number; buildings: number; size: string }> = {
+    city: { districts: 4, buildings: 12, size: "large" },
+    town: { districts: 3, buildings: 8, size: "medium" },
+    village: { districts: 2, buildings: 5, size: "small" },
+    landmark: { districts: 1, buildings: 3, size: "tiny" },
+    ruins: { districts: 1, buildings: 4, size: "small" },
+    dungeon: { districts: 1, buildings: 2, size: "tiny" },
+  };
+  
+  const config = sizeMap[locationType] || sizeMap.town;
+  
+  const districtTemplates = [
+    { name: "Market Quarter", desc: "Bustling streets lined with merchant stalls and the aroma of exotic spices." },
+    { name: "Temple District", desc: "Sacred grounds where clergy tend to the spiritual needs of the populace." },
+    { name: "Docks Ward", desc: "The waterfront area where sailors and traders come ashore." },
+    { name: "Noble Quarter", desc: "Grand estates and manicured gardens of the city's elite." },
+    { name: "Artisan Row", desc: "Workshops and forges fill the air with the sounds of craftsmanship." },
+    { name: "Old Town", desc: "Ancient cobblestone streets wind through the oldest part of the settlement." },
+  ];
+  
+  const buildingTemplates: Array<{ name: string; type: string; desc: string; services: string[]; npc: string }> = [
+    { name: "The Hearth & Flagon", type: "tavern", desc: "A warm tavern where adventurers gather to share tales.", services: ["rest", "rumors", "food"], npc: "A gregarious barkeep" },
+    { name: "Iron Anvil Smithy", type: "blacksmith", desc: "Sparks fly as weapons and armor are forged.", services: ["weapons", "armor", "repair"], npc: "A burly smith" },
+    { name: "Arcane Emporium", type: "magic_shop", desc: "Shelves lined with potions, scrolls, and mysterious artifacts.", services: ["potions", "scrolls", "identify"], npc: "A mysterious enchantress" },
+    { name: "General Goods", type: "general_store", desc: "Everything an adventurer needs for the road ahead.", services: ["supplies", "gear", "trade"], npc: "A friendly merchant" },
+    { name: "Temple of Light", type: "temple", desc: "A serene sanctuary offering healing and divine guidance.", services: ["healing", "blessings", "cure_disease"], npc: "A devoted cleric" },
+    { name: "Guild Hall", type: "guild", desc: "The headquarters of the local adventurers' guild.", services: ["quests", "bounties", "training"], npc: "A veteran guild master" },
+    { name: "The Sage's Library", type: "library", desc: "Ancient tomes and scrolls contain forgotten knowledge.", services: ["lore", "research", "maps"], npc: "An aged scholar" },
+    { name: "Stables", type: "stables", desc: "Mounts and pack animals for those journeying beyond the walls.", services: ["mounts", "storage", "travel"], npc: "A weathered stablehand" },
+    { name: "City Watch Barracks", type: "barracks", desc: "Guards maintain order from this fortified building.", services: ["bounties", "protection", "information"], npc: "A stern captain" },
+    { name: "Apothecary", type: "apothecary", desc: "Herbs and remedies for all manner of ailments.", services: ["potions", "herbs", "antidotes"], npc: "A wise herbalist" },
+    { name: "Jeweler's Workshop", type: "jeweler", desc: "Precious gems and fine jewelry gleam in the lamplight.", services: ["gems", "appraise", "enchant"], npc: "A meticulous jeweler" },
+    { name: "Arena", type: "arena", desc: "Warriors test their mettle in organized combat.", services: ["combat", "training", "wagers"], npc: "An arena champion" },
+    { name: "Thieves' Den", type: "underworld", desc: "A hidden meeting place known only to the shady few.", services: ["rumors", "lockpicks", "fences"], npc: "A shadowy figure" },
+    { name: "Cartographer", type: "cartographer", desc: "Detailed maps of the known world cover every wall.", services: ["maps", "exploration", "navigation"], npc: "A traveling cartographer" },
+  ];
+  
+  // Shuffle templates
+  const shuffledDistricts = [...districtTemplates].sort(() => rng() - 0.5);
+  const shuffledBuildings = [...buildingTemplates].sort(() => rng() - 0.5);
+  
+  const districts: CityDistrict[] = [];
+  for (let i = 0; i < config.districts; i++) {
+    const template = shuffledDistricts[i % shuffledDistricts.length];
+    const cols = Math.ceil(Math.sqrt(config.districts));
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    districts.push({
+      id: `district-${i}`,
+      name: template.name,
+      description: template.desc,
+      x: col * 250 + Math.floor(rng() * 30),
+      y: row * 250 + Math.floor(rng() * 30),
+      width: 220 + Math.floor(rng() * 40),
+      height: 220 + Math.floor(rng() * 40),
+    });
+  }
+  
+  const buildings: CityBuilding[] = [];
+  for (let i = 0; i < config.buildings; i++) {
+    const template = shuffledBuildings[i % shuffledBuildings.length];
+    const district = districts[i % districts.length];
+    buildings.push({
+      id: `building-${i}`,
+      name: template.name,
+      type: template.type,
+      description: template.desc,
+      x: district.x + 20 + Math.floor(rng() * (district.width - 60)),
+      y: district.y + 20 + Math.floor(rng() * (district.height - 60)),
+      size: 30 + Math.floor(rng() * 20),
+      district: district.id,
+      services: template.services,
+      npcHint: template.npc,
+    });
+  }
+  
+  const gateDirections = ["north", "south", "east", "west"];
+  const gates = gateDirections.slice(0, config.districts > 2 ? 4 : 2).map((dir, i) => ({
+    id: `gate-${i}`,
+    name: `${dir.charAt(0).toUpperCase() + dir.slice(1)} Gate`,
+    x: dir === "east" ? 480 : dir === "west" ? 20 : 250,
+    y: dir === "south" ? 480 : dir === "north" ? 20 : 250,
+    direction: dir,
+  }));
+  
+  return { districts, buildings, gates, size: config.size };
+}
+
+function computeTrekPath(startQ: number, startR: number, endQ: number, endR: number): Array<{ q: number; r: number }> {
+  const path: Array<{ q: number; r: number }> = [{ q: startQ, r: startR }];
+  let cq = startQ;
+  let cr = startR;
+  const maxSteps = Math.abs(endQ - startQ) + Math.abs(endR - startR) + 20;
+  
+  for (let i = 0; i < maxSteps && (cq !== endQ || cr !== endR); i++) {
+    const dq = endQ - cq;
+    const dr = endR - cr;
+    
+    if (Math.abs(dq) >= Math.abs(dr)) {
+      cq += dq > 0 ? 1 : -1;
+      if (Math.abs(dr) > 0 && i % 2 === 0) {
+        cr += dr > 0 ? 1 : -1;
+      }
+    } else {
+      cr += dr > 0 ? 1 : -1;
+      if (Math.abs(dq) > 0 && i % 2 === 0) {
+        cq += dq > 0 ? 1 : -1;
+      }
+    }
+    
+    path.push({ q: cq, r: cr });
+  }
+  
+  return path;
+}
+
+async function generateLocationQuests(campaignId: number, location: any, layout: CityLayout) {
+  const questTemplates: Array<{ title: string; desc: string; type: string; xp: number; gold: number }> = [];
+  
+  const hasGuild = layout.buildings.some(b => b.type === "guild");
+  const hasTavern = layout.buildings.some(b => b.type === "tavern");
+  const hasTemple = layout.buildings.some(b => b.type === "temple");
+  const hasUnderworld = layout.buildings.some(b => b.type === "underworld");
+  
+  if (hasGuild) {
+    questTemplates.push({
+      title: `${location.name} Guild Contract`,
+      desc: `The adventurers' guild in ${location.name} seeks brave souls to handle a dangerous situation in the surrounding area.`,
+      type: "combat",
+      xp: 200,
+      gold: 50,
+    });
+  }
+  
+  if (hasTavern) {
+    questTemplates.push({
+      title: `Rumors at the Hearth`,
+      desc: `A mysterious stranger at the tavern speaks of a hidden treasure near ${location.name}. The tale seems too good to be true, but the rewards could be extraordinary.`,
+      type: "exploration",
+      xp: 150,
+      gold: 75,
+    });
+  }
+  
+  if (hasTemple) {
+    questTemplates.push({
+      title: `Sacred Relic Recovery`,
+      desc: `The temple clergy beseech you to recover a sacred relic stolen from their sanctum. Dark forces are at work.`,
+      type: "side",
+      xp: 175,
+      gold: 40,
+    });
+  }
+  
+  if (hasUnderworld) {
+    questTemplates.push({
+      title: `Shadow Network`,
+      desc: `The underground contacts in ${location.name} offer lucrative work—for those willing to bend the rules.`,
+      type: "side",
+      xp: 125,
+      gold: 100,
+    });
+  }
+  
+  // Always add a generic exploration quest
+  questTemplates.push({
+    title: `Explore ${location.name}`,
+    desc: `Discover the secrets and hidden corners of ${location.name}. Visit every district and uncover what lies within.`,
+    type: "exploration",
+    xp: 100,
+    gold: 25,
+  });
+  
+  // Check for existing quests at this location to avoid duplicates
+  const existingQuests = await storage.getCampaignQuests(campaignId);
+  const existingTitles = new Set(existingQuests.map(q => q.title));
+  
+  for (const template of questTemplates) {
+    if (existingTitles.has(template.title)) continue;
+    
+    await storage.createCampaignQuest({
+      campaignId,
+      title: template.title,
+      description: template.desc,
+      questType: template.type,
+      status: "active",
+      objectives: [{ text: template.desc, completed: false }],
+      xpReward: template.xp,
+      goldReward: template.gold,
+      isPostedToBoard: true,
+      postedAt: new Date().toISOString(),
+      discoveredByAI: false,
+      discoveryContext: `Posted at ${location.name} quest board`,
+      locationContext: location.name,
+    });
+  }
+}
+
 // Active WebSocket connections
 type ClientWebSocket = WebSocket;
 const activeConnections = new Set<ClientWebSocket>();
@@ -10548,6 +10789,322 @@ Return your response as a JSON object with these fields:
     } catch (error) {
       console.error("Error importing hexes:", error);
       res.status(500).json({ message: "Failed to import hexes" });
+    }
+  });
+  
+  // === City Map System ===
+  // Enter a location (city/town) - generates city map layout + location quests
+  app.post("/api/campaigns/:campaignId/enter-location/:locationId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const campaignId = parseInt(req.params.campaignId);
+      const locationId = parseInt(req.params.locationId);
+      
+      const location = await storage.getWorldLocation(locationId);
+      if (!location) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+      
+      let cityMap = await storage.getCityMap(campaignId, locationId);
+      if (cityMap) {
+        return res.json({ cityMap, isNew: false });
+      }
+      
+      const locType = location.locationType || "landmark";
+      const seed = campaignId * 1000 + locationId;
+      const layout = generateCityLayout(location.name, locType, seed);
+      
+      cityMap = await storage.createCityMap({
+        campaignId,
+        worldLocationId: locationId,
+        locationName: location.name,
+        seed,
+        layout,
+        discoveredBuildings: [],
+      });
+      
+      // Generate location-based quests if this is a settlement
+      if (["city", "town", "village"].includes(locType)) {
+        await generateLocationQuests(campaignId, location, layout);
+      }
+      
+      res.json({ cityMap, isNew: true });
+    } catch (error) {
+      console.error("Error entering location:", error);
+      res.status(500).json({ message: "Failed to enter location" });
+    }
+  });
+  
+  // Get city map for a location
+  app.get("/api/campaigns/:campaignId/city-map/:locationId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const campaignId = parseInt(req.params.campaignId);
+      const locationId = parseInt(req.params.locationId);
+      
+      const cityMap = await storage.getCityMap(campaignId, locationId);
+      if (!cityMap) {
+        return res.status(404).json({ message: "City map not found. Enter the location first." });
+      }
+      res.json(cityMap);
+    } catch (error) {
+      console.error("Error fetching city map:", error);
+      res.status(500).json({ message: "Failed to fetch city map" });
+    }
+  });
+  
+  // Discover a building within a city
+  app.post("/api/campaigns/:campaignId/city-map/:locationId/discover", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const campaignId = parseInt(req.params.campaignId);
+      const locationId = parseInt(req.params.locationId);
+      const { buildingId } = req.body;
+      
+      const cityMap = await storage.getCityMap(campaignId, locationId);
+      if (!cityMap) {
+        return res.status(404).json({ message: "City map not found" });
+      }
+      
+      const discovered = (cityMap.discoveredBuildings as string[]) || [];
+      if (!discovered.includes(buildingId)) {
+        discovered.push(buildingId);
+        await storage.updateCityMap(cityMap.id, { discoveredBuildings: discovered });
+      }
+      
+      res.json({ success: true, discoveredBuildings: discovered });
+    } catch (error) {
+      console.error("Error discovering building:", error);
+      res.status(500).json({ message: "Failed to discover building" });
+    }
+  });
+  
+  // === Trek System ===
+  // Set a trek destination
+  app.post("/api/campaigns/:campaignId/trek/start", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = (req.user as any).id;
+      const { destinationQ, destinationR, destinationName } = req.body;
+      
+      if (destinationQ === undefined || destinationR === undefined) {
+        return res.status(400).json({ message: "Destination coordinates required" });
+      }
+      
+      // Cancel any existing active trek
+      const existing = await storage.getActiveTrekRoute(campaignId, userId);
+      if (existing) {
+        await storage.cancelTrekRoute(existing.id);
+      }
+      
+      // Get current position from exploration state
+      const state = await storage.getExplorationState(campaignId);
+      const startQ = state?.currentHexQ || 0;
+      const startR = state?.currentHexR || 0;
+      
+      // Compute path using simple A*-like approach
+      const path = computeTrekPath(startQ, startR, destinationQ, destinationR);
+      
+      const route = await storage.createTrekRoute({
+        campaignId,
+        userId,
+        destinationQ,
+        destinationR,
+        destinationName: destinationName || null,
+        path,
+        currentStep: 0,
+        status: "active",
+      });
+      
+      res.json({ route, pathLength: path.length });
+    } catch (error) {
+      console.error("Error starting trek:", error);
+      res.status(500).json({ message: "Failed to start trek" });
+    }
+  });
+  
+  // Get active trek route
+  app.get("/api/campaigns/:campaignId/trek/active", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = (req.user as any).id;
+      
+      const route = await storage.getActiveTrekRoute(campaignId, userId);
+      res.json(route || null);
+    } catch (error) {
+      console.error("Error fetching trek:", error);
+      res.status(500).json({ message: "Failed to fetch trek" });
+    }
+  });
+  
+  // Advance trek by one step (move to next hex in path)
+  app.post("/api/campaigns/:campaignId/trek/step", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = (req.user as any).id;
+      
+      const route = await storage.getActiveTrekRoute(campaignId, userId);
+      if (!route) {
+        return res.status(404).json({ message: "No active trek" });
+      }
+      
+      const path = route.path as Array<{ q: number; r: number }>;
+      const nextStep = (route.currentStep || 0) + 1;
+      
+      if (nextStep >= path.length) {
+        await storage.updateTrekRoute(route.id, { status: "completed", currentStep: nextStep });
+        return res.json({ success: true, completed: true, position: path[path.length - 1] });
+      }
+      
+      const nextHex = path[nextStep];
+      
+      // Use exploration move logic
+      const state = await storage.getExplorationState(campaignId);
+      if (state) {
+        let targetHex = await storage.getExplorationHex(campaignId, nextHex.q, nextHex.r);
+        const wasExplored = targetHex?.isExplored || false;
+        
+        if (!targetHex) {
+          targetHex = await storage.createExplorationHex({
+            campaignId,
+            q: nextHex.q,
+            r: nextHex.r,
+            terrainType: "Unknown",
+            isExplored: false,
+            isRevealed: true,
+            revealedAt: new Date().toISOString(),
+            connectedDirections: [],
+          });
+        }
+        
+        if (!targetHex.isExplored) {
+          targetHex = await storage.updateExplorationHex(targetHex.id, {
+            isExplored: true,
+            exploredAt: new Date().toISOString(),
+          }) || targetHex;
+        }
+        
+        await storage.updateExplorationState(campaignId, {
+          currentHexQ: nextHex.q,
+          currentHexR: nextHex.r,
+          exploredHexCount: (state.exploredHexCount || 0) + (wasExplored ? 0 : 1),
+          totalDistance: (state.totalDistance || 0) + 1,
+          lastMovementAt: new Date().toISOString(),
+        });
+      }
+      
+      await storage.updateTrekRoute(route.id, { currentStep: nextStep });
+      
+      // Random encounter chance (20% per step)
+      const encounterRoll = Math.random();
+      let encounter = null;
+      if (encounterRoll < 0.2) {
+        const encounterTypes = ["ambush", "traveler", "discovery", "weather", "wildlife"];
+        encounter = {
+          type: encounterTypes[Math.floor(Math.random() * encounterTypes.length)],
+          step: nextStep,
+        };
+      }
+      
+      res.json({
+        success: true,
+        completed: false,
+        position: nextHex,
+        currentStep: nextStep,
+        totalSteps: path.length,
+        encounter,
+        needsNarrative: true,
+      });
+    } catch (error) {
+      console.error("Error stepping trek:", error);
+      res.status(500).json({ message: "Failed to advance trek" });
+    }
+  });
+  
+  // Cancel active trek
+  app.post("/api/campaigns/:campaignId/trek/cancel", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = (req.user as any).id;
+      
+      const route = await storage.getActiveTrekRoute(campaignId, userId);
+      if (route) {
+        await storage.cancelTrekRoute(route.id);
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error cancelling trek:", error);
+      res.status(500).json({ message: "Failed to cancel trek" });
+    }
+  });
+  
+  // World hex info lookup (returns deterministic hex data from world generator)
+  app.get("/api/world/hex-info", async (req, res) => {
+    try {
+      const q = parseInt(req.query.q as string);
+      const r = parseInt(req.query.r as string);
+      
+      if (isNaN(q) || isNaN(r)) {
+        return res.status(400).json({ message: "q and r coordinates required" });
+      }
+      
+      // Fetch all regions and locations for the world hex generator context
+      const regions = await storage.getAllWorldRegions();
+      const locations = await storage.getAllWorldLocations();
+      
+      // Find which region this hex belongs to, and if it has a location
+      const region = regions.find(reg => {
+        const gx = reg.gridX || 0;
+        const gy = reg.gridY || 0;
+        const w = reg.width || 1;
+        const h = reg.height || 1;
+        const scale = 8;
+        return q >= gx * scale && q < (gx + w) * scale && r >= gy * scale && r < (gy + h) * scale;
+      });
+      
+      const location = locations.find(loc => {
+        if (!region || loc.regionId !== region.id) return false;
+        const gx = region.gridX || 0;
+        const gy = region.gridY || 0;
+        const w = region.width || 1;
+        const h = region.height || 1;
+        const scale = 8;
+        const hexQ = Math.round(gx * scale + (loc.posX / 100) * w * scale);
+        const hexR = Math.round(gy * scale + (loc.posY / 100) * h * scale);
+        return Math.abs(hexQ - q) <= 1 && Math.abs(hexR - r) <= 1;
+      });
+      
+      res.json({
+        q, r,
+        regionId: region?.id || null,
+        regionName: region?.name || "Unknown",
+        terrain: region?.terrain || "plains",
+        locationId: location?.id || null,
+        locationName: location?.name || null,
+        locationType: location?.locationType || null,
+      });
+    } catch (error) {
+      console.error("Error fetching hex info:", error);
+      res.status(500).json({ message: "Failed to fetch hex info" });
     }
   });
   
