@@ -31,17 +31,20 @@ const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 5;
 
 function hexToPixel(q: number, r: number, size: number): { x: number; y: number } {
-  const x = size * Math.sqrt(3) * (q + r / 2);
-  const y = size * 1.5 * r;
+  const hexWidth = Math.sqrt(3) * size;
+  const hexHeight = 2 * size;
+  const x = q * hexWidth + (r % 2 === 1 ? hexWidth / 2 : 0);
+  const y = r * hexHeight * 0.75;
   return { x, y };
 }
 
 function pixelToHex(px: number, py: number, size: number): { q: number; r: number } {
-  const q = (px * Math.sqrt(3) / 3 - py / 3) / size;
-  const r = (py * 2 / 3) / size;
-  const rq = Math.round(q);
-  const rr = Math.round(r);
-  return { q: rq, r: rr };
+  const hexWidth = Math.sqrt(3) * size;
+  const hexHeight = 2 * size;
+  const r = Math.round(py / (hexHeight * 0.75));
+  const xOffset = r % 2 === 1 ? hexWidth / 2 : 0;
+  const q = Math.round((px - xOffset) / hexWidth);
+  return { q, r };
 }
 
 function getHexCorners(size: number): Array<{ x: number; y: number }> {
@@ -200,7 +203,7 @@ export default function WorldHexMap({
     ctx.scale(zoom, zoom);
 
     const centerX = -(GRID_DIMENSIONS.width / 2) * Math.sqrt(3) * HEX_SIZE;
-    const centerY = -(GRID_DIMENSIONS.height / 2) * 1.5 * HEX_SIZE;
+    const centerY = -(GRID_DIMENSIONS.height / 2) * HEX_SIZE * 1.5;
     ctx.translate(centerX, centerY);
 
     const corners = getHexCorners(HEX_SIZE);
@@ -479,7 +482,7 @@ export default function WorldHexMap({
     }
     const { x, y } = hexToPixel(playerPosition.q, playerPosition.r, HEX_SIZE);
     const centerX = (GRID_DIMENSIONS.width / 2) * Math.sqrt(3) * HEX_SIZE;
-    const centerY = (GRID_DIMENSIONS.height / 2) * 1.5 * HEX_SIZE;
+    const centerY = (GRID_DIMENSIONS.height / 2) * HEX_SIZE * 1.5;
     setOffset({
       x: -(x - centerX) * zoom,
       y: -(y - centerY) * zoom,
