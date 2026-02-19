@@ -10570,11 +10570,38 @@ Return your response as a JSON object with these fields:
         parsed.atmosphereKeywords
       );
       
-      // Create origin hex at 0,0
+      const REGION_SCALE = 8;
+      let startQ = 0;
+      let startR = 0;
+      
+      try {
+        const allRegions = await storage.getWorldRegions();
+        if (allRegions && allRegions.length > 0) {
+          let targetRegion;
+          if (campaign.worldRegionId) {
+            targetRegion = allRegions.find(r => r.id === campaign.worldRegionId);
+          }
+          if (!targetRegion) {
+            targetRegion = allRegions[Math.floor(Math.random() * allRegions.length)];
+          }
+          const minQ = (targetRegion.gridX - 1) * REGION_SCALE;
+          const maxQ = (targetRegion.gridX - 1 + targetRegion.width) * REGION_SCALE - 1;
+          const minR = (targetRegion.gridY - 1) * REGION_SCALE;
+          const maxR = (targetRegion.gridY - 1 + targetRegion.height) * REGION_SCALE - 1;
+          startQ = Math.floor(Math.random() * (maxQ - minQ + 1)) + minQ;
+          startR = Math.floor(Math.random() * (maxR - minR + 1)) + minR;
+          console.log(`Exploration initialized in region "${targetRegion.name}" at hex (${startQ}, ${startR})`);
+        }
+      } catch (regionErr) {
+        console.warn("Could not determine starting region, using center fallback:", regionErr);
+        startQ = Math.floor(Math.random() * 40) + 24;
+        startR = Math.floor(Math.random() * 32) + 16;
+      }
+      
       const originHex = await storage.createExplorationHex({
         campaignId,
-        q: 0,
-        r: 0,
+        q: startQ,
+        r: startR,
         terrainType: parsed.terrainType,
         locationName: parsed.currentLocation.name,
         locationDescription: parsed.currentLocation.description,
@@ -10587,11 +10614,10 @@ Return your response as a JSON object with these fields:
         connectedDirections: []
       });
       
-      // Create exploration state
       const state = await storage.createExplorationState({
         campaignId,
-        currentHexQ: 0,
-        currentHexR: 0,
+        currentHexQ: startQ,
+        currentHexR: startR,
         exploredHexCount: 1,
         totalDistance: 0
       });
@@ -10600,7 +10626,7 @@ Return your response as a JSON object with these fields:
       const revealedHexes = [originHex];
       for (const hint of parsed.adjacentHints) {
         if (hint.distance === "adjacent" || hint.distance === "nearby") {
-          const coords = getAdjacentHexCoordinates(0, 0, hint.direction);
+          const coords = getAdjacentHexCoordinates(startQ, startR, hint.direction);
           const hintHexMeta = generateHexMetaFromKeywords(hint.environmentKeywords, []);
           
           const adjacentHex = await storage.createExplorationHex({
@@ -10767,20 +10793,22 @@ Return your response as a JSON object with these fields:
         createdHexes.push(newHex);
       }
       
-      // Initialize or update exploration state
+      // Initialize or update exploration state using first hex's coordinates
+      const firstHexQ = createdHexes.length > 0 ? createdHexes[0].q : 0;
+      const firstHexR = createdHexes.length > 0 ? createdHexes[0].r : 0;
       let state = await storage.getExplorationState(campaignId);
       if (state) {
         await storage.updateExplorationState(campaignId, {
-          currentHexQ: 0,
-          currentHexR: 0,
+          currentHexQ: firstHexQ,
+          currentHexR: firstHexR,
           exploredHexCount: createdHexes.length,
           totalDistance: 0
         });
       } else {
         await storage.createExplorationState({
           campaignId,
-          currentHexQ: 0,
-          currentHexR: 0,
+          currentHexQ: firstHexQ,
+          currentHexR: firstHexR,
           exploredHexCount: createdHexes.length,
           totalDistance: 0
         });
