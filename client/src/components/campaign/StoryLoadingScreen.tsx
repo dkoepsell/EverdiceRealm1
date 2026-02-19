@@ -186,8 +186,9 @@ export function StoryLoadingScreen({
   const showReveal = (phase === 'reveal' || (phase === 'deepen' && !streamedText));
 
   useEffect(() => {
-    if (mutationReady && !streamedText?.trim() && onContinue) {
-      const timer = setTimeout(() => onContinue(), 500);
+    if (mutationReady && onContinue) {
+      const delay = streamedText?.trim() ? 1500 : 500;
+      const timer = setTimeout(() => onContinue(), delay);
       return () => clearTimeout(timer);
     }
   }, [mutationReady, streamedText, onContinue]);
@@ -237,10 +238,10 @@ export function StoryLoadingScreen({
                 <span className="inline-block w-0.5 h-5 bg-amber-400 ml-0.5 animate-pulse" />
               )}
             </p>
-            {mutationReady && onContinue && (
+            {mutationReady && (
               <div className="mt-5 flex justify-center animate-in fade-in slide-in-from-bottom-2 duration-500">
                 <button
-                  onClick={onContinue}
+                  onClick={() => onContinue?.()}
                   className="group flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-semibold rounded-lg shadow-lg shadow-amber-900/30 transition-all duration-200 hover:scale-105 active:scale-95"
                 >
                   <Scroll className="h-4 w-4" />

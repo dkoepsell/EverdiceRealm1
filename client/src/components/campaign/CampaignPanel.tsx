@@ -214,6 +214,32 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [streamedNarrative, setStreamedNarrative] = useState<string>("");
   const [choicesRevealed, setChoicesRevealed] = useState(true);
   const choicesRevealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const advancingStoryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (isAdvancingStory) {
+      if (advancingStoryTimeoutRef.current) clearTimeout(advancingStoryTimeoutRef.current);
+      advancingStoryTimeoutRef.current = setTimeout(() => {
+        console.warn('[CampaignPanel] Safety timeout: isAdvancingStory stuck for 60s, resetting');
+        setIsAdvancingStory(false);
+        setMutationReady(false);
+        setStoryPhase('loading');
+        setStreamedNarrative("");
+        setRevealText("");
+        setLastChosenAction("");
+        setChoicesRevealed(true);
+        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
+      }, 60000);
+    } else {
+      if (advancingStoryTimeoutRef.current) {
+        clearTimeout(advancingStoryTimeoutRef.current);
+        advancingStoryTimeoutRef.current = null;
+      }
+    }
+    return () => {
+      if (advancingStoryTimeoutRef.current) clearTimeout(advancingStoryTimeoutRef.current);
+    };
+  }, [isAdvancingStory]);
   const [progressionRewards, setProgressionRewards] = useState<{
     xpAwarded: number;
     newLevel: number;
@@ -1523,6 +1549,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       setShowChoiceDialog(false);
     },
     onError: (error: Error) => {
+      setIsAdvancingStory(false);
+      setMutationReady(false);
+      setStoryPhase('loading');
+      setStreamedNarrative("");
+      setRevealText("");
+      setLastChosenAction("");
+      setChoicesRevealed(true);
+      if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
+      if (streamAbortRef.current) streamAbortRef.current.abort();
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
       toast({
         title: "Failed to advance story",
         description: error.message,
