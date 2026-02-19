@@ -16373,6 +16373,61 @@ ${currentSession.choices && currentSession.choices.length > 0 ?
   'No previous choices'}
 CRITICAL: Generate COMPLETELY NEW and DIFFERENT choices this round. Do NOT copy or paraphrase the choices above.
 
+${(() => {
+  const momentousChoices = currentStoryState.momentousChoices || [];
+  if (momentousChoices.length > 0) {
+    return `
+═══════════════════════════════════════════════════════════════════════════════
+MOMENTOUS CHOICES ALREADY MADE (PERMANENT — NEVER RE-OFFER THESE):
+═══════════════════════════════════════════════════════════════════════════════
+The following decisions have ALREADY been made and their consequences are PERMANENT.
+NEVER offer these choices again. NEVER present them as options. They are RESOLVED.
+The world has CHANGED because of these decisions — reflect their ongoing consequences.
+
+${momentousChoices.map((mc: any, i: number) => `${i + 1}. "${mc.choice}" (Scene ${mc.scene || '?'})
+   → Consequence: ${mc.consequence}
+   → World change: ${mc.worldChange}
+   ${mc.powersGranted ? `→ Powers/abilities gained: ${mc.powersGranted}` : ''}
+   ${mc.reputationEffect ? `→ Reputation effect: ${mc.reputationEffect}` : ''}`).join('\n')}
+
+RULES FOR MOMENTOUS CHOICES:
+- These choices are DONE. The character has ALREADY made these decisions.
+- Reference the CONSEQUENCES of these choices in the narrative (e.g., if they took dark power, show it manifesting)
+- NPCs should REACT to what the character has become because of these choices
+- Do NOT offer the same decision again in any form — no "take the orb's power" if they already did
+- The character's identity, abilities, and reputation are permanently altered by these choices
+═══════════════════════════════════════════════════════════════════════════════
+`;
+  }
+  return '';
+})()}
+
+MOMENTOUS CHOICE DETECTION (include in your JSON response when applicable):
+When the player makes a choice that is CAMPAIGN-DEFINING — a choice that permanently transforms their character,
+shifts the story's direction, or represents a point of no return — you MUST include "momentousChoiceResolution" in your response:
+{
+  "momentousChoiceResolution": {
+    "choice": "What the player chose (e.g., 'Take the orb\\'s power as your own')",
+    "consequence": "The immediate, visible consequence (e.g., 'Dark energy floods through your veins, your eyes glow with eldritch power')",
+    "worldChange": "How the world permanently changed (e.g., 'The orb shatters, its power now lives within you. The cult will hunt you. The balance of power has shifted.')",
+    "powersGranted": "Any new abilities, traits, or powers the character gains (null if none)",
+    "reputationEffect": "How factions, NPCs, or the world at large now view the character differently",
+    "isCampaignTerminus": false
+  }
+}
+
+Examples of momentous choices:
+- Absorbing an artifact's power
+- Betraying or pledging loyalty to a faction
+- Killing or sparing a major NPC
+- Making a pact with a dark/divine entity
+- Destroying or activating a world-altering device
+- Sacrificing something irreplaceable
+
+Set "isCampaignTerminus": true ONLY if this choice definitively ENDS the campaign arc (the main quest is resolved).
+When a momentous choice happens, the narrative MUST dramatically show the transformation — describe physical changes,
+power surges, NPC reactions, environmental shifts. The player must FEEL the weight of their decision.
+
 CRITICAL INSTRUCTIONS - FOLLOW EXACTLY:
 
 1. FOCUS ON ACTION AND CONSEQUENCES, NOT DESCRIPTION
@@ -18246,8 +18301,44 @@ ${cachedNarrative}
           description: movement.description,
           timestamp: new Date().toISOString()
         } : currentStoryState.lastMovement,
-        session1Retention: updatedSession1Retention
+        session1Retention: updatedSession1Retention,
+        momentousChoices: currentStoryState.momentousChoices || []
       };
+      
+      // ═══════════════════════════════════════════════════════════════════
+      // MOMENTOUS CHOICE TRACKING — Record permanent, campaign-defining decisions
+      // ═══════════════════════════════════════════════════════════════════
+      if (storyAdvancement.momentousChoiceResolution) {
+        const mcr = storyAdvancement.momentousChoiceResolution;
+        const existingMomentous = mergedStoryState.momentousChoices || [];
+        
+        const isDuplicate = existingMomentous.some((mc: any) => 
+          mc.choice.toLowerCase().includes(mcr.choice?.toLowerCase()?.substring(0, 20)) ||
+          mcr.choice?.toLowerCase()?.includes(mc.choice?.toLowerCase()?.substring(0, 20))
+        );
+        
+        if (!isDuplicate && mcr.choice && mcr.consequence) {
+          const newMomentousChoice = {
+            choice: mcr.choice,
+            consequence: mcr.consequence,
+            worldChange: mcr.worldChange || "The world has shifted",
+            powersGranted: mcr.powersGranted || null,
+            reputationEffect: mcr.reputationEffect || null,
+            scene: allCampaignSessions.length,
+            timestamp: new Date().toISOString(),
+            isCampaignTerminus: mcr.isCampaignTerminus || false
+          };
+          
+          mergedStoryState.momentousChoices = [...existingMomentous, newMomentousChoice];
+          console.log(`[Momentous Choice] Recorded: "${mcr.choice}" for campaign ${campaignId}`);
+          
+          if (mcr.isCampaignTerminus && !campaign.isCompleted) {
+            console.log(`[Campaign Terminus] Momentous choice triggered campaign terminus for campaign ${campaignId}`);
+            storyAdvancement.isCampaignFinale = true;
+            storyAdvancement.endingType = `momentous_${mcr.choice.toLowerCase().replace(/[^a-z0-9]+/g, '_').substring(0, 30)}`;
+          }
+        }
+      }
       
       // When combat is completed, clear all combatants so stale data doesn't persist
       if (combatCompleted) {
@@ -20344,6 +20435,12 @@ Respond with JSON:
         stakesContext = `\nCampaign Stakes: ${campaignStakes.map((s: any) => `${s.name}: ${s.value}/${s.max}`).join(', ')}`;
       }
 
+      const momentousChoices = storyState.momentousChoices || [];
+      let momentousContext = "";
+      if (momentousChoices.length > 0) {
+        momentousContext = `\nPERMANENT DECISIONS ALREADY MADE (reflect their consequences — NEVER re-offer these):\n${momentousChoices.map((mc: any) => `- "${mc.choice}" → ${mc.consequence}${mc.powersGranted ? ` (Powers: ${mc.powersGranted})` : ''}`).join('\n')}`;
+      }
+
       const streamPrompt = `You are an expert Dungeon Master for a D&D 5e campaign with a ${narrativeStyle} storytelling style.
 Campaign: "${campaign.title}" — ${(campaign.description || "").slice(0, 300)}
 Theme: ${detectedTheme.toUpperCase()}
@@ -20351,6 +20448,7 @@ Chapter ${currentChapter} of ${totalChapters}
 ${campaignQuestion ? `Campaign Question: "${campaignQuestion}"` : ''}
 ${chapterObjective}
 ${stakesContext}
+${momentousContext}
 ${playerCharInfo}
 ${partyDesc ? `Party: ${partyDesc}` : ''}
 Location: ${currentLocation || "Unknown"}
