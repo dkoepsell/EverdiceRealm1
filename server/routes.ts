@@ -7035,8 +7035,8 @@ Return your response as a JSON object with these fields:
             }
           }
           
-          // HARD-CAP FAILSAFE: If 20+ sessions in this chapter without AI triggering gate, force-advance
-          const CHAPTER_HARD_CAP = 20;
+          // HARD-CAP FAILSAFE: If 12+ sessions in this chapter without AI triggering gate, force-advance
+          const CHAPTER_HARD_CAP = 12;
           if (!chapterAdvanced && scenesInCurrentChapter >= CHAPTER_HARD_CAP) {
             const currentChapterForHardCap = campaign.currentSession || 1;
             const totalChaptersForHardCap = campaign.totalChapters || 5;
@@ -16099,11 +16099,36 @@ Different stake states produce DIFFERENT endings. Reflect accumulated consequenc
         }
       }
       
+      const finalChapterScenes = isOnFinalChapter ? ((currentSession.storyState as any)?.turnsInChapter || 0) : 0;
+      const FINALE_URGENCY_THRESHOLD = 6;
+      const FINALE_FORCED_DECISION = 8;
+      
+      let finaleUrgency = '';
+      if (isOnFinalChapter && finalChapterScenes >= FINALE_FORCED_DECISION) {
+        finaleUrgency = `
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║ ⚠️  MANDATORY CAMPAIGN ENDING — THIS IS THE FINAL SCENE (${finalChapterScenes} scenes in final chapter) ⚠️  ║
+╔═══════════════════════════════════════════════════════════════════════════════╗
+You MUST end the campaign THIS SCENE. Present the FINAL DECISION:
+- Present exactly 3-4 choices that each represent a DIFFERENT ENDING to the campaign
+- Each choice MUST be a point of no return that RESOLVES the campaign question
+- One choice = sacrifice/loss, one = compromise, one = bold/risky, one = pragmatic
+- After the player chooses, write the epilogue and set "isCampaignFinale": true
+- Do NOT continue the story, introduce new threads, or delay the ending
+- This is IT. The story ends here, one way or another.
+╚═══════════════════════════════════════════════════════════════════════════════╝`;
+      } else if (isOnFinalChapter && finalChapterScenes >= FINALE_URGENCY_THRESHOLD) {
+        finaleUrgency = `
+⚡ CAMPAIGN NEARING END — ${finalChapterScenes} scenes in final chapter. You have ${FINALE_FORCED_DECISION - finalChapterScenes} scenes 
+before the campaign MUST end. Accelerate toward the climactic decision NOW. No new subplots.
+Resolve lingering threads and steer toward the final confrontation.`;
+      }
+      
       const finaleInstructions = isOnFinalChapter ? `
 ═══════════════════════════════════════════════════════════════════════════════
 FINAL CHAPTER - DRIVE TOWARD FORKED CONCLUSION
 ═══════════════════════════════════════════════════════════════════════════════
-This is the FINAL CHAPTER of the campaign. You MUST:
+This is the FINAL CHAPTER of the campaign (${finalChapterScenes} scenes so far). You MUST:
 1. Drive the narrative toward a satisfying CONCLUSION - no new plot threads
 2. Resolve the main campaign conflict within the next 2-3 story beats
 3. The ending must ANSWER THE CAMPAIGN QUESTION — not just "defeat the villain"
@@ -16118,6 +16143,7 @@ This is the FINAL CHAPTER of the campaign. You MUST:
    - What was gained? What was lost forever? What new tension was created?
 9. Do NOT start new subplots, introduce new mysteries, or extend the story
 ${stakeEndingContext}
+${finaleUrgency}
 
 The player deserves a clear, meaningful ending — triumphant, tragic, or bittersweet based on their accumulated choices.
 If they resolve the final challenge, respond with:
@@ -19446,10 +19472,14 @@ ${cachedNarrative}
               .set({ isCompleted: true })
               .where(eq(campaignSessions.id, currentSession.id));
             
-            // Generate completion rewards
-            const completionXP = campaignTotalChapters * 150; // 150 XP per chapter
-            const goldReward = campaignTotalChapters * 50; // 50 gold per chapter
-            const silverReward = campaignTotalChapters * 25; // 25 silver per chapter
+            // Generate difficulty-scaled completion rewards
+            const r1DifficultyMultiplier = 
+              (campaignForChapter as any).difficulty === 'Heroic' ? 2.0 :
+              (campaignForChapter as any).difficulty === 'Challenging' ? 1.5 :
+              (campaignForChapter as any).difficulty === 'Relaxed' ? 0.8 : 1.0;
+            const completionXP = Math.round(campaignTotalChapters * 200 * r1DifficultyMultiplier);
+            const goldReward = Math.round(campaignTotalChapters * 75 * r1DifficultyMultiplier);
+            const silverReward = Math.round(campaignTotalChapters * 40 * r1DifficultyMultiplier);
             
             // Generate loot chest items based on difficulty
             const lootChestItems = [];
@@ -20082,8 +20112,8 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           }
         }
         
-        // HARD-CAP FAILSAFE: If 20+ sessions in this chapter without gate met, force-advance
-        const CHAPTER_HARD_CAP_R2 = 20;
+        // HARD-CAP FAILSAFE: If 12+ sessions in this chapter without gate met, force-advance
+        const CHAPTER_HARD_CAP_R2 = 12;
         if (!doctrineUpdates.currentSession && scenesInChapter2 >= CHAPTER_HARD_CAP_R2 && currentChapter < totalChapters) {
           doctrineUpdates.currentSession = currentChapter + 1;
           doctrineChanged = true;
@@ -20126,25 +20156,157 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         console.error("Failed to apply DM Authoring Doctrine updates:", doctrineError);
       }
       
-      // Campaign finale detection and completion
-      // Only trigger completion when AI explicitly returns isCampaignFinale: true
+      // ═══════════════════════════════════════════════════════════════════
+      // CAMPAIGN COMPLETION — AI-triggered OR hard-cap forced
+      // ═══════════════════════════════════════════════════════════════════
       const isCampaignFinale = storyAdvancement.isCampaignFinale === true;
+      
+      // OVERALL CAMPAIGN SCENE HARD CAP — prevents infinite cycling
+      const CAMPAIGN_SCENE_HARD_CAP = (totalChapters || 5) * 10;
+      const FINAL_CHAPTER_AUTO_COMPLETE = 12;
+      const totalCampaignScenes = allCampaignSessions.length;
+      const scenesInFinalChapter = isOnFinalChapter ? (mergedStoryState.turnsInChapter || 0) : 0;
+      
+      let forceCompletion = false;
+      let forceReason = '';
+      
+      if (!campaign.isCompleted && !isCampaignFinale) {
+        if (totalCampaignScenes >= CAMPAIGN_SCENE_HARD_CAP) {
+          forceCompletion = true;
+          forceReason = `Campaign reached overall scene limit (${totalCampaignScenes}/${CAMPAIGN_SCENE_HARD_CAP} scenes)`;
+        } else if (isOnFinalChapter && scenesInFinalChapter >= FINAL_CHAPTER_AUTO_COMPLETE) {
+          forceCompletion = true;
+          forceReason = `Final chapter exceeded scene limit (${scenesInFinalChapter}/${FINAL_CHAPTER_AUTO_COMPLETE} scenes)`;
+        }
+        
+        if (forceCompletion) {
+          console.log(`[Campaign Force-Complete] ${forceReason} — campaign ${campaignId}`);
+          storyAdvancement.isCampaignFinale = true;
+          storyAdvancement.endingType = 'destiny_fulfilled';
+        }
+      }
+      
       let campaignCompletionData = null;
       
-      // Idempotency: only process completion if AI says finale AND campaign not already completed
-      if (isCampaignFinale && !campaign.isCompleted) {
-        console.log(`[Campaign Completion] Marking campaign ${campaignId} as completed`);
+      if ((isCampaignFinale || forceCompletion) && !campaign.isCompleted) {
+        console.log(`[Campaign Completion] Marking campaign ${campaignId} as completed${forceCompletion ? ` (FORCED: ${forceReason})` : ''}`);
         
-        // Calculate final rewards and stats
-        const totalXpAwarded = xpAwarded + (campaign.xpReward || 0);
+        // Difficulty-scaled reward multipliers
+        const difficultyMultiplier = 
+          (campaign as any).difficulty === 'Heroic' ? 2.0 :
+          (campaign as any).difficulty === 'Challenging' ? 1.5 :
+          (campaign as any).difficulty === 'Relaxed' ? 0.8 : 1.0;
+        
+        const baseXP = (totalChapters || 5) * 200;
+        const completionXP = Math.round(baseXP * difficultyMultiplier);
+        const totalXpAwarded = xpAwarded + completionXP;
         const completedQuestCount = ((mergedStoryState.activeQuests || []).filter((q: any) => q.status === 'completed').length) +
                                     ((mergedStoryState.completedQuests || []).length);
+        const goldReward = Math.round((totalChapters || 5) * 75 * difficultyMultiplier);
+        const silverReward = Math.round((totalChapters || 5) * 40 * difficultyMultiplier);
         
         // Mark the campaign as completed
         await storage.updateCampaign(campaignId, {
           isCompleted: true,
           completedAt: new Date().toISOString()
         });
+        
+        // ═══════════════════════════════════════════════════════════════════
+        // PERMANENT CHARACTER STATE CHANGES — Title, trait, level-up, rewards
+        // ═══════════════════════════════════════════════════════════════════
+        let earnedTitle = '';
+        let earnedTrait = '';
+        
+        // Generate campaign completion title based on ending type
+        const completionEndingType = storyAdvancement.endingType || 'standard_resolution';
+        
+        const titleMap: Record<string, string> = {
+          'sealed_gate': 'Gatekeeper',
+          'controlled_power': 'Power-Bound',
+          'pyrrhic_victory': 'Scarred Victor',
+          'sacrifice': 'The Selfless',
+          'compromise': 'The Diplomat',
+          'destiny_fulfilled': 'Destiny-Touched',
+          'dark_pact': 'Pact-Sworn',
+          'standard_resolution': 'Veteran'
+        };
+        
+        const baseTitle = titleMap[completionEndingType] || 'Campaign Veteran';
+        earnedTitle = `${baseTitle} of "${campaign.title}"`;
+        
+        // Trait based on how campaign was played
+        const momentousCount = (mergedStoryState.momentousChoices || []).length;
+        if (momentousCount >= 3) {
+          earnedTrait = 'Fate-Forged — Your many pivotal decisions have left an indelible mark on the world';
+        } else if (momentousCount >= 1) {
+          earnedTrait = 'Decision-Maker — You faced a defining moment and chose your path';
+        } else if (completedQuestCount >= 5) {
+          earnedTrait = 'Questborne — Driven by duty, you completed quest after quest';
+        } else {
+          earnedTrait = 'Battle-Tested — Tempered by the trials of adventure';
+        }
+        
+        // Apply permanent character state changes to ALL participants
+        const allParticipantChars = participants && participants.length > 0 
+          ? await Promise.all(participants.map(async (p: any) => {
+              if (p.characterId) {
+                return storage.getCharacter(p.characterId);
+              }
+              return null;
+            }))
+          : (character ? [character] : []);
+        
+        const xpThresholds = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
+        const hitDiceMap: Record<string, number> = {
+          'barbarian': 7, 'fighter': 6, 'paladin': 6, 'ranger': 6,
+          'bard': 5, 'cleric': 5, 'druid': 5, 'monk': 5, 'rogue': 5, 'warlock': 5,
+          'sorcerer': 4, 'wizard': 4
+        };
+        
+        let primaryCharUpdates: any = {};
+        
+        for (const pChar of allParticipantChars) {
+          if (!pChar) continue;
+          
+          const charUpdates: any = {};
+          
+          // XP and level-up check
+          const newXP = (pChar.experience || 0) + completionXP;
+          const currentLevel = pChar.level || 1;
+          let newLevel = currentLevel;
+          for (let lvl = currentLevel; lvl < xpThresholds.length; lvl++) {
+            if (newXP >= xpThresholds[lvl]) {
+              newLevel = lvl + 1;
+            } else break;
+          }
+          const leveledUp = newLevel > currentLevel;
+          
+          // HP increase on level-up
+          const hitDieAvg = hitDiceMap[(pChar.class || '').toLowerCase()] || 5;
+          const conMod = pChar.abilityScores ? Math.floor(((pChar.abilityScores as any).constitution || 10) - 10) / 2 : 0;
+          const hpGain = leveledUp ? (newLevel - currentLevel) * (hitDieAvg + Math.floor(conMod)) : 0;
+          
+          charUpdates.experience = newXP;
+          charUpdates.gold = (pChar.gold || 0) + goldReward;
+          charUpdates.silver = (pChar.silver || 0) + silverReward;
+          if (leveledUp) {
+            charUpdates.level = newLevel;
+            charUpdates.maxHitPoints = (pChar.maxHitPoints || 10) + hpGain;
+            charUpdates.hitPoints = (pChar.maxHitPoints || 10) + hpGain;
+          }
+          
+          const completionNote = `\n\n--- Campaign Completed: "${campaign.title}" ---\nTitle Earned: ${earnedTitle}\nTrait Earned: ${earnedTrait}\nEnding: ${completionEndingType}${leveledUp ? `\nLeveled Up: ${currentLevel} → ${newLevel}` : ''}\nRewards: ${completionXP} XP, ${goldReward} gold, ${silverReward} silver`;
+          charUpdates.backstory = ((pChar.backstory || '') + completionNote).slice(-3000);
+          
+          await db.update(characters).set(charUpdates).where(eq(characters.id, pChar.id));
+          
+          // Track the current player's character updates for the response
+          if (character && pChar.id === character.id) {
+            primaryCharUpdates = charUpdates;
+          }
+          
+          console.log(`[Campaign Completion] Character ${pChar.name}: +${completionXP} XP, +${goldReward}g, +${silverReward}s${leveledUp ? `, LEVEL UP ${currentLevel}→${newLevel}` : ''}, title: "${earnedTitle}"`);
+        }
         
         // Create adventure completion record for XP tracking
         if (participants && participants.length > 0) {
@@ -20155,7 +20317,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
               campaignId,
               xpAwarded: totalXpAwarded,
               completedAt: new Date().toISOString(),
-              notes: `Completed ${campaign.title} - Chapter ${currentChapter} of ${totalChapters}`
+              notes: `Completed ${campaign.title} - Chapter ${currentChapter} of ${totalChapters}${earnedTitle ? ` — Title: ${earnedTitle}` : ''}`
             });
           }
         }
@@ -20177,23 +20339,29 @@ Choices should include 4 options with at least 2 requiring dice rolls.
                        (s.value >= (s.max || 5) && s.thresholdConsequence?.at5?.irreversible) || false
         }));
         
-        const endingType = storyAdvancement.endingType || 'standard_resolution';
-        
         campaignCompletionData = {
           isCompleted: true,
           completedAt: new Date().toISOString(),
           totalXpAwarded,
+          completionXP,
+          goldReward,
+          silverReward,
           chaptersCompleted: currentChapter,
           totalChapters,
           questsCompleted: completedQuestCount,
           epilogue: storyAdvancement.narrative,
-          endingType,
+          endingType: completionEndingType,
           stakesSummary,
+          earnedTitle,
+          earnedTrait,
+          leveledUp: character ? (primaryCharUpdates.level > (character.level || 1)) : false,
+          newLevel: primaryCharUpdates.level || (character?.level || 1),
           campaignQuestion: (campaign as any).campaignQuestion || null,
+          forceCompleted: forceCompletion,
           message: `Congratulations! You have completed "${campaign.title}"!`
         };
         
-        console.log(`[Campaign Completion] Campaign ${campaignId} completed successfully`);
+        console.log(`[Campaign Completion] Campaign ${campaignId} completed successfully — ending: ${endingType}`);
       }
       
       // ═══════════════════════════════════════════════════════════════════
