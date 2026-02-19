@@ -30,7 +30,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map as MapIcon, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Swords, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard, Coffee, Star, Camera, Check } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map as MapIcon, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Swords, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard, Coffee, Star, Camera, Check, Crown, Trophy, Gift } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -254,7 +254,17 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     xp: number;
     gold: number;
     silver?: number;
-    items: { name: string; type: string; description: string; rarity: string; properties: string }[];
+    items: { name: string; type: string; description: string; rarity: string; properties: string; specialEffect?: string; magicBonus?: number; damageDice?: string; damageType?: string }[];
+    earnedTitle?: string;
+    earnedTrait?: string;
+    epilogue?: string;
+    endingType?: string;
+    chaptersCompleted?: number;
+    totalChapters?: number;
+    questsCompleted?: number;
+    leveledUp?: boolean;
+    newLevel?: number;
+    stakesSummary?: { id: string; name: string; finalValue: number; max: number; thresholdReached: string; consequence: string | null }[];
     characterGrowth?: {
       level: number;
       xpBefore: number;
@@ -265,7 +275,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       chaptersCompleted: number;
       inventoryCount: number;
       campaignType: string;
-    };
+    } | null;
   } | null>(null);
 
   // Session 1 Quiet Reckoning state
@@ -1226,11 +1236,32 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         setProgressionRewards(data.progression);
         
         // === CHECK FOR CAMPAIGN COMPLETION ===
-        if (data.progression.campaignComplete && data.progression.completionRewards) {
+        if (data.campaignCompletion || (data.progression.campaignComplete && data.progression.completionRewards)) {
           setCampaignComplete(true);
-          setCompletionRewards(data.progression.completionRewards);
+          const completion = data.campaignCompletion;
+          if (completion) {
+            setCompletionRewards({
+              xp: completion.completionXP || 0,
+              gold: completion.goldReward || 0,
+              silver: completion.silverReward || 0,
+              items: completion.rewardItems || [],
+              earnedTitle: completion.earnedTitle || '',
+              earnedTrait: completion.earnedTrait || '',
+              epilogue: completion.epilogue || '',
+              endingType: completion.endingType || 'standard_resolution',
+              chaptersCompleted: completion.chaptersCompleted || 0,
+              totalChapters: completion.totalChapters || 0,
+              questsCompleted: completion.questsCompleted || 0,
+              leveledUp: completion.leveledUp || false,
+              newLevel: completion.newLevel || 1,
+              stakesSummary: completion.stakesSummary || [],
+              characterGrowth: data.progression.completionRewards?.characterGrowth || null,
+            });
+          } else if (data.progression.completionRewards) {
+            setCompletionRewards(data.progression.completionRewards);
+          }
           toast({
-            title: "🏆 Campaign Complete!",
+            title: "Campaign Complete!",
             description: "Congratulations! You have completed this adventure!",
           });
         }
@@ -6682,219 +6713,229 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       
       {/* Campaign Completion Dialog - Victory! */}
       <Dialog open={campaignComplete} onOpenChange={setCampaignComplete}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-2xl">
-              🏆 Victory! Campaign Complete!
-            </DialogTitle>
-            <DialogDescription>
-              Congratulations, brave adventurer! You have completed "{campaign.title}" and emerged victorious!
-            </DialogDescription>
-          </DialogHeader>
-          
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 border-2 border-amber-500/50 text-white p-0">
           {completionRewards && (
-            <div className="space-y-4">
-              {/* XP, Gold, Silver Summary */}
-              <div className="flex gap-4 justify-center p-4 bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-900/30 dark:to-yellow-900/30 rounded-lg">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-amber-600 dark:text-amber-400">
-                    +{completionRewards.xp}
+            <div className="relative">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-500/20 via-transparent to-transparent pointer-events-none" />
+              
+              <div className="relative p-6 space-y-5">
+                <div className="text-center space-y-2">
+                  <div className="text-5xl mb-2">
+                    <Trophy className="h-14 w-14 mx-auto text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.5)]" />
                   </div>
-                  <div className="text-sm text-amber-700 dark:text-amber-300">Experience Points</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
-                    +{completionRewards.gold}
-                  </div>
-                  <div className="text-sm text-yellow-700 dark:text-yellow-300">Gold Pieces</div>
-                </div>
-                {(completionRewards.silver || 0) > 0 && (
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-slate-500 dark:text-slate-300">
-                      +{completionRewards.silver}
-                    </div>
-                    <div className="text-sm text-slate-600 dark:text-slate-400">Silver Pieces</div>
-                  </div>
-                )}
-              </div>
-
-              {/* Character Growth Summary */}
-              {completionRewards.characterGrowth && (
-                <div className="p-4 bg-gradient-to-b from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 rounded-lg border border-indigo-200 dark:border-indigo-800">
-                  <h4 className="font-bold text-lg text-indigo-800 dark:text-indigo-200 mb-3 flex items-center gap-2">
-                    <Star className="h-5 w-5 text-indigo-500" /> Your Character Grew!
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-2 bg-white/60 dark:bg-slate-800/60 rounded-md">
-                      <div className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">Level</div>
-                      <div className="text-lg font-bold text-indigo-800 dark:text-indigo-200">
-                        {completionRewards.characterGrowth.level}
-                      </div>
-                    </div>
-                    <div className="p-2 bg-white/60 dark:bg-slate-800/60 rounded-md">
-                      <div className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">XP to Next Level</div>
-                      <div className="text-lg font-bold text-indigo-800 dark:text-indigo-200">
-                        {completionRewards.characterGrowth.xpToNextLevel > 0 
-                          ? `${completionRewards.characterGrowth.xpToNextLevel} XP`
-                          : "Level Up!"}
-                      </div>
-                    </div>
-                    <div className="p-2 bg-white/60 dark:bg-slate-800/60 rounded-md">
-                      <div className="text-xs text-amber-600 dark:text-amber-400 font-medium">Gold in Pocket</div>
-                      <div className="text-lg font-bold text-amber-700 dark:text-amber-300">
-                        {completionRewards.characterGrowth.goldTotal} gp
-                      </div>
-                    </div>
-                    <div className="p-2 bg-white/60 dark:bg-slate-800/60 rounded-md">
-                      <div className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">Items in Inventory</div>
-                      <div className="text-lg font-bold text-indigo-800 dark:text-indigo-200">
-                        {completionRewards.characterGrowth.inventoryCount}
-                      </div>
-                    </div>
-                  </div>
-                  {completionRewards.characterGrowth.skillsUsed.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-indigo-200 dark:border-indigo-700">
-                      <div className="text-xs text-indigo-600 dark:text-indigo-400 font-medium mb-1">Skills You Practiced</div>
-                      <div className="flex flex-wrap gap-1">
-                        {completionRewards.characterGrowth.skillsUsed.map((skill) => (
-                          <span key={skill} className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 capitalize">
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                      <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-1 italic">
-                        Every skill you use makes your character better at it over time. Keep practicing!
-                      </p>
-                    </div>
+                  <h2 className="text-3xl font-serif font-bold bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-300 bg-clip-text text-transparent">
+                    Campaign Complete!
+                  </h2>
+                  <p className="text-amber-200/80 text-lg font-serif italic">"{campaign.title}"</p>
+                  {completionRewards.chaptersCompleted && completionRewards.totalChapters && (
+                    <p className="text-sm text-slate-400">
+                      {completionRewards.chaptersCompleted} of {completionRewards.totalChapters} chapters completed
+                      {completionRewards.questsCompleted ? ` | ${completionRewards.questsCompleted} quests finished` : ''}
+                    </p>
                   )}
                 </div>
-              )}
-              
-              {/* Loot Chest */}
-              <div className="p-4 bg-gradient-to-b from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 rounded-lg border-2 border-amber-300 dark:border-amber-700">
-                <h4 className="font-bold text-lg text-amber-800 dark:text-amber-200 mb-3 flex items-center gap-2">
-                  🎁 Treasure Chest Loot
-                </h4>
-                <div className="space-y-2">
-                  {completionRewards.items.map((item, index) => (
-                    <div 
-                      key={index} 
-                      className={`p-3 rounded-lg border ${
-                        item.rarity === 'rare' 
-                          ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-600' 
-                          : item.rarity === 'uncommon'
-                          ? 'bg-green-50 dark:bg-green-900/30 border-green-300 dark:border-green-600'
-                          : 'bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600'
-                      }`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <span className="font-semibold">{item.name}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded ${
-                          item.rarity === 'rare' 
-                            ? 'bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200' 
-                            : item.rarity === 'uncommon'
-                            ? 'bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-200'
-                            : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-                        }`}>
-                          {item.rarity}
-                        </span>
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{item.description}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">{item.type} • {item.properties}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
 
-              {/* Tavern Shop Call-to-Action */}
-              <div className="p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-lg border-2 border-emerald-300 dark:border-emerald-700">
-                <h4 className="font-bold text-lg text-emerald-800 dark:text-emerald-200 mb-2 flex items-center gap-2">
-                  <Coins className="h-5 w-5 text-emerald-500" /> Spend Your Rewards!
-                </h4>
-                <p className="text-sm text-emerald-700 dark:text-emerald-300 mb-3">
-                  You've earned <span className="font-bold text-yellow-600 dark:text-yellow-400">{completionRewards.gold} gold</span> and found 
-                  {' '}<span className="font-bold">{completionRewards.items.length} items</span>! 
-                  Visit the <span className="font-semibold">Tavern</span> to buy powerful new gear from the shop, 
-                  or sell items you don't need for extra gold.
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setCampaignComplete(false);
-                    setCompletionRewards(null);
-                    navigate("/tavern");
-                  }}
-                  className="w-full border-emerald-400 dark:border-emerald-600 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 font-semibold"
-                >
-                  <Coffee className="h-4 w-4 mr-2" /> Visit the Tavern Shop
-                </Button>
-              </div>
-              
-              {/* World of Everdice - Shared World Perception */}
-              <div className="p-4 bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-950/30 dark:to-violet-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
-                <h4 className="font-bold text-lg text-purple-800 dark:text-purple-200 mb-2 flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-purple-500" /> The World of Everdice Remembers
-                </h4>
-                <p className="text-sm text-purple-700 dark:text-purple-300 mb-2">
-                  Your choices in "{campaign.title}" ripple across the shared world of Everdice. 
-                  Every battle fought, every quest completed, and every decision made shapes the realm for all adventurers.
-                </p>
-                <div className="space-y-2 mt-3">
-                  <div className="flex items-start gap-2">
-                    <div className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-xs text-white font-bold">XP</span>
-                    </div>
-                    <p className="text-xs text-purple-600 dark:text-purple-400">
-                      <span className="font-semibold">Experience builds your legacy.</span> The {completionRewards.xp} XP you earned brings your character 
-                      closer to leveling up, unlocking new abilities, and becoming more powerful in future campaigns.
+                {completionRewards.epilogue && (
+                  <div className="p-4 bg-slate-800/60 rounded-lg border border-slate-700/50">
+                    <p className="text-sm text-slate-300 italic leading-relaxed font-serif">
+                      "{completionRewards.epilogue.length > 300 ? completionRewards.epilogue.substring(0, 300) + '...' : completionRewards.epilogue}"
                     </p>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <div className="w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Coins className="h-3 w-3 text-white" />
+                )}
+
+                {(completionRewards.earnedTitle || completionRewards.earnedTrait) && (
+                  <div className="space-y-3">
+                    {completionRewards.earnedTitle && (
+                      <div className="p-4 bg-gradient-to-r from-amber-900/40 to-yellow-900/40 rounded-lg border border-amber-500/40">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-amber-500/30">
+                            <Crown className="h-6 w-6 text-slate-900" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Title Earned</div>
+                            <div className="text-lg font-bold text-amber-200">{completionRewards.earnedTitle}</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {completionRewards.earnedTrait && (
+                      <div className="p-4 bg-gradient-to-r from-purple-900/40 to-violet-900/40 rounded-lg border border-purple-500/40">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-purple-500/30">
+                            <Sparkles className="h-6 w-6 text-white" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-semibold text-purple-400 uppercase tracking-wider">Trait Earned</div>
+                            <div className="text-sm font-medium text-purple-200">{completionRewards.earnedTrait}</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="text-center p-3 bg-amber-500/10 rounded-lg border border-amber-500/30">
+                    <div className="text-2xl font-bold text-amber-400">+{completionRewards.xp}</div>
+                    <div className="text-xs text-amber-300/70 font-medium">Experience</div>
+                  </div>
+                  <div className="text-center p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
+                    <div className="text-2xl font-bold text-yellow-400">+{completionRewards.gold}</div>
+                    <div className="text-xs text-yellow-300/70 font-medium">Gold</div>
+                  </div>
+                  <div className="text-center p-3 bg-slate-500/10 rounded-lg border border-slate-500/30">
+                    <div className="text-2xl font-bold text-slate-300">+{completionRewards.silver || 0}</div>
+                    <div className="text-xs text-slate-400/70 font-medium">Silver</div>
+                  </div>
+                </div>
+
+                {completionRewards.leveledUp && (
+                  <div className="p-4 bg-gradient-to-r from-emerald-900/40 to-teal-900/40 rounded-lg border border-emerald-500/40 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <Star className="h-6 w-6 text-emerald-400" />
+                      <span className="text-xl font-bold text-emerald-300">Level Up!</span>
+                      <Star className="h-6 w-6 text-emerald-400" />
                     </div>
-                    <p className="text-xs text-purple-600 dark:text-purple-400">
-                      <span className="font-semibold">Gold carries between adventures.</span> Your 
-                      {' '}{completionRewards.characterGrowth?.goldTotal || completionRewards.gold} gold travels with your character 
-                      into every campaign. Spend wisely at the Tavern Shop or save for something special.
+                    <p className="text-sm text-emerald-200/80 mt-1">
+                      You are now Level {completionRewards.newLevel}!
                     </p>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <MapIcon className="h-3 w-3 text-white" />
+                )}
+
+                {completionRewards.items.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-bold text-amber-300 flex items-center gap-2">
+                      <Gift className="h-5 w-5" /> Campaign Rewards
+                    </h3>
+                    <div className="space-y-2">
+                      {completionRewards.items.map((item, index) => {
+                        const rarityColors = {
+                          very_rare: 'from-purple-900/50 to-purple-800/30 border-purple-400/50',
+                          rare: 'from-blue-900/50 to-blue-800/30 border-blue-400/50',
+                          uncommon: 'from-green-900/50 to-green-800/30 border-green-400/50',
+                          common: 'from-slate-800/50 to-slate-700/30 border-slate-500/50',
+                        };
+                        const rarityBadge = {
+                          very_rare: 'bg-purple-500/30 text-purple-300 border-purple-400/50',
+                          rare: 'bg-blue-500/30 text-blue-300 border-blue-400/50',
+                          uncommon: 'bg-green-500/30 text-green-300 border-green-400/50',
+                          common: 'bg-slate-500/30 text-slate-300 border-slate-400/50',
+                        };
+                        const rKey = item.rarity as keyof typeof rarityColors;
+                        return (
+                          <div 
+                            key={index} 
+                            className={`p-3 rounded-lg border bg-gradient-to-r ${rarityColors[rKey] || rarityColors.common}`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <span className="font-bold text-white">{item.name}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded border ${rarityBadge[rKey] || rarityBadge.common} capitalize`}>
+                                {item.rarity?.replace('_', ' ')}
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-300 mt-1">{item.description}</p>
+                            {item.specialEffect && (
+                              <p className="text-xs text-amber-300/80 mt-1.5 flex items-start gap-1">
+                                <Sparkles className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                {item.specialEffect}
+                              </p>
+                            )}
+                            <div className="flex gap-3 mt-1.5 text-xs text-slate-400">
+                              <span className="capitalize">{item.type}</span>
+                              {item.damageDice && <span>{item.damageDice} {item.damageType}</span>}
+                              {item.magicBonus && item.magicBonus > 0 && <span>+{item.magicBonus} magic</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <p className="text-xs text-purple-600 dark:text-purple-400">
-                      <span className="font-semibold">Your deeds shape the world.</span> Completing campaigns creates world events 
-                      that affect all adventurers. Other players may hear whispers of your heroic deeds in their own journeys.
-                    </p>
                   </div>
+                )}
+
+                {completionRewards.characterGrowth && (
+                  <div className="p-4 bg-slate-800/40 rounded-lg border border-slate-700/50">
+                    <h4 className="font-bold text-sm text-slate-300 mb-2 flex items-center gap-2">
+                      <Star className="h-4 w-4 text-indigo-400" /> Character Growth
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="p-2 bg-slate-700/40 rounded text-center">
+                        <div className="text-xs text-slate-400">Level</div>
+                        <div className="font-bold text-indigo-300">{completionRewards.characterGrowth.level}</div>
+                      </div>
+                      <div className="p-2 bg-slate-700/40 rounded text-center">
+                        <div className="text-xs text-slate-400">XP to Next</div>
+                        <div className="font-bold text-indigo-300">
+                          {completionRewards.characterGrowth.xpToNextLevel > 0 ? completionRewards.characterGrowth.xpToNextLevel : 'Ready!'}
+                        </div>
+                      </div>
+                      <div className="p-2 bg-slate-700/40 rounded text-center">
+                        <div className="text-xs text-slate-400">Total Gold</div>
+                        <div className="font-bold text-amber-300">{completionRewards.characterGrowth.goldTotal} gp</div>
+                      </div>
+                      <div className="p-2 bg-slate-700/40 rounded text-center">
+                        <div className="text-xs text-slate-400">Inventory</div>
+                        <div className="font-bold text-emerald-300">{completionRewards.characterGrowth.inventoryCount} items</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {(completionRewards.stakesSummary || []).length > 0 && (
+                  <div className="p-4 bg-slate-800/40 rounded-lg border border-slate-700/50">
+                    <h4 className="font-bold text-sm text-slate-300 mb-2">Campaign Stakes</h4>
+                    <div className="space-y-1.5">
+                      {(completionRewards.stakesSummary || []).map((stake, i) => (
+                        <div key={i} className="flex items-center justify-between text-sm">
+                          <span className="text-slate-300">{stake.name}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded ${
+                            stake.thresholdReached === 'peaked' ? 'bg-emerald-500/20 text-emerald-300' :
+                            stake.thresholdReached === 'collapsed' ? 'bg-red-500/20 text-red-300' :
+                            'bg-slate-500/20 text-slate-300'
+                          }`}>
+                            {stake.thresholdReached === 'peaked' ? 'Peaked' : stake.thresholdReached === 'collapsed' ? 'Collapsed' : 'Survived'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3 justify-center pt-2">
+                  <Button 
+                    onClick={() => {
+                      setCampaignComplete(false);
+                      setCompletionRewards(null);
+                      navigate("/tavern");
+                    }}
+                    variant="outline"
+                    className="border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/30 bg-transparent"
+                  >
+                    <Coffee className="h-4 w-4 mr-2" /> Visit Tavern
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      setCampaignComplete(false);
+                      setCompletionRewards(null);
+                      navigate("/characters");
+                    }}
+                    variant="outline"
+                    className="border-indigo-500/50 text-indigo-300 hover:bg-indigo-900/30 bg-transparent"
+                  >
+                    <User className="h-4 w-4 mr-2" /> View Character
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      setCampaignComplete(false);
+                      setCompletionRewards(null);
+                    }}
+                    className="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-900 font-bold px-6"
+                  >
+                    <Trophy className="h-4 w-4 mr-2" /> Done
+                  </Button>
                 </div>
               </div>
             </div>
           )}
-
-          <div className="flex gap-3 justify-center mt-4">
-            <Button 
-              onClick={() => {
-                setCampaignComplete(false);
-                setCompletionRewards(null);
-                navigate("/tavern");
-              }}
-              variant="outline"
-              className="border-emerald-400 dark:border-emerald-600 text-emerald-700 dark:text-emerald-300"
-            >
-              <Coffee className="h-4 w-4 mr-2" /> Visit Tavern
-            </Button>
-            <Button 
-              onClick={() => {
-                setCampaignComplete(false);
-                setCompletionRewards(null);
-              }}
-              className="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white font-bold px-8"
-            >
-              🎉 Celebrate Victory!
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
 
