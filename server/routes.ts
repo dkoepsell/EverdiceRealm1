@@ -16374,7 +16374,8 @@ ${currentSession.choices && currentSession.choices.length > 0 ?
 CRITICAL: Generate COMPLETELY NEW and DIFFERENT choices this round. Do NOT copy or paraphrase the choices above.
 
 ${(() => {
-  const momentousChoices = currentStoryState.momentousChoices || [];
+  const storyStateObj = currentSession.storyState as any || {};
+  const momentousChoices = storyStateObj.momentousChoices || [];
   if (momentousChoices.length > 0) {
     return `
 ═══════════════════════════════════════════════════════════════════════════════
