@@ -60,11 +60,11 @@ export function CombatLogPanel({ campaignId }: { campaignId: number }) {
 
   const getEntryColor = (type: string) => {
     switch (type) {
-      case 'combat': return 'border-l-red-500 bg-red-50 dark:bg-red-950/20';
-      case 'player_action': return 'border-l-blue-500 bg-blue-50 dark:bg-blue-950/20';
-      case 'narrative': return 'border-l-amber-500 bg-amber-50 dark:bg-amber-950/20';
-      case 'chapter_start': return 'border-l-purple-500 bg-purple-50 dark:bg-purple-950/20';
-      default: return 'border-l-gray-400 bg-gray-50 dark:bg-gray-950/20';
+      case 'combat': return 'border-l-red-500 bg-red-950/40';
+      case 'player_action': return 'border-l-blue-500 bg-blue-950/40';
+      case 'narrative': return 'border-l-amber-500 bg-amber-950/30';
+      case 'chapter_start': return 'border-l-purple-500 bg-purple-950/40';
+      default: return 'border-l-gray-400 bg-gray-950/30';
     }
   };
 
@@ -97,7 +97,7 @@ export function CombatLogPanel({ campaignId }: { campaignId: number }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold font-fantasy flex items-center gap-2" style={{ color: '#0f172a' }}>
+        <h2 className="text-xl font-bold font-fantasy flex items-center gap-2 text-slate-100">
           <Swords className="h-5 w-5 text-red-600" />
           Combat Log
         </h2>
@@ -143,15 +143,15 @@ export function CombatLogPanel({ campaignId }: { campaignId: number }) {
                   <div className="flex items-center gap-2 min-w-0">
                     {getEntryIcon(entry.type)}
                     <span className={`text-xs font-bold uppercase px-1.5 py-0.5 rounded ${
-                      entry.type === 'combat' ? 'bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                      entry.type === 'player_action' ? 'bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                      entry.type === 'chapter_start' ? 'bg-purple-200 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
-                      'bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
+                      entry.type === 'combat' ? 'bg-red-900/60 text-red-300' :
+                      entry.type === 'player_action' ? 'bg-blue-900/60 text-blue-300' :
+                      entry.type === 'chapter_start' ? 'bg-purple-900/60 text-purple-300' :
+                      'bg-amber-900/60 text-amber-300'
                     }`}>
                       {getEntryLabel(entry.type)}
                     </span>
                     {entry.sceneType && entry.sceneType !== 'Exploration' && (
-                      <span className="text-xs text-slate-500 bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded">
+                      <span className="text-xs text-slate-300 bg-slate-700/60 px-1.5 py-0.5 rounded">
                         {entry.sceneType}
                       </span>
                     )}
@@ -169,52 +169,52 @@ export function CombatLogPanel({ campaignId }: { campaignId: number }) {
                 <div className="mt-2">
                   {entry.type === 'combat' ? (
                     <div className="space-y-1">
-                      <p className="text-sm font-medium">
+                      <p className="text-sm font-medium text-slate-200">
                         {entry.attacker} → {entry.target}
                       </p>
                       {entry.attackRoll && (
-                        <div className="flex items-center gap-2 text-xs font-mono">
+                        <div className="flex items-center gap-2 text-xs font-mono text-slate-300">
                           <span className={`px-1.5 py-0.5 rounded ${
-                            entry.attackRoll.roll === 20 ? 'bg-yellow-200 text-yellow-800' :
-                            entry.attackRoll.roll === 1 ? 'bg-red-200 text-red-800' :
-                            'bg-slate-200 text-slate-700'
+                            entry.attackRoll.roll === 20 ? 'bg-yellow-900/60 text-yellow-300' :
+                            entry.attackRoll.roll === 1 ? 'bg-red-900/60 text-red-300' :
+                            'bg-slate-700/60 text-slate-300'
                           }`}>
                             d20({entry.attackRoll.roll})
                           </span>
                           <span>+ {entry.attackRoll.modifier}</span>
                           <span>= {entry.attackRoll.total}</span>
-                          <span className={`font-bold ${entry.isHit ? 'text-green-600' : 'text-red-500'}`}>
+                          <span className={`font-bold ${entry.isHit ? 'text-green-400' : 'text-red-400'}`}>
                             {entry.attackRoll.roll === 20 ? 'CRITICAL!' : entry.attackRoll.roll === 1 ? 'FUMBLE!' : entry.isHit ? 'HIT' : 'MISS'}
                           </span>
                         </div>
                       )}
                       {entry.isHit && entry.damage && (
-                        <div className="text-xs font-mono text-red-600">
+                        <div className="text-xs font-mono text-red-400">
                           Damage: {entry.damage.total} ({entry.damage.diceType})
                         </div>
                       )}
                       {entry.description && (
-                        <p className="text-xs text-slate-600 dark:text-slate-400 italic mt-1">{entry.description}</p>
+                        <p className="text-xs text-slate-400 italic mt-1">{entry.description}</p>
                       )}
                     </div>
                   ) : entry.type === 'player_action' ? (
                     <div>
-                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                      <p className="text-sm font-medium text-slate-200">
                         "{entry.text}"
                       </p>
                       {entry.rollResult && (
-                        <p className="text-xs font-mono mt-1 text-blue-600">
+                        <p className="text-xs font-mono mt-1 text-blue-400">
                           Roll: {entry.rollResult.total || entry.rollResult.roll || JSON.stringify(entry.rollResult)}
                         </p>
                       )}
                     </div>
                   ) : entry.type === 'chapter_start' ? (
-                    <p className="text-sm font-bold text-purple-800 dark:text-purple-200">
+                    <p className="text-sm font-bold text-purple-300">
                       {entry.text}
                     </p>
                   ) : (
                     <div>
-                      <p className={`text-sm text-slate-700 dark:text-slate-300 leading-relaxed ${
+                      <p className={`text-sm text-slate-300 leading-relaxed ${
                         !isExpanded && isLongText ? 'line-clamp-3' : ''
                       }`}>
                         {entry.text}
