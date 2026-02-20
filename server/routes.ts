@@ -6469,7 +6469,8 @@ DM AUTHORING DOCTRINE - THESE OVERRIDE ALL OTHER RULES:
    - The current chapter gate defines WHAT THIS CHAPTER IS ABOUT — every scene must build toward it
    - Your scenes should create situations, encounters, and choices that NATURALLY lead toward satisfying the gate condition
    - Do NOT wait for the player to stumble onto the gate — actively steer the narrative toward it through NPC actions, environmental pressures, and consequences of choices
-   - When the gate condition is met (a belief changes, a truth is learned, or a commitment is made), you MUST include "chapterGateMet" in your response
+   - PACING RULE: Do NOT trigger "chapterGateMet" in the first 4 scenes of a chapter. Early scenes should establish the chapter's themes, introduce complications, and build tension. The gate should feel EARNED through narrative buildup, not rushed.
+   - When the gate condition is met (a belief changes, a truth is learned, or a commitment is made) AND the chapter has had at least 4 scenes of buildup, you MUST include "chapterGateMet" in your response
    - Include "chapterGateMet": { "gateId": chapter_number, "reason": "what truth/belief/commitment was reached" }
    - NEVER generate aimless dungeon crawling or random encounters that don't connect to the chapter's purpose
    - If you're unsure how to connect the current action to the gate, have an NPC deliver urgent news, reveal a clue, or create a consequence that forces engagement with the gate theme
@@ -7012,6 +7013,7 @@ Return your response as a JSON object with these fields:
           }
           
           // DM AUTHORING DOCTRINE: Chapter gate advancement (meaning-based, not metrics-based)
+          const CHAPTER_MIN_SCENES = 4;
           let chapterAdvanced = false;
           if (storyData.chapterGateMet) {
             const gate = storyData.chapterGateMet;
@@ -7019,20 +7021,24 @@ Return your response as a JSON object with these fields:
             const totalChaptersForGate = campaign.totalChapters || 5;
             
             if (gate.gateId === currentChapterForGate && currentChapterForGate < totalChaptersForGate) {
-              chapterAdvanced = true;
-              stateWasUpdated = true;
-              console.log(`DOCTRINE CHAPTER GATE MET: Chapter ${currentChapterForGate} → ${currentChapterForGate + 1} — ${gate.reason}`);
-              
-              updatedNarrativeLog.push({
-                xpReason: `Chapter ${currentChapterForGate} completed`,
-                stakeReason: gate.reason,
-                foreclosedReason: `Chapter ${currentChapterForGate} closed`,
-                choiceCost: `Advanced to Chapter ${currentChapterForGate + 1}`,
-                chapter: currentChapterForGate,
-                scene: -1,
-                timestamp: new Date().toISOString(),
-                type: 'chapter_gate'
-              });
+              if (scenesInCurrentChapter >= CHAPTER_MIN_SCENES) {
+                chapterAdvanced = true;
+                stateWasUpdated = true;
+                console.log(`DOCTRINE CHAPTER GATE MET: Chapter ${currentChapterForGate} → ${currentChapterForGate + 1} — ${gate.reason} (after ${scenesInCurrentChapter} scenes)`);
+                
+                updatedNarrativeLog.push({
+                  xpReason: `Chapter ${currentChapterForGate} completed`,
+                  stakeReason: gate.reason,
+                  foreclosedReason: `Chapter ${currentChapterForGate} closed`,
+                  choiceCost: `Advanced to Chapter ${currentChapterForGate + 1}`,
+                  chapter: currentChapterForGate,
+                  scene: -1,
+                  timestamp: new Date().toISOString(),
+                  type: 'chapter_gate'
+                });
+              } else {
+                console.log(`DOCTRINE CHAPTER GATE REJECTED (too early): Chapter ${currentChapterForGate} gate met after only ${scenesInCurrentChapter}/${CHAPTER_MIN_SCENES} minimum scenes — ${gate.reason}`);
+              }
             }
           }
           
@@ -16014,10 +16020,11 @@ DM AUTHORING DOCTRINE (MANDATORY):
 - PROCESSES CREATE NEW PROBLEMS: Every completed quest/ritual/combat leaves at least one new problem in its wake.
 - CHAPTER GATE IS YOUR PRIMARY NARRATIVE GOAL: The gate defines what this chapter is ABOUT. Every scene must build toward it.
 - Do NOT generate aimless dungeon crawling or random encounters disconnected from the chapter's purpose.
+- PACING RULE: Do NOT trigger "chapterGateMet" in the first 4 scenes of a chapter. Early scenes should establish themes, introduce complications, and build tension. The gate should feel EARNED, not rushed.
 - SHOW CONSEQUENCES IN THE NARRATIVE: When a player makes a decisive choice (embracing dark power, betraying an ally, sacrificing something), the narrative MUST visibly reflect the change — describe physical transformations, NPC reactions, environmental shifts, or new abilities/costs. Do NOT just silently adjust stake numbers. The player should READ about the world changing because of their decision.
 - If a stake is at CRITICAL level (0-1 or 4-5), the narrative should hint at impending catastrophe or breakthrough — make the player FEEL the pressure in the story text.
 - Actively steer toward the gate through NPC actions, environmental pressures, and choice consequences.
-- When the gate condition is met, you MUST include "chapterGateMet": { "gateId": chapter_number, "reason": "what was reached" }.
+- When the gate condition is met AND the chapter has had at least 4 scenes of buildup, you MUST include "chapterGateMet": { "gateId": chapter_number, "reason": "what was reached" }.
 - Include "narrativeLogEntry" with: xpReason, stakeReason, foreclosedReason, choiceCost.
 `;
       
@@ -20069,22 +20076,27 @@ Choices should include 4 options with at least 2 requiring dice rolls.
             (!matchingGate.requiredBeliefChange || (gate.reason && gate.reason.length > 10))
           );
           
+          const CHAPTER_MIN_SCENES_R2 = 4;
           if (gate.gateId === currentChapter && currentChapter < totalChapters && gateValid) {
-            doctrineUpdates.currentSession = currentChapter + 1;
-            doctrineChanged = true;
-            console.log(`DOCTRINE CHAPTER GATE MET (main): Chapter ${currentChapter} → ${currentChapter + 1} — ${gate.reason}`);
-            
-            currentNarrativeLog.push({
-              xpReason: `Chapter ${currentChapter} completed`,
-              stakeReason: gate.reason,
-              foreclosedReason: `Chapter ${currentChapter} closed`,
-              choiceCost: `Advanced to Chapter ${currentChapter + 1}`,
-              chapter: currentChapter,
-              scene: -1,
-              timestamp: new Date().toISOString(),
-              type: 'chapter_gate'
-            });
-            doctrineUpdates.narrativeLog = currentNarrativeLog;
+            if (scenesInChapter2 >= CHAPTER_MIN_SCENES_R2) {
+              doctrineUpdates.currentSession = currentChapter + 1;
+              doctrineChanged = true;
+              console.log(`DOCTRINE CHAPTER GATE MET (main): Chapter ${currentChapter} → ${currentChapter + 1} — ${gate.reason} (after ${scenesInChapter2} scenes)`);
+              
+              currentNarrativeLog.push({
+                xpReason: `Chapter ${currentChapter} completed`,
+                stakeReason: gate.reason,
+                foreclosedReason: `Chapter ${currentChapter} closed`,
+                choiceCost: `Advanced to Chapter ${currentChapter + 1}`,
+                chapter: currentChapter,
+                scene: -1,
+                timestamp: new Date().toISOString(),
+                type: 'chapter_gate'
+              });
+              doctrineUpdates.narrativeLog = currentNarrativeLog;
+            } else {
+              console.log(`DOCTRINE CHAPTER GATE REJECTED (main, too early): Chapter ${currentChapter} gate after only ${scenesInChapter2}/${CHAPTER_MIN_SCENES_R2} minimum scenes — ${gate.reason}`);
+            }
           }
         }
         
