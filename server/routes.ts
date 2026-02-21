@@ -11842,20 +11842,19 @@ Return your response as a JSON object with these fields:
         return res.status(400).json({ message: "No active encounter to enter" });
       }
 
-      const participants = await storage.getCampaignParticipants(campaignId);
-      const characters = (await Promise.all(
-        participants.map(async (p) => await storage.getCharacter(p.characterId))
-      )).filter(Boolean);
-      const characterNames = characters.map((c: any) => c.name).join(", ") || "The party";
-      const characterSummary = characters.map((c: any) =>
-        `${c.name} (Level ${c.level || 1} ${c.race || ''} ${c.class || ''})`
-      ).join(", ") || "An unnamed party of adventurers";
+      let trekCharacter: any = null;
+      if (route.characterId) {
+        trekCharacter = await storage.getCharacter(route.characterId);
+      }
+      const characterSummary = trekCharacter
+        ? `${trekCharacter.name} (Level ${trekCharacter.level || 1} ${trekCharacter.race || ''} ${trekCharacter.class || ''})`
+        : "An unnamed adventurer";
 
       const encounterPrompt = `You are an expert D&D 5th Edition Dungeon Master. Generate a vivid, immersive narrative scene for a trek encounter.
 
 Campaign: "${campaign.title}"
 ${campaign.description ? `Campaign Description: ${campaign.description}` : ''}
-Party: ${characterSummary}
+Character: ${characterSummary}
 Encounter Type: ${encounter.type}
 Encounter Description: ${encounter.description}
 Location: Hex (${encounter.hexQ}, ${encounter.hexR}), traveling toward ${encounter.destinationName || "an unknown destination"}
@@ -11866,7 +11865,7 @@ Generate an engaging D&D narrative scene. Return valid JSON with this exact stru
   "narrative": "A 2-3 paragraph vivid narrative description of the scene, written in second person ('You see...'). Set the atmosphere, describe the environment, and present the situation.",
   "title": "A dramatic short title for this encounter (3-6 words)",
   "choices": [
-    {"id": "choice_1", "text": "First choice the party can make", "type": "action"},
+    {"id": "choice_1", "text": "First choice the character can make", "type": "action"},
     {"id": "choice_2", "text": "Second choice", "type": "action"},
     {"id": "choice_3", "text": "Third choice (if combat: option to fight)", "type": "action"},
     {"id": "choice_4", "text": "A creative or unexpected option", "type": "action"}
@@ -11898,7 +11897,7 @@ Make choices varied and interesting. For combat encounters, include both fightin
         sceneData = JSON.parse(completion.choices[0].message.content || "{}");
       } catch {
         sceneData = {
-          narrative: encounter.description + "\n\nThe party must decide what to do next.",
+          narrative: encounter.description + "\n\nYou must decide what to do next.",
           title: `${encounter.type.charAt(0).toUpperCase() + encounter.type.slice(1)} on the Road`,
           choices: [
             { id: "investigate", text: "Investigate carefully", type: "action" },
@@ -11914,78 +11913,157 @@ Make choices varied and interesting. For combat encounters, include both fightin
         };
       }
 
-      const currentSession = await storage.getCurrentSession(campaignId);
-      let sessionId = currentSession?.id;
-
-      if (currentSession) {
-        const existingLog = (currentSession.actionLog as any[]) || [];
-        const newEntry = {
-          id: Date.now(),
-          timestamp: new Date().toISOString(),
-          type: "trek_encounter",
-          encounterType: encounter.type,
-          narrative: sceneData.narrative,
-          title: sceneData.title,
-        };
-        const updatedLog = [...existingLog, newEntry].slice(-200);
-
-        await storage.advanceSessionStory(campaignId, {
-          narrative: sceneData.narrative,
-          choices: sceneData.choices,
-          sceneType: sceneData.sceneType || encounter.sceneType,
-          storyState: {
-            ...(currentSession.storyState as any || {}),
-            trekEncounter: {
-              encounterId: encounter.id,
-              type: encounter.type,
-              hexQ: encounter.hexQ,
-              hexR: encounter.hexR,
-              sceneData,
-            },
-          },
-          actionLogEntries: [newEntry],
-        });
-      } else {
-        const newSession = await storage.createCampaignSession({
-          campaignId,
-          sessionNumber: 1,
-          title: sceneData.title || `Trek Encounter: ${encounter.type}`,
-          narrative: sceneData.narrative,
-          choices: sceneData.choices,
-          createdAt: new Date().toISOString(),
-          sceneType: sceneData.sceneType || encounter.sceneType,
-          storyState: {
-            trekEncounter: {
-              encounterId: encounter.id,
-              type: encounter.type,
-              hexQ: encounter.hexQ,
-              hexR: encounter.hexR,
-              sceneData,
-            },
-          },
-          actionLog: [{
-            id: Date.now(),
-            timestamp: new Date().toISOString(),
-            type: "trek_encounter",
-            encounterType: encounter.type,
-            narrative: sceneData.narrative,
-            title: sceneData.title,
-          }],
-        });
-        sessionId = newSession.id;
-      }
-
-      await storage.updateTrekRoute(route.id, { status: "active", pendingEncounter: null });
+      await storage.updateTrekRoute(route.id, {
+        status: "narrative",
+        pendingEncounter: {
+          ...(route.pendingEncounter as any || {}),
+          sceneData,
+          enteredNarrative: true,
+        },
+      });
 
       res.json({
         success: true,
-        sessionId,
         scene: sceneData,
-        campaignId,
+        characterName: trekCharacter?.name || route.characterName,
       });
     } catch (error) {
       console.error("Error entering trek narrative:", error);
       res.status(500).json({ message: "Failed to generate encounter narrative" });
+    }
+  });
+
+  app.post("/api/campaigns/:campaignId/trek/resolve-encounter", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = (req.user as any).id;
+      const { choiceId, choiceText } = req.body;
+
+      if (!choiceId) {
+        return res.status(400).json({ message: "Choice is required" });
+      }
+
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+
+      const route = await storage.getActiveTrekRoute(campaignId, userId);
+      if (!route || route.status !== "narrative") {
+        return res.status(400).json({ message: "No active narrative encounter to resolve" });
+      }
+
+      const pendingEncounter = route.pendingEncounter as any;
+      const sceneData = pendingEncounter?.sceneData;
+      if (!sceneData) {
+        return res.status(400).json({ message: "No scene data found for this encounter" });
+      }
+
+      let trekCharacter: any = null;
+      if (route.characterId) {
+        trekCharacter = await storage.getCharacter(route.characterId);
+      }
+      const charName = trekCharacter?.name || route.characterName || "The adventurer";
+      const charLevel = trekCharacter?.level || 1;
+
+      const resolvePrompt = `You are an expert D&D 5th Edition Dungeon Master resolving a trek encounter.
+
+Character: ${charName} (Level ${charLevel} ${trekCharacter?.race || ''} ${trekCharacter?.class || ''})
+Scene: ${sceneData.title}
+Narrative: ${sceneData.narrative}
+Player chose: "${choiceText}"
+Encounter type: ${pendingEncounter.type || 'exploration'}
+Difficulty: ${sceneData.difficultyHint || 'Medium'}
+
+Resolve this encounter based on the player's choice. Return valid JSON:
+{
+  "conclusion": "A 1-2 paragraph vivid conclusion describing what happens based on the choice. Written in second person.",
+  "outcome": "success" or "partial" or "failure",
+  "xpAwarded": number (10-100 based on difficulty and outcome),
+  "goldAwarded": number (0-50 based on encounter type),
+  "lootItems": [{"name": "Item Name", "type": "weapon/armor/potion/gear/misc", "rarity": "common/uncommon/rare", "value": number, "description": "Brief description"}],
+  "injuries": "none" or brief description if injured
+}
+
+Award loot that makes sense for the encounter. Combat encounters should award more XP. Discovery/loot encounters should award items. Social encounters may award gold or useful items. Scale rewards to the difficulty.`;
+
+      const { client, model } = await getAIClient(userId);
+
+      const completion = await client.chat.completions.create({
+        model,
+        messages: [
+          { role: "system", content: "You are a creative D&D Dungeon Master resolving encounters. Always respond with valid JSON." },
+          { role: "user", content: resolvePrompt }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+        max_tokens: 1500,
+      });
+
+      let resolution: any;
+      try {
+        resolution = JSON.parse(completion.choices[0].message.content || "{}");
+      } catch {
+        resolution = {
+          conclusion: `${charName} chose wisely. The encounter passes without further incident, though the experience proves valuable.`,
+          outcome: "success",
+          xpAwarded: 25,
+          goldAwarded: 5,
+          lootItems: [],
+          injuries: "none",
+        };
+      }
+
+      if (trekCharacter) {
+        const currentXp = trekCharacter.experiencePoints || 0;
+        const currentGold = trekCharacter.gold || 0;
+        const currentEquipment = trekCharacter.equipment || [];
+
+        const newItems = (resolution.lootItems || []).map((item: any) => 
+          typeof item === 'string' ? item : `${item.name}${item.description ? ` (${item.description})` : ''}`
+        );
+
+        await storage.updateCharacter(trekCharacter.id, {
+          experiencePoints: currentXp + (resolution.xpAwarded || 0),
+          gold: currentGold + (resolution.goldAwarded || 0),
+          equipment: [...currentEquipment, ...newItems],
+          updatedAt: new Date().toISOString(),
+        });
+      }
+
+      const existingLoot = (route.lootFound as any[]) || [];
+      const newLootEntries = (resolution.lootItems || []).map((item: any) => ({
+        name: typeof item === 'string' ? item : item.name,
+        type: typeof item === 'string' ? 'misc' : item.type,
+        rarity: typeof item === 'string' ? 'common' : item.rarity,
+        value: typeof item === 'string' ? 0 : (item.value || 0),
+        fromEncounter: sceneData.title,
+      }));
+
+      await storage.updateTrekRoute(route.id, {
+        status: "active",
+        pendingEncounter: null,
+        lootFound: [...existingLoot, ...newLootEntries],
+      });
+
+      res.json({
+        success: true,
+        resolution: {
+          conclusion: resolution.conclusion,
+          outcome: resolution.outcome,
+          xpAwarded: resolution.xpAwarded || 0,
+          goldAwarded: resolution.goldAwarded || 0,
+          lootItems: resolution.lootItems || [],
+          injuries: resolution.injuries || "none",
+        },
+        characterName: charName,
+      });
+    } catch (error) {
+      console.error("Error resolving trek encounter:", error);
+      res.status(500).json({ message: "Failed to resolve encounter" });
     }
   });
 

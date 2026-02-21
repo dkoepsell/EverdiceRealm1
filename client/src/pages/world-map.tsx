@@ -12,7 +12,7 @@ import {
   CircleDot, Eye, CheckCircle2, Lock, Swords, Users,
   Scroll, AlertTriangle, Shield, Sparkles, Globe, Clock, 
   TrendingUp, TrendingDown, Activity, Zap, BookOpen, Hexagon,
-  Navigation, X, Footprints, Loader2, Package, UserCircle
+  Navigation, X, Footprints, Loader2, Package, UserCircle, Coins
 } from "lucide-react";
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
@@ -196,6 +196,27 @@ export default function WorldMapPage() {
     destinationName: string;
   } | null>(null);
 
+  const [narrativeScene, setNarrativeScene] = useState<{
+    title: string;
+    narrative: string;
+    choices: Array<{ id: string; text: string; type: string }>;
+    npcs: Array<{ name: string; role: string }>;
+    possibleRewards: string[];
+    difficultyHint: string;
+    combatReady: boolean;
+    characterName: string;
+  } | null>(null);
+
+  const [encounterResolution, setEncounterResolution] = useState<{
+    conclusion: string;
+    outcome: string;
+    xpAwarded: number;
+    goldAwarded: number;
+    lootItems: Array<{ name: string; type: string; rarity: string; value: number; description: string }>;
+    injuries: string;
+    characterName: string;
+  } | null>(null);
+
   const [trekTargetHex, setTrekTargetHex] = useState<WorldHex | null>(null);
 
   const { data: userCampaigns = [] } = useQuery<Campaign[]>({
@@ -248,6 +269,15 @@ export default function WorldMapPage() {
   useEffect(() => {
     if (activeTrek?.status === 'encounter' && activeTrek.pendingEncounter && !activeEncounter) {
       setActiveEncounter(activeTrek.pendingEncounter);
+    }
+    if (activeTrek?.status === 'narrative' && activeTrek.pendingEncounter && !narrativeScene) {
+      const pe = activeTrek.pendingEncounter as any;
+      if (pe.sceneData) {
+        setNarrativeScene({
+          ...pe.sceneData,
+          characterName: activeTrek.characterName || "Your character",
+        });
+      }
     }
   }, [activeTrek?.status, activeTrek?.pendingEncounter]);
 
@@ -309,15 +339,32 @@ export default function WorldMapPage() {
     onSuccess: async (res) => {
       const data = await res.json();
       setActiveEncounter(null);
-      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${activeCampaignId}/trek/active`] });
-      if (activeCampaignId) {
-        localStorage.setItem('activeCampaignId', activeCampaignId.toString());
-        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${activeCampaignId}/sessions`] });
-      }
-      navigate("/play");
+      setNarrativeScene({
+        ...data.scene,
+        characterName: data.characterName || "Your character",
+      });
     },
     onError: () => {
       toast({ title: "Narrative Generation Failed", description: "Could not generate the encounter narrative. Try again.", variant: "destructive" });
+    },
+  });
+
+  const resolveEncounterMutation = useMutation({
+    mutationFn: (choice: { choiceId: string; choiceText: string }) => {
+      if (!activeCampaignId) return Promise.reject(new Error("No active campaign"));
+      return apiRequest("POST", `/api/campaigns/${activeCampaignId}/trek/resolve-encounter`, choice);
+    },
+    onSuccess: async (res) => {
+      const data = await res.json();
+      setNarrativeScene(null);
+      setEncounterResolution({
+        ...data.resolution,
+        characterName: data.characterName || "Your character",
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${activeCampaignId}/trek/active`] });
+    },
+    onError: () => {
+      toast({ title: "Resolution Failed", description: "Could not resolve the encounter. Try again.", variant: "destructive" });
     },
   });
 
@@ -1412,6 +1459,211 @@ export default function WorldMapPage() {
           </>
         )}
 
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={!!narrativeScene} onOpenChange={(open) => {
+      if (!open && !resolveEncounterMutation.isPending) {
+        setNarrativeScene(null);
+      }
+    }}>
+      <DialogContent className="max-w-3xl bg-gradient-to-b from-gray-900 via-gray-900 to-black border-2 border-purple-500/40 text-amber-50 max-h-[90vh] overflow-y-auto">
+        {narrativeScene && (
+          <>
+            <DialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-500/20 border border-purple-500/40">
+                  <BookOpen className="h-5 w-5 text-purple-400" />
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-bold text-purple-100">
+                    {narrativeScene.title}
+                  </DialogTitle>
+                  <DialogDescription className="text-purple-100/50 text-xs">
+                    Trek Side Quest · {narrativeScene.characterName}
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="space-y-4 mt-2">
+              <div className="p-5 rounded-lg bg-black/50 border border-purple-500/20">
+                <p className="text-sm leading-relaxed text-amber-100/90 whitespace-pre-line">
+                  {narrativeScene.narrative}
+                </p>
+              </div>
+
+              {narrativeScene.npcs?.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {narrativeScene.npcs.map((npc, i) => (
+                    <Badge key={i} variant="outline" className="border-purple-500/30 text-purple-200 text-xs">
+                      <Users className="h-3 w-3 mr-1" />
+                      {npc.name} — {npc.role}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className={`text-[10px] ${
+                  narrativeScene.combatReady ? 'border-red-500/40 text-red-300' : 'border-emerald-500/40 text-emerald-300'
+                }`}>
+                  {narrativeScene.combatReady ? 'Combat Ready' : 'Exploration'}
+                </Badge>
+                <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-300">
+                  {narrativeScene.difficultyHint}
+                </Badge>
+              </div>
+
+              <div>
+                <p className="text-xs text-purple-200/60 uppercase tracking-wider mb-3 flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" /> What do you do?
+                </p>
+                <div className="grid gap-2">
+                  {narrativeScene.choices.map((choice) => (
+                    <Button
+                      key={choice.id}
+                      variant="outline"
+                      className="w-full justify-start text-left h-auto py-3 px-4 border-purple-500/30 text-purple-100 hover:bg-purple-500/15 hover:border-purple-400/50 transition-all"
+                      onClick={() => resolveEncounterMutation.mutate({ choiceId: choice.id, choiceText: choice.text })}
+                      disabled={resolveEncounterMutation.isPending}
+                    >
+                      <Swords className="h-4 w-4 mr-3 shrink-0 text-purple-400" />
+                      <span className="text-sm">{choice.text}</span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {resolveEncounterMutation.isPending && (
+                <div className="flex items-center justify-center gap-2 py-4 text-purple-300">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span className="text-sm">Resolving encounter...</span>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={!!encounterResolution} onOpenChange={(open) => {
+      if (!open) {
+        setEncounterResolution(null);
+        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${activeCampaignId}/trek/active`] });
+      }
+    }}>
+      <DialogContent className="max-w-2xl bg-gradient-to-b from-gray-900 via-gray-900 to-black border-2 border-emerald-500/40 text-amber-50 max-h-[90vh] overflow-y-auto">
+        {encounterResolution && (
+          <>
+            <DialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  encounterResolution.outcome === 'success' ? 'bg-emerald-500/20 border border-emerald-500/40' :
+                  encounterResolution.outcome === 'partial' ? 'bg-amber-500/20 border border-amber-500/40' :
+                  'bg-red-500/20 border border-red-500/40'
+                }`}>
+                  {encounterResolution.outcome === 'success' ? <CheckCircle2 className="h-5 w-5 text-emerald-400" /> :
+                   encounterResolution.outcome === 'partial' ? <AlertTriangle className="h-5 w-5 text-amber-400" /> :
+                   <Shield className="h-5 w-5 text-red-400" />}
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-bold text-emerald-100">
+                    Encounter {encounterResolution.outcome === 'success' ? 'Resolved!' : encounterResolution.outcome === 'partial' ? 'Partially Resolved' : 'Challenging Outcome'}
+                  </DialogTitle>
+                  <DialogDescription className="text-emerald-100/50 text-xs">
+                    {encounterResolution.characterName}'s Trek Side Quest
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="space-y-4 mt-2">
+              <div className="p-5 rounded-lg bg-black/50 border border-emerald-500/20">
+                <p className="text-sm leading-relaxed text-amber-100/90 whitespace-pre-line">
+                  {encounterResolution.conclusion}
+                </p>
+              </div>
+
+              {encounterResolution.injuries !== 'none' && encounterResolution.injuries && (
+                <div className="p-3 rounded-lg bg-red-900/20 border border-red-500/30">
+                  <p className="text-xs text-red-300 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" /> {encounterResolution.injuries}
+                  </p>
+                </div>
+              )}
+
+              <div className="p-4 rounded-lg bg-gradient-to-r from-amber-900/30 to-emerald-900/20 border border-amber-500/30">
+                <p className="text-xs font-bold text-amber-200 mb-3 uppercase tracking-wider flex items-center gap-1">
+                  <Package className="h-3.5 w-3.5" /> Rewards Earned
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  {encounterResolution.xpAwarded > 0 && (
+                    <div className="flex items-center gap-2 p-2 rounded bg-black/30">
+                      <TrendingUp className="h-4 w-4 text-blue-400" />
+                      <div>
+                        <p className="text-sm font-bold text-blue-200">+{encounterResolution.xpAwarded} XP</p>
+                        <p className="text-[10px] text-blue-300/50">Experience Points</p>
+                      </div>
+                    </div>
+                  )}
+                  {encounterResolution.goldAwarded > 0 && (
+                    <div className="flex items-center gap-2 p-2 rounded bg-black/30">
+                      <Coins className="h-4 w-4 text-yellow-400" />
+                      <div>
+                        <p className="text-sm font-bold text-yellow-200">+{encounterResolution.goldAwarded} Gold</p>
+                        <p className="text-[10px] text-yellow-300/50">Added to inventory</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {encounterResolution.lootItems?.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-[10px] text-amber-300/60 uppercase tracking-wider">Items Found</p>
+                    {encounterResolution.lootItems.map((item, i) => (
+                      <div key={i} className="flex items-center gap-2 p-2 rounded bg-black/30">
+                        <Package className="h-4 w-4 text-purple-400" />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-purple-200">{item.name}</p>
+                          <p className="text-[10px] text-purple-300/50">
+                            {item.rarity} {item.type}{item.value ? ` · ${item.value}gp` : ''}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[10px] text-emerald-300/50 mt-3 italic">
+                  All rewards have been added to {encounterResolution.characterName}'s inventory.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold gap-2"
+                  onClick={() => {
+                    setEncounterResolution(null);
+                    queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${activeCampaignId}/trek/active`] });
+                    toast({ title: "Trek Continues", description: "Your journey resumes. Take another step!" });
+                  }}
+                >
+                  <Footprints className="h-4 w-4" />
+                  Continue Trekking
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-amber-500/30 text-amber-200 hover:bg-amber-500/10"
+                  onClick={() => {
+                    setEncounterResolution(null);
+                    trekCancelMutation.mutate();
+                  }}
+                >
+                  End Trek
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
 

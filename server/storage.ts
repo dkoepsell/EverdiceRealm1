@@ -2824,7 +2824,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(trekRoutes.campaignId, campaignId),
         eq(trekRoutes.userId, userId),
-        or(eq(trekRoutes.status, "active"), eq(trekRoutes.status, "encounter"))
+        or(eq(trekRoutes.status, "active"), eq(trekRoutes.status, "encounter"), eq(trekRoutes.status, "narrative"))
       ));
     return route || undefined;
   }
