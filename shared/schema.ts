@@ -242,6 +242,10 @@ export const campaigns = pgTable("campaigns", {
   complicationsQueue: jsonb("complications_queue"), // Moral quandaries, twists, environmental modifiers
   encounterDesigns: jsonb("encounter_designs"), // Structured encounters with objectives, stakes, terrain, combat interest
   partyGoal: jsonb("party_goal"), // Primary/secondary/hidden goals with success/partial/failure states
+  powerNetwork: jsonb("power_network"), // Faction groups, consequence chains, instability rules
+  rivalAgent: jsonb("rival_agent"), // Competing NPC/group with interference actions and alliance possibility
+  meterWorldEffects: jsonb("meter_world_effects"), // How stakes/meters alter physical environment at thresholds
+  dynamicClimax: jsonb("dynamic_climax"), // Assembly rules, variations, and approach paths for final encounter
   // CAML2 Persistent Campaign Tracking
   villainCorruption: integer("villain_corruption").default(0), // Villain's corruption/power scale (0-10)
   partyReputation: integer("party_reputation").default(50), // Party's reputation (0-100)

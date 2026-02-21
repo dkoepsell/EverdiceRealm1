@@ -4457,6 +4457,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         caml2Update.partyGoal = gc.partyGoal;
         console.log(`[Campaign Create] CAML2 Party Goal: ${gc.partyGoal.primary?.substring(0, 50)}...`);
       }
+      if (gc.powerNetwork) {
+        caml2Update.powerNetwork = gc.powerNetwork;
+        console.log(`[Campaign Create] CAML2 Power Network: ${gc.powerNetwork.groups?.length || 0} groups, ${gc.powerNetwork.consequenceChains?.length || 0} chains`);
+      }
+      if (gc.rivalAgent) {
+        caml2Update.rivalAgent = gc.rivalAgent;
+        console.log(`[Campaign Create] CAML2 Rival Agent: ${gc.rivalAgent.name || gc.rivalAgent.id}`);
+      }
+      if (gc.meterWorldEffects) {
+        caml2Update.meterWorldEffects = gc.meterWorldEffects;
+        console.log(`[Campaign Create] CAML2 Meter Effects: ${gc.meterWorldEffects.length || 0} meters mapped`);
+      }
+      if (gc.dynamicClimax) {
+        caml2Update.dynamicClimax = gc.dynamicClimax;
+        console.log(`[Campaign Create] CAML2 Dynamic Climax: ${gc.dynamicClimax.variations?.length || 0} variations`);
+      }
       
       if (Object.keys(caml2Update).length > 0) {
         await storage.updateCampaign(campaign.id, caml2Update);
@@ -15123,10 +15139,47 @@ CAML 2.0 EXACT SCHEMA (every field shown is REQUIRED):
       "items": [
         {"id": "ITEM_Name", "kind": "item", "name": "...", "rarity": "rare", "description": "...", "consequence": "What cost or risk does using this item create? E.g. 'Increases ruin instability when activated'"}
       ],
-      "factions": []
+      "factions": [
+        {"id": "FACTION_Name", "kind": "faction", "name": "...", "goal": "What this faction wants — specific and actionable", "resources": "What they control (territory, wealth, magic, soldiers)", "disposition": "friendly|neutral|hostile|unknown", "reactionPolicy": {"ifPlayerHelps": "How faction responds to player aid", "ifPlayerHinders": "How faction responds to player interference", "ifRivalGains": "How faction responds to a rival gaining power"}}
+      ]
     },
     "connections": [
       {"id": "CONN_1", "from": "LOC_A", "to": "LOC_B", "mode": "door"}
+    ]
+  },
+  "powerNetwork": {
+    "groups": [
+      {"factionId": "FACTION_Name", "influence": 3, "maxInfluence": 5, "allies": [], "rivals": ["FACTION_Other"], "controlledLocations": ["LOC_Name"], "keyNpcs": ["NPC_Name"]}
+    ],
+    "consequenceChains": [
+      {"trigger": "Specific player action or event (e.g. 'NPC_Guard killed', 'artifact stolen from LOC_Temple')", "immediate": "What happens right away", "ripple": "How this affects other factions/locations within hours", "cascade": "How the world reorganizes within days — power vacuums, alliances shift, new threats emerge"}
+    ],
+    "instabilityRules": [
+      {"condition": "When faction influence reaches threshold or NPC removed", "effect": "How NPCs change behavior (prices, hostility, dialogue, quest availability)", "affectedLocations": ["LOC_Name"]}
+    ]
+  },
+  "rivalAgent": {
+    "id": "RIVAL_Name",
+    "name": "...",
+    "allegiance": "Which faction or independent",
+    "goal": "Same or opposing objective to the party — creates race/interference",
+    "methods": "How they operate (stealth, manipulation, brute force, deception)",
+    "currentProgress": 0,
+    "interferenceActions": ["Specific ways the rival can impede the party (steal clue, turn NPC, set trap, beat party to location)"],
+    "alliancePossibility": "Under what conditions the rival could temporarily ally with the party"
+  },
+  "meterWorldEffects": [
+    {"meterId": "stake_1", "thresholds": {"at1": {"environment": "Subtle atmospheric change", "npcBehavior": "Minor NPC nervousness or excitement"}, "at3": {"environment": "Visible physical changes to locations (weather, decay, growth)", "npcBehavior": "NPCs change routines, prices shift, new dialogue", "access": "Some paths open or close"}, "at5": {"environment": "Catastrophic transformation (terrain collapse, magical corruption, planar breach)", "npcBehavior": "NPCs flee, turn hostile, or transform", "access": "Major locations locked or destroyed, new areas revealed", "encounterModifier": "All encounters in affected areas gain new hazards or phases"}}}
+  ],
+  "dynamicClimax": {
+    "assemblyRule": "How the final encounter is determined — which surviving factions, meter values, and player approach history shape it",
+    "variations": [
+      {"condition": "If faction X dominant and stake_1 >= 4", "encounter": "Description of this climax variant"},
+      {"condition": "If rival agent allied and stake_2 <= 1", "encounter": "Description of alternative climax"},
+      {"condition": "If most factions eliminated", "encounter": "Description of power-vacuum climax"}
+    ],
+    "approachPaths": [
+      {"objective": "Major campaign objective", "approaches": ["stealth: description and consequences", "social: description and consequences", "force: description and consequences", "manipulation: description and consequences"]}
     ]
   },
   "state": {
@@ -15170,75 +15223,103 @@ CAML 2.0 EXACT SCHEMA (every field shown is REQUIRED):
 }
 
 ═══════════════════════════════════════════════════════════════════
-REACTIVE ARCHITECTURE (MANDATORY — this makes CAML 2.0 NOT a linear module):
+GENRE-ADAPTIVE REACTIVE ARCHITECTURE (MANDATORY — every campaign genre must produce a living world):
 ═══════════════════════════════════════════════════════════════════
 
-1. VILLAIN IS A SYSTEM (not a static boss):
+These requirements apply to ALL genres. The specific manifestation adapts to the theme:
+- Intrigue/assassination → rival guilds, target networks, political consequence chains
+- Mystery/investigation → suspect circles, evidence webs, deduction pressure
+- War/conquest → armies, front lines, morale/supply cascades
+- Heist/theft → security forces vs underworld, crew trust, escalating countermeasures
+- Exploration/survival → competing expeditions, environmental factions (tribes, beasts), resource scarcity
+- Horror/curse → corruption sources, infected NPCs, spreading affliction zones
+- Political → noble houses, merchant guilds, religious orders, shifting alliances
+
+1. POWER NETWORK (generalizes factions — required for ALL genres):
+   - world.entities.factions: At least 2 competing power groups with goals, resources, and reactionPolicy
+   - powerNetwork.groups: Each faction has influence (1-5), allies, rivals, controlled locations, key NPCs
+   - powerNetwork.consequenceChains: At least 2 chains showing trigger → immediate → ripple → cascade effects
+   - powerNetwork.instabilityRules: How disrupting one faction changes NPC behavior at specific locations
+   - Factions must REACT to each other and to the party — not just sit in their assigned locations
+   - When a faction loses a key NPC or location, connected factions respond (power vacuum, land grab, panic)
+
+2. VILLAIN IS A SYSTEM (not a static boss):
    - villain.planStructure: 3-5 staged plan steps, each with a TRIGGER condition (state thresholds, events, time)
    - villain.reactionTree: 4 reactions (escalate/redirect/retaliate/accelerate) — each creates NEW problems and costs villain resources
    - Villain acts OFFSCREEN between scenes — their plan progresses whether players act or not
    - Villain is NEVER "the final boss waiting in the last room"
    - Villain RACES the party — competing for the same objective from a different angle
 
-2. STAKES MUST BE ACTIVE GAMEPLAY DRIVERS (not passive meters):
+3. RIVAL AGENT (competing force — required for ALL genres):
+   - rivalAgent: A specific NPC or group pursuing similar/opposing goals, creating time pressure and interference
+   - Must have interferenceActions (specific ways they impede the party) and alliancePossibility (when temporary alliance works)
+   - Genre examples: rival thief crew (heist), competing investigator (mystery), opposing general (war), rival expedition leader (exploration), cultist defector (horror)
+   - The rival creates URGENCY — if the party stalls, the rival advances
+
+4. CONSEQUENCE CHAINS (every action ripples — required for ALL genres):
+   - Every significant player action (killing NPC, stealing item, revealing info, making alliance, destroying location) must have a defined consequence chain
+   - Each chain has: trigger → immediate effect → ripple (hours) → cascade (days)
+   - Removing an NPC: faction loses key asset → retaliation or power vacuum → world reorganizes
+   - Stealing an artifact: owner faction retaliates → allied factions respond → security tightens everywhere
+   - Revealing information: target NPC changes behavior → faction alliances shift → new opportunities/threats emerge
+   - At least 2 consequence chains must be defined in powerNetwork.consequenceChains
+
+5. STAKES AS ACTIVE WORLD DRIVERS (not passive meters):
    - Each stake must have "gameplayEffects" at thresholds (at2, at4) describing SPECIFIC changes:
      * at2: Moderate effects — NPC attitude shifts, new rumors, environmental warnings, travel checks
      * at4: Severe effects — locations lock/unlock, NPC betrayal, encounter difficulty increases, environmental hazards activate, villain gains reinforcements
-   - Example: "at2: Storm frequency increases, sea travel requires DC 12 checks" / "at4: Guardian reactivates in spectral form, puzzles become unstable, Rogbar gains reinforcements"
-   - Stakes are the ENGINE of the adventure — they MODIFY encounters, access, NPC behavior, and difficulty in real time
+   - Stakes are the ENGINE — they MODIFY encounters, access, NPC behavior, and difficulty in real time
    - Items/actions that increase a stake must have immediate observable effects, not just counter increments
 
-3. PROCESSES ARE CONDITIONAL NODES (not sequential chapters):
+6. METER-TO-WORLD TRANSFORMATION (meters change the physical world — required for ALL genres):
+   - meterWorldEffects: Each stake/meter must specify PHYSICAL environment alterations at thresholds (at1, at3, at5)
+   - at1: Subtle atmospheric changes, minor NPC nervousness
+   - at3: Visible physical changes to locations, NPC routine changes, prices shift, paths open/close
+   - at5: Catastrophic transformation — terrain collapse, magical corruption, planar breach, mass NPC transformation
+   - Curse/corruption/suspicion/morale meters MUST alter the environment, not just be narrative flavor
+   - Genre examples: corruption meter warps terrain (horror), suspicion meter locks shops/closes gates (heist), morale meter causes desertion/reinforcement (war)
+
+7. PROCESSES ARE CONDITIONAL NODES (not sequential chapters):
    - Each process MUST have "activationConditions" — state requirements, clue counts, or stake thresholds
-   - Processes can be reached in MULTIPLE ORDERS — never Village→Port→Ruins→Boss in fixed sequence
+   - Processes can be reached in MULTIPLE ORDERS — never fixed linear sequence
    - Some processes may never trigger depending on player choices
    - Each process MUST have "outcomes" with success/partial/failure results
-   - Example: "activationConditions": ["Requires any 1 clue from Port OR Oracle", "map_fragment_count >= 2"]
-   - At least 2 processes must have ALTERNATIVE activation paths (can reach via different prerequisites)
+   - At least 2 processes must have ALTERNATIVE activation paths (reachable via different prerequisites)
 
-4. FAILURE ADVANCES THE WORLD (never blocks):
-   - Every process.outcomes.failure must: advance villain plan stage, shift a stake, create a NEW threat or opportunity
-   - Failure creates NEW playable content — not a dead end
-   - Example failure: "Rogbar claims the artifact first — now party must pursue, negotiate, or find alternative"
-   - The campaign continues through failure, just darker and with different options
+8. DYNAMIC CLIMAX (final encounter is NEVER predetermined):
+   - dynamicClimax.assemblyRule: How the final encounter is determined from surviving factions + meter values + player approach history
+   - dynamicClimax.variations: At least 3 distinct climax variants based on different world states
+   - dynamicClimax.approachPaths: Every major objective must have 3+ valid approaches (stealth/social/force/manipulation) with distinct consequence profiles
+   - The climax should be ASSEMBLED from the world state, not pre-written and waiting
+   - Genre examples: which crime lord controls the city (intrigue), which suspect is cornered (mystery), which front held (war), which vault approach succeeded (heist)
 
-5. ENCOUNTER DESIGN AND BUDGET:
+9. ENCOUNTER DESIGN AND BUDGET:
    - encounterBudget: party level, medium/hard XP thresholds, daily XP budget, rest windows, target strain ratio
    - encounterDesigns: each combat has SPECIFIC terrain features, combat interest modifiers, and opposition type
-   - Climax encounters MUST be multi-wave or multi-phase: "Wave 1: Stone constructs animate, Wave 2: Idol pulses + terrain cracks, Wave 3 (conditional): Boss absorbs elemental energy"
+   - Climax encounters MUST be multi-wave or multi-phase
    - At least one encounter must have "multi_wave" or "terrain_shifts" in combatInterest
    - Environmental features must be SPECIFIC: "collapsing_columns", "rising_tide", "unstable_platforms" — not generic "terrain"
 
-6. MORAL QUANDARY ENGINE (accumulated, not one-shot):
-   - complicationsQueue.moralQuandaries: at least 1 moral decision tied to a specific stake trade-off
-   - Moral pressure must ACCUMULATE throughout the adventure — not just one decision at the end
-   - Each quandary must specify which stake it increases and which it decreases
-   - Example: "villager needs idol power to save child" (greed -1 but balance +1) / "crew mutiny if treasure abandoned" (greed pressure)
-   - Add "stakeLink" field to each quandary: {"increases": "stake_id", "decreases": "stake_id"}
+10. FAILURE ADVANCES THE WORLD (never blocks):
+    - Every process.outcomes.failure must: advance villain plan stage, shift a stake, create a NEW threat or opportunity
+    - Failure creates NEW playable content — not a dead end
+    - The campaign continues through failure, just darker and with different options
 
-7. COMPLICATIONS PACING:
-   - complicationsQueue.twists: at least 1 revelation that recontextualizes the adventure (e.g. "oracle reveals idol seals an abyssal gate")
-   - complicationsQueue.environmentalModifiers: at least 1 with SPECIFIC D&D mechanical effects (disadvantage, difficult terrain, DC increases)
-   - injectionTiming controls WHEN they appear (early/midpoint/climax)
-   - Twists should reveal that the villain's goal is more dangerous than initially apparent
+11. MORAL QUANDARY ENGINE (accumulated, not one-shot):
+    - At least 1 moral decision tied to a specific stake trade-off with stakeLink
+    - Moral pressure must ACCUMULATE throughout the adventure
+    - Each quandary must specify which stake it increases and which it decreases
 
-8. NON-TERMINAL ENDINGS:
-   - Endings MUST be transformative, not terminal — they evolve into new campaign arcs
-   - Every ending snapshot must include "nextArc" field describing what campaign emerges from this ending
-   - Example: "Ending A: Rogbar survives with treasure → pirate dominion campaign arc" / "Ending B: Balance restored but deeper threat revealed → planar ward campaign arc"
-   - No ending should feel like "game over" — each should open new possibilities
-   - The most dramatic endings should emerge from stake thresholds hitting 5 (irreversible events that transform the world)
+12. NON-TERMINAL ENDINGS:
+    - Every ending snapshot must include "nextArc" describing what campaign emerges from this ending
+    - Endings TRANSFORM the world, they don't end it
+    - The most dramatic endings emerge from stake thresholds hitting 5
 
-9. STAKE CORRUPTION MECHANICS:
-   - Each stake must have specific PLAYER ACTIONS that modify it (not just drift):
-     * "Claiming treasure" → greed +1
-     * "Using magical artifact" → balance +1
-     * "Betraying ally" → greed +1
-     * "Restoring ward" → balance -1
-   - At stake value 5: catastrophic transformation event (internal party conflict, environmental collapse, villain power surge)
-   - Stakes at 5 should NOT end the adventure — they should TRANSFORM it (new threats, collapsed geography, spectral guardians)
+13. STAKE CORRUPTION MECHANICS:
+    - Each stake must have specific PLAYER ACTIONS that modify it (not just drift)
+    - At stake value 5: catastrophic transformation event (NOT game over — new threats, transformed geography)
 
-10. PRESSURE SYSTEM:
+14. PRESSURE SYSTEM:
     - doctrine.campaign_question MUST be a DILEMMA — NOT a goal
     - doctrine.stakes with drift, threshold consequences, AND gameplay effects
     - framingEvent: the visible inciting incident
@@ -15263,6 +15344,11 @@ REQUIRED FIELDS (validation will fail without these):
 - partyGoal MUST have primary, success, partialSuccessState, and failureState
 - Each process MUST have activationConditions and outcomes (success/partial/failure)
 - Each stake MUST have gameplayEffects with specific environmental/NPC/difficulty modifications
+- world.entities.factions MUST have at least 2 factions with goals, resources, and reactionPolicy
+- powerNetwork MUST have groups (with influence/rivals), consequenceChains (at least 2), and instabilityRules
+- rivalAgent MUST have id, goal, interferenceActions, and alliancePossibility
+- meterWorldEffects MUST map each stake to physical environment changes at thresholds (at1/at3/at5)
+- dynamicClimax MUST have assemblyRule, at least 3 variations, and approachPaths with 3+ approaches per objective
 
 FORBIDDEN (CAML 1.x / linear patterns):
 - "type": "AdventureModule"
@@ -15278,6 +15364,11 @@ FORBIDDEN (CAML 1.x / linear patterns):
 - Terminal endings that end the story with no continuation
 - Single-wave combat encounters for climax fights
 - Moral decisions that only happen once at the very end
+- Predetermined final encounters (climax must be dynamically assembled)
+- Worlds with only one power group (need competing factions)
+- Meters/trackers that don't alter the physical environment
+- Missing consequence chains for significant actions
+- No rival agent creating urgency/interference
 
 ${attempt > 0 ? `PREVIOUS ATTEMPT FAILED: ${lastError}. Fix these issues.` : ''}`;
 
@@ -15292,34 +15383,66 @@ REQUIREMENTS:
 - All NPC attitudes in state.facts (NOT on character objects)
 - Use SRD 5.1 content only
 
-REACTIVE ARCHITECTURE REQUIREMENTS (CRITICAL — without these the output is a linear module):
-- villain: Staged plan (3-5 steps with TRIGGER conditions), reaction tree (escalate/redirect/retaliate/accelerate), specific resources and weakness. Villain RACES the party — competing for the same objective offscreen
+GENRE-ADAPTIVE REACTIVE WORLD (CRITICAL — without these the output is a static linear module):
+
+POWER NETWORK (required):
+- world.entities.factions: At least 2 competing power groups appropriate to the ${theme} genre, each with goals, resources, and reactionPolicy (ifPlayerHelps/ifPlayerHinders/ifRivalGains)
+- powerNetwork.groups: Each faction has influence (1-5), allies, rivals, controlled locations, and key NPCs
+- powerNetwork.consequenceChains: At least 2 defined chains — trigger (specific player action) → immediate → ripple (hours) → cascade (days)
+- powerNetwork.instabilityRules: When a faction is disrupted, how NPCs at specific locations change behavior (prices, hostility, dialogue, quest availability)
+
+RIVAL AGENT (required):
+- rivalAgent: A specific competing NPC/group pursuing similar/opposing objectives, genre-appropriate to ${theme}
+- Must include interferenceActions (steal clue, turn NPC, set trap, beat party to location) and alliancePossibility
+- The rival creates URGENCY — if the party delays, the rival advances and changes the world state
+
+VILLAIN SYSTEM (required):
+- villain: Staged plan (3-5 steps with TRIGGER conditions), reaction tree (escalate/redirect/retaliate/accelerate), specific resources and weakness
+- Villain RACES the party — competing for the same objective offscreen
+
+CONSEQUENCE CHAINS (required):
+- Every significant action must ripple through the power network
+- Killing an NPC → faction retaliation → alliance shifts → world reorganization
+- At least 2 consequence chains defined in powerNetwork.consequenceChains
+
+METER-TO-WORLD TRANSFORMATION (required):
+- meterWorldEffects: Each stake must map to PHYSICAL environment changes at thresholds:
+  * at1: Subtle atmospheric changes, minor NPC nervousness
+  * at3: Visible location changes, NPC routine shifts, prices change, paths open/close
+  * at5: Catastrophic transformation — terrain collapse, corruption spread, mass NPC transformation, new areas revealed
+- Meters MUST alter the physical world, not just be narrative flavor
+
+DYNAMIC CLIMAX (required — final encounter must NOT be predetermined):
+- dynamicClimax.assemblyRule: How surviving factions + meter values + player approach history determine the final encounter
+- dynamicClimax.variations: At least 3 distinct climax variants for different world states
+- dynamicClimax.approachPaths: Every major objective has 3+ valid approaches (stealth/social/force/manipulation) with distinct consequence profiles
+
+OTHER REACTIVE SYSTEMS (all required):
 - framingEvent: Visible inciting incident connected to villain's plan
-- complicationsQueue: At least 1 moral quandary with stakeLink (which stakes it affects), 1 twist that recontextualizes events, 1 environmental modifier with D&D mechanical effects
-- encounterDesigns: At least 1 combat with SPECIFIC terrainFeatures (collapsing_columns, rising_tide, etc.), combatInterest (multi_wave or terrain_shifts for climax). Climax encounters MUST be multi-wave/multi-phase
+- complicationsQueue: At least 1 moral quandary with stakeLink, 1 twist, 1 environmental modifier with D&D mechanical effects
+- encounterDesigns: At least 1 combat with SPECIFIC terrainFeatures and combatInterest (multi_wave or terrain_shifts for climax)
 - encounterBudget: Level-appropriate XP thresholds and daily budget with rest windows
 - partyGoal: Primary/secondary/hidden goals with success/partial/failure world states
-- Stakes must have gameplayEffects at2 (moderate: NPC shifts, travel checks) and at4 (severe: location lockout, betrayal, difficulty increase, environmental hazards). At stake 5: catastrophic transformation (collapse, spectral guardians, villain power surge) — NOT game over
-- Every process must have activationConditions (state requirements, clue counts, or stake thresholds — NOT sequential chapter order) and outcomes (success/partial/failure)
-- At least 2 processes must have ALTERNATIVE activation paths (reachable via different prerequisites)
-- Failure outcomes must advance villain plan and create new playable content, NEVER dead-end
+- Stakes must have gameplayEffects at2/at4 — at stake 5: catastrophic transformation, NOT game over
+- Every process must have activationConditions and outcomes (success/partial/failure)
+- At least 2 processes must have ALTERNATIVE activation paths
+- Failure outcomes must advance villain plan and create new playable content
 - Moral quandaries must ACCUMULATE throughout, not just one decision at the end
 
-NON-TERMINAL ENDINGS (CRITICAL):
+NON-TERMINAL ENDINGS (required):
 - Every ending snapshot must have "nextArc" describing what new campaign arc emerges
-- Endings TRANSFORM the world, they don't end it. Example: "Villain escapes with treasure → pirate dominion arc" / "Balance restored but deeper threat revealed → planar ward arc"
-- The most dramatic endings come from stake thresholds hitting 5 (irreversible world transformation)
+- Endings TRANSFORM the world, they don't end it
+- At least 2 forked ending snapshots with tradeoffs and nextArc
 
-PRESSURE SYSTEM REQUIREMENTS:
+PRESSURE SYSTEM (required):
 - doctrine.campaign_question: Frame a DILEMMA not a goal
-- doctrine.stakes: At least 2 pressure tracks with drift, threshold consequences, gameplayEffects (at2/at4), and specific player actions that modify them
+- doctrine.stakes: At least 2 pressure tracks with drift, threshold consequences, gameplayEffects (at2/at4), and specific player actions
 - At least 3 processes must include stake_effects
 - Every item must have a "consequence" field
-- At least 2 forked ending snapshots with tradeoffs and nextArc
 
 ${customPrompt ? `THEME NOTES: ${customPrompt}` : ''}
 
-Generate a complete CAML 2.0 JSON adventure with REACTIVE ARCHITECTURE — a dynamic conflict simulator, not a linear module.`;
+Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITECTURE — a living world simulator where every action cascades, factions compete, meters transform the environment, and the climax is assembled from the world state. NOT a linear module.`;
 
         const completion = await openai.chat.completions.create({
           model: "gpt-4o",
@@ -15329,7 +15452,7 @@ Generate a complete CAML 2.0 JSON adventure with REACTIVE ARCHITECTURE — a dyn
           ],
           response_format: { type: "json_object" },
           temperature: attempt === 0 ? 0.7 : 0.5, // Lower temp on retry
-          max_tokens: 8000
+          max_tokens: 12000
         });
 
         const generatedContent = JSON.parse(completion.choices[0].message.content || '{}');
@@ -15581,6 +15704,83 @@ Generate a complete CAML 2.0 JSON adventure with REACTIVE ARCHITECTURE — a dyn
           validationErrors.push(`Only ${processesWithConditions.length} processes have activationConditions — need conditional activation, not linear chapters`);
         }
         
+        // ═══════ GENRE-ADAPTIVE REACTIVE WORLD VALIDATION ═══════
+        
+        // Validate power network (factions)
+        const factions = generatedContent.world?.entities?.factions || [];
+        if (factions.length < 2) {
+          validationErrors.push(`Only ${factions.length} factions — need at least 2 competing power groups`);
+        } else {
+          const factionsWithPolicy = factions.filter((f: any) => f.reactionPolicy && (f.reactionPolicy.ifPlayerHelps || f.reactionPolicy.ifPlayerHinders));
+          if (factionsWithPolicy.length < 1 && attempt > 0) {
+            validationErrors.push('At least 1 faction must have reactionPolicy (ifPlayerHelps/ifPlayerHinders/ifRivalGains)');
+          }
+        }
+        
+        const powerNet = generatedContent.powerNetwork;
+        if (!powerNet && attempt > 0) {
+          validationErrors.push('Missing powerNetwork (need groups, consequenceChains, instabilityRules)');
+        } else if (powerNet) {
+          if (!powerNet.groups || powerNet.groups.length < 1) {
+            validationErrors.push('powerNetwork.groups needs at least 1 faction group with influence/rivals');
+          }
+          const chains = powerNet.consequenceChains || [];
+          if (chains.length < 2 && attempt > 0) {
+            validationErrors.push(`Only ${chains.length} consequenceChains — need at least 2 (trigger → immediate → ripple → cascade)`);
+          } else if (chains.length > 0) {
+            const chainsWithCascade = chains.filter((c: any) => c.trigger && c.immediate && c.cascade);
+            if (chainsWithCascade.length < 1) {
+              validationErrors.push('consequenceChains must have trigger, immediate, and cascade fields');
+            }
+          }
+          if ((!powerNet.instabilityRules || powerNet.instabilityRules.length < 1) && attempt > 0) {
+            validationErrors.push('powerNetwork needs at least 1 instabilityRule (how faction disruption changes NPC behavior)');
+          }
+        }
+        
+        // Validate rival agent
+        const rival = generatedContent.rivalAgent;
+        if (!rival && attempt > 0) {
+          validationErrors.push('Missing rivalAgent (need competing force creating urgency/interference)');
+        } else if (rival) {
+          if (!rival.goal) validationErrors.push('rivalAgent.goal is required');
+          if (!rival.interferenceActions || rival.interferenceActions.length < 1) {
+            validationErrors.push('rivalAgent needs at least 1 interferenceAction');
+          }
+        }
+        
+        // Validate meter-to-world effects
+        const meterEffects = generatedContent.meterWorldEffects;
+        if (!meterEffects && attempt > 0) {
+          validationErrors.push('Missing meterWorldEffects (meters must alter the physical environment at thresholds)');
+        } else if (meterEffects && Array.isArray(meterEffects)) {
+          const effectsWithThresholds = meterEffects.filter((m: any) => m.thresholds && (m.thresholds.at1 || m.thresholds.at3 || m.thresholds.at5));
+          if (effectsWithThresholds.length < 1 && attempt > 0) {
+            validationErrors.push('meterWorldEffects must have at least 1 meter with environment-altering thresholds (at1/at3/at5)');
+          }
+        }
+        
+        // Validate dynamic climax
+        const dynClimax = generatedContent.dynamicClimax;
+        if (!dynClimax && attempt > 0) {
+          validationErrors.push('Missing dynamicClimax (final encounter must be assembled from world state, not predetermined)');
+        } else if (dynClimax) {
+          if (!dynClimax.assemblyRule) {
+            validationErrors.push('dynamicClimax.assemblyRule required (how surviving factions + meters determine the climax)');
+          }
+          if (!dynClimax.variations || dynClimax.variations.length < 2) {
+            validationErrors.push(`dynamicClimax has ${dynClimax.variations?.length || 0} variations — need at least 3 distinct climax variants`);
+          }
+          if (!dynClimax.approachPaths || dynClimax.approachPaths.length < 1) {
+            if (attempt > 0) validationErrors.push('dynamicClimax needs approachPaths with 3+ approaches per objective');
+          } else {
+            const pathsWithApproaches = dynClimax.approachPaths.filter((p: any) => p.approaches && p.approaches.length >= 3);
+            if (pathsWithApproaches.length < 1 && attempt > 0) {
+              validationErrors.push('Each approachPath needs at least 3 valid approaches (stealth/social/force/manipulation)');
+            }
+          }
+        }
+        
         // Check for placeholders
         const jsonStr = JSON.stringify(generatedContent);
         const placeholderMatches = jsonStr.match(/<[A-Z][^>]*>/g);
@@ -15610,6 +15810,10 @@ Generate a complete CAML 2.0 JSON adventure with REACTIVE ARCHITECTURE — a dyn
             complicationsQueue: generatedContent.complicationsQueue,
             encounterDesigns: generatedContent.encounterDesigns,
             partyGoal: generatedContent.partyGoal,
+            powerNetwork: generatedContent.powerNetwork,
+            rivalAgent: generatedContent.rivalAgent,
+            meterWorldEffects: generatedContent.meterWorldEffects,
+            dynamicClimax: generatedContent.dynamicClimax,
             isCAML2: true
           });
         }
