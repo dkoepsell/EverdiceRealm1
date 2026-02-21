@@ -25247,5 +25247,23 @@ ALWAYS generate:
     }
   });
 
+  app.post("/api/feedback", async (req: any, res) => {
+    try {
+      const { feltConfusing, feltSlow, wouldUse, comment } = req.body;
+      const userId = req.user?.id || null;
+      const feedback = await storage.createUserFeedback({
+        userId,
+        feltConfusing: feltConfusing || false,
+        feltSlow: feltSlow || false,
+        wouldUse: wouldUse || false,
+        comment: comment || null,
+      });
+      res.json({ success: true, id: feedback.id });
+    } catch (error) {
+      console.error("Failed to save feedback:", error);
+      res.status(500).json({ message: "Failed to save feedback" });
+    }
+  });
+
   return httpServer;
 }

@@ -76,7 +76,8 @@ import {
   llmConfigs, type LlmConfig, type InsertLlmConfig,
   // City maps and trek routes
   cityMaps, type CityMap, type InsertCityMap,
-  trekRoutes, type TrekRoute, type InsertTrekRoute
+  trekRoutes, type TrekRoute, type InsertTrekRoute,
+  userFeedback, type UserFeedback, type InsertUserFeedback
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or, inArray } from "drizzle-orm";
@@ -524,6 +525,9 @@ export interface IStorage {
   createLlmConfig(config: InsertLlmConfig): Promise<LlmConfig>;
   updateLlmConfig(id: number, updates: Partial<LlmConfig>): Promise<LlmConfig | undefined>;
   deleteLlmConfig(id: number): Promise<boolean>;
+
+  // Feedback operations
+  createUserFeedback(feedback: InsertUserFeedback): Promise<UserFeedback>;
 }
 
 export class MemStorage implements IStorage {
@@ -863,6 +867,7 @@ export class MemStorage implements IStorage {
   async createLlmConfig(config: InsertLlmConfig): Promise<LlmConfig> { throw new Error("Not implemented"); }
   async updateLlmConfig(id: number, updates: Partial<LlmConfig>): Promise<LlmConfig | undefined> { return undefined; }
   async deleteLlmConfig(id: number): Promise<boolean> { return false; }
+  async createUserFeedback(feedback: InsertUserFeedback): Promise<UserFeedback> { throw new Error("Not implemented"); }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4578,6 +4583,14 @@ export class DatabaseStorage implements IStorage {
   async deleteLlmConfig(id: number): Promise<boolean> {
     const result = await db.delete(llmConfigs).where(eq(llmConfigs.id, id));
     return true;
+  }
+
+  async createUserFeedback(feedback: InsertUserFeedback): Promise<UserFeedback> {
+    const [result] = await db.insert(userFeedback).values({
+      ...feedback,
+      createdAt: new Date().toISOString(),
+    }).returning();
+    return result;
   }
 }
 

@@ -32,6 +32,7 @@ import {
   Scroll,
   Wand2,
 } from "lucide-react";
+import { FeedbackWidget } from "@/components/ui/feedback-widget";
 
 interface GuideSection {
   id: string;
@@ -284,7 +285,11 @@ export function HowToPlayPanel({ triggerClassName, variant = 'icon' }: HowToPlay
               ))}
             </Accordion>
             
-            <div className="mt-6 p-4 rounded-lg bg-gradient-to-br from-amber-500/10 to-orange-500/5 border border-amber-500/20">
+            <div className="mt-6">
+              <FeedbackWidget variant="inline" />
+            </div>
+
+            <div className="mt-4 p-4 rounded-lg bg-gradient-to-br from-amber-500/10 to-orange-500/5 border border-amber-500/20">
               <div className="flex items-start gap-3">
                 <Sparkles className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
                 <div>

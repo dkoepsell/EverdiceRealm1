@@ -2461,3 +2461,20 @@ export const insertLlmConfigSchema = createInsertSchema(llmConfigs).omit({
 
 export type InsertLlmConfig = z.infer<typeof insertLlmConfigSchema>;
 export type LlmConfig = typeof llmConfigs.$inferSelect;
+
+export const userFeedback = pgTable("user_feedback", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id"),
+  feltConfusing: boolean("felt_confusing").notNull().default(false),
+  feltSlow: boolean("felt_slow").notNull().default(false),
+  wouldUse: boolean("would_use").notNull().default(false),
+  comment: text("comment"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertUserFeedbackSchema = createInsertSchema(userFeedback).omit({
+  id: true,
+});
+
+export type InsertUserFeedback = z.infer<typeof insertUserFeedbackSchema>;
+export type UserFeedback = typeof userFeedback.$inferSelect;

@@ -13,6 +13,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import InvitationAlert from "@/components/InvitationAlert";
 import parchmentFrame from "@assets/image_1768600727955.png";
+import { FeedbackWidget } from "@/components/ui/feedback-widget";
 
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
@@ -128,6 +129,7 @@ function App() {
           <AuthProvider>
             <Toaster />
             <Router />
+            <FeedbackWidget variant="floating" />
           </AuthProvider>
         </TooltipProvider>
       </ThemeProvider>
