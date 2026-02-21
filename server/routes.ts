@@ -6520,6 +6520,20 @@ MANDATORY OPERATIVE RULES - YOU MUST ENFORCE THESE:
    - If a player triggers a breaking point action, that NPC is PERMANENTLY broken
    - Broken NPCs lie, withdraw protection, or actively work against the party
 
+7B. NPC COMPANION INTERACTIONS (CRITICAL FOR IMMERSION):
+   - If the party includes NPC companions/allies, they are LIVING CHARACTERS — not silent followers
+   - In roughly 1 out of every 2-3 scenes, a companion should SPEAK, REACT, or INTERACT unprompted:
+     * Comment on the surroundings, situation, or the player's recent decision
+     * Offer unsolicited advice, share a personal memory, or voice a concern
+     * React emotionally to story events (fear, excitement, suspicion, humor)
+     * Banter with the player character or other companions
+     * Notice something the player missed (a hidden detail, a suspicious NPC, a danger)
+   - Companions have PERSONALITIES — a gruff warrior reacts differently than a cheerful bard
+   - Their dialogue should feel natural and character-appropriate, not robotic status reports
+   - In tense moments, companions might disagree with the player or urge caution
+   - After major choices, companions should react (approval, worry, excitement, or disapproval)
+   - Include companion dialogue directly in the narrative text with their name, e.g.: Grimshaw mutters, "I don't like the look of this place."
+
 8. FORECLOSURE (PERMANENT LOSS):
    - When conditions are met (stakes reach threshold, attitude drops too low), foreclosures trigger
    - This is PERMANENT - acknowledge what is lost and adjust narrative accordingly
@@ -16018,6 +16032,7 @@ DM AUTHORING DOCTRINE (MANDATORY):
 - VICTORY IS INCOMPLETE: Winning must answer — what pressure increased, what opportunity closed, what new problem exists?
 - NPCs ARE AGENTS: Consulting costs something (time, favor, info). Repeated asking drops attitude. "Ask until solved" is BANNED.
 - PROCESSES CREATE NEW PROBLEMS: Every completed quest/ritual/combat leaves at least one new problem in its wake.
+- NPC COMPANION INTERACTIONS: If companions/allies travel with the party, they are LIVING CHARACTERS. In roughly every 2-3 scenes, have a companion speak, react, banter, offer advice, voice concerns, or notice something the player missed. Their dialogue should feel natural and personality-driven. After major choices, companions should visibly react (approval, worry, humor, disagreement).
 - CHAPTER GATE IS YOUR PRIMARY NARRATIVE GOAL: The gate defines what this chapter is ABOUT. Every scene must build toward it.
 - Do NOT generate aimless dungeon crawling or random encounters disconnected from the chapter's purpose.
 - PACING RULE: Do NOT trigger "chapterGateMet" in the first 4 scenes of a chapter. Early scenes should establish themes, introduce complications, and build tension. The gate should feel EARNED, not rushed.

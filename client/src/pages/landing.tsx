@@ -6,7 +6,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { 
   Sparkles, 
   Users, 
-  Dice5, 
   BookOpen, 
   ArrowRight, 
   Map,
@@ -18,59 +17,13 @@ import {
   Wand2,
   Compass,
   Crown,
-  MessageCircle,
   Shield,
   Play
 } from "lucide-react";
 import { SiDiscord } from "react-icons/si";
 import { motion } from "framer-motion";
 import everdiceBackground from "@assets/image_1768599782346.png";
-import creatorAvatar from "@assets/image_1769476073776.png";
 import GuestQuickPlay from "@/components/GuestQuickPlay";
-
-const features = [
-  {
-    icon: Sparkles,
-    title: "Dynamic Storytelling",
-    description: "Get narratives, NPC dialogue, and story hooks generated on the fly to keep adventures fresh."
-  },
-  {
-    icon: Dice5,
-    title: "Built-in Dice Roller",
-    description: "Roll any dice from d4 to d100 with advantage, modifiers, and automatic critical detection."
-  },
-  {
-    icon: BookOpen,
-    title: "Campaigns That Remember",
-    description: "Characters, quests, and story arcs persist between sessions. Pick up right where you left off."
-  },
-  {
-    icon: Shield,
-    title: "SRD 5e Rules Library",
-    description: "Access spells, monsters, classes, and rules from the official D&D 5e System Reference Document."
-  }
-];
-
-const audienceBlocks = [
-  {
-    icon: Heart,
-    title: "For parents",
-    description: "A safe, ad-free way to introduce kids to collaborative storytelling and imagination.",
-    color: "text-rose-400"
-  },
-  {
-    icon: GraduationCap,
-    title: "For teachers and clubs",
-    description: "A structured environment for teamwork, reading, and creative play.",
-    color: "text-blue-400"
-  },
-  {
-    icon: Wand2,
-    title: "For first-time Dungeon Masters",
-    description: "Guidance without loss of control. You stay the DM. Everdice just keeps things organized.",
-    color: "text-purple-400"
-  }
-];
 
 export default function LandingPage() {
   const { user } = useAuth();
@@ -80,7 +33,6 @@ export default function LandingPage() {
   const [hasPlayedAsGuest, setHasPlayedAsGuest] = useState(false);
   
   useEffect(() => {
-    // Check if user has already played as guest
     const guestPlayed = localStorage.getItem('everdice_guest_played');
     setHasPlayedAsGuest(!!guestPlayed);
   }, []);
@@ -101,16 +53,13 @@ export default function LandingPage() {
   }, []);
   
   const handleGuestPlayComplete = () => {
-    // Mark that guest has played
     localStorage.setItem('everdice_guest_played', 'true');
     setShowGuestPlay(false);
-    // Redirect to Hearth with signup prompt
     setLocation('/hearth?welcome=guest');
   };
   
   const handleGuestPlayStart = () => {
     if (hasPlayedAsGuest) {
-      // Already played, redirect to auth
       setLocation('/auth');
     } else {
       setShowGuestPlay(true);
@@ -139,32 +88,31 @@ export default function LandingPage() {
               transition={{ duration: 0.6 }}
             >
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-5 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 bg-clip-text text-transparent leading-tight tracking-tight">
-                Play D&D your way — solo, together, or as a Dungeon Master.
+                Play D&D without the friction.
               </h1>
               
               <p 
-                className="text-lg leading-relaxed mb-4 max-w-[640px] mx-auto"
-                style={{ color: 'rgba(255,255,255,0.85)' }}
+                className="text-xl leading-relaxed mb-4 max-w-[640px] mx-auto font-medium"
+                style={{ color: 'rgba(255,255,255,0.9)' }}
               >
-                Everdice helps people start and keep playing Dungeons & Dragons without pressure, prep overload, or complicated virtual tabletops.
+                Solo. With friends. Or as the Dungeon Master.
               </p>
 
               <p 
-                className="text-base mb-8 max-w-[580px] mx-auto"
-                style={{ color: '#C9B896' }}
+                className="text-base mb-6 max-w-[600px] mx-auto leading-relaxed"
+                style={{ color: 'rgba(255,255,255,0.75)' }}
               >
-                It works just as well for a first-ever adventure as it does for long-running campaigns that need continuity and structure.
+                Everdice helps you start and keep playing Dungeons & Dragons without prep overload, social pressure, or complicated virtual tabletops.
               </p>
 
               <p 
-                className="text-sm font-medium mb-6"
+                className="text-sm font-medium mb-8"
                 style={{ color: '#E6C77A' }}
               >
                 Beginner-friendly. DM-respectful. Free during beta.
               </p>
 
               <div className="flex flex-col items-center gap-4">
-                {/* Primary CTA - Play Now (Guest or Logged In) */}
                 {user ? (
                   <Link href="/dashboard">
                     <Button 
@@ -183,7 +131,7 @@ export default function LandingPage() {
                       className="text-lg px-10 py-7 font-bold bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-xl shadow-emerald-500/30 animate-pulse hover:animate-none"
                     >
                       <Play className="mr-2 h-6 w-6" />
-                      {hasPlayedAsGuest ? "Sign Up to Keep Playing" : "Play D&D Now — No Account Needed"}
+                      {hasPlayedAsGuest ? "Sign Up to Keep Playing" : "Start Your Adventure"}
                     </Button>
                     
                     <p className="text-xs text-muted-foreground/70">
@@ -208,17 +156,8 @@ export default function LandingPage() {
                 
                 {!user && (
                   <p className="text-sm text-muted-foreground/80 mt-2">
-                    Safe for families • You stay in control • No cost to try
+                    Safe for families &bull; You stay in control &bull; No cost to try
                   </p>
-                )}
-                
-                {userCount > 0 && (
-                  <div className="flex flex-wrap justify-center gap-3 mt-6">
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">
-                      <Users className="h-3 w-3" />
-                      <span>{userCount.toLocaleString()} adventurers have joined</span>
-                    </div>
-                  </div>
                 )}
               </div>
             </motion.div>
@@ -228,7 +167,7 @@ export default function LandingPage() {
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
       </section>
 
-      {/* Why Everdice Exists */}
+      {/* The Core Problem */}
       <section className="container mx-auto px-4 py-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -236,22 +175,40 @@ export default function LandingPage() {
           viewport={{ once: true }}
           className="max-w-2xl mx-auto text-center"
         >
-          <h2 className="text-2xl md:text-3xl font-bold mb-6">
-            Why Everdice Exists
+          <h2 className="text-2xl md:text-3xl font-bold mb-4">
+            Why Most Campaigns Fade
           </h2>
-          <p className="text-muted-foreground text-lg leading-relaxed mb-4">
-            Most people don't stop playing D&D because they don't love it.
+          <p className="text-muted-foreground text-lg leading-relaxed mb-6">
+            People don't stop playing D&D because they stop loving it.
           </p>
           <p className="text-muted-foreground leading-relaxed mb-6">
-            They stop because schedules clash, tables drift, or getting started feels harder than it should.
+            They stop because:
           </p>
-          <p className="text-foreground leading-relaxed">
-            Everdice is built to remove those barriers. You can play solo, learn the game at your own pace, bring friends in later, or step into the DM role when you're ready. The system supports you without taking over.
+          <div className="grid grid-cols-2 gap-3 max-w-md mx-auto mb-8">
+            {[
+              "Scheduling gets hard",
+              "Prep becomes overwhelming",
+              "Story details get lost",
+              "New players feel intimidated"
+            ].map((reason) => (
+              <div key={reason} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="h-1.5 w-1.5 rounded-full bg-amber-500 flex-shrink-0" />
+                {reason}
+              </div>
+            ))}
+          </div>
+          <p className="text-foreground leading-relaxed font-medium mb-2">
+            Everdice removes those barriers.
           </p>
+          <div className="text-muted-foreground text-sm leading-relaxed space-y-1">
+            <p>You can play solo to learn.</p>
+            <p>Invite friends when you're ready.</p>
+            <p>Step into the DM role with structure that supports you without taking over.</p>
+          </div>
         </motion.div>
       </section>
 
-      {/* Choose How You Want to Play */}
+      {/* How You Want to Play */}
       <section className="container mx-auto px-4 py-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -260,15 +217,11 @@ export default function LandingPage() {
           className="text-center mb-10"
         >
           <h2 className="text-2xl md:text-3xl font-bold mb-3">
-            Choose How You Want to Play
+            Start Where You Are
           </h2>
-          <p className="text-muted-foreground max-w-lg mx-auto">
-            Most people begin solo. Many invite others on their second or third visit.
-          </p>
         </motion.div>
 
         <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {/* Solo */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -282,15 +235,14 @@ export default function LandingPage() {
                     <Compass className="h-8 w-8 text-white" />
                   </div>
                   <h3 className="text-xl font-bold mb-2">Play Solo</h3>
-                  <p className="text-muted-foreground text-sm mb-4">
-                    Learn D&D through story and play. No pressure. No audience. Just you, the world, and the dice.
+                  <p className="text-muted-foreground text-sm">
+                    Learn through story and exploration. No audience. No pressure.
                   </p>
                 </CardContent>
               </Card>
             </Link>
           </motion.div>
 
-          {/* Together */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -304,15 +256,14 @@ export default function LandingPage() {
                     <Users className="h-8 w-8 text-white" />
                   </div>
                   <h3 className="text-xl font-bold mb-2">Play Together</h3>
-                  <p className="text-muted-foreground text-sm mb-4">
-                    Run co-op adventures with friends or family. Invite your party when it makes sense.
+                  <p className="text-muted-foreground text-sm">
+                    Invite friends or family. Run co-op adventures at your pace.
                   </p>
                 </CardContent>
               </Card>
             </Link>
           </motion.div>
 
-          {/* Run Games */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -326,8 +277,8 @@ export default function LandingPage() {
                     <Crown className="h-8 w-8 text-white" />
                   </div>
                   <h3 className="text-xl font-bold mb-2">Run Games</h3>
-                  <p className="text-muted-foreground text-sm mb-4">
-                    Try being the Dungeon Master with guided setup and structure that helps without railroading.
+                  <p className="text-muted-foreground text-sm">
+                    Become the Dungeon Master with guided setup that respects your authority.
                   </p>
                 </CardContent>
               </Card>
@@ -336,7 +287,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* What You Get */}
+      {/* What Everdice Actually Does */}
       <section className="container mx-auto px-4 py-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -344,22 +295,27 @@ export default function LandingPage() {
           viewport={{ once: true }}
           className="max-w-3xl mx-auto"
         >
-          <div className="text-center mb-8">
+          <div className="text-center mb-4">
             <h2 className="text-2xl md:text-3xl font-bold mb-4">
-              Everything You Need to Play
+              What Everdice Actually Does
             </h2>
-            <p className="text-muted-foreground max-w-xl mx-auto leading-relaxed">
-              Everdice handles the complexity so you can focus on the story.
+            <p className="text-muted-foreground max-w-xl mx-auto leading-relaxed mb-2">
+              Everdice isn't a replacement for D&D.
+            </p>
+            <p className="text-foreground font-medium max-w-xl mx-auto leading-relaxed mb-8">
+              It's a memory engine for your campaign.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
+          <p className="text-center text-muted-foreground mb-6">It keeps track of:</p>
+
+          <div className="grid md:grid-cols-2 gap-4 mb-8">
             {[
-              "Character creation and management",
-              "Initiative and combat tracking",
-              "Quest and inventory systems",
-              "Auto-generated NPCs and locations",
-              "Spell book with slot tracking",
+              "Characters and progression",
+              "Combat and initiative",
+              "Quests and inventory",
+              "NPCs and locations",
+              "Spell slots and abilities",
               "Session notes and recaps"
             ].map((item) => (
               <div key={item} className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border border-border/50">
@@ -368,34 +324,101 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+
+          <div className="text-center space-y-1 text-muted-foreground">
+            <p className="text-foreground font-medium">You tell the story.</p>
+            <p>Everdice handles the bookkeeping.</p>
+          </div>
         </motion.div>
       </section>
 
-      {/* Feature Icons Section */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-          {features.map((feature, i) => (
-            <motion.div
-              key={feature.title}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-            >
-              <Card className="h-full hover:shadow-lg hover:border-primary/30 transition-all duration-300 bg-card/50 backdrop-blur">
-                <CardContent className="pt-6">
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                    <feature.icon className="h-6 w-6 text-primary" />
-                  </div>
-                  <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    {feature.description}
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
+      {/* Campaigns That Remember */}
+      <section className="py-16 bg-gradient-to-b from-amber-950/10 to-transparent">
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="max-w-2xl mx-auto text-center"
+          >
+            <Sparkles className="h-10 w-10 mx-auto mb-4 text-amber-500" />
+            <h2 className="text-2xl md:text-3xl font-bold mb-6">
+              Campaigns That Remember
+            </h2>
+            <p className="text-foreground font-medium mb-6">Your world persists.</p>
+            <div className="space-y-2 text-muted-foreground mb-6">
+              <p>Characters grow.</p>
+              <p>Choices matter.</p>
+              <p>Story threads don't disappear.</p>
+            </div>
+            <p className="text-foreground font-medium">
+              Pick up right where you left off.
+            </p>
+          </motion.div>
         </div>
+      </section>
+
+      {/* For Dungeon Masters */}
+      <section className="container mx-auto px-4 py-16">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
+          <Card className="max-w-4xl mx-auto bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-purple-500/5 border-purple-500/20 overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
+            <CardContent className="p-8 md:p-12">
+              <div className="flex flex-col md:flex-row md:items-center gap-8">
+                <div className="flex-1">
+                  <div className="inline-flex items-center gap-2 bg-purple-500/10 text-purple-400 px-3 py-1 rounded-full text-sm font-medium mb-4">
+                    <Zap className="h-4 w-4" />
+                    For Dungeon Masters
+                  </div>
+                  <h2 className="text-2xl md:text-3xl font-bold mb-4">
+                    Run Your First Session in 5 Minutes
+                  </h2>
+                  <p className="text-muted-foreground mb-4">
+                    You don't need experience.
+                  </p>
+                  <p className="text-muted-foreground mb-6">
+                    Guided setup walks you through:
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-3 mb-6">
+                    {[
+                      { icon: Sparkles, text: "Creating your scenario" },
+                      { icon: Users, text: "Adding NPCs" },
+                      { icon: Map, text: "Setting the scene" },
+                      { icon: Play, text: "Starting play" }
+                    ].map(({ icon: Icon, text }) => (
+                      <div key={text} className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Icon className="h-4 w-4 text-purple-400" />
+                        {text}
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="text-foreground font-medium mb-6">
+                    No railroading. No AI takeover. You stay the DM.
+                  </p>
+
+                  <Link href={user ? "/dm-toolkit" : "/auth"}>
+                    <Button size="lg" className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 shadow-lg shadow-purple-500/25">
+                      <Zap className="h-5 w-5 mr-2" />
+                      Try DM Mode
+                    </Button>
+                  </Link>
+                </div>
+                
+                <div className="hidden md:block w-48 text-center">
+                  <div className="w-32 h-32 mx-auto rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center border border-purple-500/20">
+                    <BookOpen className="h-16 w-16 text-purple-400" />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       </section>
 
       {/* Discord Integration */}
@@ -412,11 +435,8 @@ export default function LandingPage() {
               Optional Integration
             </div>
             <h2 className="text-2xl md:text-3xl font-bold mb-3">
-              Works Where Your Group Already Is
+              Play Where Your Group Already Is
             </h2>
-            <p className="text-muted-foreground max-w-lg mx-auto">
-              If your group uses Discord, Everdice can meet you there.
-            </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
@@ -426,7 +446,7 @@ export default function LandingPage() {
               </div>
               <h3 className="font-semibold mb-2">Build in Everdice</h3>
               <p className="text-sm text-muted-foreground">
-                Create your campaign, NPCs, story, and structure here.
+                Build your campaign in Everdice.
               </p>
             </div>
 
@@ -434,9 +454,9 @@ export default function LandingPage() {
               <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-[#5865F2]/10 flex items-center justify-center text-[#5865F2] font-bold text-lg">
                 2
               </div>
-              <h3 className="font-semibold mb-2">Deploy to Discord</h3>
+              <h3 className="font-semibold mb-2">Link to Discord</h3>
               <p className="text-sm text-muted-foreground">
-                Link your campaign to your Discord server for sessions and coordination.
+                Link to your Discord server.
               </p>
             </div>
 
@@ -452,12 +472,12 @@ export default function LandingPage() {
           </div>
 
           <p className="text-center text-sm text-muted-foreground mt-8">
-            No lock-in. No forced workflow changes.
+            No lock-in. No workflow disruption.
           </p>
         </motion.div>
       </section>
 
-      {/* Audience Blocks */}
+      {/* Built for Real People */}
       <section className="py-16 bg-gradient-to-b from-amber-950/20 to-background">
         <div className="container mx-auto px-4">
           <motion.div
@@ -467,12 +487,31 @@ export default function LandingPage() {
             className="text-center mb-10"
           >
             <h2 className="text-xl md:text-2xl font-bold mb-3">
-              Designed for First Adventures and Long Campaigns
+              Built for Real People
             </h2>
           </motion.div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            {audienceBlocks.map((block, i) => (
+            {[
+              {
+                icon: Heart,
+                title: "Parents",
+                description: "Safe, ad-free collaborative storytelling.",
+                color: "text-rose-400"
+              },
+              {
+                icon: GraduationCap,
+                title: "Teachers & Clubs",
+                description: "Structured creative play and teamwork.",
+                color: "text-blue-400"
+              },
+              {
+                icon: Wand2,
+                title: "First-Time DMs",
+                description: "Guidance without losing control.",
+                color: "text-purple-400"
+              }
+            ].map((block, i) => (
               <motion.div
                 key={block.title}
                 initial={{ opacity: 0, y: 20 }}
@@ -498,88 +537,28 @@ export default function LandingPage() {
             viewport={{ once: true }}
             className="text-center text-sm text-muted-foreground mt-8"
           >
-            No public exposure. No social pressure. Explore freely.
+            No public exposure. No social pressure.
           </motion.p>
         </div>
       </section>
 
-      {/* Run Your First Session */}
-      <section className="container mx-auto px-4 py-16">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-        >
-          <Card className="max-w-4xl mx-auto bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-purple-500/5 border-purple-500/20 overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
-            <CardContent className="p-8 md:p-12">
-              <div className="flex flex-col md:flex-row md:items-center gap-8">
-                <div className="flex-1">
-                  <div className="inline-flex items-center gap-2 bg-purple-500/10 text-purple-400 px-3 py-1 rounded-full text-sm font-medium mb-4">
-                    <Zap className="h-4 w-4" />
-                    For Dungeon Masters
-                  </div>
-                  <h2 className="text-2xl md:text-3xl font-bold mb-4">
-                    Run Your First Session in About 5 Minutes
-                  </h2>
-                  <p className="text-muted-foreground mb-6">
-                    You don't need experience to start. Guided setup walks you through creating an adventure step by step. Add characters, set the scene, introduce NPCs, and start playing.
-                  </p>
-                  
-                  <p className="text-foreground font-medium mb-6">
-                    Tell the story. Everdice handles the bookkeeping.
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-3 mb-6">
-                    {[
-                      { icon: Clock, text: "5-minute setup" },
-                      { icon: Users, text: "Add NPCs easily" },
-                      { icon: Map, text: "Set your scene" },
-                      { icon: CheckCircle, text: "Start playing" }
-                    ].map(({ icon: Icon, text }) => (
-                      <div key={text} className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Icon className="h-4 w-4 text-purple-400" />
-                        {text}
-                      </div>
-                    ))}
-                  </div>
-
-                  <Link href={user ? "/dm-toolkit" : "/auth"}>
-                    <Button size="lg" className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 shadow-lg shadow-purple-500/25">
-                      <Zap className="h-5 w-5 mr-2" />
-                      Become a DM
-                    </Button>
-                  </Link>
-                </div>
-                
-                <div className="hidden md:block w-48 text-center">
-                  <div className="w-32 h-32 mx-auto rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center border border-purple-500/20">
-                    <BookOpen className="h-16 w-16 text-purple-400" />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </section>
-
-      {/* Living World Section */}
+      {/* A Living World */}
       <section className="container mx-auto px-4 py-16">
         <Card className="max-w-4xl mx-auto bg-gradient-to-r from-primary/10 to-amber-500/10 border-primary/20">
           <CardContent className="p-8 md:p-12 text-center">
             <Map className="h-12 w-12 mx-auto mb-4 text-amber-500" />
             <h2 className="text-2xl md:text-3xl font-bold mb-4">
-              A Living World to Explore
+              A Living World (Optional)
             </h2>
             <p className="text-muted-foreground mb-4 max-w-xl mx-auto">
-              Everdice includes a shared world with regions, quests, and narrative hooks ready to use or adapt.
+              Everdice includes a ready-to-use shared world.
             </p>
             <p className="text-muted-foreground mb-6 max-w-xl mx-auto text-sm">
-              Use it as written, remix it, or ignore it entirely. The world is there if you want it.
+              Use it as written. Remix it. Or ignore it entirely. The structure is there if you want it.
             </p>
             <Link href="/world-map">
               <Button variant="outline" size="lg">
-                View the World Map
+                Explore the World
                 <Map className="ml-2 h-4 w-4" />
               </Button>
             </Link>
@@ -594,9 +573,7 @@ export default function LandingPage() {
           <p className="text-muted-foreground mb-8">
             {user 
               ? "Continue your epic adventures." 
-              : hasPlayedAsGuest 
-                ? "Create a free account to save your progress and unlock full features."
-                : "Try D&D right now — no account needed. Create one later if you love it."}
+              : "Create a free account to save your progress and unlock full features."}
           </p>
           {!user && !hasPlayedAsGuest && (
             <Button 
@@ -605,7 +582,7 @@ export default function LandingPage() {
               className="text-lg px-10 py-6 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600"
             >
               <Play className="mr-2 h-5 w-5" />
-              Play D&D Now
+              Start Your Adventure
             </Button>
           )}
           {!user && hasPlayedAsGuest && (
@@ -619,36 +596,19 @@ export default function LandingPage() {
           {user && (
             <Link href="/dashboard">
               <Button size="lg" className="text-lg px-10 py-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600">
-                Continue Your Adventure
+                Go to Dashboard
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
           )}
-          
-          <div className="mt-8 pt-6 border-t border-border/30 text-sm text-muted-foreground">
-            <span>Questions, bugs, or ideas? </span>
-            <a 
-              href="mailto:drkoepsell@gmail.com?subject=Everdice Feedback" 
-              className="text-amber-500 hover:text-amber-400 underline underline-offset-2"
-            >
-              Message KoeppyLoco
-            </a>
-            <span>. Every message gets read.</span>
-          </div>
+          {userCount > 0 && (
+            <p className="text-sm text-muted-foreground mt-6">
+              {userCount.toLocaleString()} adventurers have joined. Be one of the first to shape what this becomes.
+            </p>
+          )}
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border/30 py-8">
-        <div className="container mx-auto px-4 text-center">
-          <h3 className="text-lg font-semibold mb-2">Everdice</h3>
-          <p className="text-sm text-muted-foreground">
-            A companion for tabletop adventures.<br />
-            We handle the bookkeeping so you can focus on roleplaying and fun.
-          </p>
-        </div>
-      </footer>
-      
       {/* Guest Quick Play Modal */}
       {showGuestPlay && (
         <GuestQuickPlay 
