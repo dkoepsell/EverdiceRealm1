@@ -60,11 +60,11 @@ export function CombatLogPanel({ campaignId }: { campaignId: number }) {
 
   const getEntryColor = (type: string) => {
     switch (type) {
-      case 'combat': return 'border-l-red-500 bg-red-950/40';
-      case 'player_action': return 'border-l-blue-500 bg-blue-950/40';
-      case 'narrative': return 'border-l-amber-500 bg-amber-950/30';
-      case 'chapter_start': return 'border-l-purple-500 bg-purple-950/40';
-      default: return 'border-l-gray-400 bg-gray-950/30';
+      case 'combat': return 'border-l-red-500 bg-slate-800';
+      case 'player_action': return 'border-l-blue-500 bg-slate-800';
+      case 'narrative': return 'border-l-amber-500 bg-slate-800';
+      case 'chapter_start': return 'border-l-purple-500 bg-slate-800';
+      default: return 'border-l-gray-400 bg-slate-800';
     }
   };
 
@@ -157,10 +157,10 @@ export function CombatLogPanel({ campaignId }: { campaignId: number }) {
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-slate-300">
                       Scene {entry.sessionNumber}
                     </span>
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-slate-300">
                       {formatTime(entry.timestamp)}
                     </span>
                   </div>
@@ -194,7 +194,7 @@ export function CombatLogPanel({ campaignId }: { campaignId: number }) {
                         </div>
                       )}
                       {entry.description && (
-                        <p className="text-xs text-slate-400 italic mt-1">{entry.description}</p>
+                        <p className="text-xs text-slate-200 italic mt-1">{entry.description}</p>
                       )}
                     </div>
                   ) : entry.type === 'player_action' ? (
@@ -214,7 +214,7 @@ export function CombatLogPanel({ campaignId }: { campaignId: number }) {
                     </p>
                   ) : (
                     <div>
-                      <p className={`text-sm text-slate-300 leading-relaxed ${
+                      <p className={`text-sm text-slate-100 leading-relaxed ${
                         !isExpanded && isLongText ? 'line-clamp-3' : ''
                       }`}>
                         {entry.text}
@@ -222,7 +222,7 @@ export function CombatLogPanel({ campaignId }: { campaignId: number }) {
                       {isLongText && (
                         <button
                           onClick={() => toggleExpand(index)}
-                          className="flex items-center gap-1 mt-1 text-xs text-amber-600 hover:text-amber-800 font-medium"
+                          className="flex items-center gap-1 mt-1 text-xs text-amber-400 hover:text-amber-300 font-medium"
                         >
                           {isExpanded ? (
                             <><ChevronUp className="h-3 w-3" /> Show less</>
