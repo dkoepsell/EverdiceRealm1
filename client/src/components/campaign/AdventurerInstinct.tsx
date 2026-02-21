@@ -233,12 +233,12 @@ export function AdventurerInstinct({ character, campaignId, isDM, userId, sessio
                 <p className="text-sm font-medium text-amber-300">{nudge.title}</p>
                 <button
                   onClick={() => dismissNudge(nudge.id)}
-                  className="text-amber-500/40 hover:text-amber-400 transition-colors flex-shrink-0"
+                  className="text-amber-500/60 hover:text-amber-400 transition-colors flex-shrink-0"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <p className="text-xs text-amber-200/60 mt-0.5 leading-relaxed italic">
+              <p className="text-sm text-slate-200 mt-0.5 leading-relaxed italic">
                 {nudge.message}
               </p>
               {nudge.actionLabel && nudge.actionPath && (
@@ -285,29 +285,29 @@ export function FirstSessionTips({ character, sessionCount }: { character: Chara
   const tip = tips[tipIndex];
 
   return (
-    <div className="p-3 rounded-lg bg-gradient-to-r from-slate-800/50 to-slate-900/30 border border-slate-600/20 mb-4 animate-in fade-in duration-700">
+    <div className="p-3 rounded-lg bg-slate-800 border border-slate-600/40 mb-4 animate-in fade-in duration-700">
       <div className="flex items-start gap-3">
-        <div className="p-1.5 rounded-md bg-slate-700/50">
-          <tip.icon className="h-4 w-4 text-slate-400" />
+        <div className="p-1.5 rounded-md bg-amber-900/50">
+          <tip.icon className="h-4 w-4 text-amber-400" />
         </div>
         <div className="flex-1">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-slate-400">Tavern Wisdom</p>
+            <p className="text-xs font-semibold text-amber-400">Tavern Wisdom</p>
             <button
               onClick={() => setDismissed(true)}
-              className="text-slate-600 hover:text-slate-400 transition-colors"
+              className="text-slate-400 hover:text-slate-200 transition-colors"
             >
               <X className="h-3 w-3" />
             </button>
           </div>
-          <p className="text-xs text-slate-400/80 mt-0.5 italic leading-relaxed">
+          <p className="text-sm text-slate-200 mt-1 italic leading-relaxed">
             "{tip.text}"
           </p>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => navigate('/tavern')}
-            className="mt-1.5 h-6 px-2 text-[10px] text-slate-500 hover:text-slate-300 hover:bg-slate-700/50"
+            className="mt-1.5 h-6 px-2 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-900/30"
           >
             Visit the Tavern
             <ArrowRight className="h-2.5 w-2.5 ml-1" />
