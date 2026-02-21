@@ -49,6 +49,7 @@ interface GenerateCampaignRequest {
   difficulty?: string;
   narrativeStyle?: string;
   numberOfSessions?: number;
+  mainHook?: string;
 }
 
 type FormValues = z.infer<typeof createCampaignSchema>;
@@ -61,9 +62,10 @@ const difficulties = [
 
 // Campaign length determines the number of chapters
 const campaignLengths = [
-  { value: "quick", label: "Quick Adventure", chapters: "3 chapters", time: "~30 minutes", description: "A short, focused adventure perfect for one session" },
-  { value: "standard", label: "Standard Quest", chapters: "4-5 chapters", time: "~1 hour", description: "A balanced story with room for exploration" },
-  { value: "epic", label: "Epic Saga", chapters: "6-8 chapters", time: "~2 hours", description: "A sprawling adventure with multiple story arcs" },
+  { value: "quick", label: "Quick Adventure", chapters: "3 chapters", time: "~30 min", description: "A short, focused adventure perfect for one sitting" },
+  { value: "standard", label: "Standard Quest", chapters: "5-6 chapters", time: "~1-2 hours", description: "A balanced story with room for exploration" },
+  { value: "epic", label: "Epic Saga", chapters: "8-10 chapters", time: "~3-4 hours", description: "A sprawling adventure with multiple story arcs" },
+  { value: "legendary", label: "Legendary Campaign", chapters: "12-15 chapters", time: "~6+ hours", description: "A sweeping multi-session saga across many sessions" },
 ];
 
 const narrativeStyles = [
@@ -131,6 +133,7 @@ export default function Campaigns() {
       userId: 1, // Default to first user for demo
       title: "",
       description: "",
+      mainHook: "",
       difficulty: "",
       narrativeStyle: "",
       campaignLength: "standard",
@@ -163,11 +166,13 @@ export default function Campaigns() {
         form.setValue("narrativeStyle", campaignNarrativeStyle);
       }
       
+      const mainHook = form.getValues().mainHook;
       const generateRequest: GenerateCampaignRequest = {
         theme: campaignTheme || undefined,
         difficulty: campaignDifficulty,
         narrativeStyle: campaignNarrativeStyle,
-        numberOfSessions: 5
+        numberOfSessions: 5,
+        mainHook: mainHook || undefined
       };
       
       console.log("Sending request to generate campaign:", generateRequest);
@@ -336,7 +341,7 @@ export default function Campaigns() {
                           
                           <div className="flex flex-wrap gap-1.5 mb-4">
                             <Badge variant="secondary" className="text-xs">
-                              {campaign.campaignLength === 'quick' ? 'Quick' : campaign.campaignLength === 'epic' ? 'Epic' : 'Standard'}
+                              {campaign.campaignLength === 'quick' ? 'Quick' : campaign.campaignLength === 'epic' ? 'Epic' : campaign.campaignLength === 'legendary' ? 'Legendary' : 'Standard'}
                             </Badge>
                             <Badge variant="secondary" className="text-xs">
                               {campaign.totalChapters || 5} chapters
@@ -534,6 +539,27 @@ export default function Campaigns() {
                         </FormControl>
                         <FormDescription>
                           This will help the AI understand the type of adventure you want
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="mainHook"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Main Hook <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder='e.g. "A cursed artifact is corrupting the forest" or "The king has been replaced by a shapeshifter"' 
+                            {...field} 
+                            value={field.value || ''}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          The central mystery, conflict, or premise that drives your campaign. The AI will weave the entire story around this hook.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

@@ -178,7 +178,8 @@ export const campaigns = pgTable("campaigns", {
   description: text("description"),
   difficulty: text("difficulty").notNull(),
   narrativeStyle: text("narrative_style").notNull(),
-  campaignLength: text("campaign_length").default('standard'), // quick, standard, or epic
+  campaignLength: text("campaign_length").default('standard'), // quick, standard, epic, or legendary
+  mainHook: text("main_hook"), // Player-provided central premise/hook for the campaign
   currentSession: integer("current_session").notNull().default(1),
   totalChapters: integer("total_chapters").notNull().default(5), // Total chapters in campaign
   currentTurnUserId: integer("current_turn_user_id"), // Current player's turn

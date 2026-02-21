@@ -3425,6 +3425,18 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           </div>
                         )}
                         
+                        {/* Session Breakpoint — "Good stopping point" indicator */}
+                        {!isAdvancingStory && parsedStoryState?.sessionBreakpoint && (
+                          <div className="mt-4 p-3 rounded-lg bg-gradient-to-r from-emerald-900/40 to-teal-900/30 border border-emerald-500/30 animate-in fade-in slide-in-from-bottom-2 duration-700">
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                              <span className="text-sm font-medium text-emerald-300">Good stopping point</span>
+                              <span className="text-xs text-emerald-400/70 ml-auto">Your progress is saved automatically</span>
+                            </div>
+                            <p className="text-xs text-emerald-300/60 mt-1 ml-4">This is a natural pause in the story. You can come back anytime and pick up right here.</p>
+                          </div>
+                        )}
+                        
                         {/* Choices loading indicator — shows briefly before choices appear */}
                         {!isAdvancingStory && !choicesRevealed && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 && (
                           <div className="mt-6 pt-5 border-t border-amber-500/30 animate-in fade-in duration-300">

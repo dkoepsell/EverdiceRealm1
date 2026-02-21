@@ -4047,7 +4047,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         theme: req.body.theme,
         difficulty: req.body.difficulty,
         narrativeStyle: req.body.narrativeStyle,
-        numberOfSessions: req.body.numberOfSessions
+        numberOfSessions: req.body.numberOfSessions,
+        mainHook: req.body.mainHook
       };
       
       const generatedCampaign = await generateCampaign(campaignRequest);
@@ -4080,13 +4081,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalChapters = 3; // Quick Adventure: 3 chapters (~30 min)
           break;
         case 'epic':
-          // Epic Saga: 6-8 chapters (~2 hours) - randomize within range
-          totalChapters = 6 + Math.floor(Math.random() * 3); // 6, 7, or 8
+          totalChapters = 8 + Math.floor(Math.random() * 3); // 8, 9, or 10
+          break;
+        case 'legendary':
+          totalChapters = 12 + Math.floor(Math.random() * 4); // 12, 13, 14, or 15
           break;
         case 'standard':
         default:
-          // Standard Quest: 4-5 chapters (~1 hour) - randomize within range
-          totalChapters = 4 + Math.floor(Math.random() * 2); // 4 or 5
+          totalChapters = 5 + Math.floor(Math.random() * 2); // 5 or 6
           break;
       }
       
@@ -4216,11 +4218,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ).join("\n");
         }
         
+        const mainHookContext = (campaign as any).mainHook ? `\nCAMPAIGN MAIN HOOK: "${(campaign as any).mainHook}"\nThis is the central premise driving the entire campaign. Every chapter and scene should connect back to this hook. Introduce it naturally in the opening scene.` : '';
+        
         const prompt = `
 You are an expert Dungeon Master using STATE-FIRST storytelling (CAML principles).
 Campaign: ${campaign.title}. ${campaign.description || ""}
 Difficulty level: ${campaign.difficulty || "Normal - Balanced Challenge"}
 Narrative Style: ${campaign.narrativeStyle || "descriptive"}
+${mainHookContext}
 ${initialStateContext}
 
 CAML STORYTELLING PRINCIPLES:
@@ -6336,10 +6341,19 @@ CAML STORY SPINE — YOUR NARRATIVE COMPASS (FOLLOW THIS):
 
 CAMPAIGN QUESTION (the thematic heart — every scene must relate to this):
 "${(campaign as any).campaignQuestion || 'What choices define who we become?'}"
-
+${(campaign as any).mainHook ? `\nCAMPAIGN MAIN HOOK (the central premise — weave this into every chapter):\n"${(campaign as any).mainHook}"\n` : ''}
 OVERALL ARC: Chapter ${currentChapterNum} of ${totalChapters}
 - Scenes played so far: ${allSessions.length}
 - Scenes in current chapter: ${scenesInCurrentChapter}
+
+SESSION CLOSURE BEATS (CRITICAL FOR PLAYER RETENTION):
+- Every 4-6 scenes within a chapter, create a NATURAL STOPPING POINT — a moment of closure
+- These are NOT chapter endings — they are satisfying pauses WITHIN a chapter
+- Good stopping points include: arriving somewhere new, completing a sub-task, a campfire/rest moment, a dramatic reveal, reuniting with allies, receiving a quest reward, or a cliffhanger that makes the player eager to return
+- When you create a stopping point, set "sessionBreakpoint": true in your response
+- The stopping point should feel EARNED and COMPLETE — not abrupt
+- End stopping point scenes with a forward hook: hint at what comes next, an unanswered question, or a new threat on the horizon
+- Think of it like a TV episode ending: resolve the immediate tension, but leave threads that pull the viewer back
 `;
 
       if (completedGates.length > 0) {
@@ -6593,6 +6607,7 @@ Return your response as a JSON object with these fields:
     DELTA SIZING: Use delta ±1 for minor/indirect effects. Use delta ±2 for DECISIVE player choices that clearly commit to one direction (e.g., "harness the dark power" = +2, "destroy the artifact" = -2). The player's INTENT matters — if they chose something dramatic, the world should respond dramatically.
     ANTI-OSCILLATION: Do NOT reverse a stake change in the very next scene unless something dramatically changed. If a player chose to embrace blood magic and the stake went +2, it should NOT go -1 next turn just because "the situation calmed." Momentum matters — committed choices have lasting effects.
 - chapterGateMet: (OPTIONAL) If the chapter gate's required truth/commitment/belief was achieved THIS scene, include: { "gateId": chapter_number, "reason": "what was learned/committed/changed" }
+- sessionBreakpoint: (OPTIONAL, boolean) Set to true when this scene is a NATURAL STOPPING POINT — a satisfying moment of closure within the chapter where a player could save and return later. Should occur roughly every 4-6 scenes. The narrative should resolve immediate tension while leaving forward hooks.
 - narrativeLogEntry: (REQUIRED) Object with:
   - xpReason: Why XP was awarded this scene (or "No XP — no meaningful resolution")
   - stakeReason: Which campaign stakes changed and why (one sentence)
@@ -16281,10 +16296,18 @@ CAML STORY SPINE — YOUR NARRATIVE COMPASS (FOLLOW THIS):
 
 CAMPAIGN QUESTION (the thematic heart — every scene must relate to this):
 "${(campaign as any).campaignQuestion || 'What choices define who we become?'}"
-
+${(campaign as any).mainHook ? `\nCAMPAIGN MAIN HOOK (the central premise — weave this into every chapter):\n"${(campaign as any).mainHook}"\n` : ''}
 OVERALL ARC: Chapter ${currentChapter} of ${totalChapters}
 - Scenes played so far: ${allCampaignSessions.length}
 - Scenes in current chapter: ${scenesInChapter2}
+
+SESSION CLOSURE BEATS (CRITICAL FOR PLAYER RETENTION):
+- Every 4-6 scenes within a chapter, create a NATURAL STOPPING POINT — a moment of closure
+- These are NOT chapter endings — they are satisfying pauses WITHIN a chapter
+- Good stopping points include: arriving somewhere new, completing a sub-task, a campfire/rest moment, a dramatic reveal, reuniting with allies, receiving a quest reward, or a cliffhanger that makes the player eager to return
+- When you create a stopping point, set "sessionBreakpoint": true in your response
+- The stopping point should feel EARNED and COMPLETE — not abrupt
+- End stopping point scenes with a forward hook: hint at what comes next, an unanswered question, or a new threat on the horizon
 `;
 
       if (completedGates2.length > 0) {
@@ -16718,6 +16741,7 @@ Respond with JSON:
   "factionUpdates": [{"factionId": "faction.id", "strengthDelta": 5, "action": "What the faction did this scene (visible or behind-the-scenes)", "reason": "Why their strength changed"}],
   "instabilityUpdate": {"delta": 1, "manifestation": "How the instability visibly changed this scene"},
   "chapterGateMet": {"gateId": 1, "reason": "What truth/belief/commitment was reached"},
+  "sessionBreakpoint": true,
   "narrativeLogEntry": {"xpReason": "Why XP was earned", "stakeReason": "Which stakes changed and why", "foreclosedReason": "What options closed", "choiceCost": "What the choice cost/closed/escalated"},
   "movement": {
     "occurred": true/false,
@@ -18380,7 +18404,8 @@ ${cachedNarrative}
           timestamp: new Date().toISOString()
         } : currentStoryState.lastMovement,
         session1Retention: updatedSession1Retention,
-        momentousChoices: currentStoryState.momentousChoices || []
+        momentousChoices: currentStoryState.momentousChoices || [],
+        sessionBreakpoint: storyAdvancement.sessionBreakpoint || false
       };
       
       // ═══════════════════════════════════════════════════════════════════

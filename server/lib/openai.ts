@@ -8,6 +8,7 @@ export interface CampaignGenerationRequest {
   difficulty?: string;
   narrativeStyle?: string;
   numberOfSessions?: number;
+  mainHook?: string;
 }
 
 // CAML 2.0 State-First Types
@@ -282,6 +283,7 @@ ${req.theme ? `Theme: ${req.theme}` : 'Theme: Fantasy (create a suitable theme i
 ${req.difficulty ? `Difficulty: ${req.difficulty}` : 'Difficulty: Normal (balanced challenge)'}
 ${req.narrativeStyle ? `Narrative Style: ${req.narrativeStyle}` : 'Narrative Style: Descriptive'}
 ${req.numberOfSessions ? `Expected Number of Sessions: ${req.numberOfSessions}` : 'Expected Number of Sessions: 5'}
+${req.mainHook ? `Main Hook / Central Premise: ${req.mainHook}\n(This is the player's desired central conflict or premise — weave the entire campaign around this hook. It should drive the campaign question, stakes, and narrative arc.)` : ''}
 
 ═══════════════════════════════════════════════════════════════════════════════
 DM AUTHORING DOCTRINE (MANDATORY - These are not suggestions, they are constraints)
