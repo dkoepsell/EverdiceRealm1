@@ -105,9 +105,13 @@ export function setupAuth(app: Express) {
         password: await hashPassword(req.body.password)
       });
 
-      req.login(user, (err) => {
+      req.login(user, async (err) => {
         if (err) return next(err);
-        // Don't send sensitive data back to client
+        try {
+          await storage.updateUser(user.id, { lastLogin: new Date().toISOString() });
+        } catch (e) {
+          console.warn("Failed to update lastLogin:", e);
+        }
         const { password, twoFactorSecret, ...userWithoutSensitive } = user;
         res.status(201).json(userWithoutSensitive);
       });
@@ -124,9 +128,13 @@ export function setupAuth(app: Express) {
       if (!user) {
         return res.status(401).json({ message: "Invalid username or password" });
       }
-      req.login(user, (err) => {
+      req.login(user, async (err) => {
         if (err) return next(err);
-        // Don't send sensitive data back to client
+        try {
+          await storage.updateUser(user.id, { lastLogin: new Date().toISOString() });
+        } catch (e) {
+          console.warn("Failed to update lastLogin:", e);
+        }
         const { password, twoFactorSecret, ...userWithoutSensitive } = user;
         res.status(200).json(userWithoutSensitive);
       });
@@ -142,13 +150,18 @@ export function setupAuth(app: Express) {
   });
 
   // Current user info endpoint
-  app.get("/api/user", (req, res) => {
+  app.get("/api/user", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Not authenticated" });
     }
-    // Don't send password and 2FA secret back to client
-    const { password, twoFactorSecret, ...userWithoutSensitive } = req.user as SelectUser;
-    res.json({ ...userWithoutSensitive, twoFactorEnabled: (req.user as SelectUser).twoFactorEnabled });
+    const currentUser = req.user as SelectUser;
+    const lastLogin = currentUser.lastLogin ? new Date(currentUser.lastLogin).getTime() : 0;
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    if (lastLogin < oneHourAgo) {
+      storage.updateUser(currentUser.id, { lastLogin: new Date().toISOString() }).catch(() => {});
+    }
+    const { password, twoFactorSecret, ...userWithoutSensitive } = currentUser;
+    res.json({ ...userWithoutSensitive, twoFactorEnabled: currentUser.twoFactorEnabled });
   });
 
   // Update profile endpoint

@@ -30,6 +30,8 @@ interface AdminUser {
   createdAt: string;
   characterCount: number;
   campaignCount: number;
+  totalEvents: number;
+  lastActivity: string | null;
 }
 
 interface AnalyticsOverview {
@@ -1031,7 +1033,8 @@ export default function AdminPage() {
                           <TableHead>Email</TableHead>
                           <TableHead>Characters</TableHead>
                           <TableHead>Campaigns</TableHead>
-                          <TableHead>Last Login</TableHead>
+                          <TableHead>Events</TableHead>
+                          <TableHead>Last Active</TableHead>
                           <TableHead>Role</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
@@ -1059,8 +1062,17 @@ export default function AdminPage() {
                             <TableCell>
                               <Badge variant="outline">{adminUser.campaignCount}</Badge>
                             </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary" className={adminUser.totalEvents > 0 ? "bg-blue-500/10 text-blue-600" : ""}>
+                                {adminUser.totalEvents}
+                              </Badge>
+                            </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
-                              {adminUser.lastLogin ? new Date(adminUser.lastLogin).toLocaleDateString() : 'Never'}
+                              {adminUser.lastActivity 
+                                ? new Date(adminUser.lastActivity).toLocaleDateString() + ' ' + new Date(adminUser.lastActivity).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                : adminUser.lastLogin 
+                                  ? new Date(adminUser.lastLogin).toLocaleDateString() 
+                                  : 'Never'}
                             </TableCell>
                             <TableCell>
                               {adminUser.isAdmin ? (

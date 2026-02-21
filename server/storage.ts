@@ -80,7 +80,8 @@ import {
   userFeedback, type UserFeedback, type InsertUserFeedback,
   playerHouses, type PlayerHouse, type InsertPlayerHouse,
   playerBank, type PlayerBank, type InsertPlayerBank,
-  capitalExploration, type CapitalExploration, type InsertCapitalExploration
+  capitalExploration, type CapitalExploration, type InsertCapitalExploration,
+  userActivityEvents
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or, inArray } from "drizzle-orm";
@@ -125,7 +126,7 @@ export interface IStorage {
   
   // Admin operations
   getAllUsers(): Promise<User[]>;
-  getAllUsersWithCharacterCounts(): Promise<Array<User & { characterCount: number; campaignCount: number }>>;
+  getAllUsersWithCharacterCounts(): Promise<Array<User & { characterCount: number; campaignCount: number; totalEvents: number; lastActivity: string | null }>>;
   
   // Campaign operations
   getAllCampaigns(): Promise<Campaign[]>;
@@ -1328,22 +1329,35 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(users);
   }
   
-  async getAllUsersWithCharacterCounts(): Promise<Array<User & { characterCount: number; campaignCount: number }>> {
+  async getAllUsersWithCharacterCounts(): Promise<Array<User & { characterCount: number; campaignCount: number; totalEvents: number; lastActivity: string | null }>> {
     const allUsers = await db.select().from(users);
-    const result = [];
-    
-    for (const user of allUsers) {
-      const userChars = await db.select().from(characters).where(eq(characters.userId, user.id));
-      const userCamps = await db.select().from(campaigns).where(eq(campaigns.userId, user.id));
-      
-      result.push({
-        ...user,
-        characterCount: userChars.length,
-        campaignCount: userCamps.length
-      });
-    }
-    
-    return result;
+
+    const charCounts = await db.select({
+      userId: characters.userId,
+      count: sql<number>`count(*)`
+    }).from(characters).groupBy(characters.userId);
+    const charMap = new Map(charCounts.map(c => [c.userId, Number(c.count)]));
+
+    const campCounts = await db.select({
+      userId: campaigns.userId,
+      count: sql<number>`count(*)`
+    }).from(campaigns).groupBy(campaigns.userId);
+    const campMap = new Map(campCounts.map(c => [c.userId, Number(c.count)]));
+
+    const eventStats = await db.select({
+      userId: userActivityEvents.userId,
+      count: sql<number>`count(*)`,
+      lastActive: sql<string>`max(${userActivityEvents.createdAt})`
+    }).from(userActivityEvents).groupBy(userActivityEvents.userId);
+    const eventMap = new Map(eventStats.map(e => [e.userId, { count: Number(e.count), lastActive: e.lastActive }]));
+
+    return allUsers.map(user => ({
+      ...user,
+      characterCount: charMap.get(user.id) || 0,
+      campaignCount: campMap.get(user.id) || 0,
+      totalEvents: eventMap.get(user.id)?.count || 0,
+      lastActivity: eventMap.get(user.id)?.lastActive || null
+    }));
   }
   
   async createCharacter(insertCharacter: InsertCharacter): Promise<Character> {
