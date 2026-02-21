@@ -530,10 +530,10 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>Locations: {generatedAdventure.adventure?.locations?.length || 0}</div>
-                    <div>NPCs: {generatedAdventure.adventure?.npcs?.length || 0}</div>
-                    <div>Encounters: {generatedAdventure.adventure?.encounters?.length || 0}</div>
-                    <div>Quests: {generatedAdventure.adventure?.quests?.length || 0}</div>
+                    <div>Locations: {generatedAdventure.adventure?.world?.entities?.locations?.length || generatedAdventure.adventure?.locations?.length || 0}</div>
+                    <div>NPCs: {(generatedAdventure.adventure?.world?.entities?.characters?.filter((c: any) => !c.pc)?.length) || generatedAdventure.adventure?.npcs?.length || 0}</div>
+                    <div>Encounters: {generatedAdventure.adventure?.processes?.catalog?.filter((p: any) => p.type === 'combat' || p.type === 'encounter')?.length || generatedAdventure.adventure?.encounters?.length || 0}</div>
+                    <div>Quests: {generatedAdventure.adventure?.roles?.assignments?.filter((r: any) => r.role === 'QuestGiver')?.length || generatedAdventure.adventure?.quests?.length || 0}</div>
                   </div>
                   
                   <div className="flex flex-wrap gap-2">

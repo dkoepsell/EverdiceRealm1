@@ -1345,22 +1345,21 @@ function convertCAML2ToLegacyPack(doc: CAML2Document): CAML1xAdventurePack {
     synopsis: doc.snapshots.timeline[0]?.narration,
     tags: doc.meta.tags,
     ruleset: doc.meta.system?.name,
-    locations: doc.world.entities.locations.map(l => ({
+    locations: (doc.world.entities.locations || []).map(l => ({
       id: l.id,
       type: 'Location' as const,
       name: l.name,
       description: l.description,
       tags: l.tags,
       features: l.features,
-      connections: doc.world.connections
-        ?.filter(c => c.from === l.id)
+      connections: (doc.world.connections || [])
+        .filter(c => c.from === l.id)
         .map(c => ({
           direction: c.mode,
           target: c.to
         }))
     })),
-    // NPCs with attitude extracted from state facts
-    npcs: doc.world.entities.characters.filter(c => !c.pc).map(c => ({
+    npcs: (doc.world.entities.characters || []).filter(c => !c.pc).map(c => ({
       id: c.id,
       type: 'NPC' as const,
       name: c.name,
@@ -1374,7 +1373,7 @@ function convertCAML2ToLegacyPack(doc: CAML2Document): CAML1xAdventurePack {
       statblock: c.statblock,
       attitude: (attitudeLookup.get(c.id) || 'neutral') as 'friendly' | 'neutral' | 'hostile'
     })),
-    items: doc.world.entities.items.map(i => ({
+    items: (doc.world.entities.items || []).map(i => ({
       id: i.id,
       type: 'Item' as const,
       name: i.name,
@@ -1438,7 +1437,7 @@ function convertCAML2ToLegacyPack(doc: CAML2Document): CAML1xAdventurePack {
           status: 'completed'
         }))
     ],
-    factions: doc.world.entities.factions.map(f => ({
+    factions: (doc.world.entities.factions || []).map(f => ({
       id: f.id,
       type: 'Faction' as const,
       name: f.name,
