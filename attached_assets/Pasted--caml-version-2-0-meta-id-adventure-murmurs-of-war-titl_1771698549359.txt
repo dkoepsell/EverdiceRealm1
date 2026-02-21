@@ -1,0 +1,506 @@
+{
+  "caml_version": "2.0",
+  "meta": {
+    "id": "adventure.murmurs_of_war",
+    "title": "Murmurs of War",
+    "created_utc": "2026-02-21T18:26:57.990Z",
+    "authors": [
+      "Everdice DM Toolkit"
+    ],
+    "tags": [
+      "fantasy"
+    ],
+    "levels": {
+      "min": 1,
+      "max": 5
+    },
+    "summary": "In the haunted halls of Castle Veldrith, whispers of revolt and betrayal echo. As tensions rise among the castle's inhabitants, adventurers must navigate the murky waters of politics and spectral interference. Will they secure peace or plunge the realm into chaos?",
+    "table_of_contents": [
+      {
+        "chapter": 1,
+        "title": "Whispers in the Hall",
+        "summary": "The adventurers arrive at Castle Veldrith and uncover the first signs of unrest."
+      },
+      {
+        "chapter": 2,
+        "title": "Echoes of the Past",
+        "summary": "Exploration of the haunted library reveals secrets that shake the foundation of the current regime."
+      },
+      {
+        "chapter": 3,
+        "title": "Allies and Enemies",
+        "summary": "The adventurers meet pivotal NPCs, navigating loyalties and deceit."
+      },
+      {
+        "chapter": 4,
+        "title": "The Hidden Chamber",
+        "summary": "Discovery of a concealed room holding powerful artifacts and truths."
+      },
+      {
+        "chapter": 5,
+        "title": "Confrontation at the Courtyard",
+        "summary": "The final showdown where decisions will determine the fate of the castle."
+      }
+    ]
+  },
+  "doctrine": {
+    "campaign_question": "Should the ancient secrets of Castle Veldrith be preserved for the good of the realm, or exposed to ensure power shifts to the rightful heirs?",
+    "stakes": [
+      {
+        "id": "stake_stability",
+        "name": "Castle Stability",
+        "value": 2,
+        "max": 5,
+        "drift": "up",
+        "driftRate": 0.2,
+        "thresholdConsequence": {
+          "at0": {
+            "event": "The castle remains stable, and order is maintained.",
+            "irreversible": false
+          },
+          "at5": {
+            "event": "The castle falls into chaos, and anarchy reigns.",
+            "irreversible": true
+          }
+        }
+      },
+      {
+        "id": "stake_secrets",
+        "name": "Secret Exposure",
+        "value": 1,
+        "max": 5,
+        "drift": "up",
+        "driftRate": 0.15,
+        "thresholdConsequence": {
+          "at0": {
+            "event": "The secrets remain hidden, maintaining current power balances.",
+            "irreversible": false
+          },
+          "at5": {
+            "event": "Secrets are fully exposed, leading to a shift in power dynamics.",
+            "irreversible": true
+          }
+        }
+      }
+    ]
+  },
+  "world": {
+    "entities": {
+      "characters": [
+        {
+          "id": "PC_Party",
+          "kind": "character",
+          "pc": true
+        },
+        {
+          "id": "NPC_LordEldric",
+          "kind": "character",
+          "name": "Lord Eldric Veldrith",
+          "species": "Human",
+          "class": "Noble",
+          "description": "The current ruler of Castle Veldrith, struggling to maintain order."
+        },
+        {
+          "id": "NPC_Maelis",
+          "kind": "character",
+          "name": "Maelis Windwhisper",
+          "species": "Elf",
+          "class": "Wizard",
+          "description": "A mysterious wizard with ties to the castle's history."
+        },
+        {
+          "id": "NPC_CaptainRoth",
+          "kind": "character",
+          "name": "Captain Roth Ironshield",
+          "species": "Dwarf",
+          "class": "Fighter",
+          "description": "The steadfast captain of the castle guard, loyal to Lord Eldric."
+        },
+        {
+          "id": "NPC_Sylara",
+          "kind": "character",
+          "name": "Sylara Nightshade",
+          "species": "Half-Elf",
+          "class": "Rogue",
+          "description": "A cunning spy with her own agenda."
+        }
+      ],
+      "locations": [
+        {
+          "id": "LOC_Courtyard",
+          "kind": "location",
+          "name": "Castle Courtyard",
+          "description": "A vast open area in the heart of the castle, often used for gatherings.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "stone fountain",
+            "archery targets"
+          ]
+        },
+        {
+          "id": "LOC_Library",
+          "kind": "location",
+          "name": "Haunted Library",
+          "description": "A dusty library filled with ancient tomes and haunted by spirits.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "creaking shelves",
+            "ghostly whispers"
+          ]
+        },
+        {
+          "id": "LOC_ThroneRoom",
+          "kind": "location",
+          "name": "Throne Room",
+          "description": "The grand hall where Lord Eldric holds court.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "ornate throne",
+            "tapestries"
+          ]
+        },
+        {
+          "id": "LOC_Armory",
+          "kind": "location",
+          "name": "Castle Armory",
+          "description": "A well-stocked armory with weapons and armor.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "weapon racks",
+            "suits of armor"
+          ]
+        },
+        {
+          "id": "LOC_HiddenChamber",
+          "kind": "location",
+          "name": "Hidden Chamber",
+          "description": "A secret room concealed behind a false wall, containing powerful artifacts.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "arcane symbols",
+            "hidden door"
+          ],
+          "discovered": false
+        }
+      ],
+      "items": [
+        {
+          "id": "ITEM_AmuletOfEchoes",
+          "kind": "item",
+          "name": "Amulet of Echoes",
+          "rarity": "rare",
+          "description": "An amulet that allows the wearer to hear the whispers of the dead.",
+          "consequence": "Wearing the amulet attracts spectral attention, potentially leading to hauntings."
+        },
+        {
+          "id": "ITEM_SwordOfTheFallen",
+          "kind": "item",
+          "name": "Sword of the Fallen",
+          "rarity": "uncommon",
+          "description": "A sword that once belonged to a legendary warrior, said to contain their spirit.",
+          "consequence": "Using the sword binds the user to the warrior's unfinished business."
+        },
+        {
+          "id": "ITEM_ShieldOfTheGuard",
+          "kind": "item",
+          "name": "Shield of the Guard",
+          "rarity": "uncommon",
+          "description": "A sturdy shield emblazoned with the Veldrith family crest.",
+          "consequence": "Wielding the shield marks the user as a defender of the castle, attracting both allies and enemies."
+        }
+      ],
+      "factions": []
+    },
+    "connections": [
+      {
+        "id": "CONN_1",
+        "from": "LOC_Courtyard",
+        "to": "LOC_ThroneRoom",
+        "mode": "hall"
+      },
+      {
+        "id": "CONN_2",
+        "from": "LOC_ThroneRoom",
+        "to": "LOC_Library",
+        "mode": "door"
+      },
+      {
+        "id": "CONN_3",
+        "from": "LOC_Library",
+        "to": "LOC_HiddenChamber",
+        "mode": "concealed"
+      },
+      {
+        "id": "CONN_4",
+        "from": "LOC_ThroneRoom",
+        "to": "LOC_Armory",
+        "mode": "stairs"
+      },
+      {
+        "id": "CONN_5",
+        "from": "LOC_Courtyard",
+        "to": "LOC_Armory",
+        "mode": "door"
+      }
+    ]
+  },
+  "state": {
+    "facts": [
+      {
+        "id": "STATE_LordEldric_Attitude",
+        "bearer": "NPC_LordEldric",
+        "type": "attitude",
+        "value": "neutral"
+      },
+      {
+        "id": "STATE_Maelis_Attitude",
+        "bearer": "NPC_Maelis",
+        "type": "attitude",
+        "value": "friendly"
+      },
+      {
+        "id": "STATE_CaptainRoth_Attitude",
+        "bearer": "NPC_CaptainRoth",
+        "type": "attitude",
+        "value": "neutral"
+      },
+      {
+        "id": "STATE_Sylara_Attitude",
+        "bearer": "NPC_Sylara",
+        "type": "attitude",
+        "value": "hostile"
+      },
+      {
+        "id": "STATE_Sylara_Active",
+        "bearer": "NPC_Sylara",
+        "type": "active",
+        "value": true
+      },
+      {
+        "id": "STATE_HiddenChamber_Discovered",
+        "bearer": "LOC_HiddenChamber",
+        "type": "discovered",
+        "value": false
+      },
+      {
+        "id": "STATE_Quest_Main_Status",
+        "bearer": "adventure.murmurs_of_war",
+        "type": "quest_status",
+        "value": "active"
+      }
+    ]
+  },
+  "roles": {
+    "assignments": [
+      {
+        "id": "ROLE_QuestGiver_Main",
+        "role": "QuestGiver",
+        "holder": "NPC_LordEldric",
+        "revocation": {
+          "any": []
+        },
+        "notes": "Lord Eldric seeks the adventurers' help in maintaining peace and uncovering the source of unrest."
+      },
+      {
+        "id": "ROLE_Guardian_Sylara",
+        "role": "Guardian",
+        "holder": "NPC_Sylara",
+        "revocation": {
+          "any": [
+            {
+              "lhs": "state[STATE_Sylara_Active].value",
+              "op": "==",
+              "rhs": false
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "processes": {
+    "catalog": [
+      {
+        "id": "PROC_social_Courtyard",
+        "type": "social",
+        "timebox": {
+          "id": "TB_1",
+          "label": "Whispers in the Hall"
+        },
+        "participants": [
+          "PC_Party",
+          "NPC_LordEldric"
+        ],
+        "location": "LOC_Courtyard",
+        "notes": "The adventurers meet Lord Eldric and learn of the growing tensions within the castle.",
+        "stake_effects": [
+          {
+            "stake_id": "stake_stability",
+            "delta": 1,
+            "reason": "Uncovering initial unrest adds pressure to maintain stability."
+          }
+        ]
+      },
+      {
+        "id": "PROC_exploration_Library",
+        "type": "exploration",
+        "timebox": {
+          "id": "TB_2",
+          "label": "Echoes of the Past"
+        },
+        "participants": [
+          "PC_Party"
+        ],
+        "location": "LOC_Library",
+        "notes": "Exploration of the haunted library reveals hidden knowledge about the castle's past.",
+        "stake_effects": [
+          {
+            "stake_id": "stake_secrets",
+            "delta": 1,
+            "reason": "Discovering secrets increases the risk of exposure."
+          }
+        ]
+      },
+      {
+        "id": "PROC_social_MeetingAllies",
+        "type": "social",
+        "timebox": {
+          "id": "TB_3",
+          "label": "Allies and Enemies"
+        },
+        "participants": [
+          "PC_Party",
+          "NPC_Maelis",
+          "NPC_CaptainRoth",
+          "NPC_Sylara"
+        ],
+        "location": "LOC_ThroneRoom",
+        "notes": "Interactions with key NPCs determine alliances and reveal hidden agendas.",
+        "stake_effects": [
+          {
+            "stake_id": "stake_stability",
+            "delta": -1,
+            "reason": "Forging alliances can stabilize the situation."
+          }
+        ]
+      },
+      {
+        "id": "PROC_puzzle_HiddenChamber",
+        "type": "puzzle",
+        "timebox": {
+          "id": "TB_4",
+          "label": "The Hidden Chamber"
+        },
+        "participants": [
+          "PC_Party"
+        ],
+        "location": "LOC_HiddenChamber",
+        "notes": "Solving the puzzle to reveal the hidden chamber and uncover powerful artifacts.",
+        "stake_effects": [
+          {
+            "stake_id": "stake_secrets",
+            "delta": 1,
+            "reason": "Accessing forbidden knowledge risks exposure but offers power."
+          }
+        ]
+      },
+      {
+        "id": "PROC_combat_Courtyard",
+        "type": "combat",
+        "timebox": {
+          "id": "TB_5",
+          "label": "Confrontation at the Courtyard"
+        },
+        "participants": [
+          "PC_Party",
+          "NPC_Sylara"
+        ],
+        "location": "LOC_Courtyard",
+        "notes": "A decisive battle where the adventurers confront Sylara to determine the castle's fate.",
+        "stake_effects": [
+          {
+            "stake_id": "stake_stability",
+            "delta": -1,
+            "reason": "Resolving the threat can restore order."
+          }
+        ]
+      }
+    ]
+  },
+  "transitions": {
+    "changes": [
+      {
+        "id": "TR_DiscoverHiddenChamber",
+        "caused_by": "PROC_puzzle_HiddenChamber",
+        "ops": [
+          {
+            "op": "update_state",
+            "state_id": "STATE_HiddenChamber_Discovered",
+            "value": true
+          }
+        ]
+      },
+      {
+        "id": "TR_EndingA",
+        "caused_by": "PROC_combat_Courtyard",
+        "ops": [
+          {
+            "op": "update_state",
+            "state_id": "STATE_Quest_Main_Status",
+            "value": "complete"
+          }
+        ]
+      },
+      {
+        "id": "TR_EndingB",
+        "caused_by": "PROC_combat_Courtyard",
+        "ops": [
+          {
+            "op": "update_state",
+            "state_id": "STATE_Quest_Main_Status",
+            "value": "complete"
+          }
+        ]
+      }
+    ]
+  },
+  "snapshots": {
+    "timeline": [
+      {
+        "id": "SNAP_Initial",
+        "time_utc": "2026-02-21T18:26:57.990Z",
+        "world_hash": "initial",
+        "state_hash": "initial",
+        "roles_hash": "initial",
+        "narration": "The adventurers arrive at Castle Veldrith, where an uneasy silence pervades the air. Lord Eldric greets them with a request for aid, as whispers of discontent swirl among the staff and guards."
+      },
+      {
+        "id": "SNAP_Ending_A",
+        "time_utc": "2026-02-21T18:26:57.990Z",
+        "world_hash": "final_a",
+        "state_hash": "final_a",
+        "roles_hash": "final_a",
+        "narration": "With Sylara defeated, stability returns to the castle, but at the cost of exposing dangerous secrets that change the power dynamics irrevocably. The chaos is quelled, yet the future remains uncertain with new alliances forming.",
+        "derived_from_transition": "TR_EndingA"
+      },
+      {
+        "id": "SNAP_Ending_B",
+        "time_utc": "2026-02-21T18:26:57.990Z",
+        "world_hash": "final_b",
+        "state_hash": "final_b",
+        "roles_hash": "final_b",
+        "narration": "Sylara escapes, leading to increased instability and further distrust among the factions. Though some secrets remain concealed, the disarray threatens to unravel the castle's foundations, prompting a potential civil war.",
+        "derived_from_transition": "TR_EndingB"
+      }
+    ]
+  }
+}
