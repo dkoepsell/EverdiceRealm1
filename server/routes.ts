@@ -4432,6 +4432,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Wire CAML2 Adventure Skeleton data from generated content
+      const caml2Update: any = {};
+      const gc = req.body.generatedContent || req.body;
+      
+      if (gc.villainModel) {
+        caml2Update.villainModel = gc.villainModel;
+        console.log(`[Campaign Create] CAML2 Villain: ${gc.villainModel.name} (${gc.villainModel.archetype})`);
+      }
+      if (gc.framingEvent) {
+        caml2Update.framingEvent = gc.framingEvent;
+        console.log(`[Campaign Create] CAML2 Framing Event: ${gc.framingEvent.type}`);
+      }
+      if (gc.complicationsQueue) {
+        caml2Update.complicationsQueue = gc.complicationsQueue;
+        const qCount = (gc.complicationsQueue.moralQuandaries?.length || 0) + (gc.complicationsQueue.twists?.length || 0);
+        console.log(`[Campaign Create] CAML2 Complications Queue: ${qCount} items`);
+      }
+      if (gc.encounterDesigns && Array.isArray(gc.encounterDesigns)) {
+        caml2Update.encounterDesigns = gc.encounterDesigns;
+        console.log(`[Campaign Create] CAML2 Encounters: ${gc.encounterDesigns.length} designed`);
+      }
+      if (gc.partyGoal) {
+        caml2Update.partyGoal = gc.partyGoal;
+        console.log(`[Campaign Create] CAML2 Party Goal: ${gc.partyGoal.primary?.substring(0, 50)}...`);
+      }
+      
+      if (Object.keys(caml2Update).length > 0) {
+        await storage.updateCampaign(campaign.id, caml2Update);
+        console.log(`[Campaign Create] Wired ${Object.keys(caml2Update).length} CAML2 adventure skeleton fields`);
+      }
+      
       // Add the creator as a DM participant if a characterId is provided
       if (req.body.characterId) {
         await storage.addCampaignParticipant({
@@ -6538,6 +6569,39 @@ This instability is ACTIVE — reference its effects. The world changes whether 
         stateContext += `\nFACTION RULES: Report faction changes in "factionUpdates" array. Factions must act logically based on goals/strength.\n`;
       }
 
+      // CAML2 Adventure Skeleton: Add villain, complications, encounters context (Route 1)
+      const r1VillainModel = (campaign as any).villainModel as any;
+      const r1FramingEvent = (campaign as any).framingEvent as any;
+      const r1ComplicationsQueue = (campaign as any).complicationsQueue as any;
+      const r1EncounterDesigns = (campaign as any).encounterDesigns as any[] || [];
+      const r1PartyGoal = (campaign as any).partyGoal as any;
+      const r1VillainCorruption = (campaign as any).villainCorruption || 0;
+      const r1PartyReputation = (campaign as any).partyReputation || 50;
+      const r1WorldInstability = (campaign as any).worldInstability || 20;
+
+      if (r1VillainModel) {
+        const completedSteps = (r1VillainModel.planStructure || []).slice(0, r1VillainModel.currentStep || 0);
+        const nextStep = (r1VillainModel.planStructure || [])[r1VillainModel.currentStep || 0];
+        stateContext += `\n\nVILLAIN: ${r1VillainModel.name} [${r1VillainModel.archetype}]
+- Goal: ${r1VillainModel.goal} | Corruption: ${r1VillainCorruption}/10
+${completedSteps.length > 0 ? `- Completed Steps: ${completedSteps.join('; ')}` : ''}
+${nextStep ? `- CURRENT STEP: "${nextStep}"` : ''}
+REACTIONS: escalate(${r1VillainModel.reactionTree?.escalate || 'raise stakes'}), redirect(${r1VillainModel.reactionTree?.redirect || 'change approach'}), retaliate(${r1VillainModel.reactionTree?.retaliate || 'strike back'}), accelerate(${r1VillainModel.reactionTree?.accelerate || 'speed up'})
+Report villain changes in "villainUpdate". If player thwarts villain's current step, villain REACTS.\n`;
+      }
+
+      if (r1FramingEvent && !r1FramingEvent.isResolved) {
+        stateContext += `\nFRAMING EVENT [${r1FramingEvent.type}]: ${r1FramingEvent.description}\n`;
+      }
+
+      if (r1PartyGoal) {
+        stateContext += `\nPARTY GOAL: ${r1PartyGoal.primary}
+On failure: ${r1PartyGoal.failureState} (failure advances world — does NOT end story)\n`;
+      }
+
+      stateContext += `\nTRACKING: Reputation ${r1PartyReputation}/100, Instability ${r1WorldInstability}/100, Corruption ${r1VillainCorruption}/10
+Include "trackingUpdates" with reputationDelta, instabilityDelta, corruptionDelta.\n`;
+
       // Build operative summary
       let operativeSummary = "";
       if (activeGates.length > 0) {
@@ -6912,6 +6976,12 @@ Return your response as a JSON object with these fields:
   - campaignStakeUpdates: (REQUIRED) Array of {id, delta, reason} for campaign stakes touched by this action. EVERY scene MUST include at least one.
     DELTA SIZING: Use delta ±1 for minor/indirect effects. Use delta ±2 for DECISIVE player choices that clearly commit to one direction (e.g., "harness the dark power" = +2, "destroy the artifact" = -2). The player's INTENT matters — if they chose something dramatic, the world should respond dramatically.
     ANTI-OSCILLATION: Do NOT reverse a stake change in the very next scene unless something dramatically changed. If a player chose to embrace blood magic and the stake went +2, it should NOT go -1 next turn just because "the situation calmed." Momentum matters — committed choices have lasting effects.
+- villainUpdate: (OPTIONAL) If villain reacted this scene: { "reactionUsed": "escalate|redirect|retaliate|accelerate", "newStep": number, "corruptionDelta": +/-N, "consequence": "what changed" }
+- complicationUsed: (OPTIONAL) If a complication was injected: { "type": "moralQuandary|twist|environmentalModifier", "id": "complication_id" }
+- encounterUsed: (OPTIONAL) String ID of the designed encounter used this scene
+- trackingUpdates: (OPTIONAL) { "reputationDelta": +/-N, "instabilityDelta": +/-N, "corruptionDelta": +/-N } for persistent campaign tracking
+- failureAdvancement: (OPTIONAL - include ONLY when player fails significantly) { "villainAdvancement": "what villain gained", "villainStepAdvance": true/false, "corruptionIncrease": N, "instabilityIncrease": N, "factionShift": "how factions changed", "worldConsequence": "visible change", "newThreat": "new danger created" }
+  FAILURE RULES: When players fail, the world ADVANCES — it does NOT block. The villain gains ground, factions shift, corruption spreads. But the player gets NEW opportunities born from the failure. Never dead-end the story.
 - chapterGateMet: (OPTIONAL) If the chapter gate's required truth/commitment/belief was achieved THIS scene, include: { "gateId": chapter_number, "reason": "what was learned/committed/changed" }
 - sessionBreakpoint: (OPTIONAL, boolean) Set to true ONLY when this scene is a NATURAL STOPPING POINT at a genuine narrative transition. NEVER during combat, chases, or tense action. Only at calm moments: after combat ends, arriving somewhere new, rest scenes, quest completions. Should occur no more than once every 8+ scenes — the client controls timing display.
 - narrativeLogEntry: (REQUIRED) Object with:
@@ -7417,6 +7487,119 @@ Return your response as a JSON object with these fields:
             (campaign as any).factionStrengths = r1CurrentFactionStrengths;
           }
 
+          // CAML2: Process villain updates from AI response
+          let updatedVillainModel = (campaign as any).villainModel ? { ...(campaign as any).villainModel } : null;
+          let updatedVillainCorruption = (campaign as any).villainCorruption || 0;
+          let updatedPartyReputation = (campaign as any).partyReputation || 50;
+          let updatedWorldInstability = (campaign as any).worldInstability || 20;
+          
+          if (storyData.villainUpdate && updatedVillainModel) {
+            const vu = storyData.villainUpdate;
+            if (vu.reactionUsed) {
+              console.log(`CAML2 VILLAIN REACTION: ${vu.reactionUsed} — ${vu.consequence || 'no details'}`);
+            }
+            if (typeof vu.newStep === 'number') {
+              updatedVillainModel.currentStep = vu.newStep;
+              console.log(`CAML2 VILLAIN PLAN: Advanced to step ${vu.newStep}`);
+            }
+            if (typeof vu.corruptionDelta === 'number') {
+              updatedVillainCorruption = Math.max(0, Math.min(10, updatedVillainCorruption + vu.corruptionDelta));
+              console.log(`CAML2 VILLAIN CORRUPTION: ${vu.corruptionDelta > 0 ? '+' : ''}${vu.corruptionDelta} (now ${updatedVillainCorruption}/10)`);
+            }
+            stateWasUpdated = true;
+          }
+          
+          // CAML2: Process tracking updates from AI response
+          if (storyData.trackingUpdates) {
+            const tu = storyData.trackingUpdates;
+            if (typeof tu.reputationDelta === 'number') {
+              updatedPartyReputation = Math.max(0, Math.min(100, updatedPartyReputation + tu.reputationDelta));
+              console.log(`CAML2 REPUTATION: ${tu.reputationDelta > 0 ? '+' : ''}${tu.reputationDelta} (now ${updatedPartyReputation}/100)`);
+            }
+            if (typeof tu.instabilityDelta === 'number') {
+              updatedWorldInstability = Math.max(0, Math.min(100, updatedWorldInstability + tu.instabilityDelta));
+              console.log(`CAML2 INSTABILITY: ${tu.instabilityDelta > 0 ? '+' : ''}${tu.instabilityDelta} (now ${updatedWorldInstability}/100)`);
+            }
+            if (typeof tu.corruptionDelta === 'number' && !storyData.villainUpdate?.corruptionDelta) {
+              updatedVillainCorruption = Math.max(0, Math.min(10, updatedVillainCorruption + tu.corruptionDelta));
+              console.log(`CAML2 CORRUPTION (tracking): ${tu.corruptionDelta > 0 ? '+' : ''}${tu.corruptionDelta} (now ${updatedVillainCorruption}/10)`);
+            }
+            stateWasUpdated = true;
+          }
+          
+          // CAML2: Mark complications as used when AI reports using them
+          let updatedComplicationsQueue = (campaign as any).complicationsQueue ? { ...(campaign as any).complicationsQueue } : null;
+          if (storyData.complicationUsed && updatedComplicationsQueue) {
+            const cu = storyData.complicationUsed;
+            if (cu.type === 'moralQuandary' && updatedComplicationsQueue.moralQuandaries) {
+              const idx = updatedComplicationsQueue.moralQuandaries.findIndex((q: any) => q.type === cu.id);
+              if (idx >= 0) {
+                updatedComplicationsQueue.moralQuandaries = [...updatedComplicationsQueue.moralQuandaries];
+                updatedComplicationsQueue.moralQuandaries[idx] = { ...updatedComplicationsQueue.moralQuandaries[idx], isUsed: true };
+                console.log(`CAML2 COMPLICATION USED: Moral quandary "${cu.id}"`);
+              }
+            } else if (cu.type === 'twist' && updatedComplicationsQueue.twists) {
+              const idx = updatedComplicationsQueue.twists.findIndex((t: any) => t.type === cu.id);
+              if (idx >= 0) {
+                updatedComplicationsQueue.twists = [...updatedComplicationsQueue.twists];
+                updatedComplicationsQueue.twists[idx] = { ...updatedComplicationsQueue.twists[idx], isUsed: true };
+                console.log(`CAML2 COMPLICATION USED: Twist "${cu.id}"`);
+              }
+            } else if (cu.type === 'environmentalModifier' && updatedComplicationsQueue.environmentalModifiers) {
+              const idx = updatedComplicationsQueue.environmentalModifiers.findIndex((e: any) => e.type === cu.id);
+              if (idx >= 0) {
+                updatedComplicationsQueue.environmentalModifiers = [...updatedComplicationsQueue.environmentalModifiers];
+                updatedComplicationsQueue.environmentalModifiers[idx] = { ...updatedComplicationsQueue.environmentalModifiers[idx], isUsed: true };
+                console.log(`CAML2 COMPLICATION USED: Environmental modifier "${cu.id}"`);
+              }
+            }
+            stateWasUpdated = true;
+          }
+          
+          // CAML2: Mark encounter designs as used
+          let updatedEncounterDesigns = [...((campaign as any).encounterDesigns || [])];
+          if (storyData.encounterUsed && updatedEncounterDesigns.length > 0) {
+            const encIdx = updatedEncounterDesigns.findIndex((e: any) => e.id === storyData.encounterUsed);
+            if (encIdx >= 0) {
+              updatedEncounterDesigns[encIdx] = { ...updatedEncounterDesigns[encIdx], isUsed: true };
+              console.log(`CAML2 ENCOUNTER USED: "${storyData.encounterUsed}"`);
+              stateWasUpdated = true;
+            }
+          }
+          
+          // CAML2: Process failure advancement — when player fails, advance villain plan
+          if (storyData.failureAdvancement) {
+            const fa = storyData.failureAdvancement;
+            const failureLog = [...((campaign as any).failureAdvancementLog || [])];
+            failureLog.push({
+              chapter: campaign.currentSession || 1,
+              scene: updatedNarrativeLog.length,
+              timestamp: new Date().toISOString(),
+              villainAdvancement: fa.villainAdvancement,
+              factionShift: fa.factionShift,
+              worldConsequence: fa.worldConsequence,
+              newThreat: fa.newThreat
+            });
+            
+            if (fa.villainStepAdvance && updatedVillainModel) {
+              updatedVillainModel.currentStep = Math.min(
+                (updatedVillainModel.planStructure || []).length - 1,
+                (updatedVillainModel.currentStep || 0) + 1
+              );
+              console.log(`CAML2 FAILURE ADVANCEMENT: Villain advanced to step ${updatedVillainModel.currentStep}`);
+            }
+            if (typeof fa.corruptionIncrease === 'number') {
+              updatedVillainCorruption = Math.min(10, updatedVillainCorruption + fa.corruptionIncrease);
+            }
+            if (typeof fa.instabilityIncrease === 'number') {
+              updatedWorldInstability = Math.min(100, updatedWorldInstability + fa.instabilityIncrease);
+            }
+            
+            (campaign as any).failureAdvancementLog = failureLog;
+            stateWasUpdated = true;
+            console.log(`CAML2 FAILURE ADVANCEMENT: ${fa.worldConsequence || 'World state changed'}`);
+          }
+
           // Save updated state to campaign
           const campaignUpdateData: any = {
             worldState: updatedWorldState,
@@ -7430,6 +7613,13 @@ Return your response as a JSON object with these fields:
             campaignStakes: updatedCampaignStakes,
             narrativeLog: updatedNarrativeLog,
             factionStrengths: (campaign as any).factionStrengths || undefined,
+            villainModel: updatedVillainModel || undefined,
+            villainCorruption: updatedVillainCorruption,
+            partyReputation: updatedPartyReputation,
+            worldInstability: updatedWorldInstability,
+            complicationsQueue: updatedComplicationsQueue || undefined,
+            encounterDesigns: updatedEncounterDesigns.length > 0 ? updatedEncounterDesigns : undefined,
+            failureAdvancementLog: (campaign as any).failureAdvancementLog || undefined,
             updatedAt: new Date().toISOString()
           };
           
@@ -17200,11 +17390,150 @@ When reached, factions will react: ${(currentMilestone.factionReactions || []).m
         }
       }
 
+      // ============================================
+      // CAML2 ADVENTURE SKELETON — Villain, Complications, Encounters
+      // ============================================
+      let caml2AdventurePrompt = '';
+      const villainModel = (campaign as any).villainModel as any;
+      const framingEvent = (campaign as any).framingEvent as any;
+      const complicationsQueue = (campaign as any).complicationsQueue as any;
+      const encounterDesigns = (campaign as any).encounterDesigns as any[] || [];
+      const partyGoal = (campaign as any).partyGoal as any;
+      const villainCorruption = (campaign as any).villainCorruption || 0;
+      const partyReputationVal = (campaign as any).partyReputation || 50;
+      const worldInstabilityVal = (campaign as any).worldInstability || 20;
+
+      if (villainModel || framingEvent || complicationsQueue || encounterDesigns.length > 0 || partyGoal) {
+        caml2AdventurePrompt += `
+═══════════════════════════════════════════════════════════
+CAML2 ADVENTURE SKELETON — VILLAIN & COMPLICATIONS:
+═══════════════════════════════════════════════════════════
+`;
+        if (villainModel) {
+          const completedSteps = (villainModel.planStructure || []).slice(0, villainModel.currentStep || 0);
+          const nextStep = (villainModel.planStructure || [])[villainModel.currentStep || 0];
+          const remainingSteps = (villainModel.planStructure || []).slice((villainModel.currentStep || 0) + 1);
+          
+          caml2AdventurePrompt += `
+VILLAIN: ${villainModel.name} [${villainModel.archetype}]
+- Goal: ${villainModel.goal}
+- Motivation: ${villainModel.motivation}
+- Corruption Scale: ${villainCorruption}/10 ${villainCorruption >= 7 ? '[CRITICAL — villain is near peak power]' : villainCorruption >= 4 ? '[RISING — villain grows stronger]' : '[CONTAINED — villain is building power]'}
+- Resources: ${villainModel.resources}
+- Weakness: ${villainModel.weakness}
+${completedSteps.length > 0 ? `- Completed Plan Steps: ${completedSteps.join('; ')}` : ''}
+${nextStep ? `- CURRENT PLAN STEP: "${nextStep}" — The villain is ACTIVELY pursuing this NOW` : ''}
+${remainingSteps.length > 0 ? `- Future Steps: ${remainingSteps.join('; ')}` : ''}
+
+VILLAIN REACTION TREE (when party thwarts the villain, use ONE of these):
+- ESCALATE: ${villainModel.reactionTree?.escalate || 'Raise the stakes dramatically'}
+- REDIRECT: ${villainModel.reactionTree?.redirect || 'Change approach entirely'}
+- RETALIATE: ${villainModel.reactionTree?.retaliate || 'Strike back at the party'}
+- ACCELERATE: ${villainModel.reactionTree?.accelerate || 'Speed up timeline with dangerous shortcuts'}
+
+VILLAIN RULES:
+1. If the player's action DIRECTLY opposes the villain's current step, the villain REACTS this scene
+2. Choose the reaction that makes the most narrative sense — don't always escalate
+3. Each villain reaction COSTS them resources (mention what they spend/lose)
+4. Each reaction creates a NEW problem for the party (never status quo)
+5. Report villain changes: "villainUpdate": { "reactionUsed": "escalate|redirect|retaliate|accelerate", "newStep": number, "corruptionDelta": +/-N, "consequence": "what changed" }
+`;
+        }
+
+        if (framingEvent && !framingEvent.isResolved) {
+          caml2AdventurePrompt += `
+FRAMING EVENT: [${framingEvent.type}] ${framingEvent.description}
+- Visibility: ${framingEvent.publicVisibility}
+- Destabilized: ${framingEvent.instabilityTarget}
+- Villain's exploitation: ${framingEvent.villainOpportunity}
+Reference the framing event's effects when narratively appropriate — it colors the world's current mood.
+`;
+        }
+
+        if (partyGoal) {
+          caml2AdventurePrompt += `
+PARTY OBJECTIVES:
+- PRIMARY: ${partyGoal.primary}
+- SECONDARY: ${partyGoal.secondary || 'None set'}
+${partyGoal.hidden ? `- HIDDEN (reveal through play): ${partyGoal.hidden}` : ''}
+- On SUCCESS: ${partyGoal.successState}
+- On PARTIAL SUCCESS: ${partyGoal.partialSuccessState}
+- On FAILURE: ${partyGoal.failureState} (failure advances the world — it does NOT end the story)
+`;
+        }
+
+        // Inject complications at the right pacing point
+        if (complicationsQueue) {
+          const unusedQuandaries = (complicationsQueue.moralQuandaries || []).filter((q: any) => !q.isUsed);
+          const unusedTwists = (complicationsQueue.twists || []).filter((t: any) => !t.isUsed);
+          const unusedEnvMods = (complicationsQueue.environmentalModifiers || []).filter((e: any) => !e.isUsed);
+          
+          const chapterProgress = scenesInChapter2 / 12;
+          let timingWindow = 'early';
+          if (chapterProgress > 0.6) timingWindow = 'climax';
+          else if (chapterProgress > 0.3) timingWindow = 'midpoint';
+          
+          const readyQuandary = unusedQuandaries.find((q: any) => q.injectionTiming === timingWindow || q.injectionTiming === 'early');
+          const readyTwist = unusedTwists.find((t: any) => t.injectionTiming === timingWindow || (timingWindow === 'climax' && t.injectionTiming === 'pre_climax'));
+          const readyEnvMod = unusedEnvMods[0];
+          
+          if (readyQuandary || readyTwist || readyEnvMod) {
+            caml2AdventurePrompt += `
+COMPLICATIONS AVAILABLE (inject ONE of these into this scene if it fits naturally):
+`;
+            if (readyQuandary) {
+              caml2AdventurePrompt += `- MORAL QUANDARY [${readyQuandary.type}]: ${readyQuandary.description}
+  Tradeoff: ${readyQuandary.tradeoff}
+  If you use this, include "complicationUsed": { "type": "moralQuandary", "id": "${readyQuandary.type}" } in response
+`;
+            }
+            if (readyTwist) {
+              caml2AdventurePrompt += `- TWIST [${readyTwist.type}]: ${readyTwist.description}
+  Revealed by: ${readyTwist.revelation}
+  Consequence: ${readyTwist.consequence}
+  If you use this, include "complicationUsed": { "type": "twist", "id": "${readyTwist.type}" } in response
+`;
+            }
+            if (readyEnvMod) {
+              caml2AdventurePrompt += `- ENVIRONMENTAL MODIFIER [${readyEnvMod.type}]: ${readyEnvMod.description}
+  Mechanical effect: ${readyEnvMod.mechanicalEffect}
+  If you use this, include "complicationUsed": { "type": "environmentalModifier", "id": "${readyEnvMod.type}" } in response
+`;
+            }
+          }
+        }
+
+        // Inject encounter design if we're in combat or a combat scene is likely
+        const readyEncounter = encounterDesigns.find((e: any) => !e.isUsed && (e.chapterPlacement === currentChapter || !e.chapterPlacement));
+        if (readyEncounter && (previousSceneType !== 'Combat' || shouldNudgeCombat)) {
+          caml2AdventurePrompt += `
+DESIGNED ENCOUNTER AVAILABLE (use if combat occurs this scene):
+- "${readyEncounter.id}": ${readyEncounter.objective}
+- Stakes: ${readyEncounter.stakes}
+- Terrain: ${(readyEncounter.terrainFeatures || []).join(', ')}
+- Combat Interest: ${(readyEncounter.combatInterest || []).join(', ')}
+- Opposition: ${readyEncounter.oppositionType}
+- Difficulty: ${readyEncounter.difficultyTarget}
+If combat occurs, USE these terrain features and combat interest modifiers for variety!
+Include "encounterUsed": "${readyEncounter.id}" in response if used.
+`;
+        }
+
+        caml2AdventurePrompt += `
+PERSISTENT TRACKING:
+- Party Reputation: ${partyReputationVal}/100 ${partyReputationVal >= 70 ? '[RENOWNED]' : partyReputationVal >= 40 ? '[KNOWN]' : '[UNKNOWN/FEARED]'}
+- World Instability: ${worldInstabilityVal}/100 ${worldInstabilityVal >= 60 ? '[UNSTABLE — world is deteriorating]' : worldInstabilityVal >= 30 ? '[TENSE — trouble brewing]' : '[STABLE]'}
+- Villain Corruption: ${villainCorruption}/10
+Include "trackingUpdates" in response: { "reputationDelta": +/-N, "instabilityDelta": +/-N, "corruptionDelta": +/-N }
+`;
+      }
+
       // Finale and chapter progress instructions
       const chapterProgressNote = `
 CAMPAIGN PROGRESS: Chapter ${currentChapter} of ${totalChapters}
 ${campaignDoctrineNote}
 ${factionArchitecturePrompt}
+${caml2AdventurePrompt}
 `;
       
       // Build forked ending context from stake states
@@ -17809,6 +18138,11 @@ Respond with JSON:
   "rewardItems": [{"name": "Healing Potion", "type": "consumable", "description": "Restores 2d4+2 HP", "rarity": "common"}],
   "campaignStakeUpdates": [{"id": "stake_id", "delta": -1, "reason": "Why this stake changed — use ±1 for minor, ±2 for decisive player commitments. Do NOT oscillate — if the player committed to a direction, maintain that momentum."}],
   "factionUpdates": [{"factionId": "faction.id", "strengthDelta": 5, "action": "What the faction did this scene (visible or behind-the-scenes)", "reason": "Why their strength changed"}],
+  "villainUpdate": {"reactionUsed": "escalate|redirect|retaliate|accelerate or null", "newStep": 1, "corruptionDelta": 1, "consequence": "What changed due to villain reaction"},
+  "complicationUsed": {"type": "moralQuandary|twist|environmentalModifier", "id": "complication_id"},
+  "encounterUsed": "encounter_id or null",
+  "trackingUpdates": {"reputationDelta": 2, "instabilityDelta": 1, "corruptionDelta": 0},
+  "failureAdvancement": {"villainAdvancement": "What the villain gained", "villainStepAdvance": true, "corruptionIncrease": 1, "instabilityIncrease": 5, "factionShift": "How factions changed", "worldConsequence": "Visible world change", "newThreat": "New danger created"},
   "instabilityUpdate": {"delta": 1, "manifestation": "How the instability visibly changed this scene"},
   "chapterGateMet": {"gateId": 1, "reason": "What truth/belief/commitment was reached"},
   "sessionBreakpoint": true,
@@ -21244,6 +21578,114 @@ Choices should include 4 options with at least 2 requiring dice rolls.
             }
           }
           doctrineUpdates.factionStrengths = currentFactionStrengths;
+          doctrineChanged = true;
+        }
+
+        // CAML2: Process villain updates from AI response (Route 2)
+        let r2VillainModel = (campaign as any).villainModel ? { ...(campaign as any).villainModel } : null;
+        let r2VillainCorruption = (campaign as any).villainCorruption || 0;
+        let r2PartyReputation = (campaign as any).partyReputation || 50;
+        let r2WorldInstability = (campaign as any).worldInstability || 20;
+        
+        if (storyAdvancement.villainUpdate && r2VillainModel) {
+          const vu = storyAdvancement.villainUpdate;
+          if (vu.reactionUsed) {
+            console.log(`CAML2 VILLAIN REACTION (R2): ${vu.reactionUsed} — ${vu.consequence || 'no details'}`);
+          }
+          if (typeof vu.newStep === 'number') {
+            r2VillainModel.currentStep = vu.newStep;
+          }
+          if (typeof vu.corruptionDelta === 'number') {
+            r2VillainCorruption = Math.max(0, Math.min(10, r2VillainCorruption + vu.corruptionDelta));
+          }
+          doctrineUpdates.villainModel = r2VillainModel;
+          doctrineChanged = true;
+        }
+        
+        if (storyAdvancement.trackingUpdates) {
+          const tu = storyAdvancement.trackingUpdates;
+          if (typeof tu.reputationDelta === 'number') {
+            r2PartyReputation = Math.max(0, Math.min(100, r2PartyReputation + tu.reputationDelta));
+          }
+          if (typeof tu.instabilityDelta === 'number') {
+            r2WorldInstability = Math.max(0, Math.min(100, r2WorldInstability + tu.instabilityDelta));
+          }
+          if (typeof tu.corruptionDelta === 'number' && !storyAdvancement.villainUpdate?.corruptionDelta) {
+            r2VillainCorruption = Math.max(0, Math.min(10, r2VillainCorruption + tu.corruptionDelta));
+          }
+          doctrineUpdates.villainCorruption = r2VillainCorruption;
+          doctrineUpdates.partyReputation = r2PartyReputation;
+          doctrineUpdates.worldInstability = r2WorldInstability;
+          doctrineChanged = true;
+        }
+        
+        // CAML2: Mark complications as used (Route 2)
+        let r2ComplicationsQueue = (campaign as any).complicationsQueue ? { ...(campaign as any).complicationsQueue } : null;
+        if (storyAdvancement.complicationUsed && r2ComplicationsQueue) {
+          const cu = storyAdvancement.complicationUsed;
+          if (cu.type === 'moralQuandary' && r2ComplicationsQueue.moralQuandaries) {
+            const idx = r2ComplicationsQueue.moralQuandaries.findIndex((q: any) => q.type === cu.id);
+            if (idx >= 0) {
+              r2ComplicationsQueue.moralQuandaries = [...r2ComplicationsQueue.moralQuandaries];
+              r2ComplicationsQueue.moralQuandaries[idx] = { ...r2ComplicationsQueue.moralQuandaries[idx], isUsed: true };
+            }
+          } else if (cu.type === 'twist' && r2ComplicationsQueue.twists) {
+            const idx = r2ComplicationsQueue.twists.findIndex((t: any) => t.type === cu.id);
+            if (idx >= 0) {
+              r2ComplicationsQueue.twists = [...r2ComplicationsQueue.twists];
+              r2ComplicationsQueue.twists[idx] = { ...r2ComplicationsQueue.twists[idx], isUsed: true };
+            }
+          } else if (cu.type === 'environmentalModifier' && r2ComplicationsQueue.environmentalModifiers) {
+            const idx = r2ComplicationsQueue.environmentalModifiers.findIndex((e: any) => e.type === cu.id);
+            if (idx >= 0) {
+              r2ComplicationsQueue.environmentalModifiers = [...r2ComplicationsQueue.environmentalModifiers];
+              r2ComplicationsQueue.environmentalModifiers[idx] = { ...r2ComplicationsQueue.environmentalModifiers[idx], isUsed: true };
+            }
+          }
+          doctrineUpdates.complicationsQueue = r2ComplicationsQueue;
+          doctrineChanged = true;
+        }
+        
+        // CAML2: Mark encounter designs as used (Route 2)
+        let r2EncounterDesigns = [...((campaign as any).encounterDesigns || [])];
+        if (storyAdvancement.encounterUsed && r2EncounterDesigns.length > 0) {
+          const encIdx = r2EncounterDesigns.findIndex((e: any) => e.id === storyAdvancement.encounterUsed);
+          if (encIdx >= 0) {
+            r2EncounterDesigns[encIdx] = { ...r2EncounterDesigns[encIdx], isUsed: true };
+            doctrineUpdates.encounterDesigns = r2EncounterDesigns;
+            doctrineChanged = true;
+          }
+        }
+        
+        // CAML2: Failure advancement (Route 2)
+        if (storyAdvancement.failureAdvancement) {
+          const fa = storyAdvancement.failureAdvancement;
+          const failureLog = [...((campaign as any).failureAdvancementLog || [])];
+          failureLog.push({
+            chapter: currentChapter,
+            scene: (currentNarrativeLog || []).length,
+            timestamp: new Date().toISOString(),
+            villainAdvancement: fa.villainAdvancement,
+            factionShift: fa.factionShift,
+            worldConsequence: fa.worldConsequence,
+            newThreat: fa.newThreat
+          });
+          if (fa.villainStepAdvance && r2VillainModel) {
+            r2VillainModel.currentStep = Math.min(
+              (r2VillainModel.planStructure || []).length - 1,
+              (r2VillainModel.currentStep || 0) + 1
+            );
+            doctrineUpdates.villainModel = r2VillainModel;
+          }
+          if (typeof fa.corruptionIncrease === 'number') {
+            r2VillainCorruption = Math.min(10, r2VillainCorruption + fa.corruptionIncrease);
+            doctrineUpdates.villainCorruption = r2VillainCorruption;
+          }
+          if (typeof fa.instabilityIncrease === 'number') {
+            r2WorldInstability = Math.min(100, r2WorldInstability + fa.instabilityIncrease);
+            doctrineUpdates.worldInstability = r2WorldInstability;
+          }
+          doctrineUpdates.failureAdvancementLog = failureLog;
           doctrineChanged = true;
         }
 

@@ -488,6 +488,91 @@ DESIGN GUIDELINES FOR PROCEDURAL QUESTS:
 - Avoid generic "fetch X" quests - tie them to the narrative
 
 ═══════════════════════════════════════════════════════════════════════════════
+CAML2 ADVENTURE SKELETON — STRUCTURED ADVENTURE DESIGN (MANDATORY)
+═══════════════════════════════════════════════════════════════════════════════
+
+Every adventure requires a VILLAIN, a FRAMING EVENT, COMPLICATIONS, structured ENCOUNTERS, and clear PARTY GOALS.
+
+FRAMING EVENT (provides urgency and context for the adventure):
+
+- framingEvent: An object describing what world event triggers this adventure. Contains:
+  - type: One of "political", "social", "celestial", "criminal", "natural", "personal"
+  - description: A 1-2 sentence description of the event (e.g., "A coronation ceremony is disrupted by assassination", "A comet's arrival triggers ancient prophecies")
+  - publicVisibility: "public" | "hidden" | "rumored" — how widely known this event is
+  - instabilityTarget: Which faction or world state is destabilized by this event
+  - villainOpportunity: How the villain exploits this event (1 sentence)
+
+VILLAIN MODEL (the primary antagonist with structured reaction logic):
+
+- villainModel: An object defining the adventure's main antagonist. Contains:
+  - name: Villain's name
+  - archetype: One of "one_and_done" (single high-impact event), "serial_escalation" (repeated crimes), "step_by_step_ritual" (structured sequence), "growing_corruption" (spreading influence)
+  - goal: What the villain ultimately wants (1 sentence)
+  - motivation: WHY the villain believes they are right — villains are not cartoonishly evil
+  - planStructure: Array of 3-5 plan steps the villain must complete to achieve their goal
+  - currentStep: 0 (always starts at 0 — advances as villain succeeds)
+  - corruptionScale: 0 (starts at 0, max 10 — measures villain's growing power/influence)
+  - resources: What the villain has at their disposal (minions, magic, political power, wealth)
+  - weakness: How the villain can be undermined or defeated
+  - reactionTree: An object with four response strategies when the party thwarts the villain:
+    - escalate: What the villain does to raise the stakes (e.g., "Takes hostages", "Destroys a key location")
+    - redirect: How the villain changes approach (e.g., "Targets a different artifact", "Shifts to political manipulation")
+    - retaliate: How the villain strikes back at the party directly (e.g., "Sends assassins", "Frames them for crimes")
+    - accelerate: How the villain speeds up their timeline (e.g., "Performs incomplete ritual with dangerous side effects")
+
+  VILLAIN REACTION RULES:
+  1. When the party thwarts a villain step, the villain MUST react using one of the four strategies
+  2. Each reaction has a RESOURCE COST for the villain (depletes resources, creates new vulnerability)
+  3. Each reaction creates a NEW COMPLICATION for the party
+  4. Each reaction changes the WORLD STATE (faction reactions, NPC attitudes shift, new threats emerge)
+  5. The villain NEVER just "tries again" with the same plan — they adapt
+
+COMPLICATIONS QUEUE (injected at pacing-appropriate moments):
+
+- complicationsQueue: An object containing pre-designed complications to introduce during the adventure. Contains:
+  - moralQuandaries: Array of 2-3 moral dilemmas. Each has:
+    - type: One of "ally" (ally asks for something questionable), "friend" (friend on the wrong side), "honor" (honor vs. pragmatism), "rescue" (save one or many), "respect" (tradition vs. progress)
+    - description: The dilemma in 1-2 sentences
+    - tradeoff: What value is sacrificed for each choice (e.g., "Save the hostages but let the villain escape, or pursue the villain but risk the hostages")
+    - injectionTiming: "early" | "midpoint" | "climax" — when to introduce
+    - isUsed: false (tracks whether this has been introduced)
+  - twists: Array of 2-3 narrative twists. Each has:
+    - type: One of "rival_group" (competing adventurers), "time_limit" (countdown pressure), "false_info" (key information is wrong), "incompatible_goals" (two objectives conflict), "secret_ally_of_villain" (trusted NPC is compromised), "magical_compulsion" (someone is controlled)
+    - description: The twist in 1-2 sentences
+    - revelation: How the twist is discovered (clue, NPC confession, environmental evidence)
+    - consequence: What changes when the twist is revealed
+    - injectionTiming: "early" | "midpoint" | "pre_climax"
+    - isUsed: false
+  - environmentalModifiers: Array of 2-3 combat/encounter modifiers. Each has:
+    - type: One of "high_ground", "hazard", "elevation", "restricted_movement", "weather", "magical_terrain"
+    - description: How this affects the battlefield (e.g., "Collapsing cavern floor — sections fall away each round")
+    - mechanicalEffect: What game mechanical effect this has (e.g., "Difficult terrain, DEX save DC 13 or fall")
+    - isUsed: false
+
+PARTY GOAL (what the party is trying to accomplish):
+
+- partyGoal: An object defining clear objectives with multiple outcome states. Contains:
+  - primary: The main objective (1 sentence, e.g., "Stop the villain's ritual before the solstice")
+  - secondary: A secondary objective that enriches the experience (e.g., "Discover who betrayed the guild")
+  - hidden: A secret objective the party doesn't know about yet (e.g., "The 'villain' is actually protecting something")
+  - successState: What the world looks like if the party fully succeeds
+  - partialSuccessState: What happens if they succeed but at a cost
+  - failureState: What happens if they fail — failure ADVANCES the world, it doesn't end the story
+
+ENCOUNTER DESIGNS (pre-designed encounters with combat interest modifiers):
+
+- encounterDesigns: Array of 3-5 planned encounters for the adventure. Each has:
+  - id: Unique identifier (e.g., "enc_ambush_bridge", "enc_villain_lair")
+  - objective: What the players need to accomplish in this encounter
+  - stakes: What changes if they succeed vs. fail
+  - terrainFeatures: Array of 2-3 terrain elements (e.g., "Narrow bridge over lava", "Crumbling pillars", "Elevated archer positions")
+  - combatInterest: Array of 1-2 combat interest modifiers from: "verticality" (height differences), "hazard" (environmental danger), "forced_movement" (knockback, grapple, fall), "environmental_timer" (collapsing, flooding, fire spreading), "secondary_objective" (protect NPC, destroy artifact, reach exit)
+  - oppositionType: What the party faces (e.g., "Villain's elite guard + summoned creatures")
+  - difficultyTarget: "easy" | "medium" | "hard" | "deadly"
+  - chapterPlacement: Which chapter this encounter fits best in (1-indexed)
+  - isUsed: false
+
+═══════════════════════════════════════════════════════════════════════════════
 CAML CAMPAIGN ARCHITECTURE — LIVING WORLD SYSTEM (MANDATORY)
 ═══════════════════════════════════════════════════════════════════════════════
 

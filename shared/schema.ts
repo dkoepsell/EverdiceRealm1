@@ -236,6 +236,17 @@ export const campaigns = pgTable("campaigns", {
   // Procedural Quest Generation System
   proceduralQuestConfig: jsonb("procedural_quest_config"), // Triggers and templates for dynamic quest generation
   lastProceduralQuestScene: integer("last_procedural_quest_scene").default(0), // Scene number of last procedural quest
+  // CAML2 Adventure Skeleton System
+  villainModel: jsonb("villain_model"), // Villain archetype, goal, plan structure, reaction tree
+  framingEvent: jsonb("framing_event"), // Adventure framing event: type, instability, visibility
+  complicationsQueue: jsonb("complications_queue"), // Moral quandaries, twists, environmental modifiers
+  encounterDesigns: jsonb("encounter_designs"), // Structured encounters with objectives, stakes, terrain, combat interest
+  partyGoal: jsonb("party_goal"), // Primary/secondary/hidden goals with success/partial/failure states
+  // CAML2 Persistent Campaign Tracking
+  villainCorruption: integer("villain_corruption").default(0), // Villain's corruption/power scale (0-10)
+  partyReputation: integer("party_reputation").default(50), // Party's reputation (0-100)
+  worldInstability: integer("world_instability").default(20), // Overall world instability (0-100)
+  failureAdvancementLog: jsonb("failure_advancement_log"), // Log of how failures advanced the world state
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at"),
 });
