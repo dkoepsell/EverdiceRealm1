@@ -745,6 +745,25 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
   }, [sessions, campaign]);
   
+  // Track continuous session play time — breakpoint only shows after ~1 hour
+  const sessionStartTime = useRef(Date.now());
+  const [breakpointDismissedAt, setBreakpointDismissedAt] = useState<number | null>(null);
+  const [sessionMinutesPlayed, setSessionMinutesPlayed] = useState(0);
+  const MIN_SESSION_MINUTES = 55;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSessionMinutesPlayed(Math.floor((Date.now() - sessionStartTime.current) / 60000));
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    sessionStartTime.current = Date.now();
+    setSessionMinutesPlayed(0);
+    setBreakpointDismissedAt(null);
+  }, [campaign.id]);
+
   // Track combat state changes and show learning tip when combat starts
   const prevInCombat = useRef(false);
   useEffect(() => {
@@ -3454,14 +3473,23 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         )}
                         
                         {/* Session Breakpoint — "Good stopping point" indicator */}
-                        {!isAdvancingStory && parsedStoryState?.sessionBreakpoint && (
+                        {/* Only shows after ~1 hour of continuous play, never during combat */}
+                        {!isAdvancingStory && parsedStoryState?.sessionBreakpoint && !parsedStoryState?.inCombat && 
+                          sessionMinutesPlayed >= MIN_SESSION_MINUTES && 
+                          (!breakpointDismissedAt || (Date.now() - breakpointDismissedAt) >= 30 * 60000) && (
                           <div className="mt-4 p-3 rounded-lg bg-gradient-to-r from-emerald-900/40 to-teal-900/30 border border-emerald-500/30 animate-in fade-in slide-in-from-bottom-2 duration-700">
                             <div className="flex items-center gap-2">
                               <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                               <span className="text-sm font-medium text-emerald-300">Good stopping point</span>
-                              <span className="text-xs text-emerald-400/70 ml-auto">Your progress is saved automatically</span>
+                              <button 
+                                onClick={() => setBreakpointDismissedAt(Date.now())}
+                                className="text-xs text-emerald-400/50 hover:text-emerald-300 ml-auto transition-colors"
+                                title="Dismiss — won't show again for 30 minutes"
+                              >
+                                ✕ dismiss
+                              </button>
                             </div>
-                            <p className="text-xs text-emerald-300/60 mt-1 ml-4">This is a natural pause in the story. You can come back anytime and pick up right here.</p>
+                            <p className="text-xs text-emerald-300/60 mt-1 ml-4">You've been adventuring for a while. This is a natural pause — your progress is saved automatically.</p>
                           </div>
                         )}
                         

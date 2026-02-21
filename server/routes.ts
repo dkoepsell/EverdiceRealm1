@@ -6456,13 +6456,15 @@ OVERALL ARC: Chapter ${currentChapterNum} of ${totalChapters}
 - Scenes in current chapter: ${scenesInCurrentChapter}
 
 SESSION CLOSURE BEATS (CRITICAL FOR PLAYER RETENTION):
-- Every 4-6 scenes within a chapter, create a NATURAL STOPPING POINT — a moment of closure
-- These are NOT chapter endings — they are satisfying pauses WITHIN a chapter
-- Good stopping points include: arriving somewhere new, completing a sub-task, a campfire/rest moment, a dramatic reveal, reuniting with allies, receiving a quest reward, or a cliffhanger that makes the player eager to return
-- When you create a stopping point, set "sessionBreakpoint": true in your response
+- ONLY set "sessionBreakpoint": true at GENUINE NARRATIVE TRANSITIONS — moments where the story naturally pauses
+- NEVER set sessionBreakpoint during active combat, mid-fight, tense action sequences, or unresolved cliffhangers
+- NEVER set sessionBreakpoint more than once every 8+ scenes — the player's real-world session timer controls when it appears, not scene count alone
+- Good stopping points include: arriving somewhere new, completing a sub-task, a campfire/rest moment after combat ends, reuniting with allies, receiving a quest reward, finishing a social encounter, or a quiet moment of reflection
+- BAD stopping points: mid-combat, during chase scenes, while enemies are present, during urgent time-pressure moments, right after revealing a threat
 - The stopping point should feel EARNED and COMPLETE — not abrupt
 - End stopping point scenes with a forward hook: hint at what comes next, an unanswered question, or a new threat on the horizon
 - Think of it like a TV episode ending: resolve the immediate tension, but leave threads that pull the viewer back
+- If inCombat is true or combatants are present, DO NOT set sessionBreakpoint
 `;
 
       if (completedGates.length > 0) {
@@ -6716,7 +6718,7 @@ Return your response as a JSON object with these fields:
     DELTA SIZING: Use delta ±1 for minor/indirect effects. Use delta ±2 for DECISIVE player choices that clearly commit to one direction (e.g., "harness the dark power" = +2, "destroy the artifact" = -2). The player's INTENT matters — if they chose something dramatic, the world should respond dramatically.
     ANTI-OSCILLATION: Do NOT reverse a stake change in the very next scene unless something dramatically changed. If a player chose to embrace blood magic and the stake went +2, it should NOT go -1 next turn just because "the situation calmed." Momentum matters — committed choices have lasting effects.
 - chapterGateMet: (OPTIONAL) If the chapter gate's required truth/commitment/belief was achieved THIS scene, include: { "gateId": chapter_number, "reason": "what was learned/committed/changed" }
-- sessionBreakpoint: (OPTIONAL, boolean) Set to true when this scene is a NATURAL STOPPING POINT — a satisfying moment of closure within the chapter where a player could save and return later. Should occur roughly every 4-6 scenes. The narrative should resolve immediate tension while leaving forward hooks.
+- sessionBreakpoint: (OPTIONAL, boolean) Set to true ONLY when this scene is a NATURAL STOPPING POINT at a genuine narrative transition. NEVER during combat, chases, or tense action. Only at calm moments: after combat ends, arriving somewhere new, rest scenes, quest completions. Should occur no more than once every 8+ scenes — the client controls timing display.
 - narrativeLogEntry: (REQUIRED) Object with:
   - xpReason: Why XP was awarded this scene (or "No XP — no meaningful resolution")
   - stakeReason: Which campaign stakes changed and why (one sentence)
@@ -16503,12 +16505,15 @@ OVERALL ARC: Chapter ${currentChapter} of ${totalChapters}
 - Scenes in current chapter: ${scenesInChapter2}
 
 SESSION CLOSURE BEATS (CRITICAL FOR PLAYER RETENTION):
-- Every 4-6 scenes within a chapter, create a NATURAL STOPPING POINT — a moment of closure
-- These are NOT chapter endings — they are satisfying pauses WITHIN a chapter
-- Good stopping points include: arriving somewhere new, completing a sub-task, a campfire/rest moment, a dramatic reveal, reuniting with allies, receiving a quest reward, or a cliffhanger that makes the player eager to return
-- When you create a stopping point, set "sessionBreakpoint": true in your response
+- ONLY set "sessionBreakpoint": true at GENUINE NARRATIVE TRANSITIONS — moments where the story naturally pauses
+- NEVER set sessionBreakpoint during active combat, mid-fight, tense action sequences, or unresolved cliffhangers
+- NEVER set sessionBreakpoint more than once every 8+ scenes — the player's real-world session timer controls when it appears, not scene count alone
+- Good stopping points include: arriving somewhere new, completing a sub-task, a campfire/rest moment after combat ends, reuniting with allies, receiving a quest reward, finishing a social encounter, or a quiet moment of reflection
+- BAD stopping points: mid-combat, during chase scenes, while enemies are present, during urgent time-pressure moments, right after revealing a threat
 - The stopping point should feel EARNED and COMPLETE — not abrupt
 - End stopping point scenes with a forward hook: hint at what comes next, an unanswered question, or a new threat on the horizon
+- Think of it like a TV episode ending: resolve the immediate tension, but leave threads that pull the viewer back
+- If inCombat is true or combatants are present, DO NOT set sessionBreakpoint
 `;
 
       if (completedGates2.length > 0) {
