@@ -1413,6 +1413,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/characters/quick-build", isAuthenticated, async (req: any, res) => {
+    try {
+      const { campaignId } = req.body;
+      const userId = req.user.id;
+
+      const races = ["Human", "Elf", "Dwarf", "Halfling", "Half-Orc", "Tiefling", "Gnome", "Dragonborn"];
+      const classes = ["Fighter", "Rogue", "Wizard", "Cleric", "Ranger", "Bard", "Paladin", "Barbarian"];
+      const namesByRace: Record<string, string[]> = {
+        Human: ["Aldric", "Elara", "Garrett", "Sera", "Theron", "Mira", "Cedric", "Lyra"],
+        Elf: ["Aelindra", "Thalion", "Faelwen", "Caelum", "Isilme", "Eryndor"],
+        Dwarf: ["Thorin", "Brenna", "Durin", "Helga", "Balin", "Greta"],
+        Halfling: ["Pippin", "Rosie", "Milo", "Daisy", "Tuck", "Fern"],
+        "Half-Orc": ["Grukk", "Shara", "Brog", "Kestra", "Thokk", "Yara"],
+        Tiefling: ["Zariel", "Lilith", "Mordai", "Ravenna", "Akta", "Nyx"],
+        Gnome: ["Fizban", "Nimble", "Gizmo", "Tinka", "Cogsworth", "Pip"],
+        Dragonborn: ["Rhogar", "Surina", "Balasar", "Jheri", "Torinn", "Kava"]
+      };
+
+      const race = races[Math.floor(Math.random() * races.length)];
+      const charClass = classes[Math.floor(Math.random() * classes.length)];
+      const names = namesByRace[race] || namesByRace.Human;
+      const name = names[Math.floor(Math.random() * names.length)];
+
+      const rollStat = () => {
+        const rolls = [1,2,3,4].map(() => Math.floor(Math.random() * 6) + 1);
+        rolls.sort((a, b) => a - b);
+        return rolls[1] + rolls[2] + rolls[3];
+      };
+
+      const stats = {
+        strength: rollStat(),
+        dexterity: rollStat(),
+        constitution: rollStat(),
+        intelligence: rollStat(),
+        wisdom: rollStat(),
+        charisma: rollStat()
+      };
+
+      const conMod = Math.floor((stats.constitution - 10) / 2);
+      const hitDice: Record<string, number> = {
+        Fighter: 10, Paladin: 10, Ranger: 10,
+        Barbarian: 12,
+        Rogue: 8, Bard: 8, Cleric: 8, Monk: 8, Druid: 8, Warlock: 8,
+        Wizard: 6, Sorcerer: 6
+      };
+      const hd = hitDice[charClass] || 8;
+      const hp = hd + conMod;
+
+      let weapon = "Shortsword";
+      let armor = "Leather Armor";
+      let ac = 11 + Math.floor((stats.dexterity - 10) / 2);
+
+      if (["Fighter", "Paladin", "Barbarian"].includes(charClass)) {
+        weapon = "Longsword"; armor = "Chain Mail"; ac = 16;
+      } else if (charClass === "Ranger" || charClass === "Rogue") {
+        weapon = charClass === "Ranger" ? "Shortbow" : "Rapier";
+      } else if (charClass === "Wizard") {
+        weapon = "Quarterstaff"; armor = "Robes"; ac = 10 + Math.floor((stats.dexterity - 10) / 2);
+      } else if (charClass === "Cleric") {
+        weapon = "Mace"; armor = "Scale Mail"; ac = 14 + Math.min(2, Math.floor((stats.dexterity - 10) / 2));
+      } else if (charClass === "Bard") {
+        weapon = "Rapier";
+      }
+
+      const consumables = [
+        { name: "Healing Potion", quantity: 2, type: "healing", effect: "Restores 2d4+2 HP", healDice: "2d4", healBonus: 2 },
+        { name: "Scroll of Revivify", quantity: 2, type: "utility", effect: "Resurrects a dead character" },
+        { name: "Antitoxin", quantity: 1, type: "utility", effect: "Advantage on poison saves for 1 hour" }
+      ];
+      const equipment = [weapon, armor, "Backpack", "Waterskin", "Rations (5 days)"];
+
+      const character = await storage.createCharacter({
+        userId,
+        name,
+        race,
+        class: charClass,
+        level: 1,
+        hitPoints: Math.max(1, hp),
+        maxHitPoints: Math.max(1, hp),
+        armorClass: ac,
+        ...stats,
+        background: "Adventurer",
+        alignment: "Neutral Good",
+        experiencePoints: 0,
+        gold: 50,
+        silver: 50,
+        consumables,
+        equipment,
+        equippedWeapon: weapon,
+        equippedArmor: armor,
+        proficiencyBonus: 2,
+      } as any);
+
+      if (campaignId) {
+        await storage.addCampaignParticipant({
+          campaignId,
+          userId,
+          characterId: character.id,
+          role: 'player'
+        });
+      }
+
+      res.status(201).json(character);
+    } catch (error) {
+      console.error("Quick-build character error:", error);
+      res.status(500).json({ message: "Failed to quick-build character" });
+    }
+  });
+
   app.get("/api/characters/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);

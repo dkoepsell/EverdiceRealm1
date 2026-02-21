@@ -95,9 +95,9 @@ export default function Navbar() {
   ];
   
   const publicLinks = [
-    { name: "Trading Post", path: "/trading-post", icon: Store },
-    { name: "World", path: "/world-map", icon: Map },
-    { name: "About", path: "/how-it-works", icon: BookOpen },
+    { name: "Play", path: "/auth", icon: Play },
+    { name: "Run a Game", path: "/auth", icon: Compass },
+    { name: "Learn", path: "/how-it-works", icon: BookOpen },
   ];
 
   const isActive = (path: string) => {

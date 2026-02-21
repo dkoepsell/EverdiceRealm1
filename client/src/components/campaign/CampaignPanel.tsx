@@ -59,6 +59,7 @@ import type { DungeonMapData, MapEntity } from "../dungeon/DungeonMap";
 import { generateDungeon } from "../dungeon/DungeonGenerator";
 import { ProceduralExplorationMap } from "../dungeon/ProceduralExplorationMap";
 import { StoryLoadingScreen } from "./StoryLoadingScreen";
+import { NoCharacterPrompt, AdventurerInstinct, FirstSessionTips } from "./AdventurerInstinct";
 
 interface CampaignPanelProps {
   campaign: Campaign;
@@ -3216,6 +3217,33 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             
             <TabsContent value="narrative" className="p-4 sm:p-6">
               <div className="space-y-4">
+                {/* No Character Prompt — shown when player has no character assigned */}
+                {!isDM && !activeCharacter && !sessionsLoading && (
+                  <NoCharacterPrompt
+                    campaignId={campaign.id}
+                    userId={user?.id || 0}
+                    onCharacterCreated={() => {
+                      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+                      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+                    }}
+                  />
+                )}
+
+                {/* Adventurer's Instinct — contextual nudges for gear, healing, gold */}
+                <AdventurerInstinct
+                  character={activeCharacter}
+                  campaignId={campaign.id}
+                  isDM={isDM}
+                  userId={user?.id || 0}
+                  sessionCount={sessions.length}
+                />
+
+                {/* First Session Tips — tavern wisdom for new players */}
+                <FirstSessionTips
+                  character={activeCharacter}
+                  sessionCount={sessions.length}
+                />
+
                 <div className="space-y-2">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">

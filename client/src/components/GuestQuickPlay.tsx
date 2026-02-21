@@ -576,18 +576,28 @@ export default function GuestQuickPlay({
   onComplete: () => void;
   onCancel: () => void;
 }) {
-  const [step, setStep] = useState(0); // 0: character, 1: adventure, 2: playing, 3: complete
-  const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
-  const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
+  const [autoChar] = useState(() => {
+    const chars = CHARACTER_TEMPLATES;
+    return chars[Math.floor(Math.random() * chars.length)];
+  });
+  const [autoTheme] = useState(() => {
+    const themes = ADVENTURE_THEMES;
+    return themes[Math.floor(Math.random() * themes.length)];
+  });
+  
+  const [step, setStep] = useState(2); // Skip straight to playing (step 2)
+  const [selectedCharacter, setSelectedCharacter] = useState<string | null>(autoChar.id);
+  const [selectedTheme, setSelectedTheme] = useState<string | null>(autoTheme.id);
   const [currentScene, setCurrentScene] = useState(0);
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [diceResult, setDiceResult] = useState<number | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const [showOutcome, setShowOutcome] = useState(false);
   const [narrativeRevealed, setNarrativeRevealed] = useState(false);
+  const [stateUpdates, setStateUpdates] = useState<string[]>([]);
 
-  const selectedChar = CHARACTER_TEMPLATES.find(c => c.id === selectedCharacter);
-  const selectedAdventure = ADVENTURE_THEMES.find(t => t.id === selectedTheme);
+  const selectedChar = CHARACTER_TEMPLATES.find(c => c.id === selectedCharacter) || autoChar;
+  const selectedAdventure = ADVENTURE_THEMES.find(t => t.id === selectedTheme) || autoTheme;
   
   const scenes = selectedChar && selectedAdventure 
     ? generateStoryScenes(selectedChar.class, selectedAdventure.id)
@@ -634,6 +644,19 @@ export default function GuestQuickPlay({
       characterId: selectedCharacter,
       adventureId: selectedTheme
     });
+
+    const sceneStateUpdates: Record<number, string[]> = {
+      0: ["Location discovered", selectedChoice === "careful" || selectedChoice === "analyze" || selectedChoice === "sense" || selectedChoice === "wife" ? "Cautious approach noted" : "Bold approach noted"],
+      1: [selectedChoice ? "NPC relationship established" : "New area explored", "Quest thread unlocked"],
+      2: diceResult && scene?.requiresRoll ? [
+        diceResult >= scene.requiresRoll.dc ? "Challenge overcome" : "Resilience shown",
+        "Combat experience gained",
+        "Key item discovered"
+      ] : ["Story progressed"],
+      3: ["Adventure completed", "World memory saved", `${selectedChar?.name || 'Hero'} reputation established`]
+    };
+    setStateUpdates(prev => [...prev, ...(sceneStateUpdates[currentScene] || ["Progress saved"])]);
+
     if (currentScene < scenes.length - 1) {
       setCurrentScene(currentScene + 1);
       setSelectedChoice(null);
@@ -869,6 +892,22 @@ export default function GuestQuickPlay({
               </div>
               <p className="text-xs text-slate-400 mt-1">Scene {currentScene + 1} of {scenes.length}</p>
             </div>
+
+            {stateUpdates.length > 0 && (
+              <div className="hidden lg:block mt-4 pt-4 border-t border-slate-700">
+                <p className="text-xs text-amber-400 uppercase tracking-wide mb-2 flex items-center gap-1">
+                  <BookOpen className="h-3 w-3" /> Campaign Memory
+                </p>
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {stateUpdates.map((update, i) => (
+                    <div key={i} className="text-xs text-slate-400 flex items-start gap-1.5">
+                      <span className="text-amber-500 mt-0.5 shrink-0">&#8226;</span>
+                      <span>{update}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           
           {/* Main Content Area */}
@@ -1061,19 +1100,40 @@ export default function GuestQuickPlay({
 
       {/* Completion */}
       {step === 3 && selectedChar && (
-        <div className="w-full max-w-2xl p-4 text-center">
-          <div className="mb-8">
+        <div className="w-full max-w-2xl p-4 text-center max-h-screen overflow-y-auto">
+          <div className="mb-6">
             <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mb-6">
               <Crown className="h-12 w-12 text-white" />
             </div>
             
-            <h1 className="text-4xl font-bold text-white mb-3">Adventure Complete!</h1>
-            <p className="text-xl text-amber-400 mb-2">{selectedChar.name} has proven their worth</p>
+            <h1 className="text-3xl font-bold text-white mb-3">This world will remember what you did.</h1>
+            <p className="text-lg text-amber-400 mb-2">{selectedChar.name}'s choices have been recorded</p>
             <p className="text-slate-400">
-              You've experienced a taste of tabletop roleplaying — unique stories that unfold 
-              differently each time based on your choices and the roll of the dice.
+              Every choice you made shaped this story differently. Sign up to save your campaign 
+              and keep building on the consequences of your decisions.
             </p>
           </div>
+
+          {stateUpdates.length > 0 && (
+            <Card className="bg-amber-950/30 border-amber-800/50 mb-6">
+              <CardHeader className="pb-2">
+                <h3 className="text-sm font-bold text-amber-400 flex items-center justify-center gap-2">
+                  <BookOpen className="h-4 w-4" />
+                  Campaign Memory — {stateUpdates.length} events tracked
+                </h3>
+              </CardHeader>
+              <CardContent className="text-left">
+                <div className="grid grid-cols-2 gap-2">
+                  {stateUpdates.map((update, i) => (
+                    <div key={i} className="text-xs text-amber-200/70 flex items-start gap-1.5">
+                      <span className="text-amber-500 mt-0.5 shrink-0">&#8226;</span>
+                      <span>{update}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
           <Card className="bg-slate-900/80 border-slate-700 mb-6">
             <CardHeader className="pb-2">
@@ -1086,27 +1146,27 @@ export default function GuestQuickPlay({
               <ul className="space-y-3 text-slate-300">
                 <li className="flex items-start gap-3">
                   <div className="w-6 h-6 rounded-full bg-purple-900/50 flex items-center justify-center shrink-0 mt-0.5">
-                    <Users className="h-3 w-3 text-purple-300" />
+                    <Sparkles className="h-3 w-3 text-purple-300" />
                   </div>
-                  <span>Create custom characters with full D&D 5e stats, backgrounds, and progression</span>
+                  <span>AI that remembers every choice you've ever made — NPCs react to your reputation across sessions</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <div className="w-6 h-6 rounded-full bg-emerald-900/50 flex items-center justify-center shrink-0 mt-0.5">
                     <BookOpen className="h-3 w-3 text-emerald-300" />
                   </div>
-                  <span>Play through complete campaigns with dynamically generated narratives that adapt to your choices</span>
+                  <span>Full campaigns with chapter progression, branching endings, and permanent consequences</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <div className="w-6 h-6 rounded-full bg-blue-900/50 flex items-center justify-center shrink-0 mt-0.5">
                     <Users className="h-3 w-3 text-blue-300" />
                   </div>
-                  <span>Invite friends to join multiplayer adventures with real-time collaboration</span>
+                  <span>Invite friends to join your world — shared memories, shared consequences</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <div className="w-6 h-6 rounded-full bg-amber-900/50 flex items-center justify-center shrink-0 mt-0.5">
-                    <Sparkles className="h-3 w-3 text-amber-300" />
+                    <MapPin className="h-3 w-3 text-amber-300" />
                   </div>
-                  <span>Access the full SRD 5.1 spell library, monster compendium, and DM tools</span>
+                  <span>Explore a living hex world with cities, dungeons, treks, and discoveries that persist</span>
                 </li>
               </ul>
             </CardContent>
@@ -1116,7 +1176,7 @@ export default function GuestQuickPlay({
             onClick={onComplete}
             className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 py-6 text-lg"
           >
-            Visit the Hearth — Meet the Community
+            Save This Campaign — Sign Up Free
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
           
