@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -11,7 +12,9 @@ import {
   Building2, Store, Shield, BookOpen, Hammer, Heart,
   Scroll, Sword, FlaskConical, Gem, Map as MapIcon,
   DoorOpen, ChevronLeft, Eye, Lock, Sparkles, Users,
-  X, Star, ShoppingBag, Wheat
+  X, Star, ShoppingBag, Wheat, Landmark, Home,
+  ArrowDownToLine, ArrowUpFromLine, Coins, Crown,
+  Skull, Compass, Package
 } from "lucide-react";
 
 interface CityBuilding {
@@ -68,6 +71,15 @@ const buildingIcons: Record<string, typeof Building2> = {
   arena: Sword,
   underworld: Eye,
   cartographer: MapIcon,
+  palace: Crown,
+  bank: Landmark,
+  real_estate: Home,
+  dark_temple: Skull,
+  information_broker: Compass,
+  auction: Coins,
+  academy: BookOpen,
+  dungeon_entrance: Skull,
+  tailor: Star,
 };
 
 const buildingColors: Record<string, string> = {
@@ -85,6 +97,15 @@ const buildingColors: Record<string, string> = {
   arena: "#ef4444",
   underworld: "#4b5563",
   cartographer: "#0ea5e9",
+  palace: "#fbbf24",
+  bank: "#14b8a6",
+  real_estate: "#a78bfa",
+  dark_temple: "#6b21a8",
+  information_broker: "#64748b",
+  auction: "#f59e0b",
+  academy: "#3b82f6",
+  dungeon_entrance: "#991b1b",
+  tailor: "#f472b6",
 };
 
 const districtColors = [
@@ -102,6 +123,210 @@ interface CityMapProps {
   locationName: string;
   onClose: () => void;
   onViewQuests?: () => void;
+}
+
+function BankPanel({ campaignId }: { campaignId: number }) {
+  const { toast } = useToast();
+  const [depositAmount, setDepositAmount] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+
+  const { data: bankData, isLoading } = useQuery<{ balance: number; transactions: any[] }>({
+    queryKey: ["/api/campaigns", campaignId, "bank"],
+    queryFn: async () => {
+      const res = await fetch(`/api/campaigns/${campaignId}/bank`, { credentials: "include" });
+      return res.json();
+    },
+  });
+
+  const depositMutation = useMutation({
+    mutationFn: async (amount: number) => {
+      const res = await apiRequest("POST", `/api/campaigns/${campaignId}/bank/deposit`, { amount });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "Deposited", description: `Bank balance: ${data.newBalance}gp` });
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns", campaignId, "bank"] });
+      setDepositAmount("");
+    },
+    onError: (err: any) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
+  });
+
+  const withdrawMutation = useMutation({
+    mutationFn: async (amount: number) => {
+      const res = await apiRequest("POST", `/api/campaigns/${campaignId}/bank/withdraw`, { amount });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "Withdrawn", description: `Received ${withdrawAmount}gp` });
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns", campaignId, "bank"] });
+      setWithdrawAmount("");
+    },
+    onError: (err: any) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
+  });
+
+  if (isLoading) return <p className="text-xs text-zinc-500">Loading bank account...</p>;
+
+  return (
+    <div className="space-y-3">
+      <div className="p-3 rounded-lg bg-gradient-to-r from-teal-900/30 to-emerald-900/20 border border-teal-500/30">
+        <p className="text-xs text-teal-400 mb-1">Account Balance</p>
+        <p className="text-2xl font-bold text-teal-300 flex items-center gap-2">
+          <Coins className="w-5 h-5" /> {bankData?.balance ?? 0} gp
+        </p>
+        <p className="text-[10px] text-teal-400/60 mt-1">Earns 1% interest daily</p>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex gap-2">
+          <Input
+            type="number"
+            placeholder="Amount"
+            value={depositAmount}
+            onChange={(e) => setDepositAmount(e.target.value)}
+            className="h-8 text-xs bg-zinc-800 border-zinc-700"
+          />
+          <Button
+            size="sm"
+            className="bg-teal-600 hover:bg-teal-500 text-xs gap-1 shrink-0"
+            disabled={!depositAmount || parseInt(depositAmount) <= 0 || isNaN(parseInt(depositAmount)) || depositMutation.isPending}
+            onClick={() => { const amt = parseInt(depositAmount); if (amt > 0) depositMutation.mutate(amt); }}
+          >
+            <ArrowDownToLine className="w-3 h-3" /> Deposit
+          </Button>
+        </div>
+        <div className="flex gap-2">
+          <Input
+            type="number"
+            placeholder="Amount"
+            value={withdrawAmount}
+            onChange={(e) => setWithdrawAmount(e.target.value)}
+            className="h-8 text-xs bg-zinc-800 border-zinc-700"
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs gap-1 shrink-0 border-teal-500/40 text-teal-400"
+            disabled={!withdrawAmount || parseInt(withdrawAmount) <= 0 || isNaN(parseInt(withdrawAmount)) || withdrawMutation.isPending}
+            onClick={() => { const amt = parseInt(withdrawAmount); if (amt > 0) withdrawMutation.mutate(amt); }}
+          >
+            <ArrowUpFromLine className="w-3 h-3" /> Withdraw
+          </Button>
+        </div>
+      </div>
+
+      {bankData?.transactions && bankData.transactions.length > 0 && (
+        <div>
+          <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Recent Transactions</p>
+          <div className="space-y-1 max-h-32 overflow-y-auto">
+            {bankData.transactions.slice(-5).reverse().map((tx: any, i: number) => (
+              <div key={i} className="flex items-center justify-between text-xs p-1.5 rounded bg-zinc-800/50">
+                <span className={tx.type === "deposit" ? "text-green-400" : tx.type === "interest" ? "text-teal-400" : "text-red-400"}>
+                  {tx.type === "deposit" ? "+" : tx.type === "interest" ? "+" : "-"}{tx.amount}gp
+                </span>
+                <span className="text-zinc-600 text-[10px]">{tx.type}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HousingPanel({ campaignId }: { campaignId: number }) {
+  const { toast } = useToast();
+
+  const { data: housingData, isLoading } = useQuery<{ house: any; catalog: any[] }>({
+    queryKey: ["/api/campaigns", campaignId, "housing"],
+    queryFn: async () => {
+      const res = await fetch(`/api/campaigns/${campaignId}/housing`, { credentials: "include" });
+      return res.json();
+    },
+  });
+
+  const buyMutation = useMutation({
+    mutationFn: async (houseType: string) => {
+      const res = await apiRequest("POST", `/api/campaigns/${campaignId}/housing/buy`, { houseType });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "House Purchased!", description: `Welcome to your new ${data.house.houseName}` });
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns", campaignId, "housing"] });
+    },
+    onError: (err: any) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
+  });
+
+  const sellMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/campaigns/${campaignId}/housing/sell`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "House Sold", description: `Received ${data.goldReceived}gp` });
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns", campaignId, "housing"] });
+    },
+    onError: (err: any) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
+  });
+
+  if (isLoading) return <p className="text-xs text-zinc-500">Loading estates...</p>;
+
+  const house = housingData?.house;
+  const catalog = housingData?.catalog || [];
+
+  if (house && house.houseName !== "__SOLD__") {
+    return (
+      <div className="space-y-3">
+        <div className="p-3 rounded-lg bg-gradient-to-r from-purple-900/30 to-violet-900/20 border border-purple-500/30">
+          <p className="text-xs text-purple-400 mb-1">Your Property</p>
+          <p className="text-lg font-bold text-purple-200 flex items-center gap-2">
+            <Home className="w-4 h-4" /> {house.houseName}
+          </p>
+          <p className="text-[10px] text-purple-400/60">District: {house.district} · Type: {house.houseType}</p>
+        </div>
+        <div className="p-2 rounded bg-zinc-800/50 border border-zinc-700/50">
+          <p className="text-xs text-zinc-400">Stored Items: {(house.storedItems || []).length}</p>
+          <p className="text-xs text-zinc-400">Upgrades: {(house.upgrades || []).length}</p>
+        </div>
+        <Button
+          size="sm"
+          variant="destructive"
+          className="w-full text-xs"
+          onClick={() => sellMutation.mutate()}
+          disabled={sellMutation.isPending}
+        >
+          Sell (60% return: {Math.floor(house.purchasePrice * 0.6)}gp)
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-zinc-500 uppercase tracking-wider">Available Properties</p>
+      {catalog.map((listing: any) => (
+        <div key={listing.type} className="p-2 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-sm font-medium text-amber-200">{listing.name}</p>
+            <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-500/30">
+              {listing.price}gp
+            </Badge>
+          </div>
+          <p className="text-[10px] text-zinc-400 mb-2">{listing.desc}</p>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-zinc-500">{listing.district}</span>
+            <Button
+              size="sm"
+              className="h-6 text-[10px] bg-purple-600 hover:bg-purple-500"
+              onClick={() => buyMutation.mutate(listing.type)}
+              disabled={buyMutation.isPending}
+            >
+              Purchase
+            </Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function CityMap({ campaignId, locationId, locationName, onClose, onViewQuests }: CityMapProps) {
@@ -150,8 +375,10 @@ export default function CityMap({ campaignId, locationId, locationName, onClose,
 
   if (!layout) return null;
 
-  const mapWidth = 520;
-  const mapHeight = 520;
+  const isCapital = layout.size === "capital";
+  const mapWidth = isCapital ? 960 : 520;
+  const mapHeight = isCapital ? 960 : 520;
+  const mapScale = isCapital ? 1 : 1;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4">
@@ -189,13 +416,16 @@ export default function CityMap({ campaignId, locationId, locationName, onClose,
           </CardHeader>
           <CardContent className="p-4">
             <TooltipProvider>
+              <div className={isCapital ? "overflow-auto max-h-[70vh] rounded-lg" : ""}>
               <div
                 className="relative mx-auto rounded-lg overflow-hidden"
                 style={{
                   width: mapWidth,
                   height: mapHeight,
-                  background: "linear-gradient(135deg, #1a1510 0%, #2a1f15 50%, #1a1510 100%)",
-                  border: "2px solid rgba(217, 119, 6, 0.3)",
+                  background: isCapital 
+                    ? "linear-gradient(135deg, #0f0d15 0%, #1a1525 25%, #15101a 50%, #1a1525 75%, #0f0d15 100%)"
+                    : "linear-gradient(135deg, #1a1510 0%, #2a1f15 50%, #1a1510 100%)",
+                  border: isCapital ? "2px solid rgba(168, 85, 247, 0.4)" : "2px solid rgba(217, 119, 6, 0.3)",
                 }}
               >
                 {layout.districts.map((district, i) => (
@@ -286,6 +516,7 @@ export default function CityMap({ campaignId, locationId, locationName, onClose,
                   );
                 })}
               </div>
+              </div>
             </TooltipProvider>
           </CardContent>
         </Card>
@@ -332,6 +563,18 @@ export default function CityMap({ campaignId, locationId, locationName, onClose,
                       District: {layout?.districts.find(d => d.id === selectedBuilding.district)?.name || "Unknown"}
                     </p>
                   </div>
+
+                  {selectedBuilding.type === "bank" && (
+                    <div className="pt-2 border-t border-zinc-800">
+                      <BankPanel campaignId={campaignId} />
+                    </div>
+                  )}
+
+                  {selectedBuilding.type === "real_estate" && (
+                    <div className="pt-2 border-t border-zinc-800">
+                      <HousingPanel campaignId={campaignId} />
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-8">

@@ -1120,6 +1120,115 @@ function generateCityLayout(locationName: string, locationType: string, seed: nu
   return { districts, buildings, gates, size: config.size };
 }
 
+function generateCapitalCityLayout(locationName: string, seed: number): CityLayout {
+  const rng = seededRandom(seed);
+
+  const capitalDistricts = [
+    { name: "Royal Quarter", desc: "Towering spires and marble halls house the seat of power. Nobles stroll through manicured gardens under the watchful eyes of the Royal Guard." },
+    { name: "Grand Market", desc: "The commercial heart of the realm. Hundreds of stalls, shops, and warehouses line cobblestone streets buzzing with trade from every corner of the world." },
+    { name: "Temple Row", desc: "A sacred avenue lined with temples to every deity. Incense drifts through the air, and pilgrims seek blessings at towering shrines." },
+    { name: "Thieves' Quarter", desc: "Narrow alleys wind between leaning buildings. What happens here stays here — for a price. The Shadow Guild runs everything from the rooftops." },
+    { name: "Harbor Ward", desc: "Ships from distant lands crowd the docks. Sailors, fishmongers, and smugglers mingle in seaside taverns reeking of brine and opportunity." },
+    { name: "Artisan Heights", desc: "Master craftsmen maintain prestigious workshops here. The ring of hammers and hum of enchantment echo through wide, clean streets." },
+    { name: "Scholar's Enclave", desc: "The great university and its surrounding libraries dominate this quiet district. Knowledge-seekers and mages study ancient texts behind ivy-covered walls." },
+    { name: "Old City", desc: "The original settlement, now a maze of ancient tunnels, crumbling walls, and stubborn residents who refuse to leave. History seeps from every stone." },
+  ];
+
+  const capitalBuildings: Array<{ name: string; type: string; desc: string; services: string[]; npc: string; district: string }> = [
+    // Royal Quarter
+    { name: "The Royal Palace", type: "palace", desc: "The grand seat of the realm's sovereign. Petitioners gather in the great hall seeking audience.", services: ["audience", "decrees", "political_favors"], npc: "The Royal Steward", district: "Royal Quarter" },
+    { name: "Royal Bank of the Realm", type: "bank", desc: "A fortified institution where the realm's wealth is stored. Vaults descend deep underground.", services: ["deposit", "withdraw", "loans", "interest"], npc: "The Head Banker, a meticulous gnome", district: "Royal Quarter" },
+    { name: "Crown Estates Office", type: "real_estate", desc: "Properties throughout the capital can be purchased or rented here, from modest apartments to noble manors.", services: ["buy_house", "sell_house", "rent", "upgrades"], npc: "A shrewd halfling estate agent", district: "Royal Quarter" },
+    { name: "Royal Guard Barracks", type: "barracks", desc: "The elite soldiers who protect the crown train and muster here.", services: ["bounties", "protection", "military_contracts"], npc: "Captain of the Royal Guard", district: "Royal Quarter" },
+    // Grand Market
+    { name: "The Golden Bazaar", type: "general_store", desc: "The largest general store in the realm. If it exists, they sell it.", services: ["supplies", "gear", "exotic_goods", "trade"], npc: "A boisterous merchant prince", district: "Grand Market" },
+    { name: "Enchanted Armory", type: "magic_shop", desc: "Rare magical weapons and armor displayed behind shimmering wards. Prices match the quality.", services: ["magic_weapons", "magic_armor", "enchanting", "identify"], npc: "An elven arcane smith", district: "Grand Market" },
+    { name: "Potioneer's Paradise", type: "apothecary", desc: "Walls lined with bubbling vials and exotic ingredients. Custom brews available on request.", services: ["potions", "herbs", "custom_brews", "antidotes"], npc: "A tiefling alchemist", district: "Grand Market" },
+    { name: "Curiosities & Wonders", type: "jeweler", desc: "Gemstones, enchanted trinkets, and mysterious artifacts from distant lands.", services: ["gems", "appraise", "enchant", "rare_items"], npc: "A drow collector", district: "Grand Market" },
+    { name: "The Auction House", type: "auction", desc: "Rare items and estate treasures go under the hammer weekly. Fortunes change hands in moments.", services: ["auctions", "consignment", "rare_trades"], npc: "A theatrical auctioneer", district: "Grand Market" },
+    // Temple Row
+    { name: "Cathedral of the Dawn", type: "temple", desc: "The grandest temple in the city, its stained glass catching the first light of every sunrise.", services: ["healing", "blessings", "resurrection", "divine_guidance"], npc: "The High Priestess", district: "Temple Row" },
+    { name: "Shrine of Shadows", type: "dark_temple", desc: "A discreet temple where followers of less conventional deities come to pray — or bargain.", services: ["dark_blessings", "curses", "forbidden_knowledge"], npc: "A hooded acolyte", district: "Temple Row" },
+    // Thieves' Quarter
+    { name: "The Velvet Dagger", type: "tavern", desc: "A dimly-lit establishment where information is the most valuable currency. Ask for the 'special menu.'", services: ["rumors", "black_market", "assassin_contracts", "fences"], npc: "A one-eyed barkeep who sees everything", district: "Thieves' Quarter" },
+    { name: "Shadow Guild Hall", type: "underworld", desc: "The headquarters of the city's organized crime. Membership has its privileges — and its costs.", services: ["theft_contracts", "smuggling", "lockpicks", "disguises"], npc: "The Guildmaster (identity unknown)", district: "Thieves' Quarter" },
+    { name: "The Whispering Wall", type: "information_broker", desc: "A nondescript wall where coded messages are exchanged. The city's secrets flow through here.", services: ["intelligence", "blackmail", "espionage", "rumors"], npc: "Nobody visible — messages appear overnight", district: "Thieves' Quarter" },
+    // Harbor Ward
+    { name: "The Salty Anchor", type: "tavern", desc: "The roughest tavern on the waterfront. Sailors arm-wrestle for drinks and captains recruit crew.", services: ["rest", "rumors", "recruitment", "sea_passage"], npc: "A retired pirate captain", district: "Harbor Ward" },
+    { name: "Harbormaster's Office", type: "guild", desc: "All ships entering port register here. Trade routes, cargo manifests, and travel arrangements.", services: ["travel", "shipping", "trade_routes", "cargo"], npc: "A stern harbormaster", district: "Harbor Ward" },
+    // Artisan Heights
+    { name: "Masterwork Forge", type: "blacksmith", desc: "The finest weapons and armor in the realm are crafted here by guild-certified masters.", services: ["masterwork_weapons", "masterwork_armor", "repair", "custom_orders"], npc: "A dwarven master smith", district: "Artisan Heights" },
+    { name: "The Gilded Needle", type: "tailor", desc: "Fine clothing and enchanted garments for nobility and adventurers who want to look the part.", services: ["clothing", "disguise_kits", "enchanted_garments"], npc: "A fashionable half-elf designer", district: "Artisan Heights" },
+    // Scholar's Enclave
+    { name: "The Grand Library", type: "library", desc: "The largest repository of knowledge in the realm. Restricted sections require special clearance.", services: ["lore", "research", "restricted_archives", "spell_scrolls"], npc: "The Head Librarian, an ancient elf", district: "Scholar's Enclave" },
+    { name: "Arcane University", type: "academy", desc: "Where aspiring wizards study the arcane arts. The faculty offers specialized training.", services: ["training", "spell_research", "arcane_consulting"], npc: "The Archmage Provost", district: "Scholar's Enclave" },
+    // Old City
+    { name: "The Ratskeller", type: "tavern", desc: "A centuries-old tavern in the basement of a crumbling tower. The regulars have stories older than the walls.", services: ["rest", "rumors", "underground_access", "food"], npc: "An ageless gnome barkeep", district: "Old City" },
+    { name: "Undercity Entrance", type: "dungeon_entrance", desc: "A gated passage leading to the old sewers and catacombs beneath the city. Monsters lurk below.", services: ["dungeon_access", "treasure_rumors", "monster_bounties"], npc: "A scarred veteran dungeon guide", district: "Old City" },
+    { name: "Stables of the Sun", type: "stables", desc: "The largest stable complex in the capital. Exotic mounts and swift horses available.", services: ["mounts", "exotic_mounts", "storage", "fast_travel"], npc: "A centaur stablemaster", district: "Old City" },
+  ];
+
+  // Layout districts in a larger grid
+  const districts: CityDistrict[] = capitalDistricts.map((d, i) => {
+    const cols = 3;
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    return {
+      id: `district-${i}`,
+      name: d.name,
+      description: d.desc,
+      x: col * 320 + Math.floor(rng() * 20),
+      y: row * 320 + Math.floor(rng() * 20),
+      width: 300 + Math.floor(rng() * 30),
+      height: 300 + Math.floor(rng() * 30),
+    };
+  });
+
+  // Place buildings in their named districts
+  const buildings: CityBuilding[] = capitalBuildings.map((b, i) => {
+    const districtIndex = capitalDistricts.findIndex(d => d.name === b.district);
+    const district = districts[districtIndex >= 0 ? districtIndex : 0];
+    return {
+      id: `building-${i}`,
+      name: b.name,
+      type: b.type,
+      description: b.desc,
+      x: district.x + 20 + Math.floor(rng() * (district.width - 60)),
+      y: district.y + 20 + Math.floor(rng() * (district.height - 60)),
+      size: 35 + Math.floor(rng() * 15),
+      district: district.id,
+      services: b.services,
+      npcHint: b.npc,
+    };
+  });
+
+  // Streets connecting districts
+  const streets = [
+    { name: "King's Road", from: "Royal Quarter", to: "Grand Market" },
+    { name: "Pilgrim's Way", from: "Grand Market", to: "Temple Row" },
+    { name: "Shadowgate Lane", from: "Grand Market", to: "Thieves' Quarter" },
+    { name: "Wharf Street", from: "Thieves' Quarter", to: "Harbor Ward" },
+    { name: "Artisan's Promenade", from: "Grand Market", to: "Artisan Heights" },
+    { name: "Scholar's Walk", from: "Artisan Heights", to: "Scholar's Enclave" },
+    { name: "Ancient Way", from: "Old City", to: "Royal Quarter" },
+    { name: "Market Bridge", from: "Harbor Ward", to: "Grand Market" },
+  ].map((s, i) => ({
+    id: `street-${i}`,
+    name: s.name,
+    fromDistrict: s.from,
+    toDistrict: s.to,
+  }));
+
+  const gates = [
+    { id: "gate-0", name: "North Gate — King's Highway", x: 480, y: 20, direction: "north" },
+    { id: "gate-1", name: "South Gate — Old Road", x: 480, y: 960, direction: "south" },
+    { id: "gate-2", name: "East Gate — Harbor Entrance", x: 960, y: 480, direction: "east" },
+    { id: "gate-3", name: "West Gate — Pilgrim's Gate", x: 20, y: 480, direction: "west" },
+  ];
+
+  return { districts, buildings, gates, streets, size: "capital" } as CityLayout;
+}
+
 function computeTrekPath(startQ: number, startR: number, endQ: number, endR: number): Array<{ q: number; r: number }> {
   const path: Array<{ q: number; r: number }> = [{ q: startQ, r: startR }];
   let cq = startQ;
@@ -1196,6 +1305,92 @@ async function generateLocationQuests(campaignId: number, location: any, layout:
     });
   }
   
+  // Capital-specific political intrigue quests
+  const hasPalace = layout.buildings.some(b => b.type === "palace");
+  const hasBank = layout.buildings.some(b => b.type === "bank");
+  const hasInfoBroker = layout.buildings.some(b => b.type === "information_broker");
+  const hasAuction = layout.buildings.some(b => b.type === "auction");
+  const hasDarkTemple = layout.buildings.some(b => b.type === "dark_temple");
+  const hasDungeonEntrance = layout.buildings.some(b => b.type === "dungeon_entrance");
+  const hasAcademy = layout.buildings.some(b => b.type === "academy");
+
+  if (hasPalace) {
+    questTemplates.push({
+      title: "A Court in Turmoil",
+      desc: "Whispers of conspiracy echo through the Royal Palace. A noble faction plots to undermine the crown. An audience with the Royal Steward could reveal who can be trusted.",
+      type: "side",
+      xp: 350,
+      gold: 200,
+    });
+    questTemplates.push({
+      title: "The King's Errand",
+      desc: "The Royal Guard has posted a discreet bounty — a diplomat has gone missing in the Thieves' Quarter, and the crown needs them found before a treaty collapses.",
+      type: "side",
+      xp: 400,
+      gold: 250,
+    });
+  }
+
+  if (hasInfoBroker) {
+    questTemplates.push({
+      title: "Threads of the Web",
+      desc: "Coded messages on the Whispering Wall point to a smuggling ring operating from the Harbor. Unravel the network before the next shipment arrives at dawn.",
+      type: "side",
+      xp: 300,
+      gold: 175,
+    });
+  }
+
+  if (hasAuction) {
+    questTemplates.push({
+      title: "The Stolen Heirloom",
+      desc: "A suspiciously rare artifact has appeared at the Auction House. Its true owner — a powerful mage — wants it recovered before it sells, and they're willing to pay handsomely.",
+      type: "side",
+      xp: 250,
+      gold: 300,
+    });
+  }
+
+  if (hasDarkTemple) {
+    questTemplates.push({
+      title: "Pact of Shadows",
+      desc: "The Shrine of Shadows seeks a willing soul to retrieve a forbidden text from the Old City catacombs. The reward defies mortal currency — the price may be equally unusual.",
+      type: "side",
+      xp: 500,
+      gold: 100,
+    });
+  }
+
+  if (hasDungeonEntrance) {
+    questTemplates.push({
+      title: "Depths of the Undercity",
+      desc: "Something stirs in the ancient catacombs beneath the Old City. The dungeon guide offers his services — for a share of whatever treasure lies within.",
+      type: "combat",
+      xp: 450,
+      gold: 150,
+    });
+  }
+
+  if (hasAcademy) {
+    questTemplates.push({
+      title: "The Archmage's Test",
+      desc: "The Arcane University extends a rare invitation: prove your worth through a series of magical trials, and gain access to spells and knowledge unavailable anywhere else.",
+      type: "side",
+      xp: 350,
+      gold: 50,
+    });
+  }
+
+  if (hasBank) {
+    questTemplates.push({
+      title: "Vault Breach Investigation",
+      desc: "The Royal Bank has suffered an impossible theft — gold vanished from a sealed vault. The Head Banker suspects an inside job and offers a generous finder's fee.",
+      type: "side",
+      xp: 300,
+      gold: 400,
+    });
+  }
+
   // Always add a generic exploration quest
   questTemplates.push({
     title: `Explore ${location.name}`,
@@ -10989,7 +11184,9 @@ Return your response as a JSON object with these fields:
       
       const locType = location.locationType || "landmark";
       const seed = campaignId * 1000 + locationId;
-      const layout = generateCityLayout(location.name, locType, seed);
+      const layout = locType === "capital" 
+        ? generateCapitalCityLayout(location.name, seed) 
+        : generateCityLayout(location.name, locType, seed);
       
       cityMap = await storage.createCityMap({
         campaignId,
@@ -11001,7 +11198,7 @@ Return your response as a JSON object with these fields:
       });
       
       // Generate location-based quests if this is a settlement
-      if (["city", "town", "village"].includes(locType)) {
+      if (["city", "town", "village", "capital"].includes(locType)) {
         await generateLocationQuests(campaignId, location, layout);
       }
       
@@ -11092,12 +11289,15 @@ Return your response as a JSON object with these fields:
       const route = await storage.createTrekRoute({
         campaignId,
         userId,
+        originQ: startQ,
+        originR: startR,
         destinationQ,
         destinationR,
         destinationName: destinationName || null,
         path,
         currentStep: 0,
         status: "active",
+        lootFound: [],
       });
       
       res.json({ route, pathLength: path.length });
@@ -11147,7 +11347,21 @@ Return your response as a JSON object with these fields:
       
       if (nextStep >= path.length) {
         await storage.updateTrekRoute(route.id, { status: "completed", currentStep: nextStep });
-        return res.json({ success: true, completed: true, position: path[path.length - 1] });
+        
+        // Auto-return to origin position
+        const originQ = (route as any).originQ ?? 0;
+        const originR = (route as any).originR ?? 0;
+        const state2 = await storage.getExplorationState(campaignId);
+        if (state2) {
+          await storage.updateExplorationState(campaignId, {
+            currentHexQ: originQ,
+            currentHexR: originR,
+            lastMovementAt: new Date().toISOString(),
+          });
+        }
+        
+        const lootFound = (route as any).lootFound || [];
+        return res.json({ success: true, completed: true, position: { q: originQ, r: originR }, returnedToOrigin: true, lootFound });
       }
       
       const nextHex = path[nextStep];
@@ -11254,6 +11468,19 @@ Return your response as a JSON object with these fields:
             sceneType: "combat",
             narrativeCategory: "combat",
           },
+          {
+            type: "loot_find",
+            descriptions: [
+              "Sunlight catches something glinting beneath a fallen log — a leather pouch tucked away by a previous traveler.",
+              "You discover the remains of a merchant's wagon, its contents scattered but some valuables intact.",
+              "A hidden cache is revealed behind loose stones in a rocky outcrop — someone's emergency stash.",
+              "Among the wildflowers, you spot a skeletal hand clutching a small chest. Whatever befell the owner, their belongings remain.",
+              "A hollow tree reveals a bundle wrapped in oilcloth — weapons and supplies left behind long ago.",
+            ],
+            hook: "You've found something valuable! Examine the loot and add it to your inventory.",
+            sceneType: "exploration",
+            narrativeCategory: "discovery",
+          },
         ];
         const template = encounterTemplates[Math.floor(Math.random() * encounterTemplates.length)];
         const description = template.descriptions[Math.floor(Math.random() * template.descriptions.length)];
@@ -11269,7 +11496,43 @@ Return your response as a JSON object with these fields:
           hexQ: nextHex.q,
           hexR: nextHex.r,
           destinationName: route.destinationName || "Unknown",
+          loot: null as any,
         };
+
+        // Generate loot for loot_find encounters
+        if (template.type === "loot_find") {
+          const lootTables = {
+            weapons: [
+              { name: "Sturdy Shortsword", type: "weapon", rarity: "common", value: 10, damageDice: "1d6", damageType: "slashing" },
+              { name: "Hunting Bow", type: "weapon", rarity: "common", value: 25, damageDice: "1d8", damageType: "piercing" },
+              { name: "Dagger of the Road", type: "weapon", rarity: "uncommon", value: 50, damageDice: "1d4+1", damageType: "piercing", specialEffect: "Glows faintly when hostile creatures are within 60 feet" },
+              { name: "Traveler's Mace", type: "weapon", rarity: "common", value: 15, damageDice: "1d6", damageType: "bludgeoning" },
+            ],
+            potions: [
+              { name: "Potion of Healing", type: "consumable", rarity: "common", value: 50, specialEffect: "Restores 2d4+2 hit points" },
+              { name: "Potion of Climbing", type: "consumable", rarity: "common", value: 25, specialEffect: "Gain climbing speed equal to walking speed for 1 hour" },
+              { name: "Antitoxin", type: "consumable", rarity: "common", value: 25, specialEffect: "Advantage on saves vs poison for 1 hour" },
+              { name: "Potion of Greater Healing", type: "consumable", rarity: "uncommon", value: 100, specialEffect: "Restores 4d4+4 hit points" },
+            ],
+            gear: [
+              { name: "Explorer's Pack", type: "wondrous", rarity: "common", value: 10, specialEffect: "Contains rope, torches, rations, and a bedroll" },
+              { name: "Cloak of Comfort", type: "wondrous", rarity: "common", value: 30, specialEffect: "Keeps the wearer warm and dry in harsh weather" },
+              { name: "Ring of Whispers", type: "accessory", rarity: "uncommon", value: 75, specialEffect: "Allows the wearer to send a 25-word message telepathically once per day" },
+              { name: "Amulet of the Wayfinder", type: "accessory", rarity: "uncommon", value: 80, specialEffect: "Points toward the nearest settlement when held aloft" },
+            ],
+          };
+          const categories = Object.keys(lootTables) as Array<keyof typeof lootTables>;
+          const cat = categories[Math.floor(Math.random() * categories.length)];
+          const item = lootTables[cat][Math.floor(Math.random() * lootTables[cat].length)];
+          const goldDrop = Math.floor(Math.random() * 30) + 5;
+          encounter.loot = { item, goldDrop };
+
+          // Accumulate loot found during trek
+          const existingLoot = (route as any).lootFound || [];
+          await storage.updateTrekRoute(route.id, {
+            lootFound: [...existingLoot, { item, goldDrop, step: nextStep }],
+          });
+        }
 
         await storage.updateTrekRoute(route.id, {
           status: "encounter",
@@ -11486,7 +11749,7 @@ Make choices varied and interesting. For combat encounters, include both fightin
     }
   });
 
-  // Cancel active trek
+  // Cancel active trek — auto-returns party to origin
   app.post("/api/campaigns/:campaignId/trek/cancel", async (req, res) => {
     try {
       if (!req.isAuthenticated()) {
@@ -11498,6 +11761,18 @@ Make choices varied and interesting. For combat encounters, include both fightin
       const route = await storage.getActiveTrekRoute(campaignId, userId);
       if (route) {
         await storage.cancelTrekRoute(route.id);
+        
+        // Auto-return to origin position
+        const originQ = (route as any).originQ ?? 0;
+        const originR = (route as any).originR ?? 0;
+        const state = await storage.getExplorationState(campaignId);
+        if (state) {
+          await storage.updateExplorationState(campaignId, {
+            currentHexQ: originQ,
+            currentHexR: originR,
+            lastMovementAt: new Date().toISOString(),
+          });
+        }
       }
       
       res.json({ success: true });
@@ -11507,6 +11782,254 @@ Make choices varied and interesting. For combat encounters, include both fightin
     }
   });
   
+  // ======== Capital City Bank Endpoints ========
+  
+  app.get("/api/campaigns/:campaignId/bank", async (req, res) => {
+    try {
+      if (!req.user) return res.status(401).json({ message: "Not authenticated" });
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = (req.user as any).id;
+      const characters = await storage.getCharactersByCampaign(campaignId);
+      const myChar = characters.find((c: any) => c.userId === userId);
+      if (!myChar) return res.status(404).json({ message: "No character in this campaign" });
+      
+      const account = await storage.getPlayerBank(myChar.id, campaignId);
+      if (!account) {
+        return res.json({ account: null, balance: 0, transactions: [] });
+      }
+      
+      // Calculate interest (1% per day, max once per day)
+      let balance = account.balance;
+      const now = new Date();
+      if (account.lastInterestAt) {
+        const lastInterest = new Date(account.lastInterestAt);
+        const daysSince = Math.floor((now.getTime() - lastInterest.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysSince >= 1 && balance > 0) {
+          const interest = Math.floor(balance * 0.01 * daysSince);
+          if (interest > 0) {
+            const txns = (account.transactions as any[]) || [];
+            txns.push({ type: "interest", amount: interest, date: now.toISOString(), note: `${daysSince} day(s) interest` });
+            balance += interest;
+            await storage.updatePlayerBank(account.id, {
+              balance,
+              lastInterestAt: now.toISOString(),
+              transactions: txns,
+            });
+          }
+        }
+      }
+      
+      res.json({ account: { ...account, balance }, balance, transactions: (account.transactions as any[]) || [] });
+    } catch (error) {
+      console.error("Error fetching bank:", error);
+      res.status(500).json({ message: "Failed to fetch bank account" });
+    }
+  });
+
+  app.post("/api/campaigns/:campaignId/bank/deposit", async (req, res) => {
+    try {
+      if (!req.user) return res.status(401).json({ message: "Not authenticated" });
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = (req.user as any).id;
+      const { amount } = req.body;
+      if (!amount || amount <= 0) return res.status(400).json({ message: "Invalid amount" });
+      
+      const characters = await storage.getCharactersByCampaign(campaignId);
+      const myChar = characters.find((c: any) => c.userId === userId);
+      if (!myChar) return res.status(404).json({ message: "No character in this campaign" });
+      
+      const charGold = (myChar as any).gold || 0;
+      if (charGold < amount) return res.status(400).json({ message: "Not enough gold" });
+      
+      let account = await storage.getPlayerBank(myChar.id, campaignId);
+      if (!account) {
+        account = await storage.createPlayerBank({
+          characterId: myChar.id,
+          campaignId,
+          balance: 0,
+          lastInterestAt: new Date().toISOString(),
+          transactions: [],
+          createdAt: new Date().toISOString(),
+        });
+      }
+      
+      const txns = (account.transactions as any[]) || [];
+      txns.push({ type: "deposit", amount, date: new Date().toISOString() });
+      
+      await storage.updatePlayerBank(account.id, {
+        balance: account.balance + amount,
+        transactions: txns,
+        lastInterestAt: account.lastInterestAt || new Date().toISOString(),
+      });
+      
+      // Deduct gold from character
+      await storage.updateCharacter(myChar.id, { gold: charGold - amount } as any);
+      
+      res.json({ success: true, newBalance: account.balance + amount, characterGold: charGold - amount });
+    } catch (error) {
+      console.error("Error depositing:", error);
+      res.status(500).json({ message: "Failed to deposit" });
+    }
+  });
+
+  app.post("/api/campaigns/:campaignId/bank/withdraw", async (req, res) => {
+    try {
+      if (!req.user) return res.status(401).json({ message: "Not authenticated" });
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = (req.user as any).id;
+      const { amount } = req.body;
+      if (!amount || amount <= 0) return res.status(400).json({ message: "Invalid amount" });
+      
+      const characters = await storage.getCharactersByCampaign(campaignId);
+      const myChar = characters.find((c: any) => c.userId === userId);
+      if (!myChar) return res.status(404).json({ message: "No character in this campaign" });
+      
+      const account = await storage.getPlayerBank(myChar.id, campaignId);
+      if (!account || account.balance < amount) {
+        return res.status(400).json({ message: "Insufficient bank balance" });
+      }
+      
+      const txns = (account.transactions as any[]) || [];
+      txns.push({ type: "withdrawal", amount, date: new Date().toISOString() });
+      
+      await storage.updatePlayerBank(account.id, {
+        balance: account.balance - amount,
+        transactions: txns,
+      });
+      
+      const charGold = (myChar as any).gold || 0;
+      await storage.updateCharacter(myChar.id, { gold: charGold + amount } as any);
+      
+      res.json({ success: true, newBalance: account.balance - amount, characterGold: charGold + amount });
+    } catch (error) {
+      console.error("Error withdrawing:", error);
+      res.status(500).json({ message: "Failed to withdraw" });
+    }
+  });
+
+  // ======== Capital City Housing Endpoints ========
+  
+  const HOUSE_CATALOG = [
+    { type: "modest", name: "Modest Apartment", price: 200, district: "Old City", desc: "A small but functional apartment in the Old City. Two rooms and a hearth." },
+    { type: "comfortable", name: "Comfortable Townhouse", price: 500, district: "Artisan Heights", desc: "A well-appointed townhouse with a workshop space and small garden." },
+    { type: "wealthy", name: "Wealthy Residence", price: 1500, district: "Grand Market", desc: "An elegant home with multiple rooms, servants' quarters, and a private courtyard." },
+    { type: "noble", name: "Noble Estate", price: 5000, district: "Royal Quarter", desc: "A prestigious estate befitting minor nobility. Includes a ballroom and wine cellar." },
+    { type: "manor", name: "Grand Manor", price: 15000, district: "Royal Quarter", desc: "A sprawling manor with extensive grounds, a personal library, and enchanted defenses." },
+  ];
+  
+  app.get("/api/campaigns/:campaignId/housing", async (req, res) => {
+    try {
+      if (!req.user) return res.status(401).json({ message: "Not authenticated" });
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = (req.user as any).id;
+      const characters = await storage.getCharactersByCampaign(campaignId);
+      const myChar = characters.find((c: any) => c.userId === userId);
+      if (!myChar) return res.status(404).json({ message: "No character in this campaign" });
+      
+      const house = await storage.getPlayerHouse(myChar.id, campaignId);
+      res.json({ house: house || null, catalog: HOUSE_CATALOG });
+    } catch (error) {
+      console.error("Error fetching housing:", error);
+      res.status(500).json({ message: "Failed to fetch housing" });
+    }
+  });
+
+  app.post("/api/campaigns/:campaignId/housing/buy", async (req, res) => {
+    try {
+      if (!req.user) return res.status(401).json({ message: "Not authenticated" });
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = (req.user as any).id;
+      const { houseType } = req.body;
+      
+      const listing = HOUSE_CATALOG.find(h => h.type === houseType);
+      if (!listing) return res.status(400).json({ message: "Invalid house type" });
+      
+      const characters = await storage.getCharactersByCampaign(campaignId);
+      const myChar = characters.find((c: any) => c.userId === userId);
+      if (!myChar) return res.status(404).json({ message: "No character in this campaign" });
+      
+      const existing = await storage.getPlayerHouse(myChar.id, campaignId);
+      if (existing) return res.status(400).json({ message: "You already own a house. Sell it first to buy a new one." });
+      
+      const charGold = (myChar as any).gold || 0;
+      if (charGold < listing.price) return res.status(400).json({ message: `Not enough gold. Need ${listing.price}gp.` });
+      
+      await storage.updateCharacter(myChar.id, { gold: charGold - listing.price } as any);
+      
+      const house = await storage.createPlayerHouse({
+        characterId: myChar.id,
+        campaignId,
+        houseName: listing.name,
+        houseType: listing.type,
+        district: listing.district,
+        purchasePrice: listing.price,
+        furnishings: [],
+        storedItems: [],
+        upgrades: [],
+        purchasedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      });
+      
+      res.json({ success: true, house, remainingGold: charGold - listing.price });
+    } catch (error) {
+      console.error("Error buying house:", error);
+      res.status(500).json({ message: "Failed to buy house" });
+    }
+  });
+
+  app.post("/api/campaigns/:campaignId/housing/sell", async (req, res) => {
+    try {
+      if (!req.user) return res.status(401).json({ message: "Not authenticated" });
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = (req.user as any).id;
+      
+      const characters = await storage.getCharactersByCampaign(campaignId);
+      const myChar = characters.find((c: any) => c.userId === userId);
+      if (!myChar) return res.status(404).json({ message: "No character in this campaign" });
+      
+      const house = await storage.getPlayerHouse(myChar.id, campaignId);
+      if (!house) return res.status(400).json({ message: "You don't own a house" });
+      
+      const sellPrice = Math.floor(house.purchasePrice * 0.6);
+      const charGold = (myChar as any).gold || 0;
+      await storage.updateCharacter(myChar.id, { gold: charGold + sellPrice } as any);
+      
+      // Delete the house (update to mark sold - or we just delete the record)
+      await storage.updatePlayerHouse(house.id, { houseName: "__SOLD__" } as any);
+      
+      res.json({ success: true, goldReceived: sellPrice, newGold: charGold + sellPrice });
+    } catch (error) {
+      console.error("Error selling house:", error);
+      res.status(500).json({ message: "Failed to sell house" });
+    }
+  });
+
+  app.post("/api/campaigns/:campaignId/housing/store-item", async (req, res) => {
+    try {
+      if (!req.user) return res.status(401).json({ message: "Not authenticated" });
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = (req.user as any).id;
+      const { item } = req.body;
+      if (!item) return res.status(400).json({ message: "Item required" });
+      
+      const characters = await storage.getCharactersByCampaign(campaignId);
+      const myChar = characters.find((c: any) => c.userId === userId);
+      if (!myChar) return res.status(404).json({ message: "No character" });
+      
+      const house = await storage.getPlayerHouse(myChar.id, campaignId);
+      if (!house || house.houseName === "__SOLD__") return res.status(400).json({ message: "You need a house to store items" });
+      
+      const stored = (house.storedItems as any[]) || [];
+      stored.push({ ...item, storedAt: new Date().toISOString() });
+      
+      await storage.updatePlayerHouse(house.id, { storedItems: stored });
+      res.json({ success: true, storedItems: stored });
+    } catch (error) {
+      console.error("Error storing item:", error);
+      res.status(500).json({ message: "Failed to store item" });
+    }
+  });
+
   // World hex info lookup (returns deterministic hex data from world generator)
   app.get("/api/world/hex-info", async (req, res) => {
     try {

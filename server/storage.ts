@@ -77,7 +77,9 @@ import {
   // City maps and trek routes
   cityMaps, type CityMap, type InsertCityMap,
   trekRoutes, type TrekRoute, type InsertTrekRoute,
-  userFeedback, type UserFeedback, type InsertUserFeedback
+  userFeedback, type UserFeedback, type InsertUserFeedback,
+  playerHouses, type PlayerHouse, type InsertPlayerHouse,
+  playerBank, type PlayerBank, type InsertPlayerBank
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or, inArray } from "drizzle-orm";
@@ -287,6 +289,16 @@ export interface IStorage {
   createTrekRoute(route: InsertTrekRoute): Promise<TrekRoute>;
   updateTrekRoute(id: number, updates: Partial<TrekRoute>): Promise<TrekRoute | undefined>;
   cancelTrekRoute(id: number): Promise<boolean>;
+
+  // Player House operations
+  getPlayerHouse(characterId: number, campaignId: number): Promise<PlayerHouse | undefined>;
+  createPlayerHouse(house: InsertPlayerHouse): Promise<PlayerHouse>;
+  updatePlayerHouse(id: number, updates: Partial<PlayerHouse>): Promise<PlayerHouse | undefined>;
+
+  // Player Bank operations
+  getPlayerBank(characterId: number, campaignId: number): Promise<PlayerBank | undefined>;
+  createPlayerBank(bank: InsertPlayerBank): Promise<PlayerBank>;
+  updatePlayerBank(id: number, updates: Partial<PlayerBank>): Promise<PlayerBank | undefined>;
   
   // Campaign Quest operations
   getCampaignQuests(campaignId: number): Promise<CampaignQuest[]>;
@@ -2803,6 +2815,38 @@ export class DatabaseStorage implements IStorage {
   async cancelTrekRoute(id: number): Promise<boolean> {
     const [result] = await db.update(trekRoutes).set({ status: "cancelled" }).where(eq(trekRoutes.id, id)).returning();
     return !!result;
+  }
+
+  async getPlayerHouse(characterId: number, campaignId: number): Promise<PlayerHouse | undefined> {
+    const [house] = await db.select().from(playerHouses)
+      .where(and(eq(playerHouses.characterId, characterId), eq(playerHouses.campaignId, campaignId)));
+    return house || undefined;
+  }
+
+  async createPlayerHouse(house: InsertPlayerHouse): Promise<PlayerHouse> {
+    const [created] = await db.insert(playerHouses).values(house).returning();
+    return created;
+  }
+
+  async updatePlayerHouse(id: number, updates: Partial<PlayerHouse>): Promise<PlayerHouse | undefined> {
+    const [updated] = await db.update(playerHouses).set(updates).where(eq(playerHouses.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async getPlayerBank(characterId: number, campaignId: number): Promise<PlayerBank | undefined> {
+    const [bank] = await db.select().from(playerBank)
+      .where(and(eq(playerBank.characterId, characterId), eq(playerBank.campaignId, campaignId)));
+    return bank || undefined;
+  }
+
+  async createPlayerBank(bank: InsertPlayerBank): Promise<PlayerBank> {
+    const [created] = await db.insert(playerBank).values(bank).returning();
+    return created;
+  }
+
+  async updatePlayerBank(id: number, updates: Partial<PlayerBank>): Promise<PlayerBank | undefined> {
+    const [updated] = await db.update(playerBank).set(updates).where(eq(playerBank.id, id)).returning();
+    return updated || undefined;
   }
   
   // Campaign Quest operations

@@ -12,7 +12,7 @@ import {
   CircleDot, Eye, CheckCircle2, Lock, Swords, Users,
   Scroll, AlertTriangle, Shield, Sparkles, Globe, Clock, 
   TrendingUp, TrendingDown, Activity, Zap, BookOpen, Hexagon,
-  Navigation, X, Footprints, Loader2
+  Navigation, X, Footprints, Loader2, Package
 } from "lucide-react";
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
@@ -45,6 +45,7 @@ const dangerColors: Record<number, string> = {
 
 const locationIcons: Record<string, typeof Castle> = {
   city: Building2,
+  capital: Crown,
   village: Building2,
   dungeon: Skull,
   ruins: Castle,
@@ -259,7 +260,20 @@ export default function WorldMapPage() {
         setActiveEncounter(data.encounter);
       }
       if (data.completed) {
-        toast({ title: "Trek Complete", description: `You have arrived at your destination!` });
+        const lootSummary = data.lootFound?.length 
+          ? ` Found ${data.lootFound.length} item(s) along the way!` 
+          : '';
+        toast({ 
+          title: "Trek Complete — Returned to Origin", 
+          description: `Your party has returned safely to where you started.${lootSummary}` 
+        });
+      }
+      if (data.encounter?.type === "loot_find" && data.encounter?.loot) {
+        const loot = data.encounter.loot;
+        toast({
+          title: `Loot Found: ${loot.item.name}`,
+          description: `${loot.item.rarity} ${loot.item.type} (${loot.item.value}gp) + ${loot.goldDrop} gold`,
+        });
       }
     },
     onError: (error: any) => {
@@ -1186,6 +1200,27 @@ export default function WorldMapPage() {
                   {activeEncounter.hook}
                 </p>
               </div>
+
+              {activeEncounter.type === 'loot_find' && (activeEncounter as any).loot && (
+                <div className="p-3 rounded-lg bg-gradient-to-r from-yellow-900/30 to-amber-900/20 border border-yellow-500/30">
+                  <p className="text-xs font-bold text-yellow-300 mb-2 flex items-center gap-1">
+                    <Package className="h-3.5 w-3.5" /> Loot Found
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-amber-100">{(activeEncounter as any).loot.item.name}</p>
+                      <p className="text-xs text-amber-200/60">
+                        {(activeEncounter as any).loot.item.rarity} {(activeEncounter as any).loot.item.type}
+                        {(activeEncounter as any).loot.item.specialEffect && ` — ${(activeEncounter as any).loot.item.specialEffect}`}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-yellow-300 font-bold">+{(activeEncounter as any).loot.goldDrop} gold</p>
+                      <p className="text-xs text-amber-200/50">Value: {(activeEncounter as any).loot.item.value}gp</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center gap-2 text-xs text-amber-100/40">
                 <Badge variant="outline" className={`text-[10px] ${

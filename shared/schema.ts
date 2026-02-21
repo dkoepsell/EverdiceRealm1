@@ -791,6 +791,8 @@ export const trekRoutes = pgTable("trek_routes", {
   id: serial("id").primaryKey(),
   campaignId: integer("campaign_id").notNull(),
   userId: integer("user_id").notNull(),
+  originQ: integer("origin_q").default(0),
+  originR: integer("origin_r").default(0),
   destinationQ: integer("destination_q").notNull(),
   destinationR: integer("destination_r").notNull(),
   destinationName: text("destination_name"),
@@ -798,6 +800,7 @@ export const trekRoutes = pgTable("trek_routes", {
   currentStep: integer("current_step").default(0),
   status: text("status").notNull().default("active"),
   pendingEncounter: jsonb("pending_encounter"),
+  lootFound: jsonb("loot_found").default([]),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
 });
 
@@ -2479,3 +2482,44 @@ export const insertUserFeedbackSchema = createInsertSchema(userFeedback).omit({
 
 export type InsertUserFeedback = z.infer<typeof insertUserFeedbackSchema>;
 export type UserFeedback = typeof userFeedback.$inferSelect;
+
+// Player Houses — owned properties in the capital city
+export const playerHouses = pgTable("player_houses", {
+  id: serial("id").primaryKey(),
+  characterId: integer("character_id").notNull(),
+  campaignId: integer("campaign_id").notNull(),
+  houseName: text("house_name").notNull(),
+  houseType: text("house_type").notNull().default("modest"), // modest, comfortable, wealthy, noble, manor
+  district: text("district").notNull(),
+  purchasePrice: integer("purchase_price").notNull(),
+  furnishings: jsonb("furnishings").default([]),
+  storedItems: jsonb("stored_items").default([]),
+  upgrades: jsonb("upgrades").default([]),
+  purchasedAt: text("purchased_at").notNull(),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertPlayerHouseSchema = createInsertSchema(playerHouses).omit({
+  id: true,
+});
+
+export type InsertPlayerHouse = z.infer<typeof insertPlayerHouseSchema>;
+export type PlayerHouse = typeof playerHouses.$inferSelect;
+
+// Player Bank — gold deposit/withdrawal at the capital bank
+export const playerBank = pgTable("player_bank", {
+  id: serial("id").primaryKey(),
+  characterId: integer("character_id").notNull(),
+  campaignId: integer("campaign_id").notNull(),
+  balance: integer("balance").notNull().default(0),
+  lastInterestAt: text("last_interest_at"),
+  transactions: jsonb("transactions").default([]),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertPlayerBankSchema = createInsertSchema(playerBank).omit({
+  id: true,
+});
+
+export type InsertPlayerBank = z.infer<typeof insertPlayerBankSchema>;
+export type PlayerBank = typeof playerBank.$inferSelect;

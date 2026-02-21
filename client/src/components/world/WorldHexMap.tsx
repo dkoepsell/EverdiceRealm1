@@ -728,7 +728,7 @@ export default function WorldHexMap({
             </Badge>
           )}
           <div className="flex gap-1.5 mt-2">
-            {selectedHex.locationName && selectedHex.locationId && ["city", "town", "village"].includes(selectedHex.locationType || "") && onEnterLocation && (
+            {selectedHex.locationName && selectedHex.locationId && ["city", "town", "village", "capital"].includes(selectedHex.locationType || "") && onEnterLocation && (
               <Button
                 size="sm"
                 className="h-7 text-xs bg-amber-600 hover:bg-amber-500 text-white"
