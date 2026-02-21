@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ChevronsUpDown, Shield, User, UserPlus, X, Users, Sword, Heart, ImageIcon, Loader2 } from 'lucide-react';
+import { ChevronsUpDown, Shield, User, UserPlus, X, Users, Sword, Heart, ImageIcon, Loader2, Sparkles, Wand2 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 import { Character, User as UserType } from '@shared/schema';
 
 interface CampaignParticipant {
@@ -54,6 +55,43 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
   }
   
   const [generatingPortraitFor, setGeneratingPortraitFor] = useState<number | null>(null);
+  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
+  const [genRace, setGenRace] = useState('any');
+  const [genClass, setGenClass] = useState('any');
+  const [genType, setGenType] = useState('any');
+  const [genPersonality, setGenPersonality] = useState('any');
+
+  const generateCompanionMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/ai-generate/npc', {
+        race: genRace,
+        npcClass: genClass,
+        companionType: genType,
+        personalityArchetype: genPersonality,
+        campaignId: campaignId.toString(),
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaignId}/participants`] });
+      setIsGenerateOpen(false);
+      setGenRace('any');
+      setGenClass('any');
+      setGenType('any');
+      setGenPersonality('any');
+      toast({
+        title: `${data.name} has joined the party!`,
+        description: `${data.race} ${data.occupation} — ${data.personality}`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to generate companion',
+        description: error.message || 'Something went wrong',
+        variant: 'destructive',
+      });
+    },
+  });
 
   // Fetch participants (backend already includes NPCs in the response)
   const { data: participants = [], isLoading } = useQuery<ExtendedParticipant[]>({
@@ -292,6 +330,113 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
             </div>
           )}
           
+          {/* Generate Companion Button - Only visible to DM */}
+          {isDM && (
+            <Dialog open={isGenerateOpen} onOpenChange={setIsGenerateOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white">
+                  <Wand2 className="h-4 w-4 mr-2" />
+                  Generate Companion
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-purple-400" />
+                    Generate NPC Companion
+                  </DialogTitle>
+                  <DialogDescription>
+                    Choose traits below or leave as "Surprise me" for a fully random companion.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="space-y-1.5">
+                    <Label>Race</Label>
+                    <Select value={genRace} onValueChange={setGenRace}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Surprise me</SelectItem>
+                        <SelectItem value="Human">Human</SelectItem>
+                        <SelectItem value="Elf">Elf</SelectItem>
+                        <SelectItem value="Dwarf">Dwarf</SelectItem>
+                        <SelectItem value="Halfling">Halfling</SelectItem>
+                        <SelectItem value="Half-Orc">Half-Orc</SelectItem>
+                        <SelectItem value="Tiefling">Tiefling</SelectItem>
+                        <SelectItem value="Dragonborn">Dragonborn</SelectItem>
+                        <SelectItem value="Gnome">Gnome</SelectItem>
+                        <SelectItem value="Half-Elf">Half-Elf</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Class</Label>
+                    <Select value={genClass} onValueChange={setGenClass}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Surprise me</SelectItem>
+                        <SelectItem value="Fighter">Fighter</SelectItem>
+                        <SelectItem value="Wizard">Wizard</SelectItem>
+                        <SelectItem value="Rogue">Rogue</SelectItem>
+                        <SelectItem value="Cleric">Cleric</SelectItem>
+                        <SelectItem value="Ranger">Ranger</SelectItem>
+                        <SelectItem value="Paladin">Paladin</SelectItem>
+                        <SelectItem value="Barbarian">Barbarian</SelectItem>
+                        <SelectItem value="Bard">Bard</SelectItem>
+                        <SelectItem value="Druid">Druid</SelectItem>
+                        <SelectItem value="Monk">Monk</SelectItem>
+                        <SelectItem value="Sorcerer">Sorcerer</SelectItem>
+                        <SelectItem value="Warlock">Warlock</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Party Role</Label>
+                    <Select value={genType} onValueChange={setGenType}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Surprise me</SelectItem>
+                        <SelectItem value="combat">Combat — frontline fighter or damage dealer</SelectItem>
+                        <SelectItem value="support">Support — healer or buffer</SelectItem>
+                        <SelectItem value="utility">Utility — scout, traps, lockpicking</SelectItem>
+                        <SelectItem value="social">Social — diplomat, negotiator, face of the party</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Personality</Label>
+                    <Select value={genPersonality} onValueChange={setGenPersonality}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Surprise me</SelectItem>
+                        <SelectItem value="stoic and honorable">Stoic and Honorable</SelectItem>
+                        <SelectItem value="cheerful and optimistic">Cheerful and Optimistic</SelectItem>
+                        <SelectItem value="cynical and world-weary">Cynical and World-Weary</SelectItem>
+                        <SelectItem value="mysterious and secretive">Mysterious and Secretive</SelectItem>
+                        <SelectItem value="hot-headed and impulsive">Hot-Headed and Impulsive</SelectItem>
+                        <SelectItem value="scholarly and curious">Scholarly and Curious</SelectItem>
+                        <SelectItem value="roguish and charming">Roguish and Charming</SelectItem>
+                        <SelectItem value="gruff but kind-hearted">Gruff but Kind-Hearted</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    onClick={() => generateCompanionMutation.mutate()}
+                    disabled={generateCompanionMutation.isPending}
+                    className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+                  >
+                    {generateCompanionMutation.isPending ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Conjuring companion...</>
+                    ) : (
+                      <><Wand2 className="h-4 w-4 mr-2" /> Generate Companion</>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+
           {/* Invite Button - Only visible to DM */}
           {isDM && (
             <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>

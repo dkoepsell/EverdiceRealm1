@@ -13211,24 +13211,52 @@ Focus on practical, actionable advice. Include 4-6 steps total. Make tips specif
   // AI Generation routes for DM toolkit
   app.post('/api/ai-generate/npc', isAuthenticated, async (req: any, res) => {
     try {
-      const prompt = `Generate a D&D NPC companion with the following details in JSON format:
+      const { race, npcClass, companionType, personalityArchetype, campaignId } = req.body;
+
+      const raceHint = race && race !== 'any' ? `Race: ${race}` : 'Race: choose any interesting D&D race';
+      const classHint = npcClass && npcClass !== 'any' ? `Class: ${npcClass}` : 'Class: choose any D&D class that fits';
+      const typeHint = companionType && companionType !== 'any' ? `Role in party: ${companionType}` : 'Role: choose a fitting role (combat, support, utility, or social)';
+      const personalityHint = personalityArchetype && personalityArchetype !== 'any' ? `Personality archetype: ${personalityArchetype}` : 'Personality: create a unique and memorable personality';
+
+      const prompt = `Generate a unique D&D 5e NPC companion with the following constraints:
+${raceHint}
+${classHint}
+${typeHint}
+${personalityHint}
+
+Return valid JSON with exactly these fields:
 {
-  "name": "Full character name",
-  "race": "Fantasy race (Human, Elf, Dwarf, Halfling, Tiefling, etc.)",
-  "class": "D&D class (Fighter, Wizard, Rogue, Cleric, etc.)",
+  "name": "Full character name (creative, fits the race)",
+  "race": "The character's race",
+  "class": "The character's D&D class",
+  "occupation": "Their occupation or title (e.g. 'Sellsword', 'Wandering Healer', 'Court Spy')",
+  "personality": "2-3 key personality traits in one sentence",
+  "appearance": "A vivid 1-2 sentence physical description",
+  "motivation": "What drives this character (1-2 sentences)",
   "backstory": "A compelling 2-3 sentence backstory",
-  "personality": "Key personality traits",
-  "motivation": "What drives this character"
+  "companionType": "combat | support | utility | social",
+  "aiPersonality": "Brief instruction for how AI should roleplay this NPC in-game",
+  "combatAbilities": ["ability 1 name", "ability 2 name"],
+  "strength": number (8-18),
+  "dexterity": number (8-18),
+  "constitution": number (8-18),
+  "intelligence": number (8-18),
+  "wisdom": number (8-18),
+  "charisma": number (8-18),
+  "skills": ["skill1", "skill2", "skill3"],
+  "equipment": ["weapon or item 1", "armor or item 2"],
+  "equippedWeapon": "primary weapon name",
+  "equippedArmor": "armor name or null"
 }
 
-Create an interesting and unique NPC suitable for a D&D adventure party.`;
+Make this NPC feel like a real person with quirks and depth, not generic.`;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
             role: "system",
-            content: "You are an expert D&D Dungeon Master. Generate creative and detailed NPCs for fantasy campaigns. Always respond with valid JSON."
+            content: "You are an expert D&D 5e Dungeon Master creating memorable NPC companions. Always respond with valid JSON matching the exact schema requested. Stats should be realistic for a level 1 character."
           },
           {
             role: "user",
@@ -13236,12 +13264,76 @@ Create an interesting and unique NPC suitable for a D&D adventure party.`;
           }
         ],
         response_format: { type: "json_object" },
-        temperature: 0.8,
-        max_tokens: 800
+        temperature: 0.9,
+        max_tokens: 1000
       });
 
-      const npcData = JSON.parse(completion.choices[0].message.content || "{}");
-      res.json(npcData);
+      const aiResult = JSON.parse(completion.choices[0].message.content || "{}");
+      
+      const npcClassStr = typeof aiResult.class === 'string' ? aiResult.class : 'Fighter';
+      const defaultStats = getCompanionDefaultStats(npcClassStr, 1);
+
+      const clampStat = (val: any) => {
+        const n = typeof val === 'number' ? val : parseInt(val);
+        return isNaN(n) ? 10 : Math.max(3, Math.min(20, n));
+      };
+      const validCompTypes = ['combat', 'support', 'utility', 'social'];
+      const resolvedCompType = validCompTypes.includes(aiResult.companionType) 
+        ? aiResult.companionType 
+        : (validCompTypes.includes(companionType) ? companionType : 'combat');
+
+      const npcRecord = {
+        name: (typeof aiResult.name === 'string' && aiResult.name) ? aiResult.name : 'Unknown Companion',
+        race: (typeof aiResult.race === 'string' && aiResult.race) ? aiResult.race : 'Human',
+        occupation: (typeof aiResult.occupation === 'string' && aiResult.occupation) ? aiResult.occupation : npcClassStr,
+        personality: (typeof aiResult.personality === 'string' && aiResult.personality) ? aiResult.personality : 'Quiet and observant',
+        appearance: (typeof aiResult.appearance === 'string' && aiResult.appearance) ? aiResult.appearance : 'A weathered adventurer',
+        motivation: (typeof aiResult.motivation === 'string' && aiResult.motivation) ? aiResult.motivation : 'Seeks adventure and coin',
+        isCompanion: true,
+        companionType: resolvedCompType,
+        aiPersonality: (typeof aiResult.aiPersonality === 'string') ? aiResult.aiPersonality : '',
+        combatAbilities: Array.isArray(aiResult.combatAbilities) ? aiResult.combatAbilities : [],
+        supportAbilities: [],
+        decisionMakingRules: {},
+        level: 1,
+        hitPoints: defaultStats.maxHp,
+        maxHitPoints: defaultStats.maxHp,
+        armorClass: defaultStats.armorClass,
+        strength: clampStat(aiResult.strength),
+        dexterity: clampStat(aiResult.dexterity),
+        constitution: clampStat(aiResult.constitution),
+        intelligence: clampStat(aiResult.intelligence),
+        wisdom: clampStat(aiResult.wisdom),
+        charisma: clampStat(aiResult.charisma),
+        skills: Array.isArray(aiResult.skills) ? aiResult.skills : [],
+        equipment: Array.isArray(aiResult.equipment) ? aiResult.equipment : [],
+        equippedWeapon: (typeof aiResult.equippedWeapon === 'string') ? aiResult.equippedWeapon : null,
+        equippedArmor: (typeof aiResult.equippedArmor === 'string') ? aiResult.equippedArmor : null,
+        gold: 10,
+        createdBy: req.user.id,
+        createdAt: new Date().toISOString(),
+      };
+
+      const savedNpc = await storage.createNpc(npcRecord);
+
+      if (campaignId) {
+        const campaign = await storage.getCampaign(parseInt(campaignId));
+        if (campaign && campaign.userId === req.user.id) {
+          const defaultInventory = [
+            { name: "Potion of Healing", type: "potion", rarity: "common", description: "Restores 2d4+2 hit points", properties: "Consumable, healing", quantity: 2 }
+          ];
+          await storage.addNpcToCampaign({
+            campaignId: parseInt(campaignId),
+            npcId: savedNpc.id,
+            role: 'companion',
+            isActive: true,
+            joinedAt: new Date().toISOString(),
+            inventory: defaultInventory,
+          } as any);
+        }
+      }
+
+      res.json({ ...savedNpc, backstory: aiResult.backstory });
     } catch (error) {
       console.error("Failed to generate NPC:", error);
       res.status(500).json({ 
