@@ -787,6 +787,26 @@ export const insertCityMapSchema = createInsertSchema(cityMaps).omit({
 export type InsertCityMap = z.infer<typeof insertCityMapSchema>;
 export type CityMap = typeof cityMaps.$inferSelect;
 
+export const capitalExploration = pgTable("capital_exploration", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  userId: integer("user_id").notNull(),
+  worldLocationId: integer("world_location_id").notNull(),
+  currentQ: integer("current_q").notNull().default(15),
+  currentR: integer("current_r").notNull().default(2),
+  revealedHexes: jsonb("revealed_hexes").default([]),
+  discoveredBuildings: jsonb("discovered_buildings").default([]),
+  hexLayout: jsonb("hex_layout"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertCapitalExplorationSchema = createInsertSchema(capitalExploration).omit({
+  id: true,
+});
+
+export type InsertCapitalExploration = z.infer<typeof insertCapitalExplorationSchema>;
+export type CapitalExploration = typeof capitalExploration.$inferSelect;
+
 export const trekRoutes = pgTable("trek_routes", {
   id: serial("id").primaryKey(),
   campaignId: integer("campaign_id").notNull(),

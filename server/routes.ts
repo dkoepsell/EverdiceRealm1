@@ -11257,6 +11257,251 @@ Return your response as a JSON object with these fields:
     }
   });
   
+  // === Capital Exploration System ===
+
+  function getOffsetHexNeighbors(q: number, r: number): Array<{ q: number; r: number }> {
+    const isOddRow = r % 2 === 1;
+    if (isOddRow) {
+      return [
+        { q: q + 1, r }, { q: q, r: r - 1 }, { q: q + 1, r: r - 1 },
+        { q: q, r: r + 1 }, { q: q + 1, r: r + 1 }, { q: q - 1, r },
+      ];
+    }
+    return [
+      { q: q + 1, r }, { q: q - 1, r: r - 1 }, { q: q, r: r - 1 },
+      { q: q - 1, r: r + 1 }, { q: q, r: r + 1 }, { q: q - 1, r },
+    ];
+  }
+
+  function serverHexDistance(q1: number, r1: number, q2: number, r2: number): number {
+    const dx = Math.abs(q2 - q1);
+    const dy = Math.abs(r2 - r1);
+    return Math.max(dx, dy, Math.abs(dx - dy));
+  }
+
+  function generateServerCapitalBuildings(seed: number): Array<{ id: string; q: number; r: number; type: string; name: string }> {
+    const rng = (() => {
+      let s = seed;
+      return () => { s = (s * 1664525 + 1013904223) & 0x7fffffff; return s / 0x7fffffff; };
+    })();
+    const districtCenters = [
+      { q: 15, r: 6 }, { q: 8, r: 12 }, { q: 22, r: 10 }, { q: 5, r: 20 },
+      { q: 24, r: 22 }, { q: 15, r: 15 }, { q: 22, r: 17 }, { q: 10, r: 24 },
+    ];
+    const districtBuildings: Record<number, Array<{ type: string; name: string }>> = {
+      0: [{ type: "palace", name: "The Royal Palace" }, { type: "barracks", name: "Royal Guard Barracks" }, { type: "tailor", name: "Royal Clothier" }],
+      1: [{ type: "general_store", name: "Grand Bazaar" }, { type: "jeweler", name: "Sparkle & Stone" }, { type: "auction", name: "The Auction House" }],
+      2: [{ type: "temple", name: "Grand Cathedral" }, { type: "apothecary", name: "Temple Apothecary" }],
+      3: [{ type: "tavern", name: "The Rusty Dagger" }, { type: "underworld", name: "Shadow Market" }, { type: "information_broker", name: "The Whisperer" }],
+      4: [{ type: "general_store", name: "Harbor Supplies" }, { type: "tavern", name: "The Salty Anchor" }],
+      5: [{ type: "blacksmith", name: "Master Forge" }, { type: "guild", name: "Artisan's Guild" }],
+      6: [{ type: "library", name: "The Great Library" }, { type: "academy", name: "Scholar's Academy" }, { type: "magic_shop", name: "Arcane Emporium" }],
+      7: [{ type: "dark_temple", name: "Forgotten Shrine" }, { type: "dungeon_entrance", name: "Old City Catacombs" }],
+    };
+    const buildings: Array<{ id: string; q: number; r: number; type: string; name: string }> = [];
+    for (let di = 0; di < districtCenters.length; di++) {
+      const center = districtCenters[di];
+      const bldgs = districtBuildings[di] || [];
+      for (let bi = 0; bi < bldgs.length; bi++) {
+        const angle = (bi / bldgs.length) * Math.PI * 2;
+        const dist = 2 + Math.floor(rng() * 2);
+        const bq = Math.round(center.q + Math.cos(angle) * dist);
+        const br = Math.round(center.r + Math.sin(angle) * dist);
+        buildings.push({ id: `bldg-${di}-${bi}`, q: Math.max(1, Math.min(28, bq)), r: Math.max(1, Math.min(28, br)), type: bldgs[bi].type, name: bldgs[bi].name });
+      }
+    }
+    return buildings;
+  }
+
+  async function validateCampaignAccess(campaignId: number, userId: number): Promise<boolean> {
+    const campaign = await storage.getCampaign(campaignId);
+    if (!campaign) return false;
+    if (campaign.createdBy === userId) return true;
+    const participants = await storage.getCampaignParticipants(campaignId);
+    return participants.some((p: any) => p.userId === userId);
+  }
+
+  app.get("/api/campaigns/:campaignId/capital/:locationId/exploration", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      const campaignId = parseInt(req.params.campaignId);
+      const locationId = parseInt(req.params.locationId);
+      const userId = (req.user as any).id;
+
+      if (!(await validateCampaignAccess(campaignId, userId))) {
+        return res.status(403).json({ message: "Not a member of this campaign" });
+      }
+
+      const exploration = await storage.getCapitalExploration(campaignId, userId, locationId);
+      if (!exploration) {
+        return res.json(null);
+      }
+      res.json(exploration);
+    } catch (error) {
+      console.error("Error fetching capital exploration:", error);
+      res.status(500).json({ message: "Failed to fetch capital exploration" });
+    }
+  });
+
+  app.post("/api/campaigns/:campaignId/capital/:locationId/enter", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      const campaignId = parseInt(req.params.campaignId);
+      const locationId = parseInt(req.params.locationId);
+      const userId = (req.user as any).id;
+
+      if (!(await validateCampaignAccess(campaignId, userId))) {
+        return res.status(403).json({ message: "Not a member of this campaign" });
+      }
+
+      let exploration = await storage.getCapitalExploration(campaignId, userId, locationId);
+      if (exploration) {
+        return res.json({ exploration, isNew: false });
+      }
+
+      const explorationSeed = campaignId * 1000 + locationId;
+      const serverBuildings = generateServerCapitalBuildings(explorationSeed);
+      const spawnQ = 15;
+      const spawnR = 2;
+
+      const initialRevealed: Array<{q: number; r: number}> = [];
+      for (let dr = -3; dr <= 3; dr++) {
+        for (let dq = -3; dq <= 3; dq++) {
+          const tq = spawnQ + dq;
+          const tr = spawnR + dr;
+          if (tq >= 0 && tq < 30 && tr >= 0 && tr < 30 && serverHexDistance(spawnQ, spawnR, tq, tr) <= 2) {
+            initialRevealed.push({ q: tq, r: tr });
+          }
+        }
+      }
+
+      const hexLayoutData = { seed: explorationSeed, spawnQ, spawnR, buildings: serverBuildings } as any;
+
+      exploration = await storage.createCapitalExploration({
+        campaignId,
+        userId,
+        worldLocationId: locationId,
+        currentQ: spawnQ,
+        currentR: spawnR,
+        revealedHexes: initialRevealed,
+        discoveredBuildings: [],
+        hexLayout: hexLayoutData,
+      });
+
+      const location = await storage.getWorldLocation(locationId);
+      if (location) {
+        const layout = generateCapitalCityLayout(location.name, explorationSeed);
+        await generateLocationQuests(campaignId, location, layout);
+      }
+
+      res.json({ exploration, isNew: true });
+    } catch (error) {
+      console.error("Error entering capital:", error);
+      res.status(500).json({ message: "Failed to enter capital" });
+    }
+  });
+
+  app.post("/api/campaigns/:campaignId/capital/:locationId/move", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      const campaignId = parseInt(req.params.campaignId);
+      const locationId = parseInt(req.params.locationId);
+      const userId = (req.user as any).id;
+      const { targetQ, targetR } = req.body;
+
+      if (targetQ === undefined || targetR === undefined) {
+        return res.status(400).json({ message: "Target coordinates required" });
+      }
+
+      if (!(await validateCampaignAccess(campaignId, userId))) {
+        return res.status(403).json({ message: "Not a member of this campaign" });
+      }
+
+      const exploration = await storage.getCapitalExploration(campaignId, userId, locationId);
+      if (!exploration) {
+        return res.status(404).json({ message: "Capital exploration not initialized. Enter the capital first." });
+      }
+
+      const neighbors = getOffsetHexNeighbors(exploration.currentQ, exploration.currentR);
+      const isNeighbor = neighbors.some(n => n.q === targetQ && n.r === targetR);
+      if (!isNeighbor) {
+        return res.status(400).json({ message: "Can only move to adjacent hexes" });
+      }
+
+      if (targetQ < 0 || targetQ >= 30 || targetR < 0 || targetR >= 30) {
+        return res.status(400).json({ message: "Target out of bounds" });
+      }
+
+      const revealed = (exploration.revealedHexes as Array<{q: number; r: number}>) || [];
+      const newRevealed = [...revealed];
+      const revealedSet = new Set(revealed.map((h: any) => `${h.q},${h.r}`));
+
+      for (let rr = -2; rr <= 2; rr++) {
+        for (let qq = -2; qq <= 2; qq++) {
+          const dist = Math.max(Math.abs(qq), Math.abs(rr), Math.abs(qq - rr));
+          if (dist <= 2) {
+            const nq = targetQ + qq;
+            const nr = targetR + rr;
+            const key = `${nq},${nr}`;
+            if (!revealedSet.has(key)) {
+              newRevealed.push({ q: nq, r: nr });
+              revealedSet.add(key);
+            }
+          }
+        }
+      }
+
+      const hexLayout = exploration.hexLayout as any;
+      const discoveredBuildings = [...((exploration.discoveredBuildings as string[]) || [])];
+      const newlyDiscovered: string[] = [];
+
+      if (hexLayout?.buildings) {
+        for (const bldg of hexLayout.buildings) {
+          if (!discoveredBuildings.includes(bldg.id)) {
+            const bDist = Math.max(Math.abs(bldg.q - targetQ), Math.abs(bldg.r - targetR));
+            if (bDist <= 1) {
+              discoveredBuildings.push(bldg.id);
+              newlyDiscovered.push(bldg.id);
+            }
+          }
+        }
+      }
+
+      let questEncounter: any = null;
+      const moveRoll = Math.random();
+      if (moveRoll < 0.15 && newlyDiscovered.length === 0) {
+        const encounterTypes = [
+          { type: "street_event", desc: "A commotion breaks out in the street ahead. Guards rush past, shouting orders." },
+          { type: "merchant", desc: "A traveling merchant flags you down, offering exotic wares from distant lands." },
+          { type: "rumor", desc: "You overhear whispered secrets from hooded figures in an alcove." },
+          { type: "pickpocket", desc: "Nimble fingers brush against your coin purse! A young thief darts through the crowd." },
+          { type: "festival", desc: "A neighborhood celebration fills the street with music, dancers, and the smell of roasting meats." },
+        ];
+        questEncounter = encounterTypes[Math.floor(Math.random() * encounterTypes.length)];
+      }
+
+      const updated = await storage.updateCapitalExploration(exploration.id, {
+        currentQ: targetQ,
+        currentR: targetR,
+        revealedHexes: newRevealed,
+        discoveredBuildings,
+      });
+
+      res.json({
+        exploration: updated,
+        newlyDiscovered,
+        questEncounter,
+        discoveredBuildingDetails: newlyDiscovered.map(id => {
+          const bldg = hexLayout?.buildings?.find((b: any) => b.id === id);
+          return bldg ? { id: bldg.id, name: bldg.name, type: bldg.type, description: bldg.description } : null;
+        }).filter(Boolean),
+      });
+    } catch (error) {
+      console.error("Error moving in capital:", error);
+      res.status(500).json({ message: "Failed to move in capital" });
+    }
+  });
+
   // === Trek System ===
   // Set a trek destination
   app.post("/api/campaigns/:campaignId/trek/start", async (req, res) => {

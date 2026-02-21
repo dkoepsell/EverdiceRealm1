@@ -79,7 +79,8 @@ import {
   trekRoutes, type TrekRoute, type InsertTrekRoute,
   userFeedback, type UserFeedback, type InsertUserFeedback,
   playerHouses, type PlayerHouse, type InsertPlayerHouse,
-  playerBank, type PlayerBank, type InsertPlayerBank
+  playerBank, type PlayerBank, type InsertPlayerBank,
+  capitalExploration, type CapitalExploration, type InsertCapitalExploration
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or, inArray } from "drizzle-orm";
@@ -284,6 +285,11 @@ export interface IStorage {
   createCityMap(cityMap: InsertCityMap): Promise<CityMap>;
   updateCityMap(id: number, updates: Partial<CityMap>): Promise<CityMap | undefined>;
   
+  // Capital Exploration operations
+  getCapitalExploration(campaignId: number, userId: number, worldLocationId: number): Promise<CapitalExploration | undefined>;
+  createCapitalExploration(data: InsertCapitalExploration): Promise<CapitalExploration>;
+  updateCapitalExploration(id: number, updates: Partial<CapitalExploration>): Promise<CapitalExploration | undefined>;
+
   // Trek Route operations
   getActiveTrekRoute(campaignId: number, userId: number): Promise<TrekRoute | undefined>;
   createTrekRoute(route: InsertTrekRoute): Promise<TrekRoute>;
@@ -2788,6 +2794,30 @@ export class DatabaseStorage implements IStorage {
     return updated || undefined;
   }
   
+  // Capital Exploration operations
+  async getCapitalExploration(campaignId: number, userId: number, worldLocationId: number): Promise<CapitalExploration | undefined> {
+    const [record] = await db.select().from(capitalExploration)
+      .where(and(
+        eq(capitalExploration.campaignId, campaignId),
+        eq(capitalExploration.userId, userId),
+        eq(capitalExploration.worldLocationId, worldLocationId)
+      ));
+    return record || undefined;
+  }
+
+  async createCapitalExploration(data: InsertCapitalExploration): Promise<CapitalExploration> {
+    const [record] = await db.insert(capitalExploration).values({
+      ...data,
+      createdAt: new Date().toISOString()
+    }).returning();
+    return record;
+  }
+
+  async updateCapitalExploration(id: number, updates: Partial<CapitalExploration>): Promise<CapitalExploration | undefined> {
+    const [updated] = await db.update(capitalExploration).set(updates).where(eq(capitalExploration.id, id)).returning();
+    return updated || undefined;
+  }
+
   // Trek Route operations
   async getActiveTrekRoute(campaignId: number, userId: number): Promise<TrekRoute | undefined> {
     const [route] = await db.select().from(trekRoutes)

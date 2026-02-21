@@ -25,6 +25,7 @@ import worldMapBackground from "@assets/image_1768601537026.png";
 import WorldHexMap from "@/components/world/WorldHexMap";
 import type { PartyPosition } from "@/components/world/WorldHexMap";
 import CityMap from "@/components/world/CityMap";
+import CapitalHexMap from "@/components/world/CapitalHexMap";
 import type { WorldHex } from "@/lib/worldHexGenerator";
 
 const terrainIcons: Record<string, typeof Mountain> = {
@@ -181,7 +182,7 @@ export default function WorldMapPage() {
   const [selectedRegion, setSelectedRegion] = useState<WorldRegion | null>(null);
   const [sidePanel, setSidePanel] = useState<'regions' | 'events' | 'discoveries'>('regions');
   const [mapView, setMapView] = useState<'illustrated' | 'hex'>('illustrated');
-  const [cityMapOpen, setCityMapOpen] = useState<{ locationId: number; locationName: string } | null>(null);
+  const [cityMapOpen, setCityMapOpen] = useState<{ locationId: number; locationName: string; locationType?: string } | null>(null);
   const [activeEncounter, setActiveEncounter] = useState<{
     id: string;
     type: string;
@@ -562,7 +563,7 @@ export default function WorldMapPage() {
                   campaignId={activeCampaignId || undefined}
                   onEnterLocation={(hex: WorldHex) => {
                     if (hex.locationId && hex.locationName && activeCampaignId) {
-                      setCityMapOpen({ locationId: hex.locationId, locationName: hex.locationName });
+                      setCityMapOpen({ locationId: hex.locationId, locationName: hex.locationName, locationType: hex.locationType });
                     } else if (!activeCampaignId) {
                       toast({ title: "No Campaign", description: "Create or join a campaign to enter locations.", variant: "destructive" });
                     }
@@ -667,7 +668,7 @@ export default function WorldMapPage() {
                         style={{ left: capLeft, top: capTop, transform: 'translate(-50%, -50%)' }}
                         onClick={() => {
                           if (activeCampaignId) {
-                            setCityMapOpen({ locationId: loc.id, locationName: loc.name });
+                            setCityMapOpen({ locationId: loc.id, locationName: loc.name, locationType: loc.locationType || undefined });
                           }
                         }}
                       >
@@ -1219,12 +1220,21 @@ export default function WorldMapPage() {
       </div>
     </div>
     {cityMapOpen && activeCampaignId && (
-      <CityMap
-        campaignId={activeCampaignId}
-        locationId={cityMapOpen.locationId}
-        locationName={cityMapOpen.locationName}
-        onClose={() => setCityMapOpen(null)}
-      />
+      cityMapOpen.locationType === 'capital' ? (
+        <CapitalHexMap
+          campaignId={activeCampaignId}
+          locationId={cityMapOpen.locationId}
+          locationName={cityMapOpen.locationName}
+          onClose={() => setCityMapOpen(null)}
+        />
+      ) : (
+        <CityMap
+          campaignId={activeCampaignId}
+          locationId={cityMapOpen.locationId}
+          locationName={cityMapOpen.locationName}
+          onClose={() => setCityMapOpen(null)}
+        />
+      )
     )}
 
     <Dialog open={!!trekTargetHex} onOpenChange={(open) => {
