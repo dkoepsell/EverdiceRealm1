@@ -369,19 +369,28 @@ export function generateWorldHexMap(
       const to = locationPositions[nearestIdx][1];
       let cq = from.q;
       let cr = from.r;
-      const maxSteps = Math.round(nearestDist * 1.5) + 10;
+      const maxSteps = Math.round(nearestDist * 2) + 15;
       for (let s = 0; s < maxSteps; s++) {
         roadHexes.add(`${cq},${cr}`);
         if (cq === to.q && cr === to.r) break;
         const dq = to.q - cq;
         const dr = to.r - cr;
-        const n = detailNoise(cq * 0.2 + i * 7, cr * 0.2 + i * 7);
-        if (Math.abs(dq) > Math.abs(dr)) {
+        const n = detailNoise(cq * 0.12 + i * 7, cr * 0.12 + i * 7);
+        const n2 = detailNoise(cq * 0.06 + i * 13 + 200, cr * 0.06 + i * 13 + 200);
+        const wander = (n + n2) * 0.5;
+
+        if (wander > 0.1 && Math.abs(dq) > 2) {
+          cr += n > 0 ? 1 : -1;
           cq += dq > 0 ? 1 : -1;
-          if (n > 0.1) cr += dr > 0 ? 1 : (dr < 0 ? -1 : 0);
+        } else if (wander < -0.1 && Math.abs(dr) > 2) {
+          cq += n2 > 0 ? 1 : -1;
+          cr += dr > 0 ? 1 : -1;
+        } else if (Math.abs(dq) > Math.abs(dr)) {
+          cq += dq > 0 ? 1 : -1;
+          if (Math.abs(n) > 0.05) cr += n > 0 ? 1 : -1;
         } else if (Math.abs(dr) > 0) {
           cr += dr > 0 ? 1 : -1;
-          if (n > 0.1) cq += dq > 0 ? 1 : (dq < 0 ? -1 : 0);
+          if (Math.abs(n2) > 0.05) cq += n2 > 0 ? 1 : -1;
         } else {
           cq += dq > 0 ? 1 : -1;
         }
@@ -410,19 +419,30 @@ export function generateWorldHexMap(
 
     let cq = startQ;
     let cr = startR;
-    const maxSteps = 120;
+    const maxSteps = 150;
     for (let s = 0; s < maxSteps; s++) {
       riverPaths.add(`${cq},${cr}`);
-      if (cq === targetQ && cr === targetR) break;
+      if (Math.abs(cq - targetQ) <= 1 && Math.abs(cr - targetR) <= 1) break;
       const dq = targetQ - cq;
       const dr = targetR - cr;
-      const noise = detailNoise(cq * 0.3, cr * 0.3);
-      if (Math.abs(dq) > Math.abs(dr)) {
+      const n1 = detailNoise(cq * 0.15 + 50, cr * 0.15 + 50);
+      const n2 = detailNoise(cq * 0.08 + 100, cr * 0.08 + 100);
+      const meander = (n1 + n2) * 0.5;
+
+      if (meander > 0.15) {
+        const perpQ = dr > 0 ? 1 : (dr < 0 ? -1 : (n1 > 0 ? 1 : -1));
+        cq += perpQ;
+        cr += dr > 0 ? 1 : (dr < 0 ? -1 : 0);
+      } else if (meander < -0.15) {
+        const perpR = dq > 0 ? 1 : (dq < 0 ? -1 : (n2 > 0 ? 1 : -1));
+        cr += perpR;
+        cq += dq > 0 ? 1 : (dq < 0 ? -1 : 0);
+      } else if (Math.abs(dq) > Math.abs(dr)) {
         cq += dq > 0 ? 1 : -1;
-        if (noise > 0.2) cr += dr > 0 ? 1 : (dr < 0 ? -1 : 0);
+        if (Math.abs(n1) > 0.05) cr += n1 > 0 ? 1 : -1;
       } else {
         cr += dr > 0 ? 1 : -1;
-        if (noise > 0.2) cq += dq > 0 ? 1 : (dq < 0 ? -1 : 0);
+        if (Math.abs(n2) > 0.05) cq += n2 > 0 ? 1 : -1;
       }
       cq = Math.max(0, Math.min(GRID_SIZE - 1, cq));
       cr = Math.max(0, Math.min(GRID_SIZE - 1, cr));
