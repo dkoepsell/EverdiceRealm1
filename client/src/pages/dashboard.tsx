@@ -24,11 +24,17 @@ import { HowToPlayPanel } from "@/components/ui/how-to-play-panel";
 import { HearthReminder } from "@/components/HearthReminder";
 import parchmentFrame from "@assets/image_1768600727955.png";
 import creatorAvatar from "@assets/image_1769476073776.png";
+import { useAnalytics } from "@/hooks/use-analytics";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const { toast } = useToast();
+  const { trackPageView, trackFeatureUse, trackCharacterAction, trackCampaignAction } = useAnalytics();
+
+  useEffect(() => {
+    trackPageView('dashboard');
+  }, [trackPageView]);
   
   // What's Next modal for new users after demo/learn-by-playing
   const { isOpen: whatsNextOpen, completedType, showModal: showWhatsNext, closeModal: closeWhatsNext } = useWhatsNextModal();

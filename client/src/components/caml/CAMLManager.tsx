@@ -523,10 +523,26 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
             {generatedAdventure && (
               <Card className="bg-muted/50">
                 <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Check className="h-5 w-5 text-green-500" />
-                    {generatedAdventure.adventure?.title || 'Generated Adventure'}
-                  </CardTitle>
+                  <div className="flex gap-4">
+                    {generatedAdventure.coverArtUrl && (
+                      <img 
+                        src={generatedAdventure.coverArtUrl} 
+                        alt={`Cover art for ${generatedAdventure.adventure?.meta?.title || 'adventure'}`}
+                        className="w-24 h-24 rounded-lg object-cover shadow-md shrink-0"
+                      />
+                    )}
+                    <div>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Check className="h-5 w-5 text-green-500" />
+                        {generatedAdventure.adventure?.meta?.title || generatedAdventure.adventure?.title || 'Generated Adventure'}
+                      </CardTitle>
+                      {generatedAdventure.adventure?.meta?.summary && (
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                          {generatedAdventure.adventure.meta.summary}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4 text-sm">

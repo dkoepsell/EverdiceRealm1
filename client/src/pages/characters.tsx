@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/tooltip";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import parchmentFrame from "@assets/image_1768600727955.png";
+import { useAnalytics } from "@/hooks/use-analytics";
 
 // Race info with traits and advantages
 const raceInfo: Record<string, { traits: string; advantages: string; bestFor: string }> = {
@@ -433,6 +434,11 @@ export default function Characters() {
   
   const characterSheetRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { trackPageView, trackCharacterAction, trackFeatureUse } = useAnalytics();
+
+  useEffect(() => {
+    trackPageView('characters');
+  }, [trackPageView]);
   
   // Scroll to and highlight character sheet when it opens
   useEffect(() => {

@@ -119,8 +119,51 @@ import {
 } from "./combatManager";
 
 import { getAIClient, getAppOpenAI } from "./lib/aiProvider";
+import { objectStorageClient } from "./replit_integrations/object_storage";
+import { randomUUID } from "crypto";
 
 const openai = getAppOpenAI();
+
+async function generateCAMLCoverArt(title: string, summary: string, theme: string): Promise<string> {
+  try {
+    if (!process.env.OPENAI_API_KEY) return "";
+
+    const appOpenAI = getAppOpenAI();
+    const prompt = `Create a stunning fantasy adventure cover art for a tabletop RPG adventure called "${title}". Theme: ${theme}. ${summary.substring(0, 200)}. Style: Epic fantasy book cover art with dramatic lighting, rich colors, and an atmosphere of mystery and adventure. The image should evoke the feeling of an exciting quest ahead, suitable for a fantasy RPG module cover.`;
+
+    const response = await appOpenAI.images.generate({
+      model: "dall-e-3",
+      prompt,
+      n: 1,
+      size: "1024x1024",
+      quality: "standard",
+      style: "vivid",
+    });
+
+    const imageData = response.data?.[0];
+    if (!imageData?.url) return "";
+
+    const imageResponse = await fetch(imageData.url);
+    if (!imageResponse.ok) return "";
+
+    const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+    const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+    if (!bucketId) return "";
+
+    const bucket = objectStorageClient.bucket(bucketId);
+    const uuid = randomUUID();
+    const file = bucket.file(`public/caml-covers/${uuid}.png`);
+    await file.save(imageBuffer, {
+      contentType: "image/png",
+      metadata: { cacheControl: "public, max-age=31536000" },
+    });
+
+    return `/objects/caml-covers/${uuid}.png`;
+  } catch (error: any) {
+    console.error("Error generating CAML cover art:", error.message);
+    return "";
+  }
+}
 
 const narrativeCache = new Map<string, { narrative: string; timestamp: number }>();
 const NARRATIVE_CACHE_TTL = 5 * 60 * 1000;
@@ -15792,9 +15835,21 @@ Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITE
           // Success! Convert and return
           console.log(`Generated CAML 2.0 campaign: "${generatedContent.meta?.title}" (attempt ${attempt + 1})`);
           const legacyFormat = convertCAML2ToLegacyFormat(generatedContent);
+
+          let coverArtUrl = '';
+          try {
+            const artTitle = generatedContent.meta?.title || 'Adventure';
+            const artSummary = generatedContent.meta?.summary || generatedContent.doctrine?.campaign_question || '';
+            const artTheme = generatedContent.meta?.tags?.join(', ') || 'fantasy';
+            coverArtUrl = await generateCAMLCoverArt(artTitle, artSummary, artTheme);
+          } catch (coverErr) {
+            console.warn("Cover art generation failed (non-blocking):", coverErr);
+          }
+
           return res.json({
             ...legacyFormat,
             caml2: generatedContent,
+            coverArtUrl,
             villainModel: generatedContent.villain ? {
               name: generatedContent.villain.name,
               archetype: generatedContent.villain.archetype || 'Mastermind',
@@ -24560,10 +24615,22 @@ ALWAYS generate:
         });
       }
       
+      const adventureTitle = generatedAdventure.meta?.title || title || 'Adventure';
+      const adventureSummary = generatedAdventure.meta?.summary || generatedAdventure.doctrine?.campaign_question || '';
+      const adventureTheme = theme || 'fantasy exploration';
+
+      let coverArtUrl = '';
+      try {
+        coverArtUrl = await generateCAMLCoverArt(adventureTitle, adventureSummary, adventureTheme);
+      } catch (coverErr) {
+        console.warn("Cover art generation failed (non-blocking):", coverErr);
+      }
+
       res.json({
         success: true,
         adventure: generatedAdventure,
         isCAML2: true,
+        coverArtUrl,
         yaml: exportToYAML(generatedAdventure),
         json: exportToJSON(generatedAdventure)
       });

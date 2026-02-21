@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, getQueryFn } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAnalytics } from "@/hooks/use-analytics";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -497,7 +498,12 @@ function DungeonHexMap({
 
 export default function DelvePage() {
   const { toast } = useToast();
+  const { trackPageView, trackFeatureUse } = useAnalytics();
   const [phase, setPhase] = useState<'select' | 'crawl' | 'summary' | 'chest'>('select');
+
+  useEffect(() => {
+    trackPageView('delve');
+  }, [trackPageView]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
   const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
   const [activeRunData, setActiveRunData] = useState<{

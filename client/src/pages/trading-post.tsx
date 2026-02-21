@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { useAnalytics } from "@/hooks/use-analytics";
 import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
 import {
   Search, Star, Download, Scroll, Gem, Shield, Swords, Wand2,
@@ -77,6 +78,11 @@ function StarRating({ rating, onRate, interactive = false }: { rating: number; o
 export default function TradingPostPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { trackPageView, trackFeatureUse } = useAnalytics();
+
+  useEffect(() => {
+    trackPageView('trading_post');
+  }, [trackPageView]);
 
   const [activeTab, setActiveTab] = useState("adventures");
   const [adventureSearch, setAdventureSearch] = useState("");

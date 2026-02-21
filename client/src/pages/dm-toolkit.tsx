@@ -118,10 +118,12 @@ import SessionContextStrip from "@/components/dm-toolkit/SessionContextStrip";
 import DeployTab from "@/components/dm-toolkit/DeployTab";
 import { DMMapBuilder } from "@/components/dm/DMMapBuilder";
 import parchmentFrame from "@assets/image_1768600727955.png";
+import { useAnalytics } from "@/hooks/use-analytics";
 
 export default function DMToolkit() {
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  const { trackPageView, trackDMToolUse, trackFeatureUse, trackCampaignAction } = useAnalytics();
   const [activeTab, setActiveTab] = useState("training");
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
   const [showAIGuide, setShowAIGuide] = useState(false);
@@ -133,6 +135,10 @@ export default function DMToolkit() {
   const [isOnline, setIsOnline] = useState(true);
   const [openDrawer, setOpenDrawer] = useState<string | null>(null);
   const [quickGenerateExpanded, setQuickGenerateExpanded] = useState(false);
+
+  useEffect(() => {
+    trackPageView('dm_toolkit');
+  }, [trackPageView]);
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -205,6 +211,40 @@ export default function DMToolkit() {
     queryKey: ["/api/campaigns"],
     enabled: !!user
   });
+
+  const activeCampaigns = (campaigns || []).filter((c: any) => !c.isArchived);
+  const activeCampaignIds = activeCampaigns.map((c: any) => c.id).join(',');
+
+  useEffect(() => {
+    if (activeCampaigns.length === 0) {
+      if (selectedCampaignId) {
+        setSelectedCampaignId(null);
+        localStorage.removeItem('dm_toolkit_campaign_id');
+      }
+      return;
+    }
+    if (selectedCampaignId && activeCampaigns.some((c: any) => c.id === selectedCampaignId)) {
+      return;
+    }
+    const saved = localStorage.getItem('dm_toolkit_campaign_id');
+    if (saved) {
+      const savedId = parseInt(saved);
+      if (activeCampaigns.some((c: any) => c.id === savedId)) {
+        setSelectedCampaignId(savedId);
+        return;
+      }
+      localStorage.removeItem('dm_toolkit_campaign_id');
+    }
+    setSelectedCampaignId(activeCampaigns[0].id);
+  }, [activeCampaignIds, selectedCampaignId]);
+
+  useEffect(() => {
+    if (selectedCampaignId) {
+      localStorage.setItem('dm_toolkit_campaign_id', selectedCampaignId.toString());
+    } else {
+      localStorage.removeItem('dm_toolkit_campaign_id');
+    }
+  }, [selectedCampaignId]);
   
   // Handle CAML export
   const handleExportCampaign = async () => {
@@ -412,6 +452,67 @@ export default function DMToolkit() {
 
       <div className="container mx-auto px-4 py-6 md:py-8">
         <div className="space-y-8">
+          {/* Active Campaign Indicator */}
+          {activeCampaigns.length > 0 && (
+            <Card className="border-primary/30 bg-gradient-to-r from-primary/5 via-primary/3 to-transparent">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <BookOpen className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Active Campaign</p>
+                      <p className="text-sm font-semibold truncate">
+                        {selectedCampaignId 
+                          ? activeCampaigns.find((c: any) => c.id === selectedCampaignId)?.title || 'Select a campaign'
+                          : 'No campaign selected'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Select
+                      value={selectedCampaignId?.toString() || ""}
+                      onValueChange={(value) => {
+                        if (value === "create-new") {
+                          setActiveTab('campaign-builder');
+                          setQuickGenerateExpanded(true);
+                        } else {
+                          setSelectedCampaignId(value ? parseInt(value) : null);
+                          trackDMToolUse('campaign_switch', { campaignId: parseInt(value) });
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-[200px]">
+                        <SelectValue placeholder="Choose campaign..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="create-new" className="text-primary font-medium">
+                          <span className="flex items-center gap-2">
+                            <Plus className="h-4 w-4" />
+                            Create New Campaign
+                          </span>
+                        </SelectItem>
+                        <Separator className="my-1" />
+                        {activeCampaigns.map((campaign: any) => (
+                          <SelectItem key={campaign.id} value={campaign.id.toString()}>
+                            {campaign.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {!selectedCampaignId && activeCampaigns.length > 0 && (
+                  <p className="text-xs text-amber-500 mt-2 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Select a campaign above to use map generation, story tools, and session management
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Quick Start Banner - Prominent CTA for new DMs */}
           {campaigns.length === 0 && (
             <Card className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10 border-amber-500/30 overflow-hidden relative">

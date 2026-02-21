@@ -27,6 +27,7 @@ import type { PartyPosition } from "@/components/world/WorldHexMap";
 import CityMap from "@/components/world/CityMap";
 import CapitalHexMap from "@/components/world/CapitalHexMap";
 import type { WorldHex } from "@/lib/worldHexGenerator";
+import { useAnalytics } from "@/hooks/use-analytics";
 
 const terrainIcons: Record<string, typeof Mountain> = {
   mountain: Mountain,
@@ -178,7 +179,12 @@ function WorldEventCard({ event }: { event: WorldEvent }) {
 export default function WorldMapPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { trackPageView, trackFeatureUse } = useAnalytics();
   const [, navigate] = useLocation();
+
+  useEffect(() => {
+    trackPageView('world_map');
+  }, [trackPageView]);
   const [selectedRegion, setSelectedRegion] = useState<WorldRegion | null>(null);
   const [sidePanel, setSidePanel] = useState<'regions' | 'events' | 'discoveries'>('regions');
   const [mapView, setMapView] = useState<'illustrated' | 'hex'>('illustrated');

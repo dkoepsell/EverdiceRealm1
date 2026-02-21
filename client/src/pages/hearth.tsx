@@ -4,6 +4,7 @@ import { Link, useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { useAnalytics } from "@/hooks/use-analytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -146,9 +147,14 @@ const categoryColors: Record<string, string> = {
 export default function HearthPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { trackPageView, trackFeatureUse } = useAnalytics();
   const [location] = useLocation();
   const [showArrival, setShowArrival] = useState(true);
   const [showGuestWelcome, setShowGuestWelcome] = useState(false);
+
+  useEffect(() => {
+    trackPageView('hearth');
+  }, [trackPageView]);
   
   // Check for guest welcome parameter
   useEffect(() => {

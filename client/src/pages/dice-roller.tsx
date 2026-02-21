@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { clientRollDice, DiceRoll, DiceRollResult, DiceType } from "@/lib/dice";
-import { trackFeatureUse } from "@/lib/analytics";
+import { useAnalytics } from "@/hooks/use-analytics";
 import { Character } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -126,6 +126,11 @@ export default function DiceRoller() {
   const [declareRollOpen, setDeclareRollOpen] = useState(false);
   
   const { toast } = useToast();
+  const { trackPageView, trackDiceRoll, trackFeatureUse } = useAnalytics();
+
+  useEffect(() => {
+    trackPageView('dice_roller');
+  }, [trackPageView]);
   
   const { data: characters } = useQuery<Character[]>({
     queryKey: ['/api/characters'],

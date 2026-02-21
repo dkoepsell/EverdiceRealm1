@@ -1,7 +1,8 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAnalytics } from "@/hooks/use-analytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -189,7 +190,12 @@ function getDangerLabel(rating: number) {
 
 export default function WanderPage() {
   const { toast } = useToast();
+  const { trackPageView, trackFeatureUse } = useAnalytics();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    trackPageView('wander');
+  }, [trackPageView]);
 
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
   const [selectedCharacterId, setSelectedCharacterId] = useState<string>("");

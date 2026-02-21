@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Campaign, insertCampaignSchema, WorldRegion, WorldLocation } from "@shared/schema";
 import { queryClient, apiRequest, getQueryFn } from "@/lib/queryClient";
@@ -33,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { OnboardingHint, OnboardingPulse, useOnboardingHint } from "@/components/onboarding/OnboardingHint";
+import { useAnalytics } from "@/hooks/use-analytics";
 
 // Extended schema with validation rules
 const createCampaignSchema = insertCampaignSchema.extend({
@@ -100,6 +101,11 @@ export default function Campaigns() {
   };
   
   const { toast } = useToast();
+  const { trackPageView, trackCampaignAction, trackFeatureUse } = useAnalytics();
+
+  useEffect(() => {
+    trackPageView('campaigns');
+  }, [trackPageView]);
   
   const { data: campaigns, isLoading } = useQuery<Campaign[]>({
     queryKey: ['/api/campaigns'],

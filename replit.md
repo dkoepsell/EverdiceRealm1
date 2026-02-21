@@ -25,6 +25,15 @@ The CAML2 Adventure & Campaign Creation Guide integration (`/api/campaigns/gener
 
 A procedural World Hex Map (100x100 hex grid) is generated from 8 world regions with terrain variety, positioned locations, and dynamic rivers/roads. It supports zoom/pan, fog-of-war, and hex details. Interactive City Maps are procedurally generated for settlements, featuring districts and interactive buildings with services and discovery mechanics. The Trek System allows players to select a character and travel step-by-step toward a destination, with a chance for enriched encounters (ambush, discovery, loot_find) that can trigger AI-powered D&D scenes. The Capital City System features a 30x30 hex-based exploration map with 8 districts, buildings, and random street encounters. It includes an Interactive Bank system (deposit/withdraw gold with interest) and an Interactive Housing system (buy/sell houses, item storage). Capital Political Intrigue Quests and Location-based Quest Generation provide context-appropriate quests based on building types and settlement context.
 
+### Analytics System
+The `useAnalytics` hook (client/src/hooks/use-analytics.ts) provides page view, feature usage, campaign action, character action, DM tool, AI request, dice roll, and combat action tracking. It is wired into all major pages (dashboard, characters, campaigns, world-map, dm-toolkit, wander, delve, trading-post, hearth, dice-roller) and sends events to `/api/analytics/event`. Admin analytics dashboard (`/admin`) queries `userActivityEvents` and `userSessionsAnalytics` tables.
+
+### CAML Cover Art
+Both `/api/caml/generate` and `/api/campaigns/generate-complete` routes generate DALL-E 3 cover art via `generateCAMLCoverArt()` in server/routes.ts. Images are stored in object storage under `public/caml-covers/`. The CAMLManager frontend displays cover art alongside generated adventure details.
+
+### DM Toolkit Campaign Selection
+The DM Toolkit auto-selects a campaign (from localStorage or first active campaign) and displays a prominent "Active Campaign" card at the top of the page. Selection is persisted in `dm_toolkit_campaign_id` localStorage key and cleaned up when campaigns are archived/deleted.
+
 ## External Dependencies
 
 ### Core
