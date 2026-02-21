@@ -1,0 +1,578 @@
+{
+  "caml_version": "2.0",
+  "meta": {
+    "id": "adventure.treasure_islands",
+    "title": "Treasure Islands",
+    "created_utc": "2026-02-21T18:40:05.127Z",
+    "authors": [
+      "Everdice DM Toolkit"
+    ],
+    "tags": [
+      "fantasy"
+    ],
+    "levels": {
+      "min": 1,
+      "max": 5
+    },
+    "summary": "Embark on a perilous quest across a chain of mysterious islands to uncover ancient treasures hidden within ruins. Face cunning adversaries, forge unexpected alliances, and decide whether the gold is worth the price of awakening forgotten powers.",
+    "table_of_contents": [
+      {
+        "chapter": 1,
+        "title": "The Call to Adventure",
+        "summary": "Introduction to the quest and meeting with the mysterious quest giver."
+      },
+      {
+        "chapter": 2,
+        "title": "The Forgotten Port",
+        "summary": "The party explores an abandoned trading post, uncovering clues to a hidden path."
+      },
+      {
+        "chapter": 3,
+        "title": "The Stone Guardians",
+        "summary": "A deadly encounter with ancient guardians defending the ruins."
+      },
+      {
+        "chapter": 4,
+        "title": "The Puzzle of the Isles",
+        "summary": "Solving intricate puzzles to navigate the islands' secrets."
+      },
+      {
+        "chapter": 5,
+        "title": "The Hidden Sanctuary",
+        "summary": "Discovery of the hidden location and the final confrontation."
+      },
+      {
+        "chapter": 6,
+        "title": "The Price of Greed",
+        "summary": "Concluding the adventure with difficult choices that alter the fate of the islands."
+      }
+    ]
+  },
+  "doctrine": {
+    "campaign_question": "Should the ancient treasures be claimed for personal gain, risking the awakening of dormant powers, or preserved to maintain the island's balance?",
+    "stakes": [
+      {
+        "id": "stake_balance",
+        "name": "Island Balance",
+        "value": 2,
+        "max": 5,
+        "drift": "up",
+        "driftRate": 0.2,
+        "thresholdConsequence": {
+          "at0": {
+            "event": "The islands remain in harmony.",
+            "irreversible": false
+          },
+          "at5": {
+            "event": "The islands are overrun by chaos as ancient powers awaken.",
+            "irreversible": true
+          }
+        }
+      },
+      {
+        "id": "stake_greed",
+        "name": "Greed",
+        "value": 1,
+        "max": 5,
+        "drift": "up",
+        "driftRate": 0.15,
+        "thresholdConsequence": {
+          "at0": {
+            "event": "The treasures are used wisely.",
+            "irreversible": false
+          },
+          "at5": {
+            "event": "Greed consumes all, leading to betrayal and ruin.",
+            "irreversible": true
+          }
+        }
+      }
+    ]
+  },
+  "world": {
+    "entities": {
+      "characters": [
+        {
+          "id": "PC_Party",
+          "kind": "character",
+          "pc": true
+        },
+        {
+          "id": "NPC_CaptainLirien",
+          "kind": "character",
+          "name": "Captain Lirien",
+          "species": "Human",
+          "class": "Rogue",
+          "description": "A cunning and charismatic sea captain who knows the islands well."
+        },
+        {
+          "id": "NPC_OracleZephyra",
+          "kind": "character",
+          "name": "Oracle Zephyra",
+          "species": "Elf",
+          "class": "Cleric",
+          "description": "A wise oracle who offers guidance and warnings."
+        },
+        {
+          "id": "NPC_PirateRogbar",
+          "kind": "character",
+          "name": "Pirate Rogbar",
+          "species": "Dwarf",
+          "class": "Barbarian",
+          "description": "A fearsome pirate leader who seeks the treasure for himself."
+        },
+        {
+          "id": "NPC_GuardianKroth",
+          "kind": "character",
+          "name": "Guardian Kroth",
+          "species": "Golem",
+          "class": "",
+          "description": "An ancient guardian protecting the hidden sanctuary."
+        }
+      ],
+      "locations": [
+        {
+          "id": "LOC_SeasideVillage",
+          "kind": "location",
+          "name": "Seaside Village",
+          "description": "A small village at the edge of the islands, serving as the starting point for adventurers.",
+          "tags": [
+            "village"
+          ],
+          "features": [
+            "dock"
+          ]
+        },
+        {
+          "id": "LOC_ForgottenPort",
+          "kind": "location",
+          "name": "Forgotten Port",
+          "description": "An abandoned trading post now overgrown with vegetation.",
+          "tags": [
+            "ruins"
+          ],
+          "features": [
+            "overgrown"
+          ]
+        },
+        {
+          "id": "LOC_StoneRuins",
+          "kind": "location",
+          "name": "Stone Ruins",
+          "description": "Ancient ruins guarded by stone constructs.",
+          "tags": [
+            "dungeon"
+          ],
+          "features": [
+            "statues"
+          ]
+        },
+        {
+          "id": "LOC_PuzzleIsles",
+          "kind": "location",
+          "name": "Puzzle Isles",
+          "description": "A series of islands with intricate puzzles and traps.",
+          "tags": [
+            "puzzle"
+          ],
+          "features": [
+            "labyrinth"
+          ]
+        },
+        {
+          "id": "LOC_HiddenSanctuary",
+          "kind": "location",
+          "name": "Hidden Sanctuary",
+          "description": "A secluded sanctuary hidden deep within the islands.",
+          "tags": [
+            "hidden"
+          ],
+          "features": [
+            "concealed entrance"
+          ]
+        }
+      ],
+      "items": [
+        {
+          "id": "ITEM_AmuletOfTides",
+          "kind": "item",
+          "name": "Amulet of Tides",
+          "rarity": "rare",
+          "description": "An amulet that grants control over water.",
+          "consequence": "Using it disrupts the natural balance, increasing the Island Balance stake."
+        },
+        {
+          "id": "ITEM_CursedTreasureMap",
+          "kind": "item",
+          "name": "Cursed Treasure Map",
+          "rarity": "uncommon",
+          "description": "A map that reveals the location of hidden treasures.",
+          "consequence": "Following it attracts unwanted attention from Pirate Rogbar."
+        },
+        {
+          "id": "ITEM_GoldenIdol",
+          "kind": "item",
+          "name": "Golden Idol",
+          "rarity": "legendary",
+          "description": "A golden idol of immense value.",
+          "consequence": "Possession of the idol increases the Greed stake as others covet it."
+        }
+      ],
+      "factions": []
+    },
+    "connections": [
+      {
+        "id": "CONN_1",
+        "from": "LOC_SeasideVillage",
+        "to": "LOC_ForgottenPort",
+        "mode": "boat"
+      },
+      {
+        "id": "CONN_2",
+        "from": "LOC_ForgottenPort",
+        "to": "LOC_StoneRuins",
+        "mode": "path"
+      },
+      {
+        "id": "CONN_3",
+        "from": "LOC_StoneRuins",
+        "to": "LOC_PuzzleIsles",
+        "mode": "concealed"
+      },
+      {
+        "id": "CONN_4",
+        "from": "LOC_PuzzleIsles",
+        "to": "LOC_HiddenSanctuary",
+        "mode": "hidden"
+      }
+    ]
+  },
+  "state": {
+    "facts": [
+      {
+        "id": "STATE_CaptainLirien_Attitude",
+        "bearer": "NPC_CaptainLirien",
+        "type": "attitude",
+        "value": "friendly"
+      },
+      {
+        "id": "STATE_OracleZephyra_Attitude",
+        "bearer": "NPC_OracleZephyra",
+        "type": "attitude",
+        "value": "neutral"
+      },
+      {
+        "id": "STATE_PirateRogbar_Attitude",
+        "bearer": "NPC_PirateRogbar",
+        "type": "attitude",
+        "value": "hostile"
+      },
+      {
+        "id": "STATE_GuardianKroth_Active",
+        "bearer": "NPC_GuardianKroth",
+        "type": "active",
+        "value": true
+      },
+      {
+        "id": "STATE_HiddenSanctuary_Discovered",
+        "bearer": "LOC_HiddenSanctuary",
+        "type": "discovered",
+        "value": false
+      },
+      {
+        "id": "STATE_Quest_Main_Status",
+        "bearer": "adventure.treasure_islands",
+        "type": "quest_status",
+        "value": "active"
+      }
+    ]
+  },
+  "roles": {
+    "assignments": [
+      {
+        "id": "ROLE_QuestGiver_Main",
+        "role": "QuestGiver",
+        "holder": "NPC_CaptainLirien",
+        "revocation": {
+          "any": []
+        },
+        "notes": "Captain Lirien tasks the party with retrieving the ancient treasures from the islands."
+      },
+      {
+        "id": "ROLE_Guardian_Kroth",
+        "role": "Guardian",
+        "holder": "NPC_GuardianKroth",
+        "revocation": {
+          "any": [
+            {
+              "lhs": "state[STATE_GuardianKroth_Active].value",
+              "op": "==",
+              "rhs": false
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "processes": {
+    "catalog": [
+      {
+        "id": "PROC_social_seaside",
+        "type": "social",
+        "timebox": {
+          "id": "TB_1",
+          "label": "Meeting the Quest Giver"
+        },
+        "participants": [
+          "PC_Party",
+          "NPC_CaptainLirien"
+        ],
+        "location": "LOC_SeasideVillage",
+        "notes": "Captain Lirien explains the quest and offers guidance.",
+        "stake_effects": [
+          {
+            "stake_id": "stake_greed",
+            "delta": 1,
+            "reason": "The allure of treasure is hard to resist."
+          }
+        ]
+      },
+      {
+        "id": "PROC_exploration_port",
+        "type": "exploration",
+        "timebox": {
+          "id": "TB_2",
+          "label": "Exploring the Forgotten Port"
+        },
+        "participants": [
+          "PC_Party"
+        ],
+        "location": "LOC_ForgottenPort",
+        "notes": "The party explores the port and finds clues to the hidden path."
+      },
+      {
+        "id": "PROC_combat_guardians",
+        "type": "combat",
+        "timebox": {
+          "id": "TB_3",
+          "label": "Battle with Stone Guardians"
+        },
+        "participants": [
+          "PC_Party",
+          "NPC_GuardianKroth"
+        ],
+        "location": "LOC_StoneRuins",
+        "notes": "The party must defeat stone guardians to proceed.",
+        "stake_effects": [
+          {
+            "stake_id": "stake_balance",
+            "delta": 1,
+            "reason": "Disrupting the guardians disturbs the island's balance."
+          }
+        ]
+      },
+      {
+        "id": "PROC_puzzle_isles",
+        "type": "puzzle",
+        "timebox": {
+          "id": "TB_4",
+          "label": "Solving the Isles' Puzzles"
+        },
+        "participants": [
+          "PC_Party"
+        ],
+        "location": "LOC_PuzzleIsles",
+        "notes": "The party solves puzzles to navigate the islands."
+      },
+      {
+        "id": "PROC_exploration_hidden",
+        "type": "exploration",
+        "timebox": {
+          "id": "TB_5",
+          "label": "Discovering the Hidden Sanctuary"
+        },
+        "participants": [
+          "PC_Party"
+        ],
+        "location": "LOC_HiddenSanctuary",
+        "notes": "The party discovers the hidden sanctuary.",
+        "stake_effects": [
+          {
+            "stake_id": "stake_greed",
+            "delta": -1,
+            "reason": "Reaching the sanctuary tempers their greed."
+          }
+        ]
+      },
+      {
+        "id": "PROC_combat_pirate",
+        "type": "combat",
+        "timebox": {
+          "id": "TB_6",
+          "label": "Confrontation with Pirate Rogbar"
+        },
+        "participants": [
+          "PC_Party",
+          "NPC_PirateRogbar"
+        ],
+        "location": "LOC_HiddenSanctuary",
+        "notes": "A final showdown with Pirate Rogbar over the treasure.",
+        "stake_effects": [
+          {
+            "stake_id": "stake_greed",
+            "delta": 1,
+            "reason": "The pirate's greed fuels the conflict."
+          }
+        ]
+      },
+      {
+        "id": "PROC_social_oracle",
+        "type": "social",
+        "timebox": {
+          "id": "TB_7",
+          "label": "Consulting Oracle Zephyra"
+        },
+        "participants": [
+          "PC_Party",
+          "NPC_OracleZephyra"
+        ],
+        "location": "LOC_SeasideVillage",
+        "notes": "Oracle Zephyra offers insights and possible resolutions to the party's dilemma."
+      },
+      {
+        "id": "PROC_decision_treasure",
+        "type": "social",
+        "timebox": {
+          "id": "TB_8",
+          "label": "The Fate of the Treasure"
+        },
+        "participants": [
+          "PC_Party"
+        ],
+        "location": "LOC_HiddenSanctuary",
+        "notes": "The party decides what to do with the treasure, impacting the stakes."
+      },
+      {
+        "id": "PROC_resolution_balance",
+        "type": "social",
+        "timebox": {
+          "id": "TB_9",
+          "label": "Restoring Balance"
+        },
+        "participants": [
+          "PC_Party"
+        ],
+        "location": "LOC_SeasideVillage",
+        "notes": "The party attempts to restore the island's balance.",
+        "stake_effects": [
+          {
+            "stake_id": "stake_balance",
+            "delta": -1,
+            "reason": "Efforts to restore balance reduce its instability."
+          }
+        ]
+      },
+      {
+        "id": "PROC_final_choice",
+        "type": "social",
+        "timebox": {
+          "id": "TB_10",
+          "label": "Final Choice and Consequences"
+        },
+        "participants": [
+          "PC_Party"
+        ],
+        "location": "LOC_SeasideVillage",
+        "notes": "The party faces the ultimate decision, shaping the fate of the islands."
+      }
+    ]
+  },
+  "transitions": {
+    "changes": [
+      {
+        "id": "TR_discover_hidden_sanctuary",
+        "caused_by": "PROC_exploration_hidden",
+        "ops": [
+          {
+            "op": "update_state",
+            "state_id": "STATE_HiddenSanctuary_Discovered",
+            "value": true
+          }
+        ]
+      },
+      {
+        "id": "TR_defeat_guardian_kroth",
+        "caused_by": "PROC_combat_guardians",
+        "ops": [
+          {
+            "op": "update_state",
+            "state_id": "STATE_GuardianKroth_Active",
+            "value": false
+          }
+        ]
+      },
+      {
+        "id": "TR_EndingA",
+        "caused_by": "PROC_final_choice",
+        "ops": [
+          {
+            "op": "update_state",
+            "state_id": "STATE_Quest_Main_Status",
+            "value": "complete"
+          },
+          {
+            "op": "update_state",
+            "state_id": "STATE_CaptainLirien_Attitude",
+            "value": "hostile"
+          }
+        ]
+      },
+      {
+        "id": "TR_EndingB",
+        "caused_by": "PROC_final_choice",
+        "ops": [
+          {
+            "op": "update_state",
+            "state_id": "STATE_Quest_Main_Status",
+            "value": "complete"
+          },
+          {
+            "op": "update_state",
+            "state_id": "STATE_OracleZephyra_Attitude",
+            "value": "friendly"
+          }
+        ]
+      }
+    ]
+  },
+  "snapshots": {
+    "timeline": [
+      {
+        "id": "SNAP_Initial",
+        "time_utc": "2026-02-21T18:40:05.127Z",
+        "world_hash": "initial",
+        "state_hash": "initial",
+        "roles_hash": "initial",
+        "narration": "The party gathers in the Seaside Village, where Captain Lirien presents a map and a mission: retrieve the treasures of the Treasure Islands."
+      },
+      {
+        "id": "SNAP_Ending_A",
+        "time_utc": "2026-02-21T18:40:05.127Z",
+        "world_hash": "final_a",
+        "state_hash": "final_a",
+        "roles_hash": "final_a",
+        "narration": "The party secures the treasure, but at the cost of the island's balance. Ancient powers stir, and Captain Lirien turns against them as chaos ensues.",
+        "derived_from_transition": "TR_EndingA"
+      },
+      {
+        "id": "SNAP_Ending_B",
+        "time_utc": "2026-02-21T18:40:05.127Z",
+        "world_hash": "final_b",
+        "state_hash": "final_b",
+        "roles_hash": "final_b",
+        "narration": "The party chooses to preserve the island's balance, sacrificing the treasure. Oracle Zephyra blesses their decision, ensuring peace, but leaving the treasure lost to time.",
+        "derived_from_transition": "TR_EndingB"
+      }
+    ]
+  }
+}

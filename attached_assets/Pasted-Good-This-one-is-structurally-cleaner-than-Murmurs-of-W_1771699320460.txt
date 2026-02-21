@@ -1,0 +1,375 @@
+Good. This one is structurally cleaner than *Murmurs of War*, but it still has the same core weakness:
+
+It is **chapter-driven, not state-driven**.
+
+Right now this is a linear island crawl with a moral ending.
+
+What Everdice needs is a **reactive archipelago simulator**.
+
+Below is a deep structural upgrade plan specific to *Treasure Islands*.
+
+---
+
+# I. Structural Diagnosis
+
+## What’s Strong
+
+* Clear campaign question
+* Stakes are thematic and aligned
+* Moral axis (greed vs balance)
+* Multiple social beats
+* Clear physical geography
+
+## What’s Weak
+
+1. No Villain Plan Engine
+2. Pirate Rogbar is static
+3. No island instability mechanics
+4. No naval layer
+5. No reaction tree
+6. Encounters not budget-calibrated
+7. Puzzles are isolated, not state-driven
+8. Balance stake does not modify environment
+9. No resource pacing model
+10. Endings are binary and terminal
+
+This is still “adventure module JSON,” not CAML2 simulation.
+
+---
+
+# II. What This Adventure *Should* Be
+
+This should be:
+
+A **multi-island dynamic conflict system** where:
+
+* Rogbar is racing the party
+* The islands respond to disturbance
+* The treasure is part of a warding system
+* The sea becomes hostile if balance tips
+* The party can ally, betray, or manipulate factions
+
+Right now none of that exists structurally.
+
+---
+
+# III. Required CAML2 Upgrades
+
+---
+
+# A. Add a Villain Plan Tree
+
+Rogbar must act offscreen.
+
+Add:
+
+```json
+"villain": {
+  "id": "VIL_Rogbar",
+  "archetype": "Rival Treasure Hunter",
+  "goal": "Claim the Golden Idol and sell it to fund pirate dominion.",
+  "plan_stages": [
+    {
+      "id": "Stage1_ScoutRuins",
+      "trigger": "adventure_start",
+      "effect": "Rogbar learns partial map routes"
+    },
+    {
+      "id": "Stage2_InterceptParty",
+      "trigger": "if stake_greed >= 2",
+      "effect": "Rogbar ambushes at sea"
+    },
+    {
+      "id": "Stage3_BreakSanctuarySeal",
+      "trigger": "if HiddenSanctuary_Discovered == true",
+      "effect": "Balance increases by 1 per scene"
+    },
+    {
+      "id": "Stage4_EscapeWithIdol",
+      "trigger": "if Rogbar wins confrontation",
+      "effect": "Island collapse event begins"
+    }
+  ]
+}
+```
+
+Now Rogbar is not a boss.
+He is a system.
+
+---
+
+# B. Make Stakes Active Drivers
+
+Right now stakes are cosmetic.
+
+Upgrade them:
+
+## If stake_balance >= 4:
+
+* Storm frequency increases
+* Sea travel requires checks
+* Guardian Kroth reactivates in spectral form
+* Puzzles become unstable
+
+## If stake_greed >= 4:
+
+* Captain Lirien becomes manipulative
+* Party members experience temptation events
+* Rogbar gains reinforcements
+* NPC betrayal probability increases
+
+Stakes must modify environment.
+
+---
+
+# C. Add Naval Layer
+
+This is an island campaign.
+
+Add a travel system:
+
+```json
+"travel_system": {
+  "travel_risk": "modified by stake_balance",
+  "random_encounters": [
+    "storm",
+    "sea serpent",
+    "rogbar scouts",
+    "ghost ship",
+    "merchant vessel"
+  ]
+}
+```
+
+Random encounters must:
+
+* Drain resources
+* Foreshadow Rogbar
+* Reinforce theme
+
+---
+
+# D. Convert Linear Processes to Conditional Nodes
+
+Right now:
+
+Village → Port → Ruins → Puzzle → Sanctuary
+
+Instead:
+
+Each island should be unlockable in multiple orders.
+
+Example:
+
+```json
+"activation_conditions": [
+  {
+    "process": "PROC_combat_guardians",
+    "requires": ["any 1 clue from Port OR Oracle"]
+  },
+  {
+    "process": "PROC_puzzle_isles",
+    "requires": ["map_fragment_count >= 2"]
+  }
+]
+```
+
+Now replayability increases dramatically.
+
+---
+
+# E. Add Encounter Budget Enforcement
+
+If party level 3 (example):
+
+Medium threshold per PC: 150
+4 PCs → 600
+
+Daily XP per PC: 1200
+Total daily budget: 4800
+
+Island arc must include:
+
+* 1 hard encounter (≈900 adjusted)
+* 2 medium (≈600 each)
+* 1 resource drain random
+* Optional boss at 1200–1500 adjusted
+
+This prevents flat pacing.
+
+Add:
+
+```json
+"encounter_budget": {
+  "target_daily_strain": 0.75,
+  "short_rest_windows": 2
+}
+```
+
+---
+
+# F. Upgrade the Stone Guardian Encounter
+
+Currently:
+Single combat.
+
+Upgrade to:
+
+Wave 1: Stone constructs animate
+Wave 2: Idol pulses → terrain cracks
+Wave 3 (conditional): Kroth absorbs elemental energy
+
+Add environmental features:
+
+* Collapsing columns
+* Rising tide
+* Unstable platforms
+
+Combat must not be static.
+
+---
+
+# G. Integrate Moral Quandary Structurally
+
+Right now:
+Choice happens at end.
+
+Better:
+
+Throughout the adventure:
+
+* Lirien pushes greed
+* Zephyra warns of imbalance
+* Rogbar tempts with shared loot
+
+Add:
+
+```json
+"moral_pressure_events": [
+  "villager needs idol power to save child",
+  "crew mutiny if treasure abandoned",
+  "oracle reveals idol seals abyssal gate"
+]
+```
+
+Decision should not be one moment.
+It should accumulate.
+
+---
+
+# H. Add Greed Corruption Mechanic
+
+Each time party:
+
+* Claims treasure
+* Betrays ally
+* Uses Amulet of Tides
+
+Greed +1.
+
+At Greed 5:
+
+* Internal party conflict event
+* Rogbar can manipulate party member
+* Idol attempts possession
+
+Now greed is gameplay.
+
+---
+
+# I. Add Balance Collapse Path
+
+If Balance 5:
+
+* Sea becomes violent
+* Hidden Sanctuary floods
+* Kroth becomes mythic guardian
+* Idol cracks → eldritch emergence
+
+Ending should not just be “bad.”
+
+It should become new campaign arc.
+
+---
+
+# J. Make Endings Non-Terminal
+
+Right now:
+Ending A / Ending B → complete.
+
+Upgrade:
+
+Ending A:
+Rogbar survives → pirate campaign arc.
+
+Ending B:
+Zephyra reveals deeper threat → planar ward arc.
+
+Never terminate campaign.
+Transform it.
+
+---
+
+# IV. What This Adventure Should Feel Like
+
+Currently:
+Linear island dungeon.
+
+Upgraded:
+Dynamic treasure race across unstable magical ecosystem.
+
+Players feel:
+
+* Pressured by rival
+* Pressured by environment
+* Pressured morally
+* Pressured by resources
+
+That is retention architecture.
+
+---
+
+# V. Final Structural Evaluation
+
+Current file:
+7 / 10 narratively
+5.5 / 10 systemically
+
+With upgrades:
+9.5 / 10 reactive sandbox.
+
+---
+
+# VI. Critical Insight for Everdice
+
+The key problem in your generated campaigns is not prose quality.
+
+It is:
+
+Lack of systemic pressure.
+
+Your adventures read like modules.
+They need to behave like simulations.
+
+Once you enforce:
+
+* Villain stage trees
+* Active stakes
+* Resource pacing
+* Rival interference
+* Environmental reaction
+* Moral accumulation
+
+Retention will increase dramatically.
+
+Because the world will feel alive.
+
+---
+
+If you want next:
+
+1. I can rewrite *Treasure Islands* into full CAML2 v2 reactive spec.
+2. Or build a reusable “Rival Treasure Hunter” generator template.
+3. Or design the exact #verdice prompt discipline that forces this architecture automatically.
+
+Which layer do we harden first?

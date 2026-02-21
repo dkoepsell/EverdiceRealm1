@@ -15072,7 +15072,7 @@ CAML 2.0 EXACT SCHEMA (every field shown is REQUIRED):
   },
   "complicationsQueue": {
     "moralQuandaries": [
-      {"type": "quandary_1", "description": "A structural moral decision with no clean answer", "tradeoff": "What you gain vs what you lose", "injectionTiming": "early|midpoint|climax", "isUsed": false}
+      {"type": "quandary_1", "description": "A structural moral decision with no clean answer", "tradeoff": "What you gain vs what you lose", "stakeLink": {"increases": "stake_1", "decreases": "stake_2"}, "injectionTiming": "early|midpoint|climax", "isUsed": false}
     ],
     "twists": [
       {"type": "twist_1", "description": "A revelation that recontextualizes events", "revelation": "What is revealed and how", "consequence": "How this changes the situation", "injectionTiming": "midpoint|pre_climax", "isUsed": false}
@@ -15163,8 +15163,8 @@ CAML 2.0 EXACT SCHEMA (every field shown is REQUIRED):
   "snapshots": {
     "timeline": [
       {"id": "SNAP_Initial", "time_utc": "${timestamp}", "world_hash": "initial", "state_hash": "initial", "roles_hash": "initial", "narration": "Opening scene..."},
-      {"id": "SNAP_Ending_A", "time_utc": "${timestamp}", "world_hash": "final_a", "state_hash": "final_a", "roles_hash": "final_a", "narration": "Ending where one stake is resolved but the other worsens. What is better? What is worse? What cannot be undone?", "derived_from_transition": "TR_EndingA"},
-      {"id": "SNAP_Ending_B", "time_utc": "${timestamp}", "world_hash": "final_b", "state_hash": "final_b", "roles_hash": "final_b", "narration": "Alternative ending with different tradeoffs. The opposite stake resolves but a new cost emerges.", "derived_from_transition": "TR_EndingB"}
+      {"id": "SNAP_Ending_A", "time_utc": "${timestamp}", "world_hash": "final_a", "state_hash": "final_a", "roles_hash": "final_a", "narration": "Ending where one stake is resolved but the other worsens. What is better? What is worse? What cannot be undone?", "derived_from_transition": "TR_EndingA", "nextArc": "What new campaign arc emerges from this ending — never terminal"},
+      {"id": "SNAP_Ending_B", "time_utc": "${timestamp}", "world_hash": "final_b", "state_hash": "final_b", "roles_hash": "final_b", "narration": "Alternative ending with different tradeoffs. The opposite stake resolves but a new cost emerges.", "derived_from_transition": "TR_EndingB", "nextArc": "What different campaign arc emerges from this ending"}
     ]
   }
 }
@@ -15173,53 +15173,77 @@ CAML 2.0 EXACT SCHEMA (every field shown is REQUIRED):
 REACTIVE ARCHITECTURE (MANDATORY — this makes CAML 2.0 NOT a linear module):
 ═══════════════════════════════════════════════════════════════════
 
-1. VILLAIN MUST BE PROCEDURAL (not a static boss):
-   - villain.planStructure: 3-5 staged plan steps with triggers
-   - villain.reactionTree: 4 reactions (escalate/redirect/retaliate/accelerate) — each creates NEW problems
-   - Villain acts WITHOUT player permission — their plan progresses between scenes
-   - Villain is NEVER just "the final boss waiting at the end"
+1. VILLAIN IS A SYSTEM (not a static boss):
+   - villain.planStructure: 3-5 staged plan steps, each with a TRIGGER condition (state thresholds, events, time)
+   - villain.reactionTree: 4 reactions (escalate/redirect/retaliate/accelerate) — each creates NEW problems and costs villain resources
+   - Villain acts OFFSCREEN between scenes — their plan progresses whether players act or not
+   - Villain is NEVER "the final boss waiting in the last room"
+   - Villain RACES the party — competing for the same objective from a different angle
 
-2. STAKES MUST DRIVE GAMEPLAY (not just passive meters):
-   - Each stake must have "gameplayEffects" at thresholds (at2, at4) that MODIFY the adventure:
-     * Lock/unlock locations
-     * Change NPC behavior
-     * Increase/decrease encounter difficulty
-     * Activate new threats or allies
-   - Stakes are the ENGINE of the adventure, not decorations
+2. STAKES MUST BE ACTIVE GAMEPLAY DRIVERS (not passive meters):
+   - Each stake must have "gameplayEffects" at thresholds (at2, at4) describing SPECIFIC changes:
+     * at2: Moderate effects — NPC attitude shifts, new rumors, environmental warnings, travel checks
+     * at4: Severe effects — locations lock/unlock, NPC betrayal, encounter difficulty increases, environmental hazards activate, villain gains reinforcements
+   - Example: "at2: Storm frequency increases, sea travel requires DC 12 checks" / "at4: Guardian reactivates in spectral form, puzzles become unstable, Rogbar gains reinforcements"
+   - Stakes are the ENGINE of the adventure — they MODIFY encounters, access, NPC behavior, and difficulty in real time
+   - Items/actions that increase a stake must have immediate observable effects, not just counter increments
 
-3. PROCESSES MUST BE CONDITIONALLY ACTIVATED (not sequential chapters):
-   - Each process MUST have "activationConditions" — state requirements to unlock
-   - Processes are NOT chapters — they activate when conditions are met
+3. PROCESSES ARE CONDITIONAL NODES (not sequential chapters):
+   - Each process MUST have "activationConditions" — state requirements, clue counts, or stake thresholds
+   - Processes can be reached in MULTIPLE ORDERS — never Village→Port→Ruins→Boss in fixed sequence
    - Some processes may never trigger depending on player choices
    - Each process MUST have "outcomes" with success/partial/failure results
+   - Example: "activationConditions": ["Requires any 1 clue from Port OR Oracle", "map_fragment_count >= 2"]
+   - At least 2 processes must have ALTERNATIVE activation paths (can reach via different prerequisites)
 
 4. FAILURE ADVANCES THE WORLD (never blocks):
-   - Process failure outcomes must: advance villain plan, shift factions, increase corruption
-   - Failure creates NEW opportunities born from consequences
-   - No dead ends — every failure opens a different path
-   - The campaign continues through failure, just darker
+   - Every process.outcomes.failure must: advance villain plan stage, shift a stake, create a NEW threat or opportunity
+   - Failure creates NEW playable content — not a dead end
+   - Example failure: "Rogbar claims the artifact first — now party must pursue, negotiate, or find alternative"
+   - The campaign continues through failure, just darker and with different options
 
-5. ENCOUNTER BUDGET SYSTEM:
-   - encounterBudget: party level, medium/hard thresholds, daily XP budget
-   - encounterDesigns: each combat has terrain features, combat interest modifiers, opposition type
-   - Climax encounters MUST be multipart (waves, shifting terrain, time pressure)
-   - At least one encounter must have civilian_protection or multi_wave
+5. ENCOUNTER DESIGN AND BUDGET:
+   - encounterBudget: party level, medium/hard XP thresholds, daily XP budget, rest windows, target strain ratio
+   - encounterDesigns: each combat has SPECIFIC terrain features, combat interest modifiers, and opposition type
+   - Climax encounters MUST be multi-wave or multi-phase: "Wave 1: Stone constructs animate, Wave 2: Idol pulses + terrain cracks, Wave 3 (conditional): Boss absorbs elemental energy"
+   - At least one encounter must have "multi_wave" or "terrain_shifts" in combatInterest
+   - Environmental features must be SPECIFIC: "collapsing_columns", "rising_tide", "unstable_platforms" — not generic "terrain"
 
-6. MORAL QUANDARY ENGINE:
-   - complicationsQueue.moralQuandaries: at least 1 structural moral decision with no clean answer
-   - Each quandary must be tied to a specific stake (choosing one side worsens the other)
-   - Players must FEEL the cost of their decision
+6. MORAL QUANDARY ENGINE (accumulated, not one-shot):
+   - complicationsQueue.moralQuandaries: at least 1 moral decision tied to a specific stake trade-off
+   - Moral pressure must ACCUMULATE throughout the adventure — not just one decision at the end
+   - Each quandary must specify which stake it increases and which it decreases
+   - Example: "villager needs idol power to save child" (greed -1 but balance +1) / "crew mutiny if treasure abandoned" (greed pressure)
+   - Add "stakeLink" field to each quandary: {"increases": "stake_id", "decreases": "stake_id"}
 
 7. COMPLICATIONS PACING:
-   - complicationsQueue.twists: at least 1 revelation that recontextualizes events
-   - complicationsQueue.environmentalModifiers: at least 1 with specific D&D mechanical effects
+   - complicationsQueue.twists: at least 1 revelation that recontextualizes the adventure (e.g. "oracle reveals idol seals an abyssal gate")
+   - complicationsQueue.environmentalModifiers: at least 1 with SPECIFIC D&D mechanical effects (disadvantage, difficult terrain, DC increases)
    - injectionTiming controls WHEN they appear (early/midpoint/climax)
+   - Twists should reveal that the villain's goal is more dangerous than initially apparent
 
-8. PRESSURE SYSTEM:
-   - doctrine.campaign_question MUST be a DILEMMA — NOT a goal
-   - doctrine.stakes with drift and gameplay effects
-   - framingEvent: the visible inciting incident
-   - partyGoal with success/partial/failure states
+8. NON-TERMINAL ENDINGS:
+   - Endings MUST be transformative, not terminal — they evolve into new campaign arcs
+   - Every ending snapshot must include "nextArc" field describing what campaign emerges from this ending
+   - Example: "Ending A: Rogbar survives with treasure → pirate dominion campaign arc" / "Ending B: Balance restored but deeper threat revealed → planar ward campaign arc"
+   - No ending should feel like "game over" — each should open new possibilities
+   - The most dramatic endings should emerge from stake thresholds hitting 5 (irreversible events that transform the world)
+
+9. STAKE CORRUPTION MECHANICS:
+   - Each stake must have specific PLAYER ACTIONS that modify it (not just drift):
+     * "Claiming treasure" → greed +1
+     * "Using magical artifact" → balance +1
+     * "Betraying ally" → greed +1
+     * "Restoring ward" → balance -1
+   - At stake value 5: catastrophic transformation event (internal party conflict, environmental collapse, villain power surge)
+   - Stakes at 5 should NOT end the adventure — they should TRANSFORM it (new threats, collapsed geography, spectral guardians)
+
+10. PRESSURE SYSTEM:
+    - doctrine.campaign_question MUST be a DILEMMA — NOT a goal
+    - doctrine.stakes with drift, threshold consequences, AND gameplay effects
+    - framingEvent: the visible inciting incident
+    - partyGoal with success/partial/failure states
+    - Villain must be racing the party — both want the same thing
 
 MODULE STRUCTURE (MANDATORY):
 - meta.summary: vivid 2-3 sentence hook
@@ -15232,12 +15256,13 @@ REQUIRED FIELDS (validation will fail without these):
 - Every role assignment MUST use "holder" (NOT "character_id") and have "id" field
 - Every process MUST have "type" (combat/social/puzzle/exploration), "participants", "location"
 - transitions.changes MUST NOT be empty
-- snapshots.timeline MUST have at least 2 ending snapshots (forked endings)
-- villain MUST have planStructure (array of 3-5 steps) and reactionTree (4 reactions)
-- encounterDesigns MUST have at least 1 entry with terrainFeatures and combatInterest
-- complicationsQueue MUST have at least 1 moralQuandary and 1 twist
-- partyGoal MUST have success, partialSuccessState, and failureState
-- Each process MUST have outcomes.success, outcomes.partial, outcomes.failure
+- snapshots.timeline MUST have at least 2 ending snapshots (forked endings), each with "nextArc" field
+- villain MUST have planStructure (array of 3-5 steps with triggers) and reactionTree (4 reactions)
+- encounterDesigns MUST have at least 1 entry with terrainFeatures (specific terrain) and combatInterest (including multi_wave or terrain_shifts)
+- complicationsQueue MUST have at least 1 moralQuandary (with stakeLink) and 1 twist
+- partyGoal MUST have primary, success, partialSuccessState, and failureState
+- Each process MUST have activationConditions and outcomes (success/partial/failure)
+- Each stake MUST have gameplayEffects with specific environmental/NPC/difficulty modifications
 
 FORBIDDEN (CAML 1.x / linear patterns):
 - "type": "AdventureModule"
@@ -15247,9 +15272,12 @@ FORBIDDEN (CAML 1.x / linear patterns):
 - Clean endings where everything resolves perfectly
 - Items that only grant power with no consequence
 - Static bosses that wait at the end of a linear dungeon
-- Sequential chapter progression where chapter 2 can only happen after chapter 1
-- Passive stakes that never modify gameplay
-- Encounters without terrain or tactical interest
+- Sequential chapter progression (Village → Port → Ruins → Boss in fixed order)
+- Passive stakes that never modify gameplay (cosmetic meters)
+- Encounters without specific terrain or tactical interest
+- Terminal endings that end the story with no continuation
+- Single-wave combat encounters for climax fights
+- Moral decisions that only happen once at the very end
 
 ${attempt > 0 ? `PREVIOUS ATTEMPT FAILED: ${lastError}. Fix these issues.` : ''}`;
 
@@ -15265,26 +15293,33 @@ REQUIREMENTS:
 - Use SRD 5.1 content only
 
 REACTIVE ARCHITECTURE REQUIREMENTS (CRITICAL — without these the output is a linear module):
-- villain: Staged plan (3-5 steps), reaction tree (escalate/redirect/retaliate/accelerate), specific resources and weakness
+- villain: Staged plan (3-5 steps with TRIGGER conditions), reaction tree (escalate/redirect/retaliate/accelerate), specific resources and weakness. Villain RACES the party — competing for the same objective offscreen
 - framingEvent: Visible inciting incident connected to villain's plan
-- complicationsQueue: At least 1 moral quandary (tied to stakes), 1 twist, 1 environmental modifier with D&D mechanics
-- encounterDesigns: At least 1 combat encounter with terrainFeatures (array of terrain types), combatInterest (array of modifiers like time_pressure, multi_wave)
-- encounterBudget: Level-appropriate XP thresholds and daily budget
-- partyGoal: Primary/secondary goals with success/partial/failure outcomes
-- Stakes must have gameplayEffects that modify NPC behavior, location access, or difficulty at thresholds
-- Every process must have activationConditions (what unlocks it) and outcomes (success/partial/failure)
-- Failure outcomes must advance villain plan and create new problems, NEVER dead-end
+- complicationsQueue: At least 1 moral quandary with stakeLink (which stakes it affects), 1 twist that recontextualizes events, 1 environmental modifier with D&D mechanical effects
+- encounterDesigns: At least 1 combat with SPECIFIC terrainFeatures (collapsing_columns, rising_tide, etc.), combatInterest (multi_wave or terrain_shifts for climax). Climax encounters MUST be multi-wave/multi-phase
+- encounterBudget: Level-appropriate XP thresholds and daily budget with rest windows
+- partyGoal: Primary/secondary/hidden goals with success/partial/failure world states
+- Stakes must have gameplayEffects at2 (moderate: NPC shifts, travel checks) and at4 (severe: location lockout, betrayal, difficulty increase, environmental hazards). At stake 5: catastrophic transformation (collapse, spectral guardians, villain power surge) — NOT game over
+- Every process must have activationConditions (state requirements, clue counts, or stake thresholds — NOT sequential chapter order) and outcomes (success/partial/failure)
+- At least 2 processes must have ALTERNATIVE activation paths (reachable via different prerequisites)
+- Failure outcomes must advance villain plan and create new playable content, NEVER dead-end
+- Moral quandaries must ACCUMULATE throughout, not just one decision at the end
+
+NON-TERMINAL ENDINGS (CRITICAL):
+- Every ending snapshot must have "nextArc" describing what new campaign arc emerges
+- Endings TRANSFORM the world, they don't end it. Example: "Villain escapes with treasure → pirate dominion arc" / "Balance restored but deeper threat revealed → planar ward arc"
+- The most dramatic endings come from stake thresholds hitting 5 (irreversible world transformation)
 
 PRESSURE SYSTEM REQUIREMENTS:
 - doctrine.campaign_question: Frame a DILEMMA not a goal
-- doctrine.stakes: At least 2 pressure tracks with drift, threshold consequences, AND gameplayEffects
+- doctrine.stakes: At least 2 pressure tracks with drift, threshold consequences, gameplayEffects (at2/at4), and specific player actions that modify them
 - At least 3 processes must include stake_effects
 - Every item must have a "consequence" field
-- At least 2 forked ending snapshots with tradeoffs
+- At least 2 forked ending snapshots with tradeoffs and nextArc
 
 ${customPrompt ? `THEME NOTES: ${customPrompt}` : ''}
 
-Generate a complete CAML 2.0 JSON adventure with REACTIVE ARCHITECTURE — not a linear module.`;
+Generate a complete CAML 2.0 JSON adventure with REACTIVE ARCHITECTURE — a dynamic conflict simulator, not a linear module.`;
 
         const completion = await openai.chat.completions.create({
           model: "gpt-4o",
@@ -15487,7 +15522,14 @@ Generate a complete CAML 2.0 JSON adventure with REACTIVE ARCHITECTURE — not a
         } else {
           const designsWithTerrain = encDesigns.filter((e: any) => e.terrainFeatures && Array.isArray(e.terrainFeatures) && e.terrainFeatures.length > 0);
           if (designsWithTerrain.length < 1) {
-            validationErrors.push('At least 1 encounterDesign must have terrainFeatures array');
+            validationErrors.push('At least 1 encounterDesign must have terrainFeatures array with specific terrain types');
+          }
+          const designsWithMultiWave = encDesigns.filter((e: any) => 
+            e.combatInterest && Array.isArray(e.combatInterest) && 
+            e.combatInterest.some((ci: string) => ci === 'multi_wave' || ci === 'terrain_shifts')
+          );
+          if (designsWithMultiWave.length < 1) {
+            validationErrors.push('At least 1 encounterDesign must have multi_wave or terrain_shifts in combatInterest (climax encounters must be multi-phase)');
           }
         }
         
@@ -15510,10 +15552,23 @@ Generate a complete CAML 2.0 JSON adventure with REACTIVE ARCHITECTURE — not a
           if (!pGoal.primary) validationErrors.push('partyGoal.primary is required');
         }
         
-        // Validate stakes have gameplayEffects
+        // Validate stakes have gameplayEffects with specific threshold effects
         const stakesWithEffects = doctrineStakes.filter((s: any) => s.gameplayEffects && Object.keys(s.gameplayEffects).length > 0);
         if (doctrineStakes.length >= 2 && stakesWithEffects.length < 1) {
-          validationErrors.push('At least 1 doctrine.stake must have gameplayEffects (at2/at4 gameplay modifications)');
+          validationErrors.push('At least 1 doctrine.stake must have gameplayEffects (at2/at4 specific environmental/NPC/difficulty modifications)');
+        }
+        
+        // Validate moral quandaries have stakeLink
+        const quandaries = generatedContent.complicationsQueue?.moralQuandaries || [];
+        const quandariesWithStakeLink = quandaries.filter((q: any) => q.stakeLink && (q.stakeLink.increases || q.stakeLink.decreases));
+        if (quandaries.length > 0 && quandariesWithStakeLink.length < 1 && attempt > 0) {
+          validationErrors.push('At least 1 moralQuandary must have stakeLink showing which stakes it affects');
+        }
+        
+        // Validate non-terminal endings (nextArc on ending snapshots)
+        const endingsWithNextArc = endingSnapshots.filter((s: any) => s.nextArc && s.nextArc.length > 5);
+        if (endingSnapshots.length >= 2 && endingsWithNextArc.length < 1 && attempt > 0) {
+          validationErrors.push('Ending snapshots must have nextArc field describing what new campaign arc emerges (endings must be non-terminal)');
         }
         
         // Validate process outcomes and activation conditions
