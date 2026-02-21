@@ -27075,7 +27075,7 @@ ALWAYS generate:
         isCompleted: campaigns.isCompleted
       })
         .from(campaigns)
-        .where(sql`${campaigns.narrativeLog} IS NOT NULL AND jsonb_array_length(COALESCE(${campaigns.narrativeLog}, '[]'::jsonb)) > 0`)
+        .where(sql`${campaigns.narrativeLog} IS NOT NULL AND jsonb_typeof(${campaigns.narrativeLog}) = 'array' AND jsonb_array_length(CASE WHEN jsonb_typeof(${campaigns.narrativeLog}) = 'array' THEN ${campaigns.narrativeLog} ELSE '[]'::jsonb END) > 0`)
         .orderBy(desc(campaigns.currentSession))
         .limit(10);
 
