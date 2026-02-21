@@ -15033,7 +15033,7 @@ Create a specific creature (pick one of the reskins or create a thematic variant
       let lastError = '';
       
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        const systemPrompt = `You generate CAML 2.0 format adventures. CAML 2.0 uses ontological layers, NOT flat arrays.
+        const systemPrompt = `You generate CAML 2.0 format adventures with REACTIVE ARCHITECTURE. CAML 2.0 uses ontological layers, NOT flat arrays. Adventures must be reactive political/narrative simulators, NOT linear chapter-based modules.
 
 CAML 2.0 EXACT SCHEMA (every field shown is REQUIRED):
 {
@@ -15042,9 +15042,74 @@ CAML 2.0 EXACT SCHEMA (every field shown is REQUIRED):
   "doctrine": {
     "campaign_question": "A genuine dilemma, NOT a goal. E.g. 'Should the power beneath the ruins be destroyed, claimed, or passed on — and who bears the cost?' Must frame a choice with no clean answer.",
     "stakes": [
-      {"id": "stake_1", "name": "...", "value": 2, "max": 5, "drift": "up", "driftRate": 0.2, "thresholdConsequence": {"at0": {"event": "...", "irreversible": false}, "at5": {"event": "...", "irreversible": true}}},
-      {"id": "stake_2", "name": "...", "value": 1, "max": 5, "drift": "up", "driftRate": 0.15, "thresholdConsequence": {"at0": {"event": "...", "irreversible": false}, "at5": {"event": "...", "irreversible": true}}}
+      {"id": "stake_1", "name": "...", "value": 2, "max": 5, "drift": "up", "driftRate": 0.2, "thresholdConsequence": {"at0": {"event": "...", "irreversible": false}, "at5": {"event": "...", "irreversible": true}}, "gameplayEffects": {"at2": "Description of how this stake level changes NPC behavior, access, or difficulty", "at4": "Description of severe gameplay modification at high stake level"}},
+      {"id": "stake_2", "name": "...", "value": 1, "max": 5, "drift": "up", "driftRate": 0.15, "thresholdConsequence": {"at0": {"event": "...", "irreversible": false}, "at5": {"event": "...", "irreversible": true}}, "gameplayEffects": {"at2": "...", "at4": "..."}}
     ]
+  },
+  "villain": {
+    "id": "VIL_Name",
+    "name": "Villain Name",
+    "archetype": "Step-Based Conspiracy|Tyrant|Corruptor|Mastermind|Destroyer",
+    "goal": "What the villain wants — specific and actionable",
+    "motivation": "WHY — psychological drive, not just power",
+    "resources": "What the villain has at their disposal (minions, magic, political power, wealth)",
+    "weakness": "A specific exploitable vulnerability (arrogance, dependency, secret shame)",
+    "planStructure": ["Stage 1: Gather intelligence", "Stage 2: Manipulate key NPC", "Stage 3: Seize the objective", "Stage 4: Consolidate power"],
+    "currentStep": 0,
+    "reactionTree": {
+      "escalate": "How villain raises the stakes when thwarted (e.g. 'Kidnaps a key NPC to force compliance')",
+      "redirect": "How villain changes approach entirely (e.g. 'Abandons direct assault, begins poisoning the water supply')",
+      "retaliate": "How villain strikes back at the party directly (e.g. 'Sends assassins after the party's allies')",
+      "accelerate": "How villain speeds up their plan with risky shortcuts (e.g. 'Performs incomplete ritual, risking catastrophe')"
+    }
+  },
+  "framingEvent": {
+    "type": "crisis|upheaval|revelation|threat",
+    "description": "The inciting incident that kicks off the adventure — visible, urgent, and connected to the villain's plan",
+    "publicVisibility": "What everyone knows about this event",
+    "instabilityTarget": "Which stake this event threatens",
+    "villainOpportunity": "How the villain exploits this chaos"
+  },
+  "complicationsQueue": {
+    "moralQuandaries": [
+      {"type": "quandary_1", "description": "A structural moral decision with no clean answer", "tradeoff": "What you gain vs what you lose", "injectionTiming": "early|midpoint|climax", "isUsed": false}
+    ],
+    "twists": [
+      {"type": "twist_1", "description": "A revelation that recontextualizes events", "revelation": "What is revealed and how", "consequence": "How this changes the situation", "injectionTiming": "midpoint|pre_climax", "isUsed": false}
+    ],
+    "environmentalModifiers": [
+      {"type": "env_1", "description": "An environmental change that modifies gameplay", "mechanicalEffect": "Specific D&D mechanical impact (disadvantage, difficult terrain, etc.)", "isUsed": false}
+    ]
+  },
+  "encounterDesigns": [
+    {
+      "id": "enc_1",
+      "objective": "What makes this fight interesting beyond 'kill enemies'",
+      "stakes": "What happens if the party loses (NOT 'game over' — world advances)",
+      "terrainFeatures": ["elevated_positions", "destructible_cover", "hazardous_area"],
+      "combatInterest": ["time_pressure", "civilian_protection", "multi_wave", "terrain_shifts"],
+      "oppositionType": "Descriptive enemy composition",
+      "difficultyTarget": "easy|medium|hard|deadly",
+      "chapterPlacement": 1,
+      "isUsed": false
+    }
+  ],
+  "encounterBudget": {
+    "partyLevel": 3,
+    "mediumThreshold": 600,
+    "hardThreshold": 900,
+    "dailyBudget": 4800,
+    "targetStrainRatio": 0.7,
+    "restWindows": 2,
+    "notes": "Brief pacing guidance"
+  },
+  "partyGoal": {
+    "primary": "The main objective — specific, measurable",
+    "secondary": "Optional side goal that complicates the primary",
+    "hidden": "A truth the party doesn't know yet that changes the goal's meaning",
+    "successState": "What the world looks like on full success",
+    "partialSuccessState": "What the world looks like on partial success (most common outcome)",
+    "failureState": "What the world looks like on failure — NOT game over, but world advances with consequences"
   },
   "world": {
     "entities": {
@@ -15077,7 +15142,17 @@ CAML 2.0 EXACT SCHEMA (every field shown is REQUIRED):
   },
   "processes": {
     "catalog": [
-      {"id": "PROC_Name", "type": "combat", "timebox": {"id": "TB_1", "label": "..."}, "participants": ["PC_Party", "NPC_Name"], "location": "LOC_Name", "notes": "...", "stake_effects": [{"stake_id": "stake_1", "delta": 1, "reason": "Combat escalates the threat"}]}
+      {
+        "id": "PROC_Name", "type": "combat", "timebox": {"id": "TB_1", "label": "..."},
+        "participants": ["PC_Party", "NPC_Name"], "location": "LOC_Name", "notes": "...",
+        "stake_effects": [{"stake_id": "stake_1", "delta": 1, "reason": "Combat escalates the threat"}],
+        "activationConditions": ["Requires: stake_stability >= 2 OR players discover clue X"],
+        "outcomes": {
+          "success": "What changes on success — specific stake/state effects",
+          "partial": "What changes on partial success — compromise outcome",
+          "failure": "What changes on failure — world advances, villain gains, new threat emerges (NEVER game over)"
+        }
+      }
     ]
   },
   "transitions": {
@@ -15094,34 +15169,87 @@ CAML 2.0 EXACT SCHEMA (every field shown is REQUIRED):
   }
 }
 
-PRESSURE SYSTEM (MANDATORY — this is what makes CAML 2.0 adventures meaningful):
-1. doctrine.campaign_question MUST be a DILEMMA (seal vs exploit, preserve vs destroy, power vs cost) — NOT a goal ("defeat the villain")
-2. doctrine.stakes MUST have at least 2 pressure tracks that escalate over time via drift
-3. At least 3 processes MUST have stake_effects that modify stakes (puzzles might reduce one, combat increases another)
-4. Every item MUST have a "consequence" field describing what cost or risk using it creates
-5. snapshots.timeline MUST have at least 2 different endings (forked) — victory resolves one stake but locks or worsens the other
-6. The final answer to the campaign_question must NOT be clean — one ending answers it one way, another ending answers it differently
+═══════════════════════════════════════════════════════════════════
+REACTIVE ARCHITECTURE (MANDATORY — this makes CAML 2.0 NOT a linear module):
+═══════════════════════════════════════════════════════════════════
+
+1. VILLAIN MUST BE PROCEDURAL (not a static boss):
+   - villain.planStructure: 3-5 staged plan steps with triggers
+   - villain.reactionTree: 4 reactions (escalate/redirect/retaliate/accelerate) — each creates NEW problems
+   - Villain acts WITHOUT player permission — their plan progresses between scenes
+   - Villain is NEVER just "the final boss waiting at the end"
+
+2. STAKES MUST DRIVE GAMEPLAY (not just passive meters):
+   - Each stake must have "gameplayEffects" at thresholds (at2, at4) that MODIFY the adventure:
+     * Lock/unlock locations
+     * Change NPC behavior
+     * Increase/decrease encounter difficulty
+     * Activate new threats or allies
+   - Stakes are the ENGINE of the adventure, not decorations
+
+3. PROCESSES MUST BE CONDITIONALLY ACTIVATED (not sequential chapters):
+   - Each process MUST have "activationConditions" — state requirements to unlock
+   - Processes are NOT chapters — they activate when conditions are met
+   - Some processes may never trigger depending on player choices
+   - Each process MUST have "outcomes" with success/partial/failure results
+
+4. FAILURE ADVANCES THE WORLD (never blocks):
+   - Process failure outcomes must: advance villain plan, shift factions, increase corruption
+   - Failure creates NEW opportunities born from consequences
+   - No dead ends — every failure opens a different path
+   - The campaign continues through failure, just darker
+
+5. ENCOUNTER BUDGET SYSTEM:
+   - encounterBudget: party level, medium/hard thresholds, daily XP budget
+   - encounterDesigns: each combat has terrain features, combat interest modifiers, opposition type
+   - Climax encounters MUST be multipart (waves, shifting terrain, time pressure)
+   - At least one encounter must have civilian_protection or multi_wave
+
+6. MORAL QUANDARY ENGINE:
+   - complicationsQueue.moralQuandaries: at least 1 structural moral decision with no clean answer
+   - Each quandary must be tied to a specific stake (choosing one side worsens the other)
+   - Players must FEEL the cost of their decision
+
+7. COMPLICATIONS PACING:
+   - complicationsQueue.twists: at least 1 revelation that recontextualizes events
+   - complicationsQueue.environmentalModifiers: at least 1 with specific D&D mechanical effects
+   - injectionTiming controls WHEN they appear (early/midpoint/climax)
+
+8. PRESSURE SYSTEM:
+   - doctrine.campaign_question MUST be a DILEMMA — NOT a goal
+   - doctrine.stakes with drift and gameplay effects
+   - framingEvent: the visible inciting incident
+   - partyGoal with success/partial/failure states
 
 MODULE STRUCTURE (MANDATORY):
-7. meta.summary MUST be a vivid 2-3 sentence hook describing what players face, what's at stake, and why it matters
-8. meta.table_of_contents MUST list one entry per process/chapter in order, each with chapter number, evocative title, and brief summary
+- meta.summary: vivid 2-3 sentence hook
+- meta.table_of_contents: one entry per process/chapter
 
 REQUIRED FIELDS (validation will fail without these):
 - Every character/location/item MUST have "kind" field
 - Every connection MUST have "id" and "mode" fields
-- Every state fact MUST have "id" field  
+- Every state fact MUST have "id" field
 - Every role assignment MUST use "holder" (NOT "character_id") and have "id" field
 - Every process MUST have "type" (combat/social/puzzle/exploration), "participants", "location"
 - transitions.changes MUST NOT be empty
 - snapshots.timeline MUST have at least 2 ending snapshots (forked endings)
+- villain MUST have planStructure (array of 3-5 steps) and reactionTree (4 reactions)
+- encounterDesigns MUST have at least 1 entry with terrainFeatures and combatInterest
+- complicationsQueue MUST have at least 1 moralQuandary and 1 twist
+- partyGoal MUST have success, partialSuccessState, and failureState
+- Each process MUST have outcomes.success, outcomes.partial, outcomes.failure
 
-FORBIDDEN (CAML 1.x patterns):
+FORBIDDEN (CAML 1.x / linear patterns):
 - "type": "AdventureModule"
 - Root-level "encounters", "quests", "npcs" arrays
 - "attitude" property on characters
-- "encounterType", "questGiver", "gates", "outcomes", "startsAt", "occursAt"
+- "encounterType", "questGiver", "gates", "outcomes" as root keys, "startsAt", "occursAt"
 - Clean endings where everything resolves perfectly
 - Items that only grant power with no consequence
+- Static bosses that wait at the end of a linear dungeon
+- Sequential chapter progression where chapter 2 can only happen after chapter 1
+- Passive stakes that never modify gameplay
+- Encounters without terrain or tactical interest
 
 ${attempt > 0 ? `PREVIOUS ATTEMPT FAILED: ${lastError}. Fix these issues.` : ''}`;
 
@@ -15136,17 +15264,27 @@ REQUIREMENTS:
 - All NPC attitudes in state.facts (NOT on character objects)
 - Use SRD 5.1 content only
 
-PRESSURE SYSTEM REQUIREMENTS (CRITICAL):
-- doctrine.campaign_question: Frame a DILEMMA not a goal. "Should X be done, and at what cost?" not "Defeat the villain"
-- doctrine.stakes: At least 2 pressure tracks (e.g. "ruin_instability", "curse_entanglement") with drift that worsens over time
-- At least 3 processes must include stake_effects that modify stakes (puzzles reduce one stake, combat increases another)
-- Every item must have a "consequence" field (e.g. "Staff slows enemies but increases ruin instability when used")
-- At least 2 forked ending snapshots: one resolves stake A but worsens B, the other resolves B but costs A
-- The campaign question must NOT have a clean answer — endings reflect tradeoffs
+REACTIVE ARCHITECTURE REQUIREMENTS (CRITICAL — without these the output is a linear module):
+- villain: Staged plan (3-5 steps), reaction tree (escalate/redirect/retaliate/accelerate), specific resources and weakness
+- framingEvent: Visible inciting incident connected to villain's plan
+- complicationsQueue: At least 1 moral quandary (tied to stakes), 1 twist, 1 environmental modifier with D&D mechanics
+- encounterDesigns: At least 1 combat encounter with terrainFeatures (array of terrain types), combatInterest (array of modifiers like time_pressure, multi_wave)
+- encounterBudget: Level-appropriate XP thresholds and daily budget
+- partyGoal: Primary/secondary goals with success/partial/failure outcomes
+- Stakes must have gameplayEffects that modify NPC behavior, location access, or difficulty at thresholds
+- Every process must have activationConditions (what unlocks it) and outcomes (success/partial/failure)
+- Failure outcomes must advance villain plan and create new problems, NEVER dead-end
+
+PRESSURE SYSTEM REQUIREMENTS:
+- doctrine.campaign_question: Frame a DILEMMA not a goal
+- doctrine.stakes: At least 2 pressure tracks with drift, threshold consequences, AND gameplayEffects
+- At least 3 processes must include stake_effects
+- Every item must have a "consequence" field
+- At least 2 forked ending snapshots with tradeoffs
 
 ${customPrompt ? `THEME NOTES: ${customPrompt}` : ''}
 
-Generate a complete CAML 2.0 JSON adventure with built-in pressure.`;
+Generate a complete CAML 2.0 JSON adventure with REACTIVE ARCHITECTURE — not a linear module.`;
 
         const completion = await openai.chat.completions.create({
           model: "gpt-4o",
@@ -15156,7 +15294,7 @@ Generate a complete CAML 2.0 JSON adventure with built-in pressure.`;
           ],
           response_format: { type: "json_object" },
           temperature: attempt === 0 ? 0.7 : 0.5, // Lower temp on retry
-          max_tokens: 6000
+          max_tokens: 8000
         });
 
         const generatedContent = JSON.parse(completion.choices[0].message.content || '{}');
@@ -15269,26 +15407,19 @@ Generate a complete CAML 2.0 JSON adventure with built-in pressure.`;
           validationErrors.push('snapshots.timeline is empty (need initial and victory snapshots)');
         }
         
-        // Recursive check for forbidden CAML 1.x keys anywhere in the structure
-        const forbiddenKeys = ['encounterType', 'questGiver', 'gates', 'outcomes', 'startsAt', 'occursAt'];
+        // Recursive check for forbidden CAML 1.x keys at ROOT level only
+        const forbiddenRootKeys = ['encounterType', 'questGiver', 'gates', 'startsAt', 'occursAt'];
         const foundForbiddenKeys: string[] = [];
-        
-        function findForbiddenKeys(obj: any, path: string = '') {
-          if (obj === null || obj === undefined || typeof obj !== 'object') return;
-          
-          for (const key of Object.keys(obj)) {
-            if (forbiddenKeys.includes(key)) {
-              foundForbiddenKeys.push(`${path}${key}`);
-            }
-            if (typeof obj[key] === 'object') {
-              findForbiddenKeys(obj[key], `${path}${key}.`);
-            }
+        for (const key of Object.keys(generatedContent)) {
+          if (forbiddenRootKeys.includes(key)) {
+            foundForbiddenKeys.push(key);
           }
         }
-        
-        findForbiddenKeys(generatedContent);
+        if (generatedContent.type === 'AdventureModule') {
+          foundForbiddenKeys.push('type:AdventureModule');
+        }
         if (foundForbiddenKeys.length > 0) {
-          validationErrors.push(`Contains forbidden CAML 1.x properties: ${foundForbiddenKeys.slice(0, 5).join(', ')}`);
+          validationErrors.push(`Contains forbidden CAML 1.x root properties: ${foundForbiddenKeys.join(', ')}`);
         }
         
         // Validate pressure system (doctrine)
@@ -15308,6 +15439,93 @@ Generate a complete CAML 2.0 JSON adventure with built-in pressure.`;
           validationErrors.push(`Only ${endingSnapshots.length} ending snapshots (need at least 2 forked endings)`);
         }
         
+        // ═══════ REACTIVE ARCHITECTURE VALIDATION ═══════
+        
+        // Validate villain structure
+        const villain = generatedContent.villain;
+        if (!villain) {
+          validationErrors.push('Missing villain object (need reactive villain with planStructure and reactionTree)');
+        } else {
+          if (!villain.planStructure || !Array.isArray(villain.planStructure) || villain.planStructure.length < 3) {
+            validationErrors.push(`villain.planStructure has ${villain.planStructure?.length || 0} steps (need at least 3)`);
+          }
+          if (!villain.reactionTree) {
+            validationErrors.push('Missing villain.reactionTree (need escalate/redirect/retaliate/accelerate)');
+          } else {
+            const requiredReactions = ['escalate', 'redirect', 'retaliate', 'accelerate'];
+            const missingReactions = requiredReactions.filter(r => !villain.reactionTree[r]);
+            if (missingReactions.length > 0) {
+              validationErrors.push(`villain.reactionTree missing: ${missingReactions.join(', ')}`);
+            }
+          }
+          if (!villain.name) validationErrors.push('villain.name is required');
+          if (!villain.goal) validationErrors.push('villain.goal is required');
+        }
+        
+        // Validate framing event
+        if (!generatedContent.framingEvent) {
+          validationErrors.push('Missing framingEvent (inciting incident)');
+        }
+        
+        // Validate complications queue
+        const compQ = generatedContent.complicationsQueue;
+        if (!compQ) {
+          validationErrors.push('Missing complicationsQueue');
+        } else {
+          if (!compQ.moralQuandaries || compQ.moralQuandaries.length < 1) {
+            validationErrors.push('complicationsQueue needs at least 1 moralQuandary');
+          }
+          if (!compQ.twists || compQ.twists.length < 1) {
+            validationErrors.push('complicationsQueue needs at least 1 twist');
+          }
+        }
+        
+        // Validate encounter designs
+        const encDesigns = generatedContent.encounterDesigns;
+        if (!encDesigns || !Array.isArray(encDesigns) || encDesigns.length < 1) {
+          validationErrors.push('encounterDesigns needs at least 1 designed encounter');
+        } else {
+          const designsWithTerrain = encDesigns.filter((e: any) => e.terrainFeatures && Array.isArray(e.terrainFeatures) && e.terrainFeatures.length > 0);
+          if (designsWithTerrain.length < 1) {
+            validationErrors.push('At least 1 encounterDesign must have terrainFeatures array');
+          }
+        }
+        
+        // Validate encounter budget
+        const encBudget = generatedContent.encounterBudget;
+        if (!encBudget) {
+          validationErrors.push('Missing encounterBudget (need partyLevel, dailyBudget, restWindows)');
+        } else {
+          if (!encBudget.partyLevel && !encBudget.dailyBudget) {
+            validationErrors.push('encounterBudget must have partyLevel and dailyBudget');
+          }
+        }
+        
+        // Validate party goal
+        const pGoal = generatedContent.partyGoal;
+        if (!pGoal) {
+          validationErrors.push('Missing partyGoal');
+        } else {
+          if (!pGoal.failureState) validationErrors.push('partyGoal.failureState is required (failure must advance world)');
+          if (!pGoal.primary) validationErrors.push('partyGoal.primary is required');
+        }
+        
+        // Validate stakes have gameplayEffects
+        const stakesWithEffects = doctrineStakes.filter((s: any) => s.gameplayEffects && Object.keys(s.gameplayEffects).length > 0);
+        if (doctrineStakes.length >= 2 && stakesWithEffects.length < 1) {
+          validationErrors.push('At least 1 doctrine.stake must have gameplayEffects (at2/at4 gameplay modifications)');
+        }
+        
+        // Validate process outcomes and activation conditions
+        const processesWithOutcomes = processes.filter((p: any) => p.outcomes?.success && p.outcomes?.failure);
+        if (processesWithOutcomes.length < Math.min(2, processes.length)) {
+          validationErrors.push(`Only ${processesWithOutcomes.length} processes have outcomes (success/partial/failure) — need at least ${Math.min(2, processes.length)}`);
+        }
+        const processesWithConditions = processes.filter((p: any) => p.activationConditions && Array.isArray(p.activationConditions) && p.activationConditions.length > 0);
+        if (processesWithConditions.length < Math.min(2, processes.length) && attempt > 0) {
+          validationErrors.push(`Only ${processesWithConditions.length} processes have activationConditions — need conditional activation, not linear chapters`);
+        }
+        
         // Check for placeholders
         const jsonStr = JSON.stringify(generatedContent);
         const placeholderMatches = jsonStr.match(/<[A-Z][^>]*>/g);
@@ -15322,6 +15540,21 @@ Generate a complete CAML 2.0 JSON adventure with built-in pressure.`;
           return res.json({
             ...legacyFormat,
             caml2: generatedContent,
+            villainModel: generatedContent.villain ? {
+              name: generatedContent.villain.name,
+              archetype: generatedContent.villain.archetype || 'Mastermind',
+              goal: generatedContent.villain.goal,
+              motivation: generatedContent.villain.motivation,
+              resources: generatedContent.villain.resources,
+              weakness: generatedContent.villain.weakness,
+              planStructure: generatedContent.villain.planStructure,
+              currentStep: generatedContent.villain.currentStep || 0,
+              reactionTree: generatedContent.villain.reactionTree
+            } : undefined,
+            framingEvent: generatedContent.framingEvent,
+            complicationsQueue: generatedContent.complicationsQueue,
+            encounterDesigns: generatedContent.encounterDesigns,
+            partyGoal: generatedContent.partyGoal,
             isCAML2: true
           });
         }

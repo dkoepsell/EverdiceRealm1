@@ -1226,7 +1226,7 @@ export function buildAdventureGraph(doc: CAML2Document): {
 // AI Generation Prompt
 // ============================================================================
 
-export const CAML_AI_PROMPT = `You are generating a CAML 2.0 (Canonical Adventure Markup Language) D&D 5e adventure. CAML 2.0 is NOT CAML 1.x.
+export const CAML_AI_PROMPT = `You are generating a CAML 2.0 (Canonical Adventure Markup Language) D&D 5e adventure with REACTIVE ARCHITECTURE. CAML 2.0 is NOT CAML 1.x — it produces reactive narrative simulators, NOT linear modules.
 
 CAML 2.0 MANDATORY STRUCTURE:
 - Root must have "caml_version": "2.0" (NOT "type": "AdventureModule")
@@ -1236,31 +1236,43 @@ CAML 2.0 MANDATORY STRUCTURE:
 - Quests are expressed via roles.assignments (QuestGiver) + state.facts (quest_status)
 - All changes occur via transitions.changes caused by processes
 
+REACTIVE ARCHITECTURE (MANDATORY):
+- villain: Staged plan (planStructure: 3-5 steps), reactionTree (escalate/redirect/retaliate/accelerate)
+- framingEvent: Inciting incident connected to villain's plan
+- complicationsQueue: moralQuandaries, twists, environmentalModifiers with injectionTiming
+- encounterDesigns: Combat encounters with terrainFeatures, combatInterest modifiers
+- encounterBudget: Level-appropriate XP thresholds and daily budget
+- partyGoal: Primary goal with success/partialSuccess/failure states
+- doctrine.stakes: Pressure tracks with gameplayEffects at thresholds
+- Every process: activationConditions (what unlocks it), outcomes (success/partial/failure)
+- Failure outcomes must advance villain plan and create new problems, NEVER dead-end
+
 NEVER generate:
 - "type": "AdventureModule"
 - "encounters": [...] array at root
-- "quests": [...] array at root  
+- "quests": [...] array at root
 - "attitude": "..." on NPC objects in world layer
+- Linear chapter progressions where chapter 2 requires chapter 1
+- Static bosses waiting at the end of a dungeon
+- Passive stakes that never modify gameplay
 
 ALWAYS generate:
 - "caml_version": "2.0"
-- state.facts for EVERY NPC's attitude (bearer=NPC_id, type="attitude", value="neutral"/"friendly"/"hostile")
-- processes.catalog for encounters (each with id, type, timebox, participants, location, notes)
-- transitions.changes for state mutations (caused_by=process_id, ops=[{op,state_id,value}])
-- Enemy NPCs need active state facts that get set to false when defeated
-- Hidden locations need discovered state facts that get set to true when found
+- state.facts for EVERY NPC's attitude
+- processes.catalog with activationConditions and outcomes (success/partial/failure)
+- transitions.changes for state mutations
+- villain with planStructure and reactionTree
+- doctrine.stakes with gameplayEffects at thresholds
 
 ID patterns:
 - Characters: PC_Party, NPC_Name
 - Locations: LOC_Name
-- Items: ITEM_Name  
+- Items: ITEM_Name
 - State facts: STATE_bearer_type
 - Roles: ROLE_type_holder
 - Processes: PROC_type_location
 - Transitions: TR_description
-- Snapshots: SNAP_description
-
-Reference examples in caml-2.0/examples/ directory.`;
+- Snapshots: SNAP_description`;
 
 // ============================================================================
 // Legacy Compatibility Exports
