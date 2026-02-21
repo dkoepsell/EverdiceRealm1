@@ -13,6 +13,7 @@ import {
   BookOpen
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { isHintActive } from "@/components/ui/contextual-hint";
 
 export type LearningTipType = 'dice_roll' | 'choice' | 'combat' | 'social' | 'general' | 'pacing';
 
@@ -234,11 +235,27 @@ export function LearningTip({ type, show, onClose, onLearnMore, tipId }: Learnin
   );
 }
 
-// Session-based tracking to avoid repeating tips within a session
 const sessionShownTipIds = new Set<string>();
 let lastTipTime = 0;
-const TIP_COOLDOWN_MS = 60000; // 60 seconds minimum between tips
-const TIP_PROBABILITY = 0.3; // Only 30% chance to show a tip
+
+function getTipShowCount(): number {
+  try {
+    return parseInt(localStorage.getItem('everdice_tip_show_count') || '0', 10);
+  } catch { return 0; }
+}
+function incrementTipShowCount(): void {
+  try {
+    localStorage.setItem('everdice_tip_show_count', String(getTipShowCount() + 1));
+  } catch {}
+}
+
+function getTipCooldownAndProbability(): { cooldown: number; probability: number } {
+  const totalShown = getTipShowCount();
+  if (totalShown > 30) return { cooldown: 300000, probability: 0.08 };
+  if (totalShown > 15) return { cooldown: 180000, probability: 0.12 };
+  if (totalShown > 5) return { cooldown: 120000, probability: 0.2 };
+  return { cooldown: 60000, probability: 0.3 };
+}
 
 export function useLearningTips() {
   const [shownTips, setShownTips] = useState<Set<string>>(() => {
@@ -253,37 +270,26 @@ export function useLearningTips() {
 
   const showTip = (type: LearningTipType) => {
     const now = Date.now();
+    const { cooldown, probability } = getTipCooldownAndProbability();
     
-    // Enforce cooldown between tips
-    if (now - lastTipTime < TIP_COOLDOWN_MS) {
-      return;
-    }
+    if (now - lastTipTime < cooldown) return;
+    if (Math.random() > probability) return;
     
-    // Probability check - only show tips 30% of the time
-    if (Math.random() > TIP_PROBABILITY) {
-      return;
-    }
+    if (isHintActive()) return;
     
-    // Get available tips that haven't been shown this session
     const availableTips = (LEARNING_TIPS[type] || LEARNING_TIPS.general)
       .filter(tip => !sessionShownTipIds.has(tip.id));
     
-    // If all tips of this type have been shown this session, skip
-    if (availableTips.length === 0) {
-      return;
-    }
+    if (availableTips.length === 0) return;
     
-    // Pick a random tip from available ones
     const tip = availableTips[Math.floor(Math.random() * availableTips.length)];
     
-    // Mark as shown in session
     sessionShownTipIds.add(tip.id);
     lastTipTime = now;
+    incrementTipShowCount();
     
-    // Show the tip
     setCurrentTip({ type, show: true, tipId: tip.id });
     
-    // Persist to localStorage for long-term tracking
     const tipKey = `${type}_${tip.id}`;
     if (!shownTips.has(tipKey)) {
       const newShown = new Set(shownTips).add(tipKey);

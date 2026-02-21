@@ -18,6 +18,7 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
 import type { WorldRegion, WorldLocation, UserWorldProgress, WorldEvent, WorldDiscovery, Campaign } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { ContextualHint } from "@/components/ui/contextual-hint";
 import { useToast } from "@/hooks/use-toast";
 import parchmentFrame from "@assets/image_1768600727955.png";
 import worldMapBackground from "@assets/image_1768601537026.png";
@@ -493,6 +494,7 @@ export default function WorldMapPage() {
                   <Sparkles className="h-3 w-3" />
                   {discoverySummary?.totalExploredHexes || 0} Hexes Charted
                 </Badge>
+                <ContextualHint hintId="world_map_explore" position="bottom" delay={2000}>
                 <div className="flex gap-1 p-0.5 bg-black/30 rounded-lg border border-white/10">
                   <button
                     onClick={() => setMapView('illustrated')}
@@ -517,6 +519,7 @@ export default function WorldMapPage() {
                     <span className="hidden sm:inline">Hex Map</span>
                   </button>
                 </div>
+                </ContextualHint>
                 {user && (
                   <Button 
                     size="sm" 
@@ -565,6 +568,7 @@ export default function WorldMapPage() {
                   partyPositions={partyPositions}
                 />
                 {activeTrek && (activeTrek.status === 'active' || activeTrek.status === 'encounter') && (
+                  <ContextualHint hintId="trek_feature" position="top" delay={1500}>
                   <div className="flex items-center gap-3 p-3 bg-amber-900/30 rounded-lg border border-amber-500/30">
                     <Footprints className="h-5 w-5 text-amber-400" />
                     <div className="flex-1">
@@ -613,6 +617,7 @@ export default function WorldMapPage() {
                       <X className="h-3 w-3" />
                     </Button>
                   </div>
+                  </ContextualHint>
                 )}
               </div>
             ) : (
@@ -628,6 +633,56 @@ export default function WorldMapPage() {
               <div className="absolute inset-0 pointer-events-none" style={{
                 boxShadow: 'inset 0 0 80px rgba(0,0,0,0.4)'
               }} />
+
+              {locations.filter(l => l.locationType === 'capital').map((loc) => {
+                const parentRegion = regions.find(r => r.id === loc.regionId);
+                if (!parentRegion) return null;
+                const regionLeft = ((parentRegion.gridX || 0) - 1) / 10 * 100;
+                const regionTop = ((parentRegion.gridY || 0) - 1) / 10 * 100;
+                const regionW = (parentRegion.width || 1) / 10 * 100;
+                const regionH = (parentRegion.height || 1) / 10 * 100;
+                const capLeft = `${regionLeft + (loc.posX || 50) / 100 * regionW}%`;
+                const capTop = `${regionTop + (loc.posY || 50) / 100 * regionH + 8}%`;
+                return (
+                  <ContextualHint key={`cap-hint-${loc.id}`} hintId="capital_city_intro" position="right" delay={3000}>
+                  <Tooltip key={`cap-${loc.id}`}>
+                    <TooltipTrigger asChild>
+                      <button
+                        className="absolute z-20 transition-all duration-200 group hover:scale-125"
+                        style={{ left: capLeft, top: capTop, transform: 'translate(-50%, -50%)' }}
+                        onClick={() => {
+                          if (activeCampaignId) {
+                            setCityMapOpen({ locationId: loc.id, locationName: loc.name });
+                          }
+                        }}
+                      >
+                        <div className="relative w-10 h-10 rounded-full flex items-center justify-center border-2 bg-purple-900/60 border-purple-400 shadow-lg shadow-purple-500/30 animate-pulse" style={{ animationDuration: '3s' }}>
+                          <Crown className="h-5 w-5 text-purple-200" />
+                        </div>
+                        <span className="absolute top-full mt-1 left-1/2 -translate-x-1/2 text-[11px] text-purple-200 whitespace-nowrap font-bold pointer-events-none drop-shadow-lg">
+                          {loc.name}
+                        </span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="bg-gray-950 border-purple-500/50 max-w-72 shadow-xl shadow-black/50">
+                      <div className="space-y-1.5">
+                        <div className="font-semibold text-purple-200 flex items-center gap-2">
+                          <Crown className="h-4 w-4 text-purple-400" />
+                          {loc.name}
+                        </div>
+                        <p className="text-xs text-purple-100/70">{loc.description || 'The grand capital of the realm — seat of power, commerce, and intrigue.'}</p>
+                        <div className="text-xs text-amber-300/80 italic">
+                          Bank, housing, shops, guilds, political quests & more
+                        </div>
+                        {activeCampaignId && (
+                          <div className="text-[10px] text-green-300">Click to enter the capital</div>
+                        )}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                  </ContextualHint>
+                );
+              })}
 
               {regions.map((region) => {
                 const activity = getRegionActivity(region.id);

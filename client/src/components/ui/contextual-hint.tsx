@@ -20,7 +20,10 @@ export type HintId =
   | 'death_saves'
   | 'dm_controls'
   | 'initiative_tracker'
-  | 'campaign_tabs_intro';
+  | 'campaign_tabs_intro'
+  | 'capital_city_intro'
+  | 'trek_feature'
+  | 'world_map_explore';
 
 interface HintContent {
   id: HintId;
@@ -131,10 +134,31 @@ const HINT_CONTENT: Record<HintId, HintContent> = {
     title: "Welcome to Your Adventure!",
     description: "Use these tabs to navigate your campaign. The Narrative tab is where the story unfolds and you make choices. The Party tab lets you manage your character, items, and companions.",
     tip: "Hover over any tab to see what it does. Start with Narrative to continue your adventure!"
+  },
+  capital_city_intro: {
+    id: 'capital_city_intro',
+    title: "The Capital City",
+    description: "Crownhaven is the capital of the realm — a massive city with 8 districts including a Royal Quarter, Grand Market, and Thieves' Quarter. Inside you'll find a bank to store gold (earns daily interest!), housing you can buy, political intrigue quests, and specialized shops.",
+    tip: "Click the crown icon on the map to enter. The capital has unique buildings like the palace, auction house, and academy that you won't find elsewhere."
+  },
+  trek_feature: {
+    id: 'trek_feature',
+    title: "Trek Across the Map",
+    description: "Right-click (or use the panel) on any hex to start a trek — your party will travel step by step toward the destination. Along the way you might encounter bandits, discover treasure, meet travelers, or find loot drops!",
+    tip: "Your party automatically returns to where they started when the trek ends, so you never get lost."
+  },
+  world_map_explore: {
+    id: 'world_map_explore',
+    title: "Explore the World",
+    description: "This living map shows the entire realm. Switch between the illustrated and hex views using the toggle. Each region has its own danger level, lore, and active events shaped by all players' campaigns.",
+    tip: "Try the hex map for detailed terrain, rivers, roads, and to interact with specific locations."
   }
 };
 
 const STORAGE_KEY = 'everdice_seen_hints';
+const HINT_COUNT_KEY = 'everdice_hint_show_count';
+
+let activeHintId: HintId | null = null;
 
 function getSeenHints(): Set<HintId> {
   try {
@@ -145,10 +169,29 @@ function getSeenHints(): Set<HintId> {
   }
 }
 
+function getHintShowCount(): number {
+  try {
+    return parseInt(localStorage.getItem(HINT_COUNT_KEY) || '0', 10);
+  } catch {
+    return 0;
+  }
+}
+
+function incrementHintShowCount(): void {
+  try {
+    const count = getHintShowCount() + 1;
+    localStorage.setItem(HINT_COUNT_KEY, String(count));
+  } catch {}
+}
+
 function markHintSeen(id: HintId): void {
   const seen = getSeenHints();
   seen.add(id);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(seen)));
+}
+
+export function isHintActive(): boolean {
+  return activeHintId !== null;
 }
 
 export function resetSeenHints(): void {
@@ -183,19 +226,35 @@ export function ContextualHint({
     if (isDismissed) return;
     
     const seenHints = getSeenHints();
-    const shouldShow = forceShow || (showOnce && !seenHints.has(hintId));
+    const alreadySeen = seenHints.has(hintId);
+    const shouldShow = forceShow || (showOnce && !alreadySeen);
     
     if (shouldShow) {
+      const totalShown = getHintShowCount();
+      const frequencyDelay = totalShown > 10 ? delay + 3000 : delay;
+      
       const timer = setTimeout(() => {
+        if (activeHintId !== null) return;
+        activeHintId = hintId;
+        incrementHintShowCount();
         setIsVisible(true);
-      }, delay);
+      }, frequencyDelay);
       return () => clearTimeout(timer);
     }
   }, [hintId, showOnce, forceShow, delay, isDismissed]);
+
+  useEffect(() => {
+    return () => {
+      if (activeHintId === hintId) {
+        activeHintId = null;
+      }
+    };
+  }, [hintId]);
   
   const handleDismiss = useCallback(() => {
     setIsVisible(false);
     setIsDismissed(true);
+    if (activeHintId === hintId) activeHintId = null;
     if (showOnce) {
       markHintSeen(hintId);
     }

@@ -76,6 +76,7 @@ const LOCATION_ICONS: Record<string, string> = {
   city: "🏰",
   town: "🏘️",
   village: "🏠",
+  capital: "👑",
   dungeon: "💀",
   ruins: "🏚️",
   shrine: "⛩️",
@@ -281,13 +282,29 @@ export default function WorldHexMap({
         }
         ctx.stroke(cornerPath);
 
-        if (hex.locationName && zoom > 1.5) {
-          const icon = LOCATION_ICONS[hex.locationType || "landmark"] || "📍";
-          ctx.font = `${Math.max(6, HEX_SIZE * 0.8)}px serif`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(icon, 0, 0);
-          locationLabels.push({ x, y, name: hex.locationName, icon, type: hex.locationType || "landmark" });
+        if (hex.locationName) {
+          const isCapital = hex.locationType === "capital";
+          const minZoom = isCapital ? 0.7 : 1.5;
+          if (zoom > minZoom) {
+            const icon = LOCATION_ICONS[hex.locationType || "landmark"] || "📍";
+            const iconScale = isCapital ? 1.4 : 0.8;
+            ctx.font = `${Math.max(6, HEX_SIZE * iconScale)}px serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            if (isCapital) {
+              ctx.save();
+              ctx.fillStyle = "rgba(168, 85, 247, 0.35)";
+              ctx.beginPath();
+              ctx.arc(0, 0, HEX_SIZE * 1.2, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.strokeStyle = "rgba(168, 85, 247, 0.7)";
+              ctx.lineWidth = 1;
+              ctx.stroke();
+              ctx.restore();
+            }
+            ctx.fillText(icon, 0, 0);
+            locationLabels.push({ x, y, name: hex.locationName, icon, type: hex.locationType || "landmark" });
+          }
         }
 
         if (hex.regionId > 0) {
@@ -346,19 +363,22 @@ export default function WorldHexMap({
       });
     }
 
-    if (zoom > 2) {
-      locationLabels.forEach(({ x, y, name }) => {
-        const fontSize = Math.max(5, Math.min(8, 6 / zoom * 2));
-        ctx.font = `${fontSize}px 'Georgia', serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "top";
-        ctx.fillStyle = "rgba(255,240,200,0.9)";
-        ctx.strokeStyle = "rgba(0,0,0,0.7)";
-        ctx.lineWidth = 2;
-        ctx.strokeText(name, x, y + HEX_SIZE + 2);
-        ctx.fillText(name, x, y + HEX_SIZE + 2);
-      });
-    }
+    locationLabels.forEach(({ x, y, name, type }) => {
+      const isCapital = type === "capital";
+      const minLabelZoom = isCapital ? 0.7 : 2;
+      if (zoom <= minLabelZoom) return;
+      const fontSize = isCapital
+        ? Math.max(7, Math.min(11, 8 / zoom * 2))
+        : Math.max(5, Math.min(8, 6 / zoom * 2));
+      ctx.font = `${isCapital ? 'bold ' : ''}${fontSize}px 'Georgia', serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillStyle = isCapital ? "rgba(216,180,254,0.95)" : "rgba(255,240,200,0.9)";
+      ctx.strokeStyle = "rgba(0,0,0,0.7)";
+      ctx.lineWidth = 2;
+      ctx.strokeText(name, x, y + HEX_SIZE + 2);
+      ctx.fillText(name, x, y + HEX_SIZE + 2);
+    });
 
     if (trekPath && trekPath.length > 1) {
       ctx.strokeStyle = "rgba(255,200,50,0.6)";
