@@ -185,10 +185,11 @@ export function StoryLoadingScreen({
   const showStream = phase === 'deepen' && streamedText;
   const showReveal = (phase === 'reveal' || (phase === 'deepen' && !streamedText));
 
+  // Only auto-continue when there's no streamed text to read (pure loading spinner state).
+  // When streaming text is visible, the player must press Continue manually at their own pace.
   useEffect(() => {
-    if (mutationReady && onContinue) {
-      const delay = streamedText?.trim() ? 1500 : 500;
-      const timer = setTimeout(() => onContinue(), delay);
+    if (mutationReady && onContinue && !streamedText?.trim()) {
+      const timer = setTimeout(() => onContinue(), 500);
       return () => clearTimeout(timer);
     }
   }, [mutationReady, streamedText, onContinue]);
