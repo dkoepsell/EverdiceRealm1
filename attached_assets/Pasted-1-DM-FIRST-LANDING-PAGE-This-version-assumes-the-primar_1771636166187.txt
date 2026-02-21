@@ -1,0 +1,293 @@
+1️⃣ DM-FIRST LANDING PAGE
+
+This version assumes the primary visitor is a skeptical Dungeon Master.
+
+Hero
+
+Run D&D without losing control.
+
+Everdice helps Dungeon Masters keep campaigns coherent, persistent, and easy to run — without replacing you at the table.
+
+You stay the DM.
+Everdice handles the bookkeeping.
+
+Free during beta.
+
+[ Run a 2-Minute Demo ]
+
+No signup required.
+
+The Real Problem
+
+Most campaigns don’t fall apart because of bad storytelling.
+
+They fade because:
+
+• Prep takes too long
+• Notes get messy
+• NPCs disappear
+• Consequences get forgotten
+• Scheduling makes momentum fragile
+
+Everdice acts as your campaign’s memory.
+
+It tracks what changes — so you don’t have to.
+
+What Makes This Different
+
+Everdice is a memory engine for your campaign.
+
+Not a virtual tabletop.
+Not an AI replacing you.
+Not a scripted story generator.
+
+It keeps track of:
+
+• Characters and progression
+• Initiative and combat state
+• Quests and unresolved threads
+• NPC relationships
+• Spell slots and inventory
+• Session summaries
+
+You make the rulings.
+You decide what happens.
+Everdice remembers.
+
+Start a Session in 5 Minutes
+
+No experience required.
+
+Guided setup helps you:
+
+• Define your scenario
+• Add NPCs
+• Set the opening scene
+• Begin play
+
+No railroading.
+No narrative takeover.
+No public pressure.
+
+[ Try DM Mode ]
+
+Play Solo First (Optional)
+
+Want to test the system before inviting players?
+
+Run a quick solo session.
+Explore the mechanics.
+See how persistence works.
+
+Then invite your table.
+
+Works With Discord
+
+Build your campaign here.
+Run sessions in Discord.
+Keep chat and voice where your group already is.
+
+No lock-in. No forced workflow.
+
+Final CTA
+
+Your campaign deserves a memory.
+
+Run a quick demo and see what happens when consequences persist.
+
+[ Run the 2-Minute Demo ]
+
+Notice what this does:
+
+It removes parents.
+Removes teachers.
+Removes beginners.
+Removes “everyone welcome.”
+
+It focuses the spear.
+
+You can build separate landing pages later.
+
+But one sharp page converts better than one inclusive page.
+
+2️⃣ IDEAL 2-MINUTE DEMO FLOW
+
+This is critical.
+
+The demo must not explain.
+
+It must demonstrate persistence.
+
+Goal:
+
+Within 120 seconds, the user experiences:
+
+A choice
+
+A consequence
+
+A visible memory
+
+Step 0: No Character Builder
+
+Do NOT start with:
+
+Class selection
+
+Ability scores
+
+Long forms
+
+Preload a simple character:
+
+You are Alric, a wandering ranger.
+
+Give them one sentence of context.
+
+Step 1: Immediate Scene
+
+You arrive at a village where the mill has burned down.
+The villagers whisper about goblins in the woods.
+
+Give 3 choices:
+
+A. Investigate the woods
+B. Question the villagers
+C. Ignore it and leave
+
+No stats shown yet.
+Just play.
+
+Step 2: A Mechanical Moment
+
+If they choose woods:
+
+Small encounter.
+
+Roll one attack.
+
+Show initiative tracking automatically.
+
+Show HP updating automatically.
+
+This is where they feel:
+
+“Oh. It’s handling the bookkeeping.”
+
+Step 3: Visible Persistence
+
+After resolution, show a subtle sidebar:
+
+Campaign State Updated:
+
+✔ Goblin scout defeated
+✔ Village trust increased
+✔ Rumor of goblin cave unlocked
+
+That is the hook.
+
+They see memory.
+
+Step 4: Close With Tease
+
+This world will remember what you did.
+Want to save this campaign?
+
+Now ask for signup.
+
+Not before.
+
+What the demo must NOT do:
+
+Long exposition
+
+Explain rules
+
+Ask for setup choices
+
+Talk about philosophy
+
+Show too many buttons
+
+It should feel like:
+
+Door → Roll → Consequence → Memory.
+
+3️⃣ PSYCHOLOGICAL DIAGNOSIS OF “START YOUR ADVENTURE”
+
+Right now, here’s likely what happens internally:
+
+Step 1: Curiosity
+
+“Okay, let’s see what this is.”
+
+Step 2: Cognitive Load
+
+“Whoa, there’s a lot of UI.”
+“Do I need to configure something?”
+“What mode am I in?”
+
+Step 3: Ambiguity
+
+“Am I playing solo?”
+“Is this AI?”
+“Is this like a VTT?”
+“What am I supposed to do first?”
+
+Step 4: Emotional Flatness
+
+Nothing meaningful happens in first 90 seconds.
+
+No attachment.
+No tension.
+No consequence.
+
+They leave.
+
+Retention failure rarely happens because the product is bad.
+
+It happens because the first emotional spike comes too late.
+
+You need:
+
+Choice within 30 seconds.
+Roll within 60 seconds.
+Visible state change within 120 seconds.
+
+The Bigger Strategic Insight
+
+Right now your homepage promises:
+
+“Less friction.”
+
+Your demo must feel frictionless.
+
+That means:
+
+No forms
+
+No setup
+
+No explanation
+
+No dashboards
+
+No menu exploration
+
+Just play.
+
+Final Hard Truth
+
+Your system is structurally interesting.
+
+But first-time users do not care about structure.
+
+They care about:
+
+Did something happen?
+Did I feel agency?
+Did the world respond?
+
+Build the demo around that.
+
+Everything else is secondary.

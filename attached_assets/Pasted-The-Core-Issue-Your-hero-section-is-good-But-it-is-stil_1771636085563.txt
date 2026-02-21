@@ -1,0 +1,191 @@
+The Core Issue
+
+Your hero section is good.
+
+But it is still slightly abstract:
+
+Play D&D without the friction.
+
+That is clear.
+But it is not vivid.
+
+Try tightening it to something more concrete:
+
+Play D&D without scheduling stress, prep overload, or lost story threads.
+
+That names the pain directly.
+
+The Best Line on Your Page
+
+This is the line that matters:
+
+It's a memory engine for your campaign.
+
+That is your differentiator.
+
+You are not an AI storyteller.
+You are not a VTT.
+You are not a rules compendium.
+
+You are persistence.
+
+That needs to be elevated visually.
+
+Make it its own block:
+
+Everdice is a memory engine for your campaign.
+
+It tracks consequences so you don’t have to.
+
+That should anchor the entire page.
+
+The Section Order Is Slightly Off
+
+Right now it flows like this:
+
+Hero
+Why campaigns fade
+How you can play
+What it does
+Persistence
+DM section
+Discord
+Audience breakdown
+
+That’s too much vertical scrolling before clarity locks in.
+
+I would restructure like this:
+
+Hero
+
+Memory Engine (your differentiator)
+
+How you can play (solo / group / DM)
+
+Quick Demo CTA
+
+DM 5-minute promise
+
+Social proof (even if small)
+
+Everything else below fold
+
+Right now, your strongest differentiator is buried in the middle.
+
+“33 adventurers have joined”
+
+This line is neutral.
+
+It doesn’t help much.
+
+If the number is small, it does not build confidence.
+
+You could instead say:
+
+Early beta. Feedback shapes the system.
+
+That reframes small numbers as intentional.
+
+The Biggest Missing Piece
+
+There is still no immediate action path.
+
+You say:
+
+Start Your Adventure
+Try a quick adventure right now.
+
+That’s good.
+
+But it needs clarity.
+
+What exactly happens when I click?
+
+Add a subline:
+
+No signup required. 2-minute intro quest.
+
+That specificity increases clicks dramatically.
+
+The Emotional Gap
+
+Right now the page is rational.
+
+But D&D is emotional.
+
+You might consider one small imaginative hook near the top:
+
+Open a door. Roll the dice. See what happens next.
+
+Just one sentence that feels like play.
+
+Not marketing.
+Not explanation.
+Just immersion.
+
+The Navigation
+
+For a landing page, this is still slightly too busy:
+
+Trading Post
+World
+About
+Get Started
+
+If possible, simplify for non-logged-in users:
+
+Play
+Run a Game
+Learn
+About
+
+Reduce cognitive load.
+
+Overall Assessment
+
+Is this good?
+
+Yes.
+
+Is it embarrassing?
+
+No.
+
+Is it annoying?
+
+No.
+
+Is it sharp enough to convert cold traffic?
+
+Not yet.
+
+It needs:
+
+One clearer differentiator up top
+
+One concrete demo promise
+
+Slightly less audience sprawl
+
+Slightly more emotional immediacy
+
+The Hard Truth
+
+Your retention issue is probably not homepage clarity anymore.
+
+It is first-session emotional payoff.
+
+If the first 5 minutes do not create:
+
+Character attachment
+
+A meaningful choice
+
+A visible consequence
+
+They won’t return.
+
+Your homepage now invites.
+That’s good.
+
+Now the first session must hook.
