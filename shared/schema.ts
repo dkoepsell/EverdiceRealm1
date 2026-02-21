@@ -791,6 +791,8 @@ export const trekRoutes = pgTable("trek_routes", {
   id: serial("id").primaryKey(),
   campaignId: integer("campaign_id").notNull(),
   userId: integer("user_id").notNull(),
+  characterId: integer("character_id"),
+  characterName: text("character_name"),
   originQ: integer("origin_q").default(0),
   originR: integer("origin_r").default(0),
   destinationQ: integer("destination_q").notNull(),

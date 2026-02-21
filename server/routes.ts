@@ -11266,10 +11266,26 @@ Return your response as a JSON object with these fields:
       }
       const campaignId = parseInt(req.params.campaignId);
       const userId = (req.user as any).id;
-      const { destinationQ, destinationR, destinationName } = req.body;
+      const { destinationQ, destinationR, destinationName, characterId } = req.body;
       
       if (destinationQ === undefined || destinationR === undefined) {
         return res.status(400).json({ message: "Destination coordinates required" });
+      }
+
+      let validatedCharacterId: number | null = null;
+      let validatedCharacterName: string | null = null;
+
+      if (characterId) {
+        const character = await storage.getCharacter(characterId);
+        if (!character || character.userId !== userId) {
+          return res.status(403).json({ message: "Character does not belong to you" });
+        }
+        const participant = await storage.getCampaignParticipant(campaignId, userId);
+        if (!participant || participant.characterId !== characterId) {
+          return res.status(403).json({ message: "Character is not part of this campaign" });
+        }
+        validatedCharacterId = character.id;
+        validatedCharacterName = character.name;
       }
       
       // Cancel any existing active trek
@@ -11289,6 +11305,8 @@ Return your response as a JSON object with these fields:
       const route = await storage.createTrekRoute({
         campaignId,
         userId,
+        characterId: validatedCharacterId,
+        characterName: validatedCharacterName,
         originQ: startQ,
         originR: startR,
         destinationQ,

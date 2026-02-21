@@ -12,11 +12,11 @@ import {
   CircleDot, Eye, CheckCircle2, Lock, Swords, Users,
   Scroll, AlertTriangle, Shield, Sparkles, Globe, Clock, 
   TrendingUp, TrendingDown, Activity, Zap, BookOpen, Hexagon,
-  Navigation, X, Footprints, Loader2, Package
+  Navigation, X, Footprints, Loader2, Package, UserCircle
 } from "lucide-react";
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
-import type { WorldRegion, WorldLocation, UserWorldProgress, WorldEvent, WorldDiscovery, Campaign } from "@shared/schema";
+import type { WorldRegion, WorldLocation, UserWorldProgress, WorldEvent, WorldDiscovery, Campaign, Character } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ContextualHint } from "@/components/ui/contextual-hint";
 import { useToast } from "@/hooks/use-toast";
@@ -195,6 +195,8 @@ export default function WorldMapPage() {
     destinationName: string;
   } | null>(null);
 
+  const [trekTargetHex, setTrekTargetHex] = useState<WorldHex | null>(null);
+
   const { data: userCampaigns = [] } = useQuery<Campaign[]>({
     queryKey: ["/api/campaigns"],
     enabled: !!user,
@@ -206,11 +208,24 @@ export default function WorldMapPage() {
     return active?.id || userCampaigns[0]?.id || null;
   }, [userCampaigns]);
 
+  const { data: campaignParticipants = [] } = useQuery<Array<{ characterId: number; character: Character | null; role: string; username: string }>>({
+    queryKey: ['/api/campaigns', activeCampaignId, 'participants'],
+    queryFn: async () => {
+      if (!activeCampaignId) return [];
+      const res = await fetch(`/api/campaigns/${activeCampaignId}/participants`, { credentials: 'include' });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.participants || data || [];
+    },
+    enabled: !!activeCampaignId,
+  });
+
   const { data: activeTrek } = useQuery<{
     id: number;
     path: Array<{ q: number; r: number }>;
     currentStep: number;
     destinationName: string | null;
+    characterName: string | null;
     status: string;
     pendingEncounter: {
       id: string;
@@ -236,7 +251,7 @@ export default function WorldMapPage() {
   }, [activeTrek?.status, activeTrek?.pendingEncounter]);
 
   const trekStartMutation = useMutation({
-    mutationFn: (data: { destinationQ: number; destinationR: number; destinationName?: string }) => {
+    mutationFn: (data: { destinationQ: number; destinationR: number; destinationName?: string; characterId?: number; characterName?: string }) => {
       if (!activeCampaignId) return Promise.reject(new Error("No active campaign"));
       return apiRequest("POST", `/api/campaigns/${activeCampaignId}/trek/start`, data);
     },
@@ -557,11 +572,7 @@ export default function WorldMapPage() {
                       toast({ title: "No Campaign", description: "Create or join a campaign to trek across the map.", variant: "destructive" });
                       return;
                     }
-                    trekStartMutation.mutate({
-                      destinationQ: hex.q,
-                      destinationR: hex.r,
-                      destinationName: hex.locationName || `Hex (${hex.q}, ${hex.r})`,
-                    });
+                    setTrekTargetHex(hex);
                   }}
                   trekPath={activeTrek?.path}
                   trekStep={activeTrek?.currentStep}
@@ -573,7 +584,11 @@ export default function WorldMapPage() {
                     <Footprints className="h-5 w-5 text-amber-400" />
                     <div className="flex-1">
                       <span className="text-sm text-amber-100 font-medium">
-                        Trekking to {activeTrek.destinationName || 'destination'}
+                        {activeTrek.characterName ? (
+                          <span className="text-amber-300">{activeTrek.characterName}</span>
+                        ) : null}
+                        {activeTrek.characterName ? ' trekking to ' : 'Trekking to '}
+                        {activeTrek.destinationName || 'destination'}
                       </span>
                       <span className="text-xs text-amber-100/60 ml-2">
                         Step {activeTrek.currentStep} / {activeTrek.path.length}
@@ -1211,6 +1226,72 @@ export default function WorldMapPage() {
         onClose={() => setCityMapOpen(null)}
       />
     )}
+
+    <Dialog open={!!trekTargetHex} onOpenChange={(open) => {
+      if (!open) setTrekTargetHex(null);
+    }}>
+      <DialogContent className="max-w-md bg-gradient-to-b from-gray-900 via-gray-900 to-black border-2 border-amber-500/40 text-amber-50">
+        <DialogHeader>
+          <DialogTitle className="text-lg font-bold text-amber-100 flex items-center gap-2">
+            <Navigation className="h-5 w-5 text-amber-400" />
+            Choose Your Traveler
+          </DialogTitle>
+          <DialogDescription className="text-amber-100/50 text-sm">
+            Select which character will trek to {trekTargetHex?.locationName || `Hex (${trekTargetHex?.q}, ${trekTargetHex?.r})`}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2 mt-2 max-h-[50vh] overflow-y-auto">
+          {campaignParticipants.filter((p: any) => p.character && p.role === 'player').length === 0 ? (
+            <div className="text-center py-6 text-amber-100/50">
+              <UserCircle className="h-10 w-10 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">No characters found in this campaign.</p>
+              <p className="text-xs mt-1">Join a campaign with a character first.</p>
+            </div>
+          ) : (
+            campaignParticipants.filter((p: any) => p.character && p.role === 'player').map((p: any) => {
+              const char = p.character;
+              return (
+                <button
+                  key={char.id}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border border-amber-500/20 bg-amber-900/10 hover:bg-amber-500/20 hover:border-amber-400/40 transition-all text-left group"
+                  disabled={trekStartMutation.isPending}
+                  onClick={() => {
+                    if (!trekTargetHex) return;
+                    trekStartMutation.mutate({
+                      destinationQ: trekTargetHex.q,
+                      destinationR: trekTargetHex.r,
+                      destinationName: trekTargetHex.locationName || `Hex (${trekTargetHex.q}, ${trekTargetHex.r})`,
+                      characterId: char.id,
+                      characterName: char.name,
+                    });
+                    setTrekTargetHex(null);
+                  }}
+                >
+                  {char.portraitUrl ? (
+                    <img src={char.portraitUrl} alt={char.name} className="w-12 h-12 rounded-full object-cover border-2 border-amber-500/30 group-hover:border-amber-400/60" />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-amber-800/40 border-2 border-amber-500/30 flex items-center justify-center group-hover:border-amber-400/60">
+                      <UserCircle className="h-6 w-6 text-amber-300/60" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-amber-100 text-sm truncate">{char.name}</div>
+                    <div className="text-xs text-amber-100/50">
+                      Level {char.level} {char.race} {char.class}
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] text-red-300/70">HP {char.hitPoints}/{char.maxHitPoints}</span>
+                      <span className="text-[10px] text-blue-300/70">AC {char.armorClass}</span>
+                    </div>
+                  </div>
+                  <Navigation className="h-4 w-4 text-amber-400/40 group-hover:text-amber-300 transition-colors" />
+                </button>
+              );
+            })
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
 
     <Dialog open={!!activeEncounter} onOpenChange={(open) => {
       if (!open && !enterNarrativeMutation.isPending) {
