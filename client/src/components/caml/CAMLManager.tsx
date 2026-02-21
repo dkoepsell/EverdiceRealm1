@@ -55,8 +55,9 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
 
   const campaignLengthOptions = [
     { value: 'quick', label: 'Quick Adventure (3 chapters)', description: '~30 minutes' },
-    { value: 'standard', label: 'Standard Quest (4-5 chapters)', description: '~1 hour' },
-    { value: 'epic', label: 'Epic Saga (6-8 chapters)', description: '~2 hours' }
+    { value: 'standard', label: 'Standard Quest (5-6 chapters)', description: '~1 hour' },
+    { value: 'epic', label: 'Epic Saga (8-10 chapters)', description: '~2-3 hours' },
+    { value: 'legendary', label: 'Legendary Campaign (12-15 chapters)', description: '~4-5 hours' }
   ];
 
   const importMutation = useMutation({
