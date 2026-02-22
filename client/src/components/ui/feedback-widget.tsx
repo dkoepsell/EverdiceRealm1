@@ -134,7 +134,7 @@ export function FeedbackWidget({ variant = "floating" }: FeedbackWidgetProps) {
   }
 
   return (
-    <div className="fixed bottom-16 right-4 z-50">
+    <div className="fixed bottom-16 left-4 z-50">
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -142,7 +142,7 @@ export function FeedbackWidget({ variant = "floating" }: FeedbackWidgetProps) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="absolute bottom-14 right-0 w-72 rounded-lg border border-amber-500/20 bg-card shadow-xl shadow-black/30 p-4"
+            className="absolute bottom-14 left-0 w-72 rounded-lg border border-amber-500/20 bg-card shadow-xl shadow-black/30 p-4"
           >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
