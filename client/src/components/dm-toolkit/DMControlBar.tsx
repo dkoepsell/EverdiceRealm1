@@ -137,297 +137,295 @@ export default function DMControlBar({
   }
 
   return (
-    <div className="bg-slate-900 border-b border-slate-700 px-4 py-2 flex items-center gap-3 flex-wrap sticky top-0 z-50">
-      {/* Pause/Resume - Most critical control */}
-      <Button
-        variant={isPaused ? "default" : "outline"}
-        size="sm"
-        onClick={onPauseToggle}
-        className={`gap-2 ${isPaused ? "bg-amber-500 hover:bg-amber-600 text-white" : "border-slate-600 text-slate-300 hover:bg-slate-800"}`}
-      >
-        {isPaused ? (
-          <>
-            <Play className="h-4 w-4" />
-            Resume
-          </>
-        ) : (
-          <>
-            <Pause className="h-4 w-4" />
-            Pause
-          </>
-        )}
-      </Button>
+    <div className="px-4 py-3 space-y-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Pause/Resume - Most critical control, large and prominent */}
+        <Button
+          variant={isPaused ? "default" : "outline"}
+          size="default"
+          onClick={onPauseToggle}
+          className={`gap-2 font-semibold px-5 ${isPaused 
+            ? "bg-red-500 hover:bg-red-600 text-white shadow-md shadow-red-500/20 border-red-400" 
+            : "bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25 hover:border-emerald-500/60"}`}
+        >
+          {isPaused ? (
+            <>
+              <Play className="h-4.5 w-4.5" />
+              Resume Session
+            </>
+          ) : (
+            <>
+              <Pause className="h-4.5 w-4.5" />
+              Pause Session
+            </>
+          )}
+        </Button>
 
-      {isPaused && (
-        <Badge variant="outline" className="bg-amber-500/20 text-amber-400 border-amber-500/50 animate-pulse">
-          Session Paused
-        </Badge>
-      )}
+        <div className="h-7 w-px bg-amber-500/20 mx-1" />
 
-      <div className="h-6 w-px bg-slate-700" />
+        {/* Undo */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onUndo}
+          disabled={!canUndo}
+          className="gap-1.5 border-amber-500/25 text-amber-200 hover:bg-amber-500/10 hover:border-amber-500/40 disabled:opacity-30 disabled:border-slate-700"
+        >
+          <Undo2 className="h-4 w-4" />
+          Undo
+        </Button>
 
-      {/* Undo */}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={onUndo}
-        disabled={!canUndo}
-        className="gap-2 border-slate-600 text-slate-300 hover:bg-slate-800 disabled:opacity-50"
-      >
-        <Undo2 className="h-4 w-4" />
-        Undo
-      </Button>
-
-      {/* Checkpoint */}
-      <Dialog open={checkpointDialogOpen} onOpenChange={setCheckpointDialogOpen}>
-        <DialogTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 border-slate-600 text-slate-300 hover:bg-slate-800"
-          >
-            <Save className="h-4 w-4" />
-            Checkpoint
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Checkpoint</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="checkpoint-name">Checkpoint Name</Label>
-              <Input
-                id="checkpoint-name"
-                value={checkpointName}
-                onChange={(e) => setCheckpointName(e.target.value)}
-                placeholder="e.g., Before the boss fight"
-              />
+        {/* Checkpoint */}
+        <Dialog open={checkpointDialogOpen} onOpenChange={setCheckpointDialogOpen}>
+          <DialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-amber-500/25 text-amber-200 hover:bg-amber-500/10 hover:border-amber-500/40"
+            >
+              <Save className="h-4 w-4" />
+              Checkpoint
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create Checkpoint</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="checkpoint-name">Checkpoint Name</Label>
+                <Input
+                  id="checkpoint-name"
+                  value={checkpointName}
+                  onChange={(e) => setCheckpointName(e.target.value)}
+                  placeholder="e.g., Before the boss fight"
+                />
+              </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCheckpointDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreateCheckpoint} disabled={!checkpointName.trim()}>
-              Save Checkpoint
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCheckpointDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateCheckpoint} disabled={!checkpointName.trim()}>
+                Save Checkpoint
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      {/* History/Restore */}
-      <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
-        <DialogTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 border-slate-600 text-slate-300 hover:bg-slate-800"
-          >
-            <History className="h-4 w-4" />
-            History
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Session Checkpoints</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2 max-h-[300px] overflow-y-auto">
-            {checkpoints.length > 0 ? (
-              checkpoints.map((cp) => (
-                <div
-                  key={cp.id}
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50"
-                >
-                  <div>
-                    <p className="font-medium">{cp.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(cp.timestamp).toLocaleTimeString()}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      onRestoreCheckpoint(cp);
-                      setHistoryDialogOpen(false);
-                      toast({ title: "Checkpoint Restored", description: `Restored to "${cp.name}"` });
-                    }}
+        {/* History/Restore */}
+        <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
+          <DialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-amber-500/25 text-amber-200 hover:bg-amber-500/10 hover:border-amber-500/40"
+            >
+              <History className="h-4 w-4" />
+              History
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Session Checkpoints</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {checkpoints.length > 0 ? (
+                checkpoints.map((cp) => (
+                  <div
+                    key={cp.id}
+                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50"
                   >
-                    Restore
-                  </Button>
-                </div>
-              ))
-            ) : (
-              <p className="text-center text-muted-foreground py-8">
-                No checkpoints yet. Create one to save your progress.
-              </p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+                    <div>
+                      <p className="font-medium">{cp.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(cp.timestamp).toLocaleTimeString()}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        onRestoreCheckpoint(cp);
+                        setHistoryDialogOpen(false);
+                        toast({ title: "Checkpoint Restored", description: `Restored to "${cp.name}"` });
+                      }}
+                    >
+                      Restore
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-muted-foreground py-8">
+                  No checkpoints yet. Create one to save your progress.
+                </p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
-      <div className="h-6 w-px bg-slate-700" />
+        <div className="h-7 w-px bg-amber-500/20 mx-1" />
 
-      {/* Inject Narration */}
-      <Dialog open={injectDialogOpen} onOpenChange={setInjectDialogOpen}>
-        <DialogTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 border-slate-600 text-slate-300 hover:bg-slate-800"
-          >
-            <Pencil className="h-4 w-4" />
-            Inject
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Inject Narration</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Textarea
-              value={narrationText}
-              onChange={(e) => setNarrationText(e.target.value)}
-              placeholder="Enter narration text to inject into the scene..."
-              className="min-h-[120px]"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setInjectDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleInjectNarration} disabled={!narrationText.trim()}>
+        {/* Inject Narration */}
+        <Dialog open={injectDialogOpen} onOpenChange={setInjectDialogOpen}>
+          <DialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-purple-500/30 text-purple-300 hover:bg-purple-500/10 hover:border-purple-500/50"
+            >
+              <Pencil className="h-4 w-4" />
               Inject
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Inject Narration</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Textarea
+                value={narrationText}
+                onChange={(e) => setNarrationText(e.target.value)}
+                placeholder="Enter narration text to inject into the scene..."
+                className="min-h-[120px]"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setInjectDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleInjectNarration} disabled={!narrationText.trim()}>
+                Inject
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      {/* Force State Change */}
-      <Dialog open={forceDialogOpen} onOpenChange={setForceDialogOpen}>
-        <DialogTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 border-slate-600 text-slate-300 hover:bg-slate-800"
-          >
-            <Zap className="h-4 w-4" />
-            Override
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-500" />
-              Force State Change
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Change Type</Label>
-              <Select value={forceChangeType} onValueChange={setForceChangeType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hp">HP</SelectItem>
-                  <SelectItem value="condition">Condition</SelectItem>
-                  <SelectItem value="location">Location</SelectItem>
-                  <SelectItem value="flag">Story Flag</SelectItem>
-                  <SelectItem value="npc_status">NPC Status</SelectItem>
-                </SelectContent>
-              </Select>
+        {/* Force State Change */}
+        <Dialog open={forceDialogOpen} onOpenChange={setForceDialogOpen}>
+          <DialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-orange-500/30 text-orange-300 hover:bg-orange-500/10 hover:border-orange-500/50"
+            >
+              <Zap className="h-4 w-4" />
+              Override
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-amber-500" />
+                Force State Change
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Change Type</Label>
+                <Select value={forceChangeType} onValueChange={setForceChangeType}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hp">HP</SelectItem>
+                    <SelectItem value="condition">Condition</SelectItem>
+                    <SelectItem value="location">Location</SelectItem>
+                    <SelectItem value="flag">Story Flag</SelectItem>
+                    <SelectItem value="npc_status">NPC Status</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Target</Label>
+                <Input
+                  value={forceChangeTarget}
+                  onChange={(e) => setForceChangeTarget(e.target.value)}
+                  placeholder="e.g., Character name or NPC"
+                />
+              </div>
+              <div>
+                <Label>New Value</Label>
+                <Input
+                  value={forceChangeValue}
+                  onChange={(e) => setForceChangeValue(e.target.value)}
+                  placeholder="e.g., 25 or poisoned"
+                />
+              </div>
             </div>
-            <div>
-              <Label>Target</Label>
-              <Input
-                value={forceChangeTarget}
-                onChange={(e) => setForceChangeTarget(e.target.value)}
-                placeholder="e.g., Character name or NPC"
-              />
-            </div>
-            <div>
-              <Label>New Value</Label>
-              <Input
-                value={forceChangeValue}
-                onChange={(e) => setForceChangeValue(e.target.value)}
-                placeholder="e.g., 25 or poisoned"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setForceDialogOpen(false)}>
-              Cancel
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setForceDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleForceStateChange}
+                disabled={!forceChangeTarget.trim() || !forceChangeValue.trim()}
+                className="bg-amber-500 hover:bg-amber-600"
+              >
+                Apply Override
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <div className="flex-1" />
+
+        {/* Session Mode Selector */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-amber-400/70 uppercase tracking-wider">Mode</span>
+          <Select value={sessionMode} onValueChange={(v) => onModeChange(v as SessionMode)}>
+            <SelectTrigger className="w-[140px] h-8 bg-slate-800/80 border-amber-500/25 text-slate-200 hover:border-amber-500/40">
+              <div className="flex items-center gap-2">
+                <div className={`w-2.5 h-2.5 rounded-full ${currentMode.color} shadow-sm`} />
+                <SelectValue />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {SESSION_MODES.map((mode) => (
+                <SelectItem key={mode.value} value={mode.value}>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2.5 h-2.5 rounded-full ${mode.color}`} />
+                    {mode.label}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="h-7 w-px bg-amber-500/20 mx-1" />
+
+        {/* AI/Manual Narrative Toggle */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-amber-400/70 uppercase tracking-wider">Narrative</span>
+          <div className="flex rounded-lg overflow-hidden border border-amber-500/25">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onNarrativeModeChange("manual")}
+              className={`h-8 px-3 rounded-none gap-1.5 ${
+                narrativeMode === "manual" 
+                  ? "bg-amber-500/25 text-amber-300 hover:bg-amber-500/35 font-semibold" 
+                  : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+              }`}
+            >
+              <User className="h-3.5 w-3.5" />
+              <span className="text-xs">DM</span>
             </Button>
             <Button
-              onClick={handleForceStateChange}
-              disabled={!forceChangeTarget.trim() || !forceChangeValue.trim()}
-              className="bg-amber-500 hover:bg-amber-600"
+              variant="ghost"
+              size="sm"
+              onClick={() => onNarrativeModeChange("autopilot")}
+              className={`h-8 px-3 rounded-none gap-1.5 ${
+                narrativeMode === "autopilot" 
+                  ? "bg-purple-500/25 text-purple-300 hover:bg-purple-500/35 font-semibold" 
+                  : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+              }`}
             >
-              Apply Override
+              <Bot className="h-3.5 w-3.5" />
+              <span className="text-xs">AI</span>
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <div className="flex-1" />
-
-      {/* Session Mode Selector */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-slate-400">Mode:</span>
-        <Select value={sessionMode} onValueChange={(v) => onModeChange(v as SessionMode)}>
-          <SelectTrigger className="w-[140px] h-8 bg-slate-800 border-slate-600 text-slate-200">
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${currentMode.color}`} />
-              <SelectValue />
-            </div>
-          </SelectTrigger>
-          <SelectContent>
-            {SESSION_MODES.map((mode) => (
-              <SelectItem key={mode.value} value={mode.value}>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${mode.color}`} />
-                  {mode.label}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="h-6 w-px bg-slate-700" />
-
-      {/* AI/Manual Narrative Toggle */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-slate-400">Narrative:</span>
-        <div className="flex rounded-lg overflow-hidden border border-slate-600">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onNarrativeModeChange("manual")}
-            className={`h-8 px-3 rounded-none gap-1.5 ${
-              narrativeMode === "manual" 
-                ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30" 
-                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-            }`}
-          >
-            <User className="h-3.5 w-3.5" />
-            <span className="text-xs">DM</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onNarrativeModeChange("autopilot")}
-            className={`h-8 px-3 rounded-none gap-1.5 ${
-              narrativeMode === "autopilot" 
-                ? "bg-purple-500/20 text-purple-400 hover:bg-purple-500/30" 
-                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-            }`}
-          >
-            <Bot className="h-3.5 w-3.5" />
-            <span className="text-xs">AI</span>
-          </Button>
+          </div>
         </div>
       </div>
     </div>

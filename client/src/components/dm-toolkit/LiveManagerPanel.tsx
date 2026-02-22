@@ -2063,38 +2063,44 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
         </div>
       </div>
 
-      {/* DM Control Bar - Always visible at bottom */}
-      <div className="mt-2 rounded-lg border border-muted-foreground/20 bg-slate-900/50 overflow-hidden">
-        <div className="flex items-center gap-2 px-3 py-1.5 text-left">
-          <Shield className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs font-medium text-muted-foreground">DM Controls</span>
+      {/* DM Command Center - Always visible at bottom */}
+      <div className="mt-3 rounded-xl border-2 border-amber-500/40 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 overflow-hidden shadow-lg shadow-amber-500/5">
+        <div className="flex items-center gap-2.5 px-4 py-2 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-transparent border-b border-amber-500/20">
+          <div className="flex items-center justify-center w-6 h-6 rounded-md bg-amber-500/20 border border-amber-500/30">
+            <Shield className="h-3.5 w-3.5 text-amber-400" />
+          </div>
+          <span className="text-sm font-bold tracking-wide text-amber-300 uppercase">Command Center</span>
           {isPaused && (
-            <Badge variant="outline" className="h-4 px-1 text-[10px] bg-red-500/20 text-red-400 border-red-500/30">
-              Paused
+            <Badge variant="outline" className="h-5 px-2 text-[11px] font-semibold bg-red-500/20 text-red-400 border-red-500/40 animate-pulse">
+              Session Paused
             </Badge>
           )}
-          <span className="text-[10px] text-muted-foreground/50 ml-auto mr-1">
-            {sessionMode} · {narrativeMode}
-          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-[11px] font-medium text-amber-400/60 uppercase tracking-wider">
+              {sessionMode}
+            </span>
+            <span className="text-amber-500/30">|</span>
+            <span className="text-[11px] font-medium text-amber-400/60 uppercase tracking-wider">
+              {narrativeMode === 'manual' ? 'DM Control' : 'AI Assist'}
+            </span>
+          </div>
         </div>
-        <div className="border-t border-muted-foreground/10">
-          <DMControlBar
-            campaignId={selectedCampaignId}
-            isPaused={isPaused}
-            onPauseToggle={handlePauseToggle}
-            sessionMode={sessionMode}
-            onModeChange={handleModeChange}
-            narrativeMode={narrativeMode}
-            onNarrativeModeChange={handleNarrativeModeChange}
-            onUndo={handleUndo}
-            canUndo={undoStack.length > 0}
-            onCheckpoint={handleCheckpoint}
-            onRestoreCheckpoint={handleRestoreCheckpoint}
-            checkpoints={checkpoints}
-            onInjectNarration={handleInjectNarration}
-            onForceStateChange={handleForceStateChange}
-          />
-        </div>
+        <DMControlBar
+          campaignId={selectedCampaignId}
+          isPaused={isPaused}
+          onPauseToggle={handlePauseToggle}
+          sessionMode={sessionMode}
+          onModeChange={handleModeChange}
+          narrativeMode={narrativeMode}
+          onNarrativeModeChange={handleNarrativeModeChange}
+          onUndo={handleUndo}
+          canUndo={undoStack.length > 0}
+          onCheckpoint={handleCheckpoint}
+          onRestoreCheckpoint={handleRestoreCheckpoint}
+          checkpoints={checkpoints}
+          onInjectNarration={handleInjectNarration}
+          onForceStateChange={handleForceStateChange}
+        />
       </div>
 
       <DragOverlay>
