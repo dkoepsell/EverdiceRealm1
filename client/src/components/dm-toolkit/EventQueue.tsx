@@ -25,6 +25,8 @@ import {
   ChevronDown,
   AlertTriangle,
   Flame,
+  Globe,
+  Sparkles,
 } from "lucide-react";
 
 export type EventSource = "player" | "ai" | "system" | "map";
@@ -45,6 +47,12 @@ export interface PendingEvent {
   isReversible: boolean;
 }
 
+export interface SuggestedWorldEvent {
+  title: string;
+  description: string;
+  impact: string;
+}
+
 interface EventQueueProps {
   events: PendingEvent[];
   onApprove: (eventId: string) => void;
@@ -53,6 +61,7 @@ interface EventQueueProps {
   onAddEvent?: (event: PendingEvent) => void;
   onReorder?: (events: PendingEvent[]) => void;
   isProcessing?: string | null;
+  suggestedWorldEvents?: SuggestedWorldEvent[];
 }
 
 const SOURCE_CONFIG: Record<EventSource, { icon: typeof User; label: string; color: string }> = {
@@ -86,9 +95,11 @@ export default function EventQueue({
   onAddEvent,
   onReorder,
   isProcessing,
+  suggestedWorldEvents,
 }: EventQueueProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [dismissedWorldEvents, setDismissedWorldEvents] = useState<Set<string>>(new Set());
   const [editingEvent, setEditingEvent] = useState<{
     title: string;
     description: string;
@@ -522,12 +533,85 @@ export default function EventQueue({
               })}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full py-8 text-slate-500">
-              <Flame className="h-8 w-8 mb-2 opacity-50" />
-              <p className="text-sm font-medium">No emerging consequences</p>
+            <div className="flex flex-col items-center justify-center py-6 text-slate-500">
+              <Flame className="h-6 w-6 mb-2 opacity-50" />
+              <p className="text-sm font-medium">No player-triggered consequences yet</p>
               <p className="text-xs text-center mt-1">
-                Ripple effects from player actions, world events, and faction moves will appear here
+                Add your own events, or watch for world forces below
               </p>
+            </div>
+          )}
+
+          {/* Proactive World Events — things that move without player action */}
+          {suggestedWorldEvents && suggestedWorldEvents.filter(e => !dismissedWorldEvents.has(e.title)).length > 0 && (
+            <div className="mt-3 pt-3 border-t border-dashed border-slate-700">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Globe className="h-3 w-3 text-cyan-400" />
+                <span className="text-[10px] font-semibold text-cyan-400 uppercase tracking-wider">World Forces — Suggested</span>
+              </div>
+              <div className="space-y-2">
+                {suggestedWorldEvents.filter(e => !dismissedWorldEvents.has(e.title)).map((worldEvent, idx) => (
+                  <div key={idx} className="p-2.5 rounded-lg border border-dashed border-cyan-500/20 bg-cyan-500/5 hover:border-cyan-500/40 transition-colors">
+                    <div className="flex items-start gap-2 mb-1.5">
+                      <Globe className="h-3 w-3 text-cyan-400 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <h4 className="text-xs font-medium text-slate-200">{worldEvent.title}</h4>
+                          <Badge variant="outline" className="text-[9px] h-4 bg-cyan-500/10 text-cyan-400 border-cyan-500/20">World Force</Badge>
+                        </div>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">{worldEvent.description}</p>
+                      </div>
+                    </div>
+                    <div className="p-1.5 rounded bg-slate-900/50 border border-slate-700 mb-2">
+                      <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-0.5">Impact</p>
+                      <p className="text-[11px] text-slate-300">{worldEvent.impact}</p>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button
+                        className="flex-1 flex items-center justify-center gap-1 text-[10px] px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
+                        onClick={() => {
+                          onAddEvent?.({
+                            id: `world-${Date.now()}-${idx}`,
+                            source: "system",
+                            type: "narrative",
+                            title: worldEvent.title,
+                            description: worldEvent.description,
+                            impact: worldEvent.impact,
+                            escalation: "Situation worsens if left unaddressed",
+                            affectedEntities: [],
+                            timestamp: new Date(),
+                            isReversible: true,
+                          });
+                          setDismissedWorldEvents(prev => new Set(prev).add(worldEvent.title));
+                        }}
+                      >
+                        <Check className="h-2.5 w-2.5" /> Accept as canon
+                      </button>
+                      <button
+                        className="flex items-center justify-center gap-1 text-[10px] px-2 py-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors"
+                        onClick={() => {
+                          setShowAddForm(true);
+                          setNewEvent(prev => ({
+                            ...prev,
+                            title: worldEvent.title,
+                            description: worldEvent.description,
+                            impact: worldEvent.impact,
+                          }));
+                          setDismissedWorldEvents(prev => new Set(prev).add(worldEvent.title));
+                        }}
+                      >
+                        <Edit2 className="h-2.5 w-2.5" /> Edit
+                      </button>
+                      <button
+                        className="flex items-center justify-center text-[10px] px-1.5 py-1 rounded text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        onClick={() => setDismissedWorldEvents(prev => new Set(prev).add(worldEvent.title))}
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </ScrollArea>

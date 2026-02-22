@@ -35,12 +35,23 @@ Both `/api/caml/generate` and `/api/campaigns/generate-complete` routes generate
 The DM Toolkit auto-selects a campaign (from localStorage or first active campaign) and displays a prominent "Active Campaign" card at the top of the page. Selection is persisted in `dm_toolkit_campaign_id` localStorage key and cleaned up when campaigns are archived/deleted.
 
 ### Live Session Manager UX (World-Tension-First Design)
-The Live Manager (`LiveManagerPanel.tsx`) uses a "world tension first" layout:
-1. **World Pressure Overview** - Top of center column, collapsible panel showing campaign stakes (with color-coded urgency bars), active tensions, rival agent status, and urgent unresolved threads. Data from `GET /api/campaigns/:id/world-pressure`.
-2. **Do Nothing Forecast** - Collapsible panel showing AI-free consequence predictions if the party stalls (derived from stakes, rival agents, factions, meters).
-3. **Collapsed DM Controls** - Pause/Undo/Checkpoint/Inject/Override moved to a collapsible bottom toolbar (collapsed by default), showing current mode in collapsed label.
-4. **Emerging Consequences** - Right sidebar "Ripples" tab (was "Event Queue") shows consequence cards with trigger source, narrative impact, escalation-if-ignored, and time elapsed.
-5. **Map-Backed VTT Table** - The drag-and-drop table uses the procedural exploration map as a 30% opacity background, with dragged artifacts rendered as backdrop-blur cards over the map.
+The Live Manager (`LiveManagerPanel.tsx`) uses a "world tension first" layout with DM creativity prioritized over auto-generated content:
+1. **World Pressure Overview** - Top of center column, collapsible panel. DM-created pressures and clocks always display first. "Add Pressure" and "Add Clock" are primary actions. Campaign stakes, active tensions, rival agents, and urgent threads shown below DM content. Auto-seeded suggested pressures only appear when DM has created nothing, with adopt/edit/dismiss controls. Data from `GET /api/campaigns/:id/world-pressure`.
+2. **Escalation Clocks** - Visible progress tracks (filled/empty blocks) with stage count, "advances in X days" label, trigger conditions, and +1/remove controls. DMs create and manage their own clocks. Color-coded: green (early) -> amber (mid) -> red (near completion).
+3. **Spark Buttons** - "Need inspiration?" collapsible section with 6 themed one-tap buttons (Political Intrigue, Natural Disaster, Faction Conflict, Religious Tension, Criminal Underworld, Arcane Anomaly). One click seeds 2 clocks + 1 hidden variable, all fully editable by the DM.
+4. **Do Nothing Forecast** - Collapsible panel showing AI-free consequence predictions if the party stalls (derived from clocks, stakes, rival agents, factions, meters).
+5. **Collapsed DM Controls** - Pause/Undo/Checkpoint/Inject/Override moved to a collapsible bottom toolbar (collapsed by default), showing current mode in collapsed label.
+6. **Emerging Consequences** - Right sidebar "Ripples" tab shows DM-created consequences above suggested "World Force" events. World Forces are proactive events players didn't trigger (faction movements, seasonal shifts, rival actions), tagged with Globe icon and "World Force" badge, with accept/edit/dismiss controls.
+7. **Map-Backed VTT Table** - The drag-and-drop table uses the procedural exploration map as a 30% opacity background, with dragged artifacts rendered as backdrop-blur cards over the map.
+
+Backend endpoints for DM pressure/clock management:
+- `POST /api/campaigns/:id/dm-pressures` - Create DM pressure
+- `PATCH /api/campaigns/:id/dm-pressures/:pressureId` - Update DM pressure
+- `DELETE /api/campaigns/:id/dm-pressures/:pressureId` - Delete DM pressure
+- `POST /api/campaigns/:id/dm-clocks` - Create escalation clock
+- `PATCH /api/campaigns/:id/dm-clocks/:clockId` - Update clock (advance stage, edit)
+- `DELETE /api/campaigns/:id/dm-clocks/:clockId` - Delete clock
+- `POST /api/campaigns/:id/spark` - Apply spark template (seeds 2 pressures + 2 clocks + hidden variable)
 
 ## External Dependencies
 

@@ -25345,7 +25345,73 @@ ALWAYS generate:
   
   // ========== WORLD PRESSURE ==========
 
-  // Get world pressure data for a campaign (Live Session Manager)
+  const SUGGESTED_PRESSURES_POOL = [
+    { name: "Bandit activity rising on trade roads", stage: 1, maxStages: 5, trigger: "Merchants report more attacks each tenday", daysToAdvance: 3 },
+    { name: "Local noble consolidating power", stage: 1, maxStages: 5, trigger: "Political maneuvering goes unchecked", daysToAdvance: 5 },
+    { name: "Cult rumor spreading through taverns", stage: 1, maxStages: 5, trigger: "No one investigates the disappearances", daysToAdvance: 4 },
+    { name: "Weather anomaly approaching from the north", stage: 2, maxStages: 5, trigger: "Natural forces beyond mortal control", daysToAdvance: 2 },
+    { name: "Merchant guild threatening a trade strike", stage: 1, maxStages: 5, trigger: "Taxes remain high with no negotiation", daysToAdvance: 6 },
+    { name: "Ancient seal weakening in the undercrypt", stage: 1, maxStages: 5, trigger: "Magical wards decay without maintenance", daysToAdvance: 7 },
+    { name: "Refugee caravan arriving from war-torn lands", stage: 2, maxStages: 5, trigger: "Conflict in neighboring region escalates", daysToAdvance: 3 },
+    { name: "Wild magic surges growing more frequent", stage: 1, maxStages: 5, trigger: "Ley line disruption beneath the city", daysToAdvance: 4 },
+    { name: "Thieves' guild expanding territory", stage: 1, maxStages: 5, trigger: "City watch stretched too thin", daysToAdvance: 5 },
+    { name: "Dragon sighting reported near the mountains", stage: 1, maxStages: 5, trigger: "Ancient creature stirs from slumber", daysToAdvance: 8 },
+  ];
+
+  const SPARK_TEMPLATES: Record<string, { pressures: Array<{ name: string; stage: number; maxStages: number; trigger: string; daysToAdvance: number }>; hiddenVariable: string }> = {
+    political: {
+      pressures: [
+        { name: "Succession crisis brewing in the royal court", stage: 1, maxStages: 5, trigger: "No clear heir named before deadline", daysToAdvance: 4 },
+        { name: "Foreign ambassador making secret deals", stage: 2, maxStages: 5, trigger: "Diplomatic immunity shields investigation", daysToAdvance: 3 },
+      ],
+      hiddenVariable: "The court advisor is actually working for a rival kingdom",
+    },
+    natural: {
+      pressures: [
+        { name: "Unnatural storms battering the coast", stage: 2, maxStages: 5, trigger: "Elemental forces remain unbound", daysToAdvance: 2 },
+        { name: "Crops failing across the farmlands", stage: 1, maxStages: 5, trigger: "Blight spreads unchecked through soil", daysToAdvance: 5 },
+      ],
+      hiddenVariable: "An imprisoned elemental is the source of the disturbance",
+    },
+    faction: {
+      pressures: [
+        { name: "Two guilds escalating toward open conflict", stage: 2, maxStages: 5, trigger: "Territory dispute remains unresolved", daysToAdvance: 3 },
+        { name: "Militia forming in the outer districts", stage: 1, maxStages: 5, trigger: "People lose faith in official protection", daysToAdvance: 4 },
+      ],
+      hiddenVariable: "A third faction is secretly manipulating both sides",
+    },
+    religious: {
+      pressures: [
+        { name: "Heretical sect gaining followers rapidly", stage: 1, maxStages: 5, trigger: "Established temples fail to respond", daysToAdvance: 5 },
+        { name: "Sacred relic reported stolen from the cathedral", stage: 2, maxStages: 5, trigger: "Temple guards found unconscious, no leads", daysToAdvance: 3 },
+      ],
+      hiddenVariable: "The high priest knows more than they're revealing",
+    },
+    criminal: {
+      pressures: [
+        { name: "Smuggling ring using the sewers", stage: 2, maxStages: 5, trigger: "Underground passages go unpatrolled", daysToAdvance: 3 },
+        { name: "Mysterious poisonings targeting merchants", stage: 1, maxStages: 5, trigger: "No antidote found, deaths continue", daysToAdvance: 4 },
+      ],
+      hiddenVariable: "The crime lord has a legitimate public identity no one suspects",
+    },
+    arcane: {
+      pressures: [
+        { name: "Unstable portal flickering in the mage quarter", stage: 2, maxStages: 5, trigger: "Arcane energy builds without release", daysToAdvance: 2 },
+        { name: "Wizards reporting shared nightmares", stage: 1, maxStages: 5, trigger: "Psychic resonance from an unknown source", daysToAdvance: 4 },
+      ],
+      hiddenVariable: "An entity from the Far Realm is probing the barrier between worlds",
+    },
+  };
+
+  const PROACTIVE_WORLD_EVENTS = [
+    { title: "Seasonal migration shifts trade routes", description: "Nomadic tribes are moving earlier than expected, disrupting caravan schedules and merchant plans.", impact: "Trade goods become scarce in frontier settlements" },
+    { title: "Full moon intensifies lycanthropic activity", description: "Reports of livestock attacks increase near the forest edge. Guards double their patrols.", impact: "Curfews tighten, suspicion falls on outsiders" },
+    { title: "Rival adventuring party completes a quest", description: "Another group of adventurers returned from the Hollow Peaks with treasure and glory. The tavern buzzes with their tales.", impact: "Competition for available quests intensifies" },
+    { title: "Tax collectors making rounds", description: "The crown's agents are moving through the region collecting seasonal tributes. Some villages resist.", impact: "Local tensions rise, potential allies become cautious" },
+    { title: "Festival preparations begin in the capital", description: "The annual Harvest Revel draws crowds and attention. Security is diverted to celebration duties.", impact: "Criminal elements exploit the distraction" },
+    { title: "Ancient observatory aligns with celestial event", description: "Stargazers report an unusual conjunction approaching. Old prophecies are being re-examined.", impact: "Magical energies fluctuate unpredictably" },
+  ];
+
   app.get("/api/campaigns/:id/world-pressure", isAuthenticated, async (req, res) => {
     try {
       const campaignId = parseInt(req.params.id);
@@ -25367,6 +25433,8 @@ ALWAYS generate:
       const rivalAgent = (campaign as any).rivalAgent || null;
       const meterWorldEffects = (campaign as any).meterWorldEffects || null;
       const dynamicClimax = (campaign as any).dynamicClimax || null;
+      const dmPressures = (campaign as any).dmPressures || [];
+      const dmClocks = (campaign as any).dmClocks || [];
 
       const stakes = Array.isArray(campaignStakes)
         ? campaignStakes.map((s: any) => ({
@@ -25384,6 +25452,14 @@ ALWAYS generate:
       }));
 
       const doNothingForecast: string[] = [];
+
+      for (const clock of dmClocks) {
+        if (clock.stage >= clock.maxStages - 1) {
+          doNothingForecast.push(`Clock "${clock.name}" is about to complete`);
+        } else if (clock.daysToAdvance && clock.daysToAdvance <= 2) {
+          doNothingForecast.push(`"${clock.name}" advances in ${clock.daysToAdvance} day${clock.daysToAdvance === 1 ? '' : 's'}`);
+        }
+      }
 
       for (const s of stakes) {
         if (s.value >= 4) {
@@ -25426,6 +25502,26 @@ ALWAYS generate:
         }
       }
 
+      const hasDMContent = dmPressures.length > 0 || dmClocks.length > 0;
+      const hasAnyPressures = activePressures.length > 0 || stakes.length > 0 || unresolvedThreadsList.length > 0 || rivalAgent;
+
+      let suggestedPressures: any[] = [];
+      if (!hasDMContent && !hasAnyPressures) {
+        const seed = campaignId * 7;
+        const shuffled = [...SUGGESTED_PRESSURES_POOL].sort((a, b) => {
+          const ha = (seed + a.name.length) % 100;
+          const hb = (seed + b.name.length) % 100;
+          return ha - hb;
+        });
+        suggestedPressures = shuffled.slice(0, 3);
+      }
+
+      const seed2 = (campaignId * 13) % PROACTIVE_WORLD_EVENTS.length;
+      const suggestedWorldEvents = [];
+      for (let i = 0; i < 2; i++) {
+        suggestedWorldEvents.push(PROACTIVE_WORLD_EVENTS[(seed2 + i) % PROACTIVE_WORLD_EVENTS.length]);
+      }
+
       res.json({
         activePressures,
         stakes,
@@ -25434,11 +25530,187 @@ ALWAYS generate:
         rivalAgent,
         meterWorldEffects,
         dynamicClimax,
-        doNothingForecast: doNothingForecast.slice(0, 4),
+        doNothingForecast: doNothingForecast.slice(0, 5),
+        dmPressures,
+        dmClocks,
+        suggestedPressures,
+        suggestedWorldEvents,
       });
     } catch (error) {
       console.error("Failed to fetch world pressure:", error);
       res.status(500).json({ message: "Failed to fetch world pressure data" });
+    }
+  });
+
+  app.post("/api/campaigns/:id/dm-pressures", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+
+      const { pressure } = req.body;
+      if (!pressure || !pressure.name) return res.status(400).json({ message: "Pressure name required" });
+
+      const existing = (campaign as any).dmPressures || [];
+      const newPressure = {
+        id: `pressure-${Date.now()}`,
+        name: pressure.name,
+        stage: pressure.stage ?? 1,
+        maxStages: pressure.maxStages ?? 5,
+        trigger: pressure.trigger || "",
+        daysToAdvance: pressure.daysToAdvance ?? 0,
+        createdAt: new Date().toISOString(),
+      };
+      const updated = [...existing, newPressure];
+      await storage.updateCampaign(campaignId, { dmPressures: updated } as any);
+      res.json(newPressure);
+    } catch (error) {
+      console.error("Failed to add DM pressure:", error);
+      res.status(500).json({ message: "Failed to add pressure" });
+    }
+  });
+
+  app.patch("/api/campaigns/:id/dm-pressures/:pressureId", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const pressureId = req.params.pressureId;
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+
+      const existing = (campaign as any).dmPressures || [];
+      const updates = req.body;
+      const updated = existing.map((p: any) => p.id === pressureId ? { ...p, ...updates } : p);
+      await storage.updateCampaign(campaignId, { dmPressures: updated } as any);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to update DM pressure:", error);
+      res.status(500).json({ message: "Failed to update pressure" });
+    }
+  });
+
+  app.delete("/api/campaigns/:id/dm-pressures/:pressureId", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const pressureId = req.params.pressureId;
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+
+      const existing = (campaign as any).dmPressures || [];
+      const updated = existing.filter((p: any) => p.id !== pressureId);
+      await storage.updateCampaign(campaignId, { dmPressures: updated } as any);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete DM pressure:", error);
+      res.status(500).json({ message: "Failed to delete pressure" });
+    }
+  });
+
+  app.post("/api/campaigns/:id/dm-clocks", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+
+      const { clock } = req.body;
+      if (!clock || !clock.name) return res.status(400).json({ message: "Clock name required" });
+
+      const existing = (campaign as any).dmClocks || [];
+      const newClock = {
+        id: `clock-${Date.now()}`,
+        name: clock.name,
+        stage: clock.stage ?? 0,
+        maxStages: clock.maxStages ?? 5,
+        trigger: clock.trigger || "",
+        daysToAdvance: clock.daysToAdvance ?? 0,
+        createdAt: new Date().toISOString(),
+      };
+      const updated = [...existing, newClock];
+      await storage.updateCampaign(campaignId, { dmClocks: updated } as any);
+      res.json(newClock);
+    } catch (error) {
+      console.error("Failed to add DM clock:", error);
+      res.status(500).json({ message: "Failed to add clock" });
+    }
+  });
+
+  app.patch("/api/campaigns/:id/dm-clocks/:clockId", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const clockId = req.params.clockId;
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+
+      const existing = (campaign as any).dmClocks || [];
+      const updates = req.body;
+      const updated = existing.map((c: any) => c.id === clockId ? { ...c, ...updates } : c);
+      await storage.updateCampaign(campaignId, { dmClocks: updated } as any);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to update DM clock:", error);
+      res.status(500).json({ message: "Failed to update clock" });
+    }
+  });
+
+  app.delete("/api/campaigns/:id/dm-clocks/:clockId", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const clockId = req.params.clockId;
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+
+      const existing = (campaign as any).dmClocks || [];
+      const updated = existing.filter((c: any) => c.id !== clockId);
+      await storage.updateCampaign(campaignId, { dmClocks: updated } as any);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete DM clock:", error);
+      res.status(500).json({ message: "Failed to delete clock" });
+    }
+  });
+
+  app.post("/api/campaigns/:id/spark", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+
+      const { sparkType } = req.body;
+      const template = SPARK_TEMPLATES[sparkType];
+      if (!template) return res.status(400).json({ message: "Invalid spark type" });
+
+      const existingPressures = (campaign as any).dmPressures || [];
+      const existingClocks = (campaign as any).dmClocks || [];
+
+      const newPressures = template.pressures.map((p: any, i: number) => ({
+        id: `pressure-spark-${Date.now()}-${i}`,
+        ...p,
+        createdAt: new Date().toISOString(),
+        source: "spark",
+      }));
+
+      const newClocks = template.pressures.map((p: any, i: number) => ({
+        id: `clock-spark-${Date.now()}-${i}`,
+        name: p.name,
+        stage: p.stage,
+        maxStages: p.maxStages,
+        trigger: p.trigger,
+        daysToAdvance: p.daysToAdvance,
+        createdAt: new Date().toISOString(),
+      }));
+
+      await storage.updateCampaign(campaignId, {
+        dmPressures: [...existingPressures, ...newPressures],
+        dmClocks: [...existingClocks, ...newClocks],
+      } as any);
+
+      res.json({
+        pressures: newPressures,
+        clocks: newClocks,
+        hiddenVariable: template.hiddenVariable,
+      });
+    } catch (error) {
+      console.error("Failed to apply spark:", error);
+      res.status(500).json({ message: "Failed to apply spark" });
     }
   });
 

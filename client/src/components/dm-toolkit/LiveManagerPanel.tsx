@@ -210,6 +210,41 @@ interface ArcSignal {
   summary: string;
 }
 
+interface DMPressure {
+  id: string;
+  name: string;
+  stage: number;
+  maxStages: number;
+  trigger: string;
+  daysToAdvance: number;
+  createdAt: string;
+  source?: string;
+}
+
+interface DMClock {
+  id: string;
+  name: string;
+  stage: number;
+  maxStages: number;
+  trigger: string;
+  daysToAdvance: number;
+  createdAt: string;
+}
+
+interface SuggestedPressure {
+  name: string;
+  stage: number;
+  maxStages: number;
+  trigger: string;
+  daysToAdvance: number;
+}
+
+interface SuggestedWorldEvent {
+  title: string;
+  description: string;
+  impact: string;
+}
+
 interface WorldPressureData {
   activePressures: string[];
   stakes: { name: string; value: number; maxValue: number }[];
@@ -219,28 +254,153 @@ interface WorldPressureData {
   meterWorldEffects: any;
   dynamicClimax: any;
   doNothingForecast: string[];
+  dmPressures: DMPressure[];
+  dmClocks: DMClock[];
+  suggestedPressures: SuggestedPressure[];
+  suggestedWorldEvents: SuggestedWorldEvent[];
 }
+
+function ClockDisplay({ clock, onAdvance, onRemove }: { clock: DMClock; onAdvance?: () => void; onRemove?: () => void }) {
+  const isNearComplete = clock.stage >= clock.maxStages - 1;
+  const isComplete = clock.stage >= clock.maxStages;
+
+  return (
+    <div className={`p-2 rounded-lg border ${isNearComplete ? 'border-red-500/30 bg-red-500/5' : 'border-slate-700 bg-slate-800/50'}`}>
+      <div className="flex items-center gap-2 mb-1.5">
+        <Clock className={`h-3.5 w-3.5 flex-shrink-0 ${isNearComplete ? 'text-red-400' : 'text-amber-400'}`} />
+        <span className="text-xs font-medium flex-1 truncate">{clock.name}</span>
+        <div className="flex gap-1">
+          {onAdvance && !isComplete && (
+            <button onClick={onAdvance} className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors" title="Advance clock">+1</button>
+          )}
+          {onRemove && (
+            <button onClick={onRemove} className="text-[10px] px-1 py-0.5 rounded text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Remove">x</button>
+          )}
+        </div>
+      </div>
+      <div className="flex gap-0.5 mb-1">
+        {Array.from({ length: clock.maxStages }).map((_, j) => (
+          <div key={j} className={`h-2.5 flex-1 rounded-sm transition-colors ${
+            j < clock.stage
+              ? (clock.stage >= clock.maxStages - 1 ? 'bg-red-400' : clock.stage >= Math.ceil(clock.maxStages / 2) ? 'bg-amber-400' : 'bg-emerald-400')
+              : 'bg-slate-700'
+          }`} />
+        ))}
+      </div>
+      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+        <span>Stage {clock.stage}/{clock.maxStages}</span>
+        {clock.daysToAdvance > 0 && (
+          <span className={isNearComplete ? 'text-red-400' : 'text-amber-400/70'}>
+            Advances in {clock.daysToAdvance}d
+          </span>
+        )}
+      </div>
+      {clock.trigger && (
+        <p className="text-[10px] text-muted-foreground/70 mt-0.5 italic">Trigger: {clock.trigger}</p>
+      )}
+    </div>
+  );
+}
+
+const SPARK_OPTIONS = [
+  { key: "political", label: "Political Intrigue", icon: Crown, color: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20 hover:bg-yellow-500/20" },
+  { key: "natural", label: "Natural Disaster", icon: Flame, color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20" },
+  { key: "faction", label: "Faction Conflict", icon: Swords, color: "text-red-400 bg-red-500/10 border-red-500/20 hover:bg-red-500/20" },
+  { key: "religious", label: "Religious Tension", icon: BookOpen, color: "text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20" },
+  { key: "criminal", label: "Criminal Underworld", icon: EyeOff, color: "text-slate-300 bg-slate-500/10 border-slate-500/20 hover:bg-slate-500/20" },
+  { key: "arcane", label: "Arcane Anomaly", icon: Sparkles, color: "text-purple-400 bg-purple-500/10 border-purple-500/20 hover:bg-purple-500/20" },
+];
 
 function WorldPressureOverview({ campaignId }: { campaignId: number | null }) {
   const [expanded, setExpanded] = useState(true);
+  const [showAddPressure, setShowAddPressure] = useState(false);
+  const [showAddClock, setShowAddClock] = useState(false);
+  const [showSparks, setShowSparks] = useState(false);
+  const [newPressureName, setNewPressureName] = useState("");
+  const [newPressureTrigger, setNewPressureTrigger] = useState("");
+  const [newClockName, setNewClockName] = useState("");
+  const [newClockTrigger, setNewClockTrigger] = useState("");
+  const [newClockStages, setNewClockStages] = useState(5);
+  const [newClockDays, setNewClockDays] = useState(3);
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   const { data: pressure, isLoading } = useQuery<WorldPressureData>({
     queryKey: ['/api/campaigns', campaignId, 'world-pressure'],
     enabled: !!campaignId,
     refetchInterval: 10000,
   });
 
+  const addPressureMutation = useMutation({
+    mutationFn: async (p: { name: string; trigger?: string; stage?: number; maxStages?: number; daysToAdvance?: number }) => {
+      const res = await apiRequest('POST', `/api/campaigns/${campaignId}/dm-pressures`, { pressure: p });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/campaigns', campaignId, 'world-pressure'] });
+      setNewPressureName(""); setNewPressureTrigger(""); setShowAddPressure(false);
+      toast({ title: "Pressure added", description: "Your world pressure is now active." });
+    },
+  });
+
+  const removePressureMutation = useMutation({
+    mutationFn: async (pressureId: string) => {
+      const res = await apiRequest('DELETE', `/api/campaigns/${campaignId}/dm-pressures/${pressureId}`);
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/campaigns', campaignId, 'world-pressure'] }),
+  });
+
+  const addClockMutation = useMutation({
+    mutationFn: async (c: { name: string; trigger?: string; maxStages?: number; daysToAdvance?: number; stage?: number }) => {
+      const res = await apiRequest('POST', `/api/campaigns/${campaignId}/dm-clocks`, { clock: c });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/campaigns', campaignId, 'world-pressure'] });
+      setNewClockName(""); setNewClockTrigger(""); setNewClockStages(5); setNewClockDays(3); setShowAddClock(false);
+      toast({ title: "Clock created", description: "Escalation clock is now ticking." });
+    },
+  });
+
+  const advanceClockMutation = useMutation({
+    mutationFn: async ({ clockId, newStage }: { clockId: string; newStage: number }) => {
+      const res = await apiRequest('PATCH', `/api/campaigns/${campaignId}/dm-clocks/${clockId}`, { stage: newStage });
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/campaigns', campaignId, 'world-pressure'] }),
+  });
+
+  const removeClockMutation = useMutation({
+    mutationFn: async (clockId: string) => {
+      const res = await apiRequest('DELETE', `/api/campaigns/${campaignId}/dm-clocks/${clockId}`);
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/campaigns', campaignId, 'world-pressure'] }),
+  });
+
+  const sparkMutation = useMutation({
+    mutationFn: async (sparkType: string) => {
+      const res = await apiRequest('POST', `/api/campaigns/${campaignId}/spark`, { sparkType });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/campaigns', campaignId, 'world-pressure'] });
+      setShowSparks(false);
+      toast({ title: "World disturbed", description: `${data.pressures?.length || 0} pressures and clocks seeded. A hidden variable stirs beneath the surface.` });
+    },
+  });
+
   if (!campaignId) return null;
 
-  const hasPressures = pressure && (
-    (pressure.activePressures?.length || 0) > 0 ||
-    (pressure.stakes?.length || 0) > 0 ||
-    (pressure.unresolvedThreads?.length || 0) > 0 ||
-    pressure.rivalAgent
-  );
-
+  const dmPressures = pressure?.dmPressures || [];
+  const dmClocks = pressure?.dmClocks || [];
+  const hasDMContent = dmPressures.length > 0 || dmClocks.length > 0;
   const criticalStakes = pressure?.stakes?.filter(s => s.value >= 4) || [];
   const highThreads = pressure?.unresolvedThreads?.filter(t => t.urgency === "high" || t.urgency === "critical") || [];
-  const urgencyCount = criticalStakes.length + highThreads.length;
+  const urgencyCount = criticalStakes.length + highThreads.length + dmClocks.filter(c => c.stage >= c.maxStages - 1).length;
+  const visibleSuggestions = (pressure?.suggestedPressures || []).filter(s => !dismissedSuggestions.has(s.name));
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
@@ -254,19 +414,143 @@ function WorldPressureOverview({ campaignId }: { campaignId: number | null }) {
                 {urgencyCount} critical
               </Badge>
             )}
+            {(dmPressures.length > 0 || dmClocks.length > 0) && (
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] bg-slate-600/50 text-slate-300 border-slate-500/30">
+                {dmPressures.length + dmClocks.length} active
+              </Badge>
+            )}
             {isLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground ml-auto" />}
             {!isLoading && (expanded ? <ChevronUp className="h-3 w-3 text-muted-foreground ml-auto" /> : <ChevronDown className="h-3 w-3 text-muted-foreground ml-auto" />)}
           </button>
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div className="px-2 pb-2 space-y-2">
-            {!hasPressures && !isLoading && (
-              <p className="text-xs text-muted-foreground text-center py-2">No active world pressures yet. Generate a CAML campaign to populate this.</p>
+            {/* DM's own clocks - always first and prominent */}
+            {dmClocks.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                  <Clock className="h-2.5 w-2.5" /> Your Clocks
+                </div>
+                {dmClocks.map(clock => (
+                  <ClockDisplay
+                    key={clock.id}
+                    clock={clock}
+                    onAdvance={() => advanceClockMutation.mutate({ clockId: clock.id, newStage: Math.min(clock.stage + 1, clock.maxStages) })}
+                    onRemove={() => removeClockMutation.mutate(clock.id)}
+                  />
+                ))}
+              </div>
             )}
 
+            {/* DM's own pressures */}
+            {dmPressures.length > 0 && (
+              <div className="space-y-1">
+                <div className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                  <Flame className="h-2.5 w-2.5" /> Your Pressures
+                </div>
+                {dmPressures.map(p => (
+                  <div key={p.id} className="flex items-center gap-2 text-xs group">
+                    <Flame className="h-3 w-3 text-orange-400 flex-shrink-0" />
+                    <span className="flex-1 truncate">{p.name}</span>
+                    {p.daysToAdvance > 0 && <span className="text-[10px] text-muted-foreground">{p.daysToAdvance}d</span>}
+                    <button onClick={() => removePressureMutation.mutate(p.id)} className="opacity-0 group-hover:opacity-100 text-[10px] text-slate-500 hover:text-red-400 transition-all">x</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Primary actions: Create your own */}
+            <div className="flex gap-1.5 flex-wrap">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20"
+                onClick={() => { setShowAddPressure(!showAddPressure); setShowAddClock(false); }}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add Pressure
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20"
+                onClick={() => { setShowAddClock(!showAddClock); setShowAddPressure(false); }}
+              >
+                <Clock className="h-3 w-3 mr-1" />
+                Add Clock
+              </Button>
+            </div>
+
+            {/* Add Pressure Form */}
+            {showAddPressure && (
+              <div className="p-2 rounded-lg border border-amber-500/30 bg-slate-800/70 space-y-2">
+                <Input
+                  placeholder="What's happening in the world?"
+                  value={newPressureName}
+                  onChange={(e) => setNewPressureName(e.target.value)}
+                  className="h-8 text-xs bg-slate-900/50 border-slate-600"
+                  autoFocus
+                />
+                <Input
+                  placeholder="What triggers escalation? (optional)"
+                  value={newPressureTrigger}
+                  onChange={(e) => setNewPressureTrigger(e.target.value)}
+                  className="h-8 text-xs bg-slate-900/50 border-slate-600"
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" className="flex-1 h-7 text-xs bg-amber-500/20 border-amber-500/30 text-amber-400 hover:bg-amber-500/30" variant="outline"
+                    onClick={() => addPressureMutation.mutate({ name: newPressureName, trigger: newPressureTrigger })}
+                    disabled={!newPressureName.trim() || addPressureMutation.isPending}
+                  >
+                    {addPressureMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Add"}
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowAddPressure(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+
+            {/* Add Clock Form */}
+            {showAddClock && (
+              <div className="p-2 rounded-lg border border-red-500/30 bg-slate-800/70 space-y-2">
+                <Input
+                  placeholder="What's counting down? (e.g., 'Cult Ritual')"
+                  value={newClockName}
+                  onChange={(e) => setNewClockName(e.target.value)}
+                  className="h-8 text-xs bg-slate-900/50 border-slate-600"
+                  autoFocus
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] text-muted-foreground">Stages</label>
+                    <Input type="number" min={2} max={10} value={newClockStages} onChange={e => setNewClockStages(parseInt(e.target.value) || 5)} className="h-7 text-xs bg-slate-900/50 border-slate-600" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground">Days to advance</label>
+                    <Input type="number" min={0} max={30} value={newClockDays} onChange={e => setNewClockDays(parseInt(e.target.value) || 0)} className="h-7 text-xs bg-slate-900/50 border-slate-600" />
+                  </div>
+                </div>
+                <Input
+                  placeholder="What advances it? (optional)"
+                  value={newClockTrigger}
+                  onChange={(e) => setNewClockTrigger(e.target.value)}
+                  className="h-8 text-xs bg-slate-900/50 border-slate-600"
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" className="flex-1 h-7 text-xs bg-red-500/20 border-red-500/30 text-red-400 hover:bg-red-500/30" variant="outline"
+                    onClick={() => addClockMutation.mutate({ name: newClockName, trigger: newClockTrigger, maxStages: newClockStages, daysToAdvance: newClockDays })}
+                    disabled={!newClockName.trim() || addClockMutation.isPending}
+                  >
+                    {addClockMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Create Clock"}
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowAddClock(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+
+            {/* Campaign stakes from CAML data */}
             {pressure?.stakes && pressure.stakes.length > 0 && (
               <div className="space-y-1">
-                <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Stakes</div>
+                <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Campaign Stakes</div>
                 {pressure.stakes.map((stake, i) => (
                   <div key={i} className="flex items-center gap-2">
                     <Gauge className={`h-3 w-3 flex-shrink-0 ${stake.value >= 4 ? 'text-red-400' : stake.value >= 2 ? 'text-amber-400' : 'text-green-400'}`} />
@@ -320,6 +604,59 @@ function WorldPressureOverview({ campaignId }: { campaignId: number | null }) {
                 ))}
               </div>
             )}
+
+            {/* Suggested pressures - only when DM has created nothing */}
+            {visibleSuggestions.length > 0 && !hasDMContent && (
+              <div className="space-y-1.5 pt-1 border-t border-dashed border-slate-700">
+                <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                  <Sparkles className="h-2.5 w-2.5" /> Suggested — adopt or dismiss
+                </div>
+                {visibleSuggestions.map((sp, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs group p-1.5 rounded bg-slate-800/30 border border-dashed border-slate-700">
+                    <Flame className="h-3 w-3 text-slate-500 flex-shrink-0" />
+                    <span className="flex-1 text-slate-400 truncate">{sp.name}</span>
+                    <button
+                      className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                      onClick={() => addPressureMutation.mutate({ name: sp.name, trigger: sp.trigger, stage: sp.stage, maxStages: sp.maxStages, daysToAdvance: sp.daysToAdvance })}
+                    >Adopt</button>
+                    <button
+                      className="text-[10px] px-1 py-0.5 rounded text-slate-500 hover:text-red-400 transition-colors"
+                      onClick={() => setDismissedSuggestions(prev => new Set(prev).add(sp.name))}
+                    >x</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Need inspiration? - Spark buttons */}
+            <Collapsible open={showSparks} onOpenChange={setShowSparks}>
+              <CollapsibleTrigger asChild>
+                <button className="w-full text-left text-[10px] text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1 pt-1">
+                  <Sparkles className="h-2.5 w-2.5" />
+                  {showSparks ? "Hide inspiration" : "Need inspiration? Choose a spark to disturb the world"}
+                  {showSparks ? <ChevronUp className="h-2.5 w-2.5 ml-auto" /> : <ChevronDown className="h-2.5 w-2.5 ml-auto" />}
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="grid grid-cols-2 gap-1.5 pt-1.5">
+                  {SPARK_OPTIONS.map(spark => {
+                    const SparkIcon = spark.icon;
+                    return (
+                      <button
+                        key={spark.key}
+                        className={`flex items-center gap-1.5 p-2 rounded-lg border text-xs font-medium transition-all ${spark.color}`}
+                        onClick={() => sparkMutation.mutate(spark.key)}
+                        disabled={sparkMutation.isPending}
+                      >
+                        {sparkMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <SparkIcon className="h-3 w-3" />}
+                        {spark.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-slate-600 mt-1.5 text-center">One tap seeds 2 clocks + 1 hidden variable — fully editable</p>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         </CollapsibleContent>
       </div>
@@ -550,6 +887,12 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
   }>({
     queryKey: [`/api/campaigns/${selectedCampaignId}`],
     enabled: !!selectedCampaignId,
+  });
+
+  const { data: worldPressureData } = useQuery<WorldPressureData>({
+    queryKey: ['/api/campaigns', selectedCampaignId, 'world-pressure'],
+    enabled: !!selectedCampaignId,
+    refetchInterval: 10000,
   });
 
   const sendDmMessageMutation = useMutation({
@@ -1608,6 +1951,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                     onAddEvent={handleAddEvent}
                     onReorder={handleReorderEvents}
                     isProcessing={processingEventId}
+                    suggestedWorldEvents={worldPressureData?.suggestedWorldEvents}
                   />
                 </TabsContent>
 
