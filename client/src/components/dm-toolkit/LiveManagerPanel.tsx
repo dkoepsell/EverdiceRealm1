@@ -98,7 +98,7 @@ interface LiveManagerPanelProps {
 
 interface DraggableEntity {
   id: string;
-  type: "npc" | "item" | "encounter" | "location" | "monster" | "quest";
+  type: "npc" | "character" | "item" | "encounter" | "location" | "monster" | "quest";
   name: string;
   data: any;
 }
@@ -148,6 +148,7 @@ function DraggableItem({ entity }: { entity: DraggableEntity }) {
   const getIcon = () => {
     switch (entity.type) {
       case "npc": return <Users className="h-4 w-4" />;
+      case "character": return <Shield className="h-4 w-4" />;
       case "item": return <Package className="h-4 w-4" />;
       case "encounter": return <Sword className="h-4 w-4" />;
       case "location": return <MapPin className="h-4 w-4" />;
@@ -159,14 +160,26 @@ function DraggableItem({ entity }: { entity: DraggableEntity }) {
 
   const getTypeColor = () => {
     switch (entity.type) {
-      case "npc": return "bg-blue-100 text-blue-700 border-blue-200";
-      case "item": return "bg-amber-100 text-amber-700 border-amber-200";
-      case "encounter": return "bg-red-100 text-red-700 border-red-200";
-      case "location": return "bg-green-100 text-green-700 border-green-200";
-      case "monster": return "bg-purple-100 text-purple-700 border-purple-200";
-      case "quest": return "bg-orange-100 text-orange-700 border-orange-200";
-      default: return "bg-gray-100 text-gray-700 border-gray-200";
+      case "npc": return "bg-blue-500/10 text-blue-300 border-blue-500/30 hover:bg-blue-500/20";
+      case "character": return "bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20";
+      case "item": return "bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20";
+      case "encounter": return "bg-red-500/10 text-red-300 border-red-500/30 hover:bg-red-500/20";
+      case "location": return "bg-green-500/10 text-green-300 border-green-500/30 hover:bg-green-500/20";
+      case "monster": return "bg-purple-500/10 text-purple-300 border-purple-500/30 hover:bg-purple-500/20";
+      case "quest": return "bg-orange-500/10 text-orange-300 border-orange-500/30 hover:bg-orange-500/20";
+      default: return "bg-slate-500/10 text-slate-300 border-slate-500/30 hover:bg-slate-500/20";
     }
+  };
+
+  const getSubtitle = () => {
+    if (entity.type === "npc") return entity.data?.race || entity.data?.role || "NPC";
+    if (entity.type === "character") return `Lv${entity.data?.level || '?'} ${entity.data?.class || entity.data?.characterClass || ''}`;
+    if (entity.type === "monster") return entity.data?.challengeRating ? `CR ${entity.data.challengeRating}` : entity.data?.type || "Monster";
+    if (entity.type === "location") return entity.data?.type || "Location";
+    if (entity.type === "item") return entity.data?.type || entity.data?.rarity || "Item";
+    if (entity.type === "encounter") return entity.data?.difficulty || "Encounter";
+    if (entity.type === "quest") return entity.data?.status || "Quest";
+    return "";
   };
 
   return (
@@ -175,11 +188,16 @@ function DraggableItem({ entity }: { entity: DraggableEntity }) {
       style={style}
       {...listeners}
       {...attributes}
-      className={`flex items-center gap-2 p-2 rounded-lg border cursor-grab active:cursor-grabbing hover:bg-muted/50 transition-colors ${getTypeColor()}`}
+      className={`flex items-center gap-2.5 p-2 rounded-lg border cursor-grab active:cursor-grabbing transition-colors ${getTypeColor()}`}
     >
-      <GripVertical className="h-3 w-3 opacity-50" />
+      <GripVertical className="h-3.5 w-3.5 opacity-40 flex-shrink-0" />
       {getIcon()}
-      <span className="text-sm font-medium truncate flex-1">{entity.name}</span>
+      <div className="flex-1 min-w-0">
+        <span className="text-sm font-medium truncate block">{entity.name}</span>
+        {getSubtitle() && (
+          <span className="text-[10px] opacity-60 truncate block">{getSubtitle()}</span>
+        )}
+      </div>
     </div>
   );
 }
@@ -761,7 +779,7 @@ function ArcSignalsPanel({ campaignId }: { campaignId: number | null }) {
 export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPanelProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarTab, setSidebarTab] = useState("npcs");
   const [dmMessage, setDmMessage] = useState("");
   const [messageType, setMessageType] = useState<"narration" | "ooc" | "system">("narration");
@@ -1448,146 +1466,198 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
       )}
 
       <div className="flex h-[calc(100vh-260px)] gap-3 pb-8">
-        {/* Collapsible Summon Drawer - Collapsed by default */}
+        {/* Cast & World Panel - The DM's entity library */}
         <div
           className={`transition-all duration-300 ${
-            sidebarOpen ? "w-64" : "w-10"
+            sidebarOpen ? "w-72" : "w-12"
           } flex-shrink-0`}
         >
-          <Card className={`h-full ${sidebarOpen ? '' : 'bg-muted/30 border-dashed'}`}>
-            <CardHeader className={`p-2 flex flex-row items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
-              {sidebarOpen && (
-                <div>
-                  <CardTitle className="text-xs font-medium">Summon</CardTitle>
-                </div>
+          <div className={`h-full rounded-xl overflow-hidden ${sidebarOpen ? 'border-2 border-blue-500/30 bg-slate-900/80' : 'border border-dashed border-slate-600 bg-muted/20'}`}>
+            {/* Header */}
+            <div
+              className={`flex items-center gap-2 cursor-pointer select-none ${
+                sidebarOpen
+                  ? 'px-3 py-2.5 bg-gradient-to-r from-blue-500/15 via-blue-500/10 to-transparent border-b border-blue-500/20'
+                  : 'flex-col py-3 px-1'
+              }`}
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              {sidebarOpen ? (
+                <>
+                  <div className="flex items-center justify-center w-6 h-6 rounded-md bg-blue-500/20 border border-blue-500/30">
+                    <Package className="h-3.5 w-3.5 text-blue-400" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-sm font-bold tracking-wide text-blue-300 uppercase">Cast & World</span>
+                    <span className="text-[10px] text-blue-400/50 ml-2">Drag to table</span>
+                  </div>
+                  <ChevronLeft className="h-4 w-4 text-blue-400/60" />
+                </>
+              ) : (
+                <>
+                  <Package className="h-4 w-4 text-blue-400/70 mb-1" />
+                  <span className="text-[9px] font-bold text-blue-400/70 uppercase tracking-wider writing-mode-vertical" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
+                    Cast & World
+                  </span>
+                  <ChevronRight className="h-3 w-3 text-blue-400/40 mt-1" />
+                </>
               )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                title={sidebarOpen ? "Collapse" : "Open Cast & World"}
-              >
-                {sidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <Users className="h-4 w-4" />}
-              </Button>
-            </CardHeader>
+            </div>
             
             {sidebarOpen && (
-              <CardContent className="p-2 h-[calc(100%-50px)]">
+              <div className="p-2 h-[calc(100%-46px)]">
                 <Tabs value={sidebarTab} onValueChange={setSidebarTab}>
-                  {/* Core tabs: People, Places, Threats, Map */}
-                  <TabsList className="grid w-full grid-cols-4 h-7 mb-2">
-                    <TabsTrigger value="npcs" className="text-xs p-1 gap-1" title="People">
+                  <TabsList className="grid w-full grid-cols-4 h-8 mb-2 bg-slate-800/80">
+                    <TabsTrigger value="npcs" className="text-[11px] p-1 gap-1 data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300" title="People & Characters">
                       <Users className="h-3 w-3" />
+                      <span className="hidden sm:inline">People</span>
                     </TabsTrigger>
-                    <TabsTrigger value="locations" className="text-xs p-1 gap-1" title="Places">
+                    <TabsTrigger value="locations" className="text-[11px] p-1 gap-1 data-[state=active]:bg-green-500/20 data-[state=active]:text-green-300" title="Places & Locations">
                       <MapPin className="h-3 w-3" />
+                      <span className="hidden sm:inline">Places</span>
                     </TabsTrigger>
-                    <TabsTrigger value="monsters" className="text-xs p-1 gap-1" title="Threats">
+                    <TabsTrigger value="monsters" className="text-[11px] p-1 gap-1 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300" title="Monsters & Threats">
                       <Skull className="h-3 w-3" />
+                      <span className="hidden sm:inline">Threats</span>
                     </TabsTrigger>
-                    <TabsTrigger value="map" className="text-xs p-1 gap-1" title="Map">
+                    <TabsTrigger value="map" className="text-[11px] p-1 gap-1 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-300" title="Exploration Map">
                       <Map className="h-3 w-3" />
+                      <span className="hidden sm:inline">Map</span>
                     </TabsTrigger>
                   </TabsList>
 
                   <ScrollArea className="h-[calc(100%-50px)] mt-2">
-                    <div className="space-y-2 pr-2">
+                    <div className="space-y-1.5 pr-2">
+                      {/* Party Characters - always show on People tab */}
+                      {sidebarTab === "npcs" && participants && participants.filter((p: any) => p.character).length > 0 && (
+                        <>
+                          <div className="text-[11px] font-bold text-emerald-400/80 flex items-center gap-1.5 mt-1 mb-1 uppercase tracking-wider">
+                            <Shield className="h-3 w-3" /> Party Characters
+                          </div>
+                          {participants.filter((p: any) => p.character).map((p: any) => (
+                            <DraggableItem
+                              key={`char-${p.character.id}`}
+                              entity={{
+                                id: `character-${p.character.id}`,
+                                type: "character" as const,
+                                name: p.character.name,
+                                data: p.character,
+                              }}
+                            />
+                          ))}
+                          <Separator className="my-2 bg-slate-700/50" />
+                        </>
+                      )}
+
                       {/* CAML Entities Section */}
                       {(sidebarTab === "npcs" && camlNpcs.length > 0) && (
                         <>
-                          <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1 mt-2">
-                            <Sparkles className="h-3 w-3" /> From Campaign
+                          <div className="text-[11px] font-bold text-amber-400/80 flex items-center gap-1.5 mt-1 mb-1 uppercase tracking-wider">
+                            <Sparkles className="h-3 w-3" /> Campaign NPCs
                           </div>
                           {camlNpcs.map((entity) => (
                             <DraggableItem key={entity.id} entity={entity} />
                           ))}
-                          <Separator className="my-2" />
+                          <Separator className="my-2 bg-slate-700/50" />
                         </>
                       )}
                       {(sidebarTab === "items" && camlItems.length > 0) && (
                         <>
-                          <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1 mt-2">
-                            <Sparkles className="h-3 w-3" /> From Campaign
+                          <div className="text-[11px] font-bold text-amber-400/80 flex items-center gap-1.5 mt-1 mb-1 uppercase tracking-wider">
+                            <Sparkles className="h-3 w-3" /> Campaign Items
                           </div>
                           {camlItems.map((entity) => (
                             <DraggableItem key={entity.id} entity={entity} />
                           ))}
-                          <Separator className="my-2" />
+                          <Separator className="my-2 bg-slate-700/50" />
                         </>
                       )}
                       {(sidebarTab === "encounters" && camlEncounters.length > 0) && (
                         <>
-                          <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1 mt-2">
-                            <Sparkles className="h-3 w-3" /> From Campaign
+                          <div className="text-[11px] font-bold text-amber-400/80 flex items-center gap-1.5 mt-1 mb-1 uppercase tracking-wider">
+                            <Sparkles className="h-3 w-3" /> Campaign Encounters
                           </div>
                           {camlEncounters.map((entity) => (
                             <DraggableItem key={entity.id} entity={entity} />
                           ))}
-                          <Separator className="my-2" />
+                          <Separator className="my-2 bg-slate-700/50" />
                         </>
                       )}
                       {(sidebarTab === "locations" && camlLocations.length > 0) && (
                         <>
-                          <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1 mt-2">
-                            <Sparkles className="h-3 w-3" /> From Campaign
+                          <div className="text-[11px] font-bold text-amber-400/80 flex items-center gap-1.5 mt-1 mb-1 uppercase tracking-wider">
+                            <Sparkles className="h-3 w-3" /> Campaign Locations
                           </div>
                           {camlLocations.map((entity) => (
                             <DraggableItem key={entity.id} entity={entity} />
                           ))}
-                          <Separator className="my-2" />
+                          <Separator className="my-2 bg-slate-700/50" />
                         </>
                       )}
                       {(sidebarTab === "quests" && camlQuests.length > 0) && (
                         <>
-                          <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1 mt-2">
-                            <Sparkles className="h-3 w-3" /> From Campaign
+                          <div className="text-[11px] font-bold text-amber-400/80 flex items-center gap-1.5 mt-1 mb-1 uppercase tracking-wider">
+                            <Sparkles className="h-3 w-3" /> Campaign Quests
                           </div>
                           {camlQuests.map((entity) => (
                             <DraggableItem key={entity.id} entity={entity} />
                           ))}
-                          <Separator className="my-2" />
+                          <Separator className="my-2 bg-slate-700/50" />
                         </>
                       )}
 
                       {/* Database Entities */}
-                      <div className="text-xs font-semibold text-muted-foreground mt-2">
-                        Library
-                      </div>
-                      {buildEntityList(sidebarTab).map((entity) => (
-                        <DraggableItem key={entity.id} entity={entity} />
-                      ))}
+                      {sidebarTab !== "map" && (
+                        <>
+                          <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1.5 mt-1 mb-1 uppercase tracking-wider">
+                            Library
+                          </div>
+                          {buildEntityList(sidebarTab).map((entity) => (
+                            <DraggableItem key={entity.id} entity={entity} />
+                          ))}
+                        </>
+                      )}
                       
                       {buildEntityList(sidebarTab).length === 0 && sidebarTab !== "map" && (
-                        <p className="text-xs text-muted-foreground text-center py-4">
-                          No {sidebarTab} available
-                        </p>
+                        <div className="text-center py-6 px-2">
+                          <div className="text-muted-foreground/40 mb-2">
+                            {sidebarTab === "npcs" && <Users className="h-8 w-8 mx-auto" />}
+                            {sidebarTab === "locations" && <MapPin className="h-8 w-8 mx-auto" />}
+                            {sidebarTab === "monsters" && <Skull className="h-8 w-8 mx-auto" />}
+                          </div>
+                          <p className="text-xs text-muted-foreground/60">
+                            No {sidebarTab === "npcs" ? "NPCs" : sidebarTab === "monsters" ? "monsters" : sidebarTab} in your library yet
+                          </p>
+                          <p className="text-[10px] text-muted-foreground/40 mt-1">
+                            Create them in the DM Toolkit generators
+                          </p>
+                        </div>
                       )}
                       
                       {/* Map Tab Content */}
                       {sidebarTab === "map" && selectedCampaignId && (
                         <div className="space-y-2">
-                          <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                          <div className="text-[11px] font-bold text-amber-400/80 flex items-center gap-1.5 uppercase tracking-wider">
                             <Map className="h-3 w-3" /> Live Exploration Map
                           </div>
-                          <div className="h-48 border rounded border-slate-700 overflow-hidden">
+                          <div className="h-48 border rounded-lg border-slate-700 overflow-hidden">
                             <ProceduralExplorationMap 
                               campaignId={selectedCampaignId} 
                               interactive={true}
                               compact={true}
                             />
                           </div>
-                          <p className="text-xs text-muted-foreground text-center">
-                            Click adjacent hexes to move party. Full editor in Map Builder tab.
+                          <p className="text-[10px] text-muted-foreground/60 text-center">
+                            Click adjacent hexes to move party
                           </p>
                         </div>
                       )}
                     </div>
                   </ScrollArea>
                 </Tabs>
-              </CardContent>
+              </div>
             )}
-          </Card>
+          </div>
         </div>
 
         {/* Main Content Area - Current Scene is dominant */}
