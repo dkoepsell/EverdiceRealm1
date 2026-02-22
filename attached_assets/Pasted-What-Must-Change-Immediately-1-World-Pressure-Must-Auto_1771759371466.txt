@@ -1,0 +1,172 @@
+What Must Change Immediately
+1. World Pressure Must Auto-Seed
+
+Even in an empty campaign.
+
+Even in a demo.
+
+Always show:
+
+🔥 2–3 Pressures Active
+
+Examples:
+
+Bandit activity rising on trade roads
+
+Local noble consolidating power
+
+Cult rumor spreading
+
+Weather anomaly approaching
+
+Merchant guild strike brewing
+
+Even if these are generic templates.
+
+A DM opening the workspace must see:
+
+Something is happening.
+
+Never blank.
+
+2. Replace “No active pressures” With a Prompted Hook
+
+Instead of:
+
+No active world pressures yet.
+
+Use:
+
+The world is currently stable.
+Choose a spark to disturb it:
+
+Buttons:
+
+Political intrigue
+
+Natural disaster
+
+Faction conflict
+
+Religious tension
+
+Criminal underworld
+
+Arcane anomaly
+
+One click = engine seeds 2 clocks and 1 hidden variable.
+
+That reduces blank-page paralysis.
+
+3. Your Biggest Miss: No Clocks
+
+Your system is state-driven.
+
+Where are the clocks?
+
+DMs understand:
+
+Progress tracks
+
+Countdown timers
+
+Escalation tracks
+
+Right now World Pressure is conceptual.
+
+It needs visible escalation mechanics.
+
+Example:
+
+Cult Ritual
+Stage 1 ███░░
+Advances in 2 in-game days
+Triggered by: player absence in region
+
+Now the DM sees something to manage.
+
+4. Emerging Consequences Is Strong — But Too Reactive
+
+Right now the right panel is reactive to player actions.
+
+Good.
+
+But you need:
+
+Proactive world forces.
+
+There should be items there that:
+
+Players did not trigger
+
+Are moving anyway
+
+That’s what makes it feel alive.
+
+What You’re Very Close To
+
+You are one UX layer away from:
+
+The first consequence-aware DM engine.
+
+Your ontology mindset is correct.
+Your state architecture is correct.
+
+The issue is:
+
+You’re surfacing structure.
+You need to surface tension.
+
+If I Redesigned Just This Screen
+
+Top:
+World Pressure (always populated, always moving)
+
+Center:
+Scene with:
+
+Stakes
+
+Who is present
+
+Hidden tension
+
+What could go wrong
+
+Right:
+Emerging Consequences + World Events advancing offscreen
+
+Bottom:
+DM Controls (collapsed by default)
+
+The Retention Trigger
+
+The moment a DM sees:
+
+The cult will complete stage 2 if the party ignores the ruins.
+
+They feel:
+
+Urgency
+
+Ownership
+
+Power
+
+Right now they feel:
+
+Configuration
+
+That difference determines return rate.
+
+Brutal Truth
+
+You are building a structural ontology-backed living world engine.
+
+But your UI still feels like:
+
+A tool to assemble narrative components.
+
+You need to fully commit to:
+
+Worlds that move even if the players don’t.
