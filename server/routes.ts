@@ -79,7 +79,7 @@ import { recordPurchase, recordSale, getItemPrice, getSellPrice } from "./econom
 import { generateWorldEvents, aggregateDiscoveries } from "./lib/worldEventEngine";
 import { generatePostCombatRewards, type PostCombatRewards, type DefeatedEnemy } from "./postCombatRewards";
 import { db } from "./db";
-import { eq, sql, desc, and, gte } from "drizzle-orm";
+import { eq, sql, desc, and, gte, isNull } from "drizzle-orm";
 import OpenAI from "openai";
 import { getXPFromCR, calculateEncounterXP, QUEST_XP_REWARDS, getLevelFromXP, getXPToNextLevel } from "../shared/rules/xp";
 import { 
@@ -25343,6 +25343,105 @@ ALWAYS generate:
     }
   });
   
+  // ========== WORLD PRESSURE ==========
+
+  // Get world pressure data for a campaign (Live Session Manager)
+  app.get("/api/campaigns/:id/world-pressure", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+
+      const threads = await db.select().from(unresolvedThreads).where(
+        and(
+          eq(unresolvedThreads.campaignId, campaignId),
+          isNull(unresolvedThreads.resolvedAt)
+        )
+      );
+
+      const activePressures = (campaign as any).activePressures || [];
+      const campaignStakes = (campaign as any).campaignStakes || [];
+      const powerNetwork = (campaign as any).powerNetwork || null;
+      const rivalAgent = (campaign as any).rivalAgent || null;
+      const meterWorldEffects = (campaign as any).meterWorldEffects || null;
+      const dynamicClimax = (campaign as any).dynamicClimax || null;
+
+      const stakes = Array.isArray(campaignStakes)
+        ? campaignStakes.map((s: any) => ({
+            name: s.name || s.id || "Unknown",
+            value: s.value ?? 0,
+            maxValue: s.max ?? s.maxValue ?? 5,
+          }))
+        : [];
+
+      const unresolvedThreadsList = threads.map((t) => ({
+        id: t.id,
+        description: t.title || t.narrative,
+        urgency: t.urgency || "low",
+        createdAt: t.createdAt,
+      }));
+
+      const doNothingForecast: string[] = [];
+
+      for (const s of stakes) {
+        if (s.value >= 4) {
+          doNothingForecast.push(`${s.name} reaches critical threshold`);
+        }
+      }
+
+      if (rivalAgent && typeof rivalAgent === "object") {
+        const ra = rivalAgent as any;
+        if (ra.nextAction || ra.next_action) {
+          const name = ra.name || ra.id || "Unknown rival";
+          const action = ra.nextAction || ra.next_action;
+          doNothingForecast.push(`Rival ${name} advances: ${action}`);
+        }
+      }
+
+      if (powerNetwork && typeof powerNetwork === "object") {
+        const pn = powerNetwork as any;
+        const factions = Array.isArray(pn) ? pn : (pn.factions || pn.groups || []);
+        for (const f of factions) {
+          if (f.instability || f.unstable) {
+            doNothingForecast.push(`${f.name || f.id || "A faction"} grows more unstable`);
+          }
+        }
+      }
+
+      if (meterWorldEffects && typeof meterWorldEffects === "object") {
+        const effects = Array.isArray(meterWorldEffects) ? meterWorldEffects : Object.entries(meterWorldEffects);
+        if (effects.length > 0) {
+          const meterName = Array.isArray(meterWorldEffects)
+            ? (meterWorldEffects[0] as any)?.name || (meterWorldEffects[0] as any)?.meter || "a meter"
+            : String(effects[0]?.[0] || "a meter");
+          doNothingForecast.push(`Environment shifts as ${meterName} rises`);
+        }
+      }
+
+      for (const t of unresolvedThreadsList) {
+        if (t.urgency === "high" || t.urgency === "critical") {
+          doNothingForecast.push(`Unresolved: ${t.description} demands attention`);
+        }
+      }
+
+      res.json({
+        activePressures,
+        stakes,
+        unresolvedThreads: unresolvedThreadsList,
+        powerNetwork,
+        rivalAgent,
+        meterWorldEffects,
+        dynamicClimax,
+        doNothingForecast: doNothingForecast.slice(0, 4),
+      });
+    } catch (error) {
+      console.error("Failed to fetch world pressure:", error);
+      res.status(500).json({ message: "Failed to fetch world pressure data" });
+    }
+  });
+
   // ========== UNRESOLVED THREADS ==========
   
   // Get unresolved threads for a campaign

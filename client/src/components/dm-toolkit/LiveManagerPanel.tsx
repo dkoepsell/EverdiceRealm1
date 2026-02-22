@@ -47,6 +47,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Users,
   User,
   Bot,
@@ -60,6 +65,8 @@ import {
   Shield,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
+  ChevronUp,
   Plus,
   GripVertical,
   Clock,
@@ -75,6 +82,13 @@ import {
   Target,
   Swords,
   Map,
+  AlertTriangle,
+  TrendingUp,
+  Flame,
+  Eye,
+  EyeOff,
+  Activity,
+  Gauge,
 } from "lucide-react";
 import { ProceduralExplorationMap } from "@/components/dungeon/ProceduralExplorationMap";
 
@@ -196,6 +210,159 @@ interface ArcSignal {
   summary: string;
 }
 
+interface WorldPressureData {
+  activePressures: string[];
+  stakes: { name: string; value: number; maxValue: number }[];
+  unresolvedThreads: { id: number; description: string; urgency: string; createdAt: string }[];
+  powerNetwork: any;
+  rivalAgent: any;
+  meterWorldEffects: any;
+  dynamicClimax: any;
+  doNothingForecast: string[];
+}
+
+function WorldPressureOverview({ campaignId }: { campaignId: number | null }) {
+  const [expanded, setExpanded] = useState(true);
+  const { data: pressure, isLoading } = useQuery<WorldPressureData>({
+    queryKey: ['/api/campaigns', campaignId, 'world-pressure'],
+    enabled: !!campaignId,
+    refetchInterval: 10000,
+  });
+
+  if (!campaignId) return null;
+
+  const hasPressures = pressure && (
+    (pressure.activePressures?.length || 0) > 0 ||
+    (pressure.stakes?.length || 0) > 0 ||
+    (pressure.unresolvedThreads?.length || 0) > 0 ||
+    pressure.rivalAgent
+  );
+
+  const criticalStakes = pressure?.stakes?.filter(s => s.value >= 4) || [];
+  const highThreads = pressure?.unresolvedThreads?.filter(t => t.urgency === "high" || t.urgency === "critical") || [];
+  const urgencyCount = criticalStakes.length + highThreads.length;
+
+  return (
+    <Collapsible open={expanded} onOpenChange={setExpanded}>
+      <div className="mb-2 rounded-lg border border-red-500/20 bg-gradient-to-r from-red-500/5 via-amber-500/5 to-transparent overflow-hidden">
+        <CollapsibleTrigger asChild>
+          <button className="w-full flex items-center gap-2 p-2 hover:bg-red-500/5 transition-colors text-left">
+            <Activity className="h-4 w-4 text-red-400 flex-shrink-0" />
+            <span className="text-sm font-semibold text-red-400">World Pressure</span>
+            {urgencyCount > 0 && (
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] bg-red-500/20 text-red-400 border-red-500/30 animate-pulse">
+                {urgencyCount} critical
+              </Badge>
+            )}
+            {isLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground ml-auto" />}
+            {!isLoading && (expanded ? <ChevronUp className="h-3 w-3 text-muted-foreground ml-auto" /> : <ChevronDown className="h-3 w-3 text-muted-foreground ml-auto" />)}
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="px-2 pb-2 space-y-2">
+            {!hasPressures && !isLoading && (
+              <p className="text-xs text-muted-foreground text-center py-2">No active world pressures yet. Generate a CAML campaign to populate this.</p>
+            )}
+
+            {pressure?.stakes && pressure.stakes.length > 0 && (
+              <div className="space-y-1">
+                <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Stakes</div>
+                {pressure.stakes.map((stake, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Gauge className={`h-3 w-3 flex-shrink-0 ${stake.value >= 4 ? 'text-red-400' : stake.value >= 2 ? 'text-amber-400' : 'text-green-400'}`} />
+                    <span className="text-xs flex-1 truncate">{stake.name}</span>
+                    <div className="flex gap-0.5">
+                      {Array.from({ length: stake.maxValue || 5 }).map((_, j) => (
+                        <div key={j} className={`h-1.5 w-3 rounded-sm ${j < stake.value ? (stake.value >= 4 ? 'bg-red-400' : stake.value >= 2 ? 'bg-amber-400' : 'bg-green-400') : 'bg-muted-foreground/20'}`} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {pressure?.activePressures && pressure.activePressures.length > 0 && (
+              <div className="space-y-1">
+                <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Active Tensions</div>
+                {pressure.activePressures.map((p, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <Flame className="h-3 w-3 text-orange-400 flex-shrink-0" />
+                    <span className="text-muted-foreground">{p}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {pressure?.rivalAgent && (
+              <div className="p-1.5 rounded bg-purple-500/10 border border-purple-500/20">
+                <div className="flex items-center gap-1.5">
+                  <Eye className="h-3 w-3 text-purple-400" />
+                  <span className="text-xs font-medium text-purple-300">
+                    Rival: {pressure.rivalAgent.name || pressure.rivalAgent.id || "Unknown"}
+                  </span>
+                </div>
+                {pressure.rivalAgent.nextAction && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5 ml-4.5">
+                    Next move: {typeof pressure.rivalAgent.nextAction === 'string' ? pressure.rivalAgent.nextAction : pressure.rivalAgent.nextAction?.description || 'Plotting...'}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {highThreads.length > 0 && (
+              <div className="space-y-1">
+                <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Urgent Threads</div>
+                {highThreads.slice(0, 3).map((thread) => (
+                  <div key={thread.id} className="flex items-center gap-2 text-xs">
+                    <AlertTriangle className="h-3 w-3 text-red-400 flex-shrink-0" />
+                    <span className="text-muted-foreground truncate">{thread.description}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
+
+function DoNothingForecast({ campaignId }: { campaignId: number | null }) {
+  const [visible, setVisible] = useState(false);
+  const { data: pressure } = useQuery<WorldPressureData>({
+    queryKey: ['/api/campaigns', campaignId, 'world-pressure'],
+    enabled: !!campaignId,
+    refetchInterval: 10000,
+  });
+
+  const forecasts = pressure?.doNothingForecast || [];
+  if (!campaignId || forecasts.length === 0) return null;
+
+  return (
+    <Collapsible open={visible} onOpenChange={setVisible}>
+      <div className="mb-2 rounded-lg border border-amber-500/20 bg-amber-500/5 overflow-hidden">
+        <CollapsibleTrigger asChild>
+          <button className="w-full flex items-center gap-2 p-2 hover:bg-amber-500/10 transition-colors text-left">
+            <TrendingUp className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
+            <span className="text-xs font-medium text-amber-400">If the party does nothing...</span>
+            {visible ? <ChevronUp className="h-3 w-3 text-muted-foreground ml-auto" /> : <ChevronDown className="h-3 w-3 text-muted-foreground ml-auto" />}
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="px-2 pb-2 space-y-1">
+            {forecasts.map((forecast, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs">
+                <span className="text-amber-500 font-mono text-[10px] mt-0.5">{i + 1}.</span>
+                <span className="text-muted-foreground">{forecast}</span>
+              </div>
+            ))}
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
+
 function ArcSignalsPanel({ campaignId }: { campaignId: number | null }) {
   const { data: arcSignals, isLoading } = useQuery<ArcSignal[]>({
     queryKey: ['/api/campaigns', campaignId, 'reputation-signals'],
@@ -257,7 +424,7 @@ function ArcSignalsPanel({ campaignId }: { campaignId: number | null }) {
 export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPanelProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [sidebarOpen, setSidebarOpen] = useState(false); // Collapsed by default - "Summon Drawer"
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState("npcs");
   const [dmMessage, setDmMessage] = useState("");
   const [messageType, setMessageType] = useState<"narration" | "ooc" | "system">("narration");
@@ -268,8 +435,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
   const [newInitiativeHp, setNewInitiativeHp] = useState(20);
   const [newInitiativeAc, setNewInitiativeAc] = useState(12);
   const [newInitiativeIsPlayer, setNewInitiativeIsPlayer] = useState(false);
-  const [sessionFocus, setSessionFocus] = useState("");
-  const [editingFocus, setEditingFocus] = useState(false);
+  const [controlBarOpen, setControlBarOpen] = useState(false);
   
   // DM Control Bar state
   const [isPaused, setIsPaused] = useState(false);
@@ -857,23 +1023,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      {/* DM Control Bar - Always visible, non-negotiable */}
-      <DMControlBar
-        campaignId={selectedCampaignId}
-        isPaused={isPaused}
-        onPauseToggle={handlePauseToggle}
-        sessionMode={sessionMode}
-        onModeChange={handleModeChange}
-        narrativeMode={narrativeMode}
-        onNarrativeModeChange={handleNarrativeModeChange}
-        onUndo={handleUndo}
-        canUndo={undoStack.length > 0}
-        onCheckpoint={handleCheckpoint}
-        onRestoreCheckpoint={handleRestoreCheckpoint}
-        checkpoints={checkpoints}
-        onInjectNarration={handleInjectNarration}
-        onForceStateChange={handleForceStateChange}
-      />
+      {/* DM Control Bar - Collapsed to bottom by default */}
 
       {/* Discord Channel Link */}
       <div className="mb-2 flex items-center gap-2 px-2 py-1.5 rounded-lg bg-[#5865F2]/10 border border-[#5865F2]/20">
@@ -1257,35 +1407,43 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
             )}
           </div>
 
-          {/* CENTER: Current Scene - THE DOMINANT ANCHOR */}
+          {/* CENTER: World Tension First, Table Below */}
           <div className="flex-1 flex flex-col min-w-0">
-            {/* Session Focus Strip - Required orientation */}
-            <div className="mb-2 p-2 rounded-lg bg-amber-500/5 border border-amber-500/20">
-              {editingFocus ? (
-                <Input
-                  value={sessionFocus}
-                  onChange={(e) => setSessionFocus(e.target.value)}
-                  onBlur={() => setEditingFocus(false)}
-                  onKeyDown={(e) => e.key === 'Enter' && setEditingFocus(false)}
-                  placeholder="What's the goal of this session?"
-                  className="h-7 text-sm border-amber-500/30 bg-transparent"
-                  autoFocus
-                />
-              ) : (
-                <div 
-                  className="flex items-center gap-2 cursor-pointer hover:bg-amber-500/10 rounded px-1 py-0.5 transition-colors"
-                  onClick={() => setEditingFocus(true)}
-                >
-                  <Target className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
-                  <span className={`text-sm ${sessionFocus ? 'text-foreground' : 'text-muted-foreground italic'}`}>
-                    {sessionFocus || "Click to set session focus..."}
-                  </span>
-                </div>
+            {/* World Pressure Overview - replaces Session Focus */}
+            <WorldPressureOverview campaignId={selectedCampaignId} />
+            <DoNothingForecast campaignId={selectedCampaignId} />
+
+            {/* Scene Stakes Header */}
+            <div className="mb-2 flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <BookOpen className="h-4 w-4 text-amber-500" />
+                <span className="text-sm font-semibold text-amber-400">Your Table</span>
+              </div>
+              {narrativeMode === "manual" && (
+                <Badge variant="outline" className="text-[10px] bg-amber-500/20 text-amber-400 border-amber-500/30">
+                  <User className="h-2.5 w-2.5 mr-0.5" />
+                  DM Control
+                </Badge>
+              )}
+              {narrativeMode === "autopilot" && (
+                <Badge variant="outline" className="text-[10px] bg-purple-500/20 text-purple-400 border-purple-500/30">
+                  <Bot className="h-2.5 w-2.5 mr-0.5" />
+                  AI Autopilot
+                </Badge>
+              )}
+              {isInCombat && (
+                <Badge variant="outline" className="text-[10px] bg-red-500/20 text-red-400 border-red-500/30 animate-pulse">
+                  <Swords className="h-2.5 w-2.5 mr-0.5" />
+                  Round {roundNum}
+                </Badge>
+              )}
+              {sessionArtifacts.length > 0 && (
+                <span className="text-[10px] text-muted-foreground ml-auto">{sessionArtifacts.length} on table</span>
               )}
             </div>
 
-            {/* Current Scene - Enlarged, centered, strongest contrast */}
-            <Card className="flex-1 ring-2 ring-amber-500/50 bg-gradient-to-b from-amber-500/10 to-transparent shadow-xl relative overflow-hidden">
+            {/* The VTT Table - Map as background, drag-and-drop surface */}
+            <Card className="flex-1 ring-2 ring-amber-500/50 shadow-xl relative overflow-hidden">
               {/* Dramatic Roll Display Overlay */}
               {lastVisibleRoll && (
                 <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -1325,33 +1483,19 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                   </div>
                 </div>
               )}
-              <CardHeader className="p-3 pb-2">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-amber-500/30">
-                    <BookOpen className="h-5 w-5 text-amber-500" />
-                  </div>
-                  <CardTitle className="text-base text-amber-500">Current Scene</CardTitle>
-                  {narrativeMode === "manual" && (
-                    <Badge variant="outline" className="text-xs bg-amber-500/20 text-amber-400 border-amber-500/30">
-                      <User className="h-3 w-3 mr-1" />
-                      DM Control
-                    </Badge>
-                  )}
-                  {narrativeMode === "autopilot" && (
-                    <Badge variant="outline" className="text-xs bg-purple-500/20 text-purple-400 border-purple-500/30">
-                      <Bot className="h-3 w-3 mr-1" />
-                      AI Autopilot
-                    </Badge>
-                  )}
-                  {isInCombat && (
-                    <Badge variant="outline" className="ml-auto text-xs bg-red-500/20 text-red-400 border-red-500/30 animate-pulse">
-                      <Swords className="h-3 w-3 mr-1" />
-                      Combat Round {roundNum}
-                    </Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 pt-0 flex-1">
+
+              {/* Map Background Layer */}
+              <div className="absolute inset-0 z-0 opacity-30 pointer-events-none">
+                {selectedCampaignId && (
+                  <ProceduralExplorationMap
+                    campaignId={selectedCampaignId}
+                    interactive={false}
+                    compact={true}
+                  />
+                )}
+              </div>
+
+              <CardContent className="p-3 flex-1 relative z-10">
                 <DroppableZone id="session-dropzone" isOver={!!activeId}>
                   <ScrollArea className="h-[280px]">
                     {sessionArtifacts.length > 0 ? (
@@ -1359,7 +1503,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                         {sessionArtifacts.map((artifact) => (
                           <div
                             key={artifact.id}
-                            className="p-3 rounded-lg border-2 border-amber-500/20 bg-card hover:bg-amber-500/5 transition-colors"
+                            className="p-3 rounded-lg border-2 border-amber-500/20 bg-card/90 backdrop-blur-sm hover:bg-amber-500/10 transition-colors shadow-sm"
                           >
                             <div className="flex items-center gap-2 mb-1">
                               {artifact.type === "npc" && <Users className="h-4 w-4 text-blue-500" />}
@@ -1367,6 +1511,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                               {artifact.type === "encounter" && <Sword className="h-4 w-4 text-red-500" />}
                               {artifact.type === "monster" && <Skull className="h-4 w-4 text-purple-500" />}
                               {artifact.type === "location" && <MapPin className="h-4 w-4 text-green-500" />}
+                              {artifact.type === "quest" && <Target className="h-4 w-4 text-orange-500" />}
                               <span className="font-medium text-sm">{artifact.name}</span>
                             </div>
                           </div>
@@ -1374,12 +1519,12 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-12">
-                        <div className="p-4 rounded-full bg-amber-500/10 mb-4">
+                        <div className="p-4 rounded-full bg-amber-500/10 backdrop-blur-sm mb-4">
                           <Upload className="h-8 w-8 text-amber-500/70" />
                         </div>
-                        <p className="text-base font-medium mb-1">This is your table</p>
-                        <p className="text-sm text-center max-w-[220px]">
-                          Drag from the left to bring characters and places into play
+                        <p className="text-base font-medium mb-1">Your table awaits</p>
+                        <p className="text-sm text-center max-w-[250px]">
+                          Drag encounters, NPCs, items and locations from the drawer to bring them into play
                         </p>
                       </div>
                     )}
@@ -1396,8 +1541,8 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
               <Tabs defaultValue="queue" className="h-full flex flex-col [&>[data-state=active]]:flex-1 [&>[data-state=active]]:flex [&>[data-state=active]]:flex-col">
                 <TabsList className="grid w-full grid-cols-4 h-9 bg-slate-800 rounded-b-none">
                   <TabsTrigger value="queue" className="text-xs gap-1 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
-                    <Clock className="h-3 w-3" />
-                    Queue
+                    <Flame className="h-3 w-3" />
+                    Ripples
                     {(pendingEvents.length > 0 || (liveSession?.choices?.length || 0) > 0) && (
                       <Badge variant="outline" className="h-4 px-1 text-[10px] bg-amber-500/30 border-amber-500/50">
                         {pendingEvents.length || liveSession?.choices?.length || 0}
@@ -1428,7 +1573,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                   </TabsTrigger>
                 </TabsList>
 
-                {/* EVENT QUEUE Tab */}
+                {/* EMERGING CONSEQUENCES Tab */}
                 <TabsContent value="queue" className="h-[calc(100%-36px)] flex flex-col p-3 mt-0 overflow-hidden space-y-3">
                   {/* Group Choice Voting Panel */}
                   <GroupChoicePanel
@@ -1574,6 +1719,47 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
           </div>
         </div>
       </div>
+
+      {/* Collapsible DM Control Bar - Bottom of screen */}
+      <Collapsible open={controlBarOpen} onOpenChange={setControlBarOpen}>
+        <div className="mt-2 rounded-lg border border-muted-foreground/20 bg-slate-900/50 overflow-hidden">
+          <CollapsibleTrigger asChild>
+            <button className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/30 transition-colors text-left">
+              <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">DM Controls</span>
+              {isPaused && (
+                <Badge variant="outline" className="h-4 px-1 text-[10px] bg-red-500/20 text-red-400 border-red-500/30">
+                  Paused
+                </Badge>
+              )}
+              <span className="text-[10px] text-muted-foreground/50 ml-auto mr-1">
+                {sessionMode} · {narrativeMode}
+              </span>
+              {controlBarOpen ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="border-t border-muted-foreground/10">
+              <DMControlBar
+                campaignId={selectedCampaignId}
+                isPaused={isPaused}
+                onPauseToggle={handlePauseToggle}
+                sessionMode={sessionMode}
+                onModeChange={handleModeChange}
+                narrativeMode={narrativeMode}
+                onNarrativeModeChange={handleNarrativeModeChange}
+                onUndo={handleUndo}
+                canUndo={undoStack.length > 0}
+                onCheckpoint={handleCheckpoint}
+                onRestoreCheckpoint={handleRestoreCheckpoint}
+                checkpoints={checkpoints}
+                onInjectNarration={handleInjectNarration}
+                onForceStateChange={handleForceStateChange}
+              />
+            </div>
+          </CollapsibleContent>
+        </div>
+      </Collapsible>
 
       <DragOverlay>
           {activeId ? (

@@ -34,6 +34,14 @@ Both `/api/caml/generate` and `/api/campaigns/generate-complete` routes generate
 ### DM Toolkit Campaign Selection
 The DM Toolkit auto-selects a campaign (from localStorage or first active campaign) and displays a prominent "Active Campaign" card at the top of the page. Selection is persisted in `dm_toolkit_campaign_id` localStorage key and cleaned up when campaigns are archived/deleted.
 
+### Live Session Manager UX (World-Tension-First Design)
+The Live Manager (`LiveManagerPanel.tsx`) uses a "world tension first" layout:
+1. **World Pressure Overview** - Top of center column, collapsible panel showing campaign stakes (with color-coded urgency bars), active tensions, rival agent status, and urgent unresolved threads. Data from `GET /api/campaigns/:id/world-pressure`.
+2. **Do Nothing Forecast** - Collapsible panel showing AI-free consequence predictions if the party stalls (derived from stakes, rival agents, factions, meters).
+3. **Collapsed DM Controls** - Pause/Undo/Checkpoint/Inject/Override moved to a collapsible bottom toolbar (collapsed by default), showing current mode in collapsed label.
+4. **Emerging Consequences** - Right sidebar "Ripples" tab (was "Event Queue") shows consequence cards with trigger source, narrative impact, escalation-if-ignored, and time elapsed.
+5. **Map-Backed VTT Table** - The drag-and-drop table uses the procedural exploration map as a 30% opacity background, with dragged artifacts rendered as backdrop-blur cards over the map.
+
 ## External Dependencies
 
 ### Core

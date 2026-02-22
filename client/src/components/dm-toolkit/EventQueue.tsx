@@ -23,6 +23,8 @@ import {
   Plus,
   ChevronUp,
   ChevronDown,
+  AlertTriangle,
+  Flame,
 } from "lucide-react";
 
 export type EventSource = "player" | "ai" | "system" | "map";
@@ -37,6 +39,7 @@ export interface PendingEvent {
   title: string;
   description: string;
   impact: string;
+  escalation?: string;
   affectedEntities: string[];
   timestamp: Date;
   isReversible: boolean;
@@ -90,6 +93,7 @@ export default function EventQueue({
     title: string;
     description: string;
     impact: string;
+    escalation: string;
     type: EventType;
     intent: IntentClassification | "";
     affectedEntities: string;
@@ -98,6 +102,7 @@ export default function EventQueue({
     title: "",
     description: "",
     impact: "",
+    escalation: "",
     type: "narrative" as EventType,
     intent: "" as IntentClassification | "",
     affectedEntities: "",
@@ -109,6 +114,7 @@ export default function EventQueue({
       title: event.title,
       description: event.description,
       impact: event.impact,
+      escalation: event.escalation || "",
       type: event.type,
       intent: event.intent || "",
       affectedEntities: event.affectedEntities.join(", "),
@@ -123,6 +129,7 @@ export default function EventQueue({
       title: editingEvent.title.trim(),
       description: editingEvent.description.trim(),
       impact: editingEvent.impact.trim() || originalEvent.impact,
+      escalation: editingEvent.escalation?.trim() || undefined,
       type: editingEvent.type,
       intent: editingEvent.intent || undefined,
       affectedEntities: editingEvent.affectedEntities.split(",").map(e => e.trim()).filter(Boolean),
@@ -159,13 +166,14 @@ export default function EventQueue({
       title: newEvent.title.trim(),
       description: newEvent.description.trim(),
       impact: newEvent.impact.trim() || "DM-initiated event",
+      escalation: newEvent.escalation.trim() || undefined,
       affectedEntities: newEvent.affectedEntities.split(",").map(e => e.trim()).filter(Boolean),
       timestamp: new Date(),
       isReversible: true,
     };
     
     onAddEvent?.(event);
-    setNewEvent({ title: "", description: "", impact: "", type: "narrative", intent: "", affectedEntities: "" });
+    setNewEvent({ title: "", description: "", impact: "", escalation: "", type: "narrative", intent: "", affectedEntities: "" });
     setShowAddForm(false);
   };
 
@@ -174,8 +182,8 @@ export default function EventQueue({
       <CardHeader className="p-3 pb-2">
         <CardTitle className="text-sm flex items-center justify-between">
           <div className="flex items-center gap-2 text-slate-200">
-            <Clock className="h-4 w-4 text-amber-400" />
-            Event Queue
+            <Flame className="h-4 w-4 text-amber-400" />
+            Emerging Consequences
           </div>
           <div className="flex items-center gap-2">
             {events.length > 0 && (
@@ -249,9 +257,15 @@ export default function EventQueue({
               </Select>
             </div>
             <Input
-              placeholder="Impact (optional)"
+              placeholder="Narrative impact (optional)"
               value={newEvent.impact}
               onChange={(e) => setNewEvent(prev => ({ ...prev, impact: e.target.value }))}
+              className="h-8 text-xs bg-slate-900/50 border-slate-600"
+            />
+            <Input
+              placeholder="If ignored, what escalates? (optional)"
+              value={newEvent.escalation}
+              onChange={(e) => setNewEvent(prev => ({ ...prev, escalation: e.target.value }))}
               className="h-8 text-xs bg-slate-900/50 border-slate-600"
             />
             <Input
@@ -348,9 +362,15 @@ export default function EventQueue({
                         </Select>
                       </div>
                       <Input
-                        placeholder="Impact"
+                        placeholder="Narrative impact"
                         value={editingEvent.impact}
                         onChange={(e) => setEditingEvent(prev => prev ? { ...prev, impact: e.target.value } : null)}
+                        className="h-8 text-xs bg-slate-900/50 border-slate-600"
+                      />
+                      <Input
+                        placeholder="If ignored, what escalates?"
+                        value={editingEvent.escalation || ""}
+                        onChange={(e) => setEditingEvent(prev => prev ? { ...prev, escalation: e.target.value } : null)}
                         className="h-8 text-xs bg-slate-900/50 border-slate-600"
                       />
                       <div className="flex gap-2 pt-1">
@@ -430,10 +450,21 @@ export default function EventQueue({
                     <h4 className="font-medium text-sm text-slate-200 mb-1">{event.title}</h4>
                     <p className="text-xs text-slate-400 mb-2">{event.description}</p>
 
-                    {/* Impact preview */}
-                    <div className="p-2 rounded bg-slate-900/50 border border-slate-700 mb-2">
-                      <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Impact</p>
-                      <p className="text-xs text-slate-300">{event.impact}</p>
+                    {/* Impact & Escalation preview */}
+                    <div className="p-2 rounded bg-slate-900/50 border border-slate-700 mb-2 space-y-1.5">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-0.5">Narrative Impact</p>
+                        <p className="text-xs text-slate-300">{event.impact}</p>
+                      </div>
+                      {event.escalation && (
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-amber-500/70 mb-0.5 flex items-center gap-1">
+                            <AlertTriangle className="h-2.5 w-2.5" />
+                            If Ignored
+                          </p>
+                          <p className="text-xs text-amber-300/80">{event.escalation}</p>
+                        </div>
+                      )}
                       {event.affectedEntities.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
                           {event.affectedEntities.map((entity, i) => (
@@ -443,6 +474,10 @@ export default function EventQueue({
                           ))}
                         </div>
                       )}
+                      <div className="flex items-center gap-1 text-[10px] text-slate-500">
+                        <Clock className="h-2.5 w-2.5" />
+                        {Math.floor((Date.now() - new Date(event.timestamp).getTime()) / 60000)} min ago
+                      </div>
                     </div>
 
                     {/* Action buttons */}
@@ -488,10 +523,10 @@ export default function EventQueue({
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full py-8 text-slate-500">
-              <Clock className="h-8 w-8 mb-2 opacity-50" />
-              <p className="text-sm font-medium">No pending events</p>
+              <Flame className="h-8 w-8 mb-2 opacity-50" />
+              <p className="text-sm font-medium">No emerging consequences</p>
               <p className="text-xs text-center mt-1">
-                Events from players, AI, and the map will appear here for your approval
+                Ripple effects from player actions, world events, and faction moves will appear here
               </p>
             </div>
           )}
