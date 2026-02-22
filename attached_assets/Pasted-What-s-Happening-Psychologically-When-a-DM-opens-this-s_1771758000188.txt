@@ -1,0 +1,231 @@
+What’s Happening Psychologically
+
+When a DM opens this screen, they see:
+
+Controls (Pause, Undo, Inject, Override)
+
+Mode toggles
+
+Queue
+
+AI / Dice
+
+Map
+
+Exploration state
+
+They do not see:
+
+What is unstable in the world
+
+Who wants what
+
+What will explode if ignored
+
+Why tonight matters
+
+So even though your engine is structural and state-driven…
+
+The DM is forced to mentally reconstruct the situation.
+
+That is cognitive load.
+
+And cognitive load kills retention.
+
+The Core Structural Problem
+
+Your UI is organized around:
+
+System Actions
+
+It needs to be organized around:
+
+World Tension
+
+Right now:
+Control Panel is primary.
+Scene is empty.
+Queue is procedural.
+
+Instead, the primary surface should answer instantly:
+
+What is happening right now?
+
+What is about to happen?
+
+What will happen if I do nothing?
+
+What are the players sitting on top of?
+
+What I Would Change (High Impact)
+1. Replace “Session Focus” With “World Pressure Overview”
+
+Instead of:
+
+Click to set session focus…
+
+Make this automatic and visible:
+
+🔥 Active Pressures
+
+Cult Ritual – 2 steps from completion
+
+Zyrithan Faction unrest – growing
+
+Valeria suspects betrayal
+
+Weather front approaching ruin
+
+And if there are none?
+
+That’s a problem. Your engine should always have 1–3 active pressures.
+
+DMs want tension to manage.
+
+2. Move Control Panel Down
+
+Pause / Undo / Override is secondary.
+
+It’s meta.
+
+It should not dominate the psychological first impression.
+
+Put it behind a subtle collapsible bar.
+
+Right now it visually competes with the fiction.
+
+3. Transform “Event Queue” Into “Emerging Consequences”
+
+The word “Queue” feels mechanical.
+
+Rename and restructure:
+
+Emerging Consequences
+
+Each item should show:
+
+Trigger source
+
+Why it exists
+
+What it escalates if ignored
+
+Time pressure (if any)
+
+Example:
+
+Investigation: carvings
+→ Unlocks hidden faction memory
+→ Escalates cult awareness
+
+DM sees impact immediately.
+
+4. Add a “Do Nothing Forecast” Panel
+
+This is where your state-driven engine becomes unbeatable.
+
+Small panel:
+
+If the party stalls…
+
+Cult advances ritual stage
+
+Faction distrust increases
+
+NPC departs town
+
+That alone makes the DM feel like they are managing a living system.
+
+Right now that power is invisible.
+
+5. Current Scene Is Too Empty
+
+The center panel says:
+
+This is your table.
+
+But there’s no tension displayed.
+
+Add:
+
+Scene Stakes
+
+Who is present
+
+Hidden tensions in scene
+
+What could go wrong
+
+You’re thinking structurally already.
+
+Surface it.
+
+The Retention Formula for DMs
+
+A DM comes back when:
+
+They feel like the world runs between sessions
+
+They are surprised in a good way
+
+They look competent
+
+They feel supported, not replaced
+
+Right now your UI feels like:
+
+You are operating a system.
+
+It needs to feel like:
+
+You are conducting a living world.
+
+Specific Structural Reconfiguration
+
+If I redesigned this screen:
+
+Top band:
+
+Session
+
+World Pressure
+
+Unresolved Threads
+
+Left column:
+
+Party
+
+Factions
+
+Map
+
+Center:
+
+Current Scene
+
+Scene Stakes
+
+Active Hidden Variables
+
+Right column:
+
+Emerging Consequences
+
+Do Nothing Forecast
+
+Quick Escalation Buttons
+
+Bottom (collapsed):
+
+Pause / Undo / Inject / Override
+
+The Biggest Miss Right Now
+
+You are not showcasing the engine’s consequence awareness.
+
+You built a structural ontology-backed state engine.
+
+But the UI looks like a workflow tool.
+
+That’s a mismatch.
