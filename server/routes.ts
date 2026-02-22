@@ -314,8 +314,13 @@ async function improviseDoctrine(campaign: any): Promise<{ campaignQuestion: str
     heist: ["thief", "heist", "steal", "rogue", "guild", "smuggl", "crime", "treasure"],
     horror: ["horror", "curse", "haunt", "dark", "shadow", "demon", "abyss", "madness", "fear"],
     exploration: ["explore", "discover", "ruin", "ancient", "lost", "forgotten", "dungeon", "cave", "map"],
-    nautical: ["sea", "ocean", "ship", "pirate", "island", "sail", "port", "captain", "kraken"],
+    nautical: ["sea", "ocean", "ship", "pirate", "sail", "harbor", "voyage", "nautical"],
     divine: ["god", "temple", "cleric", "paladin", "holy", "prayer", "divine", "faith", "celestial"],
+    swamp: ["swamp", "marsh", "bog", "bayou", "wetland", "mire", "lizardfolk", "hag"],
+    arctic: ["arctic", "ice", "snow", "frost", "frozen", "tundra", "glacier", "blizzard", "winter"],
+    feywild: ["fey", "feywild", "fairy", "pixie", "archfey", "enchanted", "whimsical", "sprite"],
+    underdark: ["underdark", "drow", "subterranean", "cavern", "illithid", "mind flayer", "deep"],
+    planar: ["plane", "planar", "portal", "astral", "ethereal", "elemental", "celestial", "infernal"],
   };
 
   let detectedTheme = "exploration";
@@ -324,6 +329,8 @@ async function improviseDoctrine(campaign: any): Promise<{ campaignQuestion: str
     const score = keywords.filter(kw => combined.includes(kw)).length;
     if (score > bestScore) { bestScore = score; detectedTheme = theme; }
   }
+  // Require minimum confidence — below threshold, fall back to exploration
+  if (bestScore < 2) detectedTheme = "exploration";
 
   const stakeTemplates: Record<string, { stakes: any[]; questionTemplate: string }> = {
     undead: {
@@ -380,6 +387,41 @@ async function improviseDoctrine(campaign: any): Promise<{ campaignQuestion: str
       stakes: [
         { id: "divine_favor", name: "Divine Favor", value: 3, max: 5, description: "The deity's attention and support", passiveDrift: -1, driftReason: "Gods grow distant when not actively served", worsensWhen: ["Acting against the faith's tenets", "Doubting openly", "Allying with enemies of the faith"], improvesWhen: ["Acts of devotion", "Converting others", "Self-sacrifice for the cause"], thresholdConsequence: { at0: { event: "Abandoned by the divine — holy powers fail, and a rival faith fills the void", irreversible: true, forksTo: "divine_abandonment" }, at5: { event: "Chosen instrument — the deity's will overrides free choice, you become a vessel", irreversible: true, forksTo: "divine_puppet" } } },
         { id: "mortal_cost", name: "Mortal Cost", value: 2, max: 5, description: "The toll on ordinary people caught in divine plans", passiveDrift: 1, driftReason: "Holy conflicts always claim innocent lives", worsensWhen: ["Collateral damage from holy wars", "Ignoring suffering", "Fanaticism"], improvesWhen: ["Protecting innocents", "Finding merciful solutions", "Questioning harmful doctrine"], thresholdConsequence: { at0: { event: "The people are spared but the divine mission fails — was mercy worth the cost?", irreversible: true, forksTo: "mercy_over_mission" }, at5: { event: "The crusade succeeds but the people are broken — a hollow victory over ashes", irreversible: true, forksTo: "pyrrhic_crusade" } } },
+      ]
+    },
+    swamp: {
+      questionTemplate: `Should the swamp's corruption be cleansed, contained, or harnessed — and what crawls from the depths when you disturb it?`,
+      stakes: [
+        { id: "corruption_spread", name: "Corruption Spread", value: 3, max: 5, description: "How far the swamp's blight is spreading into surrounding lands", passiveDrift: 1, driftReason: "The corruption grows when left unchecked", worsensWhen: ["Disturbing sealed evil", "Feeding the blight", "Destroying natural wards"], improvesWhen: ["Purifying water sources", "Allying with swamp guardians", "Sealing corruption fonts"], thresholdConsequence: { at0: { event: "The corruption is purged but the swamp dries up — an ecosystem dies to save the surrounding lands", irreversible: true, forksTo: "dead_wetland" }, at5: { event: "The blight engulfs the region — the swamp consumes everything, creating a vast poisoned wasteland", irreversible: true, forksTo: "endless_mire" } } },
+        { id: "hag_influence", name: "Hag Influence", value: 2, max: 5, description: "The grip of the swamp's hag coven on local affairs", passiveDrift: 1, driftReason: "Hags scheme and manipulate constantly", worsensWhen: ["Making bargains with hags", "Revealing secrets to them", "Ignoring their machinations"], improvesWhen: ["Breaking hag bargains", "Uniting communities against them", "Destroying their totems"], thresholdConsequence: { at0: { event: "The hags are destroyed but their dying curse twists the land permanently", irreversible: true, forksTo: "cursed_land" }, at5: { event: "The hag coven ascends to full power — reality bends to their whims in the region", irreversible: true, forksTo: "hag_dominion" } } },
+      ]
+    },
+    arctic: {
+      questionTemplate: `Should the frozen north be tamed, respected, or feared — and what ancient things thaw when the ice retreats?`,
+      stakes: [
+        { id: "frozen_seal", name: "Frozen Seal", value: 3, max: 5, description: "Ancient things sealed beneath the ice", passiveDrift: -1, driftReason: "The ice recedes slowly, revealing what was buried", worsensWhen: ["Melting ice deliberately", "Using fire magic recklessly", "Disturbing frozen tombs"], improvesWhen: ["Reinforcing ancient wards", "Allying with frost guardians", "Containing thawed threats"], thresholdConsequence: { at0: { event: "The great thaw releases an ancient evil frozen since the dawn age", irreversible: true, forksTo: "ancient_awakening" }, at5: { event: "An eternal winter descends — nothing thaws, and the cold creeps southward", irreversible: true, forksTo: "endless_winter" } } },
+        { id: "survival_resources", name: "Survival Resources", value: 3, max: 5, description: "Fuel, food, and shelter against the killing cold", passiveDrift: -1, driftReason: "The cold consumes resources relentlessly", worsensWhen: ["Losing shelter", "Wasting supplies", "Extended travel in storms"], improvesWhen: ["Finding caches", "Building alliances with locals", "Securing warm shelter"], thresholdConsequence: { at0: { event: "Resources are exhausted — the party faces death by exposure unless they make terrible bargains", irreversible: false, forksTo: "desperate_bargain" }, at5: { event: "Abundance attracts raiders from the frozen wastes who will kill for what you have", irreversible: false, forksTo: "raider_siege" } } },
+      ]
+    },
+    feywild: {
+      questionTemplate: `Do you play the fey's game by their rules, cheat to win, or refuse to play — knowing each choice has a price you can't foresee?`,
+      stakes: [
+        { id: "fey_debt", name: "Fey Debt", value: 2, max: 5, description: "Obligations owed to fey creatures", passiveDrift: 1, driftReason: "The fey count every kindness as a debt and every slight as an insult", worsensWhen: ["Accepting fey gifts", "Making promises", "Eating fey food"], improvesWhen: ["Repaying debts cleverly", "Outsmarting fey in their own games", "Finding loopholes in bargains"], thresholdConsequence: { at0: { event: "All debts are cleared — but the fey lose interest in you entirely, closing all doors to the Feywild", irreversible: true, forksTo: "fey_exile" }, at5: { event: "Debt collectors arrive — an archfey claims ownership of the party's memories, names, or shadows", irreversible: true, forksTo: "claimed_by_archfey" } } },
+        { id: "reality_anchor", name: "Reality Anchor", value: 3, max: 5, description: "Your grip on the material plane and your true identity", passiveDrift: -1, driftReason: "The Feywild slowly erases your connection to the real world", worsensWhen: ["Spending too long in the Feywild", "Forgetting mortal concerns", "Embracing fey transformations"], improvesWhen: ["Clinging to mortal memories", "Keeping iron tokens", "Maintaining routines from home"], thresholdConsequence: { at0: { event: "You become fey — your mortal life fades to dream and you belong to the Feywild forever", irreversible: true, forksTo: "fey_transformation" }, at5: { event: "Your mortal nature repels the Feywild — it begins to reject and expel you violently", irreversible: false, forksTo: "feywild_rejection" } } },
+      ]
+    },
+    underdark: {
+      questionTemplate: `In the lightless deep, do you become the predator, forge impossible alliances, or find a way back to the sun — and what follows you up?`,
+      stakes: [
+        { id: "depth_madness", name: "Depth Madness", value: 2, max: 5, description: "The psychological toll of the endless dark", passiveDrift: 1, driftReason: "The Underdark erodes sanity through isolation and alien horrors", worsensWhen: ["Encountering aberrations", "Losing light sources", "Witnessing drow cruelty"], improvesWhen: ["Finding safe havens", "Maintaining group bonds", "Small victories against the dark"], thresholdConsequence: { at0: { event: "Mental clarity returns but the trauma leaves permanent phobias and nightmares", irreversible: false, forksTo: "scarred_survivors" }, at5: { event: "Madness takes hold — paranoia and hallucinations make it impossible to trust anyone", irreversible: true, forksTo: "paranoid_dissolution" } } },
+        { id: "escape_progress", name: "Escape Progress", value: 2, max: 5, description: "How close you are to finding a path back to the surface", passiveDrift: 0, driftReason: "The Underdark doesn't reveal its secrets willingly", worsensWhen: ["Getting lost", "Tunnel collapses", "Being driven deeper by pursuers"], improvesWhen: ["Finding maps", "Allying with deep gnomes", "Discovering upward passages"], thresholdConsequence: { at0: { event: "Hopelessly lost — you must accept the Underdark as your new home and adapt or perish", irreversible: true, forksTo: "permanent_exile" }, at5: { event: "The way out is found but something ancient follows your trail to the surface", irreversible: true, forksTo: "brought_darkness_up" } } },
+      ]
+    },
+    planar: {
+      questionTemplate: `When gods and cosmic forces use mortals as pawns, do you serve, rebel, or transcend — and can any mortal survive the answer?`,
+      stakes: [
+        { id: "planar_stability", name: "Planar Stability", value: 3, max: 5, description: "The structural integrity of the planar boundaries", passiveDrift: -1, driftReason: "Every planar crossing weakens the barriers between worlds", worsensWhen: ["Opening portals recklessly", "Destroying planar anchors", "Angering planar guardians"], improvesWhen: ["Sealing breaches", "Restoring planar anchors", "Allying with modrons or inevitables"], thresholdConsequence: { at0: { event: "Planar collapse — multiple realities crash together in a maelstrom of chaos", irreversible: true, forksTo: "planar_convergence" }, at5: { event: "The planes are sealed permanently — no more travel, no more summons, no more divine intervention", irreversible: true, forksTo: "sealed_multiverse" } } },
+        { id: "cosmic_attention", name: "Cosmic Attention", value: 2, max: 5, description: "How much attention powerful extraplanar beings pay to you", passiveDrift: 1, driftReason: "Mortals meddling with the planes always attract notice", worsensWhen: ["Using powerful planar magic", "Killing planar beings", "Collecting planar artifacts"], improvesWhen: ["Acting subtly", "Disguising your nature", "Resolving issues without force"], thresholdConsequence: { at0: { event: "You're beneath notice — but also without allies when cosmic threats arise", irreversible: false, forksTo: "invisible_mortals" }, at5: { event: "A cosmic entity takes personal interest — you become a piece in an unfathomable game", irreversible: true, forksTo: "cosmic_chess_piece" } } },
       ]
     },
     exploration: {
@@ -4807,14 +4849,17 @@ Return your response as a JSON object with these fields:
             }
           };
           
-          // Detect which theme matches
+          // Detect which theme matches using weighted scoring
+          const mapThemeKeywords: Record<string, string[]> = {
+            nautical: ['ship', 'sea', 'ocean', 'pirate', 'sailor', 'nautical', 'harbor', 'coast', 'voyage'],
+            forest: ['forest', 'wood', 'tree', 'grove', 'wilderness', 'druid', 'nature', 'woodland'],
+            urban: ['city', 'town', 'urban', 'guild', 'tavern', 'sewer', 'street', 'market'],
+          };
           let detectedMapTheme = 'dungeon';
-          if (mapCampaignText.match(/ship|sea|ocean|pirate|sailor|nautical|harbor|coast|voyage|captain|crew/)) {
-            detectedMapTheme = 'nautical';
-          } else if (mapCampaignText.match(/forest|wood|tree|grove|wilderness|druid|fey|nature/)) {
-            detectedMapTheme = 'forest';
-          } else if (mapCampaignText.match(/city|town|urban|guild|tavern|sewer|street|market/)) {
-            detectedMapTheme = 'urban';
+          let mapBestScore = 0;
+          for (const [theme, kws] of Object.entries(mapThemeKeywords)) {
+            const score = kws.filter(kw => mapCampaignText.includes(kw)).length;
+            if (score >= 2 && score > mapBestScore) { mapBestScore = score; detectedMapTheme = theme; }
           }
           
           const activeMapTheme = mapThemes[detectedMapTheme];
@@ -17328,9 +17373,24 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
         // Detect theme for tile descriptions
         const mapThemeText = `${campaign?.title || ''} ${campaign?.description || ''}`.toLowerCase();
         let mapTheme = 'default';
-        if (mapThemeText.match(/ship|sea|ocean|pirate|sailor|nautical|harbor|coast/)) mapTheme = 'nautical';
-        else if (mapThemeText.match(/forest|wood|tree|grove|wilderness/)) mapTheme = 'forest';
-        else if (mapThemeText.match(/city|town|urban|guild|tavern|sewer/)) mapTheme = 'urban';
+        const tileThemeKeywords: Record<string, string[]> = {
+          nautical: ['ship', 'sea', 'ocean', 'pirate', 'sailor', 'nautical', 'harbor', 'coast', 'voyage'],
+          forest: ['forest', 'wood', 'tree', 'grove', 'wilderness', 'druid', 'ranger', 'woodland'],
+          urban: ['city', 'town', 'urban', 'guild', 'tavern', 'sewer', 'marketplace', 'castle'],
+          desert: ['desert', 'sand', 'pyramid', 'oasis', 'dune', 'arid', 'caravan'],
+          mountain: ['mountain', 'cave', 'mine', 'dwarf', 'peak', 'cliff', 'summit', 'volcano'],
+          swamp: ['swamp', 'marsh', 'bog', 'bayou', 'wetland', 'mire', 'murky'],
+          arctic: ['arctic', 'ice', 'snow', 'frost', 'frozen', 'tundra', 'glacier', 'blizzard'],
+          feywild: ['fey', 'feywild', 'fairy', 'pixie', 'archfey', 'enchanted', 'whimsical'],
+          underdark: ['underdark', 'drow', 'subterranean', 'cavern', 'illithid', 'mind flayer'],
+          planar: ['plane', 'planar', 'portal', 'astral', 'ethereal', 'elemental', 'demon', 'devil'],
+          undead: ['undead', 'zombie', 'skeleton', 'vampire', 'necromancer', 'graveyard', 'tomb', 'haunted'],
+        };
+        let mapBestScore = 0;
+        for (const [theme, kws] of Object.entries(tileThemeKeywords)) {
+          const score = kws.filter(kw => mapThemeText.includes(kw)).length;
+          if (score >= 2 && score > mapBestScore) { mapBestScore = score; mapTheme = theme; }
+        }
         
         const tileTypeDescriptions = themeTileDescriptions[mapTheme] || themeTileDescriptions.default;
         
@@ -17565,79 +17625,138 @@ You may create a new character or start a new adventure to continue playing.`;
       // Detect adventure theme from campaign title, description, and current narrative
       const campaignText = `${campaign?.title || ''} ${campaign?.description || ''} ${currentSession.narrative || ''}`.toLowerCase();
       
-      // Theme detection with environmental vocabulary
-      const themeDetection = {
+      // Theme detection with environmental vocabulary — expanded for variety
+      const themeDetection: Record<string, { keywords: string[]; environments: string[]; enemies: string[]; features: string[] }> = {
         nautical: {
-          keywords: ['ship', 'sea', 'ocean', 'pirate', 'sailor', 'maritime', 'naval', 'port', 'harbor', 'vessel', 'captain', 'crew', 'deck', 'anchor', 'sail', 'nautical', 'kraken', 'mermaid', 'lighthouse', 'island', 'coast', 'storm at sea', 'voyage'],
-          environments: ['ship deck', 'cargo hold', 'captain\'s quarters', 'crow\'s nest', 'galley', 'brig', 'gun deck', 'harbor warehouse', 'dock', 'lighthouse', 'sea cave', 'shipwreck', 'island beach', 'underwater grotto'],
-          enemies: ['pirates', 'sahuagin', 'sea hags', 'merrow', 'water elementals', 'giant crabs', 'reef sharks', 'sea serpents', 'ghost sailors', 'cursed crew', 'smugglers', 'mutinous sailors', 'sea zombies', 'kuo-toa'],
-          features: ['wooden planks', 'rope rigging', 'salt-crusted barrels', 'navigation charts', 'ship\'s wheel', 'cannons', 'anchor chains', 'fishing nets', 'barnacle-covered surfaces', 'porthole windows', 'swaying lanterns']
+          keywords: ['ship', 'sea', 'ocean', 'pirate', 'sailor', 'maritime', 'naval', 'harbor', 'vessel', 'crew', 'deck', 'anchor', 'sail', 'nautical', 'kraken', 'mermaid', 'lighthouse', 'coast', 'voyage'],
+          environments: ['ship deck', 'cargo hold', 'captain\'s quarters', 'crow\'s nest', 'galley', 'harbor warehouse', 'dock', 'lighthouse', 'sea cave', 'shipwreck', 'island beach', 'underwater grotto'],
+          enemies: ['pirates', 'sahuagin', 'sea hags', 'merrow', 'water elementals', 'giant crabs', 'reef sharks', 'sea serpents', 'smugglers', 'kuo-toa', 'storm giants', 'aboleth'],
+          features: ['wooden planks', 'rope rigging', 'salt-crusted barrels', 'navigation charts', 'ship\'s wheel', 'anchor chains', 'fishing nets', 'barnacle-covered surfaces', 'porthole windows', 'swaying lanterns']
         },
         forest: {
-          keywords: ['forest', 'wood', 'tree', 'grove', 'glade', 'fey', 'druid', 'nature', 'wilderness', 'hunt', 'ranger', 'elven', 'sylvan'],
-          environments: ['ancient grove', 'forest clearing', 'tree hollow', 'overgrown ruins', 'fairy ring', 'druid circle', 'hunter\'s camp', 'animal den', 'stream crossing', 'fallen tree bridge'],
+          keywords: ['forest', 'wood', 'tree', 'grove', 'glade', 'druid', 'nature', 'wilderness', 'hunt', 'ranger', 'elven', 'sylvan', 'woodland'],
+          environments: ['ancient grove', 'forest clearing', 'tree hollow', 'overgrown ruins', 'druid circle', 'hunter\'s camp', 'animal den', 'stream crossing', 'fallen tree bridge', 'canopy walkway'],
           enemies: ['wolves', 'bears', 'giant spiders', 'goblins', 'orcs', 'bandits', 'dryads', 'treants', 'ettercaps', 'owlbears', 'displacer beasts', 'blights'],
           features: ['twisted roots', 'moss-covered stones', 'fallen logs', 'mushroom circles', 'animal tracks', 'bird nests', 'vines', 'wildflowers', 'ancient trees']
         },
         undead: {
-          keywords: ['undead', 'zombie', 'skeleton', 'vampire', 'necromancer', 'crypt', 'graveyard', 'tomb', 'death', 'cursed', 'haunted', 'ghost', 'specter'],
+          keywords: ['undead', 'zombie', 'skeleton', 'vampire', 'necromancer', 'graveyard', 'tomb', 'death', 'cursed', 'haunted', 'ghost', 'specter', 'lich'],
           environments: ['crypt chamber', 'bone-filled ossuary', 'vampire\'s lair', 'haunted manor', 'necromancer\'s laboratory', 'mass grave', 'mausoleum', 'embalming room', 'coffin storage'],
           enemies: ['zombies', 'skeletons', 'ghouls', 'ghosts', 'wraiths', 'wights', 'vampires', 'vampire spawn', 'necromancers', 'death knights', 'shadows', 'specters'],
           features: ['coffins', 'tombstones', 'skeletal remains', 'cobwebs', 'rotting tapestries', 'candelabras', 'burial urns', 'death masks', 'necromantic circles']
         },
         desert: {
-          keywords: ['desert', 'sand', 'pyramid', 'oasis', 'scorpion', 'mummy', 'pharaoh', 'sphinx', 'sandstorm', 'ancient egypt'],
-          environments: ['pyramid chamber', 'buried temple', 'oasis camp', 'sand-filled tomb', 'sun-bleached ruins', 'scorpion den', 'sultan\'s palace', 'bazaar'],
-          enemies: ['mummies', 'giant scorpions', 'dust mephits', 'gnolls', 'sphinxes', 'animated statues', 'sand elementals', 'yuan-ti', 'blue dragons'],
-          features: ['hieroglyphics', 'sarcophagi', 'sand drifts', 'stone pillars', 'golden treasures', 'oil lamps', 'palm fronds', 'water jugs']
+          keywords: ['desert', 'sand', 'pyramid', 'oasis', 'scorpion', 'mummy', 'pharaoh', 'sphinx', 'sandstorm', 'dune', 'arid', 'wasteland', 'sultan', 'bazaar', 'caravan'],
+          environments: ['pyramid chamber', 'buried temple', 'oasis camp', 'sand-filled tomb', 'sun-bleached ruins', 'scorpion den', 'sultan\'s palace', 'desert bazaar', 'sandstone canyon', 'nomad camp'],
+          enemies: ['mummies', 'giant scorpions', 'dust mephits', 'gnolls', 'sphinxes', 'animated statues', 'sand elementals', 'yuan-ti', 'blue dragons', 'jackalweres', 'lamias'],
+          features: ['hieroglyphics', 'sarcophagi', 'sand drifts', 'stone pillars', 'golden treasures', 'oil lamps', 'palm fronds', 'water jugs', 'sandstone carvings', 'sun-bleached bones']
         },
         mountain: {
-          keywords: ['mountain', 'cave', 'mine', 'dwarf', 'dwarven', 'giant', 'dragon', 'peak', 'cliff', 'gorge', 'avalanche'],
-          environments: ['mine shaft', 'crystal cavern', 'dragon\'s lair', 'mountain pass', 'dwarven forge', 'giant\'s throne room', 'ice cave', 'volcanic vent'],
-          enemies: ['giants', 'dragons', 'cave bears', 'trolls', 'kobolds', 'duergar', 'galeb duhr', 'rocs', 'yetis', 'wyverns'],
-          features: ['mine carts', 'gem deposits', 'stalactites', 'underground rivers', 'dwarven runes', 'forge equipment', 'crystalline formations']
+          keywords: ['mountain', 'cave', 'mine', 'dwarf', 'dwarven', 'giant', 'dragon', 'peak', 'cliff', 'gorge', 'avalanche', 'volcano', 'ridge', 'summit'],
+          environments: ['mine shaft', 'crystal cavern', 'dragon\'s lair', 'mountain pass', 'dwarven forge', 'giant\'s throne room', 'volcanic vent', 'cliff ledge', 'summit shrine'],
+          enemies: ['giants', 'dragons', 'cave bears', 'trolls', 'kobolds', 'duergar', 'galeb duhr', 'rocs', 'yetis', 'wyverns', 'basilisks'],
+          features: ['mine carts', 'gem deposits', 'stalactites', 'underground rivers', 'dwarven runes', 'forge equipment', 'crystalline formations', 'volcanic glass']
         },
         urban: {
-          keywords: ['city', 'town', 'tavern', 'guild', 'noble', 'thief', 'assassin', 'sewer', 'criminal', 'marketplace', 'castle'],
-          environments: ['tavern back room', 'noble\'s mansion', 'thieves\' guild hideout', 'city sewers', 'guard barracks', 'market square', 'abandoned warehouse'],
-          enemies: ['thugs', 'assassins', 'corrupt guards', 'gang members', 'wererats', 'doppelgangers', 'cultists', 'noble rivals'],
-          features: ['wooden tables', 'wanted posters', 'merchant stalls', 'sewer grates', 'hidden doors', 'ornate furniture', 'candle chandeliers']
+          keywords: ['city', 'town', 'tavern', 'guild', 'noble', 'thief', 'assassin', 'sewer', 'criminal', 'marketplace', 'castle', 'politics', 'court', 'council'],
+          environments: ['tavern back room', 'noble\'s mansion', 'thieves\' guild hideout', 'city sewers', 'guard barracks', 'market square', 'abandoned warehouse', 'council chamber', 'arena'],
+          enemies: ['thugs', 'assassins', 'corrupt guards', 'gang members', 'wererats', 'doppelgangers', 'cultists', 'noble rivals', 'mimics', 'gargoyles'],
+          features: ['wooden tables', 'wanted posters', 'merchant stalls', 'sewer grates', 'hidden doors', 'ornate furniture', 'candle chandeliers', 'cobblestone streets']
+        },
+        swamp: {
+          keywords: ['swamp', 'marsh', 'bog', 'bayou', 'wetland', 'mire', 'fen', 'lizardfolk', 'hag', 'mangrove', 'fog', 'mist', 'murky', 'humid'],
+          environments: ['murky shallows', 'sunken ruin', 'hag\'s hut on stilts', 'lizardfolk village', 'rotting boardwalk', 'drowned temple', 'fog-shrouded clearing', 'root-tangled path', 'bubbling tar pit', 'moss-draped hollow'],
+          enemies: ['lizardfolk', 'green hags', 'will-o\'-wisps', 'shambling mounds', 'bullywugs', 'hydras', 'trolls', 'yuan-ti', 'giant crocodiles', 'vine blights', 'black dragons', 'catoblepas'],
+          features: ['stagnant water', 'twisted mangroves', 'glowing fungi', 'decaying logs', 'insect swarms', 'hanging moss', 'bubbling mud', 'half-submerged stones', 'eerie fog', 'rotting vegetation']
+        },
+        arctic: {
+          keywords: ['arctic', 'ice', 'snow', 'frost', 'frozen', 'tundra', 'glacier', 'blizzard', 'winter', 'cold', 'polar', 'permafrost', 'icebound'],
+          environments: ['ice cave', 'frozen lake', 'glacial rift', 'snow-buried ruin', 'frost giant\'s hall', 'aurora-lit plateau', 'icebound ship', 'frozen waterfall', 'tundra camp', 'permafrost tomb'],
+          enemies: ['frost giants', 'yetis', 'winter wolves', 'ice mephits', 'remorhazes', 'white dragons', 'cold-touched undead', 'ice elementals', 'crag cats', 'frost salamanders', 'ice trolls'],
+          features: ['icicles', 'frozen pools', 'frost-covered runes', 'glacial walls', 'snow drifts', 'aurora reflections', 'ice pillars', 'frozen corpses', 'crystal-clear ice', 'howling wind gaps']
+        },
+        feywild: {
+          keywords: ['fey', 'feywild', 'fairy', 'faerie', 'pixie', 'sprite', 'archfey', 'seelie', 'unseelie', 'enchanted', 'whimsical', 'otherworldly', 'glamour', 'trickster'],
+          environments: ['fairy ring', 'enchanted glade', 'crystal palace', 'mushroom forest', 'twilight garden', 'archfey\'s court', 'ever-shifting maze', 'dreaming pool', 'moonlit bower', 'color-shifting meadow'],
+          enemies: ['pixies', 'sprites', 'redcaps', 'quicklings', 'meenlocks', 'hags', 'eladrin', 'displacer beasts', 'blink dogs', 'green dragons', 'korreds', 'darklings'],
+          features: ['glowing flowers', 'floating motes of light', 'impossible colors', 'talking animals', 'shifting paths', 'time-warped clearings', 'crystalline streams', 'sentient plants', 'musical winds', 'illusory architecture']
+        },
+        underdark: {
+          keywords: ['underdark', 'drow', 'underground', 'cavern', 'subterranean', 'deep', 'darkness', 'illithid', 'mind flayer', 'myconid', 'fungus', 'abyss', 'duergar', 'svirfneblin'],
+          environments: ['vast cavern', 'bioluminescent grotto', 'drow city', 'fungal forest', 'underground lake', 'mind flayer colony', 'crystal-studded tunnel', 'lava tube', 'myconid garden', 'aboleth\'s pool'],
+          enemies: ['drow', 'mind flayers', 'driders', 'hook horrors', 'umber hulks', 'purple worms', 'myconids', 'deep gnomes', 'ropers', 'cloakers', 'intellect devourers', 'beholders'],
+          features: ['bioluminescent fungus', 'stalactites and stalagmites', 'underground rivers', 'web-covered passages', 'crystal formations', 'phosphorescent pools', 'echo chambers', 'dripping ceilings', 'mineral veins', 'carved drow glyphs']
+        },
+        planar: {
+          keywords: ['plane', 'planar', 'portal', 'astral', 'ethereal', 'elemental', 'celestial', 'infernal', 'demon', 'devil', 'angel', 'outer planes', 'inner planes', 'sigil', 'multiverse', 'limbo', 'mechanus'],
+          environments: ['astral void', 'elemental nexus', 'celestial palace', 'infernal fortress', 'ethereal mist', 'floating island', 'planar crossroads', 'crystal sphere', 'chaos storm', 'divine sanctum'],
+          enemies: ['demons', 'devils', 'angels', 'elementals', 'modrons', 'slaadi', 'githyanki', 'githzerai', 'night hags', 'marut', 'inevitables', 'planetar'],
+          features: ['swirling portals', 'impossible geometry', 'floating debris', 'energy currents', 'planar rift marks', 'crystallized magic', 'gravity-defying structures', 'color pools', 'echoes of other worlds', 'reality fractures']
         },
         dungeon: {
-          keywords: ['dungeon', 'crypt', 'ruin', 'ancient', 'temple', 'fortress', 'labyrinth', 'maze', 'underground'],
-          environments: ['stone corridor', 'trapped hallway', 'ritual chamber', 'treasure vault', 'prison cells', 'throne room', 'armory', 'library'],
-          enemies: ['goblins', 'orcs', 'kobolds', 'minotaurs', 'gelatinous cubes', 'mimics', 'rust monsters', 'oozes', 'animated armors'],
-          features: ['stone pillars', 'ancient runes', 'iron torches', 'dusty tapestries', 'crumbling statues', 'locked chests', 'pressure plates']
+          keywords: ['dungeon', 'crypt', 'ruin', 'ancient', 'temple', 'fortress', 'labyrinth', 'maze', 'catacomb'],
+          environments: ['stone corridor', 'trapped hallway', 'ritual chamber', 'treasure vault', 'prison cells', 'throne room', 'armory', 'library', 'collapsed passage'],
+          enemies: ['goblins', 'orcs', 'kobolds', 'minotaurs', 'gelatinous cubes', 'mimics', 'rust monsters', 'oozes', 'animated armors', 'gargoyles'],
+          features: ['stone pillars', 'ancient runes', 'iron torches', 'dusty tapestries', 'crumbling statues', 'locked chests', 'pressure plates', 'iron portcullises']
         }
       };
       
-      // Detect which theme matches best
-      let detectedTheme = 'dungeon'; // default
-      let maxMatches = 0;
-      
+      // Detect theme using weighted scoring with minimum confidence threshold
+      const themeScores: Record<string, number> = {};
       for (const [themeName, themeData] of Object.entries(themeDetection)) {
         const matches = themeData.keywords.filter(kw => campaignText.includes(kw)).length;
-        if (matches > maxMatches) {
-          maxMatches = matches;
-          detectedTheme = themeName;
-        }
+        themeScores[themeName] = matches;
       }
+      const sortedThemes = Object.entries(themeScores)
+        .filter(([, score]) => score > 0)
+        .sort((a, b) => b[1] - a[1]);
       
-      const activeTheme = themeDetection[detectedTheme as keyof typeof themeDetection];
+      const primaryTheme = sortedThemes[0]?.[0] || 'dungeon';
+      const primaryScore = sortedThemes[0]?.[1] || 0;
+      const secondaryTheme = sortedThemes[1]?.[0] || null;
+      const secondaryScore = sortedThemes[1]?.[1] || 0;
       
-      // Build theme context for the AI
+      // Require at least 2 keyword matches for confident theme assignment
+      const detectedTheme = primaryScore >= 2 ? primaryTheme : 'dungeon';
+      // Blend if secondary theme has at least half the primary score
+      const shouldBlend = secondaryTheme && secondaryScore >= 2 && secondaryScore >= primaryScore * 0.5;
+      
+      const activeTheme = themeDetection[detectedTheme] || themeDetection.dungeon;
+      
+      // Build theme context with blending support
+      const themeDescriptions: Record<string, string> = {
+        nautical: 'Use wooden decks, ship cabins, sea spray, creaking timbers, nautical equipment. Enemies should be sea creatures, pirates, or maritime threats. Describe the motion of waves, salt air, rigging sounds.',
+        forest: 'Use dappled sunlight, rustling leaves, animal sounds, natural formations. Enemies should be forest creatures, fey, or wilderness threats. Describe birdsong, earthy scents, filtered light.',
+        undead: 'Use decay, darkness, cold air, eerie silence. Enemies should be undead creatures, necromancers, or cursed spirits. Describe the chill of death, the stench of rot, flickering shadows.',
+        desert: 'Use scorching heat, blinding sun, shifting sands, mirages. Enemies should be desert creatures, tomb guardians, or sand-dwelling threats. Describe dry wind, cracked earth, blazing sky.',
+        mountain: 'Use thin air, echoing caverns, rocky terrain, dramatic vistas. Enemies should be giants, dragons, mountain predators, or subterranean threats. Describe howling wind, distant peaks, treacherous footing.',
+        urban: 'Use city sounds, crowds, buildings, streets, social environments. Enemies should be criminals, corrupt officials, urban monsters, or rival factions. Describe bustling markets, shadowed alleys, political tension.',
+        swamp: 'Use thick fog, stagnant water, buzzing insects, squelching mud. Enemies should be swamp creatures, hags, lizardfolk, or corrupted nature. Describe the stench of decay, croaking frogs, oppressive humidity.',
+        arctic: 'Use biting cold, howling blizzards, cracking ice, blinding white. Enemies should be frost creatures, winter predators, or cold-adapted monsters. Describe freezing wind, breath clouds, treacherous ice.',
+        feywild: 'Use impossible colors, shifting reality, whimsical beauty, hidden danger. Enemies should be fey creatures, tricksters, or enchanted beings. Describe time distortion, emotional landscapes, surreal beauty.',
+        underdark: 'Use total darkness, bioluminescence, echoing caverns, alien landscapes. Enemies should be drow, mind flayers, aberrations, or deep creatures. Describe dripping water, phosphorescent glow, oppressive silence.',
+        planar: 'Use impossible geometry, elemental forces, cosmic scale, reality-warping. Enemies should be extraplanar entities, elementals, or outsiders. Describe swirling energy, gravity shifts, dimensional echoes.',
+        dungeon: 'Use stone corridors, ancient construction, hidden traps, forgotten chambers. Enemies should be dungeon-dwelling creatures, guardians, or underground threats. Describe echoing footsteps, torch flicker, dust and cobwebs.',
+      };
+      
+      const primaryDesc = themeDescriptions[detectedTheme] || themeDescriptions.dungeon;
+      const blendNote = shouldBlend && secondaryTheme
+        ? `\nSECONDARY THEME INFLUENCE (${secondaryTheme.toUpperCase()}): Occasionally weave in elements of ${themeDescriptions[secondaryTheme] || ''}. About 20-30% of descriptions can draw from this secondary theme for variety.`
+        : '';
+      
       const themeContext = `
-ADVENTURE THEME: ${detectedTheme.toUpperCase()}
+ADVENTURE THEME: ${detectedTheme.toUpperCase()}${shouldBlend ? ` (with ${secondaryTheme} influences)` : ''}
 ENVIRONMENT CONTEXT: This adventure takes place in a ${detectedTheme} setting. Use appropriate descriptions:
 - Typical environments: ${activeTheme.environments.slice(0, 5).join(', ')}
 - Appropriate enemies: ${activeTheme.enemies.slice(0, 6).join(', ')}
 - Environmental features: ${activeTheme.features.slice(0, 5).join(', ')}
 
+${primaryDesc}
+${blendNote}
+
 CRITICAL: Do NOT use generic dungeon descriptions (stone corridors, ancient runes, spectral guardians) unless they fit the ${detectedTheme} theme.
-Instead, describe environments that match the adventure's setting. For example:
-${detectedTheme === 'nautical' ? '- Use wooden decks, ship cabins, sea spray, creaking timbers, nautical equipment\n- Enemies should be sea creatures, pirates, or cursed sailors\n- Describe the motion of the ship, sound of waves, salt air' : ''}
-${detectedTheme === 'forest' ? '- Use dappled sunlight, rustling leaves, animal sounds, natural formations\n- Enemies should be forest creatures, fey, or wilderness threats' : ''}
-${detectedTheme === 'urban' ? '- Use city sounds, crowds, buildings, streets, social environments\n- Enemies should be criminals, corrupt officials, or urban monsters' : ''}
+Do NOT default to nautical themes (ghost sailors, kraken, shipwrecks) unless the campaign is explicitly set at sea.
+Instead, describe environments that MATCH the campaign's actual setting and the ${detectedTheme} theme.
 `;
       
       // Get previous scene type to prevent combat repetition
@@ -17659,8 +17778,8 @@ ${detectedTheme === 'urban' ? '- Use city sounds, crowds, buildings, streets, so
             'A sea serpent surfaces near the ship, drawn by noise',
             'Pirates spotted on the horizon — they\'re closing fast',
             'Sahuagin raiders emerge from the waves and scale the hull',
-            'A kraken tentacle slams onto the deck without warning',
-            'Cursed sailors from a ghost ship board under cover of fog'
+            'A water elemental surges up from the deep, capsizing cargo',
+            'Merrow surface and attack, dragging crew toward the depths'
           ],
           forest: [
             'Wolves surround the party, drawn by the scent of provisions',
@@ -17687,7 +17806,7 @@ ${detectedTheme === 'urban' ? '- Use city sounds, crowds, buildings, streets, so
             'A cave troll charges from a crevice in the rock',
             'Kobolds rain stones and javelins from above',
             'A young wyvern dives from a cliff ledge',
-            'Frost-covered undead emerge from an icy cave',
+            'An avalanche dislodges cave bears from hibernation',
             'Giants hurl boulders from a ridge above the pass'
           ],
           urban: [
@@ -17696,6 +17815,41 @@ ${detectedTheme === 'urban' ? '- Use city sounds, crowds, buildings, streets, so
             'Wererats pour from the sewers below',
             'Corrupt guards corner the party on false charges',
             'A doppelganger reveals its true form and attacks'
+          ],
+          swamp: [
+            'A giant crocodile lunges from the murky water',
+            'Lizardfolk warriors rise from the reeds, spears ready',
+            'A shambling mound pulls itself from the bog, reaching for warmth',
+            'Will-o\'-wisps lure the party into quicksand, then swarm',
+            'A hydra surfaces from beneath a stagnant pool'
+          ],
+          arctic: [
+            'A yeti bursts from a snowbank with a terrifying howl',
+            'Winter wolves circle the party on a frozen lake',
+            'An ice mephit swarm whirls out of a blizzard',
+            'A remorhaz erupts from beneath the permafrost',
+            'Frost giants emerge from a glacier crevasse'
+          ],
+          feywild: [
+            'Quicklings dart from the underbrush, stealing and slashing',
+            'A redcap charges with its iron boots clanging on stone',
+            'Animated trees uproot and swing branches at intruders',
+            'A displacer beast stalks from behind shimmering illusions',
+            'Pixies turn hostile and unleash a storm of enchantments'
+          ],
+          underdark: [
+            'A hook horror drops from the ceiling with a shriek',
+            'Drow scouts loose poisoned crossbow bolts from the shadows',
+            'A roper disguised as a stalagmite lashes out with tendrils',
+            'An umber hulk bursts through the tunnel wall',
+            'An intellect devourer scurries from a dark alcove'
+          ],
+          planar: [
+            'A chain devil materializes from a swirl of brimstone',
+            'Slaadi burst through a crack in reality',
+            'An air elemental whips into a furious vortex around the party',
+            'Githyanki raiders phase in from the astral plane',
+            'A nightmare gallops through a planar rift, rider in pursuit'
           ],
           dungeon: [
             'An animated suit of armor lurches to life and attacks',
@@ -22773,12 +22927,27 @@ Respond with JSON:
       const recentMotifs = extractMotifs(recentNarText).slice(0, 10);
 
       const campaignText = `${campaign?.title || ''} ${campaign?.description || ''} ${previousNarrative}`.toLowerCase();
-      let detectedTheme = 'dungeon';
-      if (/ship|sea|ocean|pirate|nautical|harbor/.test(campaignText)) detectedTheme = 'nautical';
-      else if (/forest|wood|tree|grove|wilderness/.test(campaignText)) detectedTheme = 'forest';
-      else if (/city|town|urban|guild|tavern/.test(campaignText)) detectedTheme = 'urban';
-      else if (/desert|sand|pyramid|oasis/.test(campaignText)) detectedTheme = 'desert';
-      else if (/mountain|cave|mine|dwarf/.test(campaignText)) detectedTheme = 'mountain';
+      // Weighted theme detection — score all themes, pick the best with minimum confidence
+      const themeKeywordsMap: Record<string, string[]> = {
+        nautical: ['ship', 'sea', 'ocean', 'pirate', 'sailor', 'nautical', 'harbor', 'vessel', 'voyage', 'coast'],
+        forest: ['forest', 'wood', 'tree', 'grove', 'wilderness', 'druid', 'ranger', 'woodland', 'glade'],
+        urban: ['city', 'town', 'urban', 'guild', 'tavern', 'noble', 'thief', 'sewer', 'marketplace', 'castle'],
+        desert: ['desert', 'sand', 'pyramid', 'oasis', 'dune', 'arid', 'scorpion', 'sultan', 'caravan'],
+        mountain: ['mountain', 'cave', 'mine', 'dwarf', 'peak', 'cliff', 'gorge', 'summit', 'volcano'],
+        swamp: ['swamp', 'marsh', 'bog', 'bayou', 'wetland', 'mire', 'lizardfolk', 'hag', 'murky'],
+        arctic: ['arctic', 'ice', 'snow', 'frost', 'frozen', 'tundra', 'glacier', 'blizzard', 'winter'],
+        feywild: ['fey', 'feywild', 'fairy', 'pixie', 'archfey', 'enchanted', 'whimsical', 'seelie', 'unseelie'],
+        underdark: ['underdark', 'drow', 'subterranean', 'cavern', 'illithid', 'mind flayer', 'myconid', 'deep'],
+        planar: ['plane', 'planar', 'portal', 'astral', 'ethereal', 'elemental', 'demon', 'devil', 'celestial', 'infernal'],
+        undead: ['undead', 'zombie', 'skeleton', 'vampire', 'necromancer', 'graveyard', 'tomb', 'haunted', 'ghost'],
+        dungeon: ['dungeon', 'crypt', 'ruin', 'ancient', 'temple', 'fortress', 'labyrinth', 'catacomb'],
+      };
+      const streamThemeScores: Record<string, number> = {};
+      for (const [theme, kws] of Object.entries(themeKeywordsMap)) {
+        streamThemeScores[theme] = kws.filter(kw => campaignText.includes(kw)).length;
+      }
+      const streamSorted = Object.entries(streamThemeScores).filter(([,s]) => s > 0).sort((a,b) => b[1] - a[1]);
+      let detectedTheme = (streamSorted[0]?.[1] || 0) >= 2 ? streamSorted[0]![0] : 'dungeon';
 
       let playerCharInfo = "";
       if (validCharacters.length > 0) {

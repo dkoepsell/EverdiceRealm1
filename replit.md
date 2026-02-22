@@ -53,6 +53,9 @@ Backend endpoints for DM pressure/clock management:
 - `DELETE /api/campaigns/:id/dm-clocks/:clockId` - Delete clock
 - `POST /api/campaigns/:id/spark` - Apply spark template (seeds 2 pressures + 2 clocks + hidden variable)
 
+### Theme Detection System
+Content generation uses a weighted scoring theme detection system across 3 detection points (doctrine improvisation, encounter narrative, and streaming narrative). The system supports 14 themes: nautical, forest, undead, desert, mountain, urban, swamp, arctic, feywild, underdark, planar, dungeon, plus exploration/wilderness for the doctrine system. Theme detection uses keyword frequency scoring with a minimum confidence threshold of 2 keyword matches — below this, it falls back to a neutral default (exploration or dungeon depending on context). Theme blending activates when a secondary theme scores at least 50% of the primary, adding ~20-30% secondary flavor to content. Ambiguous keywords like "captain", "port", "island" have been removed from nautical detection to prevent false positives.
+
 ## External Dependencies
 
 ### Core
