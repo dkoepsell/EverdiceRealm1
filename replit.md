@@ -40,7 +40,7 @@ The Live Manager (`LiveManagerPanel.tsx`) uses a "world tension first" layout wi
 2. **Escalation Clocks** - Visible progress tracks (filled/empty blocks) with stage count, "advances in X days" label, trigger conditions, and +1/remove controls. DMs create and manage their own clocks. Color-coded: green (early) -> amber (mid) -> red (near completion).
 3. **Spark Buttons** - "Need inspiration?" collapsible section with 6 themed one-tap buttons (Political Intrigue, Natural Disaster, Faction Conflict, Religious Tension, Criminal Underworld, Arcane Anomaly). One click seeds 2 clocks + 1 hidden variable, all fully editable by the DM.
 4. **Do Nothing Forecast** - Collapsible panel showing AI-free consequence predictions if the party stalls (derived from clocks, stakes, rival agents, factions, meters).
-5. **Collapsed DM Controls** - Pause/Undo/Checkpoint/Inject/Override moved to a collapsible bottom toolbar (collapsed by default), showing current mode in collapsed label.
+5. **DM Controls** - Pause/Undo/Checkpoint/Inject/Override in a permanently visible bottom toolbar, showing current session and narrative mode.
 6. **Emerging Consequences** - Right sidebar "Ripples" tab shows DM-created consequences above suggested "World Force" events. World Forces are proactive events players didn't trigger (faction movements, seasonal shifts, rival actions), tagged with Globe icon and "World Force" badge, with accept/edit/dismiss controls.
 7. **Map-Backed VTT Table** - The drag-and-drop table uses the procedural exploration map as a 30% opacity background, with dragged artifacts rendered as backdrop-blur cards over the map.
 

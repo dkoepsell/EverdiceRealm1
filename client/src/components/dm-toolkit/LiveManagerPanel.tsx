@@ -772,7 +772,6 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
   const [newInitiativeHp, setNewInitiativeHp] = useState(20);
   const [newInitiativeAc, setNewInitiativeAc] = useState(12);
   const [newInitiativeIsPlayer, setNewInitiativeIsPlayer] = useState(false);
-  const [controlBarOpen, setControlBarOpen] = useState(false);
   
   // DM Control Bar state
   const [isPaused, setIsPaused] = useState(false);
@@ -2064,46 +2063,39 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
         </div>
       </div>
 
-      {/* Collapsible DM Control Bar - Bottom of screen */}
-      <Collapsible open={controlBarOpen} onOpenChange={setControlBarOpen}>
-        <div className="mt-2 rounded-lg border border-muted-foreground/20 bg-slate-900/50 overflow-hidden">
-          <CollapsibleTrigger asChild>
-            <button className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/30 transition-colors text-left">
-              <Shield className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">DM Controls</span>
-              {isPaused && (
-                <Badge variant="outline" className="h-4 px-1 text-[10px] bg-red-500/20 text-red-400 border-red-500/30">
-                  Paused
-                </Badge>
-              )}
-              <span className="text-[10px] text-muted-foreground/50 ml-auto mr-1">
-                {sessionMode} · {narrativeMode}
-              </span>
-              {controlBarOpen ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
-            </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="border-t border-muted-foreground/10">
-              <DMControlBar
-                campaignId={selectedCampaignId}
-                isPaused={isPaused}
-                onPauseToggle={handlePauseToggle}
-                sessionMode={sessionMode}
-                onModeChange={handleModeChange}
-                narrativeMode={narrativeMode}
-                onNarrativeModeChange={handleNarrativeModeChange}
-                onUndo={handleUndo}
-                canUndo={undoStack.length > 0}
-                onCheckpoint={handleCheckpoint}
-                onRestoreCheckpoint={handleRestoreCheckpoint}
-                checkpoints={checkpoints}
-                onInjectNarration={handleInjectNarration}
-                onForceStateChange={handleForceStateChange}
-              />
-            </div>
-          </CollapsibleContent>
+      {/* DM Control Bar - Always visible at bottom */}
+      <div className="mt-2 rounded-lg border border-muted-foreground/20 bg-slate-900/50 overflow-hidden">
+        <div className="flex items-center gap-2 px-3 py-1.5 text-left">
+          <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground">DM Controls</span>
+          {isPaused && (
+            <Badge variant="outline" className="h-4 px-1 text-[10px] bg-red-500/20 text-red-400 border-red-500/30">
+              Paused
+            </Badge>
+          )}
+          <span className="text-[10px] text-muted-foreground/50 ml-auto mr-1">
+            {sessionMode} · {narrativeMode}
+          </span>
         </div>
-      </Collapsible>
+        <div className="border-t border-muted-foreground/10">
+          <DMControlBar
+            campaignId={selectedCampaignId}
+            isPaused={isPaused}
+            onPauseToggle={handlePauseToggle}
+            sessionMode={sessionMode}
+            onModeChange={handleModeChange}
+            narrativeMode={narrativeMode}
+            onNarrativeModeChange={handleNarrativeModeChange}
+            onUndo={handleUndo}
+            canUndo={undoStack.length > 0}
+            onCheckpoint={handleCheckpoint}
+            onRestoreCheckpoint={handleRestoreCheckpoint}
+            checkpoints={checkpoints}
+            onInjectNarration={handleInjectNarration}
+            onForceStateChange={handleForceStateChange}
+          />
+        </div>
+      </div>
 
       <DragOverlay>
           {activeId ? (
