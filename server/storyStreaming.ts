@@ -31,6 +31,14 @@ const REVEAL_TEMPLATES: Record<string, string[]> = {
     "Eyes meet. There's a pause, heavy with meaning, before anyone responds.",
     "Your words ripple outward. Someone listens more carefully than you expected.",
   ],
+  waypoint: [
+    "The road stretches ahead. You walk on, steady and unhurried.",
+    "Your boots find the familiar rhythm of travel. The landscape shifts quietly around you.",
+    "The path continues. Wind and dust are your only companions for now.",
+    "You press forward. The terrain changes gradually as you cover ground.",
+    "One step after another. The journey is uneventful, the destination drawing closer.",
+    "The trail bends ahead. You follow it without incident.",
+  ],
   default: [
     "You act decisively. The world responds, though not all consequences are yet visible.",
     "Your choice resonates through the moment. Something is about to change.",
@@ -40,11 +48,26 @@ const REVEAL_TEMPLATES: Record<string, string[]> = {
   ],
 };
 
+const WAYPOINT_TRAVEL_RE = /\b(walk|continue|head\s+(north|south|east|west|forward|back|onward)|travel|proceed|move\s+(on|forward|ahead|along)|go\s+(to|forward|north|south|east|west|ahead|on)|keep\s+(going|walking|moving)|press\s+(on|forward|ahead)|march|trek|follow\s+the\s+(path|road|trail|river)|take\s+the\s+(path|road|trail)|carry\s+on|advance|wander|stroll|ride\s+(on|forward|ahead)|set\s+off|set\s+out|leave|depart|make\s+(my|our)\s+way)\b/i;
+
+function isWaypointTravel(action: string): boolean {
+  if (!action) return false;
+  const lower = action.toLowerCase().trim();
+  if (WAYPOINT_TRAVEL_RE.test(lower)) {
+    if (/\b(attack|fight|strike|cast|shoot|fire|slash|stab|kill|ambush|charge)\b/i.test(lower)) return false;
+    if (/\b(talk|speak|ask|persuade|negotiate|interrogate|convince|intimidate|bribe)\b/i.test(lower)) return false;
+    if (/\b(search|examine|inspect|investigate|study|analyze|read|decipher|open|pick\s+lock|disarm)\b/i.test(lower)) return false;
+    return true;
+  }
+  return false;
+}
+
 function getRevealCategory(choice: string, inCombat: boolean): string {
   if (inCombat) return 'combat';
   const lower = choice.toLowerCase();
   if (/\b(attack|strike|slash|fight|cast|fire|shoot)\b/.test(lower)) return 'combat';
   if (/\b(talk|speak|ask|persuade|negotiate|say|tell|convince|intimidate)\b/.test(lower)) return 'social';
+  if (isWaypointTravel(choice)) return 'waypoint';
   if (/\b(move|go|explore|enter|travel|walk|search|look|investigate)\b/.test(lower)) return 'exploration';
   return 'default';
 }
@@ -105,11 +128,18 @@ export function registerStreamingRoutes(app: Express) {
         const sense = sensePool[Math.floor(Math.random() * sensePool.length)];
         const hook = hookStyles[Math.floor(Math.random() * hookStyles.length)];
 
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [{
-            role: "user",
-            content: `You are a D&D narrator writing a 2-3 sentence teaser (max 40 words). Acknowledge the player's action and build tension.
+        const isWaypoint = isWaypointTravel(choice);
+
+        const waypointPrompt = `You are a D&D narrator writing a BRIEF travel transition (max 20 words). The player is simply moving — no encounters, no drama.
+
+Player action: "${choice}"
+Location: ${context.location}
+Setting: ${context.theme}
+
+Write 1 sentence describing the journey in passing — terrain, weather, a small grounded detail. No mysteries, no tension, no glowing anything.
+Max 20 words. Narrative text only, no JSON, no quotes.`;
+
+        const fullPrompt = `You are a D&D narrator writing a 2-3 sentence teaser (max 40 words). Acknowledge the player's action and build tension.
 
 Player action: "${choice}"
 Location: ${context.location}
@@ -126,10 +156,16 @@ RULES:
 - Do NOT mention damage numbers, loot, or combat results
 - Do NOT start new plot threads
 - NEVER start with "You step forward" — vary your openings
-- Max 40 words. Narrative text only, no JSON, no quotes.`
+- Max 40 words. Narrative text only, no JSON, no quotes.`;
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{
+            role: "user",
+            content: isWaypoint ? waypointPrompt : fullPrompt
           }],
-          max_tokens: 80,
-          temperature: 0.9,
+          max_tokens: isWaypoint ? 40 : 80,
+          temperature: isWaypoint ? 0.5 : 0.9,
         });
 
         const revealText = response.choices[0]?.message?.content?.trim() || getTemplateReveal(context);

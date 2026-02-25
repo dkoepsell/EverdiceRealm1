@@ -258,12 +258,40 @@ NARRATIVE-CHOICE ALIGNMENT (CRITICAL):
 - Generic "housekeeping" choices (heal, rest, search, meditate) may fill remaining slots but must NEVER crowd out the actual narrative decision
 `;
 
+const WAYPOINT_TRAVEL_PATTERNS = /\b(walk|continue|head\s+(north|south|east|west|forward|back|onward)|travel|proceed|move\s+(on|forward|ahead|along)|go\s+(to|forward|north|south|east|west|ahead|on)|keep\s+(going|walking|moving)|press\s+(on|forward|ahead)|march|trek|follow\s+the\s+(path|road|trail|river)|take\s+the\s+(path|road|trail)|carry\s+on|advance|wander|stroll|ride\s+(on|forward|ahead)|set\s+off|set\s+out|leave|depart|make\s+(my|our)\s+way)\b/i;
+
+function isWaypointTravel(action: string): boolean {
+  if (!action) return false;
+  const lower = action.toLowerCase().trim();
+  if (WAYPOINT_TRAVEL_PATTERNS.test(lower)) {
+    const combatIntent = /\b(attack|fight|strike|cast|shoot|fire|slash|stab|kill|ambush|charge)\b/i;
+    const socialIntent = /\b(talk|speak|ask|persuade|negotiate|interrogate|convince|intimidate|bribe)\b/i;
+    const investigateIntent = /\b(search|examine|inspect|investigate|study|analyze|read|decipher|open|pick\s+lock|disarm)\b/i;
+    if (combatIntent.test(lower) || socialIntent.test(lower) || investigateIntent.test(lower)) {
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
+
 const SCENE_TEMPERATURE_SCALING = `
 SCENE TEMPERATURE — MATCH INTENSITY TO CONTEXT (CRITICAL):
 Not every scene is a world-changing event. Scale your narrative intensity to fit the actual situation:
 
+WAYPOINT MOVE (simple travel/movement) — 20-35 words:
+- Triggered when the player's action is purely movement: "continue forward", "head north", "walk to the village", "proceed along the road", "move on", "travel to the next town"
+- Write a BRIEF 1-2 sentence transition. Describe the journey in passing — terrain, weather, a small detail — then state where they arrive.
+- Do NOT invent encounters, dramatic events, ambushes, or discoveries during waypoint moves unless the story explicitly demands it (e.g., an established pursuit)
+- Do NOT describe glowing anything, mystical energy, ancient power, or cosmic significance during simple travel
+- Examples of good waypoint transitions:
+  * "The trail winds through sparse pines before opening onto a grassy ridge. Ahead, the village of Thornfield comes into view."
+  * "You follow the river south for an hour. The current quickens near a weathered stone bridge."
+  * "The road is quiet. Dust kicks up with each step until the crossroads appears around the bend."
+- Choices after waypoint moves should be practical: explore the new area, talk to someone nearby, rest, or keep moving
+
 LOW TEMPERATURE (calm, routine, transitional) — 30-50 words:
-- Walking between locations, shopping, resting, casual conversation
+- Shopping, resting, casual conversation, arriving at a familiar place
 - 2-3 sentences max. One sensory detail, what happens, move on.
 - Choices should be simple and practical: "Head north" / "Browse the stall" / "Ask about local rumors"
 - NO cosmic stakes, ancient prophecies, or mystical revelations in mundane moments
@@ -280,10 +308,46 @@ HIGH TEMPERATURE (dramatic, climactic) — 80-120 words:
 
 RULES:
 - Default to LOW or MEDIUM temperature. HIGH should be rare — maybe 1 in every 5-6 scenes.
-- If the player just chose "walk down the road" or "continue forward," respond with LOW temperature. Do NOT turn a simple step into a mystical encounter with glowing runes.
+- If the player just chose "walk down the road", "continue forward", "head north", "travel to X", or any simple movement action, use WAYPOINT MOVE temperature. Do NOT turn a simple step into a mystical encounter with glowing runes or an ambush.
 - Travel scenes, shopping, and idle moments should feel grounded and natural, not portentous.
 - Save dramatic language (ancient, mystical, cosmic, fate, destiny, prophecy) for moments that earn it.
 - Variety in pacing is what makes dramatic moments land. A story that's always at 10 has no impact.
+
+DESCRIPTION VARIETY — AVOID REPETITION (CRITICAL):
+BANNED PHRASES — Do NOT use any of these:
+- "glowing runes", "ancient runes glow", "runes pulse with energy"
+- "mystical energy", "arcane symbols pulse", "magical energy crackles"
+- "eldritch power", "otherworldly glow", "shimmering aura"
+
+Instead, vary your environmental descriptions using these alternatives:
+- Carved stonework, weathered carvings, faded inscriptions, chiseled grooves
+- Painted murals, mosaic tile patterns, tapestry-covered walls
+- Mechanical contraptions, clockwork devices, weighted pulleys, iron levers
+- Crystal formations, mineral veins, phosphorescent moss, bioluminescent fungi
+- Natural phenomena: thermal vents, underground streams, wind-carved passages
+- Architectural details: crumbling arches, buttressed ceilings, iron-banded doors
+- Sensory details: dripping water, distant echoes, musty air, cold drafts, the smell of damp earth
+- Evidence of habitation: scratched tally marks, scattered tools, old campfire rings, discarded rations
+
+Rotate through different description categories. If your last scene used stonework, try natural phenomena or mechanical elements next.
+
+ANTI-REPETITION DIRECTIVE:
+You MUST avoid repeating the same descriptive patterns across scenes. Track what you have already described and choose something different each time.
+
+DO NOT default to magical/arcane descriptions for every environment. Most rooms, corridors, and spaces are mundane — made of stone, wood, earth, or metal. Magic should be the exception, not the rule.
+
+For puzzles and obstacles, vary the type:
+- Mechanical: gears, levers, counterweights, pressure plates, rotating cylinders
+- Natural: flooding water, unstable ground, narrow ledges, tangled roots, ice patches
+- Architectural: collapsed passages, hidden doors, rotating walls, false floors
+- Social: riddles from guardians, bargains with spirits, tests of character
+- Sensory: sound-based locks, color-matching sequences, scent trails, temperature puzzles
+
+For environment descriptions, rotate through:
+- Weather and atmosphere: fog, rain, dust motes, shafts of light, oppressive heat
+- Fauna and flora: spiderwebs, bat colonies, mushroom clusters, lichen, root systems
+- Construction materials: brick, timber, packed earth, rough-hewn stone, polished marble
+- Age indicators: rust, moss, erosion, fresh tool marks, recent repairs
 `;
 
 async function improviseDoctrine(campaign: any): Promise<{ campaignQuestion: string; campaignStakes: any[]; chapterGates: any[] } | null> {
@@ -6828,6 +6892,23 @@ SESSION CLOSURE BEATS (CRITICAL FOR PLAYER RETENTION):
 - End stopping point scenes with a forward hook: hint at what comes next, an unanswered question, or a new threat on the horizon
 - Think of it like a TV episode ending: resolve the immediate tension, but leave threads that pull the viewer back
 - If inCombat is true or combatants are present, DO NOT set sessionBreakpoint
+
+WHEN TO SET sessionBreakpoint: true (EXAMPLES — set it at moments like these):
+- After defeating a boss or completing a significant combat encounter and the dust settles
+- When the party arrives at a safe haven, tavern, or town after a journey
+- After completing a quest objective or solving a major puzzle
+- During a campfire/rest scene where the party reflects on recent events
+- After a chapter gate is met (chapterGateMet) — this is ALWAYS a good break point
+- When reuniting with an NPC ally or receiving a quest reward
+- After a dramatic social encounter resolves (negotiation complete, trial ended, alliance formed)
+- At any calm transition between two distinct story segments
+
+WHEN NOT TO SET sessionBreakpoint (NEVER at these moments):
+- During active combat or when combatants are still alive and hostile
+- Mid-chase or pursuit sequences
+- When a timer or countdown is active in the narrative
+- Right after revealing a major threat or cliffhanger
+- When the party is in immediate danger
 `;
 
       if (completedGates.length > 0) {
@@ -6864,9 +6945,9 @@ ${upcomingGates.slice(0, 2).map((g: any) => `- Chapter ${g.chapter}: "${g.advanc
       // CHAPTER PROGRESSION NUDGING
       // ============================================
       let chapterNudge = "";
-      const GENTLE_THRESHOLD = 8;
-      const MODERATE_THRESHOLD = 12;
-      const URGENT_THRESHOLD = 16;
+      const GENTLE_THRESHOLD = 5;
+      const MODERATE_THRESHOLD = 7;
+      const URGENT_THRESHOLD = 9;
 
       if (currentGateForSpine && scenesInCurrentChapter >= GENTLE_THRESHOLD) {
         if (scenesInCurrentChapter >= URGENT_THRESHOLD) {
@@ -6957,11 +7038,12 @@ DM AUTHORING DOCTRINE - THESE OVERRIDE ALL OTHER RULES:
    - The current chapter gate defines WHAT THIS CHAPTER IS ABOUT — every scene must build toward it
    - Your scenes should create situations, encounters, and choices that NATURALLY lead toward satisfying the gate condition
    - Do NOT wait for the player to stumble onto the gate — actively steer the narrative toward it through NPC actions, environmental pressures, and consequences of choices
-   - PACING RULE: Do NOT trigger "chapterGateMet" in the first 4 scenes of a chapter. Early scenes should establish the chapter's themes, introduce complications, and build tension. The gate should feel EARNED through narrative buildup, not rushed.
-   - When the gate condition is met (a belief changes, a truth is learned, or a commitment is made) AND the chapter has had at least 4 scenes of buildup, you MUST include "chapterGateMet" in your response
-   - Include "chapterGateMet": { "gateId": chapter_number, "reason": "what truth/belief/commitment was reached" }
+   - PACING RULE: Do NOT trigger "chapterGateMet" in the first 3 scenes of a chapter. Early scenes should establish the chapter's themes, but don't over-delay — target 6-8 scenes per chapter (~1 hour of play).
+   - When the gate condition is met (a belief changes, a truth is learned, or a commitment is made) AND the chapter has had at least 3 scenes of buildup, you MUST include "chapterGateMet" in your response
+   - Include "chapterGateMet": { "gateId": chapter_number, "reason": "what truth/belief/commitment was reached" } — gateId must be a NUMBER matching the current chapter
    - NEVER generate aimless dungeon crawling or random encounters that don't connect to the chapter's purpose
    - If you're unsure how to connect the current action to the gate, have an NPC deliver urgent news, reveal a clue, or create a consequence that forces engagement with the gate theme
+   - PACING TARGET: Each chapter should last approximately 6-8 scenes. After scene 5, actively create moments where the gate can be met. Do not pad chapters with filler.
 
 0E. LOG WHY THINGS MATTER:
    - Include "narrativeLogEntry" in your response: { "xpReason": why XP was earned, "stakeReason": which stakes changed and why, "foreclosedReason": what options closed and why }
@@ -7087,7 +7169,7 @@ Return your response as a JSON object with these fields:
 - failureAdvancement: (OPTIONAL - include ONLY when player fails significantly) { "villainAdvancement": "what villain gained", "villainStepAdvance": true/false, "corruptionIncrease": N, "instabilityIncrease": N, "factionShift": "how factions changed", "worldConsequence": "visible change", "newThreat": "new danger created" }
   FAILURE RULES: When players fail, the world ADVANCES — it does NOT block. The villain gains ground, factions shift, corruption spreads. But the player gets NEW opportunities born from the failure. Never dead-end the story.
 - chapterGateMet: (OPTIONAL) If the chapter gate's required truth/commitment/belief was achieved THIS scene, include: { "gateId": chapter_number, "reason": "what was learned/committed/changed" }
-- sessionBreakpoint: (OPTIONAL, boolean) Set to true ONLY when this scene is a NATURAL STOPPING POINT at a genuine narrative transition. NEVER during combat, chases, or tense action. Only at calm moments: after combat ends, arriving somewhere new, rest scenes, quest completions. Should occur no more than once every 8+ scenes — the client controls timing display.
+- sessionBreakpoint: (OPTIONAL, boolean) Set to true when this scene is a NATURAL STOPPING POINT. Trigger it after: quest completions, boss defeats, arriving at safe havens, campfire/rest scenes, chapter gate achievements, social encounter resolutions. NEVER during combat, chases, or when combatants are present. Aim for roughly once every 6-8 scenes at calm narrative transitions.
 - narrativeLogEntry: (REQUIRED) Object with:
   - xpReason: Why XP was awarded this scene (or "No XP — no meaningful resolution")
   - stakeReason: Which campaign stakes changed and why (one sentence)
@@ -7522,14 +7604,14 @@ Return your response as a JSON object with these fields:
           }
           
           // DM AUTHORING DOCTRINE: Chapter gate advancement (meaning-based, not metrics-based)
-          const CHAPTER_MIN_SCENES = 4;
+          const CHAPTER_MIN_SCENES = 3;
           let chapterAdvanced = false;
           if (storyData.chapterGateMet) {
             const gate = storyData.chapterGateMet;
             const currentChapterForGate = campaign.currentSession || 1;
             const totalChaptersForGate = campaign.totalChapters || 5;
             
-            if (gate.gateId === currentChapterForGate && currentChapterForGate < totalChaptersForGate) {
+            if (Number(gate.gateId) === currentChapterForGate && currentChapterForGate < totalChaptersForGate) {
               if (scenesInCurrentChapter >= CHAPTER_MIN_SCENES) {
                 chapterAdvanced = true;
                 stateWasUpdated = true;
@@ -7551,8 +7633,7 @@ Return your response as a JSON object with these fields:
             }
           }
           
-          // HARD-CAP FAILSAFE: If 12+ sessions in this chapter without AI triggering gate, force-advance
-          const CHAPTER_HARD_CAP = 12;
+          const CHAPTER_HARD_CAP = 10;
           if (!chapterAdvanced && scenesInCurrentChapter >= CHAPTER_HARD_CAP) {
             const currentChapterForHardCap = campaign.currentSession || 1;
             const totalChaptersForHardCap = campaign.totalChapters || 5;
@@ -8018,6 +8099,13 @@ ${hexEnvironmentContext}
 
 Current Situation: ${context}
 Last Player Action: ${actionDescription}
+${isWaypointTravel(actionDescription) ? `
+⚡ WAYPOINT MOVE DETECTED — This is a simple travel/movement action.
+USE WAYPOINT MOVE TEMPERATURE (20-35 words max). Write a brief 1-2 sentence transition describing the journey and arrival.
+Do NOT generate encounters, ambushes, dramatic events, or discoveries. Do NOT use dramatic language.
+Keep it grounded: terrain, weather, a passing detail, then where they arrive.
+Set sceneType to "Travel".
+` : ''}
 
 ${skillCheckContinuation}
 
@@ -10528,35 +10616,111 @@ Return your response as a JSON object with these fields:
       if (!encounterTriggered && Math.random() < 0.12) {
         const puzzleTypes = [
           {
-            description: 'Ancient runes glow on the wall, forming a cryptic riddle. The answer may unlock hidden secrets.',
+            description: 'A tall mirror stands at the end of the hall, reflecting a version of the room that doesn\'t match reality. Objects in the reflection are rearranged — the solution lies in matching the real room to the mirror\'s image.',
+            choices: [
+              { id: 'investigate', text: 'Study the differences between reflection and reality (Investigation DC 13)', rollRequired: { type: 'd20', skill: 'investigation' } },
+              { id: 'arcana', text: 'Sense the enchantment binding the mirror (Arcana DC 14)', rollRequired: { type: 'd20', skill: 'arcana' } },
+              { id: 'force', text: 'Smash the mirror and see what happens (Strength DC 15)', rollRequired: { type: 'd20', skill: 'strength' } },
+              { id: 'skip', text: 'Leave the mirror alone and move on', rollRequired: null }
+            ]
+          },
+          {
+            description: 'Weathered carvings on the wall depict a riddle in verse: "I have cities but no houses, forests but no trees, and water but no fish." A stone dial below awaits an answer.',
             choices: [
               { id: 'solve', text: 'Attempt to solve the riddle (Intelligence DC 14)', rollRequired: { type: 'd20', skill: 'intelligence' } },
-              { id: 'arcana', text: 'Use arcane knowledge (Arcana DC 12)', rollRequired: { type: 'd20', skill: 'arcana' } },
+              { id: 'history', text: 'Recall similar riddles from folklore (History DC 12)', rollRequired: { type: 'd20', skill: 'history' } },
+              { id: 'force', text: 'Force the dial to turn (Strength DC 16)', rollRequired: { type: 'd20', skill: 'strength' } },
               { id: 'skip', text: 'Move on without solving', rollRequired: null }
             ]
           },
           {
-            description: 'A locked mechanism blocks your path. Gears and levers must be arranged correctly.',
+            description: 'A series of bronze pipes line the walls, each producing a different tone when struck. Faded painted murals above show a sequence of colored notes that must be played in order.',
+            choices: [
+              { id: 'performance', text: 'Play the sequence from the mural (Performance DC 13)', rollRequired: { type: 'd20', skill: 'performance' } },
+              { id: 'perception', text: 'Listen for a pattern in the ambient echoes (Perception DC 14)', rollRequired: { type: 'd20', skill: 'perception' } },
+              { id: 'force', text: 'Bend the pipes to force them open (Strength DC 15)', rollRequired: { type: 'd20', skill: 'strength' } },
+              { id: 'skip', text: 'Ignore the pipes and search for another way', rollRequired: null }
+            ]
+          },
+          {
+            description: 'A locked mechanism blocks your path. Interlocking gears and weighted levers must be arranged in the correct sequence to release the lock.',
             choices: [
               { id: 'investigate', text: 'Study the mechanism (Investigation DC 13)', rollRequired: { type: 'd20', skill: 'investigation' } },
+              { id: 'thieves', text: 'Pick the lock with thieves\' tools (Sleight of Hand DC 14)', rollRequired: { type: 'd20', skill: 'sleight_of_hand' } },
               { id: 'force', text: 'Try to force it open (Strength DC 16)', rollRequired: { type: 'd20', skill: 'strength' } },
               { id: 'bypass', text: 'Find another way around', rollRequired: null }
             ]
           },
           {
-            description: 'A magical barrier shimmers before you. Words of power are inscribed nearby.',
+            description: 'The corridor opens into a flooded chamber. Water rises slowly from grates in the floor. A sealed door on the far side has a valve mechanism that must be turned underwater.',
             choices: [
-              { id: 'dispel', text: 'Attempt to dispel it (Arcana DC 15)', rollRequired: { type: 'd20', skill: 'arcana' } },
-              { id: 'read', text: 'Read the inscription (History DC 12)', rollRequired: { type: 'd20', skill: 'history' } },
-              { id: 'wait', text: 'Study the barrier pattern', rollRequired: null }
+              { id: 'swim', text: 'Dive under and turn the valve (Athletics DC 14)', rollRequired: { type: 'd20', skill: 'athletics' } },
+              { id: 'investigate', text: 'Find a way to drain the water first (Investigation DC 13)', rollRequired: { type: 'd20', skill: 'investigation' } },
+              { id: 'nature', text: 'Use natural debris to block the rising water (Nature DC 12)', rollRequired: { type: 'd20', skill: 'nature' } },
+              { id: 'wait', text: 'Wait and observe the water pattern', rollRequired: null }
             ]
           },
           {
-            description: 'Pressure plates form a pattern on the floor. One wrong step could trigger disaster.',
+            description: 'Four stone statues stand in alcoves, each holding an empty hand outstretched. Scattered across the floor are objects: a feather, a coin, a skull, and a flower. Placing the right item in each hand opens the way.',
+            choices: [
+              { id: 'religion', text: 'Identify the statues\' symbolism (Religion DC 13)', rollRequired: { type: 'd20', skill: 'religion' } },
+              { id: 'investigate', text: 'Examine the statues for clues (Investigation DC 12)', rollRequired: { type: 'd20', skill: 'investigation' } },
+              { id: 'trial', text: 'Try placing objects by instinct (Wisdom DC 14)', rollRequired: { type: 'd20', skill: 'wisdom' } },
+              { id: 'force', text: 'Break a statue to see what\'s inside (Strength DC 16)', rollRequired: { type: 'd20', skill: 'strength' } }
+            ]
+          },
+          {
+            description: 'Colored tiles cover the floor in a grid pattern. Scorch marks and shattered bones suggest some tiles are deadly. A faded inscription reads: "Only the path of the serpent is safe."',
             choices: [
               { id: 'perception', text: 'Study the safe path (Perception DC 14)', rollRequired: { type: 'd20', skill: 'perception' } },
               { id: 'acrobatics', text: 'Leap across carefully (Acrobatics DC 13)', rollRequired: { type: 'd20', skill: 'acrobatics' } },
-              { id: 'trigger', text: 'Trigger them deliberately from afar', rollRequired: null }
+              { id: 'nature', text: 'Look for a serpentine pattern in the tiles (Nature DC 12)', rollRequired: { type: 'd20', skill: 'nature' } },
+              { id: 'trigger', text: 'Trigger tiles deliberately from afar', rollRequired: null }
+            ]
+          },
+          {
+            description: 'A spectral figure paces in a sealed chamber, unable to rest. It gestures at a crumbled journal on the floor. The spirit seems bound here by an unfinished task.',
+            choices: [
+              { id: 'insight', text: 'Communicate with the restless spirit (Insight DC 13)', rollRequired: { type: 'd20', skill: 'insight' } },
+              { id: 'history', text: 'Read the journal for context (History DC 12)', rollRequired: { type: 'd20', skill: 'history' } },
+              { id: 'religion', text: 'Attempt to lay the spirit to rest (Religion DC 15)', rollRequired: { type: 'd20', skill: 'religion' } },
+              { id: 'leave', text: 'Back away slowly and find another route', rollRequired: null }
+            ]
+          },
+          {
+            description: 'A maze of crystalline walls shifts and rearranges every few moments. Light refracts through the formations, creating disorienting illusions. The exit seems to move each time you look away.',
+            choices: [
+              { id: 'perception', text: 'Track the pattern of shifts (Perception DC 15)', rollRequired: { type: 'd20', skill: 'perception' } },
+              { id: 'arcana', text: 'Sense the magic driving the maze (Arcana DC 14)', rollRequired: { type: 'd20', skill: 'arcana' } },
+              { id: 'survival', text: 'Mark your path and navigate by feel (Survival DC 13)', rollRequired: { type: 'd20', skill: 'survival' } },
+              { id: 'force', text: 'Shatter a crystal wall to force a path (Strength DC 16)', rollRequired: { type: 'd20', skill: 'strength' } }
+            ]
+          },
+          {
+            description: 'A large stone door bears a mechanical combination lock with three rotating rings, each engraved with alchemical symbols. Nearby, an old workbench holds scattered notes and reagent bottles.',
+            choices: [
+              { id: 'investigate', text: 'Study the notes for the combination (Investigation DC 13)', rollRequired: { type: 'd20', skill: 'investigation' } },
+              { id: 'arcana', text: 'Identify the alchemical symbols (Arcana DC 14)', rollRequired: { type: 'd20', skill: 'arcana' } },
+              { id: 'thieves', text: 'Feel for the tumblers and pick the lock (Sleight of Hand DC 15)', rollRequired: { type: 'd20', skill: 'sleight_of_hand' } },
+              { id: 'force', text: 'Attempt to pry the door open (Strength DC 17)', rollRequired: { type: 'd20', skill: 'strength' } }
+            ]
+          },
+          {
+            description: 'You enter a room where gravity seems wrong — furniture hangs from the ceiling, and a staircase leads downward into the sky. A compass rose on the floor points in impossible directions.',
+            choices: [
+              { id: 'arcana', text: 'Analyze the spatial distortion (Arcana DC 15)', rollRequired: { type: 'd20', skill: 'arcana' } },
+              { id: 'acrobatics', text: 'Carefully navigate the inverted space (Acrobatics DC 14)', rollRequired: { type: 'd20', skill: 'acrobatics' } },
+              { id: 'perception', text: 'Look for the real exit among the illusions (Perception DC 13)', rollRequired: { type: 'd20', skill: 'perception' } },
+              { id: 'wait', text: 'Sit down and wait for the effect to end', rollRequired: null }
+            ]
+          },
+          {
+            description: 'A narrow bridge spans a chasm, but the bridge is made of interlocking stone blocks that retract one at a time. A countdown mechanism ticks on the wall — you have limited time to cross or find the lever to stop it.',
+            choices: [
+              { id: 'athletics', text: 'Sprint across before the blocks retract (Athletics DC 14)', rollRequired: { type: 'd20', skill: 'athletics' } },
+              { id: 'investigate', text: 'Find and disable the countdown mechanism (Investigation DC 15)', rollRequired: { type: 'd20', skill: 'investigation' } },
+              { id: 'acrobatics', text: 'Jump between remaining blocks (Acrobatics DC 13)', rollRequired: { type: 'd20', skill: 'acrobatics' } },
+              { id: 'rope', text: 'Use rope to swing across the chasm', rollRequired: null }
             ]
           }
         ];
@@ -17356,6 +17520,102 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
             'lava': 'a smithy\'s forge area',
             'pit': 'an open sewer grate'
           },
+          desert: {
+            'floor': 'a sand-covered chamber with cracked sandstone walls',
+            'corridor': 'a narrow passage between eroded rock formations',
+            'door': 'a heavy stone slab carved with sun motifs',
+            'treasure': 'an alcove behind a sand-filled urn containing buried valuables',
+            'trap': 'a section of loose sand concealing a pressure plate',
+            'stairs_up': 'a ramp of packed sand leading upward toward light',
+            'stairs_down': 'worn steps descending into cool darkness below the dunes',
+            'water': 'a hidden underground spring pooling in a basin',
+            'lava': 'a vent of superheated air rising from deep below',
+            'pit': 'a sand-choked sinkhole that drops into darkness'
+          },
+          mountain: {
+            'floor': 'a rough-hewn cavern with granite walls',
+            'corridor': 'a narrow mine shaft braced with timber supports',
+            'door': 'a reinforced iron door set into the rock face',
+            'treasure': 'a vein of precious ore glinting in the wall beside a locked strongbox',
+            'trap': 'unstable rubble that could trigger a rockslide',
+            'stairs_up': 'a steep switchback carved into the cliff face',
+            'stairs_down': 'a spiral staircase bored deep into the mountain',
+            'water': 'an underground stream fed by snowmelt',
+            'lava': 'a fissure glowing with volcanic heat from below',
+            'pit': 'a vertical shaft dropping into echoing darkness'
+          },
+          swamp: {
+            'floor': 'a soggy platform of packed mud and rotting logs',
+            'corridor': 'a raised boardwalk over murky, stagnant water',
+            'door': 'a curtain of hanging moss and vines concealing the entrance',
+            'treasure': 'a waterlogged chest half-buried in the muck',
+            'trap': 'a patch of seemingly solid ground that is actually deep mud',
+            'stairs_up': 'gnarled roots forming a natural ladder up a massive tree',
+            'stairs_down': 'a slope descending into a flooded root cellar',
+            'water': 'a pool of dark, brackish water buzzing with insects',
+            'lava': 'a patch of bubbling, toxic marsh gas venting from the ground',
+            'pit': 'a sinkhole of thick, sucking mud'
+          },
+          arctic: {
+            'floor': 'a frost-covered chamber with walls of compacted snow and ice',
+            'corridor': 'a narrow ice tunnel with smooth, slippery walls',
+            'door': 'a thick slab of ice blocking the passage',
+            'treasure': 'a frozen alcove containing items preserved in clear ice',
+            'trap': 'a section of thin ice over a deep crevasse',
+            'stairs_up': 'a series of icy ledges climbing toward a wind-howling opening',
+            'stairs_down': 'a chute of smooth ice descending into blue-lit depths',
+            'water': 'a pool of glacial meltwater, numbingly cold',
+            'lava': 'a thermal vent melting the surrounding ice into steam',
+            'pit': 'a deep glacial crevasse with jagged ice walls'
+          },
+          feywild: {
+            'floor': 'a clearing carpeted with luminous wildflowers and soft clover',
+            'corridor': 'a winding path between trees whose branches form a living archway',
+            'door': 'a shimmering curtain of golden pollen hanging in the air',
+            'treasure': 'a fairy ring surrounding a pedestal of living wood bearing gifts',
+            'trap': 'an enchanting melody that lures travelers off the safe path',
+            'stairs_up': 'a spiral of giant mushroom caps ascending like a staircase',
+            'stairs_down': 'a rabbit hole between enormous roots leading underground',
+            'water': 'a crystal-clear brook with water that changes color as it flows',
+            'lava': 'a pool of liquid starlight that burns with cold fire',
+            'pit': 'a gap between roots dropping into a twilight-lit hollow'
+          },
+          underdark: {
+            'floor': 'a cavern of dark stone with phosphorescent fungi clinging to the walls',
+            'corridor': 'a tight passage through dripping stalactites and stalagmites',
+            'door': 'a carved stone portal with spider-silk hinges',
+            'treasure': 'a drow cache hidden behind a false stalagmite',
+            'trap': 'a web-covered section of floor concealing a drop',
+            'stairs_up': 'a chimney of natural rock with handholds carved into the wall',
+            'stairs_down': 'a spiraling descent into ever-deeper darkness',
+            'water': 'an underground lake of perfectly still, black water',
+            'lava': 'a magma flow visible through cracks in the cavern floor',
+            'pit': 'a bottomless chasm echoing with distant, unidentifiable sounds'
+          },
+          planar: {
+            'floor': 'a platform of shifting, translucent material floating in void',
+            'corridor': 'a bridge of solidified energy spanning between floating islands',
+            'door': 'a portal frame crackling with residual planar energy',
+            'treasure': 'a crystallized fragment of another plane containing trapped valuables',
+            'trap': 'a section where gravity reverses without warning',
+            'stairs_up': 'a column of ascending force that lifts you to the next level',
+            'stairs_down': 'a controlled descent through layers of thinning reality',
+            'water': 'a pool of liquid that reflects a different plane of existence',
+            'lava': 'a stream of raw elemental fire flowing through a channel',
+            'pit': 'a tear in the fabric of the plane dropping into nothingness'
+          },
+          undead: {
+            'floor': 'a crypt chamber with cracked flagstones and scattered bones',
+            'corridor': 'a narrow passage lined with burial niches and dusty remains',
+            'door': 'a heavy tomb door bearing warnings carved in old script',
+            'treasure': 'a sarcophagus with funerary offerings laid around it',
+            'trap': 'a section of floor that triggers a burst of necrotic gas',
+            'stairs_up': 'a stairway ascending past rows of sealed crypts',
+            'stairs_down': 'steps descending into the deeper catacombs',
+            'water': 'a pool of dark, stagnant water with a faint sulfurous smell',
+            'lava': 'braziers of unnatural green flame burning without fuel',
+            'pit': 'an open mass grave with disturbed earth at the bottom'
+          },
           default: {
             'floor': 'an open chamber with stone floors',
             'corridor': 'a narrow corridor',
@@ -18008,7 +18268,7 @@ DM AUTHORING DOCTRINE (MANDATORY):
 - NPC COMPANION INTERACTIONS: If companions/allies travel with the party, they are LIVING CHARACTERS. In roughly every 2-3 scenes, have a companion speak, react, banter, offer advice, voice concerns, or notice something the player missed. Their dialogue should feel natural and personality-driven. After major choices, companions should visibly react (approval, worry, humor, disagreement).
 - CHAPTER GATE IS YOUR PRIMARY NARRATIVE GOAL: The gate defines what this chapter is ABOUT. Every scene must build toward it.
 - Do NOT generate aimless dungeon crawling or random encounters disconnected from the chapter's purpose.
-- PACING RULE: Do NOT trigger "chapterGateMet" in the first 4 scenes of a chapter. Early scenes should establish themes, introduce complications, and build tension. The gate should feel EARNED, not rushed.
+- PACING RULE: Do NOT trigger "chapterGateMet" in the first 3 scenes of a chapter. Target 6-8 scenes per chapter (~1 hour of play). After scene 5, actively create moments where the gate can be met.
 - SHOW CONSEQUENCES IN THE NARRATIVE: When a player makes a decisive choice (embracing dark power, betraying an ally, sacrificing something), the narrative MUST visibly reflect the change — describe physical transformations, NPC reactions, environmental shifts, or new abilities/costs. Do NOT just silently adjust stake numbers. The player should READ about the world changing because of their decision.
 - If a stake is at CRITICAL level (0-1 or 4-5), the narrative should hint at impending catastrophe or breakthrough — make the player FEEL the pressure in the story text.
 - Actively steer toward the gate through NPC actions, environmental pressures, and choice consequences.
@@ -18408,6 +18668,23 @@ SESSION CLOSURE BEATS (CRITICAL FOR PLAYER RETENTION):
 - End stopping point scenes with a forward hook: hint at what comes next, an unanswered question, or a new threat on the horizon
 - Think of it like a TV episode ending: resolve the immediate tension, but leave threads that pull the viewer back
 - If inCombat is true or combatants are present, DO NOT set sessionBreakpoint
+
+WHEN TO SET sessionBreakpoint: true (EXAMPLES — set it at moments like these):
+- After defeating a boss or completing a significant combat encounter and the dust settles
+- When the party arrives at a safe haven, tavern, or town after a journey
+- After completing a quest objective or solving a major puzzle
+- During a campfire/rest scene where the party reflects on recent events
+- After a chapter gate is met (chapterGateMet) — this is ALWAYS a good break point
+- When reuniting with an NPC ally or receiving a quest reward
+- After a dramatic social encounter resolves (negotiation complete, trial ended, alliance formed)
+- At any calm transition between two distinct story segments
+
+WHEN NOT TO SET sessionBreakpoint (NEVER at these moments):
+- During active combat or when combatants are still alive and hostile
+- Mid-chase or pursuit sequences
+- When a timer or countdown is active in the narrative
+- Right after revealing a major threat or cliffhanger
+- When the party is in immediate danger
 `;
 
       if (completedGates2.length > 0) {
@@ -18444,9 +18721,9 @@ ${upcomingGates2.slice(0, 2).map((g: any) => `- Chapter ${g.chapter}: "${g.advan
       // CHAPTER PROGRESSION NUDGING (Route 2)
       // ============================================
       let chapterNudge2 = "";
-      const GENTLE2 = 8;
-      const MODERATE2 = 12;
-      const URGENT2 = 16;
+      const GENTLE2 = 5;
+      const MODERATE2 = 7;
+      const URGENT2 = 9;
 
       if (currentGateForSpine2 && scenesInChapter2 >= GENTLE2) {
         if (scenesInChapter2 >= URGENT2) {
@@ -18532,6 +18809,13 @@ ${currentSession.narrative}
 ${playerCharacterInfo}
 
 Player Choice Made: ${choice}
+${isWaypointTravel(choice) ? `
+⚡ WAYPOINT MOVE DETECTED — This is a simple travel/movement action.
+USE WAYPOINT MOVE TEMPERATURE (20-35 words max). Write a brief 1-2 sentence transition describing the journey and arrival.
+Do NOT generate encounters, ambushes, dramatic events, or discoveries. Do NOT use dramatic language.
+Keep it grounded: terrain, weather, a passing detail, then where they arrive.
+Set sceneType to "Travel".
+` : ''}
 ${currentMapState}
 ${detectedMovement.isMovement ? `
 MOVEMENT DETECTED: This is a movement action!
@@ -22221,8 +22505,8 @@ Choices should include 4 options with at least 2 requiring dice rolls.
             (!matchingGate.requiredBeliefChange || (gate.reason && gate.reason.length > 10))
           );
           
-          const CHAPTER_MIN_SCENES_R2 = 4;
-          if (gate.gateId === currentChapter && currentChapter < totalChapters && gateValid) {
+          const CHAPTER_MIN_SCENES_R2 = 3;
+          if (Number(gate.gateId) === currentChapter && currentChapter < totalChapters && gateValid) {
             if (scenesInChapter2 >= CHAPTER_MIN_SCENES_R2) {
               doctrineUpdates.currentSession = currentChapter + 1;
               doctrineChanged = true;
@@ -22246,7 +22530,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         }
         
         // HARD-CAP FAILSAFE: If 12+ sessions in this chapter without gate met, force-advance
-        const CHAPTER_HARD_CAP_R2 = 12;
+        const CHAPTER_HARD_CAP_R2 = 10;
         if (!doctrineUpdates.currentSession && scenesInChapter2 >= CHAPTER_HARD_CAP_R2 && currentChapter < totalChapters) {
           doctrineUpdates.currentSession = currentChapter + 1;
           doctrineChanged = true;

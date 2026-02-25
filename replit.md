@@ -54,7 +54,43 @@ Backend endpoints for DM pressure/clock management:
 - `POST /api/campaigns/:id/spark` - Apply spark template (seeds 2 pressures + 2 clocks + hidden variable)
 
 ### Theme Detection System
-Content generation uses a weighted scoring theme detection system across 3 detection points (doctrine improvisation, encounter narrative, and streaming narrative). The system supports 14 themes: nautical, forest, undead, desert, mountain, urban, swamp, arctic, feywild, underdark, planar, dungeon, plus exploration/wilderness for the doctrine system. Theme detection uses keyword frequency scoring with a minimum confidence threshold of 2 keyword matches — below this, it falls back to a neutral default (exploration or dungeon depending on context). Theme blending activates when a secondary theme scores at least 50% of the primary, adding ~20-30% secondary flavor to content. Ambiguous keywords like "captain", "port", "island" have been removed from nautical detection to prevent false positives.
+Content generation uses a weighted scoring theme detection system across 4 detection points (doctrine improvisation, encounter narrative, streaming narrative, and tile descriptions). The system supports 14 themes: nautical, forest, undead, desert, mountain, urban, swamp, arctic, feywild, underdark, planar, dungeon, plus exploration/wilderness for the doctrine system. Theme detection uses keyword frequency scoring with a minimum confidence threshold of 2 keyword matches — below this, it falls back to a neutral default (exploration or dungeon depending on context). Theme blending activates when a secondary theme scores at least 50% of the primary, adding ~20-30% secondary flavor to content. Ambiguous keywords like "captain", "port", "island" have been removed from nautical detection to prevent false positives.
+
+### Description Variety & Anti-Repetition
+AI prompts include an explicit anti-repetition directive banning overused phrases ("glowing runes", "mystical energy", "arcane symbols pulse") and providing alternative description categories (carved stonework, mechanical contraptions, natural phenomena, crystal formations, weathered carvings). The `themeTileDescriptions` map covers all 11 themes (nautical, forest, urban, desert, mountain, swamp, arctic, feywild, underdark, planar, undead) plus default, each with 10 tile type descriptions.
+
+### Waypoint Travel System
+Travel-intent actions (walk, continue, head north, proceed, move on, trek, march) are detected by `isWaypointTravel()` in both `server/routes.ts` and `server/storyStreaming.ts`. When detected, the AI receives a WAYPOINT MOVE instruction limiting response to 20-35 words (1-2 sentences, grounded transition). This prevents simple movement from generating full dramatic scenes. The streaming narrative system uses a separate `waypoint` reveal category with short travel-themed texts.
+
+### Puzzle Encounter System
+Puzzles appear in two contexts:
+1. **Campaign encounters** (server/routes.ts): 12 varied puzzle templates at 12% trigger chance during exploration — mirror rooms, riddle challenges, musical locks, flooded chambers, statue puzzles, tile patterns, restless spirits, shifting mazes, alchemical locks, gravity rooms, countdown bridges, and mechanical locks. Each has 3-4 solution approaches.
+2. **Delve mode** (server/delveEngine.ts): 12 puzzle types in PUZZLE_POOL — runic door, totem gate, pressure tile maze, mirror room, musical lock, doppelganger tribunal, time loop chamber, never-ending corridor, empty-handed statues, murder mystery crypt, flooded trapdoor, countdown bridge. Each has hint, solution/failure narratives, and DC checks.
+
+### Chapter Advancement Mechanics
+Chapter progression uses meaning-based gates with tuned thresholds targeting ~1 chapter per play-hour:
+- CHAPTER_MIN_SCENES = 3 (earliest possible advancement)
+- GENTLE_THRESHOLD = 5 (AI starts steering toward gate)
+- MODERATE_THRESHOLD = 7 (urgency increases)
+- URGENT_THRESHOLD = 9 (must advance now)
+- CHAPTER_HARD_CAP = 10 (forced advancement failsafe)
+- `gateId` comparison uses `Number()` coercion to prevent type mismatch between AI string responses and numeric chapter IDs
+- AI prompt instructs targeting 6-8 scenes per chapter
+- Same thresholds apply to both Route 1 (doctrine-based) and Route 2 (main narrative streaming)
+
+### Session Break Notice
+The "Good stopping point" green notice appears when:
+1. AI sets `sessionBreakpoint: true` AND player has been playing 40+ minutes (MIN_SESSION_MINUTES = 40), OR
+2. A chapter just advanced (regardless of time played)
+- Dismissible; won't reappear for 30 minutes after dismissal
+- AI prompted with explicit examples of when to set sessionBreakpoint (after boss fights, arriving at safe havens, quest completions, campfire scenes, chapter gates)
+
+### Feature Discovery Popups
+`FeatureDiscoveryPopup` component (`client/src/components/ui/feature-discovery-popup.tsx`) shows periodic tips during campaign play:
+- 4 tips: Wander Mode, Delve Mode, Trek, Hex Mode
+- Shown after 5+ scenes played, max once each per user (tracked in localStorage)
+- One tip per session, dismissible with "Got it!" button
+- Amber/gold border styling to distinguish from green break notice
 
 ## External Dependencies
 

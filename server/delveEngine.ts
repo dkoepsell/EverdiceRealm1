@@ -184,18 +184,63 @@ const TRAP_POOL: Array<{ name: string; description: string; trapData: TrapData }
 const PUZZLE_POOL: Array<{ name: string; description: string; puzzleData: PuzzleData }> = [
   {
     name: 'Runic Door',
-    description: 'A heavy stone door blocks the passage. Three runic symbols glow on its surface: a flame, a mountain, and a river. Three stone dials await alignment.',
-    puzzleData: { type: 'combination', description: 'Align three dwarven runes in the correct order based on the cycle of creation.', dc: 14, hint: 'The sequence follows: Flame forges the Mountain, Water carves the Stone.', solutionNarrative: 'The dials click into place. Ancient gears grind as the door slides open, exhaling sealed air.', failureNarrative: 'The runes flash angry red. A pulse of energy ripples outward, and the dials reset.' },
+    description: 'A heavy stone door blocks the passage. Three carved symbols adorn its surface: a flame, a mountain, and a river. Three stone dials await alignment.',
+    puzzleData: { type: 'combination', description: 'Align three dwarven symbols in the correct order based on the cycle of creation.', dc: 14, hint: 'The sequence follows: Flame forges the Mountain, Water carves the Stone.', solutionNarrative: 'The dials click into place. Ancient gears grind as the door slides open, exhaling sealed air.', failureNarrative: 'The symbols flash angry red. A pulse of energy ripples outward, and the dials reset.', reward: 'Safe passage and a hidden alcove with a potion of healing' },
   },
   {
     name: 'Totem Gate',
     description: 'Three totems — bear, snake, and raven — stand on rotating pedestals. The gate mechanism connects to their alignment. Scratched above: "The bear guards, the snake strikes, the raven watches."',
-    puzzleData: { type: 'alignment', description: 'Rotate the three totems to face correct directions based on their nature.', dc: 12, hint: '"The bear guards" — faces the gate. "The snake strikes" — faces inward. "The raven watches" — faces outward.', solutionNarrative: 'The totems lock into place. The gate shudders and retracts into the ceiling.', failureNarrative: 'The totems spin back with a harsh clatter. Acrid smoke erupts, echoing deeper into the warren.' },
+    puzzleData: { type: 'alignment', description: 'Rotate the three totems to face correct directions based on their nature.', dc: 12, hint: '"The bear guards" — faces the gate. "The snake strikes" — faces inward. "The raven watches" — faces outward.', solutionNarrative: 'The totems lock into place. The gate shudders and retracts into the ceiling.', failureNarrative: 'The totems spin back with a harsh clatter. Acrid smoke erupts, echoing deeper into the warren.', reward: 'Access to the deeper dungeon chambers' },
   },
   {
     name: 'Pressure Tile Maze',
     description: 'The chamber floor is a grid of stone tiles, each carved with different symbols. Some tiles are slightly raised. A crushed skeleton lies partway across — it chose poorly.',
-    puzzleData: { type: 'sequence', description: 'Step on the correct sequence of tiles to cross the chamber safely.', dc: 13, hint: 'The wall mural shows the symbols in order: sun, moon, star, mountain, river. Follow the path.', solutionNarrative: 'You step carefully across the correct tiles. Each glows softly green as you pass. The far door opens.', failureNarrative: 'A wrong tile depresses with a click. Crossbow bolts fire from the walls — take 1d6 piercing damage!' },
+    puzzleData: { type: 'sequence', description: 'Step on the correct sequence of tiles to cross the chamber safely.', dc: 13, hint: 'The wall mural shows the symbols in order: sun, moon, star, mountain, river. Follow the path.', solutionNarrative: 'You step carefully across the correct tiles. Each one holds firm as you pass. The far door opens.', failureNarrative: 'A wrong tile depresses with a click. Crossbow bolts fire from the walls — take 1d6 piercing damage!', reward: 'A shortcut to the deeper chambers' },
+  },
+  {
+    name: 'Mirror Room',
+    description: 'A tall mirror stands at the end of a hexagonal chamber. Your reflection moves independently — picking up objects you haven\'t touched, pointing at corners you haven\'t examined. The real room and the reflected room don\'t match.',
+    puzzleData: { type: 'mirror', description: 'Rearrange objects in the real room to match the mirror\'s reflection, or find the hidden truth the mirror reveals.', dc: 14, hint: 'The mirror shows what the room should look like. Move the three displaced objects — the chalice, the book, and the candelabra — to match the reflection.', solutionNarrative: 'As the last object settles into place, the mirror shimmers and swings open like a door, revealing a hidden passage beyond.', failureNarrative: 'The reflection smirks and waves dismissively. The objects slide back to their wrong positions with a grinding scrape.', reward: 'A silver hand mirror that reveals invisible creatures when held up' },
+  },
+  {
+    name: 'Musical Lock',
+    description: 'Bronze pipes of varying lengths line the walls of this resonant chamber. Each produces a distinct tone when struck. Above, faded painted murals depict a sequence of colored notes. A sealed iron door hums faintly, waiting for the right melody.',
+    puzzleData: { type: 'musical', description: 'Play the correct sequence of tones on the bronze pipes to unlock the sealed door.', dc: 13, hint: 'The mural shows five colors in order: red, blue, green, gold, silver. Each pipe is stained with residue of a matching hue.', solutionNarrative: 'The final note reverberates through the stone. The iron door\'s lock mechanism releases with a deep clunk, and the door swings inward on oiled hinges.', failureNarrative: 'A discordant screech echoes through the chamber. The pipes seal themselves shut and must be pried open again.', reward: 'A pitch pipe that can shatter glass objects at range' },
+  },
+  {
+    name: 'Doppelganger Tribunal',
+    description: 'Three identical figures stand in the chamber, each claiming to be the real guardian of the passage. They speak in turn, accusing the others of being imposters. One tells only truth, one tells only lies, and one alternates.',
+    puzzleData: { type: 'logic', description: 'Determine which of the three identical figures is the true guardian by asking questions and observing their behavior.', dc: 14, hint: 'Ask a question where a liar\'s answer differs from a truth-teller\'s. "Would one of the others say you are the real guardian?" The real one answers no, the liar answers yes.', solutionNarrative: 'You point to the true guardian. The imposters dissolve into mist with a hiss, and the guardian nods approvingly, stepping aside to reveal the path forward.', failureNarrative: 'You choose wrong. The "guardian" grins with too many teeth and all three figures vanish, resetting the puzzle. A faint burning sensation marks your hand.', reward: 'The true guardian offers a charm of true seeing (1 use)' },
+  },
+  {
+    name: 'Time Loop Chamber',
+    description: 'You step into a round chamber and the door seals behind you. A sandglass on a pedestal counts down. When it empties, there\'s a flash — and you\'re standing at the entrance again, the sandglass full. Scratched tally marks cover the walls. Hundreds of them.',
+    puzzleData: { type: 'time_loop', description: 'Break the time loop by finding and destroying the anchor object before the sandglass empties. Each loop preserves your knowledge but resets your position.', dc: 15, hint: 'Look underneath the pedestal itself. The sandglass is not the timer — it IS the anchor. Smashing it breaks the loop, but you must first wedge the door open to escape.', solutionNarrative: 'The sandglass shatters. Time lurches forward with a nauseating jolt. The door groans open and stays open. The tally marks on the walls fade like old scars.', failureNarrative: 'The flash comes again. You\'re back at the entrance. The sandglass is full. Another tally mark appears on the wall — this one yours.', reward: 'A shard of the broken sandglass that slows time briefly (1 use)' },
+  },
+  {
+    name: 'Never-Ending Corridor',
+    description: 'A long straight corridor stretches ahead. You walk for minutes, but the far end never gets closer. Torches along the walls repeat the same pattern — three lit, one dark, two lit, one dark. You\'ve been here before. Or have you?',
+    puzzleData: { type: 'spatial', description: 'Escape the looping corridor by breaking the pattern. The corridor repeats because you\'re walking the same segment. Find the hidden exit.', dc: 13, hint: 'The dark torches mark the real walls. Push on the wall next to the second dark torch — there is a concealed passage behind it. Walking forward will never work.', solutionNarrative: 'The wall section pivots inward, revealing a dusty passage leading to a genuine new chamber. Behind you, the looping corridor flickers and goes dark.', failureNarrative: 'You walk on. And on. The same three-one-two-one pattern of torches passes again. Your legs ache. The corridor does not end.', reward: 'A compass that always points toward the nearest exit' },
+  },
+  {
+    name: 'Empty-Handed Statues',
+    description: 'Four stone statues stand in alcoves, each with an outstretched empty hand. Scattered across the floor: a feather, a tarnished coin, a cracked skull, and a wilted flower. An inscription reads: "Give each what they held in life, and the way opens."',
+    puzzleData: { type: 'matching', description: 'Place the correct item in each statue\'s hand based on clues about who they were in life.', dc: 13, hint: 'The statues depict a scholar (feather/quill), a merchant (coin), a warrior (skull/trophy), and a maiden (flower). Match the item to the figure.', solutionNarrative: 'As the last item settles into stone fingers, the statues\' eyes open. They bow in unison, and the wall between them grinds apart to reveal the passage beyond.', failureNarrative: 'A statue\'s hand clenches, crushing the wrong offering. The items reappear on the floor, and a rumble shakes dust from the ceiling.', reward: 'One of the statues drops a stone amulet of protection' },
+  },
+  {
+    name: 'Murder Mystery Crypt',
+    description: 'Three sarcophagi lie open. A spectral magistrate hovers above, pointing at each in turn. "One was poisoned. One was strangled. One died of old age. Tell me who killed whom, or join them." Scattered clues — a vial, a silk cord, personal effects — litter the floor.',
+    puzzleData: { type: 'deduction', description: 'Examine the bodies and clues to determine the cause of each death and identify the murderer among the three.', dc: 14, hint: 'The vial near the first sarcophagus is empty — but the second body has green-stained lips. The silk cord belongs to the third, who has bruised fingers. The first died peacefully — and planned the other two deaths.', solutionNarrative: '"Correct," the magistrate whispers. "The schemer rests uneasy." The first sarcophagus seals itself, and behind it, a hidden vault clicks open.', failureNarrative: 'The magistrate shakes its head. Cold hands grasp at your ankles from the sarcophagi. Take 1d8 necrotic damage as the spirits express their displeasure.', reward: 'A magistrate\'s signet ring that grants advantage on Insight checks (1/day)' },
+  },
+  {
+    name: 'Flooded Trapdoor',
+    description: 'The chamber is knee-deep in murky water, rising slowly from grates in the floor. A sealed trapdoor in the center is the only exit — but its bolt mechanism is submerged. Bubbles rise from below, and the water is getting deeper.',
+    puzzleData: { type: 'timed', description: 'Open the submerged trapdoor before the water level becomes too dangerous. Drain the water, dive under, or find a creative solution.', dc: 14, hint: 'The water flows in from the left grate. Jamming it with debris stops the rise. Then you can safely dive to the bolt mechanism. Or hold your breath and work fast.', solutionNarrative: 'The bolt slides free with a metallic clang. The trapdoor swings down and the water drains through in a roaring vortex, revealing a dry passage below.', failureNarrative: 'The water rises to chest height. You choke and sputter, forced to retreat to the entrance passage. The water slowly recedes — but time was lost.', reward: 'A waterproof satchel containing a scroll of water breathing' },
+  },
+  {
+    name: 'Countdown Bridge',
+    description: 'A narrow stone bridge spans a deep chasm. But the bridge is made of interlocking blocks that retract one at a time from the far end. A mechanical counter on the wall ticks down: 10... 9... 8... Each tick removes another block.',
+    puzzleData: { type: 'countdown', description: 'Cross the bridge or disable the countdown mechanism before the bridge fully retracts. Sprint, jump, disable, or find another way across.', dc: 14, hint: 'The countdown mechanism is powered by a weighted chain on the near wall. Jamming a spike or piton into the chain stops the countdown. Or run — you have about 6 seconds.', solutionNarrative: 'The countdown halts with a grinding protest. The remaining blocks lock in place, and you cross safely to the far side where a lever resets the bridge behind you.', failureNarrative: 'The last block retracts beneath your feet. You barely catch the edge — take 1d6 bludgeoning damage hauling yourself up, or fall into the chasm for much worse.', reward: 'A mechanical timing device that can delay any trap by one round' },
   },
 ];
 

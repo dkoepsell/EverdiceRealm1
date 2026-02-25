@@ -54,6 +54,7 @@ import TableChat from "@/components/dm-toolkit/TableChat";
 import CombatSpellPanel from "@/components/combat/CombatSpellPanel";
 import { LearningTip, useLearningTips } from "@/components/learning/LearningTip";
 import { ContextualHint } from "@/components/ui/contextual-hint";
+import { FeatureDiscoveryPopup } from "@/components/ui/feature-discovery-popup";
 import { HowToPlayPanel } from "@/components/ui/how-to-play-panel";
 import type { DungeonMapData, MapEntity } from "../dungeon/DungeonMap";
 import { generateDungeon } from "../dungeon/DungeonGenerator";
@@ -249,6 +250,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     skillImproved?: { skill: string; newBonus: number } | null;
   } | null>(null);
   
+  const [chapterJustAdvanced, setChapterJustAdvanced] = useState(false);
+
   // Campaign completion state
   const [campaignComplete, setCampaignComplete] = useState(false);
   const [completionRewards, setCompletionRewards] = useState<{
@@ -749,7 +752,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const sessionStartTime = useRef(Date.now());
   const [breakpointDismissedAt, setBreakpointDismissedAt] = useState<number | null>(null);
   const [sessionMinutesPlayed, setSessionMinutesPlayed] = useState(0);
-  const MIN_SESSION_MINUTES = 55;
+  const MIN_SESSION_MINUTES = 40;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1405,6 +1408,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 title: `Chapter ${data.currentChapter} Complete!`,
                 description: rewards.chapterAdvanceReason || 'A defining victory advances the story!',
               });
+              setChapterJustAdvanced(true);
             }
           }
           
@@ -1581,6 +1585,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           title: `🎉 Chapter ${data.newSessionNumber - 1} Complete!`,
           description: `${summaryText}. Beginning Chapter ${data.newSessionNumber}...`,
         });
+        setChapterJustAdvanced(true);
         // Refresh the current session to show the new chapter
         queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
       }
@@ -3473,24 +3478,35 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         )}
                         
                         {/* Session Breakpoint — "Good stopping point" indicator */}
-                        {/* Only shows after ~1 hour of continuous play, never during combat */}
-                        {!isAdvancingStory && parsedStoryState?.sessionBreakpoint && !parsedStoryState?.inCombat && 
-                          sessionMinutesPlayed >= MIN_SESSION_MINUTES && 
+                        {/* Shows after ~40 min of continuous play when AI signals a natural pause, or on chapter transitions */}
+                        {!isAdvancingStory && !parsedStoryState?.inCombat && 
+                          (chapterJustAdvanced || (parsedStoryState?.sessionBreakpoint && sessionMinutesPlayed >= MIN_SESSION_MINUTES)) &&
                           (!breakpointDismissedAt || (Date.now() - breakpointDismissedAt) >= 30 * 60000) && (
                           <div className="mt-4 p-3 rounded-lg bg-gradient-to-r from-emerald-900/40 to-teal-900/30 border border-emerald-500/30 animate-in fade-in slide-in-from-bottom-2 duration-700">
                             <div className="flex items-center gap-2">
                               <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                              <span className="text-sm font-medium text-emerald-300">Good stopping point</span>
+                              <span className="text-sm font-medium text-emerald-300">
+                                {chapterJustAdvanced ? "Chapter complete — good place to take a break" : "Good stopping point"}
+                              </span>
                               <button 
-                                onClick={() => setBreakpointDismissedAt(Date.now())}
+                                onClick={() => { setBreakpointDismissedAt(Date.now()); setChapterJustAdvanced(false); }}
                                 className="text-xs text-emerald-400/50 hover:text-emerald-300 ml-auto transition-colors"
                                 title="Dismiss — won't show again for 30 minutes"
                               >
                                 ✕ dismiss
                               </button>
                             </div>
-                            <p className="text-xs text-emerald-300/60 mt-1 ml-4">You've been adventuring for a while. This is a natural pause — your progress is saved automatically.</p>
+                            <p className="text-xs text-emerald-300/60 mt-1 ml-4">
+                              {chapterJustAdvanced 
+                                ? "A new chapter begins! This is a perfect moment to save and step away — your progress is saved automatically."
+                                : "You've been adventuring for a while. This is a natural pause — your progress is saved automatically."}
+                            </p>
                           </div>
+                        )}
+                        
+                        {/* Feature Discovery Popup — periodic tips about wander/delve/trek/hex mode */}
+                        {!isAdvancingStory && !parsedStoryState?.inCombat && (
+                          <FeatureDiscoveryPopup sceneCount={sessions.length} />
                         )}
                         
                         {/* Choices loading indicator — shows briefly before choices appear */}
