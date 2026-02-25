@@ -1,0 +1,390 @@
+
+to do anything...
+
+PRO
+QUIZZES
+EDIT
+EXPLORE
+LOG IN
+RANDOM
+Skip to Content
+Role Playing GamesDungeons and Dragons
+D&D Puzzles: Best Puzzles & Traps to Use in Dungeons & Dragons
+PDF download
+Download Article
+Co-authored by Legends of Avantris and Glenn Carreau
+Last Updated: March 17, 2025 Fact Checked
+
+When you’re DMing a game of Dungeons & Dragons, few things are more satisfying than engaging and mystifying players with a clever puzzle. Puzzles are great for keeping players on their toes and adding some extra intrigue to a dungeon full of combat encounters. Plus, there are many different kinds of puzzles to suit every play style! Read on for a guide to crafting and implementing puzzles in D&D.
+
+
+Things You Should Know
+Design a riddle puzzle, a mirrored room with hidden objects, or create a tile grid with symbols that the PCs must decipher to cross safely.
+Set up a murder mystery for the party and have them figure out who the killer is, or trap them in a maze that constantly shifts.
+Trap the PCs in a time loop or a path that never ends and give them clues to escape the loop.
+Try a simple puzzle like a skill check challenge, where the PCs analyze a dangerous scenario, decide how to escape, and make skill checks.[1]
+
+1
+Game of Riddles
+PDF download
+Download Article
+Pose a series of riddles players must solve before moving forward.
+Pose a series of riddles players must solve before moving forward.[2] First, create an obstacle to ask the player characters (PCs) your riddles. It could be a talking door, a sphinx (a classic monster known for asking riddles), a guardian dragon, or any intelligent entity that fits the theme of your dungeon. Challenge the PCs to solve your riddles to progress in the quest, and let them brainstorm the answers![3] Use riddles like:
+The rich want it, the poor have it, and both will perish if they eat it. (Answer: Nothing)
+What falls but never breaks, and what breaks but never falls? (Answer: Night and day)
+Time existed before me, but history can only begin after my creation. (Answer: Writing)
+I am the beginning of the end and the end of before. (Answer: E)
+If the PCs successfully answer your riddles, let them pass. If they fail, let them face the consequences—like fighting whatever asked the riddles or escaping a trap that triggers.
+2
+Puzzle Door
+PDF download
+Download Article
+Create an impassable door with pictures etched into it.
+Create an impassable door with pictures etched into it. The door can’t be opened with magic or force, but the etchings on the door depict the key to opening it. Those pictures could be a series of hand gestures, dance moves, or even a sequence of facial expressions. To unlock the door, your PCs must act out the pictures on the door in the correct order.
+To add a little urgency to the scenario, have a difficult foe close in on the PCs while they work out the solution. Alternatively, have the room they’re in start to crumble or fill with acid.
+This kind of puzzle can add a little levity to your dungeon and give your players the chance to act out funny dance moves instead of fighting monsters the whole time.
+
+3
+Tiles on the Floor
+PDF download
+Download Article
+Make a large room where the floor is a grid of tiles.
+Make a large room where the floor is a grid of tiles. Choose a word for your puzzle’s solution and incorporate a path spelling out that word on the grid. Players must try to figure out the pattern and step on the correct tiles to navigate the room safely. The tiles that spell out the solution are safe, but every other tile in the room is trapped.
+Try tailoring the word to the type of place your PCs are currently exploring. For example, if they’re in a ruined temple of Tharizdun, create a path of tiles that spell out “Tharizdun.”
+If a PC steps on the wrong tile, they might fall through the floor or get hit with a nasty magical effect, like a Glyph of Warding or a random Symbol spell.
+4
+Mirror Room
+PDF download
+Download Article
+Design a room containing a mirror with an extra item in its reflection.
+Design a room containing a mirror with an extra item in its reflection. The setup is simple: in a room (it could be any room, from a bed chamber to a wizard’s laboratory), place a large, ornate mirror. When the PCs look into the mirror, they’ll notice that there’s an item in the mirror that isn’t in the actual room. The PCs will then have to figure out how to make the real room match the mirror room.[4]
+The easiest solution is to have the PCs find whatever object is missing and put it in its place.
+For a more complex solution, create invisible obstacles (like traps, warding spells, or a hidden monster) that PCs can only see in the mirror. Once they use the mirror to overcome those obstacles, they’ll beat the puzzle.
+5
+Runes and Spells
+PDF download
+Download Article
+Make a series of runes that require a particular kind of spell to activate.
+Make a series of runes that require a particular kind of spell to activate. Trap players in a sealed room with runes inscribed on the walls. The runes can’t be deciphered with a Comprehend Languages spell, but they should all hint at a particular spell or type of magic. The PCs must then interpret what kind of magic each rune calls for and cast that spell to solve the puzzle and escape the room.
+For example, you could create a rune shaped like fire. When the PCs cast a fire spell on it, the rune lights up and is solved (though all runes must be solved to finish the puzzle.)
+Not every solution needs to be a spell! Customize the runes to fit each PC’s skills. A rogue PC might have to craft a particular poison and splash it across the rune, while a bard might need to play a specific instrument.
+6
+Empty-Handed Statue
+PDF download
+Download Article
+Present PCs with a statue holding out its hands, waiting for something to be put in its hand.
+Present PCs with a statue holding out its hands, waiting for something to be put in its hand. The statue could be blocking a door or guarding treasure, and it needs a specific object placed in its outstretched hands before it moves and lets the PCs pass. From there, the PCs will have to search the area and look for clues to find whatever object the statue is waiting for.
+Scatter clues throughout the area. For example, if the PCs are exploring a mansion and need to find a large ruby, describe a painting in the entrance hall with the mansion’s owner holding a ruby.
+The statue’s hands could also have an indentation shaped like whatever object it needs, and a successful investigation check from a player could give them an idea of the object they’re looking for.
+7
+Musical Clues
+PDF download
+Download Article
+Create a puzzle with a locked door, sheet music, and pressure plates.
+Create a puzzle with a locked door, sheet music, and pressure plates. Start with an impassable door in the area that PCs are exploring. Have sheet music either inscribed on the door or placed somewhere inconspicuous in the room and pressure plates with symbols next to the door. The solution is to read the sheet music, determine the word spelled out by the musical notes, and press the correct pressure plate.
+For example, if the word is “dead,” then add a pressure plate with a skull symbol for PCs to press.
+Alternatively, instead of sheet music and pressure plates, give PCs an instrument and an inscription on the door that says, “Play dead to pass beyond.” The door will open when they play the notes D E A D.
+8
+Moving Maze
+PDF download
+Download Article
+Set up a maze with shifting corridors to challenge PCs continually.
+Set up a maze with shifting corridors to challenge PCs continually. You could place this puzzle in a dungeon or even have the PCs stumble into a hedge maze while wandering the woods. Let them explore the maze and try to find the way out while also changing the maze’s structure as they go so they have to keep track of everywhere they’re been.[5]
+The PCs might have to find a series of hidden objects within the maze to get out, after which the maze’s exit will show itself. Otherwise, they could follow a noise or apparition using skill checks to escape.
+Keep a complete map of the maze to yourself, so you don’t lose track of where the PCs are—even if they do!
+9
+Murder Mystery
+PDF download
+Download Article
+Design a murder scenario and challenge PCs to determine who is guilty.
+Design a murder scenario and challenge PCs to determine who is guilty. If you’re looking for a more roleplay-heavy puzzle, put your PCs in the role of detectives and have them solve a murder by examining the scene, interviewing suspects, and looking for clues. This allows them to make social skill checks and possibly even become a town's heroes (or pariahs, if they guess incorrectly).
+If you want to introduce a timed challenge to the puzzle, leave a note from the killer saying the PCs have a certain amount of time to learn their identity before they strike again.
+Intensify the experience by framing the PCs for the murder! Then they’ll have to solve the puzzle while evading the town guards.
+To simplify the puzzle, present the PCs with 2 or 3 suspects and let them determine which is the killer. Let players get creative and use skills like insight, persuasion, and intimidation to find a solution.
+10
+Clone a Player Character
+PDF download
+Download Article
+Make a copy of a PC and force the others to choose which one is real.
+Make a copy of a PC and force the others to choose which one is real. There are many ways to clone characters in D&D; it could be a doppelganger, a changeling, a convincing illusion, or something creative, like a PC’s reflection that stepped out of an enchanted mirror. Create a scenario where the other PCs don’t know which one is real and which is the clone, and let them try to crack the case.
+Give players a chance to spot some subtle clues; an insight check might reveal a mannerism that the original PC has but the clone doesn’t, or a nervous tic in the clone’s voice.
+There’s also an added emotional component to this puzzle because the PC and clone will be insisting they’re the real person while the party tries to decide.
+Be sure you have a player who is on board and can play both their character and the clone. You don’t want a player to be upset if the PCs choose wrong and attack their character!
+11
+Time Loop
+PDF download
+Download Article
+Repeat the same day until PCs figure out the cause of the loop.
+Repeat the same day until PCs figure out the cause of the loop. First, take PCs through a full day. At the end of the day, narrate an event—like an explosion at the palace or a party where everyone is poisoned. Then, reset the day; the PCs witness a disaster, and suddenly it’s morning again. The puzzle is twofold: find out what’s causing the time loop, and stop the disaster from occurring.
+The source of the time loop might be a spell from an angry archmage, a cursed artifact that’s taken hold of the city, or anything else you can think of.
+Challenge the players, so it takes multiple loops to solve the puzzle. If an archmage is causing the time loop and paying the thieves’ guild to poison people, players might take several days to track down each guilty party.
+You could even create a whole world stuck in a time loop and have the PCs tackle multiple problems before ending the loop.
+12
+Never-Ending Path
+PDF download
+Download Article
+Trap the PCs on a looping road and let them find the secret to escaping.
+Trap the PCs on a looping road and let them find the secret to escaping. You can introduce this just about anywhere: perhaps the PCs are wandering the halls of a haunted mansion, climbing tower stairs, or wandering down a road. Over time, point out repeating landmarks, so they realize they’re stuck in a never-ending loop, and let them search for a solution.[6]
+There are lots of ways to solve this. The PCs might need to walk backward down a hall or close their eyes to find the exit. They could locate hidden markings that show them the way out or follow a noise in the distance.
+Put a spooky spin on this by making the looping path progressively darker and more monstrous. You might have candles blow out, fog roll in, or have spirits start haunting the PCs as they walk.
+13
+Restless Spirit
+PDF download
+Download Article
+Have PCs try to discover and resolve a ghost’s unfinished business.
+Have PCs try to discover and resolve a ghost’s unfinished business. Put a spirit in the PC’s path and limit its ability to communicate with them—it might be weak, tired, or too restless. Their job is to find the ghost’s unfinished business and resolve it so the spirit can move on using clues scattered around the nearby area.[7]
+For example, the ghost might be staring in a particular direction, and if players explore there, they’ll find an heirloom the ghost has been waiting for.
+Alternatively, the ghost's human remains might have a clue, like a picture of their family who they want to be reunited with.
+When it moves on, the ghost can also leave a reward for the PCs—like a key or magical item they’ll need later in the adventure.
+14
+Flooded Trapdoor
+PDF download
+Download Article
+Have players locate an escape route in a room flooding with water.
+Have players locate an escape route in a room flooding with water. This is another handy puzzle to include in a dungeon, particularly a subterranean or underwater dungeon. As the PCs enter a room, the door shuts behind them and can’t be opened as water starts filling the room. The solution is easy yet clever: there’s a hidden trapdoor in the ceiling that they can only reach when the water level rises.
+To make it a challenge, ask the PCs for a group perception check to try and spot the trapdoor. For every round that they fail the check, the water rises.
+If you have a PC that can breathe underwater, you could replace the water with acid or some sort of poisonous liquid that will damage them if they try to breathe it.
+15
+Combat Puzzle
+PDF download
+Download Article
+Pit the PCs against a foe that can't die until its weakness is exposed.
+Pit the PCs against a foe that can't die until its weakness is exposed. Come up with a challenging monster for the players to fight and determine its weakness. After combat begins, make it clear to the PCs that their enemy is either regenerating the damage it takes or not taking damage at all. Then, give them clues so they can discover what is keeping the monster alive.
+If the PCs are fighting a lich, for example, you might have the lich regenerate its hit points every round until 3 hidden phylacteries are destroyed.
+If you’re in the mood to be a devious DM, make it so players can’t defeat the monster in 1 encounter. Once they identify a weakness, they must go find something that allows them to exploit it, then return to defeat their foe.
+This requires players to work strategically together and potentially sacrifice attacks in combat to search for the solution to the puzzle. It also makes run-of-the-mill combat feel more exciting and urgent!
+16
+Skill Challenge
+PDF download
+Download Article
+Let PCs escape a dangerous situation by making skill checks.
+Let PCs escape a dangerous situation by making skill checks. This puzzle is simple to run yet leaves lots of room for creativity and PC shenanigans! First, establish a scenario that the PCs need to quickly escape—like a collapsing dungeon or a deadly monster. Then, ask each player what their PC will do to aid the escape and have them roll a skill check. If the majority pass, the PCs escape mostly unscathed.[8]
+Say the PCs are sailing when a pirate ship starts to chase them. To make an escape, one PC might do a strength check to keep hold of the wheel and steer the ship, while another might inspire the crew with a performance check.
+Set the DC for the PC’s skill checks beforehand, based on the party’s level and how challenging you want the encounter to be.
+Each player can only make 1 skill check, but multiple players can make the same type of check. Have players describe exactly how their character performs the skill check and what they’re trying to do.
+17
+Countdown Puzzle
+PDF download
+Download Article
+Let PCs walk into a timed trap and work together to escape it.
+Let PCs walk into a timed trap and work together to escape it. Timed puzzles are most effective when combined with another puzzle or skill check. Give your PCs a quest—whether it’s escaping a locked room, recovering a priceless artifact, or rescuing an NPC—and set a time limit to get it done. Ensure the time limit is challenging but not impossible and that your PCs can easily keep track of time as they work.
+A simple (yet classic) example is a collapsing hallway. As the PCs explore some deadly dungeon, seal them in a hallway and have the ceiling start to drop. The PCs will have limited time to unseal the door and escape.
+To make the timed component more literal, you could create a scenario with an hourglass where the sand is running out. The PCs have until the hourglass empties to escape, solve a riddle, or complete the quest.
+Expert Q&A
+Ask a Question
+What is your question?
+Submit
+Video
+
+Tips
+Keep the puzzles fairly simple if you’re DMing a party of beginner-level players. This helps them get the hang of the game without encountering an obstacle so difficult it’s frustrating.[9][10]
+Feel free to make the puzzles more complex as you go, or if you’re DMing for advanced players. Veteran D&D players often relish a challenge![11]
+Build multiple clues into each puzzle. Drop subtle hints first, and let the players discover bigger clues as they work. Help without giving them the answer so they can enjoy the experience of working as a team to solve a problem.[12]
+Show More Tips
+Submit a Tip
+All tip submissions are carefully reviewed before being published
+Your tip here
+ Submit
+ 
+You Might Also Like
+100 Simple & Challenging DnD Riddles For Any Adventure
+75 Fun and Creative Escape Room Puzzle Ideas to Try
+Sphinx Riddles for D&D, Dragon's Dogma, and Assassin's Creed
+14+ Fun & Creative One-Shot Ideas for Dungeons & Dragons 5th Edition
+
+How to
+Create a DIY Escape Room at Home or School: Expert Guide
+
+How to
+Build an Escape Room
+
+How to
+Plan an Escape Room
+90+ Creative Scavenger Hunt Clues for Adults & Kids
+
+How to
+Make a D&D Campaign
+What Is a Robe of Useful Items in DnD 5e & How Does It Work?
+80 Tricky “What Am I?” Riddles (with Answers)
+
+How to
+Make Crossword Puzzles
+
+How to
+Beat Riddle School 5: Every Puzzle Solved
+
+How to
+Make up a Riddle
+References
+↑Legends of Avantris. Dungeons & Dragons Experts. Expert Interview
+↑Legends of Avantris. Dungeons & Dragons Experts. Expert Interview
+↑https://www.dndspeak.com/2018/11/28/100-riddles-and-their-answers/
+↑https://blackcitadelrpg.com/dnd-5e-traps-puzzles/
+↑https://www.critacademy.com/post/types-of-puzzles
+↑https://blackcitadelrpg.com/dnd-5e-traps-puzzles/
+↑https://dmdave.com/how-to-create-puzzles-for-fifth-edition/
+↑https://nerdarchy.com/dd-ideas-puzzles/
+↑Legends of Avantris. Dungeons & Dragons Experts. Expert Interview
+More References (3)
+About This Article
+Legends of Avantris
+Co-authored by:
+Legends of Avantris
+Dungeons & Dragons Experts
+This article was co-authored by Legends of Avantris and by wikiHow staff writer, Glenn Carreau. Legends of Avantris is a group of Dungeons & Dragons Experts and content creators of their successful eponymous YouTube channel. Composed of seven best friends whose passion is playing D&D, Legends of Avantris has built a multifaceted business, streaming on Twitch, running their YouTube channel, selling their successful merch line, producing their podcast, and launching their first Kickstarter campaign: The Crooked Moon, a folk horror supplement for 5th edition. This article has been viewed 201,833 times.
+42 votes - 84%
+Co-authors: 3
+Updated: March 17, 2025
+Views: 201,833
+Categories: Dungeons and Dragons
+In other languages
+Dutch
+Spanish
+Czech
+Japanese
+Print Send fan mail to authors
+Thanks to all authors for creating a page that has been read 201,833 times.
+Did this article help you?
+Yes No
+
+Legends of Avantris
+Co-authored by:
+Legends of Avantris
+Dungeons & Dragons Experts
+Co-authors:
+3
+Updated:
+March 17, 2025
+Views: 
+201,833
+84% of readers found this article helpful.
+42 votes - 84%
+Click a star to add your vote
+
+
+Quizzes & Games
+The Impossible Quiz
+The Impossible Quiz
+Take Quiz
+DnD Campaign Generator
+DnD Campaign Generator
+Generate
+What D&D Class Am I Quiz
+What D&D Class Am I Quiz
+Take Quiz
+IQ Test
+IQ Test
+Take Quiz
+Moral Alignment Test
+Moral Alignment Test
+Take Quiz
+Sherlock Holmes Game: Can You Crack The Case?
+Sherlock Holmes Game: Can You Crack The Case?
+Play
+
+
+You Might Also Like
+100 Simple & Challenging DnD Riddles For Any Adventure
+75 Fun and Creative Escape Room Puzzle Ideas to Try
+Sphinx Riddles for D&D, Dragon's Dogma, and Assassin's Creed
+14+ Fun & Creative One-Shot Ideas for Dungeons & Dragons 5th Edition
+
+
+Trending Articles
+
+How Rare Is Your Name?
+
+The Different Kinds of Dimples: Types, Causes, & Social Perception
+
+151 of the Juiciest “Most Likely To” Questions to Ask
+
+Signs a Woman is Sexually Attracted to You
+
+How to
+Tell That Your Crush Likes You Back
+
+Cat Sleeping Positions: 22 Common Poses Explained
+Watch Articles
+
+How to
+Calculate the Volume of a Pyramid
+
+The Best Way to Exfoliate Your Scalp (Plus, What to Use)
+
+How to
+Save Money as a Kid
+
+How to
+Polish Aluminum
+
+2 Easy Renter-Friendly Options to Hang Your Window Treatments
+
+How to
+Insert Slide Numbers in PowerPoint
+Trending Articles
+
+Are You Unc? Discover How Old Your Vibe Is
+
+What's My Hottest Feature Quiz
+
+Gen Beta Slang Quiz
+
+24 Different Types of Bras Explained
+
+How to
+Play the Concentrate Game (For A Little Scare!)
+
+What Does Your Rice Purity Score Really Mean?
+Quizzes & Games
+
+What Tarot Card Am I Quiz
+Take Quiz
+
+What's My Homestuck Classpect Quiz
+Take Quiz
+
+Would I Be a Good Super Spy Quiz
+Take Quiz
+
+Dungeons & Dragons Name Generator
+Generate Names
+
+Can You Solve a Mystery with Wednesday Addams?
+Play
+
+Which Persona Would I Have Quiz
+Take Quiz
+
+
+wikiHow
+CategoriesHobbies and CraftsGamesRole Playing GamesDungeons and Dragons
+ wikiHow Newsletter
+Helpful how-tos delivered to
+your inbox every week!
+Enter your email
+Sign me up!
+By signing up you are agreeing to receive emails according to our privacy policy.
+D&D Puzzles: Best Puzzles & Traps to Use in Dungeons & Dragons
+Home
+About wikiHow
+Experts
+Jobs
+Contact Us
+Site Map
+Terms of Use
+Privacy Policy
+Contribute
+×
+Get all the best how-tos!
+
+Sign up for wikiHow's weekly email newsletter
+
+Email Address
+Subscribe
+X
+Join us in our mission
+For over two decades, we’ve been on a mission: to help everyone in the world learn how to do anything. Our articles are human written and expert endorsed to ensure readers like you get reliable, current information. Before you get back to learning, we would be grateful if you could take a minute to support wikiHow. Any amount helps. Thank you.
+
+Let’s do this!
+-
+-
