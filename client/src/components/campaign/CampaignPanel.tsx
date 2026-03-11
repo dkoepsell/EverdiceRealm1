@@ -3670,14 +3670,19 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         {currentSession && (
                           <div className="mt-6 pt-5 border-t border-amber-500/30">
                             {tableChatCollapsed ? (
-                              <Button
-                                variant="outline"
-                                className="w-full bg-slate-800/50 border-amber-500/50 text-amber-300 hover:bg-slate-700/50 hover:text-amber-200"
-                                onClick={() => setTableChatCollapsed(false)}
-                              >
-                                <MessageCircle className="h-4 w-4 mr-2" />
-                                Open Table Chat
-                              </Button>
+                              <div>
+                                <p className="text-center text-xs text-slate-500 dark:text-slate-400 mb-2">
+                                  Playing with others? Chat live with everyone around the table.
+                                </p>
+                                <Button
+                                  variant="outline"
+                                  className="w-full bg-slate-800/50 border-amber-500/50 text-amber-300 hover:bg-slate-700/50 hover:text-amber-200"
+                                  onClick={() => setTableChatCollapsed(false)}
+                                >
+                                  <MessageCircle className="h-4 w-4 mr-2" />
+                                  Open Table Chat
+                                </Button>
+                              </div>
                             ) : (
                               <div className="h-80 border border-amber-500/30 rounded-lg overflow-hidden bg-slate-900/50">
                                 <TableChat
