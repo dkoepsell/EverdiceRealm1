@@ -46,30 +46,54 @@ function makeAnthropicAdapter(apiKey: string): OpenAI {
           }
 
           if (params.stream) {
-            const stream = await anthropic.messages.stream(requestParams);
-            return {
-              [Symbol.asyncIterator]: async function* () {
-                for await (const event of stream) {
-                  if (
-                    event.type === "content_block_delta" &&
-                    event.delta.type === "text_delta"
-                  ) {
-                    yield {
-                      choices: [
-                        {
-                          delta: { content: event.delta.text, role: "assistant" },
-                          finish_reason: null,
-                        },
-                      ],
-                    };
-                  } else if (event.type === "message_stop") {
-                    yield {
-                      choices: [{ delta: {}, finish_reason: "stop" }],
-                    };
+            try {
+              const stream = await anthropic.messages.stream(requestParams);
+              return {
+                [Symbol.asyncIterator]: async function* () {
+                  try {
+                    for await (const event of stream) {
+                      if (
+                        event.type === "content_block_delta" &&
+                        event.delta.type === "text_delta"
+                      ) {
+                        yield {
+                          choices: [
+                            {
+                              delta: { content: event.delta.text, role: "assistant" },
+                              finish_reason: null,
+                            },
+                          ],
+                        };
+                      } else if (event.type === "message_stop") {
+                        yield {
+                          choices: [{ delta: {}, finish_reason: "stop" }],
+                        };
+                      }
+                    }
+                  } catch (streamIterErr: any) {
+                    if (streamIterErr?.status === 404 || streamIterErr?.error?.error?.type === "not_found_error") {
+                      console.warn(`Anthropic streaming model not found — falling back to app default AI (${DEFAULT_MODEL})`);
+                      const fallback = await appOpenAI.chat.completions.create({ ...params, model: DEFAULT_MODEL });
+                      for await (const chunk of fallback as any) {
+                        yield chunk;
+                      }
+                    } else {
+                      throw streamIterErr;
+                    }
                   }
-                }
-              },
-            };
+                },
+              };
+            } catch (streamInitErr: any) {
+              if (streamInitErr?.status === 404 || streamInitErr?.error?.error?.type === "not_found_error") {
+                console.warn(`Anthropic streaming model "${requestParams.model}" not found — falling back to app default AI (${DEFAULT_MODEL})`);
+                return appOpenAI.chat.completions.create({ ...params, model: DEFAULT_MODEL });
+              }
+              if (streamInitErr?.status === 401 || streamInitErr?.status === 403) {
+                console.warn(`Anthropic streaming API key invalid — falling back to app default AI (${DEFAULT_MODEL})`);
+                return appOpenAI.chat.completions.create({ ...params, model: DEFAULT_MODEL });
+              }
+              throw streamInitErr;
+            }
           }
 
           try {
@@ -96,12 +120,12 @@ function makeAnthropicAdapter(apiKey: string): OpenAI {
             };
           } catch (anthropicErr: any) {
             if (anthropicErr?.status === 404 || anthropicErr?.error?.error?.type === "not_found_error") {
-              console.warn(`Anthropic model "${requestParams.model}" not found on this account — falling back to app default AI`);
-              return appOpenAI.chat.completions.create(params);
+              console.warn(`Anthropic model "${requestParams.model}" not found on this account — falling back to app default AI (${DEFAULT_MODEL})`);
+              return appOpenAI.chat.completions.create({ ...params, model: DEFAULT_MODEL });
             }
             if (anthropicErr?.status === 401 || anthropicErr?.status === 403) {
-              console.warn("Anthropic API key invalid or unauthorized — falling back to app default AI");
-              return appOpenAI.chat.completions.create(params);
+              console.warn(`Anthropic API key invalid or unauthorized — falling back to app default AI (${DEFAULT_MODEL})`);
+              return appOpenAI.chat.completions.create({ ...params, model: DEFAULT_MODEL });
             }
             throw anthropicErr;
           }
