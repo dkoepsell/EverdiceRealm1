@@ -48,16 +48,12 @@ const PROVIDERS = [
     name: "Anthropic",
     description: "Claude models — requires billing on your Anthropic account",
     icon: Brain,
-    defaultModel: "claude-3-haiku-20240307",
-    models: [
-      { value: "claude-3-haiku-20240307", label: "Claude 3 Haiku (recommended · all tiers)" },
-      { value: "claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku (paid tier)" },
-      { value: "claude-3-5-sonnet-20241022", label: "Claude 3.5 Sonnet (paid tier)" },
-      { value: "claude-3-7-sonnet-20250219", label: "Claude 3.7 Sonnet (paid tier)" },
-      { value: "claude-3-opus-20240229", label: "Claude 3 Opus (paid tier)" },
-    ],
+    defaultModel: "claude-sonnet-4-6",
+    models: [],
     needsEndpoint: true,
     defaultEndpoint: "https://api.anthropic.com/v1",
+    modelPlaceholder: "e.g. claude-sonnet-4-6, claude-3-haiku-20240307",
+    modelHint: "Use 'Test Connection' to discover which models are on your account",
   },
   {
     id: "local",
@@ -563,12 +559,14 @@ export default function AISettingsPage() {
                   ) : (
                     <Input
                       id="model"
-                      placeholder="e.g., llama3, mixtral-8x7b, mistral"
+                      placeholder={(providerInfo as any)?.modelPlaceholder || "e.g., llama3, mixtral-8x7b, mistral"}
                       value={model}
                       onChange={(e) => setModel(e.target.value)}
                     />
                   )}
-                  <p className="text-xs text-muted-foreground mt-1">The model to use for AI features</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {(providerInfo as any)?.modelHint || "The model to use for AI features"}
+                  </p>
                 </div>
               </motion.div>
             )}

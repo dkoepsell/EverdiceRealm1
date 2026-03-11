@@ -5,7 +5,7 @@ import { llmConfigs } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 
 const DEFAULT_MODEL = "gpt-4o";
-const DEFAULT_ANTHROPIC_MODEL = "claude-3-haiku-20240307";
+const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6";
 
 const appOpenAI = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
