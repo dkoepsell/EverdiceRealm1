@@ -5,7 +5,7 @@ import { llmConfigs } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 
 const DEFAULT_MODEL = "gpt-4o";
-const DEFAULT_ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022";
+const DEFAULT_ANTHROPIC_MODEL = "claude-3-haiku-20240307";
 
 const appOpenAI = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -212,7 +212,7 @@ export async function testAIConnection(
         if (err?.status === 404 || err?.error?.error?.type === "not_found_error") {
           return {
             success: false,
-            message: `Model "${testModel}" is not available on your Anthropic account. Try a different model — claude-3-haiku-20240307 is available on all tiers.`,
+            message: `Model "${testModel}" is not available on your Anthropic account. Switch to "Claude 3 Haiku (recommended · all tiers)" in the model dropdown — it works on all billing tiers.`,
           };
         }
         if (err?.status === 401 || err?.status === 403) {

@@ -46,15 +46,15 @@ const PROVIDERS = [
   {
     id: "anthropic",
     name: "Anthropic",
-    description: "Claude 3.7, Claude 3.5, Claude 3 Opus/Haiku",
+    description: "Claude models — requires billing on your Anthropic account",
     icon: Brain,
-    defaultModel: "claude-3-7-sonnet-20250219",
+    defaultModel: "claude-3-haiku-20240307",
     models: [
-      "claude-3-7-sonnet-20250219",
-      "claude-3-5-sonnet-20241022",
-      "claude-3-5-haiku-20241022",
-      "claude-3-opus-20240229",
-      "claude-3-haiku-20240307",
+      { value: "claude-3-haiku-20240307", label: "Claude 3 Haiku (recommended · all tiers)" },
+      { value: "claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku (paid tier)" },
+      { value: "claude-3-5-sonnet-20241022", label: "Claude 3.5 Sonnet (paid tier)" },
+      { value: "claude-3-7-sonnet-20250219", label: "Claude 3.7 Sonnet (paid tier)" },
+      { value: "claude-3-opus-20240229", label: "Claude 3 Opus (paid tier)" },
     ],
     needsEndpoint: true,
     defaultEndpoint: "https://api.anthropic.com/v1",
@@ -553,9 +553,11 @@ export default function AISettingsPage() {
                         <SelectValue placeholder="Select a model" />
                       </SelectTrigger>
                       <SelectContent>
-                        {providerInfo.models.map(m => (
-                          <SelectItem key={m} value={m}>{m}</SelectItem>
-                        ))}
+                        {providerInfo.models.map((m: any) => {
+                          const val = typeof m === "string" ? m : m.value;
+                          const label = typeof m === "string" ? m : m.label;
+                          return <SelectItem key={val} value={val}>{label}</SelectItem>;
+                        })}
                       </SelectContent>
                     </Select>
                   ) : (
