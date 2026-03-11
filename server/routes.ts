@@ -16626,6 +16626,65 @@ Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITE
     }
   });
 
+  // Chapter progress — current objective, scenes count, urgency, and hints
+  app.get("/api/campaigns/:campaignId/chapter-progress", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+
+      const allSessions = await storage.getCampaignSessions(campaignId);
+      const currentChapter = (campaign as any).currentSession || 1;
+      const totalChapters = (campaign as any).totalChapters || 5;
+      const chapterGates = ((campaign as any).chapterGates as any[]) || [];
+      const narrativeLog = ((campaign as any).narrativeLog as any[]) || [];
+
+      const lastGateEntry = [...narrativeLog].reverse().find((e: any) => e.type === 'chapter_gate');
+      const lastGateMs = lastGateEntry?.timestamp ? Date.parse(lastGateEntry.timestamp) : NaN;
+      const scenesInChapter = !isNaN(lastGateMs)
+        ? allSessions.filter(s => s.createdAt && new Date(s.createdAt).getTime() > lastGateMs).length
+        : allSessions.length;
+
+      const currentGate = chapterGates.find((g: any) => g.chapter === currentChapter);
+
+      const HARD_CAP = 10;
+      let urgency: string;
+      if (scenesInChapter >= HARD_CAP) urgency = "hardcap";
+      else if (scenesInChapter >= 9) urgency = "urgent";
+      else if (scenesInChapter >= 7) urgency = "moderate";
+      else if (scenesInChapter >= 5) urgency = "gentle";
+      else urgency = "normal";
+
+      // Build player-facing hints from gate conditions
+      const hints: string[] = [];
+      if (currentGate) {
+        if (currentGate.requiredTruth) hints.push(`Discover the truth: "${currentGate.requiredTruth}"`);
+        if (currentGate.requiredCommitment) hints.push(`Make a commitment: "${currentGate.requiredCommitment}"`);
+        if (currentGate.requiredBeliefChange) hints.push(`Change your approach: "${currentGate.requiredBeliefChange}"`);
+        if (currentGate.advanceWhen) hints.push(currentGate.advanceWhen);
+      }
+
+      res.json({
+        currentChapter,
+        totalChapters,
+        scenesInChapter,
+        hardCap: HARD_CAP,
+        urgency,
+        gate: currentGate ? {
+          advanceWhen: currentGate.advanceWhen,
+          requiredTruth: currentGate.requiredTruth,
+          requiredCommitment: currentGate.requiredCommitment,
+          requiredBeliefChange: currentGate.requiredBeliefChange,
+        } : null,
+        hints,
+        campaignQuestion: (campaign as any).campaignQuestion || null,
+      });
+    } catch (error) {
+      console.error("Failed to get chapter progress:", error);
+      res.status(500).json({ message: "Failed to get chapter progress" });
+    }
+  });
+
   // Send DM message to players
   app.post("/api/campaigns/:campaignId/dm-message", isAuthenticated, async (req: any, res) => {
     try {

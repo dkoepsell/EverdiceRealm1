@@ -123,6 +123,21 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     queryKey: ['/api/world/locations'],
   });
 
+  // Chapter objective and scene pacing
+  const { data: chapterProgressData } = useQuery<{
+    currentChapter: number;
+    totalChapters: number;
+    scenesInChapter: number;
+    hardCap: number;
+    urgency: string;
+    gate: { advanceWhen?: string; requiredTruth?: string; requiredCommitment?: string; requiredBeliefChange?: string } | null;
+    hints: string[];
+    campaignQuestion: string | null;
+  }>({
+    queryKey: [`/api/campaigns/${campaign.id}/chapter-progress`],
+    refetchInterval: 15000,
+  });
+
   // DM Session state for group voting
   const { data: dmSessionState } = useQuery<{
     activeGroupChoices?: any[];
@@ -231,6 +246,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         setLastChosenAction("");
         setChoicesRevealed(true);
         queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/chapter-progress`] });
       }, 60000);
     } else {
       if (advancingStoryTimeoutRef.current) {
@@ -423,6 +439,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       const data = event.detail;
       if (data.campaignId === campaign.id) {
         queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/chapter-progress`] });
       }
     };
     
@@ -4201,24 +4218,100 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </div>
                     )}
                     
-                    {/* Campaign Chapter Progress Bar - Compact version */}
-                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 p-2 rounded-lg border border-indigo-200 dark:border-indigo-800 mb-3">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs font-semibold text-indigo-900 dark:text-indigo-100 flex items-center">
-                          <BookOpen className="h-3 w-3 mr-1" />
-                          Chapter Progress
-                        </span>
-                        <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">
-                          {campaign.currentSession || 1}/{campaign.totalChapters || 5}
-                          {(campaign.currentSession || 1) >= (campaign.totalChapters || 5) && ' 🏆'}
-                        </span>
-                      </div>
-                      <Progress 
-                        value={((campaign.currentSession || 1) / (campaign.totalChapters || 5)) * 100} 
-                        className="h-2 bg-indigo-200 dark:bg-indigo-900"
-                        data-testid="progress-campaign-chapters"
-                      />
-                    </div>
+                    {/* Chapter Objective Card */}
+                    {(() => {
+                      const cpd = chapterProgressData;
+                      const urgency = cpd?.urgency || 'normal';
+                      const scenesIn = cpd?.scenesInChapter ?? 0;
+                      const hardCap = cpd?.hardCap ?? 10;
+                      const currentCh = cpd?.currentChapter ?? (campaign.currentSession || 1);
+                      const totalCh = cpd?.totalChapters ?? (campaign.totalChapters || 5);
+                      const finished = currentCh >= totalCh;
+
+                      const urgencyBorder = urgency === 'hardcap' || urgency === 'urgent'
+                        ? 'border-red-500 dark:border-red-600'
+                        : urgency === 'moderate'
+                        ? 'border-amber-500 dark:border-amber-600'
+                        : urgency === 'gentle'
+                        ? 'border-yellow-400 dark:border-yellow-600'
+                        : 'border-indigo-200 dark:border-indigo-800';
+
+                      const urgencyBar = urgency === 'hardcap' || urgency === 'urgent'
+                        ? '[&>div]:bg-red-500'
+                        : urgency === 'moderate'
+                        ? '[&>div]:bg-amber-500'
+                        : urgency === 'gentle'
+                        ? '[&>div]:bg-yellow-400'
+                        : '[&>div]:bg-indigo-500';
+
+                      const urgencyLabel = urgency === 'hardcap'
+                        ? 'Chapter must advance now!'
+                        : urgency === 'urgent'
+                        ? 'Story is ready to move forward'
+                        : urgency === 'moderate'
+                        ? 'Push toward the chapter goal'
+                        : urgency === 'gentle'
+                        ? 'Chapter milestone approaching'
+                        : null;
+
+                      const objective = cpd?.gate?.advanceWhen || null;
+                      const hints = cpd?.hints?.filter(h => h !== objective) || [];
+
+                      return (
+                        <div className={`bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 p-2 rounded-lg border ${urgencyBorder} mb-3 transition-colors duration-500`}>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs font-semibold text-indigo-900 dark:text-indigo-100 flex items-center gap-1">
+                              <BookOpen className="h-3 w-3" />
+                              Chapter {currentCh} of {totalCh}
+                              {finished && ' 🏆'}
+                            </span>
+                            <span className="text-xs text-indigo-500 dark:text-indigo-400">
+                              {scenesIn}/{hardCap} scenes
+                            </span>
+                          </div>
+                          {/* Chapter arc bar */}
+                          <Progress
+                            value={(currentCh / totalCh) * 100}
+                            className={`h-1.5 bg-indigo-100 dark:bg-indigo-900 mb-1.5 ${urgencyBar}`}
+                            data-testid="progress-campaign-chapters"
+                          />
+                          {/* Scene pacing bar */}
+                          <Progress
+                            value={Math.min((scenesIn / hardCap) * 100, 100)}
+                            className={`h-1 bg-slate-200 dark:bg-slate-700 mb-1.5 ${urgencyBar}`}
+                          />
+                          {/* Current objective */}
+                          {objective && (
+                            <div className="flex items-start gap-1 mt-1">
+                              <Target className="h-3 w-3 text-indigo-400 mt-0.5 shrink-0" />
+                              <span className="text-xs text-indigo-700 dark:text-indigo-300 leading-snug italic">
+                                {objective}
+                              </span>
+                            </div>
+                          )}
+                          {/* Urgency label */}
+                          {urgencyLabel && (
+                            <p className={`text-xs font-semibold mt-1 ${
+                              urgency === 'hardcap' || urgency === 'urgent' ? 'text-red-600 dark:text-red-400' :
+                              urgency === 'moderate' ? 'text-amber-600 dark:text-amber-400' :
+                              'text-yellow-600 dark:text-yellow-400'
+                            }`}>
+                              {urgencyLabel}
+                            </p>
+                          )}
+                          {/* Extra hints at moderate+ */}
+                          {(urgency === 'moderate' || urgency === 'urgent' || urgency === 'hardcap') && hints.length > 0 && (
+                            <ul className="mt-1 space-y-0.5">
+                              {hints.slice(0, 2).map((h, i) => (
+                                <li key={i} className="text-xs text-slate-500 dark:text-slate-400 leading-snug pl-3 border-l-2 border-indigo-300 dark:border-indigo-700">
+                                  {h}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      );
+                    })()}
                     
                     {/* Quick Reference Panel - Full Width Map + Party Stats Row */}
                     <div className="space-y-3 mb-4">
