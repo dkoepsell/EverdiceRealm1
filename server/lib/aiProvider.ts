@@ -190,33 +190,57 @@ export async function testAIConnection(
     if (provider === "anthropic") {
       const anthropic = new Anthropic({ apiKey });
       const testModel = model || DEFAULT_ANTHROPIC_MODEL;
+
+      // First, discover what models are actually on this account
+      let availableModels: string[] = [];
+      try {
+        const modelsPage = await anthropic.models.list({ limit: 20 });
+        availableModels = modelsPage.data?.map((m: any) => m.id) || [];
+      } catch (listErr: any) {
+        if (listErr?.status === 401 || listErr?.status === 403) {
+          return { success: false, message: "Invalid Anthropic API key. Please check your key in the Anthropic console at console.anthropic.com and try again." };
+        }
+        if (listErr?.status === 403) {
+          return { success: false, message: "Your Anthropic API key does not have permission to access the API. Make sure billing is enabled at console.anthropic.com/settings/billing." };
+        }
+        // If model listing fails for other reasons, fall through to direct test
+      }
+
+      if (availableModels.length > 0 && !availableModels.includes(testModel)) {
+        const suggestions = availableModels.slice(0, 3).join(", ");
+        return {
+          success: false,
+          message: `Model "${testModel}" is not on your account. Your available models include: ${suggestions}. Update your model selection to one of these.`,
+        };
+      }
+
       try {
         const response = await anthropic.messages.create({
           model: testModel,
           max_tokens: 16,
-          messages: [
-            {
-              role: "user",
-              content: "Say 'Connection successful' in exactly two words.",
-            },
-          ],
+          messages: [{ role: "user", content: "Say 'Connection successful' in exactly two words." }],
         });
-        const reply =
-          response.content?.[0]?.type === "text" ? response.content[0].text : "";
+        const reply = response.content?.[0]?.type === "text" ? response.content[0].text : "";
         return {
           success: true,
-          message: `Connected successfully. Response: "${reply.trim()}"`,
+          message: `Connected successfully using ${testModel}. Response: "${reply.trim()}"`,
           modelUsed: testModel,
         };
       } catch (err: any) {
         if (err?.status === 404 || err?.error?.error?.type === "not_found_error") {
+          if (availableModels.length > 0) {
+            return {
+              success: false,
+              message: `Model "${testModel}" is not available. Your account has access to: ${availableModels.slice(0, 3).join(", ")}. Select one of these from the model dropdown.`,
+            };
+          }
           return {
             success: false,
-            message: `Model "${testModel}" is not available on your Anthropic account. Switch to "Claude 3 Haiku (recommended · all tiers)" in the model dropdown — it works on all billing tiers.`,
+            message: `No Claude models are accessible with this API key. Please ensure your Anthropic account has billing enabled at console.anthropic.com/settings/billing, then generate a new API key.`,
           };
         }
         if (err?.status === 401 || err?.status === 403) {
-          return { success: false, message: "Invalid API key. Please check your Anthropic key and try again." };
+          return { success: false, message: "Invalid Anthropic API key. Check your key at console.anthropic.com." };
         }
         throw err;
       }
