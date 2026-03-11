@@ -3422,11 +3422,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           <div className="flex items-center gap-2">
                             <Sparkles className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
                             <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300">
-                              Scene {currentSession.sessionNumber}
+                              Scene {(parsedStoryState?.sceneCount ?? (currentSession?.playerChoicesMade as any[] || []).length) + 1}
                             </span>
                           </div>
                           <span className="text-xs text-slate-500 dark:text-slate-400">
-                            {currentSession.sessionNumber} {currentSession.sessionNumber === 1 ? 'turn' : 'turns'} played
+                            {(() => {
+                              const turns = parsedStoryState?.sceneCount ?? (currentSession?.playerChoicesMade as any[] || []).length;
+                              return `${turns} ${turns === 1 ? 'turn' : 'turns'} played`;
+                            })()}
                           </span>
                         </div>
                       </div>
@@ -4221,9 +4224,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     {/* Chapter Objective Card */}
                     {(() => {
                       const cpd = chapterProgressData;
-                      const urgency = cpd?.urgency || 'normal';
-                      const scenesIn = cpd?.scenesInChapter ?? 0;
+                      // Use live client-side scene count for instant updates; fall back to API value
+                      const liveScenes = parsedStoryState?.sceneCount ?? (currentSession?.playerChoicesMade as any[] || []).length;
+                      const scenesIn = liveScenes ?? cpd?.scenesInChapter ?? 0;
                       const hardCap = cpd?.hardCap ?? 10;
+                      // Derive urgency from live scene count for instant color changes
+                      const urgency = scenesIn >= hardCap ? 'hardcap'
+                        : scenesIn >= 9 ? 'urgent'
+                        : scenesIn >= 7 ? 'moderate'
+                        : scenesIn >= 5 ? 'gentle'
+                        : 'normal';
                       const currentCh = cpd?.currentChapter ?? (campaign.currentSession || 1);
                       const totalCh = cpd?.totalChapters ?? (campaign.totalChapters || 5);
                       const finished = currentCh >= totalCh;

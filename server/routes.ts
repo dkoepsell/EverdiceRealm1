@@ -16637,13 +16637,24 @@ Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITE
       const currentChapter = (campaign as any).currentSession || 1;
       const totalChapters = (campaign as any).totalChapters || 5;
       const chapterGates = ((campaign as any).chapterGates as any[]) || [];
-      const narrativeLog = ((campaign as any).narrativeLog as any[]) || [];
 
-      const lastGateEntry = [...narrativeLog].reverse().find((e: any) => e.type === 'chapter_gate');
-      const lastGateMs = lastGateEntry?.timestamp ? Date.parse(lastGateEntry.timestamp) : NaN;
-      const scenesInChapter = !isNaN(lastGateMs)
-        ? allSessions.filter(s => s.createdAt && new Date(s.createdAt).getTime() > lastGateMs).length
-        : allSessions.length;
+      // Find the current active session (highest sessionNumber, not completed)
+      const activeSessions = allSessions.filter((s: any) => !s.isCompleted);
+      const activeSession = activeSessions.length > 0
+        ? activeSessions.reduce((latest: any, s: any) => s.sessionNumber > latest.sessionNumber ? s : latest, activeSessions[0])
+        : allSessions[allSessions.length - 1];
+
+      // Scene count = number of player choices made in this chapter session
+      const choicesMade = (activeSession?.playerChoicesMade as any[] || []).length;
+      // Also check storyState.sceneCount as a fallback
+      let storySceneCount = 0;
+      if (activeSession?.storyState) {
+        try {
+          const ss = typeof activeSession.storyState === 'string' ? JSON.parse(activeSession.storyState) : activeSession.storyState;
+          storySceneCount = ss?.sceneCount ?? 0;
+        } catch { /* ignore */ }
+      }
+      const scenesInChapter = Math.max(choicesMade, storySceneCount);
 
       const currentGate = chapterGates.find((g: any) => g.chapter === currentChapter);
 
