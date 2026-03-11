@@ -72,27 +72,39 @@ function makeAnthropicAdapter(apiKey: string): OpenAI {
             };
           }
 
-          const response = await anthropic.messages.create(requestParams);
-          const content =
-            response.content?.[0]?.type === "text"
-              ? response.content[0].text
-              : "";
+          try {
+            const response = await anthropic.messages.create(requestParams);
+            const content =
+              response.content?.[0]?.type === "text"
+                ? response.content[0].text
+                : "";
 
-          return {
-            choices: [
-              {
-                message: { role: "assistant", content },
-                finish_reason: response.stop_reason || "stop",
+            return {
+              choices: [
+                {
+                  message: { role: "assistant", content },
+                  finish_reason: response.stop_reason || "stop",
+                },
+              ],
+              usage: {
+                prompt_tokens: response.usage?.input_tokens || 0,
+                completion_tokens: response.usage?.output_tokens || 0,
+                total_tokens:
+                  (response.usage?.input_tokens || 0) +
+                  (response.usage?.output_tokens || 0),
               },
-            ],
-            usage: {
-              prompt_tokens: response.usage?.input_tokens || 0,
-              completion_tokens: response.usage?.output_tokens || 0,
-              total_tokens:
-                (response.usage?.input_tokens || 0) +
-                (response.usage?.output_tokens || 0),
-            },
-          };
+            };
+          } catch (anthropicErr: any) {
+            if (anthropicErr?.status === 404 || anthropicErr?.error?.error?.type === "not_found_error") {
+              console.warn(`Anthropic model "${requestParams.model}" not found on this account — falling back to app default AI`);
+              return appOpenAI.chat.completions.create(params);
+            }
+            if (anthropicErr?.status === 401 || anthropicErr?.status === 403) {
+              console.warn("Anthropic API key invalid or unauthorized — falling back to app default AI");
+              return appOpenAI.chat.completions.create(params);
+            }
+            throw anthropicErr;
+          }
         },
       },
     },
@@ -154,23 +166,36 @@ export async function testAIConnection(
     if (provider === "anthropic") {
       const anthropic = new Anthropic({ apiKey });
       const testModel = model || DEFAULT_ANTHROPIC_MODEL;
-      const response = await anthropic.messages.create({
-        model: testModel,
-        max_tokens: 16,
-        messages: [
-          {
-            role: "user",
-            content: "Say 'Connection successful' in exactly two words.",
-          },
-        ],
-      });
-      const reply =
-        response.content?.[0]?.type === "text" ? response.content[0].text : "";
-      return {
-        success: true,
-        message: `Connected successfully. Response: "${reply.trim()}"`,
-        modelUsed: testModel,
-      };
+      try {
+        const response = await anthropic.messages.create({
+          model: testModel,
+          max_tokens: 16,
+          messages: [
+            {
+              role: "user",
+              content: "Say 'Connection successful' in exactly two words.",
+            },
+          ],
+        });
+        const reply =
+          response.content?.[0]?.type === "text" ? response.content[0].text : "";
+        return {
+          success: true,
+          message: `Connected successfully. Response: "${reply.trim()}"`,
+          modelUsed: testModel,
+        };
+      } catch (err: any) {
+        if (err?.status === 404 || err?.error?.error?.type === "not_found_error") {
+          return {
+            success: false,
+            message: `Model "${testModel}" is not available on your Anthropic account. Try a different model — claude-3-haiku-20240307 is available on all tiers.`,
+          };
+        }
+        if (err?.status === 401 || err?.status === 403) {
+          return { success: false, message: "Invalid API key. Please check your Anthropic key and try again." };
+        }
+        throw err;
+      }
     }
 
     const clientOptions: any = { apiKey };
