@@ -4273,33 +4273,33 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       const hints = cpd?.hints?.filter(h => h !== objective) || [];
 
                       return (
-                        <div className={`bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 p-2 rounded-lg border ${urgencyBorder} mb-3 transition-colors duration-500`}>
+                        <div className={`bg-indigo-50 dark:bg-slate-800 p-2 rounded-lg border ${urgencyBorder} mb-3 transition-colors duration-500`}>
                           <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs font-semibold text-indigo-900 dark:text-indigo-100 flex items-center gap-1">
+                            <span className="text-xs font-semibold text-indigo-900 dark:text-slate-100 flex items-center gap-1">
                               <BookOpen className="h-3 w-3" />
                               Chapter {currentCh} of {totalCh}
                               {finished && ' 🏆'}
                             </span>
-                            <span className="text-xs text-indigo-500 dark:text-indigo-400">
+                            <span className="text-xs font-medium text-indigo-700 dark:text-slate-300">
                               {scenesIn}/{hardCap} scenes
                             </span>
                           </div>
                           {/* Chapter arc bar */}
                           <Progress
                             value={(currentCh / totalCh) * 100}
-                            className={`h-1.5 bg-indigo-100 dark:bg-indigo-900 mb-1.5 ${urgencyBar}`}
+                            className={`h-1.5 bg-indigo-200 dark:bg-slate-600 mb-1.5 ${urgencyBar}`}
                             data-testid="progress-campaign-chapters"
                           />
                           {/* Scene pacing bar */}
                           <Progress
                             value={Math.min((scenesIn / hardCap) * 100, 100)}
-                            className={`h-1 bg-slate-200 dark:bg-slate-700 mb-1.5 ${urgencyBar}`}
+                            className={`h-1 bg-slate-200 dark:bg-slate-600 mb-1.5 ${urgencyBar}`}
                           />
                           {/* Current objective */}
                           {objective && (
                             <div className="flex items-start gap-1 mt-1">
-                              <Target className="h-3 w-3 text-indigo-400 mt-0.5 shrink-0" />
-                              <span className="text-xs text-indigo-700 dark:text-indigo-300 leading-snug italic">
+                              <Target className="h-3 w-3 text-amber-500 dark:text-amber-400 mt-0.5 shrink-0" />
+                              <span className="text-xs text-indigo-800 dark:text-slate-200 leading-snug italic">
                                 {objective}
                               </span>
                             </div>
@@ -4307,9 +4307,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           {/* Urgency label */}
                           {urgencyLabel && (
                             <p className={`text-xs font-semibold mt-1 ${
-                              urgency === 'hardcap' || urgency === 'urgent' ? 'text-red-600 dark:text-red-400' :
-                              urgency === 'moderate' ? 'text-amber-600 dark:text-amber-400' :
-                              'text-yellow-600 dark:text-yellow-400'
+                              urgency === 'hardcap' || urgency === 'urgent' ? 'text-red-600 dark:text-red-300' :
+                              urgency === 'moderate' ? 'text-amber-700 dark:text-amber-300' :
+                              'text-yellow-700 dark:text-yellow-300'
                             }`}>
                               {urgencyLabel}
                             </p>
@@ -4318,7 +4318,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           {(urgency === 'moderate' || urgency === 'urgent' || urgency === 'hardcap') && hints.length > 0 && (
                             <ul className="mt-1 space-y-0.5">
                               {hints.slice(0, 2).map((h, i) => (
-                                <li key={i} className="text-xs text-slate-500 dark:text-slate-400 leading-snug pl-3 border-l-2 border-indigo-300 dark:border-indigo-700">
+                                <li key={i} className="text-xs text-slate-600 dark:text-slate-300 leading-snug pl-3 border-l-2 border-amber-400 dark:border-amber-500">
                                   {h}
                                 </li>
                               ))}
