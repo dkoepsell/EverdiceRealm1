@@ -13,6 +13,15 @@ export function getAppOpenAI(): OpenAI {
   return appOpenAI;
 }
 
+function stripMarkdownFences(text: string): string {
+  if (!text) return text;
+  // Remove ```json ... ``` or ``` ... ``` wrappers that Claude adds around JSON
+  return text
+    .replace(/^```(?:json|javascript|js|ts|typescript)?\s*\n?/i, "")
+    .replace(/\n?```\s*$/i, "")
+    .trim();
+}
+
 function makeAnthropicAdapter(apiKey: string): OpenAI {
   const anthropic = new Anthropic({ apiKey });
 
@@ -33,13 +42,20 @@ function makeAnthropicAdapter(apiKey: string): OpenAI {
             nonSystemMessages.push({ role: "user", content: "Begin." });
           }
 
+          const wantsJson = params.response_format?.type === "json_object";
+          let effectiveSystem = systemMessages;
+          if (wantsJson) {
+            const jsonInstruction = "IMPORTANT: Respond with raw JSON only. Do NOT wrap your response in markdown code blocks (no ```json or ``` fences). Return the JSON object directly.";
+            effectiveSystem = effectiveSystem ? `${effectiveSystem}\n\n${jsonInstruction}` : jsonInstruction;
+          }
+
           const requestParams: any = {
             model: params.model || DEFAULT_ANTHROPIC_MODEL,
-            max_tokens: params.max_tokens || 1024,
+            max_tokens: params.max_tokens || 4096,
             messages: nonSystemMessages,
           };
-          if (systemMessages) {
-            requestParams.system = systemMessages;
+          if (effectiveSystem) {
+            requestParams.system = effectiveSystem;
           }
           if (params.temperature !== undefined) {
             requestParams.temperature = Math.min(params.temperature, 1.0);
@@ -51,20 +67,41 @@ function makeAnthropicAdapter(apiKey: string): OpenAI {
               return {
                 [Symbol.asyncIterator]: async function* () {
                   try {
+                    let streamBuffer = "";
+                    let headerStripped = false;
                     for await (const event of stream) {
                       if (
                         event.type === "content_block_delta" &&
                         event.delta.type === "text_delta"
                       ) {
+                        let chunk = event.delta.text;
+                        // Strip opening markdown fence from the beginning of the stream
+                        if (!headerStripped) {
+                          streamBuffer += chunk;
+                          // Wait until we have enough to detect a fence
+                          if (streamBuffer.length < 20 && !streamBuffer.includes("\n")) continue;
+                          streamBuffer = streamBuffer.replace(/^```(?:json|javascript|js|ts|typescript)?\s*\n?/i, "");
+                          chunk = streamBuffer;
+                          streamBuffer = "";
+                          headerStripped = true;
+                        }
+                        // Strip closing fence if this chunk contains it
+                        chunk = chunk.replace(/\n?```\s*$/i, "");
+                        if (!chunk) continue;
                         yield {
                           choices: [
                             {
-                              delta: { content: event.delta.text, role: "assistant" },
+                              delta: { content: chunk, role: "assistant" },
                               finish_reason: null,
                             },
                           ],
                         };
                       } else if (event.type === "message_stop") {
+                        // Flush any buffered header content
+                        if (streamBuffer) {
+                          const flushed = streamBuffer.replace(/^```(?:json|javascript|js|ts|typescript)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
+                          if (flushed) yield { choices: [{ delta: { content: flushed, role: "assistant" }, finish_reason: null }] };
+                        }
                         yield {
                           choices: [{ delta: {}, finish_reason: "stop" }],
                         };
@@ -98,10 +135,11 @@ function makeAnthropicAdapter(apiKey: string): OpenAI {
 
           try {
             const response = await anthropic.messages.create(requestParams);
-            const content =
+            const content = stripMarkdownFences(
               response.content?.[0]?.type === "text"
                 ? response.content[0].text
-                : "";
+                : ""
+            );
 
             return {
               choices: [
