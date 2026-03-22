@@ -1069,7 +1069,9 @@ export const worldDiscoveries = pgTable("world_discoveries", {
   isPublic: boolean("is_public").default(true),
   metadata: jsonb("metadata").default({}),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_world_discoveries_source_campaign_id").on(t.sourceCampaignId),
+]);
 
 export const insertWorldDiscoverySchema = createInsertSchema(worldDiscoveries).omit({
   id: true,
