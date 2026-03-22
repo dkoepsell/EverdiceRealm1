@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp, real } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, jsonb, timestamp, real, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -66,7 +66,9 @@ export const userSessions = pgTable("user_sessions", {
   lastUsed: text("last_used"),
   userAgent: text("user_agent"),
   ipAddress: text("ip_address"),
-});
+}, (t) => [
+  index("idx_user_sessions_user_id").on(t.userId),
+]);
 
 export const insertUserSessionSchema = createInsertSchema(userSessions).omit({
   id: true,
@@ -125,7 +127,9 @@ export const characters = pgTable("characters", {
   backgroundStory: text("background_story"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at"),
-});
+}, (t) => [
+  index("idx_characters_user_id").on(t.userId),
+]);
 
 export const insertCharacterSchema = createInsertSchema(characters).omit({
   id: true,
@@ -273,7 +277,10 @@ export const campaignParticipants = pgTable("campaign_participants", {
   isActive: boolean("is_active").default(true), // Whether participant is active
   joinedAt: text("joined_at").notNull(),
   lastActiveAt: text("last_active_at"), // Last time they took a turn
-});
+}, (t) => [
+  index("idx_campaign_participants_campaign_id").on(t.campaignId),
+  index("idx_campaign_participants_user_id").on(t.userId),
+]);
 
 export const insertCampaignParticipantSchema = createInsertSchema(campaignParticipants).omit({
   id: true,
@@ -311,7 +318,9 @@ export const campaignSessions = pgTable("campaign_sessions", {
   sceneData: jsonb("scene_data"), // Full SceneV2 object with goal, obstacles, stakes, actions
   previousSceneType: text("previous_scene_type"), // For anti-combat-treadmill tracking
   actionLog: jsonb("action_log"), // Persistent log of player actions, AI narratives, and combat results
-});
+}, (t) => [
+  index("idx_campaign_sessions_campaign_id").on(t.campaignId),
+]);
 
 export const insertCampaignSessionSchema = createInsertSchema(campaignSessions).omit({
   id: true,
@@ -329,7 +338,10 @@ export const adventureCompletions = pgTable("adventure_completions", {
   xpAwarded: integer("xp_awarded").notNull(),
   completedAt: text("completed_at").notNull(),
   notes: text("notes"),
-});
+}, (t) => [
+  index("idx_adventure_completions_user_id").on(t.userId),
+  index("idx_adventure_completions_campaign_id").on(t.campaignId),
+]);
 
 export const insertAdventureCompletionSchema = createInsertSchema(adventureCompletions).omit({
   id: true,
@@ -349,7 +361,9 @@ export const diceRolls = pgTable("dice_rolls", {
   count: integer("count").default(1), // Adding count field with default of 1
   purpose: text("purpose"),
   createdAt: text("created_at").notNull(),
-});
+}, (t) => [
+  index("idx_dice_rolls_user_id").on(t.userId),
+]);
 
 export const insertDiceRollSchema = createInsertSchema(diceRolls).omit({
   id: true,
@@ -519,7 +533,9 @@ export const campaignNpcs = pgTable("campaign_npcs", {
   // Override NPC default behavior
   customBehaviorRules: jsonb("custom_behavior_rules").default({}),
   controlledBy: integer("controlled_by"), // User ID of player who controls this NPC, null = AI controlled
-});
+}, (t) => [
+  index("idx_campaign_npcs_campaign_id").on(t.campaignId),
+]);
 
 export const insertCampaignNpcSchema = createInsertSchema(campaignNpcs).omit({
   id: true,
@@ -543,7 +559,9 @@ export const campaignInvitations = pgTable("campaign_invitations", {
   maxUses: integer("max_uses").default(1), // How many times the invite can be used
   useCount: integer("use_count").default(0), // How many times the invite has been used
   notes: text("notes"), // Optional notes about the invitation
-});
+}, (t) => [
+  index("idx_campaign_invitations_campaign_id").on(t.campaignId),
+]);
 
 export const insertCampaignInvitationSchema = createInsertSchema(campaignInvitations).omit({
   id: true,
@@ -565,7 +583,9 @@ export const dmNotes = pgTable("dm_notes", {
   createdBy: integer("created_by").notNull(), // User ID who created the note
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
   updatedAt: text("updated_at"),
-});
+}, (t) => [
+  index("idx_dm_notes_campaign_id").on(t.campaignId),
+]);
 
 export const insertDmNoteSchema = createInsertSchema(dmNotes).omit({
   id: true,
@@ -687,7 +707,10 @@ export const chatMessages = pgTable("chat_messages", {
   isEdited: boolean("is_edited").default(false),
   editedAt: text("edited_at"),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_chat_messages_campaign_id").on(t.campaignId),
+  index("idx_chat_messages_user_id").on(t.userId),
+]);
 
 export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
   id: true,
@@ -731,7 +754,9 @@ export const campaignDungeonMaps = pgTable("campaign_dungeon_maps", {
   isActive: boolean("is_active").default(true), // Whether this is the current active map
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
   updatedAt: text("updated_at"),
-});
+}, (t) => [
+  index("idx_campaign_dungeon_maps_campaign_id").on(t.campaignId),
+]);
 
 export const insertCampaignDungeonMapSchema = createInsertSchema(campaignDungeonMaps).omit({
   id: true,
@@ -757,7 +782,9 @@ export const campaignExplorationHexes = pgTable("campaign_exploration_hexes", {
   narrativeContext: text("narrative_context"), // The narrative that spawned this hex
   connectedDirections: jsonb("connected_directions").default([]), // Which directions have paths
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_campaign_exploration_hexes_campaign_id").on(t.campaignId),
+]);
 
 // Exploration state tracks the party's current position and exploration progress
 export const campaignExplorationState = pgTable("campaign_exploration_state", {
@@ -793,7 +820,9 @@ export const cityMaps = pgTable("city_maps", {
   layout: jsonb("layout").notNull(),
   discoveredBuildings: jsonb("discovered_buildings").default([]),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_city_maps_campaign_id").on(t.campaignId),
+]);
 
 export const insertCityMapSchema = createInsertSchema(cityMaps).omit({
   id: true,
@@ -813,7 +842,10 @@ export const capitalExploration = pgTable("capital_exploration", {
   discoveredBuildings: jsonb("discovered_buildings").default([]),
   hexLayout: jsonb("hex_layout"),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_capital_exploration_campaign_id").on(t.campaignId),
+  index("idx_capital_exploration_user_id").on(t.userId),
+]);
 
 export const insertCapitalExplorationSchema = createInsertSchema(capitalExploration).omit({
   id: true,
@@ -839,7 +871,10 @@ export const trekRoutes = pgTable("trek_routes", {
   pendingEncounter: jsonb("pending_encounter"),
   lootFound: jsonb("loot_found").default([]),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_trek_routes_campaign_id").on(t.campaignId),
+  index("idx_trek_routes_user_id").on(t.userId),
+]);
 
 export const insertTrekRouteSchema = createInsertSchema(trekRoutes).omit({
   id: true,
@@ -879,7 +914,9 @@ export const campaignQuests = pgTable("campaign_quests", {
   discoveryContext: text("discovery_context"), // How/where the quest was discovered (e.g., "Overheard in the tavern")
   // CAML 2.0 role assignment support
   questGiver: text("quest_giver"), // NPC name who gives this quest (for CAML QuestGiver role assignment)
-});
+}, (t) => [
+  index("idx_campaign_quests_campaign_id").on(t.campaignId),
+]);
 
 export const insertCampaignQuestSchema = createInsertSchema(campaignQuests).omit({
   id: true,
@@ -977,7 +1014,9 @@ export const userWorldProgress = pgTable("user_world_progress", {
   // Notes the player made about this area
   playerNotes: text("player_notes"),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_user_world_progress_user_id").on(t.userId),
+]);
 
 export const insertUserWorldProgressSchema = createInsertSchema(userWorldProgress).omit({
   id: true,
@@ -1048,7 +1087,9 @@ export const worldWhispers = pgTable("world_whispers", {
   isRead: boolean("is_read").default(false),
   isDismissed: boolean("is_dismissed").default(false),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_world_whispers_campaign_id").on(t.campaignId),
+]);
 
 export const insertWorldWhisperSchema = createInsertSchema(worldWhispers).omit({
   id: true,
@@ -1081,7 +1122,9 @@ export const bulletinPosts = pgTable("bulletin_posts", {
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
   updatedAt: text("updated_at"),
   expiresAt: text("expires_at"), // Auto-expire old posts
-});
+}, (t) => [
+  index("idx_bulletin_posts_user_id").on(t.userId),
+]);
 
 export const insertBulletinPostSchema = createInsertSchema(bulletinPosts).omit({
   id: true,
@@ -1103,7 +1146,10 @@ export const bulletinResponses = pgTable("bulletin_responses", {
   contactMethod: text("contact_method"), // in-app, discord, etc.
   contactInfo: text("contact_info"), // Optional contact details
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_bulletin_responses_post_id").on(t.postId),
+  index("idx_bulletin_responses_user_id").on(t.userId),
+]);
 
 export const insertBulletinResponseSchema = createInsertSchema(bulletinResponses).omit({
   id: true,
@@ -1125,7 +1171,9 @@ export const campaignTraceEvents = pgTable("campaign_trace_events", {
   locationRef: text("location_ref"),
   note: text("note"),
   meta: jsonb("meta"),
-});
+}, (t) => [
+  index("idx_campaign_trace_events_campaign_id").on(t.campaignId),
+]);
 
 export const insertCampaignTraceEventSchema = createInsertSchema(campaignTraceEvents).omit({
   id: true,
@@ -1165,7 +1213,9 @@ export const dmSessionStates = pgTable("dm_session_states", {
   isActive: boolean("is_active").default(true),
   startedAt: text("started_at").notNull().default(new Date().toISOString()),
   lastUpdatedAt: text("last_updated_at"),
-});
+}, (t) => [
+  index("idx_dm_session_states_campaign_id").on(t.campaignId),
+]);
 
 export const insertDmSessionStateSchema = createInsertSchema(dmSessionStates).omit({
   id: true,
@@ -1184,7 +1234,9 @@ export const factions = pgTable("factions", {
   disposition: text("disposition").default("neutral"), // friendly, neutral, suspicious, hostile
   values: text("values").array(), // What the faction values: honor, wealth, power, knowledge, etc.
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_factions_campaign_id").on(t.campaignId),
+]);
 
 export const insertFactionSchema = createInsertSchema(factions).omit({
   id: true,
@@ -1212,7 +1264,10 @@ export const characterReputationProfiles = pgTable("character_reputation_profile
   // Update tracking
   lastEventId: integer("last_event_id"), // Last reputation event processed
   lastUpdatedAt: text("last_updated_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_char_reputation_profiles_campaign_id").on(t.campaignId),
+  index("idx_char_reputation_profiles_character_id").on(t.characterId),
+]);
 
 export const insertCharacterReputationProfileSchema = createInsertSchema(characterReputationProfiles).omit({
   id: true,
@@ -1242,7 +1297,10 @@ export const reputationEvents = pgTable("reputation_events", {
   // Metadata
   isProcessed: boolean("is_processed").default(false), // Whether this was factored into profile
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_reputation_events_campaign_id").on(t.campaignId),
+  index("idx_reputation_events_character_id").on(t.characterId),
+]);
 
 export const insertReputationEventSchema = createInsertSchema(reputationEvents).omit({
   id: true,
@@ -1292,7 +1350,10 @@ export const playerGroupMembers = pgTable("player_group_members", {
   title: text("title"), // Custom title within the group
   joinedAt: text("joined_at").notNull().default(new Date().toISOString()),
   isActive: boolean("is_active").default(true),
-});
+}, (t) => [
+  index("idx_player_group_members_group_id").on(t.groupId),
+  index("idx_player_group_members_user_id").on(t.userId),
+]);
 
 export const insertPlayerGroupMemberSchema = createInsertSchema(playerGroupMembers).omit({
   id: true,
@@ -1337,7 +1398,9 @@ export const groupMessages = pgTable("group_messages", {
   // Metadata
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
   updatedAt: text("updated_at"),
-});
+}, (t) => [
+  index("idx_group_messages_group_id").on(t.groupId),
+]);
 
 export const insertGroupMessageSchema = createInsertSchema(groupMessages).omit({
   id: true,
@@ -1367,7 +1430,9 @@ export const worldMemory = pgTable("world_memory", {
   // Timing
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
   expiresAt: text("expires_at"), // When this memory fades (null = permanent)
-});
+}, (t) => [
+  index("idx_world_memory_campaign_id").on(t.campaignId),
+]);
 
 export const insertWorldMemorySchema = createInsertSchema(worldMemory).omit({
   id: true,
@@ -1397,7 +1462,9 @@ export const unresolvedThreads = pgTable("unresolved_threads", {
   // Tracking
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
   lastMentionedAt: text("last_mentioned_at"),
-});
+}, (t) => [
+  index("idx_unresolved_threads_campaign_id").on(t.campaignId),
+]);
 
 export const insertUnresolvedThreadSchema = createInsertSchema(unresolvedThreads).omit({
   id: true,
@@ -1424,7 +1491,10 @@ export const characterArcInsights = pgTable("character_arc_insights", {
   // Tracking
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
   expiresAt: text("expires_at"), // When insight is no longer relevant
-});
+}, (t) => [
+  index("idx_character_arc_insights_campaign_id").on(t.campaignId),
+  index("idx_character_arc_insights_character_id").on(t.characterId),
+]);
 
 export const insertCharacterArcInsightSchema = createInsertSchema(characterArcInsights).omit({
   id: true,
@@ -1443,7 +1513,10 @@ export const userSessionTracking = pgTable("user_session_tracking", {
   lastWorldStateHash: text("last_world_state_hash"), // To detect meaningful changes
   sinceThenBullets: jsonb("since_then_bullets").default([]), // Cached bullets for display
   bulletsCachedAt: text("bullets_cached_at"),
-});
+}, (t) => [
+  index("idx_user_session_tracking_campaign_id").on(t.campaignId),
+  index("idx_user_session_tracking_user_id").on(t.userId),
+]);
 
 // World Rumors - Background narrative suggestions, not missions
 export const worldRumors = pgTable("world_rumors", {
@@ -1528,7 +1601,9 @@ export const userActivityEvents = pgTable("user_activity_events", {
   characterId: integer("character_id"), // If action is character-specific
   duration: integer("duration"), // Time spent in milliseconds (for timed events)
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_user_activity_events_user_id").on(t.userId),
+]);
 
 export const insertUserActivityEventSchema = createInsertSchema(userActivityEvents).omit({
   id: true,
@@ -1554,7 +1629,9 @@ export const userSessionsAnalytics = pgTable("user_sessions_analytics", {
   featuresUsed: jsonb("features_used").default([]), // Array of feature names
   deviceType: text("device_type"), // desktop, mobile, tablet
   browserInfo: text("browser_info"),
-});
+}, (t) => [
+  index("idx_user_sessions_analytics_user_id").on(t.userId),
+]);
 
 export const insertUserSessionsAnalyticsSchema = createInsertSchema(userSessionsAnalytics).omit({
   id: true,
@@ -1636,7 +1713,9 @@ export const characterSpells = pgTable("character_spells", {
   acquiredLevel: integer("acquired_level").default(1), // Character level when learned
   // Story context
   acquisitionStory: text("acquisition_story"), // How they learned it (quest reward, scroll study, etc.)
-});
+}, (t) => [
+  index("idx_character_spells_character_id").on(t.characterId),
+]);
 
 export const insertCharacterSpellSchema = createInsertSchema(characterSpells).omit({
   id: true,
@@ -1714,7 +1793,9 @@ export const userBadges = pgTable("user_badges", {
   // Display preferences
   isFeatured: boolean("is_featured").default(false), // Show prominently on profile
   isHidden: boolean("is_hidden").default(false), // Hide from public view
-});
+}, (t) => [
+  index("idx_user_badges_user_id").on(t.userId),
+]);
 
 export const insertUserBadgeSchema = createInsertSchema(userBadges).omit({
   id: true,
@@ -1798,7 +1879,9 @@ export const characterInventory = pgTable("character_inventory", {
   // Value
   value: integer("value").default(0), // Gold value
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_character_inventory_character_id").on(t.characterId),
+]);
 
 export const insertCharacterInventorySchema = createInsertSchema(characterInventory).omit({
   id: true,
@@ -1827,7 +1910,10 @@ export const milestoneRewards = pgTable("milestone_rewards", {
   // Timestamps
   earnedAt: text("earned_at").notNull(),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_milestone_rewards_campaign_id").on(t.campaignId),
+  index("idx_milestone_rewards_character_id").on(t.characterId),
+]);
 
 export const insertMilestoneRewardSchema = createInsertSchema(milestoneRewards).omit({
   id: true,
@@ -2141,7 +2227,9 @@ export const campaignSrdReferences = pgTable("campaign_srd_references", {
   notes: text("notes"), // Optional DM notes about this entity
   addedBy: integer("added_by").notNull(), // User who added it
   addedAt: text("added_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_campaign_srd_references_campaign_id").on(t.campaignId),
+]);
 
 // Demo analytics - track guest demo usage and conversions
 export const demoAnalytics = pgTable("demo_analytics", {
@@ -2245,7 +2333,9 @@ export const tradingPostReviews = pgTable("trading_post_reviews", {
   rating: integer("rating").notNull(),
   comment: text("comment"),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_trading_post_reviews_user_id").on(t.userId),
+]);
 
 export const insertTradingPostReviewSchema = createInsertSchema(tradingPostReviews).omit({
   id: true,
@@ -2315,7 +2405,10 @@ export const wanderRuns = pgTable("wander_runs", {
   flags: jsonb("flags"),
   startedAt: text("started_at").notNull().default(new Date().toISOString()),
   endedAt: text("ended_at"),
-});
+}, (t) => [
+  index("idx_wander_runs_campaign_id").on(t.campaignId),
+  index("idx_wander_runs_user_id").on(t.userId),
+]);
 
 export const insertWanderRunSchema = createInsertSchema(wanderRuns).omit({
   id: true,
@@ -2336,7 +2429,9 @@ export const wanderOutcomeLog = pgTable("wander_outcome_log", {
   outcomePayload: jsonb("outcome_payload"),
   rewardPayload: jsonb("reward_payload"),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_wander_outcome_log_run_id").on(t.runId),
+]);
 
 export const insertWanderOutcomeLogSchema = createInsertSchema(wanderOutcomeLog).omit({
   id: true,
@@ -2362,7 +2457,9 @@ export const wanderMarkers = pgTable("wander_markers", {
   linkedItemId: text("linked_item_id"),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
   expiresAtTick: integer("expires_at_tick"),
-});
+}, (t) => [
+  index("idx_wander_markers_campaign_id").on(t.campaignId),
+]);
 
 export const insertWanderMarkerSchema = createInsertSchema(wanderMarkers).omit({
   id: true,
@@ -2384,7 +2481,10 @@ export const hexExplorationStates = pgTable("hex_exploration_states", {
   depletionUntilTick: integer("depletion_until_tick"),
   discoveredAt: text("discovered_at"),
   lastVisitedAt: text("last_visited_at"),
-});
+}, (t) => [
+  index("idx_hex_exploration_states_campaign_id").on(t.campaignId),
+  index("idx_hex_exploration_states_user_id").on(t.userId),
+]);
 
 export const insertHexExplorationStateSchema = createInsertSchema(hexExplorationStates).omit({
   id: true,
@@ -2438,7 +2538,10 @@ export const dungeonRuns = pgTable("dungeon_runs", {
   flags: jsonb("flags"),
   startedAt: text("started_at").notNull().default(new Date().toISOString()),
   endedAt: text("ended_at"),
-});
+}, (t) => [
+  index("idx_dungeon_runs_campaign_id").on(t.campaignId),
+  index("idx_dungeon_runs_user_id").on(t.userId),
+]);
 
 export const insertDungeonRunSchema = createInsertSchema(dungeonRuns).omit({
   id: true,
@@ -2454,7 +2557,9 @@ export const dungeonNodeStates = pgTable("dungeon_node_states", {
   state: text("state").notNull().default("hidden"),
   resolutionPayload: jsonb("resolution_payload"),
   lastResolvedAt: text("last_resolved_at"),
-});
+}, (t) => [
+  index("idx_dungeon_node_states_run_id").on(t.runId),
+]);
 
 export const insertDungeonNodeStateSchema = createInsertSchema(dungeonNodeStates).omit({
   id: true,
@@ -2474,7 +2579,10 @@ export const dungeonRewards = pgTable("dungeon_rewards", {
   goldValue: integer("gold_value").notNull().default(0),
   xpValue: integer("xp_value").notNull().default(0),
   grantedAt: text("granted_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_dungeon_rewards_run_id").on(t.runId),
+  index("idx_dungeon_rewards_user_id").on(t.userId),
+]);
 
 export const insertDungeonRewardSchema = createInsertSchema(dungeonRewards).omit({
   id: true,
@@ -2494,7 +2602,9 @@ export const llmConfigs = pgTable("llm_configs", {
   label: text("label").notNull().default("My LLM"),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
   updatedAt: text("updated_at"),
-});
+}, (t) => [
+  index("idx_llm_configs_user_id").on(t.userId),
+]);
 
 export const insertLlmConfigSchema = createInsertSchema(llmConfigs).omit({
   id: true,
@@ -2534,7 +2644,10 @@ export const playerHouses = pgTable("player_houses", {
   upgrades: jsonb("upgrades").default([]),
   purchasedAt: text("purchased_at").notNull(),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_player_houses_campaign_id").on(t.campaignId),
+  index("idx_player_houses_character_id").on(t.characterId),
+]);
 
 export const insertPlayerHouseSchema = createInsertSchema(playerHouses).omit({
   id: true,
@@ -2552,7 +2665,10 @@ export const playerBank = pgTable("player_bank", {
   lastInterestAt: text("last_interest_at"),
   transactions: jsonb("transactions").default([]),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
-});
+}, (t) => [
+  index("idx_player_bank_campaign_id").on(t.campaignId),
+  index("idx_player_bank_character_id").on(t.characterId),
+]);
 
 export const insertPlayerBankSchema = createInsertSchema(playerBank).omit({
   id: true,
