@@ -3596,16 +3596,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   <Button 
                                     key={index}
                                     variant="outline"
-                                    className={`justify-start h-auto py-3 px-4 bg-slate-800/80 border-2 border-amber-600/40 text-left w-full hover:bg-slate-700 hover:border-amber-500 animate-in fade-in slide-in-from-bottom-2 duration-400 ${actionDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`justify-start h-auto py-3 px-4 bg-slate-800/80 border-2 border-amber-600/40 text-left w-full whitespace-normal hover:bg-slate-700 hover:border-amber-500 animate-in fade-in slide-in-from-bottom-2 duration-400 ${actionDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'both' }}
                                     onClick={() => !actionDisabled && handleChoiceSelection(choice)}
                                     disabled={actionDisabled}
                                     data-testid={`choice-button-${index}`}
                                   >
-                                    <div className="flex items-start w-full">
+                                    <div className="flex items-start w-full min-w-0">
                                       <ArrowRight className="h-5 w-5 mr-2 mt-0.5 shrink-0 text-amber-400" />
                                       <div className="flex flex-col gap-1 flex-1 min-w-0">
-                                        <span className="text-slate-100 font-medium text-sm sm:text-base break-words whitespace-normal">
+                                        <span className="text-slate-100 font-medium text-sm sm:text-base break-words whitespace-normal leading-snug">
                                           {choiceText}
                                         </span>
                                         {hasRoll && dc && (
@@ -4515,7 +4515,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               <Button
                                 key={choice.id}
                                 variant="outline"
-                                className={`justify-start h-auto py-3 px-4 text-left w-full ${isMyChoice ? 'border-2 border-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'border-border hover:border-amber-400'}`}
+                                className={`justify-start h-auto py-3 px-4 text-left w-full whitespace-normal ${isMyChoice ? 'border-2 border-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'border-border hover:border-amber-400'}`}
                                 onClick={() => voteGroupChoiceMutation.mutate({
                                   choiceId: choice.id,
                                   characterId: activeCharacter?.id,
@@ -4523,11 +4523,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 })}
                                 disabled={voteGroupChoiceMutation.isPending}
                               >
-                                <div className="flex items-start justify-between w-full gap-3">
+                                <div className="flex items-start justify-between w-full min-w-0 gap-3">
                                   <div className="flex items-start gap-2 flex-1 min-w-0">
                                     <ArrowRight className={`h-5 w-5 mt-0.5 shrink-0 ${isMyChoice ? 'text-amber-600' : 'text-primary'}`} />
                                     <div className="flex flex-col gap-1 min-w-0">
-                                      <span className="font-medium text-slate-900 dark:text-slate-100">{choice.text}</span>
+                                      <span className="font-medium text-slate-900 dark:text-slate-100 break-words whitespace-normal">{choice.text}</span>
                                       {choice.description && (
                                         <span className="text-xs text-muted-foreground">{choice.description}</span>
                                       )}
@@ -7410,6 +7410,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           window.open('/learn', '_blank');
         }}
       />
+
+      {/* How to Play — fixed bottom-right button */}
+      <div className="fixed bottom-5 right-5 z-50">
+        <HowToPlayPanel
+          variant="button"
+          triggerClassName="shadow-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white hover:from-amber-500 hover:to-orange-500 border-0"
+        />
+      </div>
     </div>
   );
 }
