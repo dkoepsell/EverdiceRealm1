@@ -10722,33 +10722,6 @@ Return your response as a JSON object with these fields:
               { id: 'acrobatics', text: 'Jump between remaining blocks (Acrobatics DC 13)', rollRequired: { type: 'd20', skill: 'acrobatics' } },
               { id: 'rope', text: 'Use rope to swing across the chasm', rollRequired: null }
             ]
-          },
-          {
-            description: 'You enter a chamber to find an exact copy of yourself — same voice, same equipment, same memories up to a point. A dispassionate iron door behind it will only open for the "true" version. The double seems equally convinced it is real.',
-            choices: [
-              { id: 'insight', text: 'Watch the double\'s behavior for a telling inconsistency (Insight DC 14)', rollRequired: { type: 'd20', skill: 'insight' } },
-              { id: 'arcana', text: 'Probe for the illusion magic sustaining the double (Arcana DC 15)', rollRequired: { type: 'd20', skill: 'arcana' } },
-              { id: 'unique', text: 'Reveal a secret only the real you would know', rollRequired: null },
-              { id: 'force', text: 'Attack the double directly (Strength DC 14)', rollRequired: { type: 'd20', skill: 'strength' } }
-            ]
-          },
-          {
-            description: 'A crypt contains four preserved bodies and scattered evidence: an overturned ink well, a half-eaten meal for two, fresh mud on one corpse\'s boots, and a scrawled note reading "He knows what we did." Only by identifying who was killed last can you unlock the iron gate.',
-            choices: [
-              { id: 'medicine', text: 'Examine the bodies to determine time and cause of death (Medicine DC 13)', rollRequired: { type: 'd20', skill: 'medicine' } },
-              { id: 'investigate', text: 'Study the clues and piece together a timeline (Investigation DC 14)', rollRequired: { type: 'd20', skill: 'investigation' } },
-              { id: 'history', text: 'Recall the history of this place and its occupants (History DC 12)', rollRequired: { type: 'd20', skill: 'history' } },
-              { id: 'skip', text: 'Search the gate mechanism for a bypass', rollRequired: null }
-            ]
-          },
-          {
-            description: 'Four stone statues flank the corridor, each with arms outstretched and palms upward — as if waiting to receive something. A worn plaque reads: "Give to each what they represent, and the way shall open." The statues depict a scholar, a soldier, a merchant, and a priest.',
-            choices: [
-              { id: 'religion', text: 'Reason through what each figure symbolically requires (Religion DC 13)', rollRequired: { type: 'd20', skill: 'religion' } },
-              { id: 'history', text: 'Recall the classical symbolism of these figures (History DC 12)', rollRequired: { type: 'd20', skill: 'history' } },
-              { id: 'investigate', text: 'Search the room for objects matching each statue (Investigation DC 11)', rollRequired: { type: 'd20', skill: 'investigation' } },
-              { id: 'skip', text: 'Try placing random items and observe the result', rollRequired: null }
-            ]
           }
         ];
         const puzzle = puzzleTypes[Math.floor(Math.random() * puzzleTypes.length)];
