@@ -5665,6 +5665,42 @@ Return your response as a JSON object with these fields:
     }
   });
 
+  // Force-advance chapter (DM override — skips gate requirement)
+  app.post("/api/campaigns/:campaignId/force-advance-chapter", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+      if (campaign.userId !== req.user!.id) return res.status(403).json({ message: "Only the DM can force-advance a chapter" });
+
+      const currentChapter = (campaign as any).currentSession || 1;
+      const totalChapters = (campaign as any).totalChapters || 5;
+      if (currentChapter >= totalChapters) {
+        return res.status(400).json({ message: "Already at the final chapter" });
+      }
+
+      const nextChapter = currentChapter + 1;
+      const narrativeLog = [...((campaign as any).narrativeLog || [])];
+      narrativeLog.push({
+        xpReason: `Chapter ${currentChapter} completed (DM override)`,
+        stakeReason: "DM manually advanced the chapter",
+        foreclosedReason: `Chapter ${currentChapter} closed by DM`,
+        choiceCost: `Advanced to Chapter ${nextChapter}`,
+        chapter: currentChapter,
+        scene: -1,
+        timestamp: new Date().toISOString(),
+        type: 'chapter_gate'
+      });
+
+      await storage.updateCampaign(campaignId, { currentSession: nextChapter, narrativeLog } as any);
+      broadcastMessage('chapter_advanced', { campaignId, chapter: nextChapter, forced: true });
+      res.json({ success: true, chapter: nextChapter, message: `Advanced to Chapter ${nextChapter}` });
+    } catch (error: any) {
+      console.error("Error force-advancing chapter:", error);
+      res.status(500).json({ message: "Failed to advance chapter" });
+    }
+  });
+
   // Items database routes
   app.get("/api/items", async (req, res) => {
     try {
@@ -6449,11 +6485,19 @@ Return your response as a JSON object with these fields:
   // Route to advance campaign story based on player actions
   app.post("/api/campaigns/advance-story", async (req, res) => {
     try {
-      const { campaignId, prompt, narrativeStyle, difficulty, storyDirection, currentLocation } = req.body;
+      const { campaignId, prompt, narrativeStyle, difficulty, storyDirection, currentLocation, pacingMode } = req.body;
       
       if (!campaignId) {
         return res.status(400).json({ message: "Campaign ID is required" });
       }
+      
+      // Story pacing thresholds — adjusted by DM pacing preference
+      const _pacing = pacingMode || 'standard';
+      const PACING_GENTLE   = _pacing === 'brisk' ? 3 : _pacing === 'relaxed' ? 8  : 5;
+      const PACING_MODERATE = _pacing === 'brisk' ? 5 : _pacing === 'relaxed' ? 12 : 7;
+      const PACING_URGENT   = _pacing === 'brisk' ? 7 : _pacing === 'relaxed' ? 16 : 9;
+      const PACING_HARD_CAP = _pacing === 'brisk' ? 7 : _pacing === 'relaxed' ? 20 : 10;
+      const PACING_MIN_SCENES = _pacing === 'brisk' ? 2 : 3;
       
       // Remove any "What will you do?" text from the prompt if prompt exists
       const cleanedPrompt = prompt ? prompt.replace(/What will you do\?/g, "").trim() : "";
@@ -6945,9 +6989,9 @@ ${upcomingGates.slice(0, 2).map((g: any) => `- Chapter ${g.chapter}: "${g.advanc
       // CHAPTER PROGRESSION NUDGING
       // ============================================
       let chapterNudge = "";
-      const GENTLE_THRESHOLD = 5;
-      const MODERATE_THRESHOLD = 7;
-      const URGENT_THRESHOLD = 9;
+      const GENTLE_THRESHOLD = PACING_GENTLE;
+      const MODERATE_THRESHOLD = PACING_MODERATE;
+      const URGENT_THRESHOLD = PACING_URGENT;
 
       if (currentGateForSpine && scenesInCurrentChapter >= GENTLE_THRESHOLD) {
         if (scenesInCurrentChapter >= URGENT_THRESHOLD) {
@@ -7604,7 +7648,7 @@ Return your response as a JSON object with these fields:
           }
           
           // DM AUTHORING DOCTRINE: Chapter gate advancement (meaning-based, not metrics-based)
-          const CHAPTER_MIN_SCENES = 3;
+          const CHAPTER_MIN_SCENES = PACING_MIN_SCENES;
           let chapterAdvanced = false;
           if (storyData.chapterGateMet) {
             const gate = storyData.chapterGateMet;
@@ -7633,7 +7677,7 @@ Return your response as a JSON object with these fields:
             }
           }
           
-          const CHAPTER_HARD_CAP = 10;
+          const CHAPTER_HARD_CAP = PACING_HARD_CAP;
           if (!chapterAdvanced && scenesInCurrentChapter >= CHAPTER_HARD_CAP) {
             const currentChapterForHardCap = campaign.currentSession || 1;
             const totalChaptersForHardCap = campaign.totalChapters || 5;
@@ -22602,7 +22646,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
             (!matchingGate.requiredBeliefChange || (gate.reason && gate.reason.length > 10))
           );
           
-          const CHAPTER_MIN_SCENES_R2 = 3;
+          const CHAPTER_MIN_SCENES_R2 = PACING_MIN_SCENES;
           if (Number(gate.gateId) === currentChapter && currentChapter < totalChapters && gateValid) {
             if (scenesInChapter2 >= CHAPTER_MIN_SCENES_R2) {
               doctrineUpdates.currentSession = currentChapter + 1;
@@ -22627,7 +22671,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         }
         
         // HARD-CAP FAILSAFE: If 12+ sessions in this chapter without gate met, force-advance
-        const CHAPTER_HARD_CAP_R2 = 10;
+        const CHAPTER_HARD_CAP_R2 = PACING_HARD_CAP;
         if (!doctrineUpdates.currentSession && scenesInChapter2 >= CHAPTER_HARD_CAP_R2 && currentChapter < totalChapters) {
           doctrineUpdates.currentSession = currentChapter + 1;
           doctrineChanged = true;

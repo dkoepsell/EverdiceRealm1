@@ -60,6 +60,7 @@ import type { DungeonMapData, MapEntity } from "../dungeon/DungeonMap";
 import { generateDungeon } from "../dungeon/DungeonGenerator";
 import { ProceduralExplorationMap } from "../dungeon/ProceduralExplorationMap";
 import { StoryLoadingScreen } from "./StoryLoadingScreen";
+import { StoryControls } from "./StoryControls";
 import { NoCharacterPrompt, AdventurerInstinct, FirstSessionTips } from "./AdventurerInstinct";
 
 interface CampaignPanelProps {
@@ -770,6 +771,21 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [breakpointDismissedAt, setBreakpointDismissedAt] = useState<number | null>(null);
   const [sessionMinutesPlayed, setSessionMinutesPlayed] = useState(0);
   const MIN_SESSION_MINUTES = 40;
+  const [pacingMode, setPacingMode] = useState<'relaxed' | 'standard' | 'brisk'>(
+    () => (localStorage.getItem('dm_pacing_mode') as 'relaxed' | 'standard' | 'brisk') || 'standard'
+  );
+
+  // Compute scenes played in the current chapter (for DM controls display)
+  const scenesInCurrentChapter = useMemo(() => {
+    const narrativeLog: any[] = (campaign as any).narrativeLog || [];
+    const lastGate = [...narrativeLog].reverse().find((e: any) => e.type === 'chapter_gate');
+    if (!lastGate) return sessions.length;
+    const gateMs = new Date(lastGate.timestamp).getTime();
+    return sessions.filter((s: any) => {
+      const created = s.createdAt ? new Date(s.createdAt).getTime() : 0;
+      return created > gateMs;
+    }).length;
+  }, [sessions, campaign]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1222,7 +1238,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/advance-story`, {
         choice,
         rollResult,
-        currentLocation
+        currentLocation,
+        pacingMode
       });
       return await response.json();
     },
@@ -1746,7 +1763,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         signal: controller.signal,
-        body: JSON.stringify({ choice, currentLocation: loc }),
+        body: JSON.stringify({ choice, currentLocation: loc, pacingMode }),
       });
 
       if (!response.ok || !response.body) return;
@@ -3527,6 +3544,19 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         {/* Feature Discovery Popup — periodic tips about wander/delve/trek/hex mode */}
                         {!isAdvancingStory && !parsedStoryState?.inCombat && (
                           <FeatureDiscoveryPopup sceneCount={sessions.length} />
+                        )}
+
+                        {/* DM Story Controls — force advance chapter, story pacing */}
+                        {isDM && !isAdvancingStory && (
+                          <StoryControls
+                            campaignId={campaign.id}
+                            currentChapter={campaign.currentSession || 1}
+                            totalChapters={(campaign as any).totalChapters || 5}
+                            scenesInChapter={scenesInCurrentChapter}
+                            pacingMode={pacingMode}
+                            onPacingChange={setPacingMode}
+                            onChapterAdvanced={() => setChapterJustAdvanced(true)}
+                          />
                         )}
                         
                         {/* Choices loading indicator — shows briefly before choices appear */}
