@@ -19603,17 +19603,58 @@ ${cachedNarrative}
         response_format: { type: "json_object" },
       });
 
-      const rawContent = response.choices[0].message.content;
-      if (!rawContent) {
-        throw new Error("AI returned empty response — try again");
+      // Robustly parse the AI's JSON. Direct parse, then a repair pass that strips
+      // any markdown fences / surrounding prose and extracts the {...} object.
+      const tryParseStoryJson = (raw: string | null | undefined): any | null => {
+        if (!raw) return null;
+        try { return JSON.parse(raw); } catch {}
+        const s = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        const first = s.indexOf('{');
+        const last = s.lastIndexOf('}');
+        if (first !== -1 && last > first) {
+          try { return JSON.parse(s.slice(first, last + 1)); } catch {}
+        }
+        return null;
+      };
+
+      let rawContent = response.choices[0].message.content;
+      let storyAdvancement: any = tryParseStoryJson(rawContent);
+
+      // The AI occasionally returns truncated/malformed JSON (e.g. it hit the output
+      // token limit mid-object). A single retry with a stricter instruction usually
+      // fixes it and is cheaper than losing the whole turn.
+      if (!storyAdvancement) {
+        console.warn(`[Advance Story] First JSON parse failed (len=${rawContent?.length || 0}) — retrying once.`);
+        try {
+          const retry = await openaiClient.chat.completions.create({
+            model: aiModel,
+            messages: [
+              { role: "user", content: finalPrompt },
+              { role: "system", content: "Return ONLY a single valid, COMPLETE JSON object — no markdown fences, no text outside the JSON. Keep the narrative concise enough to finish the JSON within the response." },
+            ],
+            response_format: { type: "json_object" },
+          });
+          rawContent = retry.choices[0].message.content;
+          storyAdvancement = tryParseStoryJson(rawContent);
+        } catch (retryErr) {
+          console.error("[Advance Story] Retry call failed:", retryErr);
+        }
       }
-      let storyAdvancement: any;
-      try {
-        storyAdvancement = JSON.parse(rawContent);
-      } catch (parseErr) {
-        console.error("[Advance Story] JSON parse failed. Raw content length:", rawContent.length, "First 200 chars:", rawContent.slice(0, 200));
-        throw new Error("AI response was not valid JSON — the response may have been cut off. Please try again.");
+
+      // Last resort: never let a bad AI response kill the turn. Salvage the narrative
+      // the player already saw (streamed/cached) and continue with no choices — the
+      // downstream fallback injects context-appropriate choices. This guarantees the
+      // turn completes, turnsInChapter still increments, and chapter gates are still
+      // evaluated, instead of leaving the player with no choices AND a stalled story
+      // (which is what forced manual DM chapter advances).
+      if (!storyAdvancement) {
+        console.error(`[Advance Story] Could not parse AI JSON after retry — salvaging turn. Raw first 200: ${(rawContent || '').slice(0, 200)}`);
+        storyAdvancement = {
+          narrative: cachedNarrative || "The story continues to unfold around you...",
+          choices: [],
+        };
       }
+
       if (cachedNarrative) {
         deleteCachedNarrative(campaignId, req.user!.id);
       }
