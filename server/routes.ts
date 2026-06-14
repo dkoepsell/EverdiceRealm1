@@ -5906,6 +5906,12 @@ Return your response as a JSON object with these fields:
       }
 
       const nextChapter = currentChapter + 1;
+      // Anchor the new chapter's scene counter to the current turn count. The gate
+      // logic measures "scenes since this chapter began" as turnsInChapter minus the
+      // turnsAtGate stamped here; without it the monotonic turn count would instantly
+      // trip the next chapter's minimum/hard-cap and runaway-advance.
+      const forceAdvanceSession = await storage.getCurrentSession(campaignId);
+      const turnsAtForceAdvance = (forceAdvanceSession?.storyState as any)?.turnsInChapter || 0;
       const narrativeLog = [...((campaign as any).narrativeLog || [])];
       narrativeLog.push({
         xpReason: `Chapter ${currentChapter} completed (DM override)`,
@@ -5914,6 +5920,7 @@ Return your response as a JSON object with these fields:
         choiceCost: `Advanced to Chapter ${nextChapter}`,
         chapter: currentChapter,
         scene: -1,
+        turnsAtGate: turnsAtForceAdvance,
         timestamp: new Date().toISOString(),
         type: 'chapter_gate'
       });
@@ -19803,7 +19810,11 @@ ${cachedNarrative}
       if (combatEffects?.enemyDamage) {
         const defeatedEnemies = combatEffects.enemyDamage.filter((e: any) => e.defeated);
         if (defeatedEnemies.length > 0) {
-          combatCompleted = true;
+          // Do NOT set combatCompleted here just because SOME enemy died. In a
+          // multi-enemy fight that would end the battle (and wipe the still-living
+          // enemies — see the combatCompleted handler that clears the combatants
+          // array) the instant the first enemy falls. combatCompleted is set only
+          // once NO living enemies remain (checks further below).
           // Award XP based on enemy Challenge Rating (D&D 5e official)
           for (const enemy of defeatedEnemies) {
             const cr = enemy.cr || "1/4"; // Default CR 1/4 for basic enemies
@@ -19827,7 +19838,10 @@ ${cachedNarrative}
               const damageTakenAmount = damageEntry.damageTaken || 0;
               const calculatedHp = Math.max(0, savedHp - damageTakenAmount);
               combatant.currentHp = calculatedHp;
-              if (calculatedHp <= 0 || damageEntry.defeated) {
+              // HP is the source of truth — an enemy is only defeated when its
+              // computed HP reaches 0. Trusting damageEntry.defeated here ended
+              // battles while the creature still had HP left.
+              if (calculatedHp <= 0) {
                 combatant.status = 'defeated';
                 combatant.currentHp = 0;
               } else if (calculatedHp <= (combatant.maxHp * 0.25)) {
@@ -21030,16 +21044,16 @@ ${cachedNarrative}
       
       if (combatEffects?.enemyDamage) {
         for (const enemy of combatEffects.enemyDamage) {
-          if (enemy.defeated || enemy.newHp <= 0) {
-            defeatedEnemyNames.add(enemy.name);
-            console.log(`[Combat Debug] Enemy ${enemy.name} marked as defeated in enemyDamage`);
-          } else {
-            enemyDamageMap.set(enemy.name, { 
-              damageTaken: enemy.damageTaken || 0,
-              aiNewHp: enemy.newHp,
-              maxHp: enemy.maxHp || 0
-            });
-          }
+          // HP is the single source of truth: always record damageTaken and let the
+          // per-enemy HP calculation below decide whether an enemy is defeated. Do NOT
+          // trust the AI's `defeated` flag or `newHp` directly here — the AI frequently
+          // claims a kill before the math supports it, which ended battles while the
+          // creature still had HP remaining.
+          enemyDamageMap.set(enemy.name, {
+            damageTaken: enemy.damageTaken || 0,
+            aiNewHp: enemy.newHp,
+            maxHp: enemy.maxHp || 0
+          });
         }
       }
       
@@ -21411,7 +21425,27 @@ ${cachedNarrative}
           finalChoices = [...finalChoices.slice(0, 3), ...shuffledMovements.slice(0, 2)];
         }
       }
-      
+
+      // GUARANTEE at least one actionable choice. The AI occasionally returns an empty
+      // choices array (or omits the field) — especially mid-combat, where the movement
+      // fallback above does not run — which left the player with no buttons and a stuck
+      // turn. Inject context-appropriate defaults so play can always continue.
+      if (!Array.isArray(finalChoices) || finalChoices.length === 0) {
+        if (inCombat) {
+          finalChoices = [
+            { text: "Attack the nearest enemy", type: "combat", difficulty: "medium", requiresDiceRoll: true },
+            { text: "Defend and assess the battlefield", type: "combat", difficulty: "easy", requiresDiceRoll: false },
+            { text: "Use an item or ability", type: "combat", difficulty: "easy", requiresDiceRoll: false },
+          ];
+        } else {
+          finalChoices = [
+            { text: "Look around and take in your surroundings", type: "exploration", difficulty: "easy", requiresDiceRoll: false },
+            { text: "Press onward", type: "exploration", difficulty: "easy", requiresDiceRoll: false },
+          ];
+        }
+        console.log(`[Choices] AI returned no choices — injected ${finalChoices.length} fallback choices (inCombat=${inCombat})`);
+      }
+
       // Update session with story advancement
       console.log(`[Combat Debug] Saving session with combatants:`, JSON.stringify(mergedStoryState.combatants?.map((c: any) => ({ name: c.name, currentHp: c.currentHp, status: c.status })) || []));
       
@@ -22930,6 +22964,29 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           console.log(`DOCTRINE LOG (main): ch${currentChapter} — cost: ${storyAdvancement.narrativeLogEntry.choiceCost}`);
         }
         
+        // Story pacing thresholds — adjusted by DM pacing preference.
+        // NOTE: PACING_MIN_SCENES / PACING_HARD_CAP are defined locally in the legacy
+        // /api/campaigns/advance-story handler and were OUT OF SCOPE here, throwing a
+        // ReferenceError in this chapter-advancement path (so chapters never advanced).
+        // Define them in this route's scope, defaulting to 'standard' pacing.
+        const _pacing = (campaign as any).pacingMode || (campaign as any).storyPacing || 'standard';
+        const PACING_HARD_CAP = _pacing === 'brisk' ? 7 : _pacing === 'relaxed' ? 20 : 10;
+        const PACING_MIN_SCENES = _pacing === 'brisk' ? 2 : 3;
+
+        // Reliable per-chapter scene counter for gate decisions.
+        // scenesInChapter2 (computed earlier from session-row timestamps) never grows
+        // during normal play because each turn updates the active session row in place
+        // rather than inserting a new row — which left chapter gates permanently stuck.
+        // turnsInChapter increments every turn; anchoring it to the turn count recorded
+        // at the last gate yields an accurate "scenes since this chapter began".
+        const turnsNowForGate = mergedStoryState.turnsInChapter || 0;
+        const lastGateTurns = [...currentNarrativeLog].reverse()
+          .find((e: any) => e.type === 'chapter_gate' && typeof e.turnsAtGate === 'number')?.turnsAtGate;
+        const scenesThisChapter = typeof lastGateTurns === 'number'
+          ? Math.max(0, turnsNowForGate - lastGateTurns)
+          : turnsNowForGate;
+        console.log(`[Chapter Gate] scenesThisChapter=${scenesThisChapter} (turnsInChapter=${turnsNowForGate}, lastGateTurns=${lastGateTurns ?? 'none'})`);
+
         // Chapter gate advancement (meaning-based) with validation against defined gates
         if (storyAdvancement.chapterGateMet) {
           const gate = storyAdvancement.chapterGateMet;
@@ -22944,11 +23001,11 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           
           const CHAPTER_MIN_SCENES_R2 = PACING_MIN_SCENES;
           if (Number(gate.gateId) === currentChapter && currentChapter < totalChapters && gateValid) {
-            if (scenesInChapter2 >= CHAPTER_MIN_SCENES_R2) {
+            if (scenesThisChapter >= CHAPTER_MIN_SCENES_R2) {
               doctrineUpdates.currentSession = currentChapter + 1;
               doctrineChanged = true;
-              console.log(`DOCTRINE CHAPTER GATE MET (main): Chapter ${currentChapter} → ${currentChapter + 1} — ${gate.reason} (after ${scenesInChapter2} scenes)`);
-              
+              console.log(`DOCTRINE CHAPTER GATE MET (main): Chapter ${currentChapter} → ${currentChapter + 1} — ${gate.reason} (after ${scenesThisChapter} scenes)`);
+
               currentNarrativeLog.push({
                 xpReason: `Chapter ${currentChapter} completed`,
                 stakeReason: gate.reason,
@@ -22956,29 +23013,31 @@ Choices should include 4 options with at least 2 requiring dice rolls.
                 choiceCost: `Advanced to Chapter ${currentChapter + 1}`,
                 chapter: currentChapter,
                 scene: -1,
+                turnsAtGate: turnsNowForGate,
                 timestamp: new Date().toISOString(),
                 type: 'chapter_gate'
               });
               doctrineUpdates.narrativeLog = currentNarrativeLog;
             } else {
-              console.log(`DOCTRINE CHAPTER GATE REJECTED (main, too early): Chapter ${currentChapter} gate after only ${scenesInChapter2}/${CHAPTER_MIN_SCENES_R2} minimum scenes — ${gate.reason}`);
+              console.log(`DOCTRINE CHAPTER GATE REJECTED (main, too early): Chapter ${currentChapter} gate after only ${scenesThisChapter}/${CHAPTER_MIN_SCENES_R2} minimum scenes — ${gate.reason}`);
             }
           }
         }
-        
-        // HARD-CAP FAILSAFE: If 12+ sessions in this chapter without gate met, force-advance
+
+        // HARD-CAP FAILSAFE: If enough scenes pass in this chapter without a gate being met, force-advance
         const CHAPTER_HARD_CAP_R2 = PACING_HARD_CAP;
-        if (!doctrineUpdates.currentSession && scenesInChapter2 >= CHAPTER_HARD_CAP_R2 && currentChapter < totalChapters) {
+        if (!doctrineUpdates.currentSession && scenesThisChapter >= CHAPTER_HARD_CAP_R2 && currentChapter < totalChapters) {
           doctrineUpdates.currentSession = currentChapter + 1;
           doctrineChanged = true;
-          console.log(`HARD-CAP CHAPTER ADVANCE (main): Chapter ${currentChapter} → ${currentChapter + 1} after ${scenesInChapter2} sessions`);
+          console.log(`HARD-CAP CHAPTER ADVANCE (main): Chapter ${currentChapter} → ${currentChapter + 1} after ${scenesThisChapter} scenes`);
           currentNarrativeLog.push({
             xpReason: `Chapter ${currentChapter} completed (narrative pressure)`,
-            stakeReason: `Story momentum forced chapter progression after ${scenesInChapter2} scenes`,
+            stakeReason: `Story momentum forced chapter progression after ${scenesThisChapter} scenes`,
             foreclosedReason: `Chapter ${currentChapter} closed by narrative pressure`,
             choiceCost: `Advanced to Chapter ${currentChapter + 1}`,
             chapter: currentChapter,
             scene: -1,
+            turnsAtGate: turnsNowForGate,
             timestamp: new Date().toISOString(),
             type: 'chapter_gate'
           });
