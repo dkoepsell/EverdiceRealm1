@@ -20916,8 +20916,11 @@ ${cachedNarrative}
           const allEnemiesDefeated = savedEnemyCombatants.length > 0 && savedEnemyCombatants.every(
             (c: any) => c.status === 'defeated' || c.currentHp <= 0
           );
-          // Also check merged state (post-combat processing may have updated it)
-          const mergedEnemyCombatants = (mergedStoryState.combatants || []).filter(
+          // Also check post-combat state (defeated enemies have already been filtered out
+          // of storyAdvancement.storyState.combatants above). NOTE: must use allCombatants
+          // here — mergedStoryState isn't declared until later in this handler, and
+          // referencing it here threw a ReferenceError that broke ALL post-combat rewards.
+          const mergedEnemyCombatants = (allCombatants || []).filter(
             (c: any) => c.type === 'enemy' || c.type === 'boss'
           );
           const allMergedEnemiesDefeated = mergedEnemyCombatants.length === 0 && savedEnemyCombatants.length > 0;
