@@ -136,10 +136,18 @@
     overscroll-behavior-y: none;
   }
 
-  /* Subtle noise texture on body in dark mode */
+  /* Subtle noise texture on body in dark mode.
+     The SVG has no intrinsic size, so without an explicit background-size the browser
+     scaled this feTurbulence noise to the FULL body height and re-rasterized it every
+     time the page grew (content load) — and background-blend-mode: overlay forced the
+     body background to be blended on every paint. Together that made scrolling and
+     loading janky app-wide (dark is the default theme). Pin a small repeating tile so
+     the costly noise is rasterized once and cheaply tiled, and drop the blend mode —
+     the 0.035 opacity baked into the SVG already keeps it subtle. */
   .dark body {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
-    background-blend-mode: overlay;
+    background-size: 256px 256px;
+    background-repeat: repeat;
   }
 
   input, button, a {
