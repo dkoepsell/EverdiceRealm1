@@ -61,6 +61,24 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // D&D palette
+        gold: {
+          DEFAULT: "hsl(var(--gold))",
+          dark: "hsl(var(--gold-dark))",
+          light: "hsl(var(--gold-light))",
+        },
+        crimson: "hsl(var(--crimson))",
+        parchment: {
+          DEFAULT: "hsl(var(--parchment))",
+          dark: "hsl(var(--parchment-dark))",
+        },
+        stone: "hsl(var(--stone))",
+        ink: "hsl(var(--ink))",
+      },
+      fontFamily: {
+        display: ["Cinzel", "Alegreya", "serif"],
+        fantasy: ["Alegreya", "serif"],
+        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       keyframes: {
         "accordion-down": {

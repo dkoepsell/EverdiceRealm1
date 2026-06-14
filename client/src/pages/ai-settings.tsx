@@ -16,7 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Brain, Key, Server, CheckCircle2, XCircle, Loader2, Shield,
-  Trash2, Pencil, Plus, Zap, Globe, Monitor, ArrowRight, ArrowLeft, Sparkles, AlertTriangle, Info
+  Trash2, Pencil, Plus, Zap, Globe, Monitor, ArrowRight, ArrowLeft, Sparkles, AlertTriangle, Info,
+  ChevronDown, ChevronUp, ExternalLink, BookOpen
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -35,25 +36,65 @@ interface LlmConfig {
 
 const PROVIDERS = [
   {
-    id: "openai",
-    name: "OpenAI",
-    description: "GPT-4o, GPT-4, o1, o3 and more",
-    icon: Sparkles,
-    defaultModel: "gpt-4o",
-    models: ["gpt-4o", "gpt-4o-mini", "gpt-4.5-preview", "o1", "o1-mini", "o3-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
-    needsEndpoint: false,
-  },
-  {
     id: "anthropic",
-    name: "Anthropic",
-    description: "Claude models — requires billing on your Anthropic account",
+    name: "Anthropic (Claude)",
+    description: "Claude Sonnet & Haiku — excellent for creative writing and storytelling",
     icon: Brain,
     defaultModel: "claude-sonnet-4-6",
-    models: [],
+    models: ["claude-sonnet-4-6", "claude-haiku-4-5-20251001", "claude-opus-4-6"],
+    needsEndpoint: false,
+    modelPlaceholder: "e.g. claude-sonnet-4-6",
+    modelHint: "claude-sonnet-4-6 is recommended — fast, creative, and cost-effective",
+    setupGuide: {
+      getKeyUrl: "https://console.anthropic.com/settings/keys",
+      billingUrl: "https://console.anthropic.com/settings/billing",
+      steps: [
+        { text: "Go to console.anthropic.com and create a free account" },
+        { text: "Add a payment method under Billing — you only pay for what you use. A typical play session costs a fraction of a cent.", url: "https://console.anthropic.com/settings/billing" },
+        { text: "Go to API Keys and click Create Key", url: "https://console.anthropic.com/settings/keys" },
+        { text: "Copy the key (starts with sk-ant-...) and paste it in the field below" },
+      ],
+    },
+  },
+  {
+    id: "openrouter",
+    name: "OpenRouter",
+    description: "One key for Claude, GPT-4, Llama, Gemini and more — free credits to start",
+    icon: Globe,
+    defaultModel: "anthropic/claude-sonnet-4-6",
+    models: ["anthropic/claude-sonnet-4-6", "openai/gpt-4o", "openai/gpt-4o-mini", "meta-llama/llama-3.3-70b-instruct", "google/gemini-2.0-flash-001"],
     needsEndpoint: true,
-    defaultEndpoint: "https://api.anthropic.com/v1",
-    modelPlaceholder: "e.g. claude-sonnet-4-6, claude-3-haiku-20240307",
-    modelHint: "Use 'Test Connection' to discover which models are on your account",
+    defaultEndpoint: "https://openrouter.ai/api/v1",
+    modelPlaceholder: "e.g. anthropic/claude-sonnet-4-6",
+    modelHint: "Use provider/model format. Browse all models at openrouter.ai/models",
+    setupGuide: {
+      getKeyUrl: "https://openrouter.ai/keys",
+      steps: [
+        { text: "Go to openrouter.ai and create a free account — you get $1 free credit to start", url: "https://openrouter.ai" },
+        { text: "Go to Keys and click Create Key", url: "https://openrouter.ai/keys" },
+        { text: "Copy the key and paste it below. The endpoint is pre-filled for you." },
+        { text: "Pick any model from the list — anthropic/claude-sonnet-4-6 is a great starting point" },
+      ],
+    },
+  },
+  {
+    id: "openai",
+    name: "OpenAI",
+    description: "GPT-4o, o1, o3 and more",
+    icon: Sparkles,
+    defaultModel: "gpt-4o",
+    models: ["gpt-4o", "gpt-4o-mini", "o1", "o1-mini", "o3-mini"],
+    needsEndpoint: false,
+    setupGuide: {
+      getKeyUrl: "https://platform.openai.com/api-keys",
+      billingUrl: "https://platform.openai.com/settings/organization/billing",
+      steps: [
+        { text: "Go to platform.openai.com and create an account", url: "https://platform.openai.com" },
+        { text: "Add a payment method or buy prepaid credits under Billing", url: "https://platform.openai.com/settings/organization/billing" },
+        { text: "Go to API Keys and click Create new secret key", url: "https://platform.openai.com/api-keys" },
+        { text: "Copy the key (starts with sk-...) and paste it below" },
+      ],
+    },
   },
   {
     id: "local",
@@ -64,6 +105,16 @@ const PROVIDERS = [
     models: [],
     needsEndpoint: true,
     defaultEndpoint: "http://localhost:11434/v1",
+    modelPlaceholder: "e.g. llama3.2, mistral, phi4",
+    modelHint: "Enter the model name exactly as it appears in your local setup",
+    setupGuide: {
+      steps: [
+        { text: "Install Ollama (easiest option) from ollama.com", url: "https://ollama.com" },
+        { text: "Run a model: ollama pull llama3.2 then ollama serve" },
+        { text: "The default endpoint http://localhost:11434/v1 is pre-filled. Use any model you've pulled." },
+        { text: "No API key required for Ollama — enter any placeholder like 'local'" },
+      ],
+    },
   },
   {
     id: "other",
@@ -73,6 +124,15 @@ const PROVIDERS = [
     defaultModel: "",
     models: [],
     needsEndpoint: true,
+    modelPlaceholder: "e.g. mixtral-8x7b-32768",
+    setupGuide: {
+      steps: [
+        { text: "Sign up with your chosen provider and obtain an API key" },
+        { text: "Find the provider's API base URL (usually ends in /v1)" },
+        { text: "Enter the base URL in the Endpoint field and your API key below" },
+        { text: "Check the provider's model list for the exact model name to enter" },
+      ],
+    },
   },
 ];
 
@@ -86,13 +146,14 @@ export default function AISettingsPage() {
   const [editingConfig, setEditingConfig] = useState<LlmConfig | null>(null);
   const [deleteDialogId, setDeleteDialogId] = useState<number | null>(null);
 
-  const [selectedProvider, setSelectedProvider] = useState("openai");
+  const [selectedProvider, setSelectedProvider] = useState("anthropic");
   const [apiKey, setApiKey] = useState("");
   const [endpoint, setEndpoint] = useState("");
   const [model, setModel] = useState("");
   const [label, setLabel] = useState("");
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isTesting, setIsTesting] = useState(false);
+  const [showSetupGuide, setShowSetupGuide] = useState(true);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -107,6 +168,11 @@ export default function AISettingsPage() {
 
   const { data: activeConfig } = useQuery({
     queryKey: ["/api/llm-config/active"],
+    enabled: !!user,
+  });
+
+  const { data: aiStatus } = useQuery<{ available: boolean; provider: string | null }>({
+    queryKey: ["/api/ai/status"],
     enabled: !!user,
   });
 
@@ -286,14 +352,24 @@ export default function AISettingsPage() {
                   </>
                 ) : (
                   <>
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Sparkles className="h-5 w-5 text-primary" />
+                    <div className={`h-10 w-10 rounded-full flex items-center justify-center ${aiStatus?.available ? "bg-primary/10" : "bg-amber-500/10"}`}>
+                      <Sparkles className={`h-5 w-5 ${aiStatus?.available ? "text-primary" : "text-amber-500"}`} />
                     </div>
                     <div>
                       <p className="font-medium">Everdice AI</p>
-                      <p className="text-sm text-muted-foreground">Powered by GPT-4o — no setup needed</p>
+                      {aiStatus?.available ? (
+                        <p className="text-sm text-muted-foreground">
+                          Powered by {aiStatus.provider === "anthropic" ? "Claude" : "GPT-4o"} — active and ready
+                        </p>
+                      ) : aiStatus === undefined ? (
+                        <p className="text-sm text-muted-foreground">Checking availability...</p>
+                      ) : (
+                        <p className="text-sm text-amber-600">Not configured on this server — add your own key below to use AI features</p>
+                      )}
                     </div>
-                    <Badge variant="outline" className="ml-2">Default</Badge>
+                    <Badge variant="outline" className={`ml-2 ${aiStatus?.available ? "" : "border-amber-500 text-amber-600"}`}>
+                      {aiStatus?.available ? "Default" : "Unavailable"}
+                    </Badge>
                   </>
                 )}
               </div>
@@ -492,6 +568,44 @@ export default function AISettingsPage() {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-4"
               >
+                {(providerInfo as any)?.setupGuide && !editingConfig && (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setShowSetupGuide(v => !v)}
+                      className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium hover:bg-primary/10 transition-colors"
+                    >
+                      <span className="flex items-center gap-2 text-primary">
+                        <BookOpen className="h-4 w-4" />
+                        How to get your {providerInfo?.name} API key
+                      </span>
+                      {showSetupGuide ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                    </button>
+                    {showSetupGuide && (
+                      <ol className="px-4 pb-4 space-y-2">
+                        {((providerInfo as any).setupGuide.steps as { text: string; url?: string }[]).map((step, i) => (
+                          <li key={i} className="flex gap-3 text-sm">
+                            <span className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-medium">{i + 1}</span>
+                            <span className="text-muted-foreground">
+                              {step.text}
+                              {step.url && (
+                                <a
+                                  href={step.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="ml-1 inline-flex items-center gap-0.5 text-primary hover:underline"
+                                >
+                                  Open <ExternalLink className="h-3 w-3" />
+                                </a>
+                              )}
+                            </span>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <Label htmlFor="label">Display Name</Label>
                   <Input

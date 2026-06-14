@@ -7,10 +7,35 @@ import { eq, and } from "drizzle-orm";
 const DEFAULT_MODEL = "gpt-4o";
 const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6";
 
-const appOpenAI = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let _appOpenAI: OpenAI | null = null;
+let _appAnthropicAdapter: OpenAI | null = null;
 
 export function getAppOpenAI(): OpenAI {
-  return appOpenAI;
+  if (!_appOpenAI) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY is not configured");
+    }
+    _appOpenAI = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return _appOpenAI;
+}
+
+/**
+ * Returns the app-level AI client, preferring Anthropic over OpenAI.
+ * Use this for all text/narrative generation. Use getAppOpenAI() only
+ * for image generation (DALL-E), which Anthropic does not support.
+ */
+export function getAppAI(): { client: OpenAI; model: string } {
+  if (process.env.ANTHROPIC_API_KEY) {
+    if (!_appAnthropicAdapter) {
+      _appAnthropicAdapter = makeAnthropicAdapter(process.env.ANTHROPIC_API_KEY);
+    }
+    return { client: _appAnthropicAdapter, model: DEFAULT_ANTHROPIC_MODEL };
+  }
+  if (process.env.OPENAI_API_KEY) {
+    return { client: getAppOpenAI(), model: DEFAULT_MODEL };
+  }
+  throw new Error("No AI provider configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY in your environment.");
 }
 
 function stripMarkdownFences(text: string): string {
@@ -49,11 +74,17 @@ function makeAnthropicAdapter(apiKey: string): OpenAI {
             effectiveSystem = effectiveSystem ? `${effectiveSystem}\n\n${jsonInstruction}` : jsonInstruction;
           }
 
+          const requestedTokens = params.max_tokens || 8192;
+          // Use extended output beta for large requests (>8192 tokens)
+          const needsExtended = requestedTokens > 8192;
           const requestParams: any = {
             model: params.model || DEFAULT_ANTHROPIC_MODEL,
-            max_tokens: params.max_tokens || 4096,
+            max_tokens: requestedTokens,
             messages: nonSystemMessages,
           };
+          if (needsExtended) {
+            requestParams.betas = ["output-128k-2025-02-19"];
+          }
           if (effectiveSystem) {
             requestParams.system = effectiveSystem;
           }
@@ -63,7 +94,9 @@ function makeAnthropicAdapter(apiKey: string): OpenAI {
 
           if (params.stream) {
             try {
-              const stream = await anthropic.messages.stream(requestParams);
+              const stream = needsExtended
+                ? await (anthropic.beta.messages as any).stream(requestParams)
+                : await anthropic.messages.stream(requestParams);
               return {
                 [Symbol.asyncIterator]: async function* () {
                   try {
@@ -109,8 +142,9 @@ function makeAnthropicAdapter(apiKey: string): OpenAI {
                     }
                   } catch (streamIterErr: any) {
                     if (streamIterErr?.status === 404 || streamIterErr?.error?.error?.type === "not_found_error") {
-                      console.warn(`Anthropic streaming model not found — falling back to app default AI (${DEFAULT_MODEL})`);
-                      const fallback = await appOpenAI.chat.completions.create({ ...params, model: DEFAULT_MODEL });
+                      const { client: fallbackClient, model: fallbackModel } = getAppAI();
+                      console.warn(`Anthropic streaming model not found — falling back to app default AI (${fallbackModel})`);
+                      const fallback = await fallbackClient.chat.completions.create({ ...params, model: fallbackModel });
                       for await (const chunk of fallback as any) {
                         yield chunk;
                       }
@@ -122,19 +156,23 @@ function makeAnthropicAdapter(apiKey: string): OpenAI {
               };
             } catch (streamInitErr: any) {
               if (streamInitErr?.status === 404 || streamInitErr?.error?.error?.type === "not_found_error") {
-                console.warn(`Anthropic streaming model "${requestParams.model}" not found — falling back to app default AI (${DEFAULT_MODEL})`);
-                return appOpenAI.chat.completions.create({ ...params, model: DEFAULT_MODEL });
+                const { client: fallbackClient, model: fallbackModel } = getAppAI();
+                console.warn(`Anthropic streaming model "${requestParams.model}" not found — falling back to app default AI (${fallbackModel})`);
+                return fallbackClient.chat.completions.create({ ...params, model: fallbackModel });
               }
               if (streamInitErr?.status === 401 || streamInitErr?.status === 403) {
-                console.warn(`Anthropic streaming API key invalid — falling back to app default AI (${DEFAULT_MODEL})`);
-                return appOpenAI.chat.completions.create({ ...params, model: DEFAULT_MODEL });
+                const { client: fallbackClient, model: fallbackModel } = getAppAI();
+                console.warn(`Anthropic streaming API key invalid — falling back to app default AI (${fallbackModel})`);
+                return fallbackClient.chat.completions.create({ ...params, model: fallbackModel });
               }
               throw streamInitErr;
             }
           }
 
           try {
-            const response = await anthropic.messages.create(requestParams);
+            const response = needsExtended
+              ? await (anthropic.beta.messages as any).create(requestParams)
+              : await anthropic.messages.create(requestParams);
             const content = stripMarkdownFences(
               response.content?.[0]?.type === "text"
                 ? response.content[0].text
@@ -158,12 +196,14 @@ function makeAnthropicAdapter(apiKey: string): OpenAI {
             };
           } catch (anthropicErr: any) {
             if (anthropicErr?.status === 404 || anthropicErr?.error?.error?.type === "not_found_error") {
-              console.warn(`Anthropic model "${requestParams.model}" not found on this account — falling back to app default AI (${DEFAULT_MODEL})`);
-              return appOpenAI.chat.completions.create({ ...params, model: DEFAULT_MODEL });
+              const { client: fallbackClient, model: fallbackModel } = getAppAI();
+              console.warn(`Anthropic model "${requestParams.model}" not found on this account — falling back to app default AI (${fallbackModel})`);
+              return fallbackClient.chat.completions.create({ ...params, model: fallbackModel });
             }
             if (anthropicErr?.status === 401 || anthropicErr?.status === 403) {
-              console.warn(`Anthropic API key invalid or unauthorized — falling back to app default AI (${DEFAULT_MODEL})`);
-              return appOpenAI.chat.completions.create({ ...params, model: DEFAULT_MODEL });
+              const { client: fallbackClient, model: fallbackModel } = getAppAI();
+              console.warn(`Anthropic API key invalid or unauthorized — falling back to app default AI (${fallbackModel})`);
+              return fallbackClient.chat.completions.create({ ...params, model: fallbackModel });
             }
             throw anthropicErr;
           }
@@ -179,7 +219,7 @@ export async function getAIClient(
   userId?: number
 ): Promise<{ client: OpenAI; model: string; isCustom: boolean }> {
   if (!userId) {
-    return { client: appOpenAI, model: DEFAULT_MODEL, isCustom: false };
+    return { ...getAppAI(), isCustom: false };
   }
 
   try {
@@ -190,7 +230,7 @@ export async function getAIClient(
       .limit(1);
 
     if (configs.length === 0) {
-      return { client: appOpenAI, model: DEFAULT_MODEL, isCustom: false };
+      return { ...getAppAI(), isCustom: false };
     }
 
     const config = configs[0];
@@ -214,7 +254,7 @@ export async function getAIClient(
       "Error loading user LLM config, falling back to app default:",
       error
     );
-    return { client: appOpenAI, model: DEFAULT_MODEL, isCustom: false };
+    return { ...getAppAI(), isCustom: false };
   }
 }
 

@@ -475,6 +475,7 @@ export interface IStorage {
   // User Badge operations
   getUserBadges(userId: number): Promise<(UserBadge & { badge: Badge })[]>;
   awardBadge(userId: number, badgeId: number, context?: any): Promise<UserBadge>;
+  tryAwardBadge(userId: number, badgeName: string, context?: any): Promise<{ badge: Badge; userBadge: UserBadge } | null>;
   hasUserBadge(userId: number, badgeId: number): Promise<boolean>;
   updateUserBadge(id: number, updates: Partial<UserBadge>): Promise<UserBadge | undefined>;
   
@@ -733,18 +734,19 @@ export class MemStorage implements IStorage {
   }
   
   async getCampaignSessions(campaignId: number): Promise<CampaignSession[]> {
-    const sessions: CampaignSession[] = [];
-    for (const session of this.sessionStore.values()) {
-      if (session.campaignId === campaignId) {
-        sessions.push(session);
-      }
-    }
+    const sessions: CampaignSession[] = Array.from(this.sessionStore.values())
+      .filter(s => s.campaignId === campaignId);
     return sessions.sort((a, b) => a.sessionNumber - b.sessionNumber);
   }
   
   async createCampaignSession(insertSession: InsertCampaignSession): Promise<CampaignSession> {
     const id = this.sessionIdCounter++;
-    const session: CampaignSession = { ...insertSession, id };
+    const session = {
+      cliffhangerHook: null,
+      cliffhangerGeneratedAt: null,
+      ...insertSession,
+      id,
+    } as unknown as CampaignSession;
     const key = `${session.campaignId}:${session.sessionNumber}`;
     this.sessionStore.set(key, session);
     return session;
@@ -2075,7 +2077,13 @@ export class DatabaseStorage implements IStorage {
     if (stockNpcs.length === 0) {
       await this.createStockCompanions();
     }
-    
+
+    // Always seed the world map if empty — independent of user data
+    const existingRegions = await db.select().from(worldRegions);
+    if (existingRegions.length === 0) {
+      await this.seedWorldRegions();
+    }
+
     // We'll only create other sample data if the users table is empty
     const existingUsers = await db.select().from(users);
     if (existingUsers.length > 0) {
@@ -2177,6 +2185,209 @@ export class DatabaseStorage implements IStorage {
       purpose: "Damage",
       createdAt: new Date().toISOString()
     });
+  }
+
+  // Seed the persistent world map with biome regions and named locations
+  private async seedWorldRegions() {
+    console.log("Seeding world map regions and locations...");
+
+    // ── Regions ──────────────────────────────────────────────────────────────
+    // gridX / gridY are 1-indexed; width / height in REGION_SCALE (8-hex) units.
+    // The hex generator uses Voronoi to fill gaps, so regions don't need to tile perfectly.
+    const regionDefs = [
+      {
+        name: "The Pale Tundra",
+        description: "Vast frozen steppes stretching to the northern horizon. Mammoth herds and frost giants roam beneath permanent grey skies.",
+        regionType: "territory", gridX: 1, gridY: 1, width: 8, height: 2,
+        terrain: "tundra", color: "#8a9aaa", iconType: "territory",
+        dangerLevel: 2, levelRange: "5-10",
+        lore: "Once a warm inland sea, the Pale Tundra was flash-frozen during the Sundering War three centuries ago. The ruins of coastal cities lie buried under metres of permafrost.",
+        knownFor: "Mammoth hunting, frost giant clans, buried pre-Sundering artifacts",
+        instability: 10, danger: 30, opportunity: 20, mystery: 40, currentMood: "stable"
+      },
+      {
+        name: "The Ironspire Range",
+        description: "A jagged curtain of peaks that marks the world's eastern edge. Dragon eyries perch on the highest spires.",
+        regionType: "territory", gridX: 9, gridY: 1, width: 4, height: 4,
+        terrain: "mountain", color: "#6a6a6a", iconType: "mountain",
+        dangerLevel: 4, levelRange: "10-16",
+        lore: "The Ironspire Range was thrust upward by ancient magic, forming a near-impassable barrier. Only Stormveil Pass allows crossing, and it changes hands between kingdoms every generation.",
+        knownFor: "Dragon lairs, dwarven deep-holds, rare sky-iron ore",
+        instability: 15, danger: 60, opportunity: 40, mystery: 30, currentMood: "stable"
+      },
+      {
+        name: "Thornwood Reach",
+        description: "A deep, tangled forest stretching from the foothills to the coast. The trees here grow twisted, their bark black as coal.",
+        regionType: "territory", gridX: 1, gridY: 3, width: 3, height: 5,
+        terrain: "forest", color: "#2d6a1e", iconType: "forest",
+        dangerLevel: 2, levelRange: "1-6",
+        lore: "The Thornwood was once a sacred grove maintained by the druids of the old faith. When the druids vanished, the forest grew wild and strange. Fey creatures now claim the deeper glades.",
+        knownFor: "Fey encounters, rare herbs, hidden druid circles",
+        instability: 20, danger: 25, opportunity: 35, mystery: 60, currentMood: "stable"
+      },
+      {
+        name: "The Grimfen Marshes",
+        description: "A stinking expanse of black water and rotting vegetation. Will-o'-wisps lead travellers to their doom nightly.",
+        regionType: "territory", gridX: 4, gridY: 3, width: 3, height: 3,
+        terrain: "swamp", color: "#3a5a3a", iconType: "swamp",
+        dangerLevel: 3, levelRange: "5-10",
+        lore: "The Grimfen was created when the necromancer Valdrath flooded the lowlands with dark magic. The water is poisoned, and undead rise from the mud during new moons.",
+        knownFor: "Undead patrols, cursed treasure, hag covens",
+        instability: 30, danger: 50, opportunity: 25, mystery: 55, currentMood: "tense"
+      },
+      {
+        name: "Stormveil Peaks",
+        description: "A secondary ridge of mountains perpetually wreathed in storm clouds. Griffons nest on every ledge.",
+        regionType: "territory", gridX: 7, gridY: 3, width: 2, height: 3,
+        terrain: "mountain", color: "#5a5a7a", iconType: "mountain",
+        dangerLevel: 3, levelRange: "7-12",
+        lore: "Stormveil Pass cuts through this range and has been the site of three major battles. The ghosts of fallen soldiers still guard the pass on stormy nights.",
+        knownFor: "Griffon riders, haunted pass, lightning-struck ore",
+        instability: 20, danger: 40, opportunity: 20, mystery: 35, currentMood: "stable"
+      },
+      {
+        name: "The Heartlands",
+        description: "Rolling green farmland and gentle rivers — the breadbasket of the realm. Safe enough for caravans and new adventurers alike.",
+        regionType: "territory", gridX: 3, gridY: 6, width: 5, height: 3,
+        terrain: "plains", color: "#7db46c", iconType: "territory",
+        dangerLevel: 1, levelRange: "1-5",
+        lore: "The Heartlands feed the entire realm. Three generations of careful farming have made this soil legendary. Bandits occasionally raid the roads, but the Heartlands Guard keeps order.",
+        knownFor: "Everdawn City, fertile farmland, the King's Road",
+        instability: 10, danger: 10, opportunity: 60, mystery: 10, currentMood: "stable"
+      },
+      {
+        name: "The Greywood",
+        description: "An ancient forest of silver-barked trees whose leaves shimmer like coins. Elven ruins lurk between the trunks.",
+        regionType: "territory", gridX: 8, gridY: 5, width: 3, height: 3,
+        terrain: "forest", color: "#4a7a5a", iconType: "forest",
+        dangerLevel: 2, levelRange: "3-8",
+        lore: "The Greywood was once an elven kingdom called Silvanthas. The elves departed centuries ago, leaving behind overgrown palaces and enchanted forests. Something still watches from the shadows.",
+        knownFor: "Elvish ruins, magical herbs, the Sylvan Court",
+        instability: 5, danger: 20, opportunity: 45, mystery: 65, currentMood: "stable"
+      },
+      {
+        name: "Crestfell Hills",
+        description: "Rugged golden hills dotted with standing stones and ancient tombs. Good hunting ground for both game and treasure.",
+        regionType: "territory", gridX: 8, gridY: 8, width: 2, height: 3,
+        terrain: "hills", color: "#8a7a4a", iconType: "hills",
+        dangerLevel: 2, levelRange: "3-8",
+        lore: "The Crestfell Hills were the burial ground of a pre-human civilization. Every hill hides a barrow. The standing stones rearrange themselves between full moons.",
+        knownFor: "Dragon barrows, mysterious standing stones, hilltop keeps",
+        instability: 10, danger: 25, opportunity: 40, mystery: 50, currentMood: "stable"
+      },
+      {
+        name: "Shatterstone Ruins",
+        description: "The shattered remains of an empire that fell in a single night. Obsidian towers rise from ashen earth.",
+        regionType: "territory", gridX: 10, gridY: 5, width: 3, height: 4,
+        terrain: "ruins", color: "#6a5a4a", iconType: "ruins",
+        dangerLevel: 4, levelRange: "10-15",
+        lore: "The Shatterstone Empire was annihilated by a ritual gone wrong. Every stone in this region is magically charged — strange effects trigger at random. Treasure hunters come seeking the Imperial Vault, which has never been found.",
+        knownFor: "The Shattered Throne, magical wild zones, imperial treasure",
+        instability: 5, danger: 55, opportunity: 65, mystery: 80, currentMood: "volatile"
+      },
+      {
+        name: "Azure Shore",
+        description: "A rocky coastline of sea caves and hidden coves. Smugglers and merfolk alike call this stretch home.",
+        regionType: "territory", gridX: 1, gridY: 7, width: 2, height: 4,
+        terrain: "shallow_water", color: "#1e5799", iconType: "water",
+        dangerLevel: 2, levelRange: "1-6",
+        lore: "The Azure Shore has been a smuggler's haven for generations. The sea caves extend deep underground, and some connect to tunnels beneath the Heartlands. Merfolk villages exist just below the waterline.",
+        knownFor: "Smuggler coves, merfolk trade, sea monster sightings",
+        instability: 25, danger: 20, opportunity: 50, mystery: 30, currentMood: "stable"
+      },
+      {
+        name: "Dustwall Desert",
+        description: "A scorching sea of red dunes that ends only at the sea cliffs. Ancient pyramids break the skyline.",
+        regionType: "territory", gridX: 3, gridY: 9, width: 5, height: 2,
+        terrain: "desert", color: "#c4a43a", iconType: "desert",
+        dangerLevel: 3, levelRange: "8-13",
+        lore: "The Dustwall was once a lush savanna. A curse laid by an ancient pharaoh drained all moisture from the land. The pharaoh's pyramid still stands, its tomb untouched — or so the stories go.",
+        knownFor: "Pyramid tombs, yuan-ti ruins, the Oasis of Zehir",
+        instability: 15, danger: 40, opportunity: 50, mystery: 60, currentMood: "stable"
+      },
+      {
+        name: "Ember Wastes",
+        description: "Active volcanic badlands. The ground cracks with heat, and rivers of lava flow between obsidian spires.",
+        regionType: "territory", gridX: 10, gridY: 9, width: 3, height: 3,
+        terrain: "volcanic", color: "#5a1a0a", iconType: "volcano",
+        dangerLevel: 5, levelRange: "15-20",
+        lore: "The Ember Wastes have been volcanic since before recorded history. Fire giants built a fortress here during the Giant Wars. The fortress, Cinderhold, is still occupied — by something much worse than giants.",
+        knownFor: "Cinderhold Fortress, the Dragon's Maw volcano, fire giant remnants",
+        instability: 20, danger: 80, opportunity: 55, mystery: 40, currentMood: "tense"
+      },
+      {
+        name: "The Abyssal Deep",
+        description: "Endless open ocean beyond the continental shelf. Here there be krakens.",
+        regionType: "territory", gridX: 1, gridY: 11, width: 12, height: 2,
+        terrain: "deep_water", color: "#0a2463", iconType: "water",
+        dangerLevel: 3, levelRange: "10-20",
+        lore: "The Abyssal Deep is where the world's edge is said to be. Ships that sail too far east never return. The few survivors speak of lights rising from below, and voices that aren't voices.",
+        knownFor: "Kraken sightings, sunken ships, abyssal portals",
+        instability: 5, danger: 50, opportunity: 30, mystery: 90, currentMood: "stable"
+      },
+    ];
+
+    const createdRegions: Record<string, number> = {};
+    for (const r of regionDefs) {
+      const region = await this.createWorldRegion(r as any);
+      createdRegions[r.name] = region.id;
+    }
+
+    // ── Locations ─────────────────────────────────────────────────────────────
+    // posX / posY are 0-100% within the region's hex bounding box.
+    const locationDefs = [
+      // Pale Tundra
+      { regionName: "The Pale Tundra", name: "Frostmane Keep", description: "A massive fortress buried to its battlements in ice. The gates have been frozen shut for a century.", locationType: "dungeon", posX: 55, posY: 60, iconType: "dungeon", isDiscoverable: true, isMainQuest: false, lore: "Frostmane was the northernmost garrison of the old empire. When supply lines were cut, the garrison turned to cannibalism. What remains is… something else.", secrets: "The fortress contains a sealed vault holding a piece of the Sundering Engine." },
+      { regionName: "The Pale Tundra", name: "Mammoth Graveyard", description: "A valley littered with colossal bones. Frost giants make regular pilgrimages here.", locationType: "landmark", posX: 25, posY: 50, iconType: "marker", isDiscoverable: true, isMainQuest: false, lore: "Mammoths have been dying here since before humans walked the world. Their spirits linger — benevolent, but immense." },
+
+      // Ironspire Range
+      { regionName: "The Ironspire Range", name: "Ironhold Deep", description: "A dwarven city carved into the mountain's heart. Population 8,000. Known for masterwork weapons.", locationType: "settlement", posX: 40, posY: 60, iconType: "settlement", isDiscoverable: true, isMainQuest: false, lore: "Ironhold Deep has been dwarven territory for eleven generations. They've recently broken into tunnels no dwarf has seen before.", secrets: "The new tunnels connect to an ancient illithid colony." },
+      { regionName: "The Ironspire Range", name: "Aerie of the Crimson Drake", description: "A nest the size of a village, perched on the highest spire. The drake has been seen circling for three weeks.", locationType: "dungeon", posX: 70, posY: 25, iconType: "dungeon", isDiscoverable: true, isMainQuest: false, lore: "The Crimson Drake has terrorized the range for decades. It collects spellbooks — thousands of them." },
+
+      // Thornwood Reach
+      { regionName: "Thornwood Reach", name: "Thornwood Tower", description: "A toppled wizard's tower wrapped in living thorns. The upper floors float three feet above the stump.", locationType: "dungeon", posX: 50, posY: 40, iconType: "dungeon", isDiscoverable: true, isMainQuest: false, lore: "The wizard Mercanix built this tower to study fey magic. He succeeded too well — the fey dragged him into the Feywild. His notes remain inside.", secrets: "Contains a permanent fey crossing to the Summer Court." },
+      { regionName: "Thornwood Reach", name: "The Druid's Grove", description: "A ring of standing stones where a cold blue flame burns without fuel. Animals gather here at dawn.", locationType: "landmark", posX: 35, posY: 70, iconType: "marker", isDiscoverable: true, isMainQuest: false, lore: "This grove is a place of old power. The druids who tended it are gone, but the land still responds to reverence." },
+
+      // Grimfen Marshes
+      { regionName: "The Grimfen Marshes", name: "The Grimshard", description: "A black tower rising from the deepest part of the marsh. No paths lead to it — only the water.", locationType: "dungeon", posX: 50, posY: 50, iconType: "dungeon", isDiscoverable: true, isMainQuest: false, lore: "Valdrath the necromancer made this his base. He was defeated two centuries ago, but his tower remains, filled with undead servitors still following their last orders.", secrets: "Valdrath's phylactery is hidden in the tower's sub-basement." },
+      { regionName: "The Grimfen Marshes", name: "Witch's Hollow", description: "A rotted-out tree the size of a house. Three sisters live inside. They always seem to know you're coming.", locationType: "landmark", posX: 70, posY: 30, iconType: "marker", isDiscoverable: true, isMainQuest: false, lore: "The three hags of Witch's Hollow trade information for favours — and their favours always cost more than they're worth." },
+
+      // Heartlands
+      { regionName: "The Heartlands", name: "Everdawn City", description: "The largest city in the realm. A walled metropolis of 60,000 souls, home to the High King's court.", locationType: "city", posX: 55, posY: 50, iconType: "city", isDiscoverable: false, isMainQuest: false, lore: "Everdawn was built at the confluence of three rivers, making it the natural centre of trade. It has been sacked twice and rebuilt both times, grander each time." },
+      { regionName: "The Heartlands", name: "Braxis Market Town", description: "A bustling crossroads town of 4,000. The weekly market draws traders from every region.", locationType: "settlement", posX: 25, posY: 30, iconType: "settlement", isDiscoverable: false, isMainQuest: false, lore: "Braxis sits where the King's Road meets the Thornwood Track. Its market is said to carry goods from every corner of the known world." },
+      { regionName: "The Heartlands", name: "The Old Barrow", description: "A burial mound on the King's Road. Locals say lights move inside at night. The grave wardens haven't checked in a month.", locationType: "dungeon", posX: 75, posY: 65, iconType: "dungeon", isDiscoverable: true, isMainQuest: false, lore: "The barrow holds a pre-human warrior-king and his honour guard. They were sealed in a state of magical stasis — and something recently disturbed the seal." },
+
+      // Greywood
+      { regionName: "The Greywood", name: "The Sylvan Court", description: "Overgrown elven palace, the floor a mosaic of silver leaves. Something still lights the lanterns each evening.", locationType: "ruins", posX: 45, posY: 40, iconType: "ruins", isDiscoverable: true, isMainQuest: false, lore: "The last elven queen sealed the court before leading her people away. She left a guardian. The guardian is still there.", secrets: "The Sylvan Court's vault holds the elvish Star Charts — maps of portals across the plane." },
+      { regionName: "The Greywood", name: "Greywood Mine", description: "An abandoned silver mine, the tunnels now home to a bulette and her young.", locationType: "dungeon", posX: 70, posY: 72, iconType: "dungeon", isDiscoverable: true, isMainQuest: false, lore: "The mine was profitable until workers started disappearing. The company packed up overnight and never returned." },
+
+      // Crestfell Hills
+      { regionName: "Crestfell Hills", name: "Hillwatch Keep", description: "A squat hilltop garrison flying three different banners — the garrison changes allegiance based on who pays.", locationType: "settlement", posX: 40, posY: 45, iconType: "settlement", isDiscoverable: false, isMainQuest: false, lore: "Hillwatch has changed hands seventeen times in two centuries. Whoever holds it controls the hill passes to the desert." },
+      { regionName: "Crestfell Hills", name: "The Dragon Barrow", description: "The largest burial mound on the hills. Coins keep appearing on the grass around it, despite no visible opening.", locationType: "dungeon", posX: 68, posY: 72, iconType: "dungeon", isDiscoverable: true, isMainQuest: false, lore: "A dragon was entombed here after dying in the Giant Wars. It was interred with a ritual that was supposed to prevent undeath. It didn't work.", secrets: "The barrow connects to a vast underground hoard — but the dracolich inside is aware of every coin moved." },
+
+      // Shatterstone Ruins
+      { regionName: "Shatterstone Ruins", name: "The Shattered Throne", description: "A mile-wide crater where the imperial palace once stood. The obsidian throne remains at the centre, perfectly intact.", locationType: "ruins", posX: 50, posY: 40, iconType: "ruins", isDiscoverable: true, isMainQuest: true, lore: "Whoever sits on the Shattered Throne gains visions of the empire's fall — and its secrets. Most go mad. Some don't.", secrets: "Beneath the throne is the entrance to the Imperial Vault, sealed with seven archmagister keys scattered across the realm." },
+      { regionName: "Shatterstone Ruins", name: "The Null Tower", description: "A tower where magic behaves backwards. Spells heal instead of harm; light creates darkness.", locationType: "landmark", posX: 30, posY: 68, iconType: "marker", isDiscoverable: true, isMainQuest: false, lore: "The Null Tower was the Imperial arcanist's workshop. The experiment that destroyed the empire started here." },
+
+      // Azure Shore
+      { regionName: "Azure Shore", name: "Saltmere Port", description: "A working port of 3,000 souls. Half the population is involved in smuggling; the other half pretends not to notice.", locationType: "settlement", posX: 55, posY: 35, iconType: "settlement", isDiscoverable: false, isMainQuest: false, lore: "Saltmere's harbour master runs the smuggling operation and the customs office. This creates a certain efficiency." },
+
+      // Dustwall Desert
+      { regionName: "Dustwall Desert", name: "Oasis of Zehir", description: "A lush oasis circled by yuan-ti ruins. The water is clean. The yuan-ti are not friendly.", locationType: "landmark", posX: 50, posY: 50, iconType: "marker", isDiscoverable: true, isMainQuest: false, lore: "Zehir's Oasis was a yuan-ti ritual site. The serpent folk still consider it sacred and execute trespassers as sacrifices." },
+      { regionName: "Dustwall Desert", name: "The Buried City of Khet", description: "Dunes swallowed this city 800 years ago. The top of its central pyramid sticks out of the sand.", locationType: "ruins", posX: 72, posY: 30, iconType: "ruins", isDiscoverable: true, isMainQuest: false, lore: "Khet was the greatest city of the pre-Sundering era. Its libraries were the most extensive in the world. They are still there, perfectly preserved — and perfectly guarded.", secrets: "The pyramid houses a still-active Sundering Engine that the pharaoh was building as a weapon." },
+
+      // Ember Wastes
+      { regionName: "Ember Wastes", name: "The Dragon's Maw", description: "An active caldera 400 feet across. Something enormous lives in the lava. It has been seen watching the rim.", locationType: "dungeon", posX: 50, posY: 45, iconType: "dungeon", isDiscoverable: true, isMainQuest: false, lore: "The Dragon's Maw is the lair of Infernarix, an ancient red dragon who has been sleeping for sixty years. Reports suggest she is waking.", secrets: "Infernarix is not merely sleeping — she is transforming into something older and worse." },
+    ];
+
+    for (const loc of locationDefs) {
+      const regionId = createdRegions[loc.regionName];
+      if (!regionId) continue;
+      const { regionName: _rn, ...locData } = loc;
+      await this.createWorldLocation({ ...locData, regionId } as any);
+    }
+
+    console.log(`World map seeded: ${regionDefs.length} regions, ${locationDefs.length} locations.`);
   }
 
   // Migration: Add narrative structure to existing dungeon map tiles
@@ -4132,6 +4343,19 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
   
+  async tryAwardBadge(userId: number, badgeName: string, context?: any): Promise<{ badge: Badge; userBadge: UserBadge } | null> {
+    try {
+      const badge = await this.getBadgeByName(badgeName);
+      if (!badge) return null;
+      const already = await this.hasUserBadge(userId, badge.id);
+      if (already) return null;
+      const userBadge = await this.awardBadge(userId, badge.id, context);
+      return { badge, userBadge };
+    } catch {
+      return null;
+    }
+  }
+
   async hasUserBadge(userId: number, badgeId: number): Promise<boolean> {
     const [result] = await db.select().from(userBadges)
       .where(and(

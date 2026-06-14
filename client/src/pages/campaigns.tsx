@@ -136,7 +136,7 @@ export default function Campaigns() {
   const form = useForm<FormValues>({
     resolver: zodResolver(createCampaignSchema),
     defaultValues: {
-      userId: 1, // Default to first user for demo
+      userId: 1, // overwritten by server
       title: "",
       description: "",
       mainHook: "",
@@ -144,7 +144,6 @@ export default function Campaigns() {
       narrativeStyle: "",
       campaignLength: "standard",
       currentSession: 1,
-      characters: [],
       worldRegionId: null,
       worldLocationId: null,
       createdAt: new Date().toISOString(),
@@ -344,7 +343,14 @@ export default function Campaigns() {
                         </CardHeader>
                         <CardContent className="pt-4 flex flex-col h-[calc(100%-80px)]">
                           <p className="text-muted-foreground mb-4 line-clamp-2 flex-grow">{campaign.description}</p>
-                          
+
+                          {(campaign as any).cliffhangerHook && (
+                            <div className="mb-3 px-3 py-2 rounded-md bg-amber-950/40 border border-amber-800/30">
+                              <p className="text-xs text-amber-400/70 uppercase tracking-wider mb-1 font-medium">When we last left your party...</p>
+                              <p className="text-sm text-amber-200/90 italic leading-relaxed line-clamp-3">{(campaign as any).cliffhangerHook}</p>
+                            </div>
+                          )}
+
                           <div className="flex flex-wrap gap-1.5 mb-4">
                             <Badge variant="secondary" className="text-xs">
                               {campaign.campaignLength === 'quick' ? 'Quick' : campaign.campaignLength === 'epic' ? 'Epic' : campaign.campaignLength === 'legendary' ? 'Legendary' : 'Standard'}
@@ -731,61 +737,25 @@ export default function Campaigns() {
                     </div>
                   </div>
                   
-                  <FormField
-                    control={form.control}
-                    name="characters"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Characters</FormLabel>
-                        <div className="bg-parchment rounded-lg p-4 character-sheet">
-                          {characters && characters.length > 0 ? (
-                            <div className="space-y-2">
-                              {characters.map((character) => (
-                                <div key={character.id} className="flex items-center space-x-2">
-                                  <input
-                                    type="checkbox"
-                                    id={`character-${character.id}`}
-                                    value={character.id}
-                                    checked={field.value.includes(character.id)}
-                                    onChange={(e) => {
-                                      const checked = e.target.checked;
-                                      const characterId = Number(e.target.value);
-                                      if (checked) {
-                                        field.onChange([...field.value, characterId]);
-                                      } else {
-                                        field.onChange(field.value.filter(id => id !== characterId));
-                                      }
-                                    }}
-                                    className="rounded border-gray-400 text-primary focus:ring-primary-light"
-                                  />
-                                  <label
-                                    htmlFor={`character-${character.id}`}
-                                    className="text-secondary flex-1 cursor-pointer"
-                                  >
-                                    {character.name} - Level {character.level} {character.race} {character.class}
-                                  </label>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-center py-4">
-                              <p className="text-secondary mb-2">No characters available</p>
-                              <p className="text-sm text-gray-600">
-                                Create characters first before starting a campaign
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <Button 
-                    type="submit" 
+                  {Array.isArray(characters) && characters.length > 0 && (
+                    <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+                      <p className="text-sm font-medium mb-2">Your Characters <span className="text-muted-foreground font-normal">(optional — you can add characters after creating the campaign)</span></p>
+                      <div className="space-y-2">
+                        {(characters as any[]).map((character: any) => (
+                          <div key={character.id} className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary/50" />
+                            {character.name} — Level {character.level} {character.race} {character.class}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
                     size="lg"
                     className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-orange-500/25"
-                    disabled={createCampaign.isPending || !characters || characters.length === 0}
+                    disabled={createCampaign.isPending}
                   >
                     {createCampaign.isPending ? "Creating..." : "Create Campaign"}
                   </Button>

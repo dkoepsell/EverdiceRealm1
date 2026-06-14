@@ -1,5 +1,5 @@
 import { Express, Response } from "express";
-import OpenAI from "openai";
+import { getAppAI } from "./lib/aiProvider";
 
 interface RevealContext {
   choice: string;
@@ -107,8 +107,6 @@ export function registerStreamingRoutes(app: Express) {
       };
 
       try {
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
         const openerStyles = [
           "Start with the player's physical action in a vivid, specific way",
           "Start with an environmental reaction to the player's choice",
@@ -158,8 +156,9 @@ RULES:
 - NEVER start with "You step forward" — vary your openings
 - Max 40 words. Narrative text only, no JSON, no quotes.`;
 
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
+        const { client: storyAI, model: storyModel } = getAppAI();
+        const response = await storyAI.chat.completions.create({
+          model: storyModel,
           messages: [{
             role: "user",
             content: isWaypoint ? waypointPrompt : fullPrompt

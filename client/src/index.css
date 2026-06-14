@@ -2,83 +2,129 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Light Mode ──────────────────────────────────────────────────────────── */
 :root {
-  --background: 0 0% 100%;
-  --foreground: 20 14.3% 4.1%;
-  --muted: 60 4.8% 95.9%;
-  --muted-foreground: 25 5.3% 44.7%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 20 14.3% 4.1%;
-  --card: 0 0% 100%;
-  --card-foreground: 20 14.3% 4.1%;
-  --border: 20 5.9% 90%;
-  --input: 20 5.9% 90%;
-  --primary: 276 80% 32%; /* Purple */
-  --primary-light: 276 60% 46%; /* Light Purple */
-  --primary-dark: 276 90% 27%; /* Dark Purple */
-  --primary-foreground: 211 100% 99%;
-  --secondary: 215 28% 23%; /* Dark Blue-Gray */
-  --secondary-light: 215 20% 35%; /* Light Blue-Gray */
-  --secondary-foreground: 24 9.8% 10%;
-  --accent: 60 4.8% 95.9%;
-  --accent-foreground: 24 9.8% 10%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 60 9.1% 97.8%;
-  --ring: 276 80% 32%;
-  --radius: 0.5rem;
-  --sidebar-background: 215 28% 17%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-primary: 276 80% 32%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 276 60% 46%;
-  --sidebar-accent-foreground: 0 0% 100%;
-  --sidebar-border: 215 28% 25%;
-  --sidebar-ring: 276 80% 32%;
-  --chart-1: 276 80% 32%;
-  --chart-2: 215 28% 23%;
-  --chart-3: 43 89% 38%;
-  --chart-4: 358 75% 59%;
-  --chart-5: 200 98% 39%;
-  --gold: 43 89% 38%;
-  --gold-dark: 43 89% 28%;
-}
+  /* Page & surface */
+  --background: 36 28% 95%;           /* warm off-white parchment */
+  --foreground: 25 30% 10%;           /* warm near-black brown */
+  --muted: 36 18% 89%;                /* warm tan-gray */
+  --muted-foreground: 25 18% 36%;     /* warm medium brown — WCAG AA on light bg */
+  --popover: 36 25% 97%;
+  --popover-foreground: 25 30% 10%;
+  --card: 36 22% 97%;                 /* slightly warmer than page bg */
+  --card-foreground: 25 30% 10%;
+  --border: 36 22% 78%;               /* warm tan border */
+  --input: 36 20% 84%;
 
-.dark {
-  --background: 240 10% 3.9%;
-  --foreground: 0 0% 98%;
-  --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 64.9%;
-  --popover: 240 10% 3.9%;
-  --popover-foreground: 0 0% 98%;
-  --card: 240 10% 3.9%;
-  --card-foreground: 0 0% 98%;
-  --border: 240 3.7% 15.9%;
-  --input: 240 3.7% 15.9%;
-  --primary: 276 80% 32%;
+  /* Brand */
+  --primary: 276 80% 32%;             /* Deep purple */
   --primary-light: 276 60% 46%;
   --primary-dark: 276 90% 27%;
   --primary-foreground: 211 100% 99%;
-  --secondary: 215 28% 17%;
-  --secondary-light: 215 20% 28%;
-  --secondary-foreground: 0 0% 98%;
-  --accent: 240 3.7% 15.9%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
-  --ring: 240 4.9% 83.9%;
+  --secondary: 215 28% 23%;
+  --secondary-light: 215 20% 35%;
+  --secondary-foreground: 24 9.8% 10%;
+
+  /* Accent — golden tint */
+  --accent: 43 55% 87%;
+  --accent-foreground: 25 30% 10%;
+
+  /* Functional */
+  --destructive: 0 84.2% 55%;
+  --destructive-foreground: 60 9.1% 97.8%;
+  --ring: 276 80% 32%;
   --radius: 0.5rem;
+
+  /* Sidebar */
   --sidebar-background: 215 28% 17%;
-  --sidebar-foreground: 210 40% 98%;
+  --sidebar-foreground: 36 30% 90%;
   --sidebar-primary: 276 80% 32%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 276 60% 46%;
+  --sidebar-accent: 43 70% 40%;
   --sidebar-accent-foreground: 0 0% 100%;
-  --sidebar-border: 215 28% 25%;
-  --sidebar-ring: 276 80% 32%;
-  --gold: 43 89% 38%;
-  --gold-dark: 43 89% 28%;
+  --sidebar-border: 215 28% 23%;
+  --sidebar-ring: 43 80% 50%;
+
+  /* Charts */
+  --chart-1: 276 80% 32%;
+  --chart-2: 215 28% 23%;
+  --chart-3: 43 89% 42%;
+  --chart-4: 358 75% 52%;
+  --chart-5: 200 98% 39%;
+
+  /* D&D palette */
+  --gold: 43 89% 42%;
+  --gold-dark: 43 89% 30%;
+  --gold-light: 43 89% 55%;
+  --crimson: 358 72% 45%;
+  --parchment: 36 50% 91%;
+  --parchment-dark: 36 40% 82%;
+  --stone: 215 12% 80%;
+  --ink: 220 30% 15%;
 }
 
+/* ─── Dark Mode ───────────────────────────────────────────────────────────── */
+.dark {
+  /* Page & surface — warm tavern/dungeon atmosphere */
+  --background: 25 15% 8%;            /* aged dark wood */
+  --foreground: 35 35% 88%;           /* warm cream */
+  --muted: 25 10% 14%;
+  --muted-foreground: 35 25% 60%;     /* warm gray-cream — readable on dark wood */
+  --popover: 25 14% 10%;
+  --popover-foreground: 35 35% 88%;
+  --card: 25 12% 11%;                 /* slightly elevated from bg — visual hierarchy */
+  --card-foreground: 35 35% 88%;
+  --border: 25 15% 20%;               /* warm dark border */
+  --input: 25 10% 15%;
+
+  /* Brand — slightly brighter in dark context */
+  --primary: 276 65% 44%;
+  --primary-light: 276 55% 54%;
+  --primary-dark: 276 80% 32%;
+  --primary-foreground: 211 100% 99%;
+  --secondary: 25 12% 16%;
+  --secondary-light: 25 10% 22%;
+  --secondary-foreground: 35 35% 88%;
+
+  /* Accent */
+  --accent: 25 12% 16%;
+  --accent-foreground: 35 35% 88%;
+
+  /* Functional */
+  --destructive: 0 60% 38%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 43 70% 50%;                 /* gold focus ring */
+  --radius: 0.5rem;
+
+  /* Sidebar — darkest wood panel */
+  --sidebar-background: 25 18% 6%;
+  --sidebar-foreground: 35 30% 82%;
+  --sidebar-primary: 276 65% 44%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 25 12% 13%;
+  --sidebar-accent-foreground: 35 30% 82%;
+  --sidebar-border: 25 15% 13%;
+  --sidebar-ring: 43 70% 50%;
+
+  /* Charts */
+  --chart-1: 276 65% 50%;
+  --chart-2: 43 89% 48%;
+  --chart-3: 200 80% 55%;
+  --chart-4: 358 70% 55%;
+  --chart-5: 140 50% 45%;
+
+  /* D&D palette (brighter in dark context) */
+  --gold: 43 89% 50%;
+  --gold-dark: 43 89% 36%;
+  --gold-light: 43 89% 62%;
+  --crimson: 358 70% 52%;
+  --parchment: 36 50% 91%;
+  --parchment-dark: 36 40% 82%;
+  --stone: 215 8% 22%;
+  --ink: 220 30% 15%;
+}
+
+/* ─── Base Layer ──────────────────────────────────────────────────────────── */
 @layer base {
   * {
     @apply border-border;
@@ -90,120 +136,213 @@
     overscroll-behavior-y: none;
   }
 
+  /* Subtle noise texture on body in dark mode */
+  .dark body {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+    background-blend-mode: overlay;
+  }
+
   input, button, a {
     @apply touch-manipulation;
   }
-  
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-fantasy;
+
+  /* Cinzel for h1/h2 (D&D display headings), Alegreya for h3–h6 */
+  h1, h2 {
+    font-family: 'Cinzel', 'Alegreya', serif;
+    letter-spacing: 0.03em;
+  }
+
+  h3, h4, h5, h6 {
+    font-family: 'Alegreya', serif;
   }
 }
 
+/* ─── Component Utilities ─────────────────────────────────────────────────── */
 @layer components {
+
+  /* ── Fonts ── */
   .font-fantasy {
     font-family: 'Alegreya', serif;
   }
-  
+
+  .font-display {
+    font-family: 'Cinzel', 'Alegreya', serif;
+    letter-spacing: 0.04em;
+  }
+
+  .font-display-ornate {
+    font-family: 'Cinzel Decorative', 'Cinzel', serif;
+    letter-spacing: 0.06em;
+  }
+
   .font-body {
     font-family: 'Inter', sans-serif;
   }
-  
-  .bg-primary {
-    background-color: hsl(var(--primary));
-  }
-  
-  .bg-primary-light {
-    background-color: hsl(var(--primary-light));
-  }
-  
-  .bg-primary-dark {
-    background-color: hsl(var(--primary-dark));
-  }
-  
-  .bg-gold {
-    background-color: hsl(var(--gold));
-  }
-  
-  .bg-gold-dark {
-    background-color: hsl(var(--gold-dark));
-  }
-  
-  .text-gold {
+
+  /* ── Brand color helpers ── */
+  .bg-primary        { background-color: hsl(var(--primary)); }
+  .bg-primary-light  { background-color: hsl(var(--primary-light)); }
+  .bg-primary-dark   { background-color: hsl(var(--primary-dark)); }
+  .bg-gold           { background-color: hsl(var(--gold)); }
+  .bg-gold-dark      { background-color: hsl(var(--gold-dark)); }
+  .text-gold         { color: hsl(var(--gold)); }
+  .text-primary      { color: hsl(var(--primary)); }
+  .text-primary-light{ color: hsl(var(--primary-light)); }
+  .border-primary    { border-color: hsl(var(--primary)); }
+  .bg-secondary-light{ background-color: hsl(var(--secondary-light)); }
+  .text-secondary    { color: hsl(var(--secondary)); }
+  .text-crimson      { color: hsl(var(--crimson)); }
+
+  /* ── Gold text with glow — for titles, loot names, etc. ── */
+  .text-gold-glow {
     color: hsl(var(--gold));
+    text-shadow:
+      0 0 12px hsl(var(--gold) / 0.45),
+      0 0 30px hsl(var(--gold) / 0.2);
   }
-  
-  .text-primary {
-    color: hsl(var(--primary));
-  }
-  
-  .text-primary-light {
-    color: hsl(var(--primary-light));
-  }
-  
-  .border-primary {
-    border-color: hsl(var(--primary));
-  }
-  
-  .bg-secondary-light {
-    background-color: hsl(var(--secondary-light));
-  }
-  
+
+  /* ── Parchment surfaces ── */
+  .bg-parchment      { background-color: #F8E9D2; }
+  .bg-parchment-dark { background-color: #EAD7B7; }
+
+  /* Character sheet — parchment + subtle crosshatch */
   .character-sheet {
     background-color: #F8E9D2;
-    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d1bfa0' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c4a878' fill-opacity='0.25'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   }
-  
-  .bg-parchment {
-    background-color: #F8E9D2;
+
+  /* ── Tavern card — dark wood with amber trim ── */
+  .tavern-card {
+    background: linear-gradient(
+      145deg,
+      hsl(25 14% 13%) 0%,
+      hsl(25 10% 10%) 100%
+    );
+    border: 1px solid hsl(35 30% 22%);
+    box-shadow:
+      0 4px 16px rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 rgba(255, 220, 140, 0.06);
   }
-  
-  .bg-parchment-dark {
-    background-color: #EAD7B7;
+
+  /* ── Fantasy divider — golden gradient line ── */
+  .fantasy-divider {
+    border: none;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      hsl(var(--gold) / 0.6),
+      transparent
+    );
+    margin: 1.25rem 0;
   }
-  
-  .text-secondary {
-    color: hsl(var(--secondary));
+
+  /* ── Ornate divider with center diamond ── */
+  .fantasy-divider-ornate {
+    position: relative;
+    border: none;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      hsl(var(--gold) / 0.5),
+      transparent
+    );
+    margin: 1.5rem 0;
   }
-  
-  /* Dice container perspective */
+
+  .fantasy-divider-ornate::after {
+    content: '◆';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: hsl(var(--gold));
+    background: hsl(var(--background));
+    padding: 0 0.4rem;
+    font-size: 0.6rem;
+    line-height: 1;
+  }
+
+  /* ── Section heading with side lines ── */
+  .section-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.05em;
+    color: hsl(var(--gold));
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .section-heading::before,
+  .section-heading::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, transparent, hsl(var(--gold) / 0.4));
+  }
+
+  .section-heading::before {
+    background: linear-gradient(to left, transparent, hsl(var(--gold) / 0.4));
+  }
+
+  /* ── Dice animation ── */
   .dice-container {
     perspective: 1000px;
   }
-  
-  /* Dice animation styles */
+
   .dice {
     transition: transform 1.5s ease-out;
     transform-style: preserve-3d;
   }
-  
+
   .dice.rolling {
     animation: roll 1.5s ease-out;
   }
-  
+
   @keyframes roll {
-    0% { transform: rotateX(0) rotateY(0) rotateZ(0); }
-    25% { transform: rotateX(180deg) rotateY(90deg) rotateZ(45deg); }
-    50% { transform: rotateX(360deg) rotateY(180deg) rotateZ(90deg); }
-    75% { transform: rotateX(540deg) rotateY(270deg) rotateZ(135deg); }
+    0%   { transform: rotateX(0)     rotateY(0)     rotateZ(0); }
+    25%  { transform: rotateX(180deg) rotateY(90deg)  rotateZ(45deg); }
+    50%  { transform: rotateX(360deg) rotateY(180deg) rotateZ(90deg); }
+    75%  { transform: rotateX(540deg) rotateY(270deg) rotateZ(135deg); }
     100% { transform: rotateX(720deg) rotateY(360deg) rotateZ(180deg); }
   }
-  
-  /* Custom scrollbar for parchment containers */
+
+  /* ── Glint animation for gold elements ── */
+  @keyframes glint {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.75; text-shadow: 0 0 16px hsl(var(--gold) / 0.7); }
+  }
+
+  .animate-glint {
+    animation: glint 3s ease-in-out infinite;
+  }
+
+  /* ── Scrollbar — parchment containers ── */
   .scroll-container {
     scrollbar-width: thin;
-    scrollbar-color: hsl(var(--primary-light)) #F8E9D2;
+    scrollbar-color: hsl(var(--gold-dark)) hsl(var(--parchment-dark));
   }
-  
-  .scroll-container::-webkit-scrollbar {
-    width: 8px;
+
+  .scroll-container::-webkit-scrollbar       { width: 7px; }
+  .scroll-container::-webkit-scrollbar-track { background: #EAD7B7; border-radius: 4px; }
+  .scroll-container::-webkit-scrollbar-thumb { background-color: hsl(var(--gold-dark)); border-radius: 6px; }
+
+  /* ── Global scrollbar in dark mode ── */
+  .dark {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(25 20% 25%) hsl(25 15% 10%);
   }
-  
-  .scroll-container::-webkit-scrollbar-track {
-    background: #F8E9D2;
-  }
-  
-  .scroll-container::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--primary-light));
+
+  .dark ::-webkit-scrollbar       { width: 7px; height: 7px; }
+  .dark ::-webkit-scrollbar-track { background: hsl(25 15% 10%); }
+  .dark ::-webkit-scrollbar-thumb {
+    background-color: hsl(25 20% 26%);
     border-radius: 6px;
+    border: 1px solid hsl(35 20% 20%);
   }
+  .dark ::-webkit-scrollbar-thumb:hover { background-color: hsl(43 50% 35%); }
 }

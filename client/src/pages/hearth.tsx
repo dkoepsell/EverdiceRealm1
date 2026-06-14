@@ -51,6 +51,10 @@ interface HearthSnapshot {
     quietMode: boolean;
     arrivalLine: string;
     returnStreak: number;
+    isReturnVisit?: boolean;
+    welcomeGreeting?: string | null;
+    worldWhisper?: string | null;
+    streakReward?: { type: string; description: string } | null;
   };
   presence: Array<{
     userId: number;
@@ -188,7 +192,9 @@ export default function HearthPage() {
     if (snapshot?.me?.quietMode) {
       setQuietMode(snapshot.me.quietMode);
     }
-    const timer = setTimeout(() => setShowArrival(false), 5000);
+    // Extend dismiss time to 8s for returning players with personalized greeting
+    const delay = snapshot?.me?.isReturnVisit ? 8000 : 5000;
+    const timer = setTimeout(() => setShowArrival(false), delay);
     return () => clearTimeout(timer);
   }, [snapshot]);
 
@@ -312,13 +318,53 @@ export default function HearthPage() {
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60" />
       
       {showArrival && snapshot?.me?.arrivalLine && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
-          <Card className="bg-amber-950/90 backdrop-blur border-amber-700/50 max-w-md">
-            <CardContent className="py-4 text-center">
-              <p className="text-amber-200 italic text-lg">{snapshot.me.arrivalLine}</p>
-            </CardContent>
-          </Card>
-        </div>
+        snapshot.me.isReturnVisit ? (
+          // Full return experience overlay
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
+            <Card className="bg-amber-950/95 border-amber-700/50 max-w-md mx-4 w-full">
+              <CardContent className="p-6 space-y-4">
+                {/* Streak flames */}
+                <div className="flex items-center justify-center gap-1.5">
+                  {Array.from({ length: Math.min(snapshot.me.returnStreak, 7) }).map((_, i) => (
+                    <span key={i} className="text-amber-500 text-lg">🔥</span>
+                  ))}
+                </div>
+                {/* Greeting */}
+                <p className="text-amber-200 italic text-base leading-relaxed text-center">
+                  "{snapshot.me.welcomeGreeting || snapshot.me.arrivalLine}"
+                </p>
+                {/* World whisper */}
+                {snapshot.me.worldWhisper && (
+                  <div className="bg-amber-900/40 rounded-md p-3 border border-amber-800/30">
+                    <p className="text-xs text-amber-400/70 uppercase tracking-wider mb-1 font-medium">Word from the road...</p>
+                    <p className="text-sm text-amber-300/90 italic">{snapshot.me.worldWhisper}</p>
+                  </div>
+                )}
+                {/* Streak reward */}
+                {snapshot.me.streakReward && (
+                  <div className="bg-amber-600/20 rounded-md p-3 border border-amber-600/40">
+                    <p className="text-sm text-amber-100 font-medium text-center">{snapshot.me.streakReward.description}</p>
+                  </div>
+                )}
+                <button
+                  onClick={() => setShowArrival(false)}
+                  className="w-full py-2 bg-amber-700 hover:bg-amber-600 text-amber-100 rounded-md text-sm font-medium transition-colors"
+                >
+                  Enter the Hall
+                </button>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          // Simple first-visit arrival line
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+            <Card className="bg-amber-950/90 backdrop-blur border-amber-700/50 max-w-md">
+              <CardContent className="py-4 text-center">
+                <p className="text-amber-200 italic text-lg">{snapshot.me.arrivalLine}</p>
+              </CardContent>
+            </Card>
+          </div>
+        )
       )}
       
       {/* Guest Welcome Banner */}

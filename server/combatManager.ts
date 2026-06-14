@@ -4,6 +4,145 @@
  * for educational purposes - users can learn real D&D rules through play
  */
 
+export interface ActiveCondition {
+  name: string;           // e.g. "Poisoned", "Prone", "Paralyzed"
+  source: string;         // what applied it, e.g. "Poisoned Arrow" or "Hold Person"
+  endsOnTurn?: number | null; // combat round it expires; null = manual removal only
+  isConcentration?: boolean;  // true if a concentration spell is maintaining it
+}
+
+/**
+ * Per-condition mechanical effects for D&D 5e SRD conditions.
+ * attackerDisadvantage: attacker's rolls have disadvantage when this condition is on them
+ * targetAdvantage: attackers have advantage when this condition is on the target
+ * autoCritAdjacent: any hit against this target is an automatic critical hit (Paralyzed, Unconscious)
+ * damageResistanceAll: target takes half damage from all sources (Petrified)
+ */
+const CONDITION_EFFECTS: Record<string, {
+  attackerDisadvantage?: boolean;
+  targetAdvantage?: boolean;
+  autoCritAdjacent?: boolean;
+  damageResistanceAll?: boolean;
+  note: string;
+}> = {
+  blinded: {
+    attackerDisadvantage: true,
+    targetAdvantage: true,
+    note: "Blinded: attack rolls have disadvantage; attacks against you have advantage."
+  },
+  charmed: {
+    note: "Charmed: cannot attack the charmer; charmer has advantage on social checks."
+  },
+  frightened: {
+    attackerDisadvantage: true,
+    note: "Frightened: attack rolls and ability checks have disadvantage while source is visible."
+  },
+  grappled: {
+    note: "Grappled: speed becomes 0."
+  },
+  incapacitated: {
+    note: "Incapacitated: cannot take actions or reactions."
+  },
+  invisible: {
+    attackerDisadvantage: false, // attacker advantage, not disadvantage on their attacks
+    targetAdvantage: false,      // handled via reversal: invisible attackers have advantage
+    note: "Invisible: your attacks have advantage; attacks against you have disadvantage."
+  },
+  paralyzed: {
+    targetAdvantage: true,
+    autoCritAdjacent: true,
+    note: "Paralyzed: incapacitated; attacks against auto-crit within 5 ft; fails STR/DEX saves."
+  },
+  petrified: {
+    targetAdvantage: true,
+    autoCritAdjacent: false,
+    damageResistanceAll: true,
+    note: "Petrified: incapacitated; resistance to all damage; attacks against have advantage."
+  },
+  poisoned: {
+    attackerDisadvantage: true,
+    note: "Poisoned: disadvantage on attack rolls and ability checks."
+  },
+  prone: {
+    attackerDisadvantage: true, // their own attacks have disadvantage
+    targetAdvantage: true,      // melee attacks against them have advantage
+    note: "Prone: your attacks have disadvantage; melee attacks against you have advantage."
+  },
+  restrained: {
+    attackerDisadvantage: true,
+    targetAdvantage: true,
+    note: "Restrained: speed 0; attack rolls have disadvantage; attacks against have advantage."
+  },
+  stunned: {
+    targetAdvantage: true,
+    note: "Stunned: incapacitated; attacks against have advantage; fails STR/DEX saves."
+  },
+  unconscious: {
+    targetAdvantage: true,
+    autoCritAdjacent: true,
+    note: "Unconscious: incapacitated; falls prone; attacks against auto-crit within 5 ft."
+  },
+  exhaustion: {
+    attackerDisadvantage: true,
+    note: "Exhaustion: cumulative penalties — disadvantage on checks at Level 1+."
+  },
+};
+
+/**
+ * Compute advantage/disadvantage state from attacker and target conditions.
+ * Returns: { advantage: boolean, disadvantage: boolean, conditionNotes: string[] }
+ */
+export function computeConditionModifiers(
+  attackerConditions: string[],
+  targetConditions: string[]
+): { advantage: boolean; disadvantage: boolean; autoCrit: boolean; damageResistance: boolean; notes: string[] } {
+  let advantage = false;
+  let disadvantage = false;
+  let autoCrit = false;
+  let damageResistance = false;
+  const notes: string[] = [];
+
+  // Special case: invisible attacker has advantage
+  if (attackerConditions.includes('invisible')) {
+    advantage = true;
+    notes.push("Invisible attacker has advantage on attacks.");
+  }
+
+  // Attacker's own conditions that cause disadvantage on their attacks
+  for (const cond of attackerConditions) {
+    const effects = CONDITION_EFFECTS[cond.toLowerCase()];
+    if (effects?.attackerDisadvantage) {
+      disadvantage = true;
+      notes.push(effects.note);
+    }
+  }
+
+  // Target conditions that give attackers advantage
+  for (const cond of targetConditions) {
+    const effects = CONDITION_EFFECTS[cond.toLowerCase()];
+    if (!effects) continue;
+    if (effects.targetAdvantage) {
+      advantage = true;
+      notes.push(effects.note);
+    }
+    if (effects.autoCritAdjacent) {
+      autoCrit = true;
+    }
+    if (effects.damageResistanceAll) {
+      damageResistance = true;
+      notes.push(effects.note);
+    }
+  }
+
+  // Special case: invisible target has disadvantage on attacks against it
+  if (targetConditions.includes('invisible')) {
+    disadvantage = true;
+    notes.push("Invisible target: attacks against have disadvantage.");
+  }
+
+  return { advantage, disadvantage, autoCrit, damageResistance, notes };
+}
+
 export interface Combatant {
   id: number;
   name: string;
@@ -16,6 +155,7 @@ export interface Combatant {
   status: 'conscious' | 'unconscious' | 'dead' | 'stabilized';
   class?: string;
   level?: number;
+  conditions?: string[]; // active condition names (lowercase), e.g. ["poisoned", "prone"]
 }
 
 export interface AttackRollResult {
@@ -210,19 +350,47 @@ export function processEnemyAttacks(
     const target = activeParty[targetIndex];
     const partyIndex = updatedParty.findIndex(p => p.id === target.id && p.type === target.type);
     
-    // Make the attack roll
-    const attackRoll = makeAttackRoll(enemy.attackBonus);
+    // Compute condition-based modifiers
+    const condMods = computeConditionModifiers(
+      enemy.conditions ?? [],
+      target.conditions ?? []
+    );
+
+    // Make the attack roll with advantage/disadvantage from conditions
+    let attackRoll: AttackRollResult;
+    if (condMods.advantage && !condMods.disadvantage) {
+      const r1 = makeAttackRoll(enemy.attackBonus);
+      const r2 = makeAttackRoll(enemy.attackBonus);
+      attackRoll = r1.total >= r2.total ? r1 : r2;
+    } else if (condMods.disadvantage && !condMods.advantage) {
+      const r1 = makeAttackRoll(enemy.attackBonus);
+      const r2 = makeAttackRoll(enemy.attackBonus);
+      attackRoll = r1.total <= r2.total ? r1 : r2;
+    } else {
+      attackRoll = makeAttackRoll(enemy.attackBonus);
+    }
+
+    // autoCrit from conditions (Paralyzed, Unconscious targets)
+    if (condMods.autoCrit) {
+      attackRoll = { ...attackRoll, isCritical: true };
+    }
+
     const isHit = doesAttackHit(attackRoll, target.armorClass);
-    
+
     console.log(`Enemy attack: ${enemy.name} (ATK +${enemy.attackBonus}) vs ${target.name} (AC ${target.armorClass}, type: ${target.type})`);
     console.log(`  Roll: d20=${attackRoll.roll} + ${attackRoll.modifier} = ${attackRoll.total} vs AC ${target.armorClass} -> ${isHit ? 'HIT' : 'MISS'}`);
-    
+    if (condMods.notes.length > 0) console.log(`  Conditions: ${condMods.notes.join('; ')}`);
+
     let damage: DamageRollResult | undefined;
     let newHp = target.currentHp;
     let newStatus = target.status;
-    
+
     if (isHit) {
       damage = rollDamage(enemy.damageRoll, attackRoll.isCritical);
+      // Damage resistance (Petrified): halve the damage
+      if (condMods.damageResistance) {
+        damage = { ...damage, total: Math.max(1, Math.floor(damage.total / 2)) };
+      }
       newHp = Math.max(0, target.currentHp - damage.total);
       newStatus = getStatusFromHp(newHp, target.maxHp);
       
@@ -256,16 +424,21 @@ export function processEnemyAttacks(
     // Create descriptive text with companion identification
     const targetLabel = target.type === 'companion' ? `your companion ${target.name}` : target.name;
     let description: string;
+    const condSuffix = condMods.autoCrit && !attackRoll.isCriticalMiss
+      ? ` (auto-crit — target is ${(target.conditions ?? []).join('/')}!)`
+      : condMods.notes.length > 0
+        ? ` [${condMods.notes[0]}]`
+        : '';
     if (attackRoll.isCritical && damage) {
-      description = `${enemy.name} lands a devastating critical hit on ${targetLabel} for ${damage.total} damage!`;
+      description = `${enemy.name} lands a devastating critical hit on ${targetLabel} for ${damage.total} damage!${condSuffix}`;
     } else if (attackRoll.isCriticalMiss) {
       description = `${enemy.name} swings wildly at ${targetLabel} but fumbles completely!`;
     } else if (isHit && damage) {
-      description = `${enemy.name} strikes ${targetLabel} for ${damage.total} damage!`;
+      description = `${enemy.name} strikes ${targetLabel} for ${damage.total} damage!${condSuffix}`;
     } else {
-      description = `${enemy.name} attacks ${targetLabel} but misses!`;
+      description = `${enemy.name} attacks ${targetLabel} but misses!${condSuffix}`;
     }
-    
+
     if (newHp <= 0 && damage) {
       description += ` ${target.name} falls unconscious!`;
     }
@@ -449,28 +622,45 @@ export function processPlayerAttack(
   hasAdvantage: boolean = false,
   hasDisadvantage: boolean = false
 ): { log: CombatLogEntry; updatedTarget: Combatant } {
+  // Merge explicit advantage/disadvantage with condition-derived modifiers
+  const condMods = computeConditionModifiers(
+    attacker.conditions ?? [],
+    target.conditions ?? []
+  );
+  const finalAdvantage = hasAdvantage || condMods.advantage;
+  const finalDisadvantage = hasDisadvantage || condMods.disadvantage;
+
   // Handle advantage/disadvantage
   let attackRoll: AttackRollResult;
-  if (hasAdvantage && !hasDisadvantage) {
+  if (finalAdvantage && !finalDisadvantage) {
     const roll1 = makeAttackRoll(attacker.attackBonus);
     const roll2 = makeAttackRoll(attacker.attackBonus);
     attackRoll = roll1.total >= roll2.total ? roll1 : roll2;
-  } else if (hasDisadvantage && !hasAdvantage) {
+  } else if (finalDisadvantage && !finalAdvantage) {
     const roll1 = makeAttackRoll(attacker.attackBonus);
     const roll2 = makeAttackRoll(attacker.attackBonus);
     attackRoll = roll1.total <= roll2.total ? roll1 : roll2;
   } else {
     attackRoll = makeAttackRoll(attacker.attackBonus);
   }
-  
+
+  // autoCrit from conditions (Paralyzed, Unconscious targets)
+  if (condMods.autoCrit) {
+    attackRoll = { ...attackRoll, isCritical: true };
+  }
+
   const isHit = doesAttackHit(attackRoll, target.armorClass);
-  
+
   let damage: DamageRollResult | undefined;
   let newHp = target.currentHp;
   let newStatus = target.status;
-  
+
   if (isHit) {
     damage = rollDamage(attacker.damageRoll, attackRoll.isCritical);
+    // Damage resistance from conditions (e.g. Petrified)
+    if (condMods.damageResistance) {
+      damage = { ...damage, total: Math.max(1, Math.floor(damage.total / 2)) };
+    }
     newHp = Math.max(0, target.currentHp - damage.total);
     newStatus = getStatusFromHp(newHp, target.maxHp);
   }

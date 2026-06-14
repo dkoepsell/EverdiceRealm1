@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { Swords, BookOpen, Dices, Shield, ChevronDown, ChevronUp, Loader2, ScrollText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { annotateRulesTerms } from "@/components/learning/RulesTermTooltip";
 
 interface ActionLogEntry {
   type: 'player_action' | 'narrative' | 'combat' | 'chapter_start';
@@ -194,7 +195,7 @@ export function CombatLogPanel({ campaignId }: { campaignId: number }) {
                         </div>
                       )}
                       {entry.description && (
-                        <p className="text-xs text-slate-200 italic mt-1">{entry.description}</p>
+                        <p className="text-xs text-slate-200 italic mt-1">{annotateRulesTerms(entry.description)}</p>
                       )}
                     </div>
                   ) : entry.type === 'player_action' ? (
@@ -217,7 +218,7 @@ export function CombatLogPanel({ campaignId }: { campaignId: number }) {
                       <p className={`text-sm text-slate-100 leading-relaxed ${
                         !isExpanded && isLongText ? 'line-clamp-3' : ''
                       }`}>
-                        {entry.text}
+                        {annotateRulesTerms(entry.text || '')}
                       </p>
                       {isLongText && (
                         <button

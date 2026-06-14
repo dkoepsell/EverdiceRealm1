@@ -14,6 +14,7 @@ import { isAuthenticated } from "./auth";
 import { objectStorageClient } from "./replit_integrations/object_storage";
 import { randomUUID } from "crypto";
 import { getAppOpenAI } from "./lib/aiProvider";
+import { storage } from "./storage";
 
 async function generateAdventureCoverArt(title: string, description: string, genre: string): Promise<string> {
   try {
@@ -503,6 +504,9 @@ export function registerTradingPostRoutes(app: Express) {
         .insert(sharedItems)
         .values(validated)
         .returning();
+
+      // Badge: first item published to Trading Post (fire-and-forget)
+      storage.tryAwardBadge(user.id, 'Merchant of the Realm', { itemId: item.id }).catch(() => {});
 
       res.status(201).json(item);
     } catch (error: any) {

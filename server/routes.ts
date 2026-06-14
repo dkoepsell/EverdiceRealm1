@@ -118,11 +118,19 @@ import {
   type ItemStats
 } from "./combatManager";
 
-import { getAIClient, getAppOpenAI } from "./lib/aiProvider";
+import { getAIClient, getAppOpenAI, getAppAI } from "./lib/aiProvider";
+import { generateCliffhangerHook } from "./lib/cliffhanger";
+import { generateReturnGreeting, getStreakReward } from "./lib/hearthGreeting";
 import { objectStorageClient } from "./replit_integrations/object_storage";
 import { randomUUID } from "crypto";
 
-const openai = getAppOpenAI();
+// Lazy AI proxy — resolves at first use so the module loads without crashing when
+// OPENAI_API_KEY is absent. Prefers Anthropic if configured. Chat-completion routes that
+// still reference `openai` go through getAppAI() and therefore work with either provider.
+// Image generation routes declare their own local `const openai = new OpenAI(...)`.
+const openai: OpenAI = new Proxy({} as OpenAI, {
+  get(_t, prop) { return (getAppAI().client as any)[prop]; }
+});
 
 async function generateCAMLCoverArt(title: string, summary: string, theme: string): Promise<string> {
   try {
@@ -1010,7 +1018,7 @@ function instantiateQuestTemplate(
       description,
       objectives,
       xpReward: Math.max(25, (template.rewards?.xpBase || 100) + xpVariance),
-      goldReward: Math.max(10, (template.rewards?.goldBase || 50) + goldVariance),
+      goldReward: Math.max(10, (template.rewards?.goldBase || 100) + goldVariance),
       questGiver
     };
   } catch (error) {
@@ -1577,6 +1585,8 @@ async function generateLocationQuests(campaignId: number, location: any, layout:
 // Active WebSocket connections
 type ClientWebSocket = WebSocket;
 const activeConnections = new Set<ClientWebSocket>();
+// Per-user connections for targeted broadcasts (badge unlocks, etc.)
+const userConnections = new Map<number, Set<ClientWebSocket>>();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/health', (_req, res) => {
@@ -1615,14 +1625,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   wss.on('connection', (ws: WebSocket) => {
     console.log('WebSocket client connected');
     activeConnections.add(ws);
-    
+    let connectedUserId: number | null = null;
+
     ws.on('message', (message: any) => {
       try {
         const data = JSON.parse(message.toString());
         console.log('Received WebSocket message:', data);
-        
+
         // Handle different message types
-        if (data.type === 'dice_roll') {
+        if (data.type === 'identify') {
+          // Client registers its userId so we can send targeted broadcasts
+          const uid = parseInt(data.payload?.userId);
+          if (!isNaN(uid)) {
+            connectedUserId = uid;
+            if (!userConnections.has(uid)) userConnections.set(uid, new Set());
+            userConnections.get(uid)!.add(ws);
+          }
+        } else if (data.type === 'dice_roll') {
           // Broadcast dice roll to all connected clients
           broadcastMessage(data.type, data.payload);
         } else if (data.type === 'chat_message') {
@@ -1642,22 +1661,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('Error processing WebSocket message:', error);
       }
     });
-    
+
     ws.on('close', () => {
       console.log('WebSocket client disconnected');
       activeConnections.delete(ws);
+      if (connectedUserId !== null) {
+        userConnections.get(connectedUserId)?.delete(ws);
+      }
     });
-    
+
     ws.on('error', (error) => {
       console.error('WebSocket error:', error);
       activeConnections.delete(ws);
+      if (connectedUserId !== null) {
+        userConnections.get(connectedUserId)?.delete(ws);
+      }
     });
   });
-  
+
   // Function to broadcast messages to all connected clients
   function broadcastMessage(type: string, payload: any) {
     const message = JSON.stringify({ type, payload });
     activeConnections.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
+
+  // Function to broadcast a message to a single user's connections
+  function broadcastToUser(userId: number, type: string, payload: any) {
+    const sockets = userConnections.get(userId);
+    if (!sockets) return;
+    const message = JSON.stringify({ type, payload });
+    sockets.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message);
       }
@@ -2830,6 +2867,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Conditions Management Routes
+  // GET active conditions for a character
+  app.get("/api/characters/:id/conditions", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const character = await storage.getCharacter(id);
+      if (!character) return res.status(404).json({ message: "Character not found" });
+      res.json({ conditions: (character as any).activeConditions ?? [] });
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to get conditions", error: error.message });
+    }
+  });
+
+  // PATCH to set the full conditions array (DM or system use)
+  app.patch("/api/characters/:id/conditions", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { conditions } = req.body;
+      if (!Array.isArray(conditions)) {
+        return res.status(400).json({ message: "conditions must be an array" });
+      }
+      const character = await storage.getCharacter(id);
+      if (!character) return res.status(404).json({ message: "Character not found" });
+      const updated = await storage.updateCharacter(id, {
+        activeConditions: conditions,
+        updatedAt: new Date().toISOString(),
+      } as any);
+      res.json({ character: updated, conditions });
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to update conditions", error: error.message });
+    }
+  });
+
+  // POST to add a single condition to a character
+  app.post("/api/characters/:id/conditions/add", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { name, source, endsOnTurn, isConcentration } = req.body;
+      if (!name || !source) {
+        return res.status(400).json({ message: "name and source are required" });
+      }
+      const character = await storage.getCharacter(id);
+      if (!character) return res.status(404).json({ message: "Character not found" });
+      const existing: any[] = (character as any).activeConditions ?? [];
+      // Avoid duplicate conditions by name
+      const filtered = existing.filter((c: any) => c.name?.toLowerCase() !== name.toLowerCase());
+      const newCondition = { name: name.toLowerCase(), source, endsOnTurn: endsOnTurn ?? null, isConcentration: !!isConcentration };
+      const updated = await storage.updateCharacter(id, {
+        activeConditions: [...filtered, newCondition],
+        updatedAt: new Date().toISOString(),
+      } as any);
+      res.json({ character: updated, addedCondition: newCondition });
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to add condition", error: error.message });
+    }
+  });
+
+  // POST to remove a single condition by name
+  app.post("/api/characters/:id/conditions/remove", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { name } = req.body;
+      if (!name) return res.status(400).json({ message: "name is required" });
+      const character = await storage.getCharacter(id);
+      if (!character) return res.status(404).json({ message: "Character not found" });
+      const existing: any[] = (character as any).activeConditions ?? [];
+      const filtered = existing.filter((c: any) => c.name?.toLowerCase() !== name.toLowerCase());
+      const updated = await storage.updateCharacter(id, {
+        activeConditions: filtered,
+        updatedAt: new Date().toISOString(),
+      } as any);
+      res.json({ character: updated, removedCondition: name });
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to remove condition", error: error.message });
+    }
+  });
+
   // Character Inventory Management Routes
   app.get("/api/characters/:id/inventory", async (req, res) => {
     try {
@@ -3056,6 +3170,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // One-time character rename — players may rename a generated character exactly once
+  app.patch("/api/characters/:id/rename", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const id = parseInt(req.params.id);
+      const { name } = req.body;
+
+      if (!name || typeof name !== "string" || name.trim().length === 0) {
+        return res.status(400).json({ message: "Name cannot be empty" });
+      }
+      if (name.trim().length > 60) {
+        return res.status(400).json({ message: "Name must be 60 characters or fewer" });
+      }
+
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      if ((character as any).userId !== req.user.id) {
+        return res.status(403).json({ message: "Not your character" });
+      }
+      if ((character as any).hasRenamedCharacter) {
+        return res.status(400).json({ message: "This character has already been renamed" });
+      }
+
+      const updated = await storage.updateCharacter(id, {
+        name: name.trim(),
+        hasRenamedCharacter: true,
+        updatedAt: new Date().toISOString(),
+      } as any);
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error renaming character:", error);
+      res.status(500).json({ message: "Failed to rename character", error: error.message });
+    }
+  });
+
   // Alias route for tavern dice game (uses add-currency instead of currency/add)
   app.post("/api/characters/:id/add-currency", async (req, res) => {
     try {
@@ -3088,6 +3243,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error changing currency:", error);
       res.status(500).json({ message: "Failed to change currency", error: error.message });
+    }
+  });
+
+  // Downtime activities — earn gold between sessions (PHB/Xanathar's rules)
+  app.post("/api/characters/:id/downtime", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const id = parseInt(req.params.id);
+      const { activity } = req.body;
+
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+
+      if ((character as any).userId !== req.user.id) {
+        return res.status(403).json({ message: "Not your character" });
+      }
+
+      const roll = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+      const activities: Record<string, () => { gold: number; description: string }> = {
+        mercenary: () => {
+          const dayRate = roll(3, 8);
+          const gold = 7 * dayRate;
+          return { gold, description: `A week of hired muscle work at ${dayRate} gp/day earned you ${gold} gp.` };
+        },
+        performance: () => {
+          const gold = roll(1, 10) * roll(2, 5);
+          return { gold, description: `Your performances at local venues earned ${gold} gp in tips and patronage.` };
+        },
+        business: () => {
+          const roll2d6 = roll(1, 6) + roll(1, 6);
+          const gold = Math.max(0, (roll2d6 - 2) * 15);
+          const flavor = roll2d6 >= 9 ? "Business boomed" : roll2d6 >= 6 ? "Business was steady" : "Business was slow";
+          return { gold, description: `${flavor} — ${gold} gp profit from your trade operation.` };
+        },
+        caravan: () => {
+          const gold = roll(1, 6) * roll(1, 6) * 3;
+          return { gold, description: `Guard duty on the trade road paid out ${gold} gp at journey's end.` };
+        },
+        training: () => {
+          const gold = roll(1, 4) * 10;
+          return { gold, description: `Teaching sparring classes at the training yard earned you ${gold} gp.` };
+        },
+      };
+
+      const activityFn = activities[activity];
+      if (!activityFn) {
+        return res.status(400).json({ message: "Unknown downtime activity" });
+      }
+
+      const { gold, description } = activityFn();
+
+      const updatedCharacter = await storage.updateCharacter(id, {
+        gold: ((character as any).gold || 0) + gold,
+        updatedAt: new Date().toISOString()
+      } as any);
+
+      res.json({ goldEarned: gold, description, character: updatedCharacter });
+    } catch (error: any) {
+      console.error("Error processing downtime:", error);
+      res.status(500).json({ message: "Failed to process downtime", error: error.message });
     }
   });
 
@@ -4431,21 +4652,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allCampaigns = await storage.getAllCampaigns();
       const userCampaigns = [];
       
-      // For each campaign, add participant information
+      // For each campaign, add participant information and cliffhanger hook
       for (const campaign of allCampaigns) {
         const participants = await storage.getCampaignParticipants(campaign.id);
-        
+
         // Check if user is the creator or a participant
         if (campaign.userId === userId || participants.some(p => p.userId === userId)) {
-          const campaignWithParticipants = {
+          // Fetch latest session's cliffhanger hook (if any)
+          const allSessions = await storage.getCampaignSessions(campaign.id);
+          const activeSessions = allSessions.filter((s: any) => !s.isCompleted);
+          const latestSession = activeSessions.length > 0
+            ? activeSessions.reduce((a: any, b: any) => a.sessionNumber > b.sessionNumber ? a : b)
+            : allSessions[allSessions.length - 1];
+
+          userCampaigns.push({
             ...campaign,
-            participants: participants
-          };
-          
-          userCampaigns.push(campaignWithParticipants);
+            participants,
+            cliffhangerHook: (latestSession as any)?.cliffhangerHook || null,
+          });
         }
       }
-      
+
       res.json(userCampaigns);
     } catch (error) {
       console.error("Error fetching campaigns:", error);
@@ -4491,11 +4718,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
       
-      // Check if OpenAI API key exists
-      if (!process.env.OPENAI_API_KEY) {
-        return res.status(500).json({ message: "OpenAI API key not configured" });
+      if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ message: "No AI provider configured on this server" });
       }
-      
+
       const campaignRequest: CampaignGenerationRequest = {
         theme: req.body.theme,
         difficulty: req.body.difficulty,
@@ -6441,7 +6667,14 @@ Return your response as a JSON object with these fields:
       console.log("Saving dice roll to storage:", dataToSave);
       
       const diceRoll = await storage.createDiceRoll(dataToSave);
-      
+
+      // Badge: first natural 20
+      if (isCritical && req.isAuthenticated()) {
+        storage.tryAwardBadge((req as any).user.id, 'Blessed by the Dice Gods', { rollId: diceRoll.id })
+          .then(result => { if (result) broadcastToUser((req as any).user.id, 'badge_unlocked', result.badge); })
+          .catch(() => {});
+      }
+
       // Full result object with all details for client
       const fullResult = {
         ...diceRoll,
@@ -7660,6 +7893,13 @@ Return your response as a JSON object with these fields:
                 chapterAdvanced = true;
                 stateWasUpdated = true;
                 console.log(`DOCTRINE CHAPTER GATE MET: Chapter ${currentChapterForGate} → ${currentChapterForGate + 1} — ${gate.reason} (after ${scenesInCurrentChapter} scenes)`);
+
+                // Badge: first chapter completed
+                if (currentChapterForGate === 1 && req.isAuthenticated()) {
+                  storage.tryAwardBadge((req as any).user.id, 'Opening Act', { campaignId, chapter: 1 })
+                    .then(result => { if (result) broadcastToUser((req as any).user.id, 'badge_unlocked', result.badge); })
+                    .catch(() => {});
+                }
                 
                 updatedNarrativeLog.push({
                   xpReason: `Chapter ${currentChapterForGate} completed`,
@@ -7899,7 +8139,7 @@ Return your response as a JSON object with these fields:
             status: "active",
             objectives: objectives, // CAML-compatible objectives array
             xpReward: questData.xpReward || 100,
-            goldReward: questData.goldReward || 25,
+            goldReward: questData.goldReward || 75,
             difficultyRating: questData.difficultyRating || "moderate",
             estimatedDuration: questData.estimatedDuration || "1 session",
             isPostedToBoard: true,
@@ -8409,9 +8649,9 @@ Return your response as a JSON object with these fields:
       if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
-      if (!process.env.OPENAI_API_KEY) {
-        return res.status(500).json({ message: "OpenAI API key not configured" });
+
+      if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ message: "No AI provider configured on this server" });
       }
       
       const { prompt } = req.body;
@@ -8473,9 +8713,9 @@ Return your response as a JSON object with these fields:
       if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
-      if (!process.env.OPENAI_API_KEY) {
-        return res.status(500).json({ message: "OpenAI API key not configured" });
+
+      if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ message: "No AI provider configured on this server" });
       }
       
       const { ruleTopic } = req.body;
@@ -8599,7 +8839,12 @@ Return your response as a JSON object with these fields:
       }
       
       const completedCampaign = await storage.completeCampaign(campaignId);
-      
+
+      // Badge: full campaign completed
+      storage.tryAwardBadge(req.user.id, 'Legend of the Realm', { campaignId })
+        .then(result => { if (result) broadcastToUser(req.user.id, 'badge_unlocked', result.badge); })
+        .catch(() => {});
+
       // Mark world location/region as completed for all participants
       if (completedCampaign) {
         const participants = await storage.getCampaignParticipants(campaignId);
@@ -14206,8 +14451,9 @@ Generate a step-by-step guide for running this encounter effectively. Return you
 
 Focus on practical, actionable advice. Include 4-6 steps total. Make tips specific and helpful for new DMs. Common mistakes should highlight pitfalls to avoid. Suggestions should be concrete actions the DM can take.`;
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      const { client: _dmAI, model: _dmModel } = await getAIClient(req.user?.id);
+      const completion = await _dmAI.chat.completions.create({
+        model: _dmModel,
         messages: [
           {
             role: "system",
@@ -14646,8 +14892,9 @@ Return valid JSON with exactly these fields:
 
 Make this NPC feel like a real person with quirks and depth, not generic.`;
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const { client: _dmAI, model: _dmModel } = await getAIClient(req.user?.id);
+      const completion = await _dmAI.chat.completions.create({
+        model: _dmModel,
         messages: [
           {
             role: "system",
@@ -14753,8 +15000,9 @@ Make this NPC feel like a real person with quirks and depth, not generic.`;
 
 Create an interesting and unique fantasy location suitable for D&D adventures.`;
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const { client: _dmAI, model: _dmModel } = await getAIClient(req.user?.id);
+      const completion = await _dmAI.chat.completions.create({
+        model: _dmModel,
         messages: [
           {
             role: "system",
@@ -14796,8 +15044,9 @@ Create an interesting and unique fantasy location suitable for D&D adventures.`;
 
 Create an engaging quest suitable for D&D adventures with clear objectives and interesting story elements.`;
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const { client: _dmAI, model: _dmModel } = await getAIClient(req.user?.id);
+      const completion = await _dmAI.chat.completions.create({
+        model: _dmModel,
         messages: [
           {
             role: "system",
@@ -14838,8 +15087,9 @@ Create an engaging quest suitable for D&D adventures with clear objectives and i
 
 Create a unique and balanced magic item suitable for D&D campaigns with interesting magical properties.`;
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const { client: _dmAI, model: _dmModel } = await getAIClient(req.user?.id);
+      const completion = await _dmAI.chat.completions.create({
+        model: _dmModel,
         messages: [
           {
             role: "system",
@@ -14890,8 +15140,9 @@ Create a unique and balanced magic item suitable for D&D campaigns with interest
 
 Create a unique monster with balanced stats appropriate for its challenge rating.`;
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const { client: _dmAI, model: _dmModel } = await getAIClient(req.user?.id);
+      const completion = await _dmAI.chat.completions.create({
+        model: _dmModel,
         messages: [
           {
             role: "system",
@@ -14961,8 +15212,9 @@ Create a specific creature (pick one of the reskins or create a thematic variant
   "notes": "DM notes on how to run this creature using the archetype's behavior patterns"
 }`;
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const { client: _dmAI, model: _dmModel } = await getAIClient(req.user?.id);
+      const completion = await _dmAI.chat.completions.create({
+        model: _dmModel,
         messages: [
           {
             role: "system",
@@ -15767,15 +16019,16 @@ ${customPrompt ? `THEME NOTES: ${customPrompt}` : ''}
 
 Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITECTURE — a living world simulator where every action cascades, factions compete, meters transform the environment, and the climax is assembled from the world state. NOT a linear module.`;
 
-        const completion = await openai.chat.completions.create({
-          model: "gpt-4o",
+        const { client: aiClient, model: aiModel } = await getAIClient(req.user?.id);
+        const completion = await aiClient.chat.completions.create({
+          model: aiModel,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt }
           ],
           response_format: { type: "json_object" },
           temperature: attempt === 0 ? 0.7 : 0.5, // Lower temp on retry
-          max_tokens: 12000
+          max_tokens: 16000
         });
 
         const generatedContent = JSON.parse(completion.choices[0].message.content || '{}');
@@ -17037,8 +17290,9 @@ For each choice, provide:
 Return ONLY valid JSON array with ${choiceCount} choices. No markdown, no explanation.
 Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","dc":15,"skillCheck":"Stealth","modifier":null}]`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const { client: _dmAI, model: _dmModel } = await getAIClient(req.user?.id);
+      const response = await _dmAI.chat.completions.create({
+        model: _dmModel,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.8,
       });
@@ -18777,10 +19031,10 @@ CONTENT VARIETY RULES (STRICTLY ENFORCED):
       // ============================================
       // CAML STORY SPINE — Narrative Compass (Route 2)
       // ============================================
-      const advanceChapterGatesList = (campaign as any).chapterGates as any[] || [];
+      const advanceChapterGatesList = Array.isArray((campaign as any).chapterGates) ? (campaign as any).chapterGates : [];
       const currentGateForSpine2 = advanceChapterGatesList.find((g: any) => g.chapter === currentChapter);
       const completedGates2 = advanceChapterGatesList.filter((g: any) => g.chapter < currentChapter);
-      const narrativeLog2 = (campaign as any).narrativeLog || [];
+      const narrativeLog2 = Array.isArray((campaign as any).narrativeLog) ? (campaign as any).narrativeLog : [];
       const lastGateEntry2 = [...narrativeLog2].reverse().find((e: any) => e.type === 'chapter_gate');
       const lastGateMs2 = lastGateEntry2?.timestamp ? Date.parse(lastGateEntry2.timestamp) : NaN;
       const scenesInChapter2 = !isNaN(lastGateMs2)
@@ -19342,7 +19596,17 @@ ${cachedNarrative}
         response_format: { type: "json_object" },
       });
 
-      const storyAdvancement = JSON.parse(response.choices[0].message.content);
+      const rawContent = response.choices[0].message.content;
+      if (!rawContent) {
+        throw new Error("AI returned empty response — try again");
+      }
+      let storyAdvancement: any;
+      try {
+        storyAdvancement = JSON.parse(rawContent);
+      } catch (parseErr) {
+        console.error("[Advance Story] JSON parse failed. Raw content length:", rawContent.length, "First 200 chars:", rawContent.slice(0, 200));
+        throw new Error("AI response was not valid JSON — the response may have been cut off. Please try again.");
+      }
       if (cachedNarrative) {
         deleteCachedNarrative(campaignId, req.user!.id);
       }
@@ -20636,8 +20900,15 @@ ${cachedNarrative}
           }
           
           if (isVictory && defeatedEnemyList.length > 0) {
+            // Badge: first combat victory
+            if (req.isAuthenticated()) {
+              storage.tryAwardBadge((req as any).user.id, 'Baptism of Fire', { campaignId })
+                .then(result => { if (result) broadcastToUser((req as any).user.id, 'badge_unlocked', result.badge); })
+                .catch(() => {});
+            }
+
             const characterLevel = character?.level || 1;
-            
+
             postCombatRewardsData = generatePostCombatRewards(
               defeatedEnemyList,
               characterLevel,
@@ -21189,7 +21460,7 @@ ${cachedNarrative}
         npcInteractions: storyAdvancement.npcInteractions,
         sceneType: storyAdvancement.sceneType || (mergedStoryState?.inCombat ? 'Combat' : 'Exploration'),
         actionLogEntries,
-        playerChoicesMade: [...(currentSession.playerChoicesMade || []), {
+        playerChoicesMade: [...(Array.isArray(currentSession.playerChoicesMade) ? currentSession.playerChoicesMade : []), {
           choice,
           rollResult,
           timestamp: new Date().toISOString(),
@@ -21200,6 +21471,31 @@ ${cachedNarrative}
       });
       
       console.log(`[Advance Story] Session ${updatedSession?.id} updated successfully - new narrative length: ${updatedSession?.narrative?.length || 0}`);
+
+      // Background: regenerate cliffhanger hook after enough scenes (non-blocking)
+      if (updatedSession) {
+        const actionLogLen = Array.isArray(mergedStoryState?.actionLog)
+          ? mergedStoryState.actionLog.length
+          : Array.isArray(actionLogEntries) ? actionLogEntries.length : 0;
+        const hookAge = updatedSession.cliffhangerGeneratedAt
+          ? Date.now() - new Date(updatedSession.cliffhangerGeneratedAt).getTime()
+          : Infinity;
+        const hookIsStale = hookAge > 30 * 60 * 1000; // 30 minutes
+        if (actionLogLen >= 3 && hookIsStale) {
+          generateCliffhangerHook(
+            storyAdvancement.narrative || updatedSession.narrative || "",
+            mergedStoryState,
+            campaign.title
+          ).then(hook => {
+            if (hook && updatedSession) {
+              db.update(campaignSessions)
+                .set({ cliffhangerHook: hook, cliffhangerGeneratedAt: new Date().toISOString() })
+                .where(eq(campaignSessions.id, updatedSession.id))
+                .catch(() => {});
+            }
+          }).catch(() => {});
+        }
+      }
 
       // Auto-link campaign to world location if not already linked
       const campaignForLinking = await storage.getCampaign(campaignId);
@@ -22084,7 +22380,7 @@ ${cachedNarrative}
               (campaignForChapter as any).difficulty === 'Challenging' ? 1.5 :
               (campaignForChapter as any).difficulty === 'Relaxed' ? 0.8 : 1.0;
             const completionXP = Math.round(campaignTotalChapters * 200 * r1DifficultyMultiplier);
-            const goldReward = Math.round(campaignTotalChapters * 75 * r1DifficultyMultiplier);
+            const goldReward = Math.round(campaignTotalChapters * 150 * r1DifficultyMultiplier);
             const silverReward = Math.round(campaignTotalChapters * 40 * r1DifficultyMultiplier);
             
             // Items will be generated by the main completion handler (themed reward items)
@@ -22567,7 +22863,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         let doctrineChanged = false;
         
         // Apply campaign stake updates with anti-oscillation enforcement
-        let currentCampaignStakes = [...((campaign as any).campaignStakes || [])];
+        let currentCampaignStakes = Array.isArray((campaign as any).campaignStakes) ? [...(campaign as any).campaignStakes] : [];
         if (storyAdvancement.campaignStakeUpdates && Array.isArray(storyAdvancement.campaignStakeUpdates)) {
           for (const update of storyAdvancement.campaignStakeUpdates) {
             const stakeIndex = currentCampaignStakes.findIndex((s: any) => s.id === update.id);
@@ -22621,7 +22917,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         }
         
         // Append narrative log entry
-        const currentNarrativeLog = [...((campaign as any).narrativeLog || [])];
+        const currentNarrativeLog = Array.isArray((campaign as any).narrativeLog) ? [...(campaign as any).narrativeLog] : [];
         if (storyAdvancement.narrativeLogEntry) {
           currentNarrativeLog.push({
             ...storyAdvancement.narrativeLogEntry,
@@ -25107,105 +25403,103 @@ CRITICAL RULES:
 11. meta.summary MUST be a vivid 2-3 sentence hook — what the players face, what's at stake, and why it matters
 12. meta.table_of_contents MUST list one entry per process/chapter in order, with evocative titles and brief summaries`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { 
-            role: "system", 
-            content: `You are a CAML 2.0 adventure designer. CAML 2.0 is NOT CAML 1.x.
+      const { client: aiClient, model: aiModel } = await getAIClient((req as any).user?.id);
 
-CAML 2.0 MANDATORY STRUCTURE:
-- Root must have "caml_version": "2.0" (NOT "type": "AdventureModule")
-- NPCs go in world.entities.characters WITHOUT attitude property
-- Attitudes are in state.facts as {bearer, type: "attitude", value}
-- Encounters are in processes.catalog as processes with timeboxes
-- Quests are expressed via roles.assignments (QuestGiver) + state.facts (quest_status)
-- All changes occur via transitions.changes caused by processes
-- doctrine.campaign_question MUST be a DILEMMA (not a goal) — "Should X be done, and at what cost?"
-- doctrine.stakes MUST have at least 2 pressure tracks with drift and threshold consequences
-- Items MUST have "consequence" field describing cost/risk of use
-- Processes MUST include "stake_effects" showing how they modify pressure tracks
-- Snapshots MUST include at least 2 forked endings with different tradeoffs
-- meta.summary MUST be a vivid 2-3 sentence synopsis (like back cover of a D&D module)
-- meta.table_of_contents MUST list chapters with titles and summaries matching processes
+      const systemPrompt = `You are a CAML 2.0 adventure designer generating a complete, playable JSON adventure.
 
-NEVER generate:
-- "type": "AdventureModule"
-- "encounters": [...] array at root
-- "quests": [...] array at root  
-- "attitude": "neutral" on NPC objects
-- Clean endings where everything resolves perfectly
-- Items that only grant power with no consequence
+CRITICAL OUTPUT RULES — violating any of these causes a retry:
+1. Output ONLY valid JSON. No markdown fences, no explanatory text.
+2. REPLACE every placeholder with actual content. The JSON template uses descriptions like "NPC_SomeName" or "LOC_SomeName" — invent real names. Do NOT output any text inside angle-brackets like <Name> or <Description>. Every field must contain your invented content.
+3. meta.id MUST be exactly "${adventureId}"
+4. meta.title MUST be exactly "${title || 'The Lost Temple'}"
+5. NPCs go in world.entities.characters WITHOUT an "attitude" property — attitude lives only in state.facts
+6. Root must have "caml_version": "2.0"
+7. No "encounters", "quests", or "npcs" arrays at root level
+8. At least 4 characters, 4 locations, and 2 processes
 
-ALWAYS generate:
-- "caml_version": "2.0"
-- state.facts for EVERY NPC's attitude
-- processes.catalog for encounters
-- transitions.changes for state mutations`
-          },
-          { role: "user", content: prompt }
-        ],
-        response_format: { type: "json_object" },
-        max_tokens: 8000,
-        temperature: 0.7
-      });
-      
-      const generatedAdventure = JSON.parse(response.choices[0].message.content || '{}');
-      
-      // Validate it's proper CAML 2.0 format
-      const hasCAML2Structure = generatedAdventure.caml_version === '2.0' && 
-                      generatedAdventure.world?.entities && 
-                      generatedAdventure.state?.facts &&
-                      generatedAdventure.processes?.catalog;
-      
-      const hasCAML1Artifacts = generatedAdventure.encounters || 
-                                generatedAdventure.quests || 
-                                generatedAdventure.type === 'AdventureModule';
-      
-      // Check for placeholder remnants - ALL angle-bracket tokens are invalid in CAML 2.0 output
-      const jsonStr = JSON.stringify(generatedAdventure);
-      const placeholderMatches = jsonStr.match(/<[^>]+>/g);
-      const hasPlaceholders = placeholderMatches && placeholderMatches.length > 0;
-      
-      // Check meta.id and title match request
-      const requestedTitle = title || 'The Lost Temple';
-      const metaIdCorrect = generatedAdventure.meta?.id === adventureId;
-      const metaTitleCorrect = generatedAdventure.meta?.title === requestedTitle;
-      
-      // Check minimum content counts
-      const characters = generatedAdventure.world?.entities?.characters || [];
-      const locations = generatedAdventure.world?.entities?.locations || [];
-      const processes = generatedAdventure.processes?.catalog || [];
-      const hasMinContent = characters.length >= 4 && locations.length >= 4 && processes.length >= 2;
-      
-      // Check no NPCs have attitude property (should be in state.facts)
-      const npcsWithAttitude = characters.filter((c: any) => c.attitude !== undefined);
-      const attitudesInState = npcsWithAttitude.length === 0;
-      
-      // isCAML2 includes ALL validations
-      const isCAML2 = hasCAML2Structure && !hasCAML1Artifacts && !hasPlaceholders && 
-                      metaIdCorrect && metaTitleCorrect && hasMinContent && attitudesInState;
-      
-      const warnings: string[] = [];
-      if (!hasCAML2Structure) warnings.push("Missing CAML 2.0 structure (world/state/processes layers)");
-      if (hasCAML1Artifacts) warnings.push("Contains CAML 1.x artifacts (encounters/quests arrays)");
-      if (hasPlaceholders) warnings.push(`Contains unsubstituted placeholders: ${placeholderMatches?.slice(0, 5).join(', ')}`);
-      if (!metaIdCorrect) warnings.push(`meta.id mismatch: expected ${adventureId}, got ${generatedAdventure.meta?.id}`);
-      if (!metaTitleCorrect) warnings.push(`meta.title mismatch: expected "${requestedTitle}", got "${generatedAdventure.meta?.title}"`);
-      if (!hasMinContent) warnings.push(`Insufficient content: ${characters.length} chars, ${locations.length} locs, ${processes.length} procs`);
-      if (!attitudesInState) warnings.push(`NPCs have attitude property instead of state facts: ${npcsWithAttitude.map((n: any) => n.id).join(', ')}`);
-      
-      if (warnings.length > 0) {
-        console.warn("CAML 2.0 generation issues:", warnings);
+CAML 2.0 STRUCTURE:
+- Root: caml_version, meta, doctrine, world, state, roles, processes, transitions, snapshots
+- NPCs: world.entities.characters (no attitude property on the object)
+- Attitudes: state.facts entries with type "attitude"
+- Encounters: processes.catalog entries
+- State changes: transitions.changes
+
+doctrine.campaign_question must be a DILEMMA with no clean answer.
+doctrine.stakes must have at least 2 pressure tracks with drift and threshold consequences.
+Items must have a "consequence" field.
+Snapshots must include at least 2 forked endings.`;
+
+      const maxAttempts = 3;
+      let generatedAdventure: any = null;
+      let lastWarnings: string[] = [];
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const response = await aiClient.chat.completions.create({
+          model: aiModel,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: prompt + (attempt > 0 ? `\n\nPREVIOUS ATTEMPT FAILED. Issues to fix:\n${lastWarnings.join('\n')}\n\nFix ALL of the above and regenerate the full adventure.` : '') }
+          ],
+          response_format: { type: "json_object" },
+          max_tokens: 16000,
+          temperature: attempt === 0 ? 0.7 : 0.5,
+        });
+
+        const raw = response.choices[0].message.content || '{}';
+        let candidate: any;
+        try {
+          candidate = JSON.parse(raw);
+        } catch {
+          lastWarnings = ['Response was not valid JSON'];
+          continue;
+        }
+
+        // Validate CAML 2.0 structure (hard requirements only)
+        const warnings: string[] = [];
+        if (candidate.caml_version !== '2.0') warnings.push('Missing caml_version: "2.0"');
+        if (!candidate.world?.entities) warnings.push('Missing world.entities');
+        if (!candidate.state?.facts) warnings.push('Missing state.facts');
+        if (!candidate.processes?.catalog) warnings.push('Missing processes.catalog');
+        if (candidate.encounters) warnings.push('Contains forbidden "encounters" array (CAML 1.x)');
+        if (candidate.quests) warnings.push('Contains forbidden "quests" array (CAML 1.x)');
+        if (candidate.type === 'AdventureModule') warnings.push('Contains forbidden type:AdventureModule');
+
+        const chars = candidate.world?.entities?.characters || [];
+        const locs = candidate.world?.entities?.locations || [];
+        const procs = candidate.processes?.catalog || [];
+        if (chars.length < 4) warnings.push(`Only ${chars.length} characters (need 4+)`);
+        if (locs.length < 4) warnings.push(`Only ${locs.length} locations (need 4+)`);
+        if (procs.length < 2) warnings.push(`Only ${procs.length} processes (need 2+)`);
+
+        const npcsWithAttitude = chars.filter((c: any) => c.attitude !== undefined);
+        if (npcsWithAttitude.length > 0) warnings.push(`NPCs have attitude property (move to state.facts): ${npcsWithAttitude.map((c: any) => c.id).join(', ')}`);
+
+        // Placeholder check — only fail if there are many unfilled placeholders
+        const jsonStr = JSON.stringify(candidate);
+        const placeholderMatches = jsonStr.match(/<[A-Z][^>]{2,}>/g);
+        if (placeholderMatches && placeholderMatches.length > 3) {
+          warnings.push(`${placeholderMatches.length} unsubstituted placeholders: ${[...new Set(placeholderMatches)].slice(0, 5).join(', ')}`);
+        }
+
+        if (warnings.length === 0) {
+          // Normalise meta fields if slightly off (non-blocking)
+          if (candidate.meta) {
+            candidate.meta.id = adventureId;
+            candidate.meta.title = title || 'The Lost Temple';
+          }
+          generatedAdventure = candidate;
+          break;
+        }
+
+        lastWarnings = warnings;
+        console.warn(`CAML generation attempt ${attempt + 1} failed validation:`, warnings);
       }
-      
-      // If validation fails, return error instead of success
-      if (!isCAML2) {
+
+      if (!generatedAdventure) {
         return res.status(422).json({
           success: false,
-          message: "Generated adventure failed CAML 2.0 validation",
-          warnings,
-          adventure: generatedAdventure // Include for debugging
+          message: "Adventure generation failed validation after 3 attempts",
+          warnings: lastWarnings,
         });
       }
       
@@ -26499,6 +26793,73 @@ ALWAYS generate:
     }
   });
   
+  // "While You Were Away" — world events + cliffhanger recap since last visit
+  app.get("/api/campaigns/:campaignId/while-you-were-away", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = req.user.id;
+
+      const tracking = await storage.getUserSessionTracking(userId, campaignId);
+      if (!tracking?.lastLoginAt) return res.json({ show: false });
+
+      const lastLoginAt = new Date(tracking.lastLoginAt);
+      const hoursSince = (Date.now() - lastLoginAt.getTime()) / (1000 * 60 * 60);
+      if (hoursSince < 12) return res.json({ show: false });
+
+      // Get campaign and its region for world event filtering
+      const campaign = await storage.getCampaign(campaignId);
+      const regionId = campaign?.worldRegionId;
+
+      // Fetch world events affecting this campaign's region since last visit
+      let worldEventResults: any[] = [];
+      if (regionId) {
+        worldEventResults = await db.select()
+          .from(worldEvents)
+          .where(and(
+            eq(worldEvents.isActive, true),
+            sql`${worldEvents.createdAt} > ${tracking.lastLoginAt}`,
+            sql`${regionId} = ANY(${worldEvents.affectedRegionIds})`
+          ))
+          .orderBy(sql`CASE ${worldEvents.severity} WHEN 'catastrophic' THEN 1 WHEN 'major' THEN 2 WHEN 'moderate' THEN 3 ELSE 4 END`)
+          .limit(3)
+          .catch(() => []);
+      }
+      // Fallback: unread world whispers for this campaign since last visit
+      const unreadWhispers = await db.select()
+        .from(worldWhispers)
+        .where(and(
+          eq(worldWhispers.campaignId, campaignId),
+          eq(worldWhispers.isRead, false),
+          sql`${worldWhispers.createdAt} > ${tracking.lastLoginAt}`
+        ))
+        .orderBy(desc(worldWhispers.createdAt))
+        .limit(3)
+        .catch(() => []);
+
+      // Get cliffhanger from latest session
+      const sessions = await storage.getCampaignSessions(campaignId);
+      const latestSession = sessions.filter((s: any) => !s.isCompleted).sort((a: any, b: any) => b.sessionNumber - a.sessionNumber)[0]
+        || sessions[sessions.length - 1];
+      const narrativeRecap = (latestSession as any)?.cliffhangerHook || null;
+
+      res.json({
+        show: true,
+        lastVisitAt: tracking.lastLoginAt,
+        worldEvents: worldEventResults.map((e: any) => ({
+          title: e.title,
+          description: e.description,
+          severity: e.severity,
+          eventType: e.eventType,
+        })),
+        whispers: unreadWhispers.map((w: any) => w.message),
+        narrativeRecap,
+      });
+    } catch (error) {
+      console.error("Failed to fetch while-you-were-away data:", error);
+      res.status(500).json({ message: "Failed to fetch while-you-were-away data" });
+    }
+  });
+
   // Record a campaign visit (updates last login)
   app.post("/api/campaigns/:campaignId/record-visit", isAuthenticated, async (req: any, res) => {
     try {
@@ -27668,10 +28029,94 @@ ALWAYS generate:
         const lastVisit = userState[0].lastVisitAt ? new Date(userState[0].lastVisitAt) : new Date();
         const daysSince = Math.floor((Date.now() - lastVisit.getTime()) / (1000 * 60 * 60 * 24));
         const newStreak = daysSince <= 1 ? (userState[0].returnStreak || 0) + 1 : 1;
-        
+
         await db.update(hearthUserState)
           .set({ lastVisitAt: now, returnStreak: newStreak })
           .where(eq(hearthUserState.userId, userId));
+
+        // Badge: 7-day return streak
+        if (newStreak >= 7) {
+          storage.tryAwardBadge(userId, 'Regular at the Hearth', { streak: newStreak })
+            .then(result => { if (result) broadcastToUser(userId, 'badge_unlocked', result.badge); })
+            .catch(() => {});
+        }
+      }
+
+      // Return experience: detect returning visit (>12 hours since last visit)
+      const isReturnVisit = isReturning && (() => {
+        const lastVisit = userState[0].lastVisitAt ? new Date(userState[0].lastVisitAt) : new Date(0);
+        return (Date.now() - lastVisit.getTime()) >= 12 * 60 * 60 * 1000;
+      })();
+
+      let welcomeGreeting: string | null = null;
+      let worldWhisper: string | null = null;
+      let streakReward = null;
+
+      if (isReturnVisit) {
+        const currentState = await db.select().from(hearthUserState).where(eq(hearthUserState.userId, userId)).limit(1);
+        const state = currentState[0] as any;
+        const currentStreak = state?.returnStreak || 1;
+
+        // Serve cached greeting if generated today; else kick off background generation
+        const greetingDate = state?.welcomeGeneratedAt?.split('T')[0];
+        if (greetingDate === today && state?.welcomeGreeting) {
+          welcomeGreeting = state.welcomeGreeting;
+        } else {
+          // Fetch character name + active campaign for context
+          const chars = await storage.getCharactersByUserId(userId);
+          const activeChar = chars.find((c: any) => c.status === 'active') || chars[0];
+          const userCampaigns = await storage.getAllCampaigns();
+          const activeCampaign = userCampaigns.find((c: any) => c.userId === userId && !c.completedAt);
+          generateReturnGreeting(
+            activeChar?.name || null,
+            currentStreak,
+            activeCampaign?.title || null
+          ).then(greeting => {
+            if (greeting) {
+              db.update(hearthUserState)
+                .set({ welcomeGreeting: greeting, welcomeGeneratedAt: now })
+                .where(eq(hearthUserState.userId, userId))
+                .catch(() => {});
+            }
+          }).catch(() => {});
+          // Use a static fallback for this request
+          welcomeGreeting = null;
+        }
+
+        // World whisper: most recent world event affecting user's campaigns since last visit
+        try {
+          const lastVisitTs = userState[0].lastVisitAt || new Date(0).toISOString();
+          const userCampaignIds = (await storage.getAllCampaigns())
+            .filter((c: any) => c.userId === userId)
+            .map((c: any) => c.id);
+          if (userCampaignIds.length > 0) {
+            const whispers = await db.select()
+              .from(worldWhispers)
+              .where(and(
+                sql`${worldWhispers.campaignId} = ANY(ARRAY[${sql.join(userCampaignIds.map((id: number) => sql`${id}`), sql`, `)}])`,
+                sql`${worldWhispers.createdAt} > ${lastVisitTs}`
+              ))
+              .orderBy(desc(worldWhispers.createdAt))
+              .limit(1);
+            if (whispers.length > 0) {
+              worldWhisper = whispers[0].message || null;
+            }
+          }
+        } catch { /* no whisper available */ }
+
+        // Streak reward
+        streakReward = getStreakReward(
+          (userState[0] as any).returnStreak || 1,
+          today,
+          (userState[0] as any).rewardClaimedAt
+        );
+        // Mark reward as claimed today if there is one
+        if (streakReward) {
+          db.update(hearthUserState)
+            .set({ rewardClaimedAt: today } as any)
+            .where(eq(hearthUserState.userId, userId))
+            .catch(() => {});
+        }
       }
 
       // Get presence list (active users)
@@ -27720,7 +28165,11 @@ ALWAYS generate:
           seatZone: userState[0].seatZone || "fire",
           quietMode: userState[0].quietModeDefault || false,
           arrivalLine,
-          returnStreak: userState[0].returnStreak || 1
+          returnStreak: userState[0].returnStreak || 1,
+          isReturnVisit,
+          welcomeGreeting,
+          worldWhisper,
+          streakReward,
         },
         presence: activePresence.map(p => ({
           userId: p.presence.userId,
@@ -28201,6 +28650,17 @@ ALWAYS generate:
   // ═══════════════════════════════════════════════════════════════════════
   // LLM Configuration Routes
   // ═══════════════════════════════════════════════════════════════════════
+
+  // Returns whether the app-level AI key is configured — never exposes the key itself.
+  app.get("/api/ai/status", isAuthenticated, async (_req, res) => {
+    if (process.env.ANTHROPIC_API_KEY) {
+      res.json({ available: true, provider: "anthropic" });
+    } else if (process.env.OPENAI_API_KEY) {
+      res.json({ available: true, provider: "openai" });
+    } else {
+      res.json({ available: false, provider: null });
+    }
+  });
 
   app.get("/api/llm-config", isAuthenticated, async (req: any, res) => {
     try {

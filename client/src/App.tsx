@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "./lib/protected-route";
 import { createWSConnection } from "./lib/websocket";
+import { useBadgeNotifications } from "@/hooks/use-badge-notifications";
 import { useEffect, lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
@@ -48,6 +49,12 @@ function PageLoader() {
       <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
     </div>
   );
+}
+
+// Mounts hooks that need auth context (inside AuthProvider)
+function AuthAwareEffects() {
+  useBadgeNotifications();
+  return null;
 }
 
 function Router() {
@@ -127,6 +134,7 @@ function App() {
       <ThemeProvider attribute="class" defaultTheme="dark">
         <TooltipProvider>
           <AuthProvider>
+            <AuthAwareEffects />
             <Toaster />
             <Router />
             <FeedbackWidget variant="floating" />

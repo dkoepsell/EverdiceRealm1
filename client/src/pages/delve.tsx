@@ -593,10 +593,6 @@ export default function DelvePage() {
       setPhase('crawl');
       toast({ title: "Delve Begun!", description: "You enter the depths..." });
       queryClient.invalidateQueries({ queryKey: ['/api/delve/active', selectedCampaignId] });
-
-      if (data.currentNode) {
-        moveMutation.mutate({ runId: data.run.id, toQ: data.currentNode.q, toR: data.currentNode.r });
-      }
     },
     onError: async (err: any) => {
       const msg = err.message || "Failed to start delve";

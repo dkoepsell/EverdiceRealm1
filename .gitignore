@@ -4,3 +4,13 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+uploads/
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.dump
+
+# Separate nested service (has its own git repo)
+OwlTesterService/

@@ -1,0 +1,105 @@
+# Everdice Realm — Deployment Guide
+
+## First-time VPS setup (run once)
+
+  ssh root@YOUR_VPS_IP "bash -s" < scripts/setup-vps.sh
+
+  Then on the VPS, replace YOUR_DOMAIN with your actual IP or domain:
+  nano /etc/nginx/sites-available/everdice
+
+
+## Configure your .env before deploying
+
+  Edit .env in this directory and fill in your keys:
+
+  ┌─ Required for AI story/narrative features ──────────────────────────────┐
+  │  ANTHROPIC_API_KEY=sk-ant-...                                           │
+  │                                                                          │
+  │  Get one at: https://console.anthropic.com/settings/keys                │
+  │  Steps:                                                                  │
+  │    1. Create an account at console.anthropic.com                        │
+  │    2. Add a payment method (Billing → Add card)                         │
+  │    3. Go to API Keys → Create Key                                       │
+  │    4. Paste the key above                                               │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+  ┌─ Required only for image generation (cover art, portraits) ─────────────┐
+  │  OPENAI_API_KEY=sk-...                                                  │
+  │                                                                          │
+  │  Get one at: https://platform.openai.com/api-keys                      │
+  │  Steps:                                                                  │
+  │    1. Create an account at platform.openai.com                         │
+  │    2. Add credits (Billing → Buy credits — $5 goes a long way)         │
+  │    3. Go to API Keys → Create new secret key                           │
+  │    4. Paste the key above                                               │
+  │                                                                          │
+  │  If you skip this, text/AI features still work. Only DALL-E images     │
+  │  (cover art, character portraits) will be disabled.                     │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+  ┌─ Required — database ───────────────────────────────────────────────────┐
+  │  DATABASE_URL=postgres://user:password@host:5432/dbname                 │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+  ┌─ Optional ──────────────────────────────────────────────────────────────┐
+  │  DISCORD_BOT_TOKEN=...   (enables Discord bot remote play)             │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+
+## Copy .env to the VPS (run once, and again after any key changes)
+
+  scp .env root@YOUR_VPS_IP:/root/EverdiceRealm1/.env
+
+
+## Deploy every update
+
+  ./scripts/deploy.sh root@YOUR_VPS_IP
+
+
+## What the deploy script does
+
+  1. Builds the production bundle locally (npm run build)
+  2. Creates a tar archive (excludes node_modules, .git, .env, uploads)
+  3. Uploads it to the VPS
+  4. Installs prod-only dependencies on the VPS
+  5. Runs drizzle-kit push to apply any schema changes
+  6. Restarts the app via PM2 (or starts it if first deploy)
+  7. Does an HTTP health check
+
+
+## Optional HTTPS (after first deploy)
+
+  Run on the VPS:
+  apt-get install -y certbot python3-certbot-nginx
+  certbot --nginx -d yourdomain.com
+
+
+## Updating API keys on a live server
+
+  Edit .env locally, then:
+  scp .env root@YOUR_VPS_IP:/root/EverdiceRealm1/.env && ssh root@YOUR_VPS_IP "pm2 restart everdice"
+
+
+## Production server details (204.168.167.44)
+
+  App path:  /root/EverdiceRealm1/
+  Port:      3000 (direct, no Nginx in front — OwlTester owns port 80)
+  Process:   PM2, app name "everdice"
+
+  Standard deploy:
+    ./scripts/deploy.sh root@204.168.167.44
+
+  After changing .env (new API keys, etc.):
+    scp .env root@204.168.167.44:/root/EverdiceRealm1/.env && ssh root@204.168.167.44 "pm2 restart everdice"
+
+  Run DB migrations manually (shell source doesn't handle & in URL):
+    ssh root@204.168.167.44 "cd /root/EverdiceRealm1 && set -a && source .env && set +a && npx drizzle-kit push"
+
+  View logs:
+    ssh root@204.168.167.44 "pm2 logs everdice --lines 50 --nostream"
+
+  Common issues fixed (2026-04-07):
+    - Vite was statically imported, crashing production startup → now dynamic import + --splitting in build
+    - dotenv was not overriding system DATABASE_URL (pointed to localhost) → dotenv.config({ override: true })
+    - Deploy scripts pointed to /var/www/everdice → corrected to /root/EverdiceRealm1
+    - auth.ts created a second pg pool for sessions → now reuses shared pool from db.ts

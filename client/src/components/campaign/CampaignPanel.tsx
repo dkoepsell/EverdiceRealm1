@@ -50,6 +50,7 @@ import CampaignDeploymentTab from "./CampaignDeploymentTab";
 import CampaignDashboard from "./CampaignDashboard";
 import { QuestBoard } from "./QuestBoard";
 import { CombatLogPanel } from "./CombatLogPanel";
+import { WhileYouWereAway } from "./WhileYouWereAway";
 import TableChat from "@/components/dm-toolkit/TableChat";
 import CombatSpellPanel from "@/components/combat/CombatSpellPanel";
 import { LearningTip, useLearningTips } from "@/components/learning/LearningTip";
@@ -4256,6 +4257,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </div>
                     )}
                     
+                    {/* While You Were Away */}
+                    <WhileYouWereAway campaignId={campaign.id} />
+
                     {/* Chapter Objective Card */}
                     {(() => {
                       const cpd = chapterProgressData;
@@ -4290,11 +4294,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         : '[&>div]:bg-indigo-500';
 
                       const urgencyLabel = urgency === 'hardcap'
-                        ? 'Chapter must advance now!'
+                        ? 'The DM senses a turning point...'
                         : urgency === 'urgent'
-                        ? 'Story is ready to move forward'
+                        ? 'Something important is about to happen...'
                         : urgency === 'moderate'
-                        ? 'Push toward the chapter goal'
+                        ? 'The chapter goal draws near'
                         : urgency === 'gentle'
                         ? 'Chapter milestone approaching'
                         : null;
@@ -4336,7 +4340,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           )}
                           {/* Urgency label */}
                           {urgencyLabel && (
-                            <p className={`text-xs font-semibold mt-1 ${
+                            <p className={`text-xs italic mt-1 ${
                               urgency === 'hardcap' || urgency === 'urgent' ? 'text-red-600 dark:text-red-300' :
                               urgency === 'moderate' ? 'text-amber-700 dark:text-amber-300' :
                               'text-yellow-700 dark:text-yellow-300'
@@ -4346,12 +4350,32 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           )}
                           {/* Extra hints at moderate+ */}
                           {(urgency === 'moderate' || urgency === 'urgent' || urgency === 'hardcap') && hints.length > 0 && (
-                            <ul className="mt-1 space-y-0.5">
-                              {hints.slice(0, 2).map((h, i) => (
-                                <li key={i} className="text-xs text-slate-600 dark:text-slate-300 leading-snug pl-3 border-l-2 border-amber-400 dark:border-amber-500">
-                                  {h}
-                                </li>
-                              ))}
+                            <ul className="mt-1 space-y-1">
+                              {hints.slice(0, 2).map((h, i) => {
+                                // Strip prefixes like "Discover the truth: " to get the raw story beat
+                                const rawBeat = h.replace(/^[^:]+:\s*[""]?/, '').replace(/[""]$/, '').trim();
+                                const isActionable = urgency === 'urgent' || urgency === 'hardcap';
+                                if (isActionable) {
+                                  return (
+                                    <li key={i}>
+                                      <button
+                                        onClick={() => handleChoiceSelection({ action: rawBeat, requiresDiceRoll: false })}
+                                        disabled={isAdvancingStory}
+                                        className="w-full text-left text-xs italic text-amber-800 dark:text-amber-200 leading-snug pl-3 border-l-2 border-amber-500 dark:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:border-amber-600 dark:hover:border-amber-300 rounded-r transition-colors py-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title="Let the DM resolve this story beat"
+                                      >
+                                        <span className="not-italic text-amber-600 dark:text-amber-400 font-semibold mr-1">DM:</span>
+                                        "{rawBeat}"
+                                      </button>
+                                    </li>
+                                  );
+                                }
+                                return (
+                                  <li key={i} className="text-xs text-slate-600 dark:text-slate-300 leading-snug pl-3 border-l-2 border-amber-400 dark:border-amber-500">
+                                    {h}
+                                  </li>
+                                );
+                              })}
                             </ul>
                           )}
                         </div>

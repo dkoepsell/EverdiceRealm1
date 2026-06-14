@@ -38,33 +38,33 @@ export interface PostCombatRewards {
 }
 
 const GOLD_BY_CR: Record<string, { min: number; max: number }> = {
-  "0": { min: 1, max: 5 },
-  "1/8": { min: 2, max: 10 },
-  "1/4": { min: 5, max: 20 },
-  "1/2": { min: 10, max: 40 },
-  "1": { min: 15, max: 60 },
-  "2": { min: 25, max: 100 },
-  "3": { min: 40, max: 150 },
-  "4": { min: 60, max: 250 },
-  "5": { min: 100, max: 400 },
-  "6": { min: 150, max: 500 },
-  "7": { min: 200, max: 700 },
-  "8": { min: 300, max: 1000 },
-  "9": { min: 400, max: 1300 },
-  "10": { min: 500, max: 1600 },
-  "11": { min: 700, max: 2000 },
-  "12": { min: 900, max: 2500 },
-  "13": { min: 1200, max: 3500 },
-  "14": { min: 1500, max: 4000 },
-  "15": { min: 2000, max: 5000 },
-  "16": { min: 2500, max: 6000 },
-  "17": { min: 3000, max: 8000 },
-  "18": { min: 4000, max: 10000 },
-  "19": { min: 5000, max: 12000 },
-  "20": { min: 6000, max: 15000 },
+  "0": { min: 2, max: 10 },
+  "1/8": { min: 5, max: 20 },
+  "1/4": { min: 10, max: 40 },
+  "1/2": { min: 20, max: 80 },
+  "1": { min: 30, max: 120 },
+  "2": { min: 50, max: 200 },
+  "3": { min: 80, max: 300 },
+  "4": { min: 120, max: 500 },
+  "5": { min: 200, max: 800 },
+  "6": { min: 300, max: 1000 },
+  "7": { min: 400, max: 1400 },
+  "8": { min: 600, max: 2000 },
+  "9": { min: 800, max: 2600 },
+  "10": { min: 1000, max: 3200 },
+  "11": { min: 1400, max: 4000 },
+  "12": { min: 1800, max: 5000 },
+  "13": { min: 2400, max: 7000 },
+  "14": { min: 3000, max: 8000 },
+  "15": { min: 4000, max: 10000 },
+  "16": { min: 5000, max: 12000 },
+  "17": { min: 6000, max: 16000 },
+  "18": { min: 8000, max: 20000 },
+  "19": { min: 10000, max: 24000 },
+  "20": { min: 12000, max: 30000 },
 };
 
-const BOSS_GOLD_MULTIPLIER = 2.5;
+const BOSS_GOLD_MULTIPLIER = 4.0;
 const BOSS_XP_MULTIPLIER = 1.5;
 
 interface LootTableEntry {

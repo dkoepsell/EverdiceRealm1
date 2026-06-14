@@ -118,6 +118,8 @@ export const characters = pgTable("characters", {
   platinum: integer("platinum").default(0),
   // Consumable items - [{name, type, effect, quantity}]
   consumables: jsonb("consumables").default([]),
+  // Active conditions: [{ name, source, endsOnTurn, isConcentration }]
+  activeConditions: jsonb("active_conditions").default([]),
   // Resurrection tracking
   deathTimestamp: text("death_timestamp"),
   resurrectedAt: text("resurrected_at"),
@@ -125,6 +127,8 @@ export const characters = pgTable("characters", {
   appearance: text("appearance"),
   portraitUrl: text("portrait_url"),
   backgroundStory: text("background_story"),
+  // One-time rename: players may rename a generated character exactly once
+  hasRenamedCharacter: boolean("has_renamed_character").default(false),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at"),
 }, (t) => [
@@ -318,6 +322,9 @@ export const campaignSessions = pgTable("campaign_sessions", {
   sceneData: jsonb("scene_data"), // Full SceneV2 object with goal, obstacles, stakes, actions
   previousSceneType: text("previous_scene_type"), // For anti-combat-treadmill tracking
   actionLog: jsonb("action_log"), // Persistent log of player actions, AI narratives, and combat results
+  // Cliffhanger hook for returning players
+  cliffhangerHook: text("cliffhanger_hook"), // AI-generated 1-2 sentence DM hook shown on the campaign card
+  cliffhangerGeneratedAt: text("cliffhanger_generated_at"), // ISO timestamp of last generation
 }, (t) => [
   index("idx_campaign_sessions_campaign_id").on(t.campaignId),
 ]);
@@ -1983,6 +1990,10 @@ export const hearthUserState = pgTable("hearth_user_state", {
   lastDepartureNote: text("last_departure_note"),
   quietModeDefault: boolean("quiet_mode_default").default(false),
   returnStreak: integer("return_streak").default(0),
+  // Return experience fields
+  welcomeGreeting: text("welcome_greeting"),        // Cached AI-generated innkeeper greeting
+  welcomeGeneratedAt: text("welcome_generated_at"), // ISO timestamp of last greeting generation
+  rewardClaimedAt: text("reward_claimed_at"),        // ISO date (YYYY-MM-DD) when streak reward was last claimed
 });
 
 export const insertHearthUserStateSchema = createInsertSchema(hearthUserState);

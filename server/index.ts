@@ -1,7 +1,11 @@
+import dotenv from "dotenv";
+dotenv.config({ override: true });
+// Preserve NODE_ENV — dotenv must not override what PM2/shell set for production
+if (!process.env.NODE_ENV) process.env.NODE_ENV = "development";
 import express, { type Request, Response, NextFunction } from "express";
 import compression from "compression";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { serveStatic, log } from "./static";
 import { storage, DatabaseStorage } from "./storage";
 import { initDiscord, shutdownDiscord } from "./discord";
 import { serverLogger } from "./lib/logger";
@@ -63,15 +67,13 @@ app.use((req, res, next) => {
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (app.get("env") === "development") {
+    const { setupVite } = await import("./vite");
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
+  const port = parseInt(process.env.PORT || "3000", 10);
   server.listen({
     port,
     host: "0.0.0.0",

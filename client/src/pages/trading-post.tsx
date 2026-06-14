@@ -235,12 +235,31 @@ export default function TradingPostPage() {
 
   const downloadAdventureMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await apiRequest("POST", `/api/trading-post/adventures/${id}/download`, {});
-      return response.json();
+      const downloadResponse = await apiRequest("POST", `/api/trading-post/adventures/${id}/download`, {});
+      const downloadData = await downloadResponse.json();
+
+      if (!downloadData.camlData) {
+        throw new Error("This adventure has no CAML data to import");
+      }
+
+      const importResponse = await apiRequest("POST", "/api/caml/import", {
+        content: JSON.stringify(downloadData.camlData),
+        format: "json",
+        createCampaign: true,
+        campaignLength: "standard",
+      });
+      return importResponse.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/trading-post/adventures", selectedAdventure] });
-      toast({ title: "Adventure Imported!", description: "The adventure data has been downloaded." });
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+      const npcs = data.imported?.npcs ?? 0;
+      const quests = data.imported?.quests ?? 0;
+      toast({
+        title: "Adventure Imported!",
+        description: `Campaign created with ${npcs} NPC${npcs !== 1 ? "s" : ""} and ${quests} quest${quests !== 1 ? "s" : ""}. Find it in your Campaigns.`,
+      });
+      setSelectedAdventure(null);
     },
     onError: (error: any) => {
       toast({ title: "Import failed", description: error.message || "Something went wrong", variant: "destructive" });

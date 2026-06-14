@@ -27,6 +27,7 @@ import {
   Dice6,
   RefreshCw,
 } from "lucide-react";
+import { ConditionBadge } from "@/components/character/ConditionBadge";
 
 export interface InitiativeCombatant {
   id: string;
@@ -217,13 +218,11 @@ export default function InitiativeTracker({
                         {combatant.conditions.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {combatant.conditions.map((c) => (
-                              <Badge
+                              <ConditionBadge
                                 key={c}
-                                variant="outline"
-                                className="text-[9px] px-1 py-0 bg-purple-500/20 text-purple-400 border-purple-500/30"
-                              >
-                                {c}
-                              </Badge>
+                                condition={{ name: c.toLowerCase(), source: "DM Tracker" }}
+                                size="sm"
+                              />
                             ))}
                           </div>
                         )}

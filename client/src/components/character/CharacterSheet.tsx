@@ -1,17 +1,22 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Character, PlayerGroupMember } from "@shared/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronUp, Image, BookOpen, Shield, Users, Crown, Sparkles, FileDown } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ChevronDown, ChevronUp, Image, BookOpen, Shield, Users, Crown, Sparkles, FileDown, Pencil, Check, X } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { exportCharacterPDF } from "@/lib/pdf-export";
 import CharacterPortraitGenerator from "./CharacterPortraitGenerator";
 import CharacterStoryArc from "./CharacterStoryArc";
 import SpellBook from "@/components/SpellBook";
 import { getQueryFn } from "@/lib/queryClient";
+import { RulesTermTooltip } from "@/components/learning/RulesTermTooltip";
+import { ConditionRow } from "@/components/character/ConditionBadge";
 
 const SPELLCASTING_CLASSES = [
   'wizard', 'sorcerer', 'cleric', 'bard', 'druid', 'warlock', 'paladin', 'ranger'
@@ -43,7 +48,31 @@ interface CharacterSheetProps {
 export default function CharacterSheet({ character, initialTab = "main" }: CharacterSheetProps) {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [isExpanded, setIsExpanded] = useState(true);
-  
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(character.name);
+  const { toast } = useToast();
+
+  const renameMutation = useMutation({
+    mutationFn: async (newName: string) => {
+      const res = await apiRequest("PATCH", `/api/characters/${character.id}/rename`, { name: newName });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+      setIsEditingName(false);
+      toast({ title: "Name updated", description: "Your character has been renamed." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Rename failed", description: err.message || "Could not rename character.", variant: "destructive" });
+    },
+  });
+
+  const handleRenameSubmit = () => {
+    const trimmed = nameInput.trim();
+    if (!trimmed || trimmed === character.name) { setIsEditingName(false); return; }
+    renameMutation.mutate(trimmed);
+  };
+
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab, character.id]);
@@ -99,8 +128,37 @@ export default function CharacterSheet({ character, initialTab = "main" }: Chara
           {/* Character Basic Info */}
           <div className="mb-6 text-secondary border-b-2 border-primary pb-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-fantasy text-xl font-bold text-primary">{character.name}</h3>
-              <span className="bg-primary text-white text-sm px-3 py-1 rounded-full">Level {character.level}</span>
+              {isEditingName ? (
+                <div className="flex items-center gap-2 flex-1 mr-3">
+                  <Input
+                    value={nameInput}
+                    onChange={e => setNameInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") handleRenameSubmit(); if (e.key === "Escape") setIsEditingName(false); }}
+                    maxLength={60}
+                    autoFocus
+                    className="font-fantasy text-lg h-8 py-0"
+                  />
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600" onClick={handleRenameSubmit} disabled={renameMutation.isPending}><Check className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500" onClick={() => setIsEditingName(false)}><X className="h-4 w-4" /></Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <h3 className="font-fantasy text-xl font-bold text-primary">{character.name}</h3>
+                  {!(character as any).hasRenamedCharacter && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button onClick={() => { setNameInput(character.name); setIsEditingName(true); }} className="text-muted-foreground hover:text-primary transition-colors">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Rename character (once only)</p></TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
+              )}
+              <span className="bg-primary text-white text-sm px-3 py-1 rounded-full shrink-0">Level {character.level}</span>
             </div>
             
             <div className="grid grid-cols-2 gap-4 mb-4">
@@ -290,14 +348,23 @@ export default function CharacterSheet({ character, initialTab = "main" }: Chara
                   </div>
                   
                   <div className="bg-parchment-dark rounded-lg p-3 text-center">
-                    <p className="text-xs text-gray-600">Armor Class</p>
+                    <p className="text-xs text-gray-600"><RulesTermTooltip term="Armor Class" /></p>
                     <p className="font-bold text-xl text-secondary">{character.armorClass}</p>
                   </div>
-                  
+
                   <div className="bg-parchment-dark rounded-lg p-3 text-center">
-                    <p className="text-xs text-gray-600">Initiative</p>
+                    <p className="text-xs text-gray-600"><RulesTermTooltip term="Initiative" /></p>
                     <p className="font-bold text-xl text-secondary">{formatModifier(getModifier(character.dexterity))}</p>
                   </div>
+                </div>
+
+                {/* Active Conditions */}
+                <div className="mt-3">
+                  <p className="text-xs text-gray-500 mb-1.5 font-medium uppercase tracking-wide">Active Conditions</p>
+                  <ConditionRow characterId={character.id} />
+                  {!(character as any).activeConditions?.length && (
+                    <p className="text-xs text-gray-400 italic">No conditions active</p>
+                  )}
                 </div>
               </div>
             </TabsContent>
@@ -353,7 +420,7 @@ export default function CharacterSheet({ character, initialTab = "main" }: Chara
                   })}
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  Proficiency Bonus: +{Math.ceil(1 + character.level / 4)} | 
+                  <RulesTermTooltip term="Proficiency Bonus" />: +{Math.ceil(1 + character.level / 4)} |
                   Filled circles indicate proficiency
                 </p>
               </div>
@@ -436,6 +503,18 @@ export default function CharacterSheet({ character, initialTab = "main" }: Chara
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <h3 className="font-fantasy text-lg font-bold text-primary">{character.name}</h3>
+                  {!(character as any).hasRenamedCharacter && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button onClick={() => { setIsExpanded(true); setTimeout(() => { setNameInput(character.name); setIsEditingName(true); }, 50); }} className="text-muted-foreground hover:text-primary transition-colors">
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Rename character (once only)</p></TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
               <span className="text-sm text-gray-600">Level {character.level} {character.race} {character.class}</span>
             </div>
             <div className="flex items-center space-x-3">

@@ -8,10 +8,10 @@ import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
 import { randomUUID } from "crypto";
-import pg from "pg";
 import * as OTPAuth from "otplib";
 import QRCode from "qrcode";
 import { z } from "zod";
+import { pool } from "./db";
 
 const authenticator = OTPAuth.authenticator;
 
@@ -38,14 +38,10 @@ async function comparePasswords(supplied: string, stored: string) {
 
 export function setupAuth(app: Express) {
   const PgStore = connectPgSimple(session);
-  
-  const pgPool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
-  });
-  
+
   const sessionSettings: session.SessionOptions = {
     store: new PgStore({
-      pool: pgPool,
+      pool,
       tableName: 'session',
       createTableIfMissing: true,
     }),
@@ -53,7 +49,9 @@ export function setupAuth(app: Express) {
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === 'production',
+      // Set COOKIE_SECURE=true in .env only when the server is behind HTTPS.
+      // Defaults to false so HTTP deployments work; HTTPS deployments must opt in.
+      secure: process.env.COOKIE_SECURE === 'true',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     }
   };

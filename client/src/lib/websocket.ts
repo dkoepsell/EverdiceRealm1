@@ -98,6 +98,11 @@ export function createWSConnection(force = false) {
           window.dispatchEvent(new CustomEvent('story_advanced', {
             detail: data.payload
           }));
+        } else if (data.type === 'badge_unlocked') {
+          // Dispatch event for badge unlock notifications
+          window.dispatchEvent(new CustomEvent('badge_unlocked', {
+            detail: data.payload
+          }));
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
@@ -150,6 +155,10 @@ export function sendWSMessage(type: string, payload: any) {
   if (socket && socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify({ type, payload }));
   }
+}
+
+export function identifyUser(userId: number) {
+  sendWSMessage('identify', { userId });
 }
 
 // Close connection when window closes

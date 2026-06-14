@@ -1,183 +1,103 @@
+import * as fs from "fs";
+import * as path from "path";
+import { randomUUID } from "crypto";
+import multer from "multer";
 import type { Express } from "express";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
-/**
- * Register object storage routes for file uploads.
- *
- * This provides example routes for the presigned URL upload flow:
- * 1. POST /api/uploads/request-url - Get a presigned URL for uploading
- * 2. The client then uploads directly to the presigned URL
- *
- * IMPORTANT: These are example routes. Customize based on your use case:
- * - Add authentication middleware for protected uploads
- * - Add file metadata storage (save to database after upload)
- * - Add ACL policies for access control
- */
+const uploadsDir = path.resolve(process.env.LOCAL_UPLOADS_DIR || "uploads");
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      const dest = path.join(uploadsDir, "private", "uploads");
+      fs.mkdirSync(dest, { recursive: true });
+      cb(null, dest);
+    },
+    filename: (_req, _file, cb) => cb(null, randomUUID()),
+  }),
+});
+
 export function registerObjectStorageRoutes(app: Express): void {
   const objectStorageService = new ObjectStorageService();
 
-  /**
-   * Request a presigned URL for file upload.
-   *
-   * Request body (JSON):
-   * {
-   *   "name": "filename.jpg",
-   *   "size": 12345,
-   *   "contentType": "image/jpeg"
-   * }
-   *
-   * Response:
-   * {
-   *   "uploadURL": "https://storage.googleapis.com/...",
-   *   "objectPath": "/objects/uploads/uuid"
-   * }
-   *
-   * IMPORTANT: The client should NOT send the file to this endpoint.
-   * Send JSON metadata only, then upload the file directly to uploadURL.
-   */
+  // Request a local upload slot; client receives a PUT URL
   app.post("/api/uploads/request-url", async (req, res) => {
     try {
-      const { name, size, contentType } = req.body;
-
+      const { name } = req.body;
       if (!name) {
-        return res.status(400).json({
-          error: "Missing required field: name",
-        });
+        return res.status(400).json({ error: "Missing required field: name" });
       }
-
       const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-
-      // Extract object path from the presigned URL for later reference
       const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
-
-      res.json({
-        uploadURL,
-        objectPath,
-        // Echo back the metadata for client convenience
-        metadata: { name, size, contentType },
-      });
+      res.json({ uploadURL, objectPath, metadata: req.body });
     } catch (error) {
       console.error("Error generating upload URL:", error);
       res.status(500).json({ error: "Failed to generate upload URL" });
     }
   });
 
-  /**
-   * Serve public assets from object storage.
-   * These are files uploaded via uploadPublicFile (e.g., stock companion portraits).
-   */
-  app.get("/api/public-assets/:assetPath(*)", async (req, res) => {
+  // Accept multipart file uploads from the Uppy client
+  app.post("/api/uploads/local/:objectId", upload.single("file"), (req, res) => {
     try {
-      const assetPath = req.params.assetPath;
-      const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-      
-      if (!bucketId) {
-        return res.status(404).json({ error: "Object storage not configured" });
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
       }
-      
-      const { Storage } = await import("@google-cloud/storage");
-      const storage = new Storage({
-        credentials: {
-          audience: "replit",
-          subject_token_type: "access_token",
-          token_url: "http://127.0.0.1:1106/token",
-          type: "external_account",
-          credential_source: {
-            url: "http://127.0.0.1:1106/credential",
-            format: {
-              type: "json",
-              subject_token_field_name: "access_token",
-            },
-          },
-          universe_domain: "googleapis.com",
-        },
-        projectId: "",
-      });
-      
-      const bucket = storage.bucket(bucketId);
-      const publicFile = bucket.file(`public/${assetPath}`);
-      const [exists] = await publicFile.exists();
-      
-      if (!exists) {
-        return res.status(404).json({ error: "Asset not found" });
-      }
-      
-      const [metadata] = await publicFile.getMetadata();
-      res.set({
-        "Content-Type": metadata.contentType || "application/octet-stream",
-        "Content-Length": String(metadata.size),
-        "Cache-Control": "public, max-age=31536000",
-      });
-      const stream = publicFile.createReadStream();
-      stream.pipe(res);
+      const objectPath = `/objects/private/uploads/${req.params.objectId}`;
+      // Move/rename to the expected path
+      const destPath = path.join(uploadsDir, "private", "uploads", req.params.objectId);
+      fs.renameSync(req.file.path, destPath);
+      res.json({ objectPath });
     } catch (error) {
-      console.error("Error serving public asset:", error);
-      return res.status(500).json({ error: "Failed to serve asset" });
+      console.error("Error handling local upload:", error);
+      res.status(500).json({ error: "Upload failed" });
     }
   });
 
-  /**
-   * Serve uploaded objects from private storage.
-   *
-   * GET /objects/:objectPath(*)
-   *
-   * This serves files from object storage. For public files, no auth needed.
-   * For protected files, add authentication middleware and ACL checks.
-   */
+  // Serve AI-generated public assets (portraits, covers, avatars, etc.)
+  app.get("/api/public-assets/:assetPath(*)", (req, res) => {
+    const assetPath = req.params.assetPath;
+    const localPath = path.resolve(path.join(uploadsDir, "public", assetPath));
+
+    // Prevent directory traversal
+    if (!localPath.startsWith(path.resolve(uploadsDir))) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    if (!fs.existsSync(localPath)) {
+      return res.status(404).json({ error: "Asset not found" });
+    }
+
+    res.set("Cache-Control", "public, max-age=31536000");
+    res.sendFile(localPath);
+  });
+
+  // Serve private/uploaded objects
   app.get("/objects/:objectPath(*)", async (req, res) => {
     try {
-      // First try to serve from public storage (for portraits, etc.)
       const objectPath = req.params.objectPath;
-      const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-      
-      if (bucketId) {
-        const { Storage } = await import("@google-cloud/storage");
-        const storage = new Storage({
-          credentials: {
-            audience: "replit",
-            subject_token_type: "access_token",
-            token_url: "http://127.0.0.1:1106/token",
-            type: "external_account",
-            credential_source: {
-              url: "http://127.0.0.1:1106/credential",
-              format: {
-                type: "json",
-                subject_token_field_name: "access_token",
-              },
-            },
-            universe_domain: "googleapis.com",
-          },
-          projectId: "",
-        });
-        
-        const bucket = storage.bucket(bucketId);
-        // Try public path first
-        const publicFile = bucket.file(`public/${objectPath}`);
-        const [publicExists] = await publicFile.exists();
-        
-        if (publicExists) {
-          const [metadata] = await publicFile.getMetadata();
-          res.set({
-            "Content-Type": metadata.contentType || "application/octet-stream",
-            "Content-Length": String(metadata.size),
-            "Cache-Control": "public, max-age=31536000",
-          });
-          const stream = publicFile.createReadStream();
-          stream.pipe(res);
-          return;
-        }
+
+      // Try public path first (portraits, avatars, etc. are stored as public/xxx/uuid.png)
+      const publicPath = path.resolve(path.join(uploadsDir, "public", objectPath));
+      if (
+        publicPath.startsWith(path.resolve(uploadsDir)) &&
+        fs.existsSync(publicPath)
+      ) {
+        res.set("Cache-Control", "public, max-age=31536000");
+        return res.sendFile(publicPath);
       }
-      
-      // Fall back to private object storage
-      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
-      await objectStorageService.downloadObject(objectFile, res);
+
+      // Fall back to private storage
+      const localPath = await objectStorageService.getObjectEntityFile(
+        `/objects/${objectPath}`
+      );
+      await objectStorageService.downloadObject(localPath, res);
     } catch (error) {
-      console.error("Error serving object:", error);
       if (error instanceof ObjectNotFoundError) {
         return res.status(404).json({ error: "Object not found" });
       }
-      return res.status(500).json({ error: "Failed to serve object" });
+      console.error("Error serving object:", error);
+      res.status(500).json({ error: "Failed to serve object" });
     }
   });
 }
-

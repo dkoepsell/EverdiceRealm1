@@ -223,6 +223,23 @@ const TAVERN_RUMORS = [
   "The old wizard's tower has been abandoned for years, but smoke was seen rising from it yesterday."
 ];
 
+const DOWNTIME_ACTIVITIES = [
+  { id: 'mercenary', name: 'Mercenary Work', icon: 'Sword', description: '7 days of escort duty, hired muscle, or bodyguard work.', rewardRange: '21–56 gp' },
+  { id: 'performance', name: 'Street Performance', icon: 'Star', description: 'Busking, venue shows, or private performances for tips.', rewardRange: '2–50 gp' },
+  { id: 'business', name: 'Run a Business', icon: 'TrendingUp', description: 'Manage a small trade operation or market stall for a week.', rewardRange: '0–150 gp' },
+  { id: 'caravan', name: 'Caravan Guard', icon: 'Shield', description: 'Protect a merchant caravan along the trade road.', rewardRange: '3–108 gp' },
+  { id: 'training', name: 'Train Others', icon: 'Users', description: 'Teach sparring and combat classes at the training yard.', rewardRange: '10–40 gp' },
+];
+
+const SEEDED_BOUNTIES = [
+  { id: 'goblin-chief', target: 'Gnarl, Goblin Warchief', description: 'Terrorizing the Eastroads. Wanted dead or alive. Report to the Town Guard.', reward: 75, difficulty: 'Easy' },
+  { id: 'bandit-gang', target: 'The Scarred Hand Gang', description: 'Eight brigands ambushing caravans near the Thornwood. Split reward.', reward: 200, difficulty: 'Moderate' },
+  { id: 'bridge-troll', target: 'Bridge Troll (unnamed)', description: 'Claimed the Old Mill Bridge. Three farmers dead. No tolls negotiated.', reward: 150, difficulty: 'Moderate' },
+  { id: 'werewolf', target: 'The Moonwood Killer', description: 'Lycanthrope terrorizing farms near the Moonwood. Silver weapons required.', reward: 350, difficulty: 'Challenging' },
+  { id: 'necromancer', target: 'Meldrath the Grey', description: "Rogue mage raising the dead in Whitefall Cemetery. Mages' Guild wants him alive.", reward: 500, difficulty: 'Deadly' },
+  { id: 'smuggler', target: "Lira Voss, Smuggler", description: "Running stolen arcane artifacts. Merchant's Guild offers standing reward.", reward: 125, difficulty: 'Easy' },
+];
+
 interface DiceGameState {
   playerDice: number[];
   houseDice: number[];
@@ -239,7 +256,7 @@ interface DiceGameState {
 
 function calculateDiceOdds(guessCount: number, guessFace: number, knownDice: number[]): number {
   const knownMatches = knownDice.filter(d => d === guessFace || d === 1).length;
-  const unknownDice = 7;
+  const unknownDice = 5;
   const needed = Math.max(0, guessCount - knownMatches);
   if (needed === 0) return 1.0;
   if (needed > unknownDice) return 0.0;
@@ -260,13 +277,13 @@ function factorial(n: number): number {
 }
 
 function getPayoutMultiplier(probability: number): number {
-  if (probability >= 0.95) return 1.05;
-  if (probability >= 0.8) return 1.2;
-  if (probability >= 0.6) return 1.5;
-  if (probability >= 0.4) return 2.0;
-  if (probability >= 0.25) return 3.0;
-  if (probability >= 0.1) return 5.0;
-  return 8.0;
+  if (probability >= 0.95) return 1.1;
+  if (probability >= 0.8) return 1.4;
+  if (probability >= 0.6) return 2.0;
+  if (probability >= 0.4) return 3.0;
+  if (probability >= 0.25) return 5.0;
+  if (probability >= 0.1) return 10.0;
+  return 20.0;
 }
 
 function getDifficultyLabel(probability: number): { label: string; color: string } {
@@ -1037,7 +1054,7 @@ export default function TavernPage() {
   const [quantity, setQuantity] = useState(1);
   
   // Tavern social features state
-  const [tavernTab, setTavernTab] = useState<'drinks' | 'party' | 'rumors' | 'games' | 'crafting'>('drinks');
+  const [tavernTab, setTavernTab] = useState<'drinks' | 'party' | 'rumors' | 'games' | 'crafting' | 'downtime'>('drinks');
   const [currentRumor, setCurrentRumor] = useState<string>(TAVERN_RUMORS[Math.floor(Math.random() * TAVERN_RUMORS.length)]);
   const [rumorNPC, setRumorNPC] = useState<string>(() => {
     const npcs = ["A grizzled dwarf", "An elven merchant", "A hooded stranger", "The bartender", "A traveling bard", "A nervous halfling"];
@@ -1067,6 +1084,59 @@ export default function TavernPage() {
   
   const rollDice = (count: number): number[] => {
     return Array.from({ length: count }, () => Math.floor(Math.random() * 6) + 1);
+  };
+
+  // Downtime & bounty helpers (daily/weekly tracking via localStorage)
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const weekKey = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000)).toString();
+
+  const getDowntimeDone = (): string[] => {
+    if (!activeCharacter) return [];
+    try { return JSON.parse(localStorage.getItem(`dt_${activeCharacter.id}_${todayKey}`) || '[]'); } catch { return []; }
+  };
+  const markDowntimeDone = (id: string) => {
+    if (!activeCharacter) return;
+    const done = getDowntimeDone();
+    localStorage.setItem(`dt_${activeCharacter.id}_${todayKey}`, JSON.stringify([...done, id]));
+  };
+  const isActivityDone = (id: string) => getDowntimeDone().includes(id);
+
+  const getClaimedBounties = (): string[] => {
+    if (!activeCharacter) return [];
+    try { return JSON.parse(localStorage.getItem(`bounty_${activeCharacter.id}_${weekKey}`) || '[]'); } catch { return []; }
+  };
+  const markBountyClaimed = (id: string) => {
+    if (!activeCharacter) return;
+    const claimed = getClaimedBounties();
+    localStorage.setItem(`bounty_${activeCharacter.id}_${weekKey}`, JSON.stringify([...claimed, id]));
+  };
+  const isBountyClaimed = (id: string) => getClaimedBounties().includes(id);
+
+  const downtimeMutation = useMutation({
+    mutationFn: async ({ characterId, activity }: { characterId: number; activity: string }) => {
+      const response = await apiRequest("POST", `/api/characters/${characterId}/downtime`, { activity });
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+      markDowntimeDone(variables.activity);
+      toast({ title: `Downtime: +${data.goldEarned} gp`, description: data.description });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to process downtime", variant: "destructive" });
+    }
+  });
+
+  const performDowntime = (activity: { id: string }) => {
+    if (!activeCharacter) return;
+    downtimeMutation.mutate({ characterId: activeCharacter.id, activity: activity.id });
+  };
+
+  const claimBounty = (bounty: { id: string; reward: number; target: string }) => {
+    if (!activeCharacter) return;
+    diceGameMutation.mutate({ characterId: activeCharacter.id, goldChange: bounty.reward });
+    markBountyClaimed(bounty.id);
+    toast({ title: `Bounty Claimed!`, description: `Collected ${bounty.reward} gp for ${bounty.target}.` });
   };
   
   // Mutation to update gold from dice game winnings
@@ -1101,9 +1171,9 @@ export default function TavernPage() {
     }
   });
   
-  const MAX_SESSION_PROFIT = 100;
-  const MAX_BET = 50;
-  const HOUSE_EDGE = 0.9;
+  const MAX_SESSION_PROFIT = 500;
+  const MAX_BET = 200;
+  const HOUSE_EDGE = 1.0;
   
   const startDiceGame = () => {
     if (!activeCharacter || characterGold < diceGame.playerBet) {
@@ -1118,8 +1188,8 @@ export default function TavernPage() {
       toast({ title: "The house cuts you off!", description: "You've won enough for today. Come back tomorrow.", variant: "destructive" });
       return;
     }
-    const playerDice = rollDice(3);
-    const houseDice = rollDice(7);
+    const playerDice = rollDice(5);
+    const houseDice = rollDice(5);
     setDiceGame(prev => ({
       ...prev,
       playerDice,
@@ -2177,7 +2247,7 @@ export default function TavernPage() {
               </CardHeader>
               <CardContent>
                 {/* Tavern Sub-tabs */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-3 md:grid-cols-3 gap-4 mb-6">
                   <button
                     onClick={() => setTavernTab('drinks')}
                     className={`p-4 text-center rounded-lg border-2 transition-all ${tavernTab === 'drinks' ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-500' : 'bg-slate-50 dark:bg-slate-800 border-transparent hover:border-amber-300'}`}
@@ -2212,6 +2282,13 @@ export default function TavernPage() {
                   >
                     <Hammer className="h-8 w-8 mx-auto mb-2 text-amber-600" />
                     <p className="text-sm font-medium">Crafting</p>
+                  </button>
+                  <button
+                    onClick={() => setTavernTab('downtime')}
+                    className={`p-4 text-center rounded-lg border-2 transition-all ${tavernTab === 'downtime' ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-500' : 'bg-slate-50 dark:bg-slate-800 border-transparent hover:border-amber-300'}`}
+                  >
+                    <Clock className="h-8 w-8 mx-auto mb-2 text-amber-600" />
+                    <p className="text-sm font-medium">Downtime</p>
                   </button>
                 </div>
                 
@@ -2400,7 +2477,7 @@ export default function TavernPage() {
                       <CardContent className="p-6">
                         {diceGame.gamePhase === 'betting' && (
                           <div className="space-y-4 text-center">
-                            <p className="text-muted-foreground">You roll 3 dice, the house rolls 7 hidden. Guess how many of a face appear across all 10 dice. Riskier guesses pay more!</p>
+                            <p className="text-muted-foreground">You roll 5 dice, the house rolls 5 hidden. Guess how many of a face appear across all 10 dice. Riskier guesses pay more!</p>
                             <div className="flex items-center justify-center gap-4">
                               <span>Bet:</span>
                               <Input 
@@ -2436,7 +2513,7 @@ export default function TavernPage() {
                                   </div>
                                 ))}
                               </div>
-                              <p className="text-sm text-muted-foreground mb-4">The house has 7 hidden dice. Guess how many total show a face (1s are wild)!</p>
+                              <p className="text-sm text-muted-foreground mb-4">The house has 5 hidden dice. Guess how many total show a face (1s are wild)!</p>
                             </div>
                             <div className="flex items-center justify-center gap-4 flex-wrap">
                               <div className="flex items-center gap-2">
@@ -2657,6 +2734,114 @@ export default function TavernPage() {
                         </div>
                       </>
                     )}
+                  </div>
+                )}
+
+                {/* Downtime Activities & Bounty Board */}
+                {tavernTab === 'downtime' && (
+                  <div className="space-y-6">
+                    {/* Downtime Activities */}
+                    <div>
+                      <h3 className="text-lg font-bold flex items-center gap-2 mb-1">
+                        <Clock className="h-5 w-5 text-amber-600" />
+                        Downtime Activities
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Spend time between adventures earning gold. Each activity resets daily.
+                      </p>
+                      {!activeCharacter ? (
+                        <div className="text-center py-6 text-muted-foreground">
+                          <Clock className="h-10 w-10 mx-auto mb-2 opacity-40" />
+                          <p>Select a character to begin downtime</p>
+                        </div>
+                      ) : (
+                        <div className="grid gap-3">
+                          {DOWNTIME_ACTIVITIES.map((activity) => {
+                            const done = isActivityDone(activity.id);
+                            return (
+                              <Card key={activity.id} className={`border transition-opacity ${done ? 'opacity-50' : ''}`}>
+                                <CardContent className="p-4 flex items-center justify-between gap-3">
+                                  <div className="flex-1">
+                                    <p className="font-medium text-sm">{activity.name}</p>
+                                    <p className="text-xs text-muted-foreground">{activity.description}</p>
+                                    <p className="text-xs text-amber-600 mt-1 font-medium">{activity.rewardRange}</p>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    disabled={done || downtimeMutation.isPending}
+                                    onClick={() => performDowntime(activity)}
+                                    className={done ? '' : 'bg-amber-600 hover:bg-amber-700'}
+                                    variant={done ? 'outline' : 'default'}
+                                  >
+                                    {done ? <><Check className="h-3 w-3 mr-1" />Done</> : 'Work'}
+                                  </Button>
+                                </CardContent>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <Separator />
+
+                    {/* Bounty Board */}
+                    <div>
+                      <h3 className="text-lg font-bold flex items-center gap-2 mb-1">
+                        <Scroll className="h-5 w-5 text-amber-600" />
+                        Bounty Board
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Wanted contracts posted by guilds and town guards. Refreshes weekly.
+                      </p>
+                      {!activeCharacter ? (
+                        <div className="text-center py-6 text-muted-foreground">
+                          <Scroll className="h-10 w-10 mx-auto mb-2 opacity-40" />
+                          <p>Select a character to view bounties</p>
+                        </div>
+                      ) : (
+                        <div className="grid gap-3">
+                          {SEEDED_BOUNTIES.map((bounty) => {
+                            const claimed = isBountyClaimed(bounty.id);
+                            const difficultyColors: Record<string, string> = {
+                              Easy: 'border-green-300 dark:border-green-700',
+                              Moderate: 'border-yellow-300 dark:border-yellow-700',
+                              Challenging: 'border-orange-300 dark:border-orange-700',
+                              Deadly: 'border-red-400 dark:border-red-700',
+                            };
+                            const badgeColors: Record<string, string> = {
+                              Easy: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+                              Moderate: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+                              Challenging: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+                              Deadly: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+                            };
+                            return (
+                              <Card key={bounty.id} className={`border-2 transition-opacity ${claimed ? 'opacity-40' : difficultyColors[bounty.difficulty] || ''}`}>
+                                <CardContent className="p-4 flex items-start gap-3">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                      <p className="font-medium text-sm">{bounty.target}</p>
+                                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badgeColors[bounty.difficulty] || ''}`}>{bounty.difficulty}</span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">{bounty.description}</p>
+                                    <p className="text-xs text-amber-600 mt-1 font-bold">Reward: {bounty.reward} gp</p>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    disabled={claimed}
+                                    onClick={() => claimBounty(bounty)}
+                                    className={claimed ? '' : 'bg-green-600 hover:bg-green-700 shrink-0'}
+                                    variant={claimed ? 'outline' : 'default'}
+                                  >
+                                    {claimed ? <><Check className="h-3 w-3 mr-1" />Claimed</> : 'Collect'}
+                                  </Button>
+                                </CardContent>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </CardContent>

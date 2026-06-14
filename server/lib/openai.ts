@@ -655,6 +655,7 @@ Format the response as a valid JSON object without explanation.
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
       temperature: 0.7,
+      max_tokens: 16000,
     });
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
