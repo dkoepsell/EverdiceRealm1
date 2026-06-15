@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Sparkles, Sword, Shield, Heart, MapPin, Scroll, Moon, BookOpen, Compass, Users, Search, Footprints, Flame, Skull, Crown, Gem, TreePine, Mountain, Castle, Eye, Volume2, Square, Loader2 } from "lucide-react";
+import { Sparkles, Sword, Shield, Heart, MapPin, Scroll, Moon, BookOpen, Compass, Users, Search, Footprints, Flame, Skull, Crown, Gem, TreePine, Mountain, Castle, Eye } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { useAudio } from "@/hooks/use-audio";
 
 interface StoryLoadingScreenProps {
   previousNarrative?: string;
@@ -146,9 +145,6 @@ export function StoryLoadingScreen({
   const [elapsed, setElapsed] = useState(0);
   const startTime = useRef(Date.now());
 
-  const { narrate, stopNarration, narration, autoNarrate } = useAudio();
-  const narratedRef = useRef<string>("");
-
   const flavors = inCombat ? COMBAT_FLAVOR_TEXTS : FLAVOR_TEXTS;
 
   const sceneContext = useMemo(
@@ -189,14 +185,6 @@ export function StoryLoadingScreen({
   const showStream = phase === 'deepen' && streamedText;
   const showReveal = (phase === 'reveal' || (phase === 'deepen' && !streamedText));
 
-  // Auto-narrate the revealed scene once (per distinct text) when the user has it enabled.
-  useEffect(() => {
-    if (showReveal && revealText && autoNarrate && narratedRef.current !== revealText) {
-      narratedRef.current = revealText;
-      narrate(revealText);
-    }
-  }, [showReveal, revealText, autoNarrate, narrate]);
-
   // Only auto-continue when there's no streamed text to read (pure loading spinner state).
   // When streaming text is visible, the player must press Continue manually at their own pace.
   useEffect(() => {
@@ -232,19 +220,6 @@ export function StoryLoadingScreen({
             <p className="whitespace-pre-line text-lg leading-relaxed text-slate-100 font-medium" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>
               {revealText}
             </p>
-            <button
-              onClick={() => (narration === "idle" ? narrate(revealText) : stopNarration())}
-              className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-200/90 bg-amber-900/30 border border-amber-600/30 rounded-lg hover:bg-amber-900/50 transition-colors"
-              aria-label={narration === "idle" ? "Listen to narration" : "Stop narration"}
-            >
-              {narration === "loading" ? (
-                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Preparing…</>
-              ) : narration === "playing" ? (
-                <><Square className="h-3.5 w-3.5" /> Stop</>
-              ) : (
-                <><Volume2 className="h-3.5 w-3.5" /> Listen</>
-              )}
-            </button>
             <div className="mt-4 flex items-center gap-3 px-3 py-2.5 bg-amber-900/20 border border-amber-600/20 rounded-lg animate-in fade-in duration-700" style={{ animationDelay: '600ms', animationFillMode: 'both' }}>
               <div className="flex gap-1">
                 <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '0ms' }} />

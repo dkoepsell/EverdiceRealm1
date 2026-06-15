@@ -25,6 +25,10 @@ export interface AudioState {
 
 const isBrowser = typeof window !== "undefined";
 
+// A zero-length silent WAV. Playing this during a user gesture "unlocks" the voice
+// element so later programmatic play() (after the async TTS fetch) is permitted.
+const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+
 function clampVol(v: number): number {
   return Math.max(0, Math.min(1, v));
 }
@@ -39,6 +43,7 @@ class AudioEngine {
   // Voice narration plays through a plain HTMLAudioElement (progressive playback,
   // simple volume control) rather than the Web Audio graph.
   private voiceEl: HTMLAudioElement | null = null;
+  private voicePrimed = false;
 
   /** Create the context + gain graph. No-op if already created or unavailable. */
   private init() {
@@ -74,6 +79,7 @@ class AudioEngine {
         /* ignore — will retry on next gesture/playback */
       }
     }
+    this.primeVoice();
   }
 
   setState(partial: Partial<AudioState>) {
@@ -120,6 +126,29 @@ class AudioEngine {
       this.voiceEl.preload = "auto";
     }
     return this.voiceEl;
+  }
+
+  /**
+   * Play a silent clip during a user gesture so the browser grants the voice
+   * element playback permission. Without this, programmatic play() after the
+   * async TTS fetch (or from auto-narrate) is blocked by autoplay policy.
+   */
+  primeVoice() {
+    const el = this.ensureVoiceEl();
+    if (!el || this.voicePrimed) return;
+    this.voicePrimed = true;
+    try {
+      el.src = SILENT_WAV;
+      const p = el.play();
+      if (p && typeof p.then === "function") {
+        p.then(() => {
+          el.pause();
+          el.currentTime = 0;
+        }).catch(() => {});
+      }
+    } catch {
+      /* ignore — playback will be retried on the real narration */
+    }
   }
 
   /** Play narration audio from a URL through the voice channel. */

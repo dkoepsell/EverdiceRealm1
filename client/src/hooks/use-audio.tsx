@@ -112,6 +112,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const narrate = useCallback(async (text: string) => {
     const trimmed = (text || "").trim();
     if (!trimmed) return;
+    // Prime within the calling gesture so playback after the async fetch is allowed.
+    audioEngine.primeVoice();
     const token = ++narrateToken.current;
     setNarration("loading");
     try {

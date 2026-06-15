@@ -8,6 +8,7 @@ import { DiceType, DiceRoll, DiceRollResult, rollDice, clientRollDice, parseAndR
 import { getSkillModifier, parseDCFromText, calculateSuccessProbability, getLikelihoodDescription } from "@/lib/skills";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useAudio } from "@/hooks/use-audio";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +31,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map as MapIcon, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Swords, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard, Coffee, Star, Camera, Check, Crown, Trophy, Gift } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map as MapIcon, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Swords, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard, Coffee, Star, Camera, Check, Crown, Trophy, Gift, Volume2, Square } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -376,7 +377,20 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [generatingMonsterImage, setGeneratingMonsterImage] = useState<string | null>(null);
   const [isDownloadingTrace, setIsDownloadingTrace] = useState(false);
   const [activeTab, setActiveTab] = useState("narrative");
-  
+
+  // Voice narration of the committed scene narrative (the text the player reads).
+  const { narrate: narrateScene, stopNarration, narration, autoNarrate } = useAudio();
+  const narratedNarrativeRef = useRef<string>("");
+
+  // Auto-narrate the scene once (per distinct text) when the player enables it.
+  useEffect(() => {
+    const text = currentSession?.narrative;
+    if (text && autoNarrate && narratedNarrativeRef.current !== text) {
+      narratedNarrativeRef.current = text;
+      narrateScene(text);
+    }
+  }, [currentSession?.narrative, autoNarrate, narrateScene]);
+
   // Chat state for cooperative play
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState("");
@@ -3505,9 +3519,24 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             }}
                           />
                         ) : currentSession.narrative ? (
-                          <p className="whitespace-pre-line break-words text-lg sm:text-xl leading-relaxed text-slate-100 font-medium overflow-hidden animate-in fade-in duration-500" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)', wordBreak: 'break-word' }}>
-                            {currentSession.narrative}
-                          </p>
+                          <div className="animate-in fade-in duration-500">
+                            <p className="whitespace-pre-line break-words text-lg sm:text-xl leading-relaxed text-slate-100 font-medium overflow-hidden" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)', wordBreak: 'break-word' }}>
+                              {currentSession.narrative}
+                            </p>
+                            <button
+                              onClick={() => (narration === "idle" ? narrateScene(currentSession.narrative) : stopNarration())}
+                              className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-200/90 bg-amber-900/30 border border-amber-600/30 rounded-lg hover:bg-amber-900/50 transition-colors"
+                              aria-label={narration === "idle" ? "Listen to narration" : "Stop narration"}
+                            >
+                              {narration === "loading" ? (
+                                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Preparing…</>
+                              ) : narration === "playing" ? (
+                                <><Square className="h-3.5 w-3.5" /> Stop</>
+                              ) : (
+                                <><Volume2 className="h-3.5 w-3.5" /> Listen</>
+                              )}
+                            </button>
+                          </div>
                         ) : (
                           <div className="flex flex-col items-center justify-center py-8 animate-pulse">
                             <Sparkles className="h-8 w-8 text-amber-400 mb-3" />
