@@ -5117,6 +5117,7 @@ function DMWorkflowAndGuidance() {
 function CampaignBuilderTab() {
   const { toast } = useToast();
   const [generatedCampaign, setGeneratedCampaign] = useState<any>(null);
+  const [genStage, setGenStage] = useState<string>('');
   const [campaignType, setCampaignType] = useState('');
   const [campaignLevel, setCampaignLevel] = useState('');
   const [campaignLength, setCampaignLength] = useState('');
@@ -5157,11 +5158,12 @@ function CampaignBuilderTab() {
 
   const generateCampaign = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/campaigns/generate-complete', {
+      setGenStage('Starting…');
+      // Kick off an async generation job and poll for progress, so a multi-minute
+      // generation doesn't hold one request open (which timed out at the proxy).
+      const startResp = await fetch('/api/campaigns/generate-complete', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           type: campaignType,
@@ -5169,17 +5171,30 @@ function CampaignBuilderTab() {
           length: campaignLength,
           theme: campaignTheme,
           customPrompt: customPrompt || undefined,
+          async: true,
         }),
       });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to generate campaign');
+      if (!startResp.ok) {
+        const error = await startResp.json().catch(() => ({}));
+        throw new Error(error.message || 'Failed to start generation');
       }
-      
-      return response.json();
+      const { jobId } = await startResp.json();
+      if (!jobId) throw new Error('No job id returned');
+
+      // Poll up to ~10 minutes (200 * 3s).
+      for (let i = 0; i < 200; i++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const statusResp = await fetch(`/api/campaigns/generation-status/${jobId}`, { credentials: 'include' });
+        if (!statusResp.ok) continue;
+        const job = await statusResp.json();
+        if (job.stage) setGenStage(job.stage);
+        if (job.status === 'done') return job.result;
+        if (job.status === 'error') throw new Error(job.error?.message || 'Generation failed');
+      }
+      throw new Error('Generation timed out. Please try again.');
     },
     onSuccess: (data) => {
+      setGenStage('');
       setGeneratedCampaign(data);
       toast({
         title: "Campaign Generated Successfully!",
@@ -5187,6 +5202,7 @@ function CampaignBuilderTab() {
       });
     },
     onError: (error: Error) => {
+      setGenStage('');
       toast({
         title: "Generation Failed",
         description: error.message || "Failed to generate campaign. Please try again.",
@@ -5862,7 +5878,7 @@ function CampaignBuilderTab() {
           {generateCampaign.isPending ? (
             <>
               <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-              Generating Campaign...
+              {genStage || 'Generating Campaign…'}
             </>
           ) : (
             <>

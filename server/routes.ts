@@ -15606,12 +15606,45 @@ Create a specific creature (pick one of the reskins or create a thematic variant
   });
 
   // Complete Campaign Generation endpoint - generates CAML 2.0 format with retry
+  // In-memory job store for async campaign generation. Single PM2 process, jobs are
+  // short-lived and cleaned up after completion. Lets the client poll for progress
+  // instead of holding a multi-minute request open (which 504'd at the proxy).
+  const campaignGenJobs = new Map<string, any>();
+
+  app.get("/api/campaigns/generation-status/:jobId", isAuthenticated, (req: any, res) => {
+    const job = campaignGenJobs.get(req.params.jobId);
+    if (!job) return res.status(404).json({ status: 'not_found' });
+    if (job.status === 'done' || job.status === 'error') {
+      setTimeout(() => campaignGenJobs.delete(req.params.jobId), 60000);
+    }
+    res.json(job);
+  });
+
   app.post("/api/campaigns/generate-complete", isAuthenticated, async (req: any, res) => {
+    // Async mode: respond immediately with a jobId and store the outcome for polling.
+    // Sync mode (no async flag): behave exactly as before, writing to res.
+    const wantAsync = req.body?.async === true;
+    const jobId = wantAsync ? randomUUID() : null;
+    if (wantAsync && jobId) {
+      campaignGenJobs.set(jobId, { status: 'running', stage: 'Starting…', startedAt: Date.now() });
+      res.json({ jobId });
+    }
+    const setStage = (stage: string) => {
+      if (wantAsync && jobId) { const j = campaignGenJobs.get(jobId); if (j) j.stage = stage; }
+    };
+    const finish = (payload: any) => {
+      if (wantAsync && jobId) campaignGenJobs.set(jobId, { status: 'done', result: payload, finishedAt: Date.now() });
+      else res.json(payload);
+    };
+    const fail = (status: number, body: any) => {
+      if (wantAsync && jobId) campaignGenJobs.set(jobId, { status: 'error', statusCode: status, error: body, finishedAt: Date.now() });
+      else res.status(status).json(body);
+    };
     try {
       const { type, level, length, theme, customPrompt } = req.body;
 
       if (!type || !level || !length || !theme) {
-        return res.status(400).json({ message: "Missing required campaign parameters" });
+        return fail(400, { message: "Missing required campaign parameters" });
       }
 
       const adventureId = `adventure.${theme.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
@@ -16027,6 +16060,7 @@ ${customPrompt ? `THEME NOTES: ${customPrompt}` : ''}
 Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITECTURE — a living world simulator where every action cascades, factions compete, meters transform the environment, and the climax is assembled from the world state. NOT a linear module.`;
 
         const { client: aiClient, model: aiModel } = await getAIClient(req.user?.id);
+        setStage(attempt === 0 ? 'Generating your campaign… (this takes a couple of minutes)' : 'Refining the campaign…');
         // Bound each attempt: a full campaign gen is slow (~2-4 min); without a cap a
         // stalled provider call hangs until nginx 504s at its proxy timeout. On
         // timeout/error we fall through to a retry (or a clean error) instead of hanging.
@@ -16411,7 +16445,7 @@ Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITE
           // Cover art used to be awaited here (~15-30s of DALL-E + upload), but the DM
           // toolkit doesn't display it — so it was pure latency (and cost) on the
           // critical path. Dropped. (The CAML route generates covers separately on demand.)
-          return res.json({
+          return finish({
             ...legacyFormat,
             caml2: generatedContent,
             coverArtUrl: '',
@@ -16444,15 +16478,15 @@ Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITE
       }
       
       // All retries exhausted
-      return res.status(422).json({
+      return fail(422, {
         success: false,
         message: "Failed to generate valid CAML 2.0 after multiple attempts",
         errors: lastError.split('; ')
       });
-      
+
     } catch (error) {
       console.error("Failed to generate complete campaign:", error);
-      res.status(500).json({ 
+      fail(500, {
         message: "Failed to generate campaign",
         error: error instanceof Error ? error.message : "Unknown error"
       });
