@@ -5,6 +5,8 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
+import { AudioProvider } from "@/hooks/use-audio";
+import AudioEventBridge from "@/components/audio/AudioEventBridge";
 import { ProtectedRoute } from "./lib/protected-route";
 import { createWSConnection } from "./lib/websocket";
 import { useBadgeNotifications } from "@/hooks/use-badge-notifications";
@@ -133,12 +135,15 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="dark">
         <TooltipProvider>
-          <AuthProvider>
-            <AuthAwareEffects />
-            <Toaster />
-            <Router />
-            <FeedbackWidget variant="floating" />
-          </AuthProvider>
+          <AudioProvider>
+            <AuthProvider>
+              <AuthAwareEffects />
+              <AudioEventBridge />
+              <Toaster />
+              <Router />
+              <FeedbackWidget variant="floating" />
+            </AuthProvider>
+          </AudioProvider>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>

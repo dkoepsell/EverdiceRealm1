@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import AudioControls from "@/components/audio/AudioControls";
 import { useAuth } from "@/hooks/use-auth";
 import { getQueryFn } from "@/lib/queryClient";
 import {
@@ -226,8 +227,11 @@ export default function Navbar() {
           </nav>
           
           <div className="flex items-center space-x-3">
-            <button 
-              className="lg:hidden text-white p-2 hover:bg-white/10 rounded-lg transition-colors" 
+            <span className="text-white">
+              <AudioControls />
+            </span>
+            <button
+              className="lg:hidden text-white p-2 hover:bg-white/10 rounded-lg transition-colors"
               onClick={toggleMobileMenu}
               aria-label="Toggle mobile menu"
             >

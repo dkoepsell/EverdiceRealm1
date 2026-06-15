@@ -98,6 +98,21 @@ export function createWSConnection(force = false) {
           window.dispatchEvent(new CustomEvent('story_advanced', {
             detail: data.payload
           }));
+        } else if (data.type === 'combat_started') {
+          // Dispatch event for combat start (audio / UI cues)
+          window.dispatchEvent(new CustomEvent('combat_started', {
+            detail: data.payload
+          }));
+        } else if (data.type === 'combat_action') {
+          // Dispatch event for resolved combat actions (audio / UI cues)
+          window.dispatchEvent(new CustomEvent('combat_action', {
+            detail: data.payload
+          }));
+        } else if (data.type === 'initiative_rolled') {
+          // Dispatch event for initiative rolls (audio / UI cues)
+          window.dispatchEvent(new CustomEvent('initiative_rolled', {
+            detail: data.payload
+          }));
         } else if (data.type === 'badge_unlocked') {
           // Dispatch event for badge unlock notifications
           window.dispatchEvent(new CustomEvent('badge_unlocked', {
