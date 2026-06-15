@@ -27,22 +27,21 @@ export async function generateCharacterPortrait(characterDescription: {
     console.log(`Generating character portrait with prompt: ${prompt}`);
     
     const response: ImagesResponse = await openai.images.generate({
-      model: "dall-e-3", // the newest OpenAI image model
+      model: "gpt-image-1", // current OpenAI image model (dall-e-3 params like `style` are rejected)
       prompt: prompt,
       n: 1,
       size: "1024x1024",
-      quality: "standard",
-      style: "vivid",
+      quality: "medium",
     });
 
-    const imageData = response.data?.[0];
-    if (!imageData || !imageData.url) {
+    // gpt-image-1 returns base64, not a URL.
+    const b64 = response.data?.[0]?.b64_json;
+    if (!b64) {
       throw new Error("No image data returned from OpenAI");
     }
-    
-    // Download the image and upload to object storage for persistence
-    const persistentUrl = await saveImageToObjectStorage(imageData.url, `portraits/${randomUUID()}.png`);
-    
+
+    const persistentUrl = await saveImageBufferToObjectStorage(Buffer.from(b64, "base64"), `portraits/${randomUUID()}.png`);
+
     return { url: persistentUrl };
   } catch (error: any) {
     console.error("Error generating character portrait:", error.message);
@@ -50,46 +49,19 @@ export async function generateCharacterPortrait(characterDescription: {
   }
 }
 
-// Download image from URL and upload to object storage
-async function saveImageToObjectStorage(imageUrl: string, objectPath: string): Promise<string> {
-  try {
-    // Download the image from OpenAI
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to download image: ${response.statusText}`);
-    }
-    
-    const imageBuffer = Buffer.from(await response.arrayBuffer());
-    
-    // Get the bucket ID directly from environment variable
-    const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-    
-    if (!bucketId) {
-      console.warn("No DEFAULT_OBJECT_STORAGE_BUCKET_ID configured, using temporary URL");
-      return imageUrl; // Fallback to temporary URL if storage not configured
-    }
-    
-    // Upload to object storage using the bucket ID
-    const bucket = objectStorageClient.bucket(bucketId);
-    const fullObjectPath = `public/${objectPath}`;
-    const file = bucket.file(fullObjectPath);
-    
-    await file.save(imageBuffer, {
-      contentType: "image/png",
-      metadata: {
-        cacheControl: "public, max-age=31536000", // Cache for 1 year
-      },
-    });
-    
-    // Return the path that can be served via our /objects route
-    console.log(`Portrait saved to object storage: /objects/${objectPath}`);
-    return `/objects/${objectPath}`;
-  } catch (error: any) {
-    console.error("Error saving image to object storage:", error.message);
-    // Fallback to temporary URL if upload fails
-    console.warn("Falling back to temporary DALL-E URL");
-    return imageUrl;
-  }
+// Persist a generated image buffer to object storage, served via /objects.
+async function saveImageBufferToObjectStorage(imageBuffer: Buffer, objectPath: string): Promise<string> {
+  const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID || "local";
+  const bucket = objectStorageClient.bucket(bucketId);
+  const file = bucket.file(`public/${objectPath}`);
+  await file.save(imageBuffer, {
+    contentType: "image/png",
+    metadata: {
+      cacheControl: "public, max-age=31536000", // Cache for 1 year
+    },
+  });
+  console.log(`Portrait saved to object storage: /objects/${objectPath}`);
+  return `/objects/${objectPath}`;
 }
 
 // Helper function to create a detailed prompt for DALL-E with diverse representation
@@ -169,21 +141,20 @@ export async function generateMonsterPortrait(monsterDescription: {
     console.log(`Generating monster portrait with prompt: ${prompt}`);
     
     const response = await openai.images.generate({
-      model: "dall-e-3",
+      model: "gpt-image-1",
       prompt: prompt,
       n: 1,
       size: "1024x1024",
-      quality: "standard",
-      style: "vivid",
+      quality: "medium",
     });
 
-    const imageData = response.data?.[0];
-    if (!imageData || !imageData.url) {
+    const b64 = response.data?.[0]?.b64_json;
+    if (!b64) {
       throw new Error("No image data returned from OpenAI");
     }
-    
-    const persistentUrl = await saveImageToObjectStorage(imageData.url, `monsters/${randomUUID()}.png`);
-    
+
+    const persistentUrl = await saveImageBufferToObjectStorage(Buffer.from(b64, "base64"), `monsters/${randomUUID()}.png`);
+
     return { url: persistentUrl };
   } catch (error: any) {
     console.error("Error generating monster portrait:", error.message);
