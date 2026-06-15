@@ -15683,9 +15683,12 @@ Keep it focused and playable. Output ONLY the JSON object.`;
           setStage(attempt === 0 ? 'Generating your campaign… (~1–2 minutes)' : 'Refining the campaign…');
           let qCompletion: any;
           try {
+            // Own client — the rich path's aiClient/aiModel consts are declared later in
+            // this same block, so referencing them here would hit the temporal dead zone.
+            const { client: qClient, model: qModel } = await getAIClient(req.user?.id);
             qCompletion = await Promise.race([
-              aiClient.chat.completions.create({
-                model: aiModel,
+              qClient.chat.completions.create({
+                model: qModel,
                 messages: [
                   { role: "system", content: QUICK_SYSTEM_PROMPT },
                   { role: "user", content: quickUserPrompt },
