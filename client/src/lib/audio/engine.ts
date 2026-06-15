@@ -19,17 +19,25 @@ export interface AudioState {
   master: number;
   music: number;
   sfx: number;
+  voice: number;
   muted: boolean;
 }
 
 const isBrowser = typeof window !== "undefined";
+
+function clampVol(v: number): number {
+  return Math.max(0, Math.min(1, v));
+}
 
 class AudioEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private sfxGain: GainNode | null = null;
   private musicGain: GainNode | null = null;
-  private state: AudioState = { master: 0.8, music: 0.5, sfx: 0.8, muted: false };
+  private state: AudioState = { master: 0.8, music: 0.5, sfx: 0.8, voice: 0.9, muted: false };
+  // Voice narration plays through a plain HTMLAudioElement (progressive playback,
+  // simple volume control) rather than the Web Audio graph.
+  private voiceEl: HTMLAudioElement | null = null;
 
   /** Create the context + gain graph. No-op if already created or unavailable. */
   private init() {
@@ -95,7 +103,44 @@ class AudioEngine {
     }
   }
 
+  private ensureVoiceEl(): HTMLAudioElement | null {
+    if (!isBrowser) return null;
+    if (!this.voiceEl) {
+      this.voiceEl = new Audio();
+      this.voiceEl.preload = "auto";
+    }
+    return this.voiceEl;
+  }
+
+  /** Play narration audio from a URL through the voice channel. */
+  playVoice(url: string, handlers?: { onEnded?: () => void; onError?: () => void }) {
+    const el = this.ensureVoiceEl();
+    if (!el) return;
+    el.onended = null;
+    el.onerror = null;
+    el.pause();
+    el.src = url;
+    el.volume = this.state.muted ? 0 : clampVol(this.state.master * this.state.voice);
+    el.onended = () => handlers?.onEnded?.();
+    el.onerror = () => handlers?.onError?.();
+    el.play().catch(() => handlers?.onError?.());
+  }
+
+  stopVoice() {
+    if (!this.voiceEl) return;
+    this.voiceEl.pause();
+    try {
+      this.voiceEl.currentTime = 0;
+    } catch {
+      /* ignore */
+    }
+  }
+
   private applyState() {
+    // Voice volume rides on a plain media element, independent of the Web Audio graph.
+    if (this.voiceEl) {
+      this.voiceEl.volume = this.state.muted ? 0 : clampVol(this.state.master * this.state.voice);
+    }
     if (!this.ctx || !this.masterGain || !this.sfxGain || !this.musicGain) return;
     const now = this.ctx.currentTime;
     const master = this.state.muted ? 0 : this.state.master;

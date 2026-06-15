@@ -122,7 +122,7 @@ import { getAIClient, getFastAIClient, getAppOpenAI, getAppAI } from "./lib/aiPr
 import { generateCliffhangerHook } from "./lib/cliffhanger";
 import { generateReturnGreeting, getStreakReward } from "./lib/hearthGreeting";
 import { objectStorageClient } from "./replit_integrations/object_storage";
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 
 // Lazy AI proxy — resolves at first use so the module loads without crashing when
 // OPENAI_API_KEY is absent. Prefers Anthropic if configured. Chat-completion routes that
@@ -25654,6 +25654,52 @@ Snapshots must include at least 2 forked endings.`;
     } catch (error) {
       console.error("Failed to generate CAML cover art:", error);
       res.json({ coverArtUrl: '' });
+    }
+  });
+
+  // Text-to-speech narration (OpenAI). Caches synthesized audio by content hash so
+  // identical narration is never regenerated, and returns a playable object URL.
+  const TTS_VOICES = new Set(["alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"]);
+  app.post("/api/tts", isAuthenticated, async (req, res) => {
+    try {
+      const { text, voice } = req.body || {};
+      if (!text || typeof text !== "string" || !text.trim()) {
+        return res.status(400).json({ message: "text is required" });
+      }
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(503).json({ message: "Voice narration is not configured" });
+      }
+
+      const chosenVoice = typeof voice === "string" && TTS_VOICES.has(voice) ? voice : "onyx";
+      const input = text.trim().slice(0, 4000); // OpenAI TTS input cap is ~4096 chars
+
+      const hash = createHash("sha1").update(`${chosenVoice}:${input}`).digest("hex");
+      const url = `/objects/narration/${hash}.mp3`;
+      const bucket = objectStorageClient.bucket(process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID || "local");
+      const file = bucket.file(`public/narration/${hash}.mp3`);
+
+      // Reuse cached audio if this exact narration was already synthesized.
+      let cached = false;
+      try { [cached] = await file.exists(); } catch { cached = false; }
+      if (cached) return res.json({ url, cached: true });
+
+      const appOpenAI = getAppOpenAI();
+      const speech = await appOpenAI.audio.speech.create({
+        model: "gpt-4o-mini-tts",
+        voice: chosenVoice as any,
+        input,
+        response_format: "mp3",
+      });
+      const audioBuffer = Buffer.from(await speech.arrayBuffer());
+      await file.save(audioBuffer, {
+        contentType: "audio/mpeg",
+        metadata: { cacheControl: "public, max-age=31536000" },
+      });
+
+      res.json({ url, cached: false });
+    } catch (error: any) {
+      console.error("TTS generation failed:", error?.message || error);
+      res.status(500).json({ message: "Failed to generate narration" });
     }
   });
   

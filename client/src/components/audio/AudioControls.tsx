@@ -7,7 +7,8 @@ import { useAudio } from "@/hooks/use-audio";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
-import { Volume2, VolumeX, Music2, Swords } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Volume2, VolumeX, Music2, Swords, Mic, Square } from "lucide-react";
 import { ReactNode } from "react";
 
 function VolumeRow({
@@ -95,6 +96,28 @@ export default function AudioControls() {
           onChange={audio.setSfx}
           onCommit={() => audio.playSfx("dice")}
         />
+        <VolumeRow
+          icon={<Mic className="h-4 w-4" />}
+          label="Voice"
+          value={audio.voice}
+          disabled={audio.muted}
+          onChange={audio.setVoice}
+        />
+
+        <div className="flex items-center justify-between border-t pt-3">
+          <label htmlFor="auto-narrate" className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Mic className="h-4 w-4" />
+            <span>Narrate story aloud</span>
+          </label>
+          <Switch id="auto-narrate" checked={audio.autoNarrate} onCheckedChange={audio.setAutoNarrate} />
+        </div>
+
+        {audio.narration !== "idle" && (
+          <Button variant="secondary" size="sm" className="w-full" onClick={audio.stopNarration}>
+            <Square className="mr-1.5 h-4 w-4" />
+            {audio.narration === "loading" ? "Cancel narration" : "Stop narration"}
+          </Button>
+        )}
       </PopoverContent>
     </Popover>
   );
