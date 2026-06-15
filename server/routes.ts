@@ -15627,7 +15627,7 @@ Create a specific creature (pick one of the reskins or create a thematic variant
         : { locations: 8, npcs: 8, processes: 6, items: 5 };
 
       // CAML 2.0 generation with retry logic
-      const maxRetries = 2;
+      const maxRetries = 1; // up to 2 attempts — each full gen is slow, so cap the worst case
       let lastError = '';
       
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -16027,16 +16027,29 @@ ${customPrompt ? `THEME NOTES: ${customPrompt}` : ''}
 Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITECTURE — a living world simulator where every action cascades, factions compete, meters transform the environment, and the climax is assembled from the world state. NOT a linear module.`;
 
         const { client: aiClient, model: aiModel } = await getAIClient(req.user?.id);
-        const completion = await aiClient.chat.completions.create({
-          model: aiModel,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
-          response_format: { type: "json_object" },
-          temperature: attempt === 0 ? 0.7 : 0.5, // Lower temp on retry
-          max_tokens: 16000
-        });
+        // Bound each attempt: a full campaign gen is slow (~2-4 min); without a cap a
+        // stalled provider call hangs until nginx 504s at its proxy timeout. On
+        // timeout/error we fall through to a retry (or a clean error) instead of hanging.
+        let completion: any;
+        try {
+          completion = await Promise.race([
+            aiClient.chat.completions.create({
+              model: aiModel,
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt }
+              ],
+              response_format: { type: "json_object" },
+              temperature: attempt === 0 ? 0.7 : 0.5, // Lower temp on retry
+              max_tokens: 16000
+            }),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error("AI generation timed out")), 280000)),
+          ]);
+        } catch (aiErr: any) {
+          lastError = `AI generation failed/timed out: ${aiErr?.message || aiErr}`;
+          console.warn(`Campaign generation: AI call failed (attempt ${attempt + 1}): ${aiErr?.message || aiErr}`);
+          continue;
+        }
 
         // Resilient parse: the AI occasionally wraps JSON in code fences or adds prose,
         // or truncates at the token limit. Salvage what we can and RETRY on failure
