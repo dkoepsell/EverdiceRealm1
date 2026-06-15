@@ -99,13 +99,15 @@ function arpeggio(ctx: AudioContext, out: AudioNode, freqs: number[], opts: { ty
 }
 
 export const SFX_SYNTHS: Record<SfxName, Synth> = {
-  // Tumbling die: a few quick filtered clacks that settle.
+  // Tumbling die: wooden clacks with a little low body so they don't sound tinny.
   dice: (ctx, out) => {
     const t = ctx.currentTime;
     for (let i = 0; i < 4; i++) {
-      noise(ctx, out, { dur: 0.04, peak: 0.22, type: "bandpass", freq: 1100 + Math.random() * 900, q: 2.5, start: t + i * 0.05 + Math.random() * 0.012 });
+      const s = t + i * 0.05 + Math.random() * 0.012;
+      noise(ctx, out, { dur: 0.045, peak: 0.28, type: "bandpass", freq: 700 + Math.random() * 700, q: 1.8, start: s });
+      tone(ctx, out, { freq: 140 + Math.random() * 60, type: "sine", peak: 0.12, attack: 0.002, decay: 0.04, start: s });
     }
-    noise(ctx, out, { dur: 0.06, peak: 0.18, type: "bandpass", freq: 850, q: 2, start: t + 0.23 });
+    noise(ctx, out, { dur: 0.07, peak: 0.22, type: "bandpass", freq: 600, q: 1.6, start: t + 0.23 });
   },
 
   // Natural 20 — bright rising chime.
@@ -116,32 +118,42 @@ export const SFX_SYNTHS: Record<SfxName, Synth> = {
     tone(ctx, out, { freq: 330, freqEnd: 110, type: "sawtooth", peak: 0.24, attack: 0.02, decay: 0.55, start: ctx.currentTime });
   },
 
-  // Weapon connects.
+  // Weapon connects — layered thwack: sharp transient + meaty smack + low thump.
   hit: (ctx, out) => {
     const t = ctx.currentTime;
-    noise(ctx, out, { dur: 0.12, peak: 0.4, type: "lowpass", freq: 1800, freqEnd: 320, start: t });
-    tone(ctx, out, { freq: 160, freqEnd: 60, type: "sine", peak: 0.4, attack: 0.004, decay: 0.18, start: t });
+    noise(ctx, out, { dur: 0.02, peak: 0.5, type: "highpass", freq: 2500, start: t }); // crack of contact
+    noise(ctx, out, { dur: 0.14, peak: 0.55, type: "lowpass", freq: 900, freqEnd: 220, start: t }); // body
+    tone(ctx, out, { freq: 200, freqEnd: 70, type: "sine", peak: 0.7, attack: 0.004, decay: 0.22, start: t }); // low thump
+    tone(ctx, out, { freq: 320, freqEnd: 120, type: "triangle", peak: 0.38, attack: 0.004, decay: 0.12, start: t }); // mid punch
   },
 
-  // Critical hit — heavier impact with a metallic ring.
+  // Critical hit — heavy boom, crunch, and a ringing metallic overtone.
   crit: (ctx, out) => {
     const t = ctx.currentTime;
-    noise(ctx, out, { dur: 0.18, peak: 0.5, type: "lowpass", freq: 2600, freqEnd: 300, start: t });
-    tone(ctx, out, { freq: 120, freqEnd: 48, type: "square", peak: 0.38, attack: 0.004, decay: 0.28, start: t });
-    tone(ctx, out, { freq: 1280, type: "triangle", peak: 0.2, attack: 0.004, decay: 0.45, start: t + 0.02 });
+    noise(ctx, out, { dur: 0.03, peak: 0.6, type: "highpass", freq: 2000, start: t });
+    noise(ctx, out, { dur: 0.26, peak: 0.6, type: "lowpass", freq: 1400, freqEnd: 180, start: t }); // crunch
+    tone(ctx, out, { freq: 180, freqEnd: 45, type: "sine", peak: 0.85, attack: 0.004, decay: 0.42, start: t }); // boom
+    tone(ctx, out, { freq: 110, freqEnd: 50, type: "square", peak: 0.4, attack: 0.004, decay: 0.3, start: t });
+    tone(ctx, out, { freq: 1318, type: "triangle", peak: 0.22, attack: 0.004, decay: 0.55, start: t + 0.02 }); // ring
+    tone(ctx, out, { freq: 1567, type: "triangle", peak: 0.15, attack: 0.004, decay: 0.5, start: t + 0.03 });
   },
 
-  // Swing and a miss — airy whoosh.
+  // Swing and a miss — fuller whoosh with a low body, not just hiss.
   miss: (ctx, out) => {
-    noise(ctx, out, { dur: 0.3, peak: 0.16, type: "bandpass", freq: 500, freqEnd: 2600, q: 0.7, start: ctx.currentTime });
+    const t = ctx.currentTime;
+    noise(ctx, out, { dur: 0.32, peak: 0.28, type: "bandpass", freq: 350, freqEnd: 2200, q: 0.6, start: t });
+    tone(ctx, out, { freq: 420, freqEnd: 170, type: "sawtooth", peak: 0.12, attack: 0.02, decay: 0.28, start: t });
   },
 
-  // Combat begins — low tense drone hit.
+  // Combat begins — cinematic stinger: deep drum hit, low brass stab stack, rising swell.
   combatStart: (ctx, out) => {
     const t = ctx.currentTime;
-    tone(ctx, out, { freq: 110, type: "sawtooth", peak: 0.32, attack: 0.02, decay: 0.7, start: t });
-    tone(ctx, out, { freq: 164.81, type: "sawtooth", peak: 0.26, attack: 0.02, decay: 0.7, start: t });
-    noise(ctx, out, { dur: 0.5, peak: 0.14, type: "lowpass", freq: 420, start: t });
+    tone(ctx, out, { freq: 150, freqEnd: 45, type: "sine", peak: 0.8, attack: 0.004, decay: 0.35, start: t }); // drum
+    noise(ctx, out, { dur: 0.2, peak: 0.3, type: "lowpass", freq: 500, start: t });
+    tone(ctx, out, { freq: 55, type: "sawtooth", peak: 0.4, attack: 0.03, decay: 0.9, start: t }); // brass stack A1/E2/A2
+    tone(ctx, out, { freq: 82.41, type: "sawtooth", peak: 0.34, attack: 0.03, decay: 0.9, start: t });
+    tone(ctx, out, { freq: 110, type: "sawtooth", peak: 0.26, attack: 0.03, decay: 0.9, start: t });
+    tone(ctx, out, { freq: 220, freqEnd: 440, type: "triangle", peak: 0.18, attack: 0.5, decay: 0.5, start: t + 0.1 }); // tense rise
   },
 
   // Encounter won.

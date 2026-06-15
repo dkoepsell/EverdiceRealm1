@@ -34,6 +34,7 @@ class AudioEngine {
   private masterGain: GainNode | null = null;
   private sfxGain: GainNode | null = null;
   private musicGain: GainNode | null = null;
+  private compressor: DynamicsCompressorNode | null = null;
   private state: AudioState = { master: 0.8, music: 0.5, sfx: 0.8, voice: 0.9, muted: false };
   // Voice narration plays through a plain HTMLAudioElement (progressive playback,
   // simple volume control) rather than the Web Audio graph.
@@ -48,9 +49,18 @@ class AudioEngine {
     this.masterGain = this.ctx.createGain();
     this.sfxGain = this.ctx.createGain();
     this.musicGain = this.ctx.createGain();
+    // Master-bus compressor: glues layered impacts together and adds perceived
+    // punch/loudness while preventing clipping when several SFX overlap.
+    this.compressor = this.ctx.createDynamicsCompressor();
+    this.compressor.threshold.value = -18;
+    this.compressor.knee.value = 24;
+    this.compressor.ratio.value = 3;
+    this.compressor.attack.value = 0.003;
+    this.compressor.release.value = 0.25;
     this.sfxGain.connect(this.masterGain);
     this.musicGain.connect(this.masterGain);
-    this.masterGain.connect(this.ctx.destination);
+    this.masterGain.connect(this.compressor);
+    this.compressor.connect(this.ctx.destination);
     this.applyState();
   }
 
