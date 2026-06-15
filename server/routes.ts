@@ -25623,28 +25623,37 @@ Snapshots must include at least 2 forked endings.`;
         });
       }
       
-      const adventureTitle = generatedAdventure.meta?.title || title || 'Adventure';
-      const adventureSummary = generatedAdventure.meta?.summary || generatedAdventure.doctrine?.campaign_question || '';
-      const adventureTheme = theme || 'fantasy exploration';
-
-      let coverArtUrl = '';
-      try {
-        coverArtUrl = await generateCAMLCoverArt(adventureTitle, adventureSummary, adventureTheme);
-      } catch (coverErr) {
-        console.warn("Cover art generation failed (non-blocking):", coverErr);
-      }
-
+      // Cover art (DALL-E + GCS upload) used to be awaited here, adding ~15-30s to every
+      // request. It is now generated separately via POST /api/caml/cover-art so the adventure
+      // returns immediately; the client requests the cover and slots it in when ready.
       res.json({
         success: true,
         adventure: generatedAdventure,
         isCAML2: true,
-        coverArtUrl,
+        coverArtUrl: '',
         yaml: exportToYAML(generatedAdventure),
         json: exportToJSON(generatedAdventure)
       });
     } catch (error) {
       console.error("Failed to generate CAML 2.0 adventure:", error);
       res.status(500).json({ message: "Failed to generate adventure" });
+    }
+  });
+
+  // Cover art for a generated CAML adventure — split out from /api/caml/generate so the
+  // adventure can be returned without waiting on the slow DALL-E call + GCS upload.
+  app.post("/api/caml/cover-art", isAuthenticated, async (req, res) => {
+    try {
+      const { title, summary, theme } = req.body;
+      const coverArtUrl = await generateCAMLCoverArt(
+        title || 'Adventure',
+        summary || '',
+        theme || 'fantasy exploration'
+      );
+      res.json({ coverArtUrl });
+    } catch (error) {
+      console.error("Failed to generate CAML cover art:", error);
+      res.json({ coverArtUrl: '' });
     }
   });
   

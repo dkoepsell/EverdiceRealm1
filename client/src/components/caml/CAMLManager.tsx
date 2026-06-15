@@ -138,6 +138,26 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
         title: 'Adventure Generated',
         description: `Created "${data.adventure?.title || 'New Adventure'}"`
       });
+      // Cover art is generated asynchronously so the adventure shows immediately.
+      // When it returns, slot it into the matching adventure (guard against races
+      // if the user kicks off another generation before this resolves).
+      const meta = data.adventure?.meta;
+      apiRequest('POST', '/api/caml/cover-art', {
+        title: meta?.title || generateTitle,
+        summary: meta?.summary || data.adventure?.doctrine?.campaign_question || '',
+        theme: generateTheme,
+      })
+        .then((r) => r.json())
+        .then((cover) => {
+          if (cover?.coverArtUrl) {
+            setGeneratedAdventure((prev: any) =>
+              prev && prev.adventure?.meta?.id === data.adventure?.meta?.id
+                ? { ...prev, coverArtUrl: cover.coverArtUrl }
+                : prev
+            );
+          }
+        })
+        .catch(() => {});
     },
     onError: (error: any) => {
       toast({
@@ -524,12 +544,17 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
               <Card className="bg-muted/50">
                 <CardHeader>
                   <div className="flex gap-4">
-                    {generatedAdventure.coverArtUrl && (
-                      <img 
-                        src={generatedAdventure.coverArtUrl} 
+                    {generatedAdventure.coverArtUrl ? (
+                      <img
+                        src={generatedAdventure.coverArtUrl}
                         alt={`Cover art for ${generatedAdventure.adventure?.meta?.title || 'adventure'}`}
                         className="w-24 h-24 rounded-lg object-cover shadow-md shrink-0"
                       />
+                    ) : (
+                      <div className="w-24 h-24 rounded-lg bg-muted flex flex-col items-center justify-center text-center shadow-md shrink-0 gap-1">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        <span className="text-[10px] text-muted-foreground leading-tight px-1">Cover art…</span>
+                      </div>
                     )}
                     <div>
                       <CardTitle className="text-lg flex items-center gap-2">
