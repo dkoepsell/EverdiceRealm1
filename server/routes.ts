@@ -18924,7 +18924,15 @@ Different stake states produce DIFFERENT endings. Reflect accumulated consequenc
         }
       }
       
-      const finalChapterScenes = isOnFinalChapter ? ((currentSession.storyState as any)?.turnsInChapter || 0) : 0;
+      // Scenes spent in the final chapter = turns since the last chapter gate, NOT
+      // cumulative turnsInChapter (which would slam the finale to "end now" the instant
+      // a campaign reaches the final chapter with a high turn count).
+      const lastGateTurnsForFinale = [...(((campaign as any).narrativeLog) || [])].reverse()
+        .find((e: any) => e?.type === 'chapter_gate' && typeof e.turnsAtGate === 'number')?.turnsAtGate;
+      const turnsNowForFinaleScenes = (currentSession.storyState as any)?.turnsInChapter || 0;
+      const finalChapterScenes = isOnFinalChapter
+        ? (typeof lastGateTurnsForFinale === 'number' ? Math.max(0, turnsNowForFinaleScenes - lastGateTurnsForFinale) : turnsNowForFinaleScenes)
+        : 0;
       const FINALE_URGENCY_THRESHOLD = 6;
       const FINALE_FORCED_DECISION = 8;
       
@@ -23247,7 +23255,16 @@ Choices should include 4 options with at least 2 requiring dice rolls.
       const CAMPAIGN_SCENE_HARD_CAP = (totalChapters || 5) * 10;
       const FINAL_CHAPTER_AUTO_COMPLETE = 12;
       const totalCampaignScenes = allCampaignSessions.length;
-      const scenesInFinalChapter = isOnFinalChapter ? (mergedStoryState.turnsInChapter || 0) : 0;
+      // turnsInChapter is cumulative (it isn't reliably reset on advance), so the
+      // scenes spent IN the final chapter = turns since the last chapter gate fired.
+      // Using turnsInChapter directly force-completed campaigns the instant they
+      // entered the final chapter with a high turn count (see bug: 23/12 on scene 1).
+      const lastGateTurnsForFinal = [...(((campaign as any).narrativeLog) || [])].reverse()
+        .find((e: any) => e?.type === 'chapter_gate' && typeof e.turnsAtGate === 'number')?.turnsAtGate;
+      const turnsNowForFinal = mergedStoryState.turnsInChapter || 0;
+      const scenesInFinalChapter = isOnFinalChapter
+        ? (typeof lastGateTurnsForFinal === 'number' ? Math.max(0, turnsNowForFinal - lastGateTurnsForFinal) : turnsNowForFinal)
+        : 0;
       
       let forceCompletion = false;
       let forceReason = '';
