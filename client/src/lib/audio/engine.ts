@@ -14,6 +14,10 @@
  * pushes state in and triggers playback; it never touches Web Audio directly.
  */
 import { SFX_SYNTHS, SfxName } from "./sfx";
+import { buildBed, BedHandle, MoodKey } from "./ambient";
+
+const BED_TARGET_GAIN = 0.85; // bed loudness into the music bus (then scaled by music/master)
+const CROSSFADE_SECONDS = 3;
 
 export interface AudioState {
   master: number;
@@ -44,6 +48,8 @@ class AudioEngine {
   // simple volume control) rather than the Web Audio graph.
   private voiceEl: HTMLAudioElement | null = null;
   private voicePrimed = false;
+  private currentMood: MoodKey | null = null;
+  private currentBed: BedHandle | null = null;
 
   /** Create the context + gain graph. No-op if already created or unavailable. */
   private init() {
@@ -117,6 +123,42 @@ class AudioEngine {
     } catch {
       /* a single failed effect must never break gameplay */
     }
+  }
+
+  /** Crossfade the ambient music bed to a new mood (no-op if already on it). */
+  playAmbient(mood: MoodKey) {
+    this.init();
+    if (!this.ctx || !this.musicGain) return;
+    if (this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
+    if (this.currentMood === mood && this.currentBed) return;
+
+    const now = this.ctx.currentTime;
+    const old = this.currentBed;
+    if (old) {
+      old.gain.gain.cancelScheduledValues(now);
+      old.gain.gain.setValueAtTime(Math.max(old.gain.gain.value, 0.0001), now);
+      old.gain.gain.exponentialRampToValueAtTime(0.0001, now + CROSSFADE_SECONDS);
+      old.stop(now + CROSSFADE_SECONDS + 0.3);
+    }
+
+    const bed = buildBed(this.ctx, this.musicGain, mood);
+    bed.gain.gain.setValueAtTime(0.0001, now);
+    bed.gain.gain.exponentialRampToValueAtTime(BED_TARGET_GAIN, now + CROSSFADE_SECONDS);
+    this.currentBed = bed;
+    this.currentMood = mood;
+  }
+
+  /** Fade out and stop ambient music (e.g. when leaving a campaign). */
+  stopAmbient() {
+    if (!this.ctx || !this.currentBed) return;
+    const now = this.ctx.currentTime;
+    const old = this.currentBed;
+    old.gain.gain.cancelScheduledValues(now);
+    old.gain.gain.setValueAtTime(Math.max(old.gain.gain.value, 0.0001), now);
+    old.gain.gain.exponentialRampToValueAtTime(0.0001, now + 2);
+    old.stop(now + 2.3);
+    this.currentBed = null;
+    this.currentMood = null;
   }
 
   private ensureVoiceEl(): HTMLAudioElement | null {

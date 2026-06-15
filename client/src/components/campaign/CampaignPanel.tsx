@@ -379,7 +379,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [activeTab, setActiveTab] = useState("narrative");
 
   // Voice narration of the committed scene narrative (the text the player reads).
-  const { narrate: narrateScene, stopNarration, narration, autoNarrate } = useAudio();
+  const { narrate: narrateScene, stopNarration, narration, autoNarrate, playAmbient, stopAmbient } = useAudio();
   const narratedNarrativeRef = useRef<string>("");
 
   // Auto-narrate the scene once (per distinct text) when the player enables it.
@@ -751,7 +751,21 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       return null;
     }
   }, [currentSession?.storyState]);
-  
+
+  // Ambient music: crossfade the bed to match the current scene mood.
+  useEffect(() => {
+    const inCombat = parsedStoryState?.inCombat || false;
+    const sceneType = String((currentSession as any)?.sceneType || (parsedStoryState as any)?.sceneType || "");
+    let mood: "explore" | "combat" | "tension" | "calm" = "explore";
+    if (inCombat || sceneType === "Combat") mood = "combat";
+    else if (sceneType === "Social" || sceneType === "Downtime") mood = "calm";
+    else if (sceneType === "Puzzle" || sceneType === "Discovery") mood = "tension";
+    playAmbient(mood);
+  }, [parsedStoryState?.inCombat, (currentSession as any)?.sceneType, playAmbient]);
+
+  // Stop ambient music when leaving the campaign view.
+  useEffect(() => () => { stopAmbient(); }, [stopAmbient]);
+
   // Filter world locations by selected region
   const filteredWorldLocations = useMemo(() => {
     if (!worldRegionId) return worldLocations;

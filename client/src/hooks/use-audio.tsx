@@ -12,6 +12,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { audioEngine, AudioState } from "@/lib/audio/engine";
 import { SfxName } from "@/lib/audio/sfx";
+import { MoodKey } from "@/lib/audio/ambient";
 import { apiRequest } from "@/lib/queryClient";
 
 const STORAGE_KEY = "everdice:audio";
@@ -67,6 +68,8 @@ interface AudioContextValue extends AudioState {
   playSfx: (name: SfxName) => void;
   narrate: (text: string) => Promise<void>;
   stopNarration: () => void;
+  playAmbient: (mood: MoodKey) => void;
+  stopAmbient: () => void;
 }
 
 const AudioCtx = createContext<AudioContextValue | null>(null);
@@ -150,6 +153,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     playSfx: (name) => audioEngine.playSfx(name),
     narrate,
     stopNarration,
+    playAmbient: (mood) => audioEngine.playAmbient(mood),
+    stopAmbient: () => audioEngine.stopAmbient(),
   };
 
   return <AudioCtx.Provider value={value}>{children}</AudioCtx.Provider>;
