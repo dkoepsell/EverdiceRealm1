@@ -6736,7 +6736,7 @@ Return your response as a JSON object with these fields:
       const PACING_GENTLE   = _pacing === 'brisk' ? 3 : _pacing === 'relaxed' ? 8  : 5;
       const PACING_MODERATE = _pacing === 'brisk' ? 5 : _pacing === 'relaxed' ? 12 : 7;
       const PACING_URGENT   = _pacing === 'brisk' ? 7 : _pacing === 'relaxed' ? 16 : 9;
-      const PACING_HARD_CAP = _pacing === 'brisk' ? 7 : _pacing === 'relaxed' ? 20 : 10;
+      const PACING_HARD_CAP = _pacing === 'brisk' ? 9 : _pacing === 'relaxed' ? 18 : 13;
       const PACING_MIN_SCENES = _pacing === 'brisk' ? 4 : _pacing === 'relaxed' ? 7 : 5;
       
       // Remove any "What will you do?" text from the prompt if prompt exists
@@ -18807,9 +18807,10 @@ DM AUTHORING DOCTRINE (MANDATORY):
 - NPCs ARE AGENTS: Consulting costs something (time, favor, info). Repeated asking drops attitude. "Ask until solved" is BANNED.
 - PROCESSES CREATE NEW PROBLEMS: Every completed quest/ritual/combat leaves at least one new problem in its wake.
 - NPC COMPANION INTERACTIONS: If companions/allies travel with the party, they are LIVING CHARACTERS. In roughly every 2-3 scenes, have a companion speak, react, banter, offer advice, voice concerns, or notice something the player missed. Their dialogue should feel natural and personality-driven. After major choices, companions should visibly react (approval, worry, humor, disagreement).
+- A CHAPTER IS A SELF-CONTAINED QUEST: it has a clear objective (the gate), a beginning that sets it up, rising action, and a RESOLUTION where that objective is achieved. The chapter should feel like a complete part of the adventure — NOT a random string of scenes. Do not advance until the chapter's quest is actually resolved.
 - CHAPTER GATE IS YOUR PRIMARY NARRATIVE GOAL: The gate defines what this chapter is ABOUT. Every scene must build toward it.
 - Do NOT generate aimless dungeon crawling or random encounters disconnected from the chapter's purpose.
-- PACING RULE: Do NOT trigger "chapterGateMet" in the first 5 scenes of a chapter. Target 8-12 scenes per chapter (~1.5 hours of play). After scene 8, actively create moments where the gate can be met.
+- PACING RULE: Do NOT trigger "chapterGateMet" in the first 5 scenes of a chapter. Target 8-12 scenes per chapter (~1.5 hours of play). After scene 8, actively create moments where the gate can be met, and once the chapter's quest is resolved, emit "chapterGateMet" rather than letting it drag.
 - SHOW CONSEQUENCES IN THE NARRATIVE: When a player makes a decisive choice (embracing dark power, betraying an ally, sacrificing something), the narrative MUST visibly reflect the change — describe physical transformations, NPC reactions, environmental shifts, or new abilities/costs. Do NOT just silently adjust stake numbers. The player should READ about the world changing because of their decision.
 - If a stake is at CRITICAL level (0-1 or 4-5), the narrative should hint at impending catastrophe or breakthrough — make the player FEEL the pressure in the story text.
 - Actively steer toward the gate through NPC actions, environmental pressures, and choice consequences.
@@ -23178,7 +23179,10 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         // AI-signaled gate. Lowered (was 7/20/10) because the AI rarely emits
         // chapterGateMet, so the cap was the de-facto pacing and chapters dragged —
         // players were forced to advance manually via DM controls.
-        const PACING_HARD_CAP = _pacing === 'brisk' ? 4 : _pacing === 'relaxed' ? 12 : 6;
+        // Backstop only — chapters should advance when their GOAL/gate is met (~8-12
+        // scenes per the prompt), not get chopped at this cap. Keep it above the target
+        // window so goal-driven advancement is the norm, not turn-counter advancement.
+        const PACING_HARD_CAP = _pacing === 'brisk' ? 9 : _pacing === 'relaxed' ? 18 : 13;
         const PACING_MIN_SCENES = _pacing === 'brisk' ? 4 : _pacing === 'relaxed' ? 7 : 5;
 
         // Reliable per-chapter scene counter for gate decisions.
