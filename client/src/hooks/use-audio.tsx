@@ -70,6 +70,7 @@ interface AudioContextValue extends AudioState {
   stopNarration: () => void;
   playAmbient: (mood: MoodKey) => void;
   stopAmbient: () => void;
+  playCue: (name: string) => void;
 }
 
 const AudioCtx = createContext<AudioContextValue | null>(null);
@@ -155,6 +156,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     stopNarration,
     playAmbient: (mood) => audioEngine.playAmbient(mood),
     stopAmbient: () => audioEngine.stopAmbient(),
+    playCue: (name) => audioEngine.playCue(name),
   };
 
   return <AudioCtx.Provider value={value}>{children}</AudioCtx.Provider>;

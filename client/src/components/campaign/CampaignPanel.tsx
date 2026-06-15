@@ -379,7 +379,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [activeTab, setActiveTab] = useState("narrative");
 
   // Voice narration of the committed scene narrative (the text the player reads).
-  const { narrate: narrateScene, stopNarration, narration, autoNarrate, playAmbient, stopAmbient } = useAudio();
+  const { narrate: narrateScene, stopNarration, narration, autoNarrate, playAmbient, stopAmbient, playCue } = useAudio();
   const narratedNarrativeRef = useRef<string>("");
 
   // Auto-narrate the scene once (per distinct text) when the player enables it.
@@ -765,6 +765,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
   // Stop ambient music when leaving the campaign view.
   useEffect(() => () => { stopAmbient(); }, [stopAmbient]);
+
+  // "Journey's end" cinematic cue when rewards are handed out — chapter/campaign
+  // completion (the true journey's end) and boss victories.
+  useEffect(() => { if (completionRewards) playCue("reward"); }, [completionRewards, playCue]);
+  useEffect(() => { if (postCombatRewards?.isBossFight) playCue("reward"); }, [postCombatRewards, playCue]);
 
   // Filter world locations by selected region
   const filteredWorldLocations = useMemo(() => {

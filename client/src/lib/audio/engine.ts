@@ -168,6 +168,58 @@ class AudioEngine {
     this.musicToken++;
   }
 
+  /**
+   * Play a one-shot music cue (e.g. a reward/"journey's end" score) once, ducking the
+   * ambient bed underneath it and restoring the bed when the cue ends. No-op if the
+   * file (/objects/music/<name>.mp3) is absent.
+   */
+  playCue(name: string) {
+    this.init();
+    const ctx = this.ctx;
+    if (!ctx || !this.musicGain) return;
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+    const url = `/objects/music/${name}.mp3`;
+
+    fetch(url, { method: "HEAD" })
+      .then((head) => {
+        if (!head.ok || !this.ctx || !this.musicGain) return;
+        const el = new Audio();
+        el.src = url;
+        el.loop = false;
+        el.preload = "auto";
+        const cueGain = this.ctx.createGain();
+        cueGain.gain.value = 1.0;
+        const node = this.ctx.createMediaElementSource(el);
+        node.connect(cueGain);
+        cueGain.connect(this.musicGain);
+
+        // Duck the ambient bed so the cue is heard clearly.
+        const ducked = this.currentMusic;
+        const prevTarget = (ducked as any)?.target ?? BED_TARGET_GAIN;
+        if (ducked) {
+          const now = this.ctx.currentTime;
+          ducked.gain.gain.cancelScheduledValues(now);
+          ducked.gain.gain.setValueAtTime(Math.max(ducked.gain.gain.value, 0.0001), now);
+          ducked.gain.gain.exponentialRampToValueAtTime(0.12, now + 1);
+        }
+
+        const restore = () => {
+          try { el.pause(); } catch { /* */ }
+          // Only un-duck if that bed is still the active one.
+          if (ducked && this.currentMusic === ducked && this.ctx) {
+            const now = this.ctx.currentTime;
+            ducked.gain.gain.cancelScheduledValues(now);
+            ducked.gain.gain.setValueAtTime(Math.max(ducked.gain.gain.value, 0.0001), now);
+            ducked.gain.gain.exponentialRampToValueAtTime(prevTarget, now + 2.5);
+          }
+        };
+        el.addEventListener("ended", restore, { once: true });
+        el.addEventListener("error", restore, { once: true });
+        el.play().catch(() => restore());
+      })
+      .catch(() => {});
+  }
+
   private fadeOutAndStop(src: { gain: GainNode; stop: (at: number) => void }, fadeSec: number) {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
