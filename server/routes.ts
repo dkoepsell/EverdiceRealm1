@@ -15664,14 +15664,13 @@ Create a specific creature (pick one of the reskins or create a thematic variant
 
       // Lean prompt for 'quick' mode — produces a playable CAML 2.0 adventure without the
       // heavy reactive-architecture sections, so the model emits far fewer tokens (fast).
-      const QUICK_SYSTEM_PROMPT = `You generate CAML 2.0 D&D 5e adventures as a SINGLE JSON object — lean but fully playable. Required top-level keys: caml_version ("2.0"); meta {id,title,summary (2-3 vivid sentences),tags,levels:{min,max}}; doctrine {campaign_question (a genuine dilemma, not a goal), stakes:[at least 2 {id,name,value,max,drift}]}; world {entities:{characters:[...],locations:[...]},connections:[...]}; state {facts:[...]}; roles {assignments:[...]}; processes {catalog:[at least 2 encounters/events]}; transitions {changes:[...]}; snapshots:[at least 2, including 2 forked endings]. Use ORIGINAL names. Output ONLY the JSON — no markdown fences, no commentary.`;
-      const quickUserPrompt = `Create a CAML 2.0 adventure.
+      const QUICK_SYSTEM_PROMPT = `You generate a LEAN CAML 2.0 D&D 5e adventure SKELETON as a SINGLE JSON object — concise and playable, meant to be expanded later. CRITICAL: keep EVERY text field to ONE short sentence; do NOT over-elaborate — brevity keeps the output small and fast. Required top-level keys: caml_version ("2.0"); meta {id,title,summary (1-2 sentences),tags,levels:{min,max}}; doctrine {campaign_question (a one-sentence dilemma), stakes:[exactly 2 {id,name,value,max,drift}]}; world {entities:{characters:[3-5],locations:[3-5]},connections:[...]}; state {facts:[...]}; roles {assignments:[...]}; processes {catalog:[2-3 encounters/events]}; transitions {changes:[...]}; snapshots:[2 forked endings]. Use ORIGINAL names. Be brief. Output ONLY the JSON — no markdown fences, no commentary.`;
+      const quickUserPrompt = `Create a CONCISE CAML 2.0 adventure skeleton.
 - id: ${adventureId}
-- title theme: ${theme}
-- type/tone: ${type}
-- character levels: ${minLevel}-${maxLevel}
-- scope (${length}): aim for ~${contentReqs.locations} locations, ~${contentReqs.npcs} NPCs, ~${contentReqs.processes} processes.${customPrompt ? `\n- extra guidance: ${customPrompt}` : ''}
-Keep it focused and playable. Output ONLY the JSON object.`;
+- theme: ${theme}; tone/type: ${type}; character levels: ${minLevel}-${maxLevel}
+- include exactly: 4 locations, 4 NPCs, 3 processes, 2 stakes, 2 forked endings
+- ONE concise sentence per description — this is a skeleton to expand later.${customPrompt ? `\n- guidance: ${customPrompt}` : ''}
+Output ONLY the JSON object.`;
 
       // CAML 2.0 generation with retry logic
       const maxRetries = 1; // up to 2 attempts — each full gen is slow, so cap the worst case
@@ -15695,7 +15694,7 @@ Keep it focused and playable. Output ONLY the JSON object.`;
                 ],
                 response_format: { type: "json_object" },
                 temperature: attempt === 0 ? 0.8 : 0.6,
-                max_tokens: 8000,
+                max_tokens: 12000, // headroom so a concise skeleton never truncates mid-JSON
               }),
               new Promise<never>((_, reject) => setTimeout(() => reject(new Error("AI generation timed out")), 240000)),
             ]);
