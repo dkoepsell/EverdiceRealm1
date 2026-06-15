@@ -6737,7 +6737,7 @@ Return your response as a JSON object with these fields:
       const PACING_MODERATE = _pacing === 'brisk' ? 5 : _pacing === 'relaxed' ? 12 : 7;
       const PACING_URGENT   = _pacing === 'brisk' ? 7 : _pacing === 'relaxed' ? 16 : 9;
       const PACING_HARD_CAP = _pacing === 'brisk' ? 7 : _pacing === 'relaxed' ? 20 : 10;
-      const PACING_MIN_SCENES = _pacing === 'brisk' ? 2 : 3;
+      const PACING_MIN_SCENES = _pacing === 'brisk' ? 4 : _pacing === 'relaxed' ? 7 : 5;
       
       // Remove any "What will you do?" text from the prompt if prompt exists
       const cleanedPrompt = prompt ? prompt.replace(/What will you do\?/g, "").trim() : "";
@@ -7322,8 +7322,8 @@ DM AUTHORING DOCTRINE - THESE OVERRIDE ALL OTHER RULES:
    - The current chapter gate defines WHAT THIS CHAPTER IS ABOUT — every scene must build toward it
    - Your scenes should create situations, encounters, and choices that NATURALLY lead toward satisfying the gate condition
    - Do NOT wait for the player to stumble onto the gate — actively steer the narrative toward it through NPC actions, environmental pressures, and consequences of choices
-   - PACING RULE: Do NOT trigger "chapterGateMet" in the first 3 scenes of a chapter. Early scenes should establish the chapter's themes, but don't over-delay — target 6-8 scenes per chapter (~1 hour of play).
-   - When the gate condition is met (a belief changes, a truth is learned, or a commitment is made) AND the chapter has had at least 3 scenes of buildup, you MUST include "chapterGateMet" in your response
+   - PACING RULE: Do NOT trigger "chapterGateMet" in the first 5 scenes of a chapter. Let the chapter breathe — establish themes, complications, and stakes; target 8-12 scenes per chapter (~1.5 hours of play). Chapters should not feel rushed.
+   - When the gate condition is met (a belief changes, a truth is learned, or a commitment is made) AND the chapter has had at least 5 scenes of buildup, you should include "chapterGateMet" in your response
    - Include "chapterGateMet": { "gateId": chapter_number, "reason": "what truth/belief/commitment was reached" } — gateId must be a NUMBER matching the current chapter
    - NEVER generate aimless dungeon crawling or random encounters that don't connect to the chapter's purpose
    - If you're unsure how to connect the current action to the gate, have an NPC deliver urgent news, reveal a clue, or create a consequence that forces engagement with the gate theme
@@ -18670,11 +18670,11 @@ DM AUTHORING DOCTRINE (MANDATORY):
 - NPC COMPANION INTERACTIONS: If companions/allies travel with the party, they are LIVING CHARACTERS. In roughly every 2-3 scenes, have a companion speak, react, banter, offer advice, voice concerns, or notice something the player missed. Their dialogue should feel natural and personality-driven. After major choices, companions should visibly react (approval, worry, humor, disagreement).
 - CHAPTER GATE IS YOUR PRIMARY NARRATIVE GOAL: The gate defines what this chapter is ABOUT. Every scene must build toward it.
 - Do NOT generate aimless dungeon crawling or random encounters disconnected from the chapter's purpose.
-- PACING RULE: Do NOT trigger "chapterGateMet" in the first 3 scenes of a chapter. Target 6-8 scenes per chapter (~1 hour of play). After scene 5, actively create moments where the gate can be met.
+- PACING RULE: Do NOT trigger "chapterGateMet" in the first 5 scenes of a chapter. Target 8-12 scenes per chapter (~1.5 hours of play). After scene 8, actively create moments where the gate can be met.
 - SHOW CONSEQUENCES IN THE NARRATIVE: When a player makes a decisive choice (embracing dark power, betraying an ally, sacrificing something), the narrative MUST visibly reflect the change — describe physical transformations, NPC reactions, environmental shifts, or new abilities/costs. Do NOT just silently adjust stake numbers. The player should READ about the world changing because of their decision.
 - If a stake is at CRITICAL level (0-1 or 4-5), the narrative should hint at impending catastrophe or breakthrough — make the player FEEL the pressure in the story text.
 - Actively steer toward the gate through NPC actions, environmental pressures, and choice consequences.
-- When the gate condition is met AND the chapter has had at least 4 scenes of buildup, you MUST include "chapterGateMet": { "gateId": chapter_number, "reason": "what was reached" }.
+- When the gate condition is met AND the chapter has had at least 5 scenes of buildup, you should include "chapterGateMet": { "gateId": chapter_number, "reason": "what was reached" }.
 - Include "narrativeLogEntry" with: xpReason, stakeReason, foreclosedReason, choiceCost.
 `;
       
@@ -23032,7 +23032,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         // chapterGateMet, so the cap was the de-facto pacing and chapters dragged —
         // players were forced to advance manually via DM controls.
         const PACING_HARD_CAP = _pacing === 'brisk' ? 4 : _pacing === 'relaxed' ? 12 : 6;
-        const PACING_MIN_SCENES = _pacing === 'brisk' ? 2 : 3;
+        const PACING_MIN_SCENES = _pacing === 'brisk' ? 4 : _pacing === 'relaxed' ? 7 : 5;
 
         // Reliable per-chapter scene counter for gate decisions.
         // scenesInChapter2 (computed earlier from session-row timestamps) never grows

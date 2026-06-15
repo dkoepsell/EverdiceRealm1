@@ -14,13 +14,19 @@ export default function AudioEventBridge() {
   const { playSfx } = useAudio();
 
   useEffect(() => {
+    // The same roll can arrive both locally (rollDice) and via the WS broadcast;
+    // debounce so a roll never double-triggers the sound.
+    let lastDiceAt = 0;
     const onDice = (e: Event) => {
+      const now = Date.now();
+      if (now - lastDiceAt < 150) return;
+      lastDiceAt = now;
       const d = (e as CustomEvent).detail || {};
       const type = String(d.diceType ?? d.dice ?? "").toLowerCase();
       const result = Number(d.result);
       const isD20 = type.includes("20");
-      if (isD20 && result === 20) return playSfx("diceCrit");
-      if (isD20 && result === 1) return playSfx("diceFumble");
+      if (d.isCritical || (isD20 && result === 20)) return playSfx("diceCrit");
+      if (d.isFumble || (isD20 && result === 1)) return playSfx("diceFumble");
       playSfx("dice");
     };
 

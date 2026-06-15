@@ -35,12 +35,17 @@ export interface DiceRollResult {
 export const rollDice = async (diceRoll: DiceRoll): Promise<DiceRollResult> => {
   try {
     const response = await apiRequest(
-      "POST", 
+      "POST",
       "/api/dice/roll",
       diceRoll
     );
-    
-    return await response.json();
+
+    const result = await response.json();
+    // Play a dice-roll sound effect app-wide (AudioEventBridge listens for this).
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("dice_roll_result", { detail: result }));
+    }
+    return result;
   } catch (error) {
     console.error("Error rolling dice:", error);
     throw new Error("Failed to roll dice. Please try again.");
