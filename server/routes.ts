@@ -16038,7 +16038,26 @@ Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITE
           max_tokens: 16000
         });
 
-        const generatedContent = JSON.parse(completion.choices[0].message.content || '{}');
+        // Resilient parse: the AI occasionally wraps JSON in code fences or adds prose,
+        // or truncates at the token limit. Salvage what we can and RETRY on failure
+        // instead of throwing to the outer catch (which 500'd the whole request).
+        const rawContent = completion.choices[0].message.content || '';
+        let generatedContent: any = null;
+        try {
+          generatedContent = JSON.parse(rawContent);
+        } catch {
+          const s = rawContent.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+          const first = s.indexOf('{');
+          const last = s.lastIndexOf('}');
+          if (first !== -1 && last > first) {
+            try { generatedContent = JSON.parse(s.slice(first, last + 1)); } catch {}
+          }
+        }
+        if (!generatedContent) {
+          lastError = 'AI returned malformed JSON';
+          console.warn(`Campaign generation: malformed JSON (attempt ${attempt + 1}, len=${rawContent.length})`);
+          continue;
+        }
 
         // Validate CAML 2.0 structure
         const validationErrors: string[] = [];
@@ -16376,20 +16395,13 @@ Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITE
           console.log(`Generated CAML 2.0 campaign: "${generatedContent.meta?.title}" (attempt ${attempt + 1})`);
           const legacyFormat = convertCAML2ToLegacyFormat(generatedContent);
 
-          let coverArtUrl = '';
-          try {
-            const artTitle = generatedContent.meta?.title || 'Adventure';
-            const artSummary = generatedContent.meta?.summary || generatedContent.doctrine?.campaign_question || '';
-            const artTheme = generatedContent.meta?.tags?.join(', ') || 'fantasy';
-            coverArtUrl = await generateCAMLCoverArt(artTitle, artSummary, artTheme);
-          } catch (coverErr) {
-            console.warn("Cover art generation failed (non-blocking):", coverErr);
-          }
-
+          // Cover art used to be awaited here (~15-30s of DALL-E + upload), but the DM
+          // toolkit doesn't display it — so it was pure latency (and cost) on the
+          // critical path. Dropped. (The CAML route generates covers separately on demand.)
           return res.json({
             ...legacyFormat,
             caml2: generatedContent,
-            coverArtUrl,
+            coverArtUrl: '',
             villainModel: generatedContent.villain ? {
               name: generatedContent.villain.name,
               archetype: generatedContent.villain.archetype || 'Mastermind',
