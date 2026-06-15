@@ -15642,6 +15642,9 @@ Create a specific creature (pick one of the reskins or create a thematic variant
     };
     try {
       const { type, level, length, theme, customPrompt } = req.body;
+      // 'quick' = lean, fast CAML 2.0 (like the CAML menu route); 'rich' = full
+      // reactive build (villain trees / power networks / dynamic climax). Default quick.
+      const depth: 'quick' | 'rich' = req.body?.depth === 'rich' ? 'rich' : 'quick';
 
       if (!type || !level || !length || !theme) {
         return fail(400, { message: "Missing required campaign parameters" });
@@ -15659,11 +15662,83 @@ Create a specific creature (pick one of the reskins or create a thematic variant
         ? { locations: 5, npcs: 5, processes: 4, items: 3 }
         : { locations: 8, npcs: 8, processes: 6, items: 5 };
 
+      // Lean prompt for 'quick' mode — produces a playable CAML 2.0 adventure without the
+      // heavy reactive-architecture sections, so the model emits far fewer tokens (fast).
+      const QUICK_SYSTEM_PROMPT = `You generate CAML 2.0 D&D 5e adventures as a SINGLE JSON object — lean but fully playable. Required top-level keys: caml_version ("2.0"); meta {id,title,summary (2-3 vivid sentences),tags,levels:{min,max}}; doctrine {campaign_question (a genuine dilemma, not a goal), stakes:[at least 2 {id,name,value,max,drift}]}; world {entities:{characters:[...],locations:[...]},connections:[...]}; state {facts:[...]}; roles {assignments:[...]}; processes {catalog:[at least 2 encounters/events]}; transitions {changes:[...]}; snapshots:[at least 2, including 2 forked endings]. Use ORIGINAL names. Output ONLY the JSON — no markdown fences, no commentary.`;
+      const quickUserPrompt = `Create a CAML 2.0 adventure.
+- id: ${adventureId}
+- title theme: ${theme}
+- type/tone: ${type}
+- character levels: ${minLevel}-${maxLevel}
+- scope (${length}): aim for ~${contentReqs.locations} locations, ~${contentReqs.npcs} NPCs, ~${contentReqs.processes} processes.${customPrompt ? `\n- extra guidance: ${customPrompt}` : ''}
+Keep it focused and playable. Output ONLY the JSON object.`;
+
       // CAML 2.0 generation with retry logic
       const maxRetries = 1; // up to 2 attempts — each full gen is slow, so cap the worst case
       let lastError = '';
       
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        // ── QUICK MODE: lean generation, lenient validation, fast (~1-2 min) ──
+        if (depth === 'quick') {
+          setStage(attempt === 0 ? 'Generating your campaign… (~1–2 minutes)' : 'Refining the campaign…');
+          let qCompletion: any;
+          try {
+            qCompletion = await Promise.race([
+              aiClient.chat.completions.create({
+                model: aiModel,
+                messages: [
+                  { role: "system", content: QUICK_SYSTEM_PROMPT },
+                  { role: "user", content: quickUserPrompt },
+                ],
+                response_format: { type: "json_object" },
+                temperature: attempt === 0 ? 0.8 : 0.6,
+                max_tokens: 8000,
+              }),
+              new Promise<never>((_, reject) => setTimeout(() => reject(new Error("AI generation timed out")), 240000)),
+            ]);
+          } catch (qErr: any) {
+            lastError = `AI generation failed/timed out: ${qErr?.message || qErr}`;
+            console.warn(`Quick campaign gen: AI call failed (attempt ${attempt + 1}): ${qErr?.message || qErr}`);
+            continue;
+          }
+          const qRaw = qCompletion.choices?.[0]?.message?.content || '';
+          let qParsed: any = null;
+          try {
+            qParsed = JSON.parse(qRaw);
+          } catch {
+            const s = qRaw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+            const a = s.indexOf('{'), b = s.lastIndexOf('}');
+            if (a !== -1 && b > a) { try { qParsed = JSON.parse(s.slice(a, b + 1)); } catch {} }
+          }
+          if (!qParsed) { lastError = 'AI returned malformed JSON'; continue; }
+          const qErrs: string[] = [];
+          if (qParsed.caml_version !== '2.0') qErrs.push('Missing caml_version "2.0"');
+          if (!qParsed.world?.entities) qErrs.push('Missing world.entities');
+          if (!qParsed.processes?.catalog) qErrs.push('Missing processes.catalog');
+          if ((qParsed.world?.entities?.characters || []).length < 3) qErrs.push('Need 3+ characters');
+          if ((qParsed.world?.entities?.locations || []).length < 3) qErrs.push('Need 3+ locations');
+          if (qErrs.length > 0) {
+            lastError = qErrs.join('; ');
+            console.warn(`Quick campaign gen: validation failed (attempt ${attempt + 1}):`, qErrs);
+            continue;
+          }
+          if (qParsed.meta) { qParsed.meta.id = adventureId; }
+          const legacyFormat = convertCAML2ToLegacyFormat(qParsed);
+          return finish({
+            ...legacyFormat,
+            caml2: qParsed,
+            coverArtUrl: '',
+            villainModel: qParsed.villain ? {
+              name: qParsed.villain.name,
+              archetype: qParsed.villain.archetype || 'Mastermind',
+              goal: qParsed.villain.goal,
+              motivation: qParsed.villain.motivation,
+              currentStep: qParsed.villain.currentStep || 0,
+            } : undefined,
+            isCAML2: true,
+          });
+        }
+
         const systemPrompt = `You generate CAML 2.0 format adventures with REACTIVE ARCHITECTURE. CAML 2.0 uses ontological layers, NOT flat arrays. Adventures must be reactive political/narrative simulators, NOT linear chapter-based modules.
 
 CAML 2.0 EXACT SCHEMA (every field shown is REQUIRED):

@@ -5118,6 +5118,7 @@ function CampaignBuilderTab() {
   const { toast } = useToast();
   const [generatedCampaign, setGeneratedCampaign] = useState<any>(null);
   const [genStage, setGenStage] = useState<string>('');
+  const [genDepth, setGenDepth] = useState<'quick' | 'rich'>('quick');
   const [campaignType, setCampaignType] = useState('');
   const [campaignLevel, setCampaignLevel] = useState('');
   const [campaignLength, setCampaignLength] = useState('');
@@ -5171,6 +5172,7 @@ function CampaignBuilderTab() {
           length: campaignLength,
           theme: campaignTheme,
           customPrompt: customPrompt || undefined,
+          depth: genDepth,
           async: true,
         }),
       });
@@ -5869,7 +5871,30 @@ function CampaignBuilderTab() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="inline-flex rounded-lg border border-border p-1 bg-muted/40" role="group" aria-label="Generation depth">
+          <button
+            type="button"
+            onClick={() => setGenDepth('quick')}
+            disabled={generateCampaign.isPending}
+            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${genDepth === 'quick' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Quick (~1–2 min)
+          </button>
+          <button
+            type="button"
+            onClick={() => setGenDepth('rich')}
+            disabled={generateCampaign.isPending}
+            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${genDepth === 'rich' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Rich / reactive (~4–5 min)
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground max-w-md text-center">
+          {genDepth === 'quick'
+            ? 'A lean, playable campaign — fast.'
+            : 'A deeper reactive campaign (villain plans, faction/power networks, dynamic climax) — slower to generate.'}
+        </p>
         <Button
           size="lg"
           onClick={handleGenerate}
