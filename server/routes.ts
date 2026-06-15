@@ -16060,7 +16060,7 @@ ${customPrompt ? `THEME NOTES: ${customPrompt}` : ''}
 Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITECTURE — a living world simulator where every action cascades, factions compete, meters transform the environment, and the climax is assembled from the world state. NOT a linear module.`;
 
         const { client: aiClient, model: aiModel } = await getAIClient(req.user?.id);
-        setStage(attempt === 0 ? 'Generating your campaign… (this takes a couple of minutes)' : 'Refining the campaign…');
+        setStage(attempt === 0 ? 'Generating your campaign… (this takes ~3–5 minutes)' : 'Refining the campaign…');
         // Bound each attempt: a full campaign gen is slow (~2-4 min); without a cap a
         // stalled provider call hangs until nginx 504s at its proxy timeout. On
         // timeout/error we fall through to a retry (or a clean error) instead of hanging.
@@ -16077,7 +16077,10 @@ Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITE
               temperature: attempt === 0 ? 0.7 : 0.5, // Lower temp on retry
               max_tokens: 16000
             }),
-            new Promise<never>((_, reject) => setTimeout(() => reject(new Error("AI generation timed out")), 280000)),
+            // A full 16k-token campaign gen measured ~4-5.5 min on claude-sonnet-4-6, so
+            // allow 8 min per attempt. Safe because this runs as a background job (async),
+            // not a held request bound by the nginx proxy timeout.
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error("AI generation timed out")), 480000)),
           ]);
         } catch (aiErr: any) {
           lastError = `AI generation failed/timed out: ${aiErr?.message || aiErr}`;

@@ -5181,8 +5181,9 @@ function CampaignBuilderTab() {
       const { jobId } = await startResp.json();
       if (!jobId) throw new Error('No job id returned');
 
-      // Poll up to ~10 minutes (200 * 3s).
-      for (let i = 0; i < 200; i++) {
+      // Poll up to ~18 minutes (360 * 3s) — a full gen is ~3-5 min, and a retry can
+      // double that, so leave generous headroom before the client gives up.
+      for (let i = 0; i < 360; i++) {
         await new Promise((r) => setTimeout(r, 3000));
         const statusResp = await fetch(`/api/campaigns/generation-status/${jobId}`, { credentials: 'include' });
         if (!statusResp.ok) continue;
