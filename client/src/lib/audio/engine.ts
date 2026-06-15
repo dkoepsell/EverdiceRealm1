@@ -14,7 +14,7 @@
  * pushes state in and triggers playback; it never touches Web Audio directly.
  */
 import { SFX_SYNTHS, SfxName } from "./sfx";
-import { buildBed, BedHandle, MoodKey } from "./ambient";
+import { buildBed, MoodKey } from "./ambient";
 
 const BED_TARGET_GAIN = 0.85; // bed loudness into the music bus (then scaled by music/master)
 const CROSSFADE_SECONDS = 3;
@@ -49,7 +49,8 @@ class AudioEngine {
   private voiceEl: HTMLAudioElement | null = null;
   private voicePrimed = false;
   private currentMood: MoodKey | null = null;
-  private currentBed: BedHandle | null = null;
+  private currentMusic: { gain: GainNode; stop: (at: number) => void } | null = null;
+  private musicToken = 0;
 
   /** Create the context + gain graph. No-op if already created or unavailable. */
   private init() {
@@ -125,40 +126,98 @@ class AudioEngine {
     }
   }
 
-  /** Crossfade the ambient music bed to a new mood (no-op if already on it). */
+  /**
+   * Crossfade ambient music to a new mood. Plays /objects/music/<mood>.mp3 if that
+   * file exists; otherwise falls back to the synthesized bed. No-op if already on it.
+   */
   playAmbient(mood: MoodKey) {
     this.init();
-    if (!this.ctx || !this.musicGain) return;
-    if (this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
-    if (this.currentMood === mood && this.currentBed) return;
+    const ctx = this.ctx;
+    if (!ctx || !this.musicGain) return;
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+    if (this.currentMood === mood && this.currentMusic) return;
+    this.currentMood = mood;
+    const token = ++this.musicToken;
 
-    const now = this.ctx.currentTime;
-    const old = this.currentBed;
-    if (old) {
-      old.gain.gain.cancelScheduledValues(now);
-      old.gain.gain.setValueAtTime(Math.max(old.gain.gain.value, 0.0001), now);
-      old.gain.gain.exponentialRampToValueAtTime(0.0001, now + CROSSFADE_SECONDS);
-      old.stop(now + CROSSFADE_SECONDS + 0.3);
+    // Fade out whatever is currently playing.
+    if (this.currentMusic) {
+      this.fadeOutAndStop(this.currentMusic, CROSSFADE_SECONDS);
+      this.currentMusic = null;
     }
 
-    const bed = buildBed(this.ctx, this.musicGain, mood);
-    bed.gain.gain.setValueAtTime(0.0001, now);
-    bed.gain.gain.exponentialRampToValueAtTime(BED_TARGET_GAIN, now + CROSSFADE_SECONDS);
-    this.currentBed = bed;
-    this.currentMood = mood;
+    void this.resolveMusicSource(mood).then((source) => {
+      if (!this.ctx) return;
+      if (token !== this.musicToken) {
+        // A newer mood change superseded this one before the file resolved.
+        source.stop(this.ctx.currentTime);
+        return;
+      }
+      const now = this.ctx.currentTime;
+      source.gain.gain.cancelScheduledValues(now);
+      source.gain.gain.setValueAtTime(0.0001, now);
+      source.gain.gain.exponentialRampToValueAtTime(source.target, now + CROSSFADE_SECONDS);
+      this.currentMusic = source;
+    });
   }
 
   /** Fade out and stop ambient music (e.g. when leaving a campaign). */
   stopAmbient() {
-    if (!this.ctx || !this.currentBed) return;
-    const now = this.ctx.currentTime;
-    const old = this.currentBed;
-    old.gain.gain.cancelScheduledValues(now);
-    old.gain.gain.setValueAtTime(Math.max(old.gain.gain.value, 0.0001), now);
-    old.gain.gain.exponentialRampToValueAtTime(0.0001, now + 2);
-    old.stop(now + 2.3);
-    this.currentBed = null;
+    if (this.currentMusic) this.fadeOutAndStop(this.currentMusic, 2);
+    this.currentMusic = null;
     this.currentMood = null;
+    this.musicToken++;
+  }
+
+  private fadeOutAndStop(src: { gain: GainNode; stop: (at: number) => void }, fadeSec: number) {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    src.gain.gain.cancelScheduledValues(now);
+    src.gain.gain.setValueAtTime(Math.max(src.gain.gain.value, 0.0001), now);
+    src.gain.gain.exponentialRampToValueAtTime(0.0001, now + fadeSec);
+    src.stop(now + fadeSec + 0.3);
+  }
+
+  /** A real track file if present, else the synth bed. */
+  private async resolveMusicSource(mood: MoodKey): Promise<{ gain: GainNode; stop: (at: number) => void; target: number }> {
+    const file = await this.tryFileSource(`/objects/music/${mood}.mp3`);
+    if (file) return { ...file, target: 1.0 };
+    const bed = buildBed(this.ctx!, this.musicGain!, mood);
+    return { gain: bed.gain, stop: bed.stop, target: BED_TARGET_GAIN };
+  }
+
+  /** Load + loop a music file through the music bus. Returns null if absent/blocked. */
+  private async tryFileSource(url: string): Promise<{ gain: GainNode; stop: (at: number) => void } | null> {
+    const ctx = this.ctx;
+    if (!ctx || !this.musicGain) return null;
+    try {
+      const head = await fetch(url, { method: "HEAD" });
+      if (!head.ok) return null;
+    } catch {
+      return null;
+    }
+    try {
+      const el = new Audio();
+      el.src = url;
+      el.loop = true;
+      el.preload = "auto";
+      const fadeGain = ctx.createGain();
+      fadeGain.gain.value = 0.0001;
+      const node = ctx.createMediaElementSource(el);
+      node.connect(fadeGain);
+      fadeGain.connect(this.musicGain);
+      await el.play();
+      return {
+        gain: fadeGain,
+        stop: (at: number) => {
+          const delayMs = Math.max(0, (at - (this.ctx?.currentTime ?? at)) * 1000);
+          window.setTimeout(() => {
+            try { el.pause(); el.src = ""; } catch { /* */ }
+          }, delayMs + 50);
+        },
+      };
+    } catch {
+      return null; // autoplay blocked or decode error → caller falls back to the bed
+    }
   }
 
   private ensureVoiceEl(): HTMLAudioElement | null {
