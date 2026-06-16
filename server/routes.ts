@@ -109,8 +109,9 @@ import yaml from "js-yaml";
 import { 
   processEnemyAttacks,
   processCompanionAttacks,
-  processPlayerAttack, 
+  processPlayerAttack,
   getCompanionDefaultStats,
+  getCompanionStartingEquipment,
   calculateEffectiveCombatStats,
   type Combatant, 
   type CombatLogEntry,
@@ -9315,12 +9316,28 @@ Return your response as a JSON object with these fields:
         return res.status(401).json({ message: "Not authenticated" });
       }
       
+      // Companions should always arrive with a weapon, armor, and some gold,
+      // even when created without an explicit loadout (e.g. the DM toolkit).
+      const companionDefaults: Record<string, any> = {};
+      if (req.body?.isCompanion) {
+        const cls = (typeof req.body.class === 'string' && req.body.class)
+          || (typeof req.body.occupation === 'string' && req.body.occupation)
+          || 'Fighter';
+        const loadout = getCompanionStartingEquipment(cls, req.body.level || 1);
+        if (!req.body.equippedWeapon) companionDefaults.equippedWeapon = loadout.weapon;
+        if (!req.body.equippedArmor) companionDefaults.equippedArmor = loadout.armor;
+        if (!req.body.equippedShield && loadout.shield) companionDefaults.equippedShield = loadout.shield;
+        if (!Array.isArray(req.body.equipment) || req.body.equipment.length === 0) companionDefaults.equipment = loadout.equipment;
+        if (!req.body.gold) companionDefaults.gold = loadout.gold;
+      }
+
       const npcData = insertNpcSchema.parse({
         ...req.body,
+        ...companionDefaults,
         createdBy: req.user.id,
         createdAt: new Date().toISOString()
       });
-      
+
       const npc = await storage.createNpc(npcData);
       res.status(201).json(npc);
     } catch (error) {
@@ -10283,6 +10300,14 @@ Return your response as a JSON object with these fields:
         }
       ];
       
+      // Seed the companion's campaign purse from their base gold (outfitting
+      // a fresh companion if the base record somehow has none).
+      const companionGold = (npc.gold && npc.gold > 0)
+        ? npc.gold
+        : ((npc.isCompanion || (req.body.role || 'companion') === 'companion')
+            ? getCompanionStartingEquipment(npc.occupation || 'Fighter', npc.level || 1).gold
+            : 0);
+
       const campaignNpcData = insertCampaignNpcSchema.parse({
         campaignId,
         npcId,
@@ -10290,6 +10315,7 @@ Return your response as a JSON object with these fields:
         turnOrder: req.body.turnOrder,
         isActive: true,
         joinedAt: new Date().toISOString(),
+        gold: req.body.gold ?? companionGold,
         inventory: req.body.inventory || defaultInventory
       });
       
@@ -14919,6 +14945,8 @@ Make this NPC feel like a real person with quirks and depth, not generic.`;
       
       const npcClassStr = typeof aiResult.class === 'string' ? aiResult.class : 'Fighter';
       const defaultStats = getCompanionDefaultStats(npcClassStr, 1);
+      // Class-appropriate starting weapon, armor, kit, and gold.
+      const loadout = getCompanionStartingEquipment(npcClassStr, 1);
 
       const clampStat = (val: any) => {
         const n = typeof val === 'number' ? val : parseInt(val);
@@ -14953,10 +14981,14 @@ Make this NPC feel like a real person with quirks and depth, not generic.`;
         wisdom: clampStat(aiResult.wisdom),
         charisma: clampStat(aiResult.charisma),
         skills: Array.isArray(aiResult.skills) ? aiResult.skills : [],
-        equipment: Array.isArray(aiResult.equipment) ? aiResult.equipment : [],
-        equippedWeapon: (typeof aiResult.equippedWeapon === 'string') ? aiResult.equippedWeapon : null,
-        equippedArmor: (typeof aiResult.equippedArmor === 'string') ? aiResult.equippedArmor : null,
-        gold: 10,
+        equipment: (Array.isArray(aiResult.equipment) && aiResult.equipment.length > 0) ? aiResult.equipment : loadout.equipment,
+        equippedWeapon: (typeof aiResult.equippedWeapon === 'string' && aiResult.equippedWeapon) ? aiResult.equippedWeapon : loadout.weapon,
+        equippedArmor: (typeof aiResult.equippedArmor === 'string' && aiResult.equippedArmor) ? aiResult.equippedArmor : loadout.armor,
+        equippedShield: (typeof aiResult.equippedShield === 'string' && aiResult.equippedShield) ? aiResult.equippedShield : loadout.shield,
+        consumables: [
+          { name: "Potion of Healing", quantity: 2, type: "healing", effect: "Restores 2d4+2 HP", healDice: "2d4", healBonus: 2 },
+        ],
+        gold: loadout.gold,
         createdBy: req.user.id,
         createdAt: new Date().toISOString(),
       };
@@ -14975,6 +15007,7 @@ Make this NPC feel like a real person with quirks and depth, not generic.`;
             role: 'companion',
             isActive: true,
             joinedAt: new Date().toISOString(),
+            gold: loadout.gold,
             inventory: defaultInventory,
           } as any);
         }

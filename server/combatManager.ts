@@ -932,11 +932,55 @@ export function getCompanionDefaultStats(npcClass: string, level: number = 1): {
   
   const classStats = baseStats[npcClass as keyof typeof baseStats] || baseStats['Fighter'];
   const maxHp = classStats.hpBase + (level - 1) * classStats.hpPerLevel + Math.floor((classStats.con - 10) / 2) * level;
-  
+
   return {
     attackBonus: classStats.attackBonus,
     damageRoll: classStats.damageRoll,
     armorClass: classStats.armorClass,
     maxHp
   };
+}
+
+/**
+ * Class-appropriate starting loadout for a companion: an equipped weapon,
+ * armor, optional shield, a basic adventuring kit, and a pouch of gold that
+ * scales with level. Mirrors the player quick-build equipment logic so
+ * companions arrive outfitted like any other adventurer.
+ */
+export function getCompanionStartingEquipment(npcClass: string, level: number = 1): {
+  weapon: string;
+  armor: string;
+  shield: string | null;
+  equipment: string[];
+  gold: number;
+} {
+  const loadouts: Record<string, { weapon: string; armor: string; shield: string | null }> = {
+    Fighter:   { weapon: "Longsword",      armor: "Chain Mail",          shield: "Shield" },
+    Paladin:   { weapon: "Longsword",      armor: "Chain Mail",          shield: "Shield" },
+    Cleric:    { weapon: "Mace",           armor: "Scale Mail",          shield: "Shield" },
+    Barbarian: { weapon: "Greataxe",       armor: "Hide Armor",          shield: null },
+    Ranger:    { weapon: "Shortbow",       armor: "Leather Armor",       shield: null },
+    Rogue:     { weapon: "Rapier",         armor: "Leather Armor",       shield: null },
+    Bard:      { weapon: "Rapier",         armor: "Leather Armor",       shield: null },
+    Druid:     { weapon: "Scimitar",       armor: "Leather Armor",       shield: "Wooden Shield" },
+    Monk:      { weapon: "Quarterstaff",   armor: "Traveler's Clothes",  shield: null },
+    Warlock:   { weapon: "Light Crossbow", armor: "Leather Armor",       shield: null },
+    Wizard:    { weapon: "Quarterstaff",   armor: "Robes",               shield: null },
+    Sorcerer:  { weapon: "Dagger",         armor: "Robes",               shield: null },
+  };
+
+  const loadout = loadouts[npcClass] || loadouts['Fighter'];
+  const equipment = [
+    loadout.weapon,
+    loadout.armor,
+    ...(loadout.shield ? [loadout.shield] : []),
+    "Backpack",
+    "Bedroll",
+    "Rations (5 days)",
+    "Waterskin",
+  ];
+  // 30-60 gold at level 1, growing ~20/level so seasoned companions are richer.
+  const gold = 30 + Math.floor(Math.random() * 31) + (Math.max(1, level) - 1) * 20;
+
+  return { weapon: loadout.weapon, armor: loadout.armor, shield: loadout.shield, equipment, gold };
 }
