@@ -36,7 +36,9 @@ UPDATE npcs n SET
       WHEN 'Fighter' THEN 'Shield'  WHEN 'Paladin' THEN 'Shield'
       WHEN 'Cleric'  THEN 'Shield'  WHEN 'Druid' THEN 'Wooden Shield'
       ELSE NULL END),
-  gold = CASE WHEN COALESCE(n.gold, 0) <= 0
+  -- Upgrade companions still on the old hard-coded default (<=10) to the new
+  -- starting range; preserve any larger purse already set.
+  gold = CASE WHEN COALESCE(n.gold, 0) <= 10
     THEN 30 + floor(random() * 31)::int + (GREATEST(1, COALESCE(n.level, 1)) - 1) * 20
     ELSE n.gold END,
   consumables = CASE WHEN n.consumables IS NULL OR n.consumables = '[]'::jsonb

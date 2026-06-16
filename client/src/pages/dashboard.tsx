@@ -271,7 +271,8 @@ export default function Dashboard() {
         completedType={completedType} 
       />
       
-      {/* Hero Section - Matching Groups page style */}
+      {/* Hero Section - landing/marketing banner; hidden during active play (duplicative of the play header below) */}
+      {!activeCampaign && (
       <div className="container mx-auto px-4 pt-8 pb-2">
         <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-900/40 via-orange-900/30 to-slate-900/40 border border-amber-500/20 p-8 mb-0">
           {/* Parchment background texture */}
@@ -373,7 +374,8 @@ export default function Dashboard() {
         </div>
         </section>
       </div>
-      
+      )}
+
       {/* Learn by Playing - Solo adventure with companion */}
       {showLearnByPlaying && !showQuickStart && (
         <section className="container mx-auto px-4 py-4">
