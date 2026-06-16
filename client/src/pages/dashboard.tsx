@@ -272,8 +272,8 @@ export default function Dashboard() {
       />
       
       {/* Hero Section - Matching Groups page style */}
-      <div className="container mx-auto px-4 py-8">
-        <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-900/40 via-orange-900/30 to-slate-900/40 border border-amber-500/20 p-8 mb-8">
+      <div className="container mx-auto px-4 pt-8 pb-2">
+        <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-900/40 via-orange-900/30 to-slate-900/40 border border-amber-500/20 p-8 mb-0">
           {/* Parchment background texture */}
           <div 
             className="absolute inset-0 opacity-25 rounded-xl"
@@ -376,7 +376,7 @@ export default function Dashboard() {
       
       {/* Learn by Playing - Solo adventure with companion */}
       {showLearnByPlaying && !showQuickStart && (
-        <section className="container mx-auto px-4 py-8 -mt-4">
+        <section className="container mx-auto px-4 py-4">
           <Card className="border-2 border-green-500/30 bg-gradient-to-br from-green-500/5 to-emerald-500/5">
             <CardContent className="p-6">
               <PlayerQuickStart 
@@ -397,7 +397,7 @@ export default function Dashboard() {
 
       {/* Quick Start Modal for new users */}
       {showQuickStart && !showLearnByPlaying && !activeCampaign && (
-        <section className="container mx-auto px-4 py-8 -mt-4">
+        <section className="container mx-auto px-4 py-4">
           <QuickStart 
             existingCharacters={characters} 
             onComplete={() => {
@@ -421,7 +421,7 @@ export default function Dashboard() {
 
       {/* Since Last Time... - World memory updates */}
       {activeCampaign && !showLearnByPlaying && !showQuickStart && (
-        <section className="container mx-auto px-4 py-4 -mt-2">
+        <section className="container mx-auto px-4 py-2">
           <SinceLastTime campaignId={activeCampaign.id} />
         </section>
       )}
@@ -619,7 +619,7 @@ export default function Dashboard() {
 
       {/* Desktop Dashboard Content */}
       {!isMobile && (
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 pt-2 pb-8">
           {/* Character Quick Stats Bar - Expandable to full sheet */}
           {activeCharacter && (
             <Card className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-900 border-2 border-amber-200 dark:border-amber-800/50">
