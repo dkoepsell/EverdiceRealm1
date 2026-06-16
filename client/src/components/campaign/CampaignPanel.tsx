@@ -614,6 +614,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     return sections;
   }, [selectedPartyMemberType, activeCharacter, selectedNpc]);
 
+  // Quick-jump entries for the Story tab — the long-scroll sections of the
+  // active narrative view.
+  const storyNavSections = useMemo<QuickNavSection[]>(() => [
+    { id: "story-chapter", label: "Chapter", icon: Scroll },
+    { id: "story-scene", label: "Current Scene", icon: Sparkles },
+    { id: "story-map", label: "Exploration Map", icon: MapIcon },
+    { id: "story-party", label: "Party Status", icon: Users },
+  ], []);
+
   // Fetch magical inventory from character_inventory table
   const { data: magicalInventory = [] } = useQuery<any[]>({
     queryKey: ['/api/characters', activeCharacter?.id, 'magical-inventory'],
@@ -3449,9 +3458,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 
                 {/* Current Session */}
                 {currentSession && !parsedStoryState?.adventureEnded ? (
-                  <div className="mt-6 space-y-4">
+                  <div className="mt-6 lg:grid lg:grid-cols-[12rem_minmax(0,1fr)] lg:gap-5 lg:items-start">
+                    <PartyQuickNav sections={storyNavSections} />
+                    <div className="space-y-4 min-w-0">
                     {/* Chapter & Scene Header - Above narrative pane */}
-                    <div className="rounded-lg border border-amber-200 dark:border-amber-800 overflow-hidden">
+                    <div id="story-chapter" className="scroll-mt-24 rounded-lg border border-amber-200 dark:border-amber-800 overflow-hidden">
                       <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 px-4 py-3">
                         <div className="flex justify-between items-center">
                           <div className="flex items-center gap-3">
@@ -3518,8 +3529,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     
                     {/* ===== CURRENT SCENE - The main story area with glowing pulsing border ===== */}
                     <ContextualHint hintId="narrative_choices" position="bottom" delay={1000}>
-                      <div 
-                        className="relative bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-black dark:to-slate-900 p-6 rounded-xl shadow-2xl mb-6 overflow-hidden"
+                      <div
+                        id="story-scene"
+                        className="scroll-mt-24 relative bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-black dark:to-slate-900 p-6 rounded-xl shadow-2xl mb-6 overflow-hidden"
                         style={{
                           animation: 'narrativePulse 3s ease-in-out infinite',
                           boxShadow: '0 0 20px rgba(251, 191, 36, 0.4), 0 0 40px rgba(251, 191, 36, 0.2), inset 0 1px 0 rgba(255,255,255,0.1)',
@@ -4463,7 +4475,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     {/* Quick Reference Panel - Full Width Map + Party Stats Row */}
                     <div className="space-y-3 mb-4">
                       {/* Procedural Exploration Map - Narrative-driven hex exploration */}
-                      <div className="bg-slate-800 dark:bg-slate-900 rounded-lg border-2 border-amber-600/50 shadow-lg overflow-hidden">
+                      <div id="story-map" className="scroll-mt-24 bg-slate-800 dark:bg-slate-900 rounded-lg border-2 border-amber-600/50 shadow-lg overflow-hidden">
                         <div className="flex items-center justify-between p-3 hover:bg-slate-700/50 transition-colors">
                           <button
                             onClick={() => setIsMapCollapsed(!isMapCollapsed)}
@@ -4509,7 +4521,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </div>
                       
                       {/* Party Stats Widget - Below map */}
-                      <div className="bg-gradient-to-br from-emerald-900/80 to-green-900/80 dark:from-emerald-950 dark:to-green-950 p-3 rounded-lg border-2 border-emerald-600/50 shadow-lg">
+                      <div id="story-party" className="scroll-mt-24 bg-gradient-to-br from-emerald-900/80 to-green-900/80 dark:from-emerald-950 dark:to-green-950 p-3 rounded-lg border-2 border-emerald-600/50 shadow-lg">
                         <h5 className="text-sm font-bold text-emerald-300 flex items-center mb-2">
                           <Users className="h-4 w-4 mr-1" />
                           Party Status ({participants.length})
@@ -4879,6 +4891,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       <Skeleton className="h-10 w-full" />
                       <Skeleton className="h-10 w-full" />
                       <Skeleton className="h-10 w-full" />
+                    </div>
                     </div>
                   </div>
                 ) : (
