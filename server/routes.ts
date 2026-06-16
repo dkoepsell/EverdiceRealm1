@@ -1006,14 +1006,17 @@ function instantiateQuestTemplate(
     
     // Calculate rewards with some variance
     const xpVariance = Math.floor(Math.random() * 50) - 25;
-    const goldVariance = Math.floor(Math.random() * 20) - 10;
-    
+    // Quests pay out a meatier purse so completing them noticeably advances
+    // a character's buying power.
+    const baseGold = (template.rewards?.goldBase || 100) * 2.5;
+    const goldVariance = Math.floor(Math.random() * 80) - 20;
+
     return {
       title,
       description,
       objectives,
       xpReward: Math.max(25, (template.rewards?.xpBase || 100) + xpVariance),
-      goldReward: Math.max(10, (template.rewards?.goldBase || 100) + goldVariance),
+      goldReward: Math.max(40, Math.round(baseGold) + goldVariance),
       questGiver
     };
   } catch (error) {

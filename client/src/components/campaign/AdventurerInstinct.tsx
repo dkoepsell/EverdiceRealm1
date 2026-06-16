@@ -205,6 +205,43 @@ export function AdventurerInstinct({ character, campaignId, isDM, userId, sessio
       });
     }
 
+    // Flush-with-coin nudges — when a hero is well-equipped but hoarding gold,
+    // remind them that coin spent on gear and potions keeps them alive.
+    const wellEquipped = hasWeapon && hasArmor;
+    if (wellEquipped) {
+      if (gold >= 1000) {
+        result.push({
+          id: 'rich-upgrade',
+          icon: Coins,
+          title: "Your purse is heavy with gold",
+          message: `${gold.toLocaleString()} gold is a fortune sitting idle. Magic weapons, finer armor, and a stockpile of potions are within your reach — a smart adventurer spends coin before it spends them.`,
+          actionLabel: "Spend at the Shop",
+          actionPath: "/tavern",
+          priority: 5
+        });
+      } else if (gold >= 250) {
+        result.push({
+          id: 'gold-to-spend',
+          icon: Coins,
+          title: "You can afford an upgrade",
+          message: `You're carrying ${gold.toLocaleString()} gold. That's enough for better gear or a fresh supply of healing potions — don't head into the next fight under-equipped when you could buy your edge.`,
+          actionLabel: "Browse the Shop",
+          actionPath: "/tavern",
+          priority: 6
+        });
+      } else if (gold >= 100) {
+        result.push({
+          id: 'gold-stock-up',
+          icon: Coins,
+          title: "Coin enough to stock up",
+          message: `${gold.toLocaleString()} gold will buy a handful of potions and supplies. Restock before the next delve — survival often comes down to what's in your pack.`,
+          actionLabel: "Visit the Shop",
+          actionPath: "/tavern",
+          priority: 7
+        });
+      }
+    }
+
     return result
       .filter(n => !dismissedNudges.has(n.id))
       .sort((a, b) => a.priority - b.priority)

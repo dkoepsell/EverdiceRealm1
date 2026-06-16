@@ -64,6 +64,7 @@ import { ProceduralExplorationMap } from "../dungeon/ProceduralExplorationMap";
 import { StoryLoadingScreen } from "./StoryLoadingScreen";
 import { StoryControls } from "./StoryControls";
 import { NoCharacterPrompt, AdventurerInstinct, FirstSessionTips } from "./AdventurerInstinct";
+import { PartyQuickNav, type QuickNavSection } from "./PartyQuickNav";
 
 interface CampaignPanelProps {
   campaign: Campaign;
@@ -583,7 +584,36 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       gold: campaignNpc.gold ?? 0,
     };
   }, [selectedNpcId, campaignNpcs]);
-  
+
+  // Quick-jump sidebar entries for the Party tab. Mirrors the sections that
+  // actually render for the currently-selected party member so the menu never
+  // points at a hidden section.
+  const partyNavSections = useMemo<QuickNavSection[]>(() => {
+    const sections: QuickNavSection[] = [
+      { id: "party-members", label: "Members", icon: Users },
+    ];
+    if (selectedPartyMemberType === "character" && activeCharacter) {
+      sections.push(
+        { id: "party-rest", label: "Rest & Recovery", icon: Heart },
+        { id: "party-inventory", label: "Inventory", icon: Backpack },
+        { id: "party-currency", label: "Currency", icon: Coins },
+        { id: "party-consumables", label: "Consumables", icon: FlaskConical },
+      );
+      if (
+        activeCharacter.skillProgress &&
+        Object.keys(activeCharacter.skillProgress as Record<string, any>).length > 0
+      ) {
+        sections.push({ id: "party-skills", label: "Skills", icon: Sparkles });
+      }
+    } else if (selectedPartyMemberType === "npc" && selectedNpc) {
+      sections.push(
+        { id: "party-npc-inventory", label: "Inventory", icon: Backpack },
+        { id: "party-npc-rest", label: "Rest & Recovery", icon: Heart },
+      );
+    }
+    return sections;
+  }, [selectedPartyMemberType, activeCharacter, selectedNpc]);
+
   // Fetch magical inventory from character_inventory table
   const { data: magicalInventory = [] } = useQuery<any[]>({
     queryKey: ['/api/characters', activeCharacter?.id, 'magical-inventory'],
@@ -5020,6 +5050,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   </div>
                 </div>
                 
+                <div className="lg:grid lg:grid-cols-[210px_minmax(0,1fr)] lg:gap-5 lg:items-start">
+                  <PartyQuickNav sections={partyNavSections} />
+                  <div className="space-y-4 min-w-0">
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <div>
@@ -5051,7 +5084,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 <CampaignParticipants campaignId={campaign.id} isDM={isDM} />
 
                 {/* Party Member Selection */}
-                <div className="mt-6 p-4 border-2 border-amber-200 rounded-lg bg-white/80 shadow-sm">
+                <div id="party-members" className="scroll-mt-24 mt-6 p-4 border-2 border-amber-200 rounded-lg bg-white/80 shadow-sm">
                   <div className="flex justify-between items-center mb-3">
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                       <Users className="h-5 w-5 text-amber-600" />
@@ -5190,7 +5223,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
                 {/* Rest & Recovery Section - Character Only */}
                 {selectedPartyMemberType === "character" && activeCharacter && (
-                  <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                  <div id="party-rest" className="scroll-mt-24 mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
                     <ContextualHint hintId="rest_mechanics" position="bottom" delay={1000}>
                       <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
                         <Heart className="h-5 w-5 text-red-500" />
@@ -5324,7 +5357,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
                 {/* Inventory Management Section - Character */}
                 {selectedPartyMemberType === "character" && activeCharacter && (
-                  <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                  <div id="party-inventory" className="scroll-mt-24 mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
                     <ContextualHint hintId="inventory_usage" position="bottom" delay={1500}>
                       <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
                         <Backpack className="h-5 w-5 text-amber-600" />
@@ -5805,7 +5838,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
                 {/* Currency Section - Character */}
                 {selectedPartyMemberType === "character" && activeCharacter && (
-                  <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                  <div id="party-currency" className="scroll-mt-24 mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
                     <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
                       <Coins className="h-5 w-5 text-yellow-500" />
                       Currency - {activeCharacter.name}
@@ -5833,7 +5866,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
                 {/* Consumables Section - Character */}
                 {selectedPartyMemberType === "character" && activeCharacter && (
-                  <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                  <div id="party-consumables" className="scroll-mt-24 mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
                     <ContextualHint hintId="consumables" position="bottom" delay={2000}>
                       <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
                         <FlaskConical className="h-5 w-5 text-purple-500" />
@@ -5950,7 +5983,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
                 {/* Skill Progress Section - Character */}
                 {selectedPartyMemberType === "character" && activeCharacter && activeCharacter.skillProgress && Object.keys(activeCharacter.skillProgress as Record<string, any>).length > 0 && (
-                  <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                  <div id="party-skills" className="scroll-mt-24 mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
                     <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
                       <Target className="h-5 w-5 text-blue-500" />
                       Skill Progress - {activeCharacter.name}
@@ -5978,7 +6011,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
                 {/* NPC Inventory Management Section */}
                 {selectedPartyMemberType === "npc" && selectedNpc && (
-                  <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                  <div id="party-npc-inventory" className="scroll-mt-24 mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
                     {/* NPC Header with Portrait */}
                     <div className="flex items-start gap-4 mb-4">
                       <div className="relative w-20 h-20 flex-shrink-0">
@@ -6338,7 +6371,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
                 {/* NPC Rest Section */}
                 {selectedPartyMemberType === "npc" && selectedNpc && !parsedStoryState?.inCombat && (
-                  <div className="mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800">
+                  <div id="party-npc-rest" className="scroll-mt-24 mt-6 p-4 border rounded-lg bg-white dark:bg-slate-800">
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                       <Moon className="h-5 w-5 text-indigo-500" />
                       Rest - {selectedNpc.name}
@@ -6397,9 +6430,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     />
                   </div>
                 )}
+                  </div>
+                </div>
               </div>
             </TabsContent>
-            
+
             <TabsContent value="chat" className="p-4">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">

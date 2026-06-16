@@ -38,33 +38,33 @@ export interface PostCombatRewards {
 }
 
 const GOLD_BY_CR: Record<string, { min: number; max: number }> = {
-  "0": { min: 2, max: 10 },
-  "1/8": { min: 5, max: 20 },
-  "1/4": { min: 10, max: 40 },
-  "1/2": { min: 20, max: 80 },
-  "1": { min: 30, max: 120 },
-  "2": { min: 50, max: 200 },
-  "3": { min: 80, max: 300 },
-  "4": { min: 120, max: 500 },
-  "5": { min: 200, max: 800 },
-  "6": { min: 300, max: 1000 },
-  "7": { min: 400, max: 1400 },
-  "8": { min: 600, max: 2000 },
-  "9": { min: 800, max: 2600 },
-  "10": { min: 1000, max: 3200 },
-  "11": { min: 1400, max: 4000 },
-  "12": { min: 1800, max: 5000 },
-  "13": { min: 2400, max: 7000 },
-  "14": { min: 3000, max: 8000 },
-  "15": { min: 4000, max: 10000 },
-  "16": { min: 5000, max: 12000 },
-  "17": { min: 6000, max: 16000 },
-  "18": { min: 8000, max: 20000 },
-  "19": { min: 10000, max: 24000 },
-  "20": { min: 12000, max: 30000 },
+  "0": { min: 5, max: 20 },
+  "1/8": { min: 10, max: 40 },
+  "1/4": { min: 25, max: 80 },
+  "1/2": { min: 40, max: 150 },
+  "1": { min: 60, max: 220 },
+  "2": { min: 100, max: 360 },
+  "3": { min: 160, max: 540 },
+  "4": { min: 240, max: 850 },
+  "5": { min: 360, max: 1300 },
+  "6": { min: 520, max: 1700 },
+  "7": { min: 700, max: 2300 },
+  "8": { min: 1000, max: 3200 },
+  "9": { min: 1300, max: 4200 },
+  "10": { min: 1700, max: 5200 },
+  "11": { min: 2300, max: 6500 },
+  "12": { min: 3000, max: 8000 },
+  "13": { min: 3900, max: 11000 },
+  "14": { min: 4900, max: 13000 },
+  "15": { min: 6500, max: 16000 },
+  "16": { min: 8000, max: 19000 },
+  "17": { min: 9800, max: 26000 },
+  "18": { min: 13000, max: 32000 },
+  "19": { min: 16000, max: 38000 },
+  "20": { min: 19000, max: 48000 },
 };
 
-const BOSS_GOLD_MULTIPLIER = 4.0;
+const BOSS_GOLD_MULTIPLIER = 5.0;
 const BOSS_XP_MULTIPLIER = 1.5;
 
 interface LootTableEntry {
@@ -213,12 +213,14 @@ function getLootRarity(characterLevel: number, isBoss: boolean): string {
 
 function getItemDropCount(isBoss: boolean, victoryTier: string): number {
   if (isBoss) {
-    if (victoryTier === 'epic') return rollRange(2, 4);
-    return rollRange(1, 3);
+    if (victoryTier === 'epic') return rollRange(3, 5);
+    return rollRange(2, 4);
   }
-  if (victoryTier === 'major') return rollRange(1, 2);
+  if (victoryTier === 'major') return rollRange(2, 3);
+  if (victoryTier === 'standard') return rollRange(1, 2);
+  // Even minor victories now reliably drop something worth selling.
   const roll = Math.random();
-  return roll < 0.4 ? 1 : 0;
+  return roll < 0.75 ? 1 : 0;
 }
 
 function selectLootItem(rarity: string): LootTableEntry | null {

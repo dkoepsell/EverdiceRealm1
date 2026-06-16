@@ -920,7 +920,7 @@ export function resolveAction(params: {
       };
 
       if (node.type === 'encounter' && optionId === 'intimidate') {
-        result.rewards = [{ name: 'Scattered Coins', type: 'gold', value: 10 + characterLevel * 2 }];
+        result.rewards = [{ name: 'Scattered Coins', type: 'gold', value: 30 + characterLevel * 8 }];
       }
       if (node.type === 'trap' && optionId === 'disarm') {
         result.rewards = [{ name: 'Trap Components', type: 'crafting', value: 5 }];
@@ -1169,7 +1169,7 @@ export function getChestOptions(
   consequence?: string;
 }> {
   const levelScale = Math.max(1, characterLevel);
-  const goldBase = 50 + levelScale * 15;
+  const goldBase = 120 + levelScale * 35;
 
   return [
     {
