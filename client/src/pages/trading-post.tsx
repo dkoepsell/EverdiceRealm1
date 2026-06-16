@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SidebarTabs, SidebarTabsList, SidebarTabsTrigger, TabsContent } from "@/components/ui/sidebar-tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -453,21 +453,21 @@ export default function TradingPostPage() {
       </section>
 
       {/* Tab Navigation */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-slate-800/50 border border-amber-500/10">
-          <TabsTrigger value="adventures" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
+      <SidebarTabs value={activeTab} onValueChange={setActiveTab}>
+        <SidebarTabsList className="bg-slate-800/50 border border-amber-500/10">
+          <SidebarTabsTrigger value="adventures" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
             <BookOpen className="h-4 w-4 mr-2" />
             Adventures
-          </TabsTrigger>
-          <TabsTrigger value="items" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
+          </SidebarTabsTrigger>
+          <SidebarTabsTrigger value="items" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
             <Gem className="h-4 w-4 mr-2" />
             Items
-          </TabsTrigger>
-          <TabsTrigger value="player-market" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
+          </SidebarTabsTrigger>
+          <SidebarTabsTrigger value="player-market" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
             <Users className="h-4 w-4 mr-2" />
             Player Market
-          </TabsTrigger>
-        </TabsList>
+          </SidebarTabsTrigger>
+        </SidebarTabsList>
 
         {/* Adventures Tab */}
         <TabsContent value="adventures" className="space-y-6">
@@ -844,7 +844,7 @@ export default function TradingPostPage() {
             </div>
           )}
         </TabsContent>
-      </Tabs>
+      </SidebarTabs>
 
       {/* List Item Dialog */}
       <Dialog open={listItemDialogOpen} onOpenChange={setListItemDialogOpen}>

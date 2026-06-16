@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SidebarTabs, SidebarTabsList, SidebarTabsTrigger } from "@/components/ui/sidebar-tabs";
 import { Separator } from "@/components/ui/separator";
 import CharacterSheet from "@/components/character/CharacterSheet";
 import { AlertCircle, Plus, User, Users, Dice6, Swords, Sparkles, Sword, Wand2, Shield, Heart, Flame, Moon, Loader2, ChevronDown, ChevronUp, Zap, Package, Scroll, Edit, Trash2, HelpCircle, BookOpen, Target, Brain, Eye, FileDown } from "lucide-react";
@@ -724,12 +725,12 @@ export default function Characters() {
       </div>
       
       <div className="container mx-auto px-4 pb-8">
-      <Tabs defaultValue="list">
-        <TabsList className="mb-6">
-          <TabsTrigger value="list" className="flex items-center gap-2">
+      <SidebarTabs defaultValue="list">
+        <SidebarTabsList className="mb-6">
+          <SidebarTabsTrigger value="list" className="flex items-center gap-2">
             <User size={16} />
             My Characters
-          </TabsTrigger>
+          </SidebarTabsTrigger>
           <OnboardingHint
             hintId="character_builder_class"
             title="Quick Character Creation"
@@ -738,10 +739,10 @@ export default function Characters() {
             position="bottom"
             pulse={true}
           >
-            <TabsTrigger value="quick" className="flex items-center gap-2">
+            <SidebarTabsTrigger value="quick" className="flex items-center gap-2">
               <Sparkles size={16} />
               Quick Create
-            </TabsTrigger>
+            </SidebarTabsTrigger>
           </OnboardingHint>
           <OnboardingHint
             hintId="character_builder_race"
@@ -751,13 +752,13 @@ export default function Characters() {
             position="bottom"
             pulse={false}
           >
-            <TabsTrigger value="create" className="flex items-center gap-2">
+            <SidebarTabsTrigger value="create" className="flex items-center gap-2">
               <Plus size={16} />
               Advanced
-            </TabsTrigger>
+            </SidebarTabsTrigger>
           </OnboardingHint>
-        </TabsList>
-        
+        </SidebarTabsList>
+
         <TabsContent value="list">
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -2081,7 +2082,7 @@ export default function Characters() {
             </div>
           </div>
         </TabsContent>
-      </Tabs>
+      </SidebarTabs>
       </div>
     </div>
   );

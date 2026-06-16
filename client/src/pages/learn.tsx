@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SidebarTabs, SidebarTabsList, SidebarTabsTrigger } from "@/components/ui/sidebar-tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -1310,33 +1311,33 @@ export default function LearnPage() {
       
       <div className="container mx-auto p-4 max-w-7xl">
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-6 mb-8">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
+        <SidebarTabs value={activeTab} onValueChange={setActiveTab}>
+          <SidebarTabsList className="grid w-full grid-cols-6 mb-8">
+            <SidebarTabsTrigger value="overview" className="flex items-center gap-2">
               <Star className="h-4 w-4" />
               Overview
-            </TabsTrigger>
-            <TabsTrigger value="archetypes" className="flex items-center gap-2">
+            </SidebarTabsTrigger>
+            <SidebarTabsTrigger value="archetypes" className="flex items-center gap-2">
               <Compass className="h-4 w-4" />
               Build Guide
-            </TabsTrigger>
-            <TabsTrigger value="paths" className="flex items-center gap-2">
+            </SidebarTabsTrigger>
+            <SidebarTabsTrigger value="paths" className="flex items-center gap-2">
               <GraduationCap className="h-4 w-4" />
               Lessons
-            </TabsTrigger>
-            <TabsTrigger value="rules" className="flex items-center gap-2">
+            </SidebarTabsTrigger>
+            <SidebarTabsTrigger value="rules" className="flex items-center gap-2">
               <BookOpen className="h-4 w-4" />
               Rules
-            </TabsTrigger>
-            <TabsTrigger value="dm-guide" className="flex items-center gap-2">
+            </SidebarTabsTrigger>
+            <SidebarTabsTrigger value="dm-guide" className="flex items-center gap-2">
               <Crown className="h-4 w-4" />
               DM Guide
-            </TabsTrigger>
-            <TabsTrigger value="practice" className="flex items-center gap-2">
+            </SidebarTabsTrigger>
+            <SidebarTabsTrigger value="practice" className="flex items-center gap-2">
               <Target className="h-4 w-4" />
               Practice
-            </TabsTrigger>
-          </TabsList>
+            </SidebarTabsTrigger>
+          </SidebarTabsList>
 
           <TabsContent value="overview">
             <div className="space-y-8">
@@ -1480,7 +1481,7 @@ export default function LearnPage() {
           <TabsContent value="practice">
             <PracticeModules />
           </TabsContent>
-        </Tabs>
+        </SidebarTabs>
       </div>
     </div>
   );

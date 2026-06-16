@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SidebarTabs, SidebarTabsList, SidebarTabsTrigger } from "@/components/ui/sidebar-tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -559,24 +560,24 @@ export default function DMGuidePage() {
           </Button>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 bg-slate-800/50">
-            <TabsTrigger value="quickstart" className="data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+        <SidebarTabs value={activeTab} onValueChange={setActiveTab}>
+          <SidebarTabsList className="grid w-full grid-cols-2 md:grid-cols-5 bg-slate-800/50">
+            <SidebarTabsTrigger value="quickstart" className="data-[state=active]:bg-amber-500 data-[state=active]:text-white">
               Quick Start
-            </TabsTrigger>
-            <TabsTrigger value="interface" className="data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+            </SidebarTabsTrigger>
+            <SidebarTabsTrigger value="interface" className="data-[state=active]:bg-amber-500 data-[state=active]:text-white">
               Interface
-            </TabsTrigger>
-            <TabsTrigger value="sessions" className="data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+            </SidebarTabsTrigger>
+            <SidebarTabsTrigger value="sessions" className="data-[state=active]:bg-amber-500 data-[state=active]:text-white">
               Running Sessions
-            </TabsTrigger>
-            <TabsTrigger value="advanced" className="data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+            </SidebarTabsTrigger>
+            <SidebarTabsTrigger value="advanced" className="data-[state=active]:bg-amber-500 data-[state=active]:text-white">
               Advanced
-            </TabsTrigger>
-            <TabsTrigger value="faq" className="data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+            </SidebarTabsTrigger>
+            <SidebarTabsTrigger value="faq" className="data-[state=active]:bg-amber-500 data-[state=active]:text-white">
               FAQ
-            </TabsTrigger>
-          </TabsList>
+            </SidebarTabsTrigger>
+          </SidebarTabsList>
 
           <TabsContent value="quickstart" className="space-y-6">
             <Card className="bg-slate-800/50 border-slate-700">
@@ -1041,7 +1042,7 @@ export default function DMGuidePage() {
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
+        </SidebarTabs>
 
         <Separator className="my-10 bg-slate-700" />
 

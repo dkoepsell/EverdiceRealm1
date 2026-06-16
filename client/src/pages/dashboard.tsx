@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SidebarTabs, SidebarTabsList, SidebarTabsTrigger } from "@/components/ui/sidebar-tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import CampaignPanel from "@/components/campaign/CampaignPanel";
 import CampaignArchiveList from "@/components/campaign/CampaignArchiveList";
@@ -428,21 +429,21 @@ export default function Dashboard() {
       {/* Mobile Dashboard Tabs */}
       {isMobile && (
         <div className="container mx-auto px-4 py-6">
-          <Tabs defaultValue="active-campaign" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="active-campaign" className="flex flex-col items-center text-xs">
+          <SidebarTabs defaultValue="active-campaign">
+            <SidebarTabsList className="grid w-full grid-cols-3">
+              <SidebarTabsTrigger value="active-campaign" className="flex flex-col items-center text-xs">
                 <Bookmark className="h-4 w-4 mb-1" />
                 Adventure
-              </TabsTrigger>
-              <TabsTrigger value="character" className="flex flex-col items-center text-xs">
+              </SidebarTabsTrigger>
+              <SidebarTabsTrigger value="character" className="flex flex-col items-center text-xs">
                 <User className="h-4 w-4 mb-1" />
                 Character
-              </TabsTrigger>
-              <TabsTrigger value="history" className="flex flex-col items-center text-xs">
+              </SidebarTabsTrigger>
+              <SidebarTabsTrigger value="history" className="flex flex-col items-center text-xs">
                 <History className="h-4 w-4 mb-1" />
                 History
-              </TabsTrigger>
-            </TabsList>
+              </SidebarTabsTrigger>
+            </SidebarTabsList>
             
             <TabsContent value="active-campaign" className="mt-4">
               {campaignsLoading ? (
@@ -612,7 +613,7 @@ export default function Dashboard() {
             <TabsContent value="history" className="mt-4">
               <AdventureHistory />
             </TabsContent>
-          </Tabs>
+          </SidebarTabs>
         </div>
       )}
 

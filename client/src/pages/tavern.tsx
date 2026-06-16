@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SidebarTabs, SidebarTabsList, SidebarTabsTrigger } from "@/components/ui/sidebar-tabs";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -1693,33 +1694,33 @@ export default function TavernPage() {
           </Card>
         )}
 
-        <Tabs defaultValue="shop" className="w-full">
-          <TabsList className="grid w-full grid-cols-6 mb-6">
-            <TabsTrigger value="shop" className="flex items-center gap-2">
+        <SidebarTabs defaultValue="shop">
+          <SidebarTabsList className="grid w-full grid-cols-6 mb-6">
+            <SidebarTabsTrigger value="shop" className="flex items-center gap-2">
               <ShoppingBag className="h-4 w-4" />
               <span className="hidden sm:inline">Shop</span>
-            </TabsTrigger>
-            <TabsTrigger value="srd-shop" className="flex items-center gap-2">
+            </SidebarTabsTrigger>
+            <SidebarTabsTrigger value="srd-shop" className="flex items-center gap-2">
               <Scroll className="h-4 w-4" />
               <span className="hidden sm:inline">SRD Gear</span>
-            </TabsTrigger>
-            <TabsTrigger value="magic-shop" className="flex items-center gap-2">
+            </SidebarTabsTrigger>
+            <SidebarTabsTrigger value="magic-shop" className="flex items-center gap-2">
               <Sparkles className="h-4 w-4" />
               <span className="hidden sm:inline">Magic Items</span>
-            </TabsTrigger>
-            <TabsTrigger value="inventory" className="flex items-center gap-2">
+            </SidebarTabsTrigger>
+            <SidebarTabsTrigger value="inventory" className="flex items-center gap-2">
               <Package className="h-4 w-4" />
               <span className="hidden sm:inline">Inventory</span>
-            </TabsTrigger>
-            <TabsTrigger value="repair" className="flex items-center gap-2">
+            </SidebarTabsTrigger>
+            <SidebarTabsTrigger value="repair" className="flex items-center gap-2">
               <Wrench className="h-4 w-4" />
               <span className="hidden sm:inline">Repair</span>
-            </TabsTrigger>
-            <TabsTrigger value="social" className="flex items-center gap-2">
+            </SidebarTabsTrigger>
+            <SidebarTabsTrigger value="social" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Tavern</span>
-            </TabsTrigger>
-          </TabsList>
+            </SidebarTabsTrigger>
+          </SidebarTabsList>
 
           <TabsContent value="shop">
             <Card>
@@ -2847,7 +2848,7 @@ export default function TavernPage() {
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
+        </SidebarTabs>
 
         <Dialog open={buyDialogOpen} onOpenChange={setBuyDialogOpen}>
           <DialogContent>
