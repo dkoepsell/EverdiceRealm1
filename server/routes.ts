@@ -95,9 +95,11 @@ import { eq, sql, desc, and, gte, isNull } from "drizzle-orm";
 import OpenAI from "openai";
 import { getXPFromCR, calculateEncounterXP, QUEST_XP_REWARDS, getLevelFromXP, getXPToNextLevel } from "../shared/rules/xp";
 import { 
-  parseCAMLYaml, 
-  parseCAMLJson, 
-  convertCAMLToCampaign, 
+  parseCAMLYaml,
+  parseCAMLJson,
+  parseCAML2Yaml,
+  parseCAML2Json,
+  convertCAMLToCampaign,
   convertCampaignToCAML2, 
   exportToYAML, 
   exportToJSON, 
@@ -5075,6 +5077,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isPrivate: true,
         maxPlayers: 6,
         narrativeLog: bodyWithoutChapters.narrativeLog || { entries: [], chapterAdvances: [], xpAwards: [], foreclosedOptions: [] },
+        // Capture the pristine generated CAML 2.0 doc so it can be published as-is.
+        camlSource: req.body.generatedContent?.caml2 ?? req.body.caml2 ?? null,
       });
       
       const campaign = await storage.createCampaign(campaignData);
@@ -25566,6 +25570,12 @@ Respond with JSON:
             break;
         }
         
+        // Capture the imported CAML 2.0 doc (if it is 2.0) as the source for re-publishing.
+        let camlSource: any = null;
+        try {
+          camlSource = (format === 'yaml' || format === 'yml') ? parseCAML2Yaml(content) : parseCAML2Json(content);
+        } catch { camlSource = null; }
+
         const campaign = await storage.createCampaign({
           userId,
           title: campaignData.title,
@@ -25575,6 +25585,7 @@ Respond with JSON:
           campaignLength: campaignLength || 'standard',
           totalChapters,
           currentSession: 1,
+          camlSource,
           createdAt: new Date().toISOString()
         });
         
@@ -25876,7 +25887,9 @@ Return your response as a JSON object with these fields:
         storage.getCampaignDungeonMaps(campaignId),
       ]);
 
-      const camlAdventure = convertCampaignToCAML2(
+      // Prefer the pristine source CAML captured at creation; otherwise
+      // reconstruct from the campaign's current played state.
+      const camlAdventure = (campaign as any).camlSource || convertCampaignToCAML2(
         campaign,
         sessions,
         participants,

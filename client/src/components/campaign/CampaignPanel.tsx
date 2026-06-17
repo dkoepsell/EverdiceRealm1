@@ -419,6 +419,27 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     "Say a little more — by what means, and in what manner?",
     "Intent is clear; the details aren't. With what, and how?",
   ];
+  // Player-facing "training wheels" framing for the guidance panel — adapts to rung.
+  const RAILS_COPY: Record<string, { title: string; body: string }> = {
+    GUIDED: {
+      title: "Training wheels are ON",
+      body: "These suggestions are here to teach you the ropes — but the real game is describing your own actions. Try typing what you do in the box below; Everdice eases off as you grow.",
+    },
+    HYBRID: {
+      title: "Easing off the rails",
+      body: "Fewer hints now — lead with your own words. The action box is your main move; suggestions are just behind a tap.",
+    },
+    OPEN: {
+      title: "Almost off the rails",
+      body: "No suggestions on screen — just a nudge if you ask for one. You're driving the story now.",
+    },
+    PURE: {
+      title: "Rails OFF — pure imagination",
+      body: "Just you and the world. Describe whatever you want to do. This is real D&D.",
+    },
+  };
+  const railsRung: string = scaffolding?.rung || 'GUIDED';
+  const railsCopy = RAILS_COPY[railsRung] || RAILS_COPY.GUIDED;
   const [tableChatCollapsed, setTableChatCollapsed] = useState(true);
   const [isMyTurn, setIsMyTurn] = useState(true);
   const [currentTurnName, setCurrentTurnName] = useState<string | null>(null);
@@ -3764,6 +3785,69 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           />
                         )}
                         
+                        {/* Player-facing guidance / "training wheels" panel (solo). Always visible
+                            — including at PURE — so the rails can be toggled back on anytime.
+                            Makes clear players start on rails and should work to get off them. */}
+                        {isSoloPlay && scaffolding?.rung && !scaffolding?.expertMode && (
+                          <div className="mt-5 p-3.5 rounded-xl border border-amber-500/40 bg-gradient-to-br from-amber-950/40 to-slate-900/40" data-testid="guidance-panel">
+                            <div className="flex items-start justify-between gap-4 flex-wrap">
+                              <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                                <Sparkles className="h-5 w-5 mt-0.5 shrink-0 text-amber-300" />
+                                <div className="min-w-0">
+                                  <div className="font-bold text-amber-200 text-sm">{railsCopy.title}</div>
+                                  <p className="text-[13px] text-amber-100/80 leading-snug mt-0.5">{railsCopy.body}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                {railsRung !== 'PURE' ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1.5 border-amber-400/60 text-amber-200 hover:bg-amber-900/40"
+                                    onClick={() => setGuidanceMutation.mutate({ mode: 'PURE' })}
+                                    data-testid="rails-off"
+                                  >
+                                    Take the rails off
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1.5 border-amber-400/60 text-amber-200 hover:bg-amber-900/40"
+                                    onClick={() => setGuidanceMutation.mutate({ mode: 'auto' })}
+                                    data-testid="rails-on"
+                                  >
+                                    Turn guidance back on
+                                  </Button>
+                                )}
+                                <Select
+                                  value={scaffolding?.pinned ? scaffolding.rung : 'auto'}
+                                  onValueChange={(v) => setGuidanceMutation.mutate({ mode: v })}
+                                >
+                                  <SelectTrigger className="h-8 w-[130px] text-xs bg-slate-800 border-amber-500/40 text-slate-200" data-testid="guidance-level-select">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="auto">Auto (adaptive)</SelectItem>
+                                    <SelectItem value="GUIDED">Guided</SelectItem>
+                                    <SelectItem value="HYBRID">Hybrid</SelectItem>
+                                    <SelectItem value="OPEN">Open</SelectItem>
+                                    <SelectItem value="PURE">Pure (no hints)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            {isDM && (
+                              <div className="flex items-center gap-2 mt-2.5 pt-2.5 border-t border-amber-500/20">
+                                <Switch checked={isTutorial} onCheckedChange={handleToggleTutorial} data-testid="toggle-tutorial-play" />
+                                <span className="text-xs text-amber-100/80">
+                                  <b>Tutorial mode</b> — the game actively encourages and rewards trying things that aren't on the menu. Great for your first adventure.
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {/* Choices loading indicator — shows briefly before choices appear */}
                         {!isAdvancingStory && !choicesRevealed && !suggestionSectionHidden && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 && (
                           <div className="mt-6 pt-5 border-t border-amber-500/30 animate-in fade-in duration-300">
@@ -3898,27 +3982,6 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
                             {/* Custom Action — always available; the only input at OPEN/PURE. */}
                             <div className="mt-3 p-3 bg-slate-800/50 rounded-lg border border-slate-600/50">
-                              {isSoloPlay && scaffolding?.rung && (
-                                <div className="flex items-center justify-end gap-2 mb-2">
-                                  <span className="text-[11px] text-slate-400">Guidance</span>
-                                  <Select
-                                    value={scaffolding?.pinned ? scaffolding.rung : 'auto'}
-                                    onValueChange={(v) => setGuidanceMutation.mutate({ mode: v })}
-                                  >
-                                    <SelectTrigger className="h-7 w-[120px] text-xs bg-slate-700 border-slate-600 text-slate-200" data-testid="guidance-level-select">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="auto">Auto</SelectItem>
-                                      <SelectItem value="GUIDED">Guided</SelectItem>
-                                      <SelectItem value="HYBRID">Hybrid</SelectItem>
-                                      <SelectItem value="OPEN">Open</SelectItem>
-                                      <SelectItem value="PURE">Pure</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              )}
-
                               {/* §9 Auto-offer expert/oracle mode once the player reaches PURE organically. */}
                               {isSoloPlay && scaffolding?.offerExpertMode && (
                                 <div className="mb-2 p-2.5 rounded-md bg-indigo-900/30 border border-indigo-500/40 text-sm text-indigo-100 flex items-center justify-between gap-3" data-testid="expert-offer">

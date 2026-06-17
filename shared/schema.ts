@@ -267,6 +267,10 @@ export const campaigns = pgTable("campaigns", {
   // explicitly teaches + rewards off-menu attempts ("you can attempt anything
   // and the world responds"), seeding the off-menu habit early.
   isTutorial: boolean("is_tutorial").default(false),
+  // The pristine source CAML 2.0 document captured at creation (generated or
+  // imported). Lets "Publish to Trading Post" share the original module rather
+  // than reconstructing it from played state. Null for older/legacy campaigns.
+  camlSource: jsonb("caml_source"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at"),
 });
