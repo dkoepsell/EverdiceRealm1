@@ -174,7 +174,9 @@ export function CAMLManager({ campaignId, onImportComplete }: CAMLManagerProps) 
         content: adventureJson,
         format: 'json',
         createCampaign: true,
-        campaignLength
+        campaignLength,
+        // Preserve the generated cover art with the new campaign.
+        coverArtUrl: generatedAdventure?.coverArtUrl || undefined
       });
       return response.json();
     },

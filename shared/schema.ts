@@ -271,6 +271,9 @@ export const campaigns = pgTable("campaigns", {
   // imported). Lets "Publish to Trading Post" share the original module rather
   // than reconstructing it from played state. Null for older/legacy campaigns.
   camlSource: jsonb("caml_source"),
+  // Generated cover art for the adventure, preserved so it travels with the
+  // campaign everywhere it appears (campaign cards, Trading Post listing, etc.).
+  coverImageUrl: text("cover_image_url"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at"),
 });

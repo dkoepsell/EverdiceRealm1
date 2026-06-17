@@ -323,6 +323,16 @@ export default function Campaigns() {
                         className={`cursor-pointer hover:shadow-xl hover:border-primary/40 transition-all duration-300 overflow-hidden h-full bg-card/50 backdrop-blur ${isActive ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-background' : ''}`}
                         onClick={() => setSelectedCampaign(campaign)}
                       >
+                        {(campaign as any).coverImageUrl && (
+                          <div className="w-full h-32 overflow-hidden">
+                            <img
+                              src={(campaign as any).coverImageUrl}
+                              alt={campaign.title}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                        )}
                         <CardHeader className="pb-3 bg-gradient-to-r from-primary to-primary/80">
                           <div className="flex justify-between items-start">
                             <div className="flex-1 min-w-0">

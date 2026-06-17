@@ -5079,6 +5079,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         narrativeLog: bodyWithoutChapters.narrativeLog || { entries: [], chapterAdvances: [], xpAwards: [], foreclosedOptions: [] },
         // Capture the pristine generated CAML 2.0 doc so it can be published as-is.
         camlSource: req.body.generatedContent?.caml2 ?? req.body.caml2 ?? null,
+        // Preserve generated cover art with the campaign.
+        coverImageUrl: req.body.coverImageUrl ?? req.body.coverArtUrl ?? req.body.generatedContent?.coverArtUrl ?? null,
       });
       
       const campaign = await storage.createCampaign(campaignData);
@@ -25589,6 +25591,7 @@ Respond with JSON:
           totalChapters,
           currentSession: 1,
           camlSource,
+          coverImageUrl: req.body.coverArtUrl ?? req.body.coverImageUrl ?? null,
           createdAt: new Date().toISOString()
         });
         
@@ -25917,7 +25920,7 @@ Return your response as a JSON object with these fields:
         description: fullDescription,
         shortDescription: o.shortDescription || fullDescription.slice(0, 160),
         camlData: camlAdventure,
-        coverImageUrl: o.coverImageUrl || "",
+        coverImageUrl: o.coverImageUrl || (campaign as any).coverImageUrl || "",
         tags: Array.isArray(o.tags) ? o.tags : [],
         difficulty: o.difficulty || campaign.difficulty || "medium",
         genre: o.genre || "fantasy",
