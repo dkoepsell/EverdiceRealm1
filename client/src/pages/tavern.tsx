@@ -87,6 +87,9 @@ interface InventoryItem {
   durability?: number;
   maxDurability?: number;
   equipped?: boolean;
+  // Consumable fields (potions/scrolls bought from the shop live on character.consumables)
+  isConsumable?: boolean;
+  quantity?: number;
   // Magical item fields
   isMagical?: boolean;
   magicItemId?: number;
@@ -1584,6 +1587,23 @@ export default function TavernPage() {
   // Combine both inventories
   const characterEquipment: InventoryItem[] = [...basicEquipment, ...magicalItems];
 
+  // Consumables (potions/scrolls/antitoxin) bought from the shop are stored on
+  // character.consumables, NOT in equipment — so they were never shown in the
+  // inventory list. Surface them here so purchased usables actually appear.
+  const consumableItems: InventoryItem[] = (activeCharacter?.consumables || []).map((c: any) => ({
+    name: c.name,
+    type: c.type ? `Consumable · ${c.type}` : 'Consumable',
+    rarity: 'common',
+    description: c.effect || c.description || '',
+    quantity: c.quantity || 1,
+    isConsumable: true,
+  }));
+
+  // Items shown in the Inventory tab = gear + magical items + consumables.
+  // (The Blacksmith forge and encumbrance still use characterEquipment only —
+  // you don't repair or meaningfully encumber yourself with potions here.)
+  const inventoryDisplayItems: InventoryItem[] = [...characterEquipment, ...consumableItems];
+
   // Encumbrance system (D&D 5e: Carrying Capacity = Strength × 15)
   const getItemWeight = (item: InventoryItem): number => {
     // First check if item has weight stored
@@ -2018,7 +2038,7 @@ export default function TavernPage() {
                   </div>
                 )}
 
-                {characterEquipment.length === 0 ? (
+                {inventoryDisplayItems.length === 0 ? (
                   <div className="text-center py-12 text-slate-500">
                     <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>Your inventory is empty.</p>
@@ -2027,8 +2047,8 @@ export default function TavernPage() {
                 ) : (
                   <ScrollArea className="h-[500px]">
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {characterEquipment.map((item, index) => (
-                        <Card key={item.isMagical ? `magic-${item.magicItemId}` : index} className={`${item.equipped ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20' : ''} ${item.isMagical ? 'border-purple-400/50' : ''}`}>
+                      {inventoryDisplayItems.map((item, index) => (
+                        <Card key={item.isMagical ? `magic-${item.magicItemId}` : (item.isConsumable ? `consumable-${item.name}-${index}` : index)} className={`${item.equipped ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20' : ''} ${item.isMagical ? 'border-purple-400/50' : ''} ${item.isConsumable ? 'border-emerald-400/40' : ''}`}>
                           <CardContent className="p-4">
                             <div className="flex justify-between items-start mb-2">
                               <h4 className="font-bold flex items-center gap-2">
@@ -2037,12 +2057,22 @@ export default function TavernPage() {
                                 {item.equipped && <Star className="h-4 w-4 text-amber-500" />}
                               </h4>
                               <div className="flex items-center gap-1">
+                                {item.isConsumable && item.quantity && item.quantity > 1 && (
+                                  <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 text-xs">
+                                    ×{item.quantity}
+                                  </Badge>
+                                )}
                                 {item.isMagical && (
                                   <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-xs">
                                     Magic
                                   </Badge>
                                 )}
-                                {typeof item !== 'string' && item.rarity && (
+                                {item.isConsumable && (
+                                  <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 text-xs">
+                                    Consumable
+                                  </Badge>
+                                )}
+                                {typeof item !== 'string' && !item.isConsumable && item.rarity && (
                                   <Badge variant={getRarityBadgeVariant(item.rarity)} className={getRarityColor(item.rarity)}>
                                     {item.rarity}
                                   </Badge>
@@ -2134,6 +2164,12 @@ export default function TavernPage() {
                               </>
                             )}
                             <Separator className="my-2" />
+                            {item.isConsumable ? (
+                              <div className="flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
+                                <FlaskConical className="h-4 w-4" />
+                                <span>Use during your adventure{item.quantity && item.quantity > 1 ? ` (${item.quantity} held)` : ''}</span>
+                              </div>
+                            ) : (
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-1">
                                 <Coins className="h-4 w-4 text-yellow-600" />
@@ -2171,6 +2207,7 @@ export default function TavernPage() {
                                 </Button>
                               </div>
                             </div>
+                            )}
                           </CardContent>
                         </Card>
                       ))}
