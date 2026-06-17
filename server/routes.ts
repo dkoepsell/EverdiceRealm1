@@ -20194,7 +20194,25 @@ RESPONSE SIZE — CRITICAL FOR SPEED: Keep the JSON as small as the situation al
       // an explicit per-user model config inside getFastAIClient.
       const { client: openaiClient, model: aiModel } = await getFastAIClient(req.user?.id);
 
-      const cachedNarrative = getCachedNarrative(campaignId, req.user!.id);
+      // The creative narrative the player actually reads is produced concurrently by
+      // /advance-story-stream on the full-quality model and cached on completion.
+      // When the client tells us a stream is in flight, WAIT for that text to land so
+      // the persisted ("settled") narrative is byte-for-byte what the player saw —
+      // otherwise the fast model below would invent a different scene and the player
+      // gets a jarring swap when they press Continue. The player is reading the stream
+      // during this wait and the Continue button is gated on this call anyway, so the
+      // latency is hidden. Falls back to fast-model narrative if the stream never lands.
+      let cachedNarrative = getCachedNarrative(campaignId, req.user!.id);
+      if (!cachedNarrative && req.body?.streaming === true) {
+        const deadline = Date.now() + 45000;
+        while (!cachedNarrative && Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          cachedNarrative = getCachedNarrative(campaignId, req.user!.id);
+        }
+        if (!cachedNarrative) {
+          console.warn(`[Advance Story] Streamed narrative did not arrive within 45s for campaign ${campaignId}, user ${req.user!.id} — falling back to fast-model narrative.`);
+        }
+      }
       let finalPrompt = prompt;
       if (cachedNarrative) {
         finalPrompt = prompt + `
@@ -24385,12 +24403,17 @@ Respond with JSON:
       }
 
       const campaignId = parseInt(req.params.campaignId);
-      const { choice, currentLocation } = req.body;
+      const { choice, currentLocation, rollResult } = req.body;
 
       const campaign = await storage.getCampaign(campaignId);
       if (!campaign) {
         return res.status(404).json({ message: "Campaign not found" });
       }
+
+      // Clear any stale narrative from a prior turn up front, so the concurrent
+      // /advance-story call only ever reads THIS turn's freshly-streamed text
+      // (it waits for this entry to appear — see the cache poll there).
+      deleteCachedNarrative(campaignId, req.user!.id);
 
       res.writeHead(200, {
         "Content-Type": "text/event-stream",
@@ -24518,7 +24541,13 @@ Current Story State: ${JSON.stringify({
 })}
 
 The player chose: "${choice || "Continue the adventure"}"
-
+${rollResult ? `
+DICE OUTCOME — the player just rolled for this action:
+- Check: ${rollResult.purpose || 'skill check'}
+- Roll: ${rollResult.diceType || 'd20'} ${rollResult.result} + ${rollResult.modifier || 0} = ${rollResult.total} vs DC ${rollResult.dc || 10}
+- Result: ${rollResult.total >= (rollResult.dc || 10) ? 'SUCCESS' : 'FAILURE'}
+Write the scene around this ${rollResult.total >= (rollResult.dc || 10) ? 'success' : 'failure'}. ${rollResult.total >= (rollResult.dc || 10) ? 'The attempt works — show it paying off.' : 'The attempt falls short — show the complication, not a clean win.'} Do NOT contradict this outcome.
+` : ''}
 ANTI-REPETITION — DO NOT reuse these:
 - Recent titles: ${recentTitles.map(t => `"${t}"`).join(', ')}
 - Recent locations: ${[...new Set(recentLocations)].join(', ')}
@@ -24574,6 +24603,95 @@ No JSON, no choices, no game mechanics — just the story text.`;
         res.write(`event: error\ndata: ${JSON.stringify({ message: error?.message || "Unknown error" })}\n\n`);
         res.end();
       }
+    }
+  });
+
+  // Assess whether a free-form (typed) player action warrants a dice roll.
+  // Predefined choices carry their own roll metadata; free-form actions don't, so
+  // without this they NEVER trigger a check. This lets a typed action like
+  // "I try to pick the lock" or "I lie to the guard" pop the same dice dialog a
+  // predefined choice would. Deliberately conservative — most actions need no roll.
+  app.post("/api/campaigns/:campaignId/assess-action", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const campaignId = parseInt(req.params.campaignId);
+      const { action, currentLocation } = req.body || {};
+      if (!action || typeof action !== "string" || !action.trim()) {
+        return res.json({ requiresRoll: false });
+      }
+
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+
+      const sessions = await storage.getCampaignSessions(campaignId);
+      const latestSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
+      const previousNarrative = (latestSession?.narrative || "").slice(0, 600);
+      const storyState = (latestSession?.storyState as any) || {};
+      const inCombat = storyState.inCombat || false;
+
+      const VALID_SKILLS = [
+        'athletics', 'acrobatics', 'sleight_of_hand', 'stealth', 'thieves_tools',
+        'arcana', 'history', 'investigation', 'nature', 'religion',
+        'animal_handling', 'insight', 'medicine', 'perception', 'survival',
+        'deception', 'intimidation', 'performance', 'persuasion',
+        'strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma',
+      ];
+
+      const assessPrompt = `You are a D&D 5e Dungeon Master deciding whether a player's freely-typed action requires an ability check (dice roll).
+
+Current scene: ${previousNarrative || "(scene just beginning)"}
+Location: ${currentLocation || storyState.location || "unknown"}
+${inCombat ? "The party is IN COMBAT." : ""}
+Player's typed action: "${action.trim()}"
+
+Call for a roll ONLY when the outcome is genuinely UNCERTAIN and CONSEQUENTIAL — the action could plausibly fail and failure matters. Examples that DO need a roll: picking a lock, sneaking past a guard, persuading/deceiving/intimidating an NPC, recalling lore, searching for hidden things, leaping a chasm, resisting a trap, climbing a sheer wall.
+Do NOT call for a roll for: walking/talking/looking around, mundane or automatic actions, things with no meaningful stakes, pure narration ("I admire the view"), or anything an ordinary person would simply succeed at. When in doubt, DO NOT require a roll — most actions should not.
+
+Choose the single most appropriate skill from this exact list (use the snake_case value verbatim): ${VALID_SKILLS.join(', ')}.
+Set DC by difficulty: trivial 5, easy 10, medium 15, hard 20, very hard 25. Most checks should be 10-15.
+
+Respond with ONLY a JSON object, no prose:
+{"requiresRoll": boolean, "skill": "<one of the list, or empty if no roll>", "dc": <integer 5-25, or 0 if no roll>, "rollPurpose": "<short label like 'Stealth Check' or 'Persuasion Check'>", "reason": "<one short clause>"}`;
+
+      const { client: openaiClient, model: aiModel } = await getFastAIClient(req.user?.id);
+      const response = await openaiClient.chat.completions.create({
+        model: aiModel,
+        messages: [{ role: "user", content: assessPrompt }],
+        response_format: { type: "json_object" },
+        max_tokens: 150,
+      });
+
+      let parsed: any = null;
+      try { parsed = JSON.parse(response.choices[0].message.content || "{}"); } catch {}
+
+      if (!parsed || parsed.requiresRoll !== true) {
+        return res.json({ requiresRoll: false });
+      }
+
+      const skill = String(parsed.skill || "").toLowerCase().replace(/\s+/g, "_");
+      if (!VALID_SKILLS.includes(skill)) {
+        // No mappable skill → don't force a roll rather than guess wrong.
+        return res.json({ requiresRoll: false });
+      }
+      const dc = Math.max(5, Math.min(25, parseInt(parsed.dc, 10) || 12));
+
+      return res.json({
+        requiresRoll: true,
+        skill,
+        dc,
+        diceType: "d20",
+        rollPurpose: String(parsed.rollPurpose || `${skill.replace(/_/g, ' ')} check`),
+        reason: String(parsed.reason || ""),
+      });
+    } catch (error: any) {
+      console.error("[Assess Action] Failed:", error?.message || error);
+      // Fail open — never block the player's action because assessment failed.
+      return res.json({ requiresRoll: false });
     }
   });
 

@@ -391,6 +391,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     failureText: string;
   } | null>(null);
   const [customAction, setCustomAction] = useState("");
+  const [isAssessingAction, setIsAssessingAction] = useState(false);
   // Progressive scaffolding (Phase 1): rung-driven suggestion visibility.
   // null = no dial (multiplayer / pre-migration) -> show all choices as before.
   const [scaffolding, setScaffolding] = useState<any>(null);
@@ -1448,12 +1449,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   
   // Advance story mutation with enhanced skill check integration
   const advanceStory = useMutation({
-    mutationFn: async ({ choice, rollResult }: { choice: string; rollResult?: any }) => {
+    mutationFn: async ({ choice, rollResult, streaming }: { choice: string; rollResult?: any; streaming?: boolean }) => {
       const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/advance-story`, {
         choice,
         rollResult,
         currentLocation,
-        pacingMode
+        pacingMode,
+        // When true, the server waits for the concurrently-streamed full-model
+        // narrative so the persisted text matches what the player just read.
+        streaming
       });
       return await response.json();
     },
@@ -1972,7 +1976,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
   const streamAbortRef = useRef<AbortController | null>(null);
 
-  const startNarrativeStream = useCallback(async (choice: string, loc: string) => {
+  const startNarrativeStream = useCallback(async (choice: string, loc: string, rollResult?: any) => {
     if (streamAbortRef.current) {
       streamAbortRef.current.abort();
     }
@@ -1985,7 +1989,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         signal: controller.signal,
-        body: JSON.stringify({ choice, currentLocation: loc, pacingMode }),
+        body: JSON.stringify({ choice, currentLocation: loc, pacingMode, rollResult }),
       });
 
       if (!response.ok || !response.body) return;
@@ -2910,7 +2914,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       showTip('pacing');
       fetchRevealText(actionText, parsedStoryState?.inCombat || false, currentLocation);
       startNarrativeStream(actionText, currentLocation);
-      advanceStory.mutate({ choice: actionText }, {
+      advanceStory.mutate({ choice: actionText, streaming: true }, {
         onSettled: () => {
           if (streamAbortRef.current) streamAbortRef.current.abort();
           setMutationReady(true);
@@ -2920,8 +2924,31 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
   };
 
-  const handleCustomAction = () => {
-    if (!customAction.trim()) return;
+  // Resolve a free-form action straight to narration (no dice roll).
+  const resolveCustomAction = (actionText: string) => {
+    setLastChosenAction(actionText);
+    setStoryPhase('commit');
+    setRevealText("");
+    setStreamedNarrative("");
+    setIsAdvancingStory(true);
+    setMutationReady(false);
+    setChoicesRevealed(false);
+    if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
+    showTip('pacing');
+    fetchRevealText(actionText, parsedStoryState?.inCombat || false, currentLocation);
+    startNarrativeStream(actionText, currentLocation);
+    advanceStory.mutate({ choice: actionText, streaming: true }, {
+      onSettled: () => {
+        if (streamAbortRef.current) streamAbortRef.current.abort();
+        setMutationReady(true);
+        setLastChosenAction("");
+        setCustomAction("");
+      }
+    });
+  };
+
+  const handleCustomAction = async () => {
+    if (!customAction.trim() || isAssessingAction) return;
 
     // §6.1 elaboration invitation: if the player still needs help (server flag)
     // and this freeform action is vague, nudge ONCE before resolving. A second
@@ -2934,31 +2961,40 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       return;
     }
 
-    const customChoice = {
-      action: customAction.trim(),
-      requiresDiceRoll: false
-    };
+    const actionText = customAction.trim();
 
-    const actionText = customChoice.action || customAction.trim();
-    setLastChosenAction(actionText);
-    setStoryPhase('commit');
-    setRevealText("");
-    setStreamedNarrative("");
-    setIsAdvancingStory(true);
-    setMutationReady(false);
-    setChoicesRevealed(false);
-    if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
-    showTip('pacing');
-    fetchRevealText(actionText, parsedStoryState?.inCombat || false, currentLocation);
-    startNarrativeStream(actionText, currentLocation);
-    advanceStory.mutate({ choice: actionText }, {
-      onSettled: () => {
-        if (streamAbortRef.current) streamAbortRef.current.abort();
-        setMutationReady(true);
-        setLastChosenAction("");
+    // Free-form actions carry no roll metadata, so predefined-choice dice triggering
+    // never fires for them. Ask the server whether this typed action warrants an
+    // ability check; if so, route it through the SAME dice dialog a predefined choice
+    // uses (rolls with the character's real modifier, then streams the outcome).
+    // Otherwise resolve directly. Fails open — assessment never blocks the action.
+    setIsAssessingAction(true);
+    try {
+      const resp = await apiRequest('POST', `/api/campaigns/${campaign.id}/assess-action`, {
+        action: actionText,
+        currentLocation,
+      });
+      const assessment = await resp.json();
+      if (assessment?.requiresRoll) {
         setCustomAction("");
+        setElaborationNudge(null);
+        handleChoiceSelection({
+          action: actionText,
+          requiresDiceRoll: true,
+          skillType: assessment.skill,
+          rollDC: assessment.dc,
+          diceType: assessment.diceType || 'd20',
+          rollPurpose: assessment.rollPurpose,
+        });
+        return;
       }
-    });
+    } catch (e) {
+      console.warn('[Custom Action] assessment failed, proceeding without a roll:', e);
+    } finally {
+      setIsAssessingAction(false);
+    }
+
+    resolveCustomAction(actionText);
   };
 
   const triggerCombatAdvance = useCallback((actionText: string, rollResult?: any) => {
@@ -2971,8 +3007,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     setChoicesRevealed(false);
     if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
     fetchRevealText(actionText, true, currentLocation);
-    startNarrativeStream(actionText, currentLocation);
-    advanceStory.mutate({ choice: actionText, rollResult }, {
+    startNarrativeStream(actionText, currentLocation, rollResult);
+    advanceStory.mutate({ choice: actionText, rollResult, streaming: true }, {
       onSettled: () => {
         if (streamAbortRef.current) streamAbortRef.current.abort();
         setMutationReady(true);
@@ -3176,21 +3212,23 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
         showTip('pacing');
         fetchRevealText(diceActionText, parsedStoryState?.inCombat || false, currentLocation);
-        startNarrativeStream(diceActionText, currentLocation);
-        
+
+        const rollResultData = {
+          diceType: currentDiceRoll.diceType,
+          result: result.rolls[0],
+          modifier: currentDiceRoll.rollModifier,
+          total: result.total,
+          dc: rollDC,
+          purpose: currentDiceRoll.rollPurpose || currentDiceRoll.action
+        };
+
+        startNarrativeStream(diceActionText, currentLocation, rollResultData);
+
         setTimeout(() => {
-          const rollResultData = {
-            diceType: currentDiceRoll.diceType,
-            result: result.rolls[0],
-            modifier: currentDiceRoll.rollModifier,
-            total: result.total,
-            dc: rollDC,
-            purpose: currentDiceRoll.action
-          };
-          
           advanceStory.mutate({
             choice: currentDiceRoll.action || 'Take action',
-            rollResult: rollResultData
+            rollResult: rollResultData,
+            streaming: true
           }, {
             onSettled: () => {
               if (streamAbortRef.current) streamAbortRef.current.abort();
@@ -4080,17 +4118,18 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   onChange={(e) => setCustomAction(e.target.value)}
                                   className="flex-1 bg-slate-700 border-amber-600/40 text-white placeholder:text-slate-400"
                                   onKeyPress={(e) => {
-                                    if (e.key === 'Enter' && customAction.trim()) {
+                                    if (e.key === 'Enter' && customAction.trim() && !isAssessingAction) {
                                       handleCustomAction();
                                     }
                                   }}
+                                  disabled={isAssessingAction}
                                 />
-                                <Button 
+                                <Button
                                   onClick={handleCustomAction}
-                                  disabled={!customAction.trim() || isAdvancingStory || (!isDM && !!currentTurnName && !isMyTurn)}
+                                  disabled={!customAction.trim() || isAdvancingStory || isAssessingAction || (!isDM && !!currentTurnName && !isMyTurn)}
                                   className="shrink-0 bg-amber-600 hover:bg-amber-500"
                                 >
-                                  <ArrowRight className="h-4 w-4" />
+                                  {isAssessingAction ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                                 </Button>
                               </div>
                             </div>
