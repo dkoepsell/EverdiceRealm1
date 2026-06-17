@@ -108,16 +108,30 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   useEffect(() => {
     if (guidanceData) setScaffolding(guidanceData);
   }, [guidanceData]);
-  // Manual "Guidance level" control — set Auto or pin a rung (spec §4.3).
+  // Manual "Guidance level" control — set Auto / pin a rung / toggle expert (§4.3, §9).
   const setGuidanceMutation = useMutation({
-    mutationFn: async (mode: string) => {
-      const response = await apiRequest('PUT', `/api/campaigns/${campaign.id}/guidance`, { mode });
+    mutationFn: async (body: { mode?: string; expertMode?: boolean; rulesVerbosity?: string | null }) => {
+      const response = await apiRequest('PUT', `/api/campaigns/${campaign.id}/guidance`, body);
       return await response.json();
     },
     onSuccess: (data) => {
       if (data) setScaffolding(data);
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/guidance`] });
     },
+  });
+  // Oracle consult (expert mode, spec §9).
+  const [oracleQuestion, setOracleQuestion] = useState("");
+  const [oracleLikelihood, setOracleLikelihood] = useState("fifty-fifty");
+  const [oracleResult, setOracleResult] = useState<any>(null);
+  const oracleMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/oracle`, {
+        question: oracleQuestion.trim() || undefined,
+        likelihood: oracleLikelihood,
+      });
+      return await response.json();
+    },
+    onSuccess: (data) => setOracleResult(data),
   });
 
   // Campaign NPCs
@@ -3864,7 +3878,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   <span className="text-[11px] text-slate-400">Guidance</span>
                                   <Select
                                     value={scaffolding?.pinned ? scaffolding.rung : 'auto'}
-                                    onValueChange={(v) => setGuidanceMutation.mutate(v)}
+                                    onValueChange={(v) => setGuidanceMutation.mutate({ mode: v })}
                                   >
                                     <SelectTrigger className="h-7 w-[120px] text-xs bg-slate-700 border-slate-600 text-slate-200" data-testid="guidance-level-select">
                                       <SelectValue />
@@ -3879,6 +3893,58 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   </Select>
                                 </div>
                               )}
+
+                              {/* §9 Auto-offer expert/oracle mode once the player reaches PURE organically. */}
+                              {isSoloPlay && scaffolding?.offerExpertMode && (
+                                <div className="mb-2 p-2.5 rounded-md bg-indigo-900/30 border border-indigo-500/40 text-sm text-indigo-100 flex items-center justify-between gap-3" data-testid="expert-offer">
+                                  <span>You're playing in pure prose now. Switch to <b>expert mode</b>? Suggestions off, oracle on.</span>
+                                  <Button size="sm" className="shrink-0 bg-indigo-600 hover:bg-indigo-500" onClick={() => setGuidanceMutation.mutate({ expertMode: true })} data-testid="enable-expert">
+                                    Enable
+                                  </Button>
+                                </div>
+                              )}
+
+                              {/* §9 Oracle panel — generative friction in place of suggestions. */}
+                              {isSoloPlay && scaffolding?.expertMode && (
+                                <div className="mb-3 p-3 rounded-lg bg-indigo-950/40 border border-indigo-500/30" data-testid="oracle-panel">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <h5 className="font-semibold text-sm text-indigo-200">Ask the Oracle</h5>
+                                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-indigo-300/70 hover:text-indigo-200" onClick={() => setGuidanceMutation.mutate({ expertMode: false })} data-testid="disable-expert">
+                                      Exit expert
+                                    </Button>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Input
+                                      placeholder="A yes/no question to the oracle…"
+                                      value={oracleQuestion}
+                                      onChange={(e) => setOracleQuestion(e.target.value)}
+                                      className="flex-1 bg-slate-800 border-indigo-600/40 text-white placeholder:text-slate-400"
+                                      onKeyPress={(e) => { if (e.key === 'Enter') oracleMutation.mutate(); }}
+                                    />
+                                    <Select value={oracleLikelihood} onValueChange={setOracleLikelihood}>
+                                      <SelectTrigger className="h-9 w-[130px] text-xs bg-slate-800 border-indigo-600/40 text-slate-200"><SelectValue /></SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="impossible">Impossible</SelectItem>
+                                        <SelectItem value="unlikely">Unlikely</SelectItem>
+                                        <SelectItem value="fifty-fifty">50 / 50</SelectItem>
+                                        <SelectItem value="likely">Likely</SelectItem>
+                                        <SelectItem value="certain">Certain</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <Button className="shrink-0 bg-indigo-600 hover:bg-indigo-500" onClick={() => oracleMutation.mutate()} disabled={oracleMutation.isPending} data-testid="ask-oracle">
+                                      Ask
+                                    </Button>
+                                  </div>
+                                  {oracleResult && (
+                                    <div className="mt-2 text-sm text-indigo-100" data-testid="oracle-result">
+                                      <span className="font-bold text-indigo-300">{oracleResult.phrase}</span>
+                                      {oracleResult.twist && <span className="italic text-indigo-200/90"> — {oracleResult.twist}</span>}
+                                      <span className="ml-2 text-[11px] text-indigo-400/60">(d100: {oracleResult.roll})</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
                               <h5 className="font-medium text-sm text-slate-300 mb-2">
                                 {scaffoldVis?.inputProminence === 'primary' ? 'What do you do?' : 'Or describe your own action:'}
                               </h5>

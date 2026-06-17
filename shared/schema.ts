@@ -263,6 +263,10 @@ export const campaigns = pgTable("campaigns", {
   partyReputation: integer("party_reputation").default(50), // Party's reputation (0-100)
   worldInstability: integer("world_instability").default(20), // Overall world instability (0-100)
   failureAdvancementLog: jsonb("failure_advancement_log"), // Log of how failures advanced the world state
+  // Progressive scaffolding: tutorial sandbox (spec §13). When true, the DM
+  // explicitly teaches + rewards off-menu attempts ("you can attempt anything
+  // and the world responds"), seeding the off-menu habit early.
+  isTutorial: boolean("is_tutorial").default(false),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at"),
 });

@@ -66,6 +66,7 @@ export type TraceEventKind =
   | "scaffold.elaborationInvited"
   | "scaffold.elaborationSatisfied"
   | "scaffold.expertEnabled"
+  | "scaffold.oracleConsulted"
   // Legacy compatibility aliases
   | "state.set"
   | "item.gained"

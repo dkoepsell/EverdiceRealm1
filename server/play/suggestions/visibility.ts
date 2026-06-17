@@ -53,6 +53,8 @@ export interface ScaffoldingResponse {
   visibility: SuggestionVisibility;
   /** Whether the client should offer a pre-submit elaboration nudge (§6.1). */
   invitesElaboration: boolean;
+  /** Auto-offer expert/oracle mode once the player reaches PURE organically (§9). */
+  offerExpertMode: boolean;
 }
 
 export function buildScaffoldingResponse(p: {
@@ -72,5 +74,6 @@ export function buildScaffoldingResponse(p: {
     rulesVerbosity,
     visibility: getSuggestionVisibility(rung),
     invitesElaboration: !!p.invitesElaboration,
+    offerExpertMode: rung === "PURE" && !p.expertMode,
   };
 }

@@ -7,6 +7,7 @@ import { buildScaffoldingResponse, resolveEffectiveRung, type ScaffoldingRespons
 import { renderDiegetic } from "./play/suggestions/diegetic";
 import { playerNeedsElaborationHelp, MIRROR_INSTRUCTION } from "./play/suggestions/elaboration";
 import { rollVerbosityGuidance } from "./play/mechanics/verbosity";
+import { consultOracle, ORACLE_LIKELIHOODS, type OracleLikelihood } from "./play/oracle/oracle";
 import { computeMetrics } from "./play/progression/engine";
 import { deriveVerbosityFromRung } from "./play/progression/config";
 import type { RulesVerbosity } from "./play/scaffolding.types";
@@ -18215,6 +18216,32 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
     }
   });
 
+  // Oracle / generative-friction engine (spec §9). Expert players consult the
+  // oracle for a yes/yes-but/no-and answer + the occasional twist, in place of
+  // suggestions. On-demand only for now (auto-triggers on scene change are a
+  // future add). Per (campaignId, current user).
+  app.post("/api/campaigns/:campaignId/oracle", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      const campaignId = parseInt(req.params.campaignId);
+      const { question, likelihood } = req.body as { question?: string; likelihood?: OracleLikelihood };
+      const lk: OracleLikelihood = ORACLE_LIKELIHOODS.includes(likelihood as OracleLikelihood)
+        ? (likelihood as OracleLikelihood)
+        : "fifty-fifty";
+      const result = consultOracle(lk);
+      await recordTrace(
+        campaignId,
+        "scaffold.oracleConsulted",
+        { likelihood: lk, answer: result.answer, modifier: result.modifier, hadTwist: !!result.twist },
+        { who: `player.${req.user.id}` },
+      );
+      res.json({ ...result, question: (question || "").trim() || null });
+    } catch (error) {
+      console.error("Oracle consult failed:", error);
+      res.status(500).json({ message: "Oracle consult failed" });
+    }
+  });
+
   // Advance story based on player choice with continuity
   app.post("/api/campaigns/:campaignId/advance-story", async (req, res) => {
     try {
@@ -19729,6 +19756,7 @@ ${finaleInstructions}
 ${session1ContractPrompt}
 ${scaffoldVerbosity ? rollVerbosityGuidance(scaffoldVerbosity) : ''}
 ${scaffoldRung ? MIRROR_INSTRUCTION : ''}
+${(campaign as any).isTutorial ? "TUTORIAL SANDBOX: This is a teaching scene. Its single lesson is that the player can attempt ANYTHING and the world responds — they are not limited to listed options. Actively invite off-menu, freeform attempts; when the player tries something not on the menu, make it MATTER (reward the creativity with a meaningful, positive-leaning consequence) and briefly acknowledge in-fiction that their own idea shaped the outcome. Keep stakes gentle and forgiving." : ''}
 ${sceneHistoryDigest2}
 ${camlStorySpine2}
 ${chapterNudge2}
