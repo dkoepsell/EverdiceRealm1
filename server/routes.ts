@@ -20302,9 +20302,17 @@ ${cachedNarrative}
       }
 
       if (cachedNarrative) {
+        // Deterministically force the persisted narrative to be the EXACT text the
+        // player already read via streaming. The prompt asks the model to copy it
+        // verbatim, but a fast model sometimes paraphrases or regenerates — which
+        // produced jarring streamed-vs-settled mismatches (e.g. the NPC greets you
+        // in the stream but never noticed you in the saved scene). Overriding in
+        // code guarantees they match; the model's job is only the choices/mechanics,
+        // which it generated against this same locked narrative.
+        storyAdvancement.narrative = cachedNarrative;
         deleteCachedNarrative(campaignId, req.user!.id);
       }
-      console.log(`[Advance Story] AI response received - narrative length: ${storyAdvancement.narrative?.length || 0}, choices: ${storyAdvancement.choices?.length || 0}${cachedNarrative ? ' (cached narrative injected)' : ''}`);
+      console.log(`[Advance Story] AI response received - narrative length: ${storyAdvancement.narrative?.length || 0}, choices: ${storyAdvancement.choices?.length || 0}${cachedNarrative ? ' (cached narrative forced verbatim)' : ''}`);
 
       // Calculate XP and item rewards based on story advancement
       let xpAwarded = 0;
