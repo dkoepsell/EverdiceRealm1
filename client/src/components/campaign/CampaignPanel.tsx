@@ -97,7 +97,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   });
 
   // Solo play = the only place the scaffolding dial applies (spec §11).
-  const isSoloPlay = (participants?.length ?? 0) <= 1;
+  // Measured by distinct LIVE human players (distinct userIds), NOT raw
+  // participant rows — companions are NPCs, not participants, and even if a
+  // human is listed more than once it shouldn't read as multiplayer.
+  const livePlayerCount = new Set((participants || []).map((p: any) => p.userId).filter((u: any) => u != null)).size;
+  const isSoloPlay = livePlayerCount <= 1;
   // Guidance level (progressive scaffolding) — seeds the dial on load so a
   // progressed player sees the right visibility before their first turn.
   const { data: guidanceData } = useQuery<any>({
@@ -4033,9 +4037,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 </div>
                               )}
 
-                              <h5 className="font-medium text-sm text-slate-300 mb-2">
-                                {scaffoldVis?.inputProminence === 'primary' ? 'What do you do?' : 'Or describe your own action:'}
+                              <h5 className="font-semibold text-sm text-amber-200 mb-1 flex items-center gap-1.5">
+                                <Sparkles className="h-4 w-4 text-amber-300" />
+                                {scaffoldVis?.inputProminence === 'primary' ? 'What do you do?' : 'Describe your own action'}
                               </h5>
+                              {isSoloPlay && !scaffolding?.expertMode && (
+                                <p className="text-[12px] text-amber-100/70 mb-2 leading-snug">
+                                  You're never limited to the options above — type <span className="italic">anything</span> your character does. Going off-menu is the real game, and the world will respond.
+                                </p>
+                              )}
                               {elaborationNudge && (
                                 <div className="mb-2 p-2.5 rounded-md bg-amber-900/25 border border-amber-600/40 text-sm text-amber-100 italic animate-in fade-in slide-in-from-bottom-1 duration-300" data-testid="elaboration-nudge">
                                   {elaborationNudge}
@@ -4044,10 +4054,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               )}
                               <div className="flex gap-2">
                                 <Input
-                                  placeholder="e.g., 'Search for hidden symbols'"
+                                  placeholder="Try anything — e.g. 'I wedge my dagger under the floorboard and pry'"
                                   value={customAction}
                                   onChange={(e) => setCustomAction(e.target.value)}
-                                  className="flex-1 bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
+                                  className="flex-1 bg-slate-700 border-amber-600/40 text-white placeholder:text-slate-400"
                                   onKeyPress={(e) => {
                                     if (e.key === 'Enter' && customAction.trim()) {
                                       handleCustomAction();
@@ -5372,22 +5382,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             </TooltipContent>
                           </Tooltip>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-medium" style={{ color: '#475569' }}>Tutorial</span>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div>
-                                <Switch
-                                  checked={isTutorial}
-                                  onCheckedChange={handleToggleTutorial}
-                                  data-testid="toggle-tutorial"
-                                />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="max-w-[220px]">Tutorial mode: the DM actively invites and rewards off-menu, freeform attempts — teaching that you can try anything and the world responds. Best for brand-new players.</p>
-                            </TooltipContent>
-                          </Tooltip>
+                        <div className="flex items-center gap-2 max-w-[280px]">
+                          <Switch
+                            checked={isTutorial}
+                            onCheckedChange={handleToggleTutorial}
+                            data-testid="toggle-tutorial"
+                          />
+                          <span className="text-xs leading-snug" style={{ color: '#475569' }}>
+                            <span className="font-semibold block" style={{ color: '#0f172a' }}>Tutorial mode</span>
+                            Encourages and rewards trying things that aren't on the menu — teaches new players they can do anything.
+                          </span>
                         </div>
                       </div>
                     )}

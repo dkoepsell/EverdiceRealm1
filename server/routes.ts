@@ -18277,7 +18277,10 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
       // Enforce turn order in multiplayer campaigns (unless DM or skipTurnCheck is true)
       const isDM = campaign.userId === req.user.id;
       const participants = await storage.getCampaignParticipants(campaignId);
-      const isMultiplayer = participants.length > 1;
+      // "Multiplayer" = more than one LIVE human player. Companions are NPCs, not
+      // participants, so they never count; we measure distinct human user ids so a
+      // solo player (with or without companions) is correctly treated as solo.
+      const isMultiplayer = new Set(participants.map((p: any) => p.userId).filter((u: any) => u != null)).size > 1;
       
       if (campaign.isTurnBased && isMultiplayer && !isDM && !skipTurnCheck) {
         // Check if it's this player's turn

@@ -412,7 +412,11 @@ export function validateCAMLId(id: string): boolean {
 }
 
 export function generateCAMLId(prefix: string, name: string): CAMLId {
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 50);
+  // Defensive: callers pass entity names that can be undefined/empty (an NPC or
+  // item with no name, an unset location). Fall back to a stable slug so CAML
+  // export/publish never crashes on a partially-populated campaign.
+  const raw = (name == null ? "" : String(name)).toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 50);
+  const slug = raw.replace(/^_+|_+$/g, "") || "unnamed";
   return `${prefix}_${slug}`;
 }
 
