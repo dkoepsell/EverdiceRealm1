@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { recordSoloTurn } from "./play/progression/recordTurn";
 import { buildScaffoldingResponse, type ScaffoldingResponse } from "./play/suggestions/visibility";
+import { renderDiegetic } from "./play/suggestions/diegetic";
 import { registerWanderRoutes } from "./wanderRoutes";
 import { registerDelveRoutes } from "./delveRoutes";
 import { parseNarrativeForLocations, generateHexMetaFromKeywords, getAllAdjacentCoordinates, getAdjacentHexCoordinates, detectMovementInNarrative, detectAdventureSetting, ENVIRONMENT_KEYWORDS, type HexDirection, type AdventureSetting } from "./narrativeHexParser";
@@ -20014,7 +20015,8 @@ Respond with JSON:
   "dmNarrative": "Behind-the-scenes context for DM about consequences and what NPCs are thinking/planning",
   "choices": [
     {
-      "text": "Action-focused choice description", 
+      "text": "Action-focused choice description",
+      "hint": "DIEGETIC version of this choice: a sensory noticing or character impulse that IMPLIES the action WITHOUT naming it. NO second-person imperative verbs (never 'Search the desk'); instead a noticing ('The desk drawer sits slightly ajar') or impulse ('Your hand drifts toward the hilt'). Do NOT state the outcome. One short sentence, in the scene's prose voice.",
       "type": "action/dialogue/exploration/magic/stealth/combat",
       "resolutionMode": "Dialogue/Investigation/Ingenuity/Stealth/Endurance/Violence",
       "risk": "Low/Medium/High",
@@ -22079,6 +22081,18 @@ ${cachedNarrative}
         }
       }
       
+      // Progressive scaffolding (Phase 2): attach a lint-clean diegetic
+      // `displayHint` to each choice for solo play. The client shows this at
+      // any rung that surfaces suggestions (§5.2); raw `text` stays for the
+      // action submitted on click. renderDiegetic guarantees no second-person
+      // imperative (acceptance criterion #7), falling back deterministically
+      // when the LLM hint is missing or fails the lint.
+      if (!isMultiplayer && Array.isArray(finalChoices)) {
+        finalChoices = finalChoices.map((c: any) =>
+          c && typeof c === "object" ? { ...c, displayHint: renderDiegetic(c) } : c,
+        );
+      }
+
       let updatedSession = await storage.advanceSessionStory(campaignId, {
         narrative: storyAdvancement.narrative,
         dmNarrative: storyAdvancement.dmNarrative,

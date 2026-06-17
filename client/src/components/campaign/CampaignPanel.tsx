@@ -3756,6 +3756,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             <div className="grid grid-cols-1 gap-2">
                               {(scaffoldMaxSuggestions != null ? currentSession.choices.slice(0, scaffoldMaxSuggestions) : currentSession.choices).map((choice: any, index: number) => {
                                 const choiceText = choice.action || choice.text || '';
+                                // Diegetic display (spec §5.2): show the in-fiction noticing/impulse
+                                // when the dial is active; the raw action is still what gets submitted.
+                                const choiceDisplay = (scaffoldVis && choice.displayHint) ? choice.displayHint : choiceText;
                                 const dc = choice.rollDC || parseDCFromText(choiceText);
                                 const skillName = choice.skillType || choice.rollPurpose?.toLowerCase().replace(/\s+check/i, '') || 'strength';
                                 const hasRoll = choice.requiresRoll || choice.requiresDiceRoll || dc;
@@ -3790,8 +3793,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                     <div className="flex items-start w-full min-w-0">
                                       <ArrowRight className="h-5 w-5 mr-2 mt-0.5 shrink-0 text-amber-400" />
                                       <div className="flex flex-col gap-1 flex-1 min-w-0">
-                                        <span className="text-slate-100 font-medium text-sm sm:text-base break-words whitespace-normal leading-snug">
-                                          {choiceText}
+                                        <span className={`text-slate-100 font-medium text-sm sm:text-base break-words whitespace-normal leading-snug${choiceDisplay !== choiceText ? ' italic text-amber-100/90' : ''}`}>
+                                          {choiceDisplay}
                                         </span>
                                         {hasRoll && dc && (
                                           <div className="flex items-center gap-1">

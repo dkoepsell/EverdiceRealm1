@@ -76,11 +76,26 @@ export interface CAMLCharacter extends CAMLBaseEntity {
   statblock?: CAMLStatblock;
 }
 
+/**
+ * Diegetic affordance / "noticing" on a location (spec §3.3). Optional and
+ * additive — a sensory/situational hint that implies an action without naming
+ * it ("a loose floorboard near the far wall"), as opposed to an imperative
+ * choice. May point at a scripted connection via `edgeId`, or be pure flavor
+ * resolved by the improvisation layer. Backward-compatible: when absent, the
+ * runtime generates affordances from the scene at play time.
+ */
+export interface CAMLAffordance {
+  hint: string;          // diegetic noticing, no second-person imperative verb
+  edgeId?: CAMLId;       // optional scripted connection this points toward
+  tags?: string[];
+}
+
 export interface CAMLLocation extends CAMLBaseEntity {
   kind: "location";
   region?: string;
   features?: string[];
   terrain?: string;
+  affordances?: CAMLAffordance[]; // optional, additive (spec §3.3)
 }
 
 export interface CAMLItem extends CAMLBaseEntity {
