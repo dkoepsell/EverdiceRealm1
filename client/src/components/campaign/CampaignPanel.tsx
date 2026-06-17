@@ -1372,6 +1372,27 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     },
   });
 
+  // Generate (or regenerate) cover art for this campaign — backfills older
+  // campaigns that predate preserved cover art.
+  const generateCoverArtMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', `/api/campaigns/${campaign.id}/cover-art`, {});
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      if (data?.coverImageUrl) {
+        toast({ title: "Cover art generated", description: "It now appears with your campaign everywhere." });
+        queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
+        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}`] });
+      } else {
+        toast({ title: "Couldn't generate cover art", description: "Try again in a moment.", variant: "destructive" });
+      }
+    },
+    onError: (error: Error) => {
+      toast({ title: "Cover art failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   // Update campaign mutation
   const updateCampaignMutation = useMutation({
     mutationFn: async (updates: Partial<Campaign>) => {
@@ -5430,6 +5451,19 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       <Download className="h-4 w-4" />
                       .yaml
                     </a>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-2 border-indigo-300 text-indigo-800 hover:bg-indigo-50"
+                      onClick={() => generateCoverArtMutation.mutate()}
+                      disabled={generateCoverArtMutation.isPending}
+                      data-testid="generate-cover-art"
+                    >
+                      {generateCoverArtMutation.isPending
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <Camera className="h-4 w-4" />}
+                      {(campaign as any).coverImageUrl ? 'Regenerate cover art' : 'Generate cover art'}
+                    </Button>
                   </div>
                 )}
 

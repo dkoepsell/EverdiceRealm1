@@ -93,7 +93,7 @@ export default function LandingPage() {
                 className="text-sm font-medium mb-8"
                 style={{ color: '#E6C77A' }}
               >
-                Early beta. Feedback shapes the system. Free to play.
+                Version 2.0 — now out of beta. Feedback shapes the system. Free to play.
               </p>
 
               <div className="flex flex-col items-center gap-4">
@@ -458,7 +458,7 @@ export default function LandingPage() {
             </Link>
           )}
           <p className="text-sm text-muted-foreground/60 mt-6">
-            Early beta. Feedback shapes the system.
+            Version 2.0 — now out of beta. Feedback shapes the system.
           </p>
         </div>
       </section>

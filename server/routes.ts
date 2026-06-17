@@ -25948,6 +25948,34 @@ Return your response as a JSON object with these fields:
     }
   });
 
+  // Generate (or regenerate) cover art for an existing campaign and persist it.
+  // Backfills campaigns created before cover art was preserved. Owner only.
+  app.post("/api/campaigns/:campaignId/cover-art", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = req.user!.id;
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+      if (campaign.userId !== userId) return res.status(403).json({ message: "Only the campaign owner can generate cover art" });
+
+      const theme = (req.body?.theme as string) || (campaign as any).narrativeStyle || "fantasy adventure";
+      const coverImageUrl = await generateCAMLCoverArt(
+        campaign.title,
+        campaign.description || (campaign as any).campaignQuestion || "",
+        theme,
+      );
+      if (!coverImageUrl) {
+        return res.status(502).json({ message: "Cover art generation is unavailable right now. Please try again." });
+      }
+
+      await storage.updateCampaign(campaignId, { coverImageUrl } as Partial<typeof campaign>);
+      res.json({ coverImageUrl });
+    } catch (error) {
+      console.error("Failed to generate campaign cover art:", error);
+      res.status(500).json({ message: "Failed to generate cover art" });
+    }
+  });
+
   // Get adventure graph for a campaign
   app.get("/api/campaigns/:campaignId/adventure-graph", isAuthenticated, async (req, res) => {
     try {
