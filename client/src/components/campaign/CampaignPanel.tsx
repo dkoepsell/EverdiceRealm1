@@ -376,6 +376,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [settingsChanged, setSettingsChanged] = useState(false);
   const [currentSession, setCurrentSession] = useState<CampaignSession | null>(null);
   const [isTurnBased, setIsTurnBased] = useState(campaign.isTurnBased || false);
+  const [isTutorial, setIsTutorial] = useState((campaign as any).isTutorial || false);
   const [currentDiceRoll, setCurrentDiceRoll] = useState<{
     action: string;
     diceType: DiceType;
@@ -1321,7 +1322,31 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       isTurnBased: enabled
     });
   };
-  
+
+  // Tutorial mode (progressive scaffolding §13): DM actively invites + rewards
+  // off-menu attempts to teach "you can attempt anything and the world responds."
+  const handleToggleTutorial = (enabled: boolean) => {
+    setIsTutorial(enabled);
+    updateCampaignMutation.mutate({ isTutorial: enabled } as Partial<Campaign>);
+  };
+
+  // Publish this campaign to the Trading Post as a shareable CAML adventure.
+  const publishToTradingPostMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', `/api/campaigns/${campaign.id}/publish-to-trading-post`, {});
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Published to the Trading Post",
+        description: `"${data?.title || campaign.title}" is now available for other players to download.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Publish failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   // Update campaign mutation
   const updateCampaignMutation = useMutation({
     mutationFn: async (updates: Partial<Campaign>) => {
@@ -5266,25 +5291,81 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     
                     {/* DM only settings */}
                     {isDM && (
-                      <div className="flex items-center space-x-2">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div>
-                              <Switch
-                                checked={isTurnBased}
-                                onCheckedChange={handleToggleTurnBased}
-                              />
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Enable turn-based gameplay for this campaign</p>
-                          </TooltipContent>
-                        </Tooltip>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-medium" style={{ color: '#475569' }}>Turn-based</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div>
+                                <Switch
+                                  checked={isTurnBased}
+                                  onCheckedChange={handleToggleTurnBased}
+                                  data-testid="toggle-turn-based"
+                                />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Enable turn-based gameplay for this campaign</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-medium" style={{ color: '#475569' }}>Tutorial</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div>
+                                <Switch
+                                  checked={isTutorial}
+                                  onCheckedChange={handleToggleTutorial}
+                                  data-testid="toggle-tutorial"
+                                />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="max-w-[220px]">Tutorial mode: the DM actively invites and rewards off-menu, freeform attempts — teaching that you can try anything and the world responds. Best for brand-new players.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
                       </div>
                     )}
                   </div>
                 </div>
-                
+
+                {/* DM actions: share / export this campaign as a CAML adventure */}
+                {isDM && (
+                  <div className="flex flex-wrap items-center gap-2 -mt-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-2 border-amber-300 text-amber-800 hover:bg-amber-50"
+                      onClick={() => publishToTradingPostMutation.mutate()}
+                      disabled={publishToTradingPostMutation.isPending}
+                      data-testid="publish-trading-post"
+                    >
+                      {publishToTradingPostMutation.isPending
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <Share2 className="h-4 w-4" />}
+                      Publish to Trading Post
+                    </Button>
+                    <a
+                      href={`/api/campaigns/${campaign.id}/export/caml?format=json`}
+                      className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-slate-300 text-sm text-slate-700 hover:bg-slate-50"
+                      data-testid="export-caml-json"
+                    >
+                      <Download className="h-4 w-4" />
+                      Export CAML (.json)
+                    </a>
+                    <a
+                      href={`/api/campaigns/${campaign.id}/export/caml?format=yaml`}
+                      className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-slate-300 text-sm text-slate-700 hover:bg-slate-50"
+                      data-testid="export-caml-yaml"
+                    >
+                      <Download className="h-4 w-4" />
+                      .yaml
+                    </a>
+                  </div>
+                )}
+
                 <CampaignParticipants campaignId={campaign.id} isDM={isDM} />
 
                 {/* Party Member Selection */}

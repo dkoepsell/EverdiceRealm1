@@ -42,6 +42,8 @@ import {
   npcs,
   users,
   campaigns,
+  sharedAdventures,
+  insertSharedAdventureSchema,
   characters,
   locations,
   quests,
@@ -25852,7 +25854,81 @@ Return your response as a JSON object with these fields:
       res.status(500).json({ message: "Failed to export campaign" });
     }
   });
-  
+
+  // One-step: serialize a campaign to CAML 2.0 and publish it to the Trading Post.
+  // Bridges the existing export (convertCampaignToCAML2) and the sharedAdventures
+  // store so a DM can share a generated/played campaign without exporting a file
+  // and re-uploading it by hand. Owner only.
+  app.post("/api/campaigns/:campaignId/publish-to-trading-post", isAuthenticated, async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = req.user!.id;
+
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+      if (campaign.userId !== userId) return res.status(403).json({ message: "Only the campaign owner can publish it" });
+
+      const [sessions, participants, npcs, quests, dungeonMaps] = await Promise.all([
+        storage.getCampaignSessions(campaignId),
+        storage.getCampaignParticipants(campaignId),
+        storage.getCampaignNpcs(campaignId),
+        storage.getCampaignQuests(campaignId),
+        storage.getCampaignDungeonMaps(campaignId),
+      ]);
+
+      const camlAdventure = convertCampaignToCAML2(
+        campaign,
+        sessions,
+        participants,
+        npcs,
+        quests,
+        dungeonMaps[0],
+      );
+
+      // Caller may override/enrich the listing metadata; otherwise derive from the campaign.
+      const o = (req.body || {}) as Partial<{
+        title: string; description: string; shortDescription: string;
+        tags: string[]; difficulty: string; genre: string;
+        estimatedSessions: number; playerCountMin: number; playerCountMax: number;
+        coverImageUrl: string;
+      }>;
+
+      const fullDescription =
+        o.description || campaign.description || (campaign as any).campaignQuestion || campaign.title;
+      const record = {
+        authorId: userId,
+        title: o.title || campaign.title,
+        description: fullDescription,
+        shortDescription: o.shortDescription || fullDescription.slice(0, 160),
+        camlData: camlAdventure,
+        coverImageUrl: o.coverImageUrl || "",
+        tags: Array.isArray(o.tags) ? o.tags : [],
+        difficulty: o.difficulty || campaign.difficulty || "medium",
+        genre: o.genre || "fantasy",
+        estimatedSessions: o.estimatedSessions ?? Math.max(1, sessions.length || 1),
+        playerCountMin: o.playerCountMin ?? 1,
+        playerCountMax: o.playerCountMax ?? ((campaign as any).maxPlayers || 5),
+        status: "published" as const,
+        createdAt: new Date().toISOString(),
+      };
+
+      const validated = insertSharedAdventureSchema.parse(record);
+      const [adventure] = await db.insert(sharedAdventures).values(validated).returning();
+
+      res.status(201).json({
+        id: adventure.id,
+        title: adventure.title,
+        message: "Published to the Trading Post.",
+      });
+    } catch (error: any) {
+      if (error?.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid adventure data", errors: error.errors });
+      }
+      console.error("Failed to publish campaign to Trading Post:", error);
+      res.status(500).json({ message: "Failed to publish campaign" });
+    }
+  });
+
   // Get adventure graph for a campaign
   app.get("/api/campaigns/:campaignId/adventure-graph", isAuthenticated, async (req, res) => {
     try {

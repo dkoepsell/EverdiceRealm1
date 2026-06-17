@@ -50,6 +50,76 @@ export default function HowItWorks() {
             </ul>
           </CardContent>
         </Card>
+
+        <Card className="border-primary/40">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Sparkles className="mr-2 h-5 w-5 text-primary" />
+              What We're Really Teaching: Your Imagination
+            </CardTitle>
+            <CardDescription>
+              The whole point of theater-of-the-mind play — and the skill we exist to build.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p>
+              At a real table, no one hands you a menu of buttons. The Dungeon Master describes a
+              scene, and you say what your character <em>does</em> — in your own words. That leap,
+              from choosing an option to declaring intent in free prose, <strong>is</strong> the
+              game. It's also a creative muscle, and like any muscle it grows with use.
+            </p>
+            <p>
+              Most apps quietly train the opposite habit: they reduce a living world to four
+              clickable choices. Realm of the Everdice is built to do the reverse. We start with
+              support and then deliberately take it away as you grow — so that the suggestions make
+              themselves obsolete and you're left doing the real thing: imagining, then describing.
+            </p>
+
+            <h3 className="font-semibold text-base mt-2">How the guidance fades</h3>
+            <p>
+              Solo play uses a <strong>fading scaffold</strong>. It watches <em>how</em> you play —
+              not a setting you configure — and eases off as you find your voice:
+            </p>
+            <ul className="space-y-2 ml-6 list-disc">
+              <li>
+                <strong>Guided</strong> — a handful of in-fiction nudges ("the desk drawer sits
+                slightly ajar") instead of bare commands, so you learn to read a scene for
+                possibilities. The open prose box is always there too.
+              </li>
+              <li>
+                <strong>Hybrid</strong> — fewer hints, tucked behind an "ideas?" reveal; the prose
+                box becomes the main way you act.
+              </li>
+              <li>
+                <strong>Open</strong> — no hints on screen; a single "need a nudge?" button if you
+                ever want one.
+              </li>
+              <li>
+                <strong>Pure</strong> — just you and the world. This is tabletop D&D.
+              </li>
+            </ul>
+            <p>
+              Along the way the game gently coaches the <em>craft</em> of declaring action. A vague
+              move ("I attack") earns a quick in-fiction "with what, and how?" — and the more vivid
+              your description, the richer the consequences you get back. That feedback loop, input
+              quality shaping output quality, is the lesson. It teaches transferable D&D, not "how
+              to use this app": when a roll happens, early on we explain the rule behind it
+              (the ability, the skill, the target number), then say less as you internalize it.
+            </p>
+
+            <h3 className="font-semibold text-base mt-2">For experienced players</h3>
+            <p>
+              Already fluent? You can skip the scaffolding entirely. <strong>Expert mode</strong>
+              turns the suggestions off for good and brings in an <strong>oracle</strong> — yes /
+              yes-but / no-and answers and unexpected complications in the Mythic GME and Ironsworn
+              tradition — so the friction comes from surprise, not from a menu.
+            </p>
+            <p className="text-muted-foreground text-sm">
+              The destination is the same for everyone: confident, unscaffolded, imaginative play —
+              the kind that carries straight to a table with friends.
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <h2 className="text-2xl font-bold mb-6 flex items-center">
