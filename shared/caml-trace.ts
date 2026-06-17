@@ -58,6 +58,14 @@ export type TraceEventKind =
   | "everdice.encounterTriggered"
   | "everdice.encounterResolved"
   | "everdice.initiativeRolled"
+  // Progressive scaffolding events (spec §10)
+  | "scaffold.turnRecorded"
+  | "scaffold.rungChanged"
+  | "scaffold.offMenu"
+  | "scaffold.improvised"
+  | "scaffold.elaborationInvited"
+  | "scaffold.elaborationSatisfied"
+  | "scaffold.expertEnabled"
   // Legacy compatibility aliases
   | "state.set"
   | "item.gained"

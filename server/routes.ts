@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
+import { recordSoloTurn } from "./play/progression/recordTurn";
+import { buildScaffoldingResponse, type ScaffoldingResponse } from "./play/suggestions/visibility";
 import { registerWanderRoutes } from "./wanderRoutes";
 import { registerDelveRoutes } from "./delveRoutes";
 import { parseNarrativeForLocations, generateHexMetaFromKeywords, getAllAdjacentCoordinates, getAdjacentHexCoordinates, detectMovementInNarrative, detectAdventureSetting, ENVIRONMENT_KEYWORDS, type HexDirection, type AdventureSetting } from "./narrativeHexParser";
@@ -18128,6 +18130,82 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
     }
   });
 
+  // Progressive scaffolding — manual "Guidance level" control (spec §4.3).
+  // mode 'auto' lets the engine auto-advance the rung; a pinned rung disables
+  // auto-advancement. Per (campaignId, current user).
+  app.get("/api/campaigns/:campaignId/guidance", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      const campaignId = parseInt(req.params.campaignId);
+      const prog = await storage.getPlayerProgression(campaignId, req.user.id);
+      const scaffolding = buildScaffoldingResponse({
+        rung: prog?.rung ?? "GUIDED",
+        rungPinned: prog?.rungPinned ?? false,
+        expertMode: prog?.expertMode ?? false,
+        rulesVerbosity: prog?.rulesVerbosity ?? null,
+      });
+      res.json({
+        mode: scaffolding.pinned ? scaffolding.rung : "auto",
+        ...scaffolding,
+        totalTurns: prog?.totalTurns ?? 0,
+      });
+    } catch (error) {
+      console.error("Failed to get guidance level:", error);
+      res.status(500).json({ message: "Failed to get guidance level" });
+    }
+  });
+
+  app.put("/api/campaigns/:campaignId/guidance", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      const campaignId = parseInt(req.params.campaignId);
+      const { mode, expertMode, rulesVerbosity } = req.body as {
+        mode?: string;
+        expertMode?: boolean;
+        rulesVerbosity?: string | null;
+      };
+
+      const RUNGS = ["GUIDED", "HYBRID", "OPEN", "PURE"];
+      const updates: any = {};
+
+      if (mode === "auto") {
+        updates.rungPinned = false;
+      } else if (typeof mode === "string" && RUNGS.includes(mode)) {
+        updates.rung = mode;
+        updates.rungPinned = true;
+      } else if (mode !== undefined) {
+        return res.status(400).json({ message: "Invalid mode. Use 'auto' or a rung (GUIDED/HYBRID/OPEN/PURE)." });
+      }
+
+      if (typeof expertMode === "boolean") {
+        updates.expertMode = expertMode;
+        if (expertMode) {
+          // Expert pins to PURE with auto-advancement off (spec §9).
+          updates.rung = "PURE";
+          updates.rungPinned = true;
+        }
+      }
+      if (rulesVerbosity === null || ["verbose", "terse", "off"].includes(rulesVerbosity as string)) {
+        updates.rulesVerbosity = rulesVerbosity ?? null;
+      }
+
+      const prog = await storage.upsertPlayerProgression(campaignId, req.user.id, updates);
+      if (updates.expertMode === true) {
+        await recordTrace(campaignId, "scaffold.expertEnabled", {}, { who: `player.${req.user.id}` });
+      }
+      const scaffolding = buildScaffoldingResponse({
+        rung: prog.rung,
+        rungPinned: prog.rungPinned,
+        expertMode: prog.expertMode,
+        rulesVerbosity: prog.rulesVerbosity,
+      });
+      res.json({ mode: scaffolding.pinned ? scaffolding.rung : "auto", ...scaffolding });
+    } catch (error) {
+      console.error("Failed to set guidance level:", error);
+      res.status(500).json({ message: "Failed to set guidance level" });
+    }
+  });
+
   // Advance story based on player choice with continuity
   app.post("/api/campaigns/:campaignId/advance-story", async (req, res) => {
     try {
@@ -22021,6 +22099,43 @@ ${cachedNarrative}
       
       console.log(`[Advance Story] Session ${updatedSession?.id} updated successfully - new narrative length: ${updatedSession?.narrative?.length || 0}`);
 
+      // Progressive scaffolding (Phase 1 — the dial). Record this turn's signal,
+      // evaluate the player's rung, and act on it: the resulting rung governs how
+      // the choices we return are presented (visibility-by-rung, §5.1). Solo play
+      // only: human-DM/multiplayer tables are out of scope (spec §11). Self-
+      // guarding — if anything fails (e.g. table not yet migrated), scaffolding
+      // stays null and the client falls back to showing all choices.
+      let scaffolding: ScaffoldingResponse | null = null;
+      if (!isMultiplayer && choice && typeof choice === "string" && choice.trim()) {
+        let rawChoices: any = (currentSession as any)?.choices;
+        if (typeof rawChoices === "string") {
+          try { rawChoices = JSON.parse(rawChoices); } catch { rawChoices = []; }
+        }
+        const presentedChoices: string[] = Array.isArray(rawChoices)
+          ? (rawChoices as any[])
+              .map((c) => (typeof c === "string" ? c : c?.text || c?.action || ""))
+              .filter(Boolean)
+          : [];
+        const turnResult = await recordSoloTurn(
+          {
+            campaignId,
+            userId: req.user.id,
+            choice,
+            presentedChoices,
+            hadRoll: !!rollResult,
+          },
+          (kind, payload, options) => recordTrace(campaignId, kind as any, payload, options),
+        );
+        if (turnResult) {
+          scaffolding = buildScaffoldingResponse({
+            rung: turnResult.rung,
+            rungPinned: turnResult.rungPinned,
+            expertMode: turnResult.expertMode,
+            rulesVerbosity: turnResult.rulesVerbosity,
+          });
+        }
+      }
+
       // Background: regenerate cliffhanger hook after enough scenes (non-blocking)
       if (updatedSession) {
         const actionLogLen = Array.isArray(mergedStoryState?.actionLog)
@@ -24167,7 +24282,8 @@ Respond with JSON:
         chargeUpdate: chargeUpdate,
         itemRechargeAtDawn: (mergedStoryState as any).itemRechargeAtDawn || null,
         quietReckoning: quietReckoningData,
-        postCombatRewards: postCombatRewardsData
+        postCombatRewards: postCombatRewardsData,
+        scaffolding
       });
     } catch (error: any) {
       console.error("Failed to advance story:", error);

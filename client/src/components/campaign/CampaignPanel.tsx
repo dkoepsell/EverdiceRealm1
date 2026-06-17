@@ -95,7 +95,31 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     queryKey: [`/api/campaigns/${campaign.id}/participants`],
     enabled: !!campaign.id,
   });
-  
+
+  // Solo play = the only place the scaffolding dial applies (spec §11).
+  const isSoloPlay = (participants?.length ?? 0) <= 1;
+  // Guidance level (progressive scaffolding) — seeds the dial on load so a
+  // progressed player sees the right visibility before their first turn.
+  const { data: guidanceData } = useQuery<any>({
+    queryKey: [`/api/campaigns/${campaign.id}/guidance`],
+    enabled: !!campaign.id && isSoloPlay,
+  });
+  // Seed the dial from the loaded guidance (overwritten per-turn by advance-story).
+  useEffect(() => {
+    if (guidanceData) setScaffolding(guidanceData);
+  }, [guidanceData]);
+  // Manual "Guidance level" control — set Auto or pin a rung (spec §4.3).
+  const setGuidanceMutation = useMutation({
+    mutationFn: async (mode: string) => {
+      const response = await apiRequest('PUT', `/api/campaigns/${campaign.id}/guidance`, { mode });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      if (data) setScaffolding(data);
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/guidance`] });
+    },
+  });
+
   // Campaign NPCs
   const { data: campaignNpcs = [], isLoading: npcsLoading } = useQuery<any[]>({
     queryKey: [`/api/campaigns/${campaign.id}/npcs`],
@@ -348,6 +372,21 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     failureText: string;
   } | null>(null);
   const [customAction, setCustomAction] = useState("");
+  // Progressive scaffolding (Phase 1): rung-driven suggestion visibility.
+  // null = no dial (multiplayer / pre-migration) -> show all choices as before.
+  const [scaffolding, setScaffolding] = useState<any>(null);
+  // Per-turn reveal state for HYBRID ("ideas?") and OPEN ("need a nudge?").
+  const [suggestionsRevealed, setSuggestionsRevealed] = useState(false);
+  // Derived suggestion-visibility (spec §5.1). Null when the dial doesn't apply
+  // (multiplayer / pre-migration) -> behave exactly as before (show everything).
+  const scaffoldVis = (isSoloPlay && scaffolding?.visibility) ? scaffolding.visibility : null;
+  const scaffoldRevealMode: string = scaffoldVis?.revealMode ?? 'persistent';
+  const scaffoldMaxSuggestions: number | null = scaffoldVis?.maxSuggestions ?? null;
+  // PURE shows nothing, ever; otherwise the grid shows when persistent or revealed.
+  const suggestionSectionHidden = scaffoldRevealMode === 'none';
+  const choiceGridVisible = scaffoldRevealMode === 'persistent' || suggestionsRevealed;
+  const showIdeasToggle = scaffoldRevealMode === 'soft';
+  const showNudgeButton = scaffoldRevealMode === 'on-demand';
   const [tableChatCollapsed, setTableChatCollapsed] = useState(true);
   const [isMyTurn, setIsMyTurn] = useState(true);
   const [currentTurnName, setCurrentTurnName] = useState<string | null>(null);
@@ -1332,7 +1371,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         });
         setCurrentSession((prev: any) => prev ? { ...prev, narrative: data.narrative, choices: data.choices, storyState: data.storyState, npcInteractions: data.npcInteractions } : prev);
       }
-      
+
+      // Progressive scaffolding: capture the rung-driven visibility for this turn.
+      // A new turn collapses any prior reveal so HYBRID/OPEN start hidden again.
+      if (data && data.scaffolding !== undefined) {
+        setScaffolding(data.scaffolding);
+      }
+      setSuggestionsRevealed(false);
+
       // Also refetch to ensure full consistency with DB
       await queryClient.refetchQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
       
@@ -3651,7 +3697,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         )}
                         
                         {/* Choices loading indicator — shows briefly before choices appear */}
-                        {!isAdvancingStory && !choicesRevealed && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 && (
+                        {!isAdvancingStory && !choicesRevealed && !suggestionSectionHidden && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 && (
                           <div className="mt-6 pt-5 border-t border-amber-500/30 animate-in fade-in duration-300">
                             <div className="flex items-center gap-3 px-3 py-2.5">
                               <div className="flex gap-1">
@@ -3667,19 +3713,36 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         {/* Choices integrated directly after narrative for immediate access */}
                         {!isAdvancingStory && choicesRevealed && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 && dmSessionState?.groupChoiceStatus !== 'pending' && (
                           <div className="mt-6 pt-5 border-t border-amber-500/30 animate-in fade-in slide-in-from-bottom-3 duration-500">
-                            <div className="flex items-center justify-between mb-3">
-                              <h4 className="font-bold text-amber-300 flex items-center">
-                                <ArrowRight className="h-5 w-5 mr-2 animate-pulse" />
-                                What will you do?
-                              </h4>
-                              {currentTurnName && !isMyTurn && (
-                                <Badge variant="outline" className="text-amber-400 border-amber-500/50 bg-amber-900/30">
-                                  <Clock className="h-3 w-3 mr-1" />
-                                  {currentTurnName}'s turn
-                                </Badge>
-                              )}
-                            </div>
-                            
+                            {!suggestionSectionHidden && (
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className="font-bold text-amber-300 flex items-center">
+                                  <ArrowRight className="h-5 w-5 mr-2 animate-pulse" />
+                                  What will you do?
+                                </h4>
+                                {currentTurnName && !isMyTurn && (
+                                  <Badge variant="outline" className="text-amber-400 border-amber-500/50 bg-amber-900/30">
+                                    <Clock className="h-3 w-3 mr-1" />
+                                    {currentTurnName}'s turn
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Scaffolding reveal controls (spec §5.1): soft "ideas?" at HYBRID,
+                                on-demand "need a nudge?" at OPEN. */}
+                            {!suggestionSectionHidden && !choiceGridVisible && (showIdeasToggle || showNudgeButton) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="mb-3 text-amber-300/80 hover:text-amber-200 hover:bg-amber-900/20"
+                                onClick={() => setSuggestionsRevealed(true)}
+                                data-testid="reveal-suggestions"
+                              >
+                                <ArrowRight className="h-4 w-4 mr-2" />
+                                {showNudgeButton ? 'Need a nudge?' : 'Ideas?'}
+                              </Button>
+                            )}
+
                             {currentTurnName && !isMyTurn && !isDM && (
                               <div className="p-3 bg-amber-900/30 border border-amber-600/30 rounded-lg text-sm text-amber-200 mb-3">
                                 <p className="flex items-center gap-2">
@@ -3689,8 +3752,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               </div>
                             )}
                             
+                            {!suggestionSectionHidden && choiceGridVisible && (
                             <div className="grid grid-cols-1 gap-2">
-                              {currentSession.choices.map((choice: any, index: number) => {
+                              {(scaffoldMaxSuggestions != null ? currentSession.choices.slice(0, scaffoldMaxSuggestions) : currentSession.choices).map((choice: any, index: number) => {
                                 const choiceText = choice.action || choice.text || '';
                                 const dc = choice.rollDC || parseDCFromText(choiceText);
                                 const skillName = choice.skillType || choice.rollPurpose?.toLowerCase().replace(/\s+check/i, '') || 'strength';
@@ -3759,10 +3823,33 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 return button;
                               })}
                             </div>
-                            
-                            {/* Custom Action */}
+                            )}
+
+                            {/* Custom Action — always available; the only input at OPEN/PURE. */}
                             <div className="mt-3 p-3 bg-slate-800/50 rounded-lg border border-slate-600/50">
-                              <h5 className="font-medium text-sm text-slate-300 mb-2">Or describe your own action:</h5>
+                              {isSoloPlay && scaffolding?.rung && (
+                                <div className="flex items-center justify-end gap-2 mb-2">
+                                  <span className="text-[11px] text-slate-400">Guidance</span>
+                                  <Select
+                                    value={scaffolding?.pinned ? scaffolding.rung : 'auto'}
+                                    onValueChange={(v) => setGuidanceMutation.mutate(v)}
+                                  >
+                                    <SelectTrigger className="h-7 w-[120px] text-xs bg-slate-700 border-slate-600 text-slate-200" data-testid="guidance-level-select">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="auto">Auto</SelectItem>
+                                      <SelectItem value="GUIDED">Guided</SelectItem>
+                                      <SelectItem value="HYBRID">Hybrid</SelectItem>
+                                      <SelectItem value="OPEN">Open</SelectItem>
+                                      <SelectItem value="PURE">Pure</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
+                              <h5 className="font-medium text-sm text-slate-300 mb-2">
+                                {scaffoldVis?.inputProminence === 'primary' ? 'What do you do?' : 'Or describe your own action:'}
+                              </h5>
                               <div className="flex gap-2">
                                 <Input
                                   placeholder="e.g., 'Search for hidden symbols'"

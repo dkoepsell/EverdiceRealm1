@@ -44,6 +44,7 @@ import {
   factions, type Faction, type InsertFaction,
   characterReputationProfiles, type CharacterReputationProfile, type InsertCharacterReputationProfile,
   reputationEvents, type ReputationEvent, type InsertReputationEvent,
+  playerProgression, type PlayerProgression, type InsertPlayerProgression,
   // World memory and player groups
   playerGroups, type PlayerGroup, type InsertPlayerGroup,
   playerGroupMembers, type PlayerGroupMember, type InsertPlayerGroupMember,
@@ -381,7 +382,12 @@ export interface IStorage {
   updateReputationEvent(id: number, updates: Partial<ReputationEvent>): Promise<ReputationEvent | undefined>;
   markReputationEventProcessed(id: number): Promise<boolean>;
   getCampaignReputationSignals(campaignId: number): Promise<{ characterId: number; characterName: string; profiles: CharacterReputationProfile[]; recentEvents: ReputationEvent[] }[]>;
-  
+
+  // Progressive scaffolding — player progression (per campaign per user)
+  getPlayerProgression(campaignId: number, userId: number): Promise<PlayerProgression | undefined>;
+  upsertPlayerProgression(campaignId: number, userId: number, updates: Partial<InsertPlayerProgression>): Promise<PlayerProgression>;
+  getCampaignProgressionDistribution(campaignId: number): Promise<{ rung: string; count: number }[]>;
+
   // Player Group operations
   getPlayerGroups(userId?: number): Promise<PlayerGroup[]>;
   getPlayerGroup(id: number): Promise<PlayerGroup | undefined>;
@@ -3567,6 +3573,49 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return created;
+  }
+
+  // ---- Progressive scaffolding: player progression ----
+
+  async getPlayerProgression(campaignId: number, userId: number): Promise<PlayerProgression | undefined> {
+    const [row] = await db.select()
+      .from(playerProgression)
+      .where(and(
+        eq(playerProgression.campaignId, campaignId),
+        eq(playerProgression.userId, userId)
+      ));
+    return row || undefined;
+  }
+
+  async upsertPlayerProgression(campaignId: number, userId: number, updates: Partial<InsertPlayerProgression>): Promise<PlayerProgression> {
+    const existing = await this.getPlayerProgression(campaignId, userId);
+    if (existing) {
+      const [updated] = await db.update(playerProgression)
+        .set({ ...updates, updatedAt: new Date().toISOString() })
+        .where(eq(playerProgression.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(playerProgression)
+      .values({
+        ...updates,
+        campaignId,
+        userId,
+        updatedAt: new Date().toISOString(),
+      })
+      .returning();
+    return created;
+  }
+
+  async getCampaignProgressionDistribution(campaignId: number): Promise<{ rung: string; count: number }[]> {
+    const rows = await db.select({
+      rung: playerProgression.rung,
+      count: sql<number>`count(*)::int`,
+    })
+      .from(playerProgression)
+      .where(eq(playerProgression.campaignId, campaignId))
+      .groupBy(playerProgression.rung);
+    return rows.map((r) => ({ rung: r.rung, count: Number(r.count) }));
   }
   
   async updateCharacterReputationProfile(id: number, updates: Partial<CharacterReputationProfile>): Promise<CharacterReputationProfile | undefined> {

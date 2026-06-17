@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp, real, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, jsonb, timestamp, real, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -1957,6 +1957,44 @@ export const insertMilestoneRewardSchema = createInsertSchema(milestoneRewards).
 
 export type InsertMilestoneReward = z.infer<typeof insertMilestoneRewardSchema>;
 export type MilestoneReward = typeof milestoneRewards.$inferSelect;
+
+// =====================================================
+// PROGRESSIVE SCAFFOLDING — per-player-per-campaign progression
+// Tracks the player's scaffolding "rung" and the rolling window of turn
+// signals that drives auto-advancement. Keyed on (campaignId, userId) because
+// scaffolding teaches the *human's* skill, which persists across character
+// swaps. See everdice-progressive-scaffolding-spec.md §3.1.
+// rung / rulesVerbosity are text columns (the codebase uses TS union types,
+// not pgEnum). Phase 0 records + evaluates in shadow mode (no behavior change).
+// =====================================================
+export const playerProgression = pgTable("player_progression", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  userId: integer("user_id").notNull(),
+  rung: text("rung").notNull().default("GUIDED"), // GUIDED | HYBRID | OPEN | PURE
+  rungPinned: boolean("rung_pinned").notNull().default(false), // manual override; disables auto-advancement
+  expertMode: boolean("expert_mode").notNull().default(false), // pins to PURE + oracle engine (§9)
+  rulesVerbosity: text("rules_verbosity"), // verbose | terse | off; null = derive from rung
+  turnSignals: jsonb("turn_signals").default([]), // last WINDOW_SIZE TurnSignal[] (§3.2)
+  confirmCount: integer("confirm_count").notNull().default(0), // consecutive promote-qualifying evals
+  lastRungChangeTurn: integer("last_rung_change_turn").notNull().default(0),
+  totalTurns: integer("total_turns").notNull().default(0),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  updatedAt: text("updated_at").notNull().default(new Date().toISOString()),
+}, (t) => [
+  index("idx_player_progression_campaign_id").on(t.campaignId),
+  index("idx_player_progression_user_id").on(t.userId),
+  uniqueIndex("uq_player_progression_campaign_user").on(t.campaignId, t.userId),
+]);
+
+export const insertPlayerProgressionSchema = createInsertSchema(playerProgression).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPlayerProgression = z.infer<typeof insertPlayerProgressionSchema>;
+export type PlayerProgression = typeof playerProgression.$inferSelect;
 
 // =====================================================
 // HEARTH - Persistent Social Hub
