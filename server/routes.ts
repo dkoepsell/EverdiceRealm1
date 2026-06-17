@@ -183,6 +183,15 @@ async function generateCAMLCoverArt(title: string, summary: string, theme: strin
   }
 }
 
+// narrativeLog is canonically a JSONB ARRAY of structured log entries (chapter
+// gates, XP/foreclosure reasons). Older/legacy rows may hold a non-array (an
+// object default that some creation paths once wrote, or null), and spreading
+// that throws "is not iterable". Always read through this so every consumer
+// gets a safe array regardless of what's stored.
+function toLogArray(log: any): any[] {
+  return Array.isArray(log) ? log : [];
+}
+
 const narrativeCache = new Map<string, { narrative: string; timestamp: number }>();
 const NARRATIVE_CACHE_TTL = 5 * 60 * 1000;
 
@@ -547,7 +556,7 @@ async function improviseDoctrine(campaign: any): Promise<{ campaignQuestion: str
       campaignQuestion,
       campaignStakes,
       chapterGates,
-      narrativeLog: campaign.narrativeLog || [],
+      narrativeLog: toLogArray(campaign.narrativeLog),
     });
   } catch (err) {
     console.error(`Failed to persist improvised doctrine for campaign ${campaign.id}:`, err);
@@ -5076,7 +5085,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isPublished: false,
         isPrivate: true,
         maxPlayers: 6,
-        narrativeLog: bodyWithoutChapters.narrativeLog || { entries: [], chapterAdvances: [], xpAwards: [], foreclosedOptions: [] },
+        // Canonically an array of log entries — every consumer spreads/iterates it.
+        narrativeLog: toLogArray(bodyWithoutChapters.narrativeLog),
         // Capture the pristine generated CAML 2.0 doc so it can be published as-is.
         camlSource: req.body.generatedContent?.caml2 ?? req.body.caml2 ?? null,
         // Preserve generated cover art with the campaign.
@@ -6207,7 +6217,7 @@ Return your response as a JSON object with these fields:
       // trip the next chapter's minimum/hard-cap and runaway-advance.
       const forceAdvanceSession = await storage.getCurrentSession(campaignId);
       const turnsAtForceAdvance = (forceAdvanceSession?.storyState as any)?.turnsInChapter || 0;
-      const narrativeLog = [...((campaign as any).narrativeLog || [])];
+      const narrativeLog = [...toLogArray((campaign as any).narrativeLog)];
       narrativeLog.push({
         xpReason: `Chapter ${currentChapter} completed (DM override)`,
         stakeReason: "DM manually advanced the chapter",
@@ -7441,7 +7451,7 @@ CONTENT VARIETY RULES (STRICTLY ENFORCED):
       // ============================================
       const totalChapters = (campaign as any).totalChapters || 5;
       const currentChapterNum = (campaign as any).currentSession || 1;
-      const narrativeLog = (campaign as any).narrativeLog || [];
+      const narrativeLog = toLogArray((campaign as any).narrativeLog);
       const lastChapterGateEntry = [...narrativeLog].reverse().find((e: any) => e.type === 'chapter_gate');
       const lastGateMs = lastChapterGateEntry?.timestamp ? Date.parse(lastChapterGateEntry.timestamp) : NaN;
       const scenesInCurrentChapter = !isNaN(lastGateMs)
@@ -8168,7 +8178,7 @@ Return your response as a JSON object with these fields:
           }
           
           // DM AUTHORING DOCTRINE: Append narrative log entry
-          let updatedNarrativeLog = [...((campaign as any).narrativeLog || [])];
+          let updatedNarrativeLog = [...toLogArray((campaign as any).narrativeLog)];
           if (storyData.narrativeLogEntry) {
             const logEntry = {
               ...storyData.narrativeLogEntry,
@@ -19520,7 +19530,7 @@ Different stake states produce DIFFERENT endings. Reflect accumulated consequenc
       // Scenes spent in the final chapter = turns since the last chapter gate, NOT
       // cumulative turnsInChapter (which would slam the finale to "end now" the instant
       // a campaign reaches the final chapter with a high turn count).
-      const lastGateTurnsForFinale = [...(((campaign as any).narrativeLog) || [])].reverse()
+      const lastGateTurnsForFinale = [...toLogArray((campaign as any).narrativeLog)].reverse()
         .find((e: any) => e?.type === 'chapter_gate' && typeof e.turnsAtGate === 'number')?.turnsAtGate;
       const turnsNowForFinaleScenes = (currentSession.storyState as any)?.turnsInChapter || 0;
       const finalChapterScenes = isOnFinalChapter
@@ -23927,7 +23937,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
       // scenes spent IN the final chapter = turns since the last chapter gate fired.
       // Using turnsInChapter directly force-completed campaigns the instant they
       // entered the final chapter with a high turn count (see bug: 23/12 on scene 1).
-      const lastGateTurnsForFinal = [...(((campaign as any).narrativeLog) || [])].reverse()
+      const lastGateTurnsForFinal = [...toLogArray((campaign as any).narrativeLog)].reverse()
         .find((e: any) => e?.type === 'chapter_gate' && typeof e.turnsAtGate === 'number')?.turnsAtGate;
       const turnsNowForFinal = mergedStoryState.turnsInChapter || 0;
       const scenesInFinalChapter = isOnFinalChapter
