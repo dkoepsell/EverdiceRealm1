@@ -1460,6 +1460,33 @@ export default function TavernPage() {
     }
   });
   
+  // Equip/unequip basic (non-magical) gear — weapons, armor, shields bought from
+  // the shop live in character.equipment. The shop never offered an equip action
+  // for them, so purchased armor/shields couldn't be worn. Mirrors the equip flow
+  // in the campaign view (POST /equipment/equip|unequip).
+  const equipBasicItemMutation = useMutation({
+    mutationFn: async ({ characterId, item, slot, equip }: { characterId: number; item: string; slot: string; equip: boolean }) => {
+      const path = equip ? "equip" : "unequip";
+      const body = equip ? { item, slot } : { slot };
+      const response = await apiRequest("POST", `/api/characters/${characterId}/equipment/${path}`, body);
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+      toast({
+        title: variables.equip ? "Equipped!" : "Unequipped!",
+        description: data?.message || (variables.equip ? "Item equipped." : "Item unequipped."),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Equip Failed",
+        description: error.message || "Could not equip/unequip item.",
+        variant: "destructive"
+      });
+    }
+  });
+
   // Drink purchase mutation
   const buyDrinkMutation = useMutation({
     mutationFn: async ({ characterId, drink }: { characterId: number; drink: TavernDrink }) => {
@@ -1603,6 +1630,27 @@ export default function TavernPage() {
   // (The Blacksmith forge and encumbrance still use characterEquipment only —
   // you don't repair or meaningfully encumber yourself with potions here.)
   const inventoryDisplayItems: InventoryItem[] = [...characterEquipment, ...consumableItems];
+
+  // Which equip slot (if any) a basic item belongs to, inferred from its type.
+  const getBasicEquipSlot = (item: InventoryItem): string | null => {
+    const t = (item.type || '').toLowerCase();
+    if (t.includes('shield')) return 'shield';
+    if (t.includes('armor')) return 'armor';
+    if (t.includes('weapon')) return 'weapon';
+    return null;
+  };
+  // Is this basic item currently equipped? The character stores the equipped item
+  // (as a JSON string or plain name) in equippedWeapon/Armor/Shield/Accessory.
+  const isBasicItemEquipped = (item: InventoryItem, slot: string): boolean => {
+    const field = slot === 'armor' ? 'equippedArmor'
+      : slot === 'shield' ? 'equippedShield'
+      : slot === 'weapon' ? 'equippedWeapon' : 'equippedAccessory';
+    const raw = (activeCharacter as any)?.[field];
+    if (!raw) return false;
+    let name = raw;
+    try { name = JSON.parse(raw).name; } catch { /* plain string */ }
+    return typeof name === 'string' && name.toLowerCase() === item.name?.toLowerCase();
+  };
 
   // Encumbrance system (D&D 5e: Carrying Capacity = Strength × 15)
   const getItemWeight = (item: InventoryItem): number => {
@@ -2179,8 +2227,8 @@ export default function TavernPage() {
                               </div>
                               <div className="flex items-center gap-2">
                                 {item.isMagical && item.magicItemId && (
-                                  <Button 
-                                    size="sm" 
+                                  <Button
+                                    size="sm"
                                     variant={item.equipped ? "secondary" : "default"}
                                     disabled={equipMagicalItemMutation.isPending}
                                     onClick={() => {
@@ -2195,6 +2243,28 @@ export default function TavernPage() {
                                     {item.equipped ? 'Unequip' : 'Equip'}
                                   </Button>
                                 )}
+                                {!item.isMagical && getBasicEquipSlot(item) && (() => {
+                                  const slot = getBasicEquipSlot(item)!;
+                                  const equipped = isBasicItemEquipped(item, slot);
+                                  return (
+                                    <Button
+                                      size="sm"
+                                      variant={equipped ? "secondary" : "default"}
+                                      disabled={equipBasicItemMutation.isPending}
+                                      onClick={() => {
+                                        if (!activeCharacter) return;
+                                        equipBasicItemMutation.mutate({
+                                          characterId: activeCharacter.id,
+                                          item: item.name,
+                                          slot,
+                                          equip: !equipped,
+                                        });
+                                      }}
+                                    >
+                                      {equipped ? 'Unequip' : 'Equip'}
+                                    </Button>
+                                  );
+                                })()}
                                 <Button 
                                   size="sm" 
                                   variant="outline"
