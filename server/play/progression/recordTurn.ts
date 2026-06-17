@@ -16,8 +16,9 @@ import {
   type TurnSignal,
 } from "../scaffolding.types";
 import { PROGRESSION_CONFIG } from "./config";
-import { evaluateProgression } from "./engine";
+import { evaluateProgression, computeMetrics } from "./engine";
 import { classifyTurn } from "./signals";
+import { playerNeedsElaborationHelp } from "../suggestions/elaboration";
 
 const asRung = (v: string | null | undefined): Rung =>
   RUNG_ORDER.includes(v as Rung) ? (v as Rung) : "GUIDED";
@@ -49,6 +50,7 @@ export interface RecordSoloTurnResult {
   rungPinned: boolean;
   expertMode: boolean;
   rulesVerbosity: RulesVerbosity | null;
+  invitesElaboration: boolean;
 }
 
 /**
@@ -131,6 +133,7 @@ export async function recordSoloTurn(
       }
     }
 
+    const avgElaboration = computeMetrics(window).avgElaboration;
     return {
       rung: evaluation.targetRung,
       changed: evaluation.changed,
@@ -139,6 +142,7 @@ export async function recordSoloTurn(
       rungPinned: state.rungPinned,
       expertMode: state.expertMode,
       rulesVerbosity: state.rulesVerbosity,
+      invitesElaboration: playerNeedsElaborationHelp(evaluation.targetRung, avgElaboration),
     };
   } catch (error) {
     console.error("[scaffold] recordSoloTurn failed:", error);

@@ -3,8 +3,13 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { recordSoloTurn } from "./play/progression/recordTurn";
-import { buildScaffoldingResponse, type ScaffoldingResponse } from "./play/suggestions/visibility";
+import { buildScaffoldingResponse, resolveEffectiveRung, type ScaffoldingResponse } from "./play/suggestions/visibility";
 import { renderDiegetic } from "./play/suggestions/diegetic";
+import { playerNeedsElaborationHelp, MIRROR_INSTRUCTION } from "./play/suggestions/elaboration";
+import { rollVerbosityGuidance } from "./play/mechanics/verbosity";
+import { computeMetrics } from "./play/progression/engine";
+import { deriveVerbosityFromRung } from "./play/progression/config";
+import type { RulesVerbosity } from "./play/scaffolding.types";
 import { registerWanderRoutes } from "./wanderRoutes";
 import { registerDelveRoutes } from "./delveRoutes";
 import { parseNarrativeForLocations, generateHexMetaFromKeywords, getAllAdjacentCoordinates, getAdjacentHexCoordinates, detectMovementInNarrative, detectAdventureSetting, ENVIRONMENT_KEYWORDS, type HexDirection, type AdventureSetting } from "./narrativeHexParser";
@@ -18139,11 +18144,14 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
       if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
       const campaignId = parseInt(req.params.campaignId);
       const prog = await storage.getPlayerProgression(campaignId, req.user.id);
+      const effRung = resolveEffectiveRung({ rung: prog?.rung ?? "GUIDED", expertMode: prog?.expertMode ?? false });
+      const avgElab = computeMetrics(Array.isArray(prog?.turnSignals) ? (prog!.turnSignals as any[]) : []).avgElaboration;
       const scaffolding = buildScaffoldingResponse({
         rung: prog?.rung ?? "GUIDED",
         rungPinned: prog?.rungPinned ?? false,
         expertMode: prog?.expertMode ?? false,
         rulesVerbosity: prog?.rulesVerbosity ?? null,
+        invitesElaboration: playerNeedsElaborationHelp(effRung, avgElab),
       });
       res.json({
         mode: scaffolding.pinned ? scaffolding.rung : "auto",
@@ -18676,6 +18684,24 @@ NARRATIVE RULES (MANDATORY):
           storyState: initialStoryState,
           createdAt: new Date().toISOString()
         });
+      }
+
+      // Progressive scaffolding (Phase 4): load the player's rung up-front so the
+      // resolution prompt narrates rule mechanics at the right verbosity (§8) and
+      // mirrors the player's detail (§6.1). The elaboration *invitation* itself is
+      // pre-submit on the client (the loop streams narrative optimistically, so a
+      // server-side interrupt would arrive after the stream). Solo only.
+      let scaffoldRung: string | null = null;
+      let scaffoldVerbosity: RulesVerbosity | null = null;
+      if (!isMultiplayer && choice && typeof choice === "string" && choice.trim()) {
+        try {
+          const prog = await storage.getPlayerProgression(campaignId, req.user.id);
+          const effRung = resolveEffectiveRung({ rung: prog?.rung ?? "GUIDED", expertMode: prog?.expertMode ?? false });
+          scaffoldRung = effRung;
+          scaffoldVerbosity = (prog?.rulesVerbosity as RulesVerbosity | null) ?? deriveVerbosityFromRung(effRung);
+        } catch (e) {
+          console.error("[scaffold] rung load failed (non-fatal):", e);
+        }
       }
 
       // Parse skill check information if it exists
@@ -19701,6 +19727,8 @@ ${chapterProgressNote}
 ${themeContext}
 ${finaleInstructions}
 ${session1ContractPrompt}
+${scaffoldVerbosity ? rollVerbosityGuidance(scaffoldVerbosity) : ''}
+${scaffoldRung ? MIRROR_INSTRUCTION : ''}
 ${sceneHistoryDigest2}
 ${camlStorySpine2}
 ${chapterNudge2}
@@ -22146,6 +22174,7 @@ ${cachedNarrative}
             rungPinned: turnResult.rungPinned,
             expertMode: turnResult.expertMode,
             rulesVerbosity: turnResult.rulesVerbosity,
+            invitesElaboration: turnResult.invitesElaboration,
           });
         }
       }

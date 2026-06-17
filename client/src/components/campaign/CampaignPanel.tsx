@@ -377,6 +377,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [scaffolding, setScaffolding] = useState<any>(null);
   // Per-turn reveal state for HYBRID ("ideas?") and OPEN ("need a nudge?").
   const [suggestionsRevealed, setSuggestionsRevealed] = useState(false);
+  // Pre-submit elaboration nudge (spec §6.1): one in-fiction "with what? how?"
+  // for a vague freeform action while the player is still learning. null = none.
+  const [elaborationNudge, setElaborationNudge] = useState<string | null>(null);
   // Derived suggestion-visibility (spec §5.1). Null when the dial doesn't apply
   // (multiplayer / pre-migration) -> behave exactly as before (show everything).
   const scaffoldVis = (isSoloPlay && scaffolding?.visibility) ? scaffolding.visibility : null;
@@ -387,6 +390,20 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const choiceGridVisible = scaffoldRevealMode === 'persistent' || suggestionsRevealed;
   const showIdeasToggle = scaffoldRevealMode === 'soft';
   const showNudgeButton = scaffoldRevealMode === 'on-demand';
+  // §6.1 — a freeform action is "vague" if it's short and names no manner/instrument.
+  const isVagueAction = (text: string): boolean => {
+    const t = (text || '').trim();
+    if (!t) return false;
+    const words = t.split(/\s+/).length;
+    const hasManner = /\b(with|using|by|then|while|toward|towards|behind|under|into|onto|at|aim|aiming)\b|\w+ly\b/i.test(t);
+    return words < 5 && !hasManner;
+  };
+  const ELABORATION_NUDGES = [
+    "You move to act — but how, exactly? With what in hand, and to what end?",
+    "The moment hangs. Picture it: what do you reach for, and how do you go about it?",
+    "Say a little more — by what means, and in what manner?",
+    "Intent is clear; the details aren't. With what, and how?",
+  ];
   const [tableChatCollapsed, setTableChatCollapsed] = useState(true);
   const [isMyTurn, setIsMyTurn] = useState(true);
   const [currentTurnName, setCurrentTurnName] = useState<string | null>(null);
@@ -1378,6 +1395,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         setScaffolding(data.scaffolding);
       }
       setSuggestionsRevealed(false);
+      setElaborationNudge(null);
 
       // Also refetch to ensure full consistency with DB
       await queryClient.refetchQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
@@ -2819,12 +2837,23 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
   const handleCustomAction = () => {
     if (!customAction.trim()) return;
-    
+
+    // §6.1 elaboration invitation: if the player still needs help (server flag)
+    // and this freeform action is vague, nudge ONCE before resolving. A second
+    // submit (nudge already showing) proceeds regardless — never nag.
+    if (elaborationNudge) {
+      setElaborationNudge(null);
+    } else if (scaffolding?.invitesElaboration && isVagueAction(customAction)) {
+      const text = customAction.trim();
+      setElaborationNudge(ELABORATION_NUDGES[text.length % ELABORATION_NUDGES.length]);
+      return;
+    }
+
     const customChoice = {
       action: customAction.trim(),
       requiresDiceRoll: false
     };
-    
+
     const actionText = customChoice.action || customAction.trim();
     setLastChosenAction(actionText);
     setStoryPhase('commit');
@@ -3853,6 +3882,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               <h5 className="font-medium text-sm text-slate-300 mb-2">
                                 {scaffoldVis?.inputProminence === 'primary' ? 'What do you do?' : 'Or describe your own action:'}
                               </h5>
+                              {elaborationNudge && (
+                                <div className="mb-2 p-2.5 rounded-md bg-amber-900/25 border border-amber-600/40 text-sm text-amber-100 italic animate-in fade-in slide-in-from-bottom-1 duration-300" data-testid="elaboration-nudge">
+                                  {elaborationNudge}
+                                  <span className="block mt-1 not-italic text-[11px] text-amber-300/70">Add a detail, or press send again to go with it.</span>
+                                </div>
+                              )}
                               <div className="flex gap-2">
                                 <Input
                                   placeholder="e.g., 'Search for hidden symbols'"

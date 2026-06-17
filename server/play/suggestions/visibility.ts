@@ -51,6 +51,8 @@ export interface ScaffoldingResponse {
   expertMode: boolean;
   rulesVerbosity: RulesVerbosity;
   visibility: SuggestionVisibility;
+  /** Whether the client should offer a pre-submit elaboration nudge (§6.1). */
+  invitesElaboration: boolean;
 }
 
 export function buildScaffoldingResponse(p: {
@@ -58,6 +60,7 @@ export function buildScaffoldingResponse(p: {
   rungPinned?: boolean;
   expertMode?: boolean;
   rulesVerbosity?: string | null;
+  invitesElaboration?: boolean;
 }): ScaffoldingResponse {
   const rung = resolveEffectiveRung(p);
   const rulesVerbosity =
@@ -68,5 +71,6 @@ export function buildScaffoldingResponse(p: {
     expertMode: !!p.expertMode,
     rulesVerbosity,
     visibility: getSuggestionVisibility(rung),
+    invitesElaboration: !!p.invitesElaboration,
   };
 }
