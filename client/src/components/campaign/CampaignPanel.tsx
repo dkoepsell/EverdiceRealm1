@@ -4883,6 +4883,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </div>
                     )}
                   </div>
+                  </div>
                 ) : sessionsLoading ? (
                   <div className="mt-6">
                     <Skeleton className="h-12 w-3/4 mb-4" />
@@ -4891,7 +4892,6 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       <Skeleton className="h-10 w-full" />
                       <Skeleton className="h-10 w-full" />
                       <Skeleton className="h-10 w-full" />
-                    </div>
                     </div>
                   </div>
                 ) : (

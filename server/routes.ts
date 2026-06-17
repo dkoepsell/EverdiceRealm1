@@ -64,6 +64,7 @@ import {
   worldLocations,
   campaignExplorationHexes,
   characterInventory,
+  characterBounties,
 } from "@shared/schema";
 import { setupAuth, isAuthenticated, requireAdmin } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";
@@ -2655,14 +2656,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Long rest: Fully restore HP and reset status
       const actualHeal = character.maxHitPoints - character.hitPoints;
-      
+      // D&D 5e: a long rest reduces exhaustion by 1 level.
+      const newExhaustion = Math.max(0, ((character as any).exhaustionLevel || 0) - 1);
+
       const updatedCharacter = await storage.updateCharacter(id, {
         hitPoints: character.maxHitPoints,
         status: "conscious",
         deathSaveSuccesses: 0,
         deathSaveFailures: 0,
+        exhaustionLevel: newExhaustion,
         updatedAt: new Date().toISOString()
-      });
+      } as any);
       
       // If campaignId provided, also fully heal all NPC companions
       const companionResults: any[] = [];
@@ -3264,50 +3268,325 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Not your character" });
       }
 
+      const { getSkillModifier } = await import("../shared/rules/skills");
       const roll = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+      const d20 = () => Math.floor(Math.random() * 20) + 1;
 
-      const activities: Record<string, () => { gold: number; description: string }> = {
-        mercenary: () => {
-          const dayRate = roll(3, 8);
-          const gold = 7 * dayRate;
-          return { gold, description: `A week of hired muscle work at ${dayRate} gp/day earned you ${gold} gp.` };
-        },
-        performance: () => {
-          const gold = roll(1, 10) * roll(2, 5);
-          return { gold, description: `Your performances at local venues earned ${gold} gp in tips and patronage.` };
-        },
-        business: () => {
-          const roll2d6 = roll(1, 6) + roll(1, 6);
-          const gold = Math.max(0, (roll2d6 - 2) * 15);
-          const flavor = roll2d6 >= 9 ? "Business boomed" : roll2d6 >= 6 ? "Business was steady" : "Business was slow";
-          return { gold, description: `${flavor} — ${gold} gp profit from your trade operation.` };
-        },
-        caravan: () => {
-          const gold = roll(1, 6) * roll(1, 6) * 3;
-          return { gold, description: `Guard duty on the trade road paid out ${gold} gp at journey's end.` };
-        },
-        training: () => {
-          const gold = roll(1, 4) * 10;
-          return { gold, description: `Teaching sparring classes at the training yard earned you ${gold} gp.` };
-        },
+      // Each Work activity is gated by a D&D 5e skill check; the result determines pay (Xanathar's "Work" model).
+      // `risky` activities can injure / exhaust the character on a complication.
+      const ACTIVITY_CONFIG: Record<string, {
+        skill: string;
+        risky: boolean;
+        label: string;
+        gold: { poor: [number, number]; modest: [number, number]; comfortable: [number, number]; wealthy: [number, number] };
+      }> = {
+        mercenary:   { skill: "athletics",   risky: true,  label: "hired muscle work",   gold: { poor: [8, 16],  modest: [21, 42], comfortable: [50, 80],  wealthy: [90, 140] } },
+        performance: { skill: "performance", risky: false, label: "performances",        gold: { poor: [4, 10],  modest: [14, 32], comfortable: [38, 60],  wealthy: [70, 110] } },
+        business:    { skill: "persuasion",  risky: false, label: "trade operation",     gold: { poor: [10, 25], modest: [40, 75], comfortable: [90, 140], wealthy: [160, 240] } },
+        caravan:     { skill: "perception",  risky: true,  label: "guard duty",          gold: { poor: [6, 15],  modest: [24, 48], comfortable: [60, 95],  wealthy: [110, 170] } },
+        training:    { skill: "athletics",   risky: false, label: "sparring classes",    gold: { poor: [6, 12],  modest: [15, 30], comfortable: [36, 55],  wealthy: [65, 100] } },
       };
 
-      const activityFn = activities[activity];
-      if (!activityFn) {
+      const config = ACTIVITY_CONFIG[activity];
+      if (!config) {
         return res.status(400).json({ message: "Unknown downtime activity" });
       }
 
-      const { gold, description } = activityFn();
+      // Server-authoritative cooldown (closes the localStorage re-claim exploit).
+      const nowMs = Date.now();
+      const downtimeState = (((character as any).downtimeState) || {}) as Record<string, string>;
+      const cooldownUntil = downtimeState[activity] ? Date.parse(downtimeState[activity]) : 0;
+      if (cooldownUntil && cooldownUntil > nowMs) {
+        const hoursLeft = Math.ceil((cooldownUntil - nowMs) / (1000 * 60 * 60));
+        return res.status(429).json({ message: `You've already done this recently. Available again in ~${hoursLeft}h.`, cooldownUntil: downtimeState[activity] });
+      }
+
+      // Skill check: d20 + skill modifier, with disadvantage when exhausted (D&D 5e).
+      const exhaustion = (character as any).exhaustionLevel || 0;
+      const { modifier, breakdown, isProficient } = getSkillModifier(character, config.skill);
+      const d1 = d20();
+      const d2 = d20();
+      const natural = exhaustion >= 1 ? Math.min(d1, d2) : d1;
+      const total = natural + modifier;
+
+      const pick = ([min, max]: [number, number]) => roll(min, max);
+      const skillName = config.skill.charAt(0).toUpperCase() + config.skill.slice(1);
+
+      let outcome: "complication" | "poor" | "modest" | "comfortable" | "wealthy";
+      let gold = 0;
+      let description = "";
+      const consequences: { hpLost?: number; exhaustionGained?: number } = {};
+
+      if (natural === 1 || total <= 5) {
+        outcome = "complication";
+        gold = 0;
+        if (config.risky) {
+          const hpLost = roll(1, 4) + ((character as any).level || 1);
+          const newHp = Math.max(1, ((character as any).hitPoints || 1) - hpLost);
+          consequences.hpLost = ((character as any).hitPoints || 1) - newHp;
+          (character as any).hitPoints = newHp;
+          // ~35% chance the ordeal also leaves you exhausted
+          if (roll(1, 100) <= 35 && exhaustion < 6) {
+            consequences.exhaustionGained = 1;
+            (character as any).exhaustionLevel = exhaustion + 1;
+          }
+          description = `Disaster struck during your ${config.label} — you walked away with nothing and nursing wounds (-${consequences.hpLost} HP${consequences.exhaustionGained ? ", exhausted" : ""}).`;
+        } else {
+          description = `Your ${config.label} went badly. You earned nothing this time, but at least you're unharmed.`;
+        }
+      } else if (total <= 10) {
+        outcome = "poor";
+        gold = pick(config.gold.poor);
+        description = `A rough stretch of ${config.label} scraped together only ${gold} gp.`;
+      } else if (total <= 15) {
+        outcome = "modest";
+        gold = pick(config.gold.modest);
+        description = `A solid run of ${config.label} earned you ${gold} gp.`;
+      } else if (total <= 20) {
+        outcome = "comfortable";
+        gold = pick(config.gold.comfortable);
+        description = `Your ${config.label} went well — ${gold} gp richer.`;
+      } else {
+        outcome = "wealthy";
+        gold = pick(config.gold.wealthy);
+        description = `Exceptional work! Your ${config.label} brought in a handsome ${gold} gp.`;
+      }
+
+      // Set cooldown (~20h) regardless of outcome.
+      const nextCooldown = new Date(nowMs + 20 * 60 * 60 * 1000).toISOString();
+      const newDowntimeState = { ...downtimeState, [activity]: nextCooldown };
 
       const updatedCharacter = await storage.updateCharacter(id, {
         gold: ((character as any).gold || 0) + gold,
+        hitPoints: (character as any).hitPoints,
+        exhaustionLevel: (character as any).exhaustionLevel || 0,
+        downtimeState: newDowntimeState,
         updatedAt: new Date().toISOString()
       } as any);
 
-      res.json({ goldEarned: gold, description, character: updatedCharacter });
+      res.json({
+        goldEarned: gold,
+        outcome,
+        description,
+        roll: { natural, modifier, total, breakdown, isProficient, disadvantage: exhaustion >= 1, skill: skillName },
+        consequences,
+        cooldownUntil: nextCooldown,
+        character: updatedCharacter,
+      });
     } catch (error: any) {
       console.error("Error processing downtime:", error);
       res.status(500).json({ message: "Failed to process downtime", error: error.message });
+    }
+  });
+
+  // List bounties (catalog) merged with this character's per-bounty state.
+  app.get("/api/characters/:id/bounties", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const id = parseInt(req.params.id);
+      const character = await storage.getCharacter(id);
+      if (!character) return res.status(404).json({ message: "Character not found" });
+      if ((character as any).userId !== req.user.id) return res.status(403).json({ message: "Not your character" });
+
+      const { BOUNTIES } = await import("../shared/rules/bounties");
+      const rows = await db.select().from(characterBounties).where(eq(characterBounties.characterId, id));
+      const byId = new Map(rows.map(r => [r.bountyId, r]));
+      const nowMs = Date.now();
+
+      const result = BOUNTIES.map(b => {
+        const row = byId.get(b.id);
+        let state: "available" | "completed" | "cooldown" = "available";
+        let cooldownUntil: string | null = null;
+        if (row?.status === "completed") {
+          state = "completed";
+        } else if (row?.status === "failed" && row.cooldownUntil && Date.parse(row.cooldownUntil) > nowMs) {
+          state = "cooldown";
+          cooldownUntil = row.cooldownUntil;
+        }
+        return {
+          id: b.id, target: b.target, description: b.description, reward: b.reward,
+          difficulty: b.difficulty, recommendedLevel: b.recommendedLevel,
+          cr: b.enemy.cr, state, cooldownUntil,
+        };
+      });
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error listing bounties:", error);
+      res.status(500).json({ message: "Failed to list bounties", error: error.message });
+    }
+  });
+
+  // Hunt a bounty — deterministic server-side skirmish using the character's combat stats
+  // vs the target's CR-scaled stat block. Victory pays the reward (gold only); defeat costs
+  // HP + exhaustion + a cooldown. There is no free reward and real risk of failure.
+  app.post("/api/characters/:id/bounties/:bountyId/hunt", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const id = parseInt(req.params.id);
+      const { bountyId } = req.params;
+
+      const character = await storage.getCharacter(id);
+      if (!character) return res.status(404).json({ message: "Character not found" });
+      if ((character as any).userId !== req.user.id) return res.status(403).json({ message: "Not your character" });
+
+      const { getBounty } = await import("../shared/rules/bounties");
+      const { getAbilityModifier, getProficiencyBonus } = await import("../shared/rules/xp");
+      const bounty = getBounty(bountyId);
+      if (!bounty) return res.status(400).json({ message: "Unknown bounty" });
+
+      // Re-hunt rules
+      const nowMs = Date.now();
+      const existingRows = await db.select().from(characterBounties)
+        .where(and(eq(characterBounties.characterId, id), eq(characterBounties.bountyId, bountyId)));
+      const existing = existingRows[0];
+      if (existing?.status === "completed") {
+        return res.status(409).json({ message: "You've already collected this bounty." });
+      }
+      if (existing?.status === "failed" && existing.cooldownUntil && Date.parse(existing.cooldownUntil) > nowMs) {
+        const hoursLeft = Math.ceil((Date.parse(existing.cooldownUntil) - nowMs) / (1000 * 60 * 60));
+        return res.status(429).json({ message: `You're still recovering. Try this bounty again in ~${hoursLeft}h.` });
+      }
+
+      // Dice helpers
+      const rollDie = (sides: number) => Math.floor(Math.random() * sides) + 1;
+      const d20 = () => rollDie(20);
+      const rollNotation = (notation: string, crit = false): number => {
+        const m = notation.match(/(\d+)d(\d+)([+-]\d+)?/);
+        if (!m) return 1;
+        const count = parseInt(m[1]) * (crit ? 2 : 1);
+        const sides = parseInt(m[2]);
+        const mod = m[3] ? parseInt(m[3]) : 0;
+        let sum = mod;
+        for (let i = 0; i < count; i++) sum += rollDie(sides);
+        return Math.max(1, sum);
+      };
+
+      // Player combat profile derived from the character row
+      const level = (character as any).level || 1;
+      const strMod = getAbilityModifier((character as any).strength || 10);
+      const dexMod = getAbilityModifier((character as any).dexterity || 10);
+      const abilityMod = Math.max(strMod, dexMod);
+      const profBonus = getProficiencyBonus(level);
+      const playerAttackBonus = profBonus + abilityMod;
+      const playerAC = (character as any).armorClass || 10;
+      const playerDamage = `1d8${abilityMod + Math.floor(level / 2) >= 0 ? "+" : ""}${abilityMod + Math.floor(level / 2)}`;
+      const attacksPerRound = level >= 5 ? 2 : 1;
+      const exhausted = ((character as any).exhaustionLevel || 0) >= 1;
+
+      let playerHp = (character as any).hitPoints || 1;
+      const startingHp = playerHp;
+      let enemyHp = bounty.enemy.maxHp;
+      const enemy = bounty.enemy;
+
+      const log: string[] = [];
+      let victory = false;
+      const MAX_ROUNDS = 50;
+
+      for (let round = 1; round <= MAX_ROUNDS && playerHp > 0 && enemyHp > 0; round++) {
+        // Player attacks (disadvantage when exhausted)
+        for (let a = 0; a < attacksPerRound && enemyHp > 0; a++) {
+          const r1 = d20();
+          const r2 = d20();
+          const natural = exhausted ? Math.min(r1, r2) : r1;
+          if (natural === 1) {
+            log.push(`R${round}: You miss.`);
+            continue;
+          }
+          const crit = natural === 20;
+          if (crit || natural + playerAttackBonus >= enemy.armorClass) {
+            const dmg = rollNotation(playerDamage, crit);
+            enemyHp = Math.max(0, enemyHp - dmg);
+            log.push(`R${round}: You hit ${enemy.name}${crit ? " (critical!)" : ""} for ${dmg} (${enemyHp} HP left).`);
+          } else {
+            log.push(`R${round}: Your attack glances off.`);
+          }
+        }
+        if (enemyHp <= 0) { victory = true; break; }
+
+        // Enemy attacks
+        const er = d20();
+        if (er === 1) {
+          log.push(`R${round}: ${enemy.name} misses.`);
+        } else {
+          const crit = er === 20;
+          if (crit || er + enemy.attackBonus >= playerAC) {
+            const dmg = rollNotation(enemy.damageRoll, crit);
+            playerHp = Math.max(0, playerHp - dmg);
+            log.push(`R${round}: ${enemy.name} hits you${crit ? " (critical!)" : ""} for ${dmg} (${playerHp} HP left).`);
+          } else {
+            log.push(`R${round}: You deflect ${enemy.name}'s attack.`);
+          }
+        }
+      }
+      if (enemyHp <= 0) victory = true;
+
+      // Apply consequences
+      let goldEarned = 0;
+      let exhaustionGained = 0;
+      let finalHp: number;
+      let cooldownUntil: string | null = null;
+      let resultStatus: "completed" | "failed";
+      let summary: string;
+
+      if (victory) {
+        resultStatus = "completed";
+        goldEarned = bounty.reward;
+        finalHp = Math.max(1, playerHp);
+        summary = `You slew ${enemy.name} and collected the ${bounty.reward} gp bounty${startingHp - finalHp > 0 ? `, taking ${startingHp - finalHp} damage` : " without a scratch"}.`;
+      } else {
+        resultStatus = "failed";
+        finalHp = 1; // barely escape with your life
+        exhaustionGained = ((character as any).exhaustionLevel || 0) < 6 ? 1 : 0;
+        cooldownUntil = new Date(nowMs + 24 * 60 * 60 * 1000).toISOString();
+        summary = `${enemy.name} bested you. You barely escaped — no reward, badly wounded and exhausted. You can try again in a day.`;
+      }
+
+      const updatedCharacter = await storage.updateCharacter(id, {
+        gold: ((character as any).gold || 0) + goldEarned,
+        hitPoints: finalHp,
+        exhaustionLevel: Math.min(6, ((character as any).exhaustionLevel || 0) + exhaustionGained),
+        updatedAt: new Date().toISOString(),
+      } as any);
+
+      // Persist bounty state (one row per character+bounty)
+      if (existing) {
+        await db.update(characterBounties).set({
+          status: resultStatus,
+          reward: bounty.reward,
+          resolvedAt: new Date().toISOString(),
+          cooldownUntil,
+        }).where(eq(characterBounties.id, existing.id));
+      } else {
+        await db.insert(characterBounties).values({
+          characterId: id,
+          bountyId,
+          status: resultStatus,
+          reward: bounty.reward,
+          acceptedAt: new Date().toISOString(),
+          resolvedAt: new Date().toISOString(),
+          cooldownUntil,
+        });
+      }
+
+      res.json({
+        victory,
+        goldEarned,
+        summary,
+        log,
+        hpStart: startingHp,
+        hpEnd: finalHp,
+        exhaustionGained,
+        cooldownUntil,
+        enemy: { name: enemy.name, cr: enemy.cr, maxHp: enemy.maxHp },
+        character: updatedCharacter,
+      });
+    } catch (error: any) {
+      console.error("Error hunting bounty:", error);
+      res.status(500).json({ message: "Failed to hunt bounty", error: error.message });
     }
   });
 

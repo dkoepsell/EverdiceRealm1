@@ -120,6 +120,10 @@ export const characters = pgTable("characters", {
   consumables: jsonb("consumables").default([]),
   // Active conditions: [{ name, source, endsOnTurn, isConcentration }]
   activeConditions: jsonb("active_conditions").default([]),
+  // Exhaustion level (D&D 5e, 0-6). Accumulates from risky downtime/bounty failures; imposes disadvantage at 1+.
+  exhaustionLevel: integer("exhaustion_level").default(0),
+  // Downtime cooldowns: { [activityId]: cooldownUntilISO } — server-authoritative gate on Work activities
+  downtimeState: jsonb("downtime_state").default({}),
   // Resurrection tracking
   deathTimestamp: text("death_timestamp"),
   resurrectedAt: text("resurrected_at"),
@@ -931,6 +935,29 @@ export const insertCampaignQuestSchema = createInsertSchema(campaignQuests).omit
 
 export type InsertCampaignQuest = z.infer<typeof insertCampaignQuestSchema>;
 export type CampaignQuest = typeof campaignQuests.$inferSelect;
+
+// Character bounties — server-authoritative state for Tavern bounty contracts.
+// bountyId matches an entry in the shared bounty catalog (shared/rules/bounties.ts).
+export const characterBounties = pgTable("character_bounties", {
+  id: serial("id").primaryKey(),
+  characterId: integer("character_id").notNull(),
+  bountyId: text("bounty_id").notNull(), // catalog id, e.g. "goblin-chief"
+  status: text("status").notNull().default("accepted"), // accepted | completed | failed
+  campaignId: integer("campaign_id"), // campaign the bounty fight runs in
+  reward: integer("reward").notNull().default(0), // gold paid on victory
+  acceptedAt: text("accepted_at").notNull().default(new Date().toISOString()),
+  resolvedAt: text("resolved_at"),
+  cooldownUntil: text("cooldown_until"), // set on failure; blocks re-accept until past
+}, (t) => [
+  index("idx_character_bounties_character_id").on(t.characterId),
+]);
+
+export const insertCharacterBountySchema = createInsertSchema(characterBounties).omit({
+  id: true,
+});
+
+export type InsertCharacterBounty = z.infer<typeof insertCharacterBountySchema>;
+export type CharacterBounty = typeof characterBounties.$inferSelect;
 
 // World Map - The persistent realm of Everdice
 export const worldRegions = pgTable("world_regions", {
