@@ -5141,11 +5141,14 @@ function CampaignBuilderTab() {
     { value: '16-20', label: 'Epic (Levels 16-20)', description: 'World-shaping adventures and legendary foes' }
   ];
 
+  // Length sets the chapter budget, but scenes-per-chapter and total play time vary with
+  // how the story unfolds — scenes are generated dynamically during play, not planned up
+  // front. So describe scope qualitatively rather than promising a fixed count/duration.
   const campaignLengths = [
-    { value: 'quick', label: 'Quick Adventure (3 chapters)', description: '~30 minutes of gameplay' },
-    { value: 'standard', label: 'Standard Quest (5-6 chapters)', description: '~1 hour of gameplay' },
-    { value: 'epic', label: 'Epic Saga (8-10 chapters)', description: '~2-3 hours of gameplay' },
-    { value: 'legendary', label: 'Legendary Campaign (12-15 chapters)', description: '~4-5 hours of gameplay' }
+    { value: 'quick', label: 'Quick Adventure', description: 'A short arc — a few chapters' },
+    { value: 'standard', label: 'Standard Quest', description: 'A handful of chapters' },
+    { value: 'epic', label: 'Epic Saga', description: 'A long, multi-chapter campaign' },
+    { value: 'legendary', label: 'Legendary Campaign', description: 'A sprawling, many-chapter campaign' }
   ];
 
   const campaignThemes = [
@@ -5185,11 +5188,29 @@ function CampaignBuilderTab() {
 
       // Poll up to ~18 minutes (360 * 3s) — a full gen is ~3-5 min, and a retry can
       // double that, so leave generous headroom before the client gives up.
+      let missingPolls = 0;
       for (let i = 0; i < 360; i++) {
         await new Promise((r) => setTimeout(r, 3000));
         const statusResp = await fetch(`/api/campaigns/generation-status/${jobId}`, { credentials: 'include' });
+        // A 404 means the server no longer has the job (it lives in memory) — almost
+        // always because the server restarted/redeployed mid-generation. Don't poll
+        // silently for 18 min on a job that will never come back; surface it after a
+        // few misses (tolerating a brief blip).
+        if (statusResp.status === 404) {
+          if (++missingPolls >= 3) {
+            throw new Error('Generation was interrupted (the server may have restarted). Please try again.');
+          }
+          continue;
+        }
         if (!statusResp.ok) continue;
+        missingPolls = 0;
         const job = await statusResp.json();
+        if (job.status === 'not_found') {
+          if (++missingPolls >= 3) {
+            throw new Error('Generation was interrupted (the server may have restarted). Please try again.');
+          }
+          continue;
+        }
         if (job.stage) setGenStage(job.stage);
         if (job.status === 'done') return job.result;
         if (job.status === 'error') throw new Error(job.error?.message || 'Generation failed');
@@ -5887,7 +5908,7 @@ function CampaignBuilderTab() {
             disabled={generateCampaign.isPending}
             className={`px-4 py-1.5 text-sm rounded-md transition-colors ${genDepth === 'rich' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            Rich / reactive (~4–5 min)
+            Rich / reactive (several min)
           </button>
         </div>
         <p className="text-xs text-muted-foreground max-w-md text-center">
@@ -5913,6 +5934,17 @@ function CampaignBuilderTab() {
             </>
           )}
         </Button>
+        {generateCampaign.isPending && (
+          <div className="flex items-start gap-2 max-w-md text-center text-xs text-muted-foreground bg-muted/40 border border-border rounded-md px-3 py-2">
+            <Loader2 className="h-4 w-4 mt-0.5 shrink-0 animate-spin" />
+            <span className="text-left">
+              The AI is writing your campaign now — this can take several minutes
+              {genDepth === 'rich' ? ' for a rich/reactive build' : ''}. The timer above keeps
+              counting while it works, so a high number means it's still going, not stuck.
+              Keep this tab open; you can leave it running.
+            </span>
+          </div>
+        )}
       </div>
 
       <Card className="bg-muted/30">

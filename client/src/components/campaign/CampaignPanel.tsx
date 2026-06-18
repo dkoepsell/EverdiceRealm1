@@ -4754,7 +4754,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               {finished && ' 🏆'}
                             </span>
                             <span className="text-xs font-medium text-indigo-700 dark:text-slate-300">
-                              {scenesIn}/{hardCap} scenes
+                              {scenesIn} {scenesIn === 1 ? 'scene' : 'scenes'} so far
                             </span>
                           </div>
                           {/* Chapter arc bar */}

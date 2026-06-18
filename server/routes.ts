@@ -15942,6 +15942,64 @@ Create a specific creature (pick one of the reskins or create a thematic variant
     }
   });
 
+  // Consume an OpenAI-style streaming chat completion into a single string.
+  // We STREAM large generations (campaigns) rather than awaiting one blocking
+  // create() call: Anthropic recommends streaming for big max_tokens because a
+  // single non-streaming request can exceed the SDK/provider request timeout —
+  // which was exactly the prod failure (rich gen hit an 8-min wall and 422'd on
+  // both attempts). Streaming keeps the socket alive, surfaces live progress, and
+  // lets us distinguish a genuine hang (no tokens for idleMs) from a slow-but-
+  // working generation (which the old fixed wall-clock cap could not).
+  async function streamChatToString(
+    client: any,
+    params: any,
+    opts: { idleMs: number; maxMs: number; onProgress?: (chars: number, elapsedMs: number) => void },
+  ): Promise<string> {
+    const stream = await client.chat.completions.create({ ...params, stream: true });
+    const iterator = (stream as any)[Symbol.asyncIterator]();
+    let content = "";
+    const startedAt = Date.now();
+    let lastChunkAt = startedAt;
+    let lastProgressAt = 0;
+    try {
+      while (true) {
+        const idleRemaining = opts.idleMs - (Date.now() - lastChunkAt);
+        const totalRemaining = opts.maxMs - (Date.now() - startedAt);
+        if (idleRemaining <= 0 || totalRemaining <= 0) {
+          throw new Error(
+            totalRemaining <= 0 ? "AI generation exceeded time limit" : "AI generation stalled (no output)",
+          );
+        }
+        let timer: any;
+        const budget = Math.max(1, Math.min(idleRemaining, totalRemaining));
+        const timeout = new Promise<{ __timeout: true }>((resolve) => {
+          timer = setTimeout(() => resolve({ __timeout: true }), budget);
+        });
+        let res: any;
+        try {
+          res = await Promise.race([iterator.next(), timeout]);
+        } finally {
+          clearTimeout(timer);
+        }
+        if (res.__timeout) continue; // re-evaluate budgets at loop top; throws if exhausted
+        if (res.done) break;
+        const chunk = res.value?.choices?.[0]?.delta?.content || "";
+        if (chunk) {
+          content += chunk;
+          lastChunkAt = Date.now();
+        }
+        const elapsed = Date.now() - startedAt;
+        if (opts.onProgress && elapsed - lastProgressAt >= 3000) {
+          lastProgressAt = elapsed;
+          opts.onProgress(content.length, elapsed);
+        }
+      }
+    } finally {
+      try { await iterator.return?.(); } catch { /* best-effort cleanup */ }
+    }
+    return content;
+  }
+
   // Complete Campaign Generation endpoint - generates CAML 2.0 format with retry
   // In-memory job store for async campaign generation. Single PM2 process, jobs are
   // short-lived and cleaned up after completion. Lets the client poll for progress
@@ -16016,14 +16074,16 @@ Output ONLY the JSON object.`;
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         // ── QUICK MODE: lean generation, lenient validation, fast (~1-2 min) ──
         if (depth === 'quick') {
-          setStage(attempt === 0 ? 'Generating your campaign… (~1–2 minutes)' : 'Refining the campaign…');
-          let qCompletion: any;
+          const qLabel = attempt === 0 ? 'Generating your campaign' : 'Refining the campaign';
+          setStage(`${qLabel}…`);
+          let qRaw = '';
           try {
             // Own client — the rich path's aiClient/aiModel consts are declared later in
             // this same block, so referencing them here would hit the temporal dead zone.
             const { client: qClient, model: qModel } = await getAIClient(req.user?.id);
-            qCompletion = await Promise.race([
-              qClient.chat.completions.create({
+            qRaw = await streamChatToString(
+              qClient,
+              {
                 model: qModel,
                 messages: [
                   { role: "system", content: QUICK_SYSTEM_PROMPT },
@@ -16032,15 +16092,19 @@ Output ONLY the JSON object.`;
                 response_format: { type: "json_object" },
                 temperature: attempt === 0 ? 0.8 : 0.6,
                 max_tokens: 12000, // headroom so a concise skeleton never truncates mid-JSON
-              }),
-              new Promise<never>((_, reject) => setTimeout(() => reject(new Error("AI generation timed out")), 240000)),
-            ]);
+              },
+              {
+                idleMs: 60000,
+                maxMs: 300000,
+                onProgress: (_chars, elapsedMs) =>
+                  setStage(`${qLabel}… (${Math.round(elapsedMs / 1000)}s — still writing)`),
+              },
+            );
           } catch (qErr: any) {
             lastError = `AI generation failed/timed out: ${qErr?.message || qErr}`;
             console.warn(`Quick campaign gen: AI call failed (attempt ${attempt + 1}): ${qErr?.message || qErr}`);
             continue;
           }
-          const qRaw = qCompletion.choices?.[0]?.message?.content || '';
           let qParsed: any = null;
           try {
             qParsed = JSON.parse(qRaw);
@@ -16474,14 +16538,18 @@ ${customPrompt ? `THEME NOTES: ${customPrompt}` : ''}
 Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITECTURE — a living world simulator where every action cascades, factions compete, meters transform the environment, and the climax is assembled from the world state. NOT a linear module.`;
 
         const { client: aiClient, model: aiModel } = await getAIClient(req.user?.id);
-        setStage(attempt === 0 ? 'Generating your campaign… (this takes ~3–5 minutes)' : 'Refining the campaign…');
-        // Bound each attempt: a full campaign gen is slow (~2-4 min); without a cap a
-        // stalled provider call hangs until nginx 504s at its proxy timeout. On
-        // timeout/error we fall through to a retry (or a clean error) instead of hanging.
-        let completion: any;
+        const richLabel = attempt === 0 ? 'Generating your campaign' : 'Refining the campaign';
+        setStage(`${richLabel}…`);
+        // Stream the generation (see streamChatToString). Idle watchdog (90s with no new
+        // tokens ⇒ real stall) plus a generous 15-min overall ceiling — this runs as a
+        // background job (the client already has its jobId), so it isn't bound by the nginx
+        // proxy timeout and the client polls to ~18 min. onProgress surfaces a live elapsed
+        // counter so the UI proves the generation is still moving, not stalled.
+        let rawContent = '';
         try {
-          completion = await Promise.race([
-            aiClient.chat.completions.create({
+          rawContent = await streamChatToString(
+            aiClient,
+            {
               model: aiModel,
               messages: [
                 { role: "system", content: systemPrompt },
@@ -16489,13 +16557,15 @@ Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITE
               ],
               response_format: { type: "json_object" },
               temperature: attempt === 0 ? 0.7 : 0.5, // Lower temp on retry
-              max_tokens: 16000
-            }),
-            // A full 16k-token campaign gen measured ~4-5.5 min on claude-sonnet-4-6, so
-            // allow 8 min per attempt. Safe because this runs as a background job (async),
-            // not a held request bound by the nginx proxy timeout.
-            new Promise<never>((_, reject) => setTimeout(() => reject(new Error("AI generation timed out")), 480000)),
-          ]);
+              max_tokens: 16000,
+            },
+            {
+              idleMs: 90000,
+              maxMs: 900000,
+              onProgress: (_chars, elapsedMs) =>
+                setStage(`${richLabel}… (${Math.round(elapsedMs / 1000)}s — still writing)`),
+            },
+          );
         } catch (aiErr: any) {
           lastError = `AI generation failed/timed out: ${aiErr?.message || aiErr}`;
           console.warn(`Campaign generation: AI call failed (attempt ${attempt + 1}): ${aiErr?.message || aiErr}`);
@@ -16505,7 +16575,6 @@ Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITE
         // Resilient parse: the AI occasionally wraps JSON in code fences or adds prose,
         // or truncates at the token limit. Salvage what we can and RETRY on failure
         // instead of throwing to the outer catch (which 500'd the whole request).
-        const rawContent = completion.choices[0].message.content || '';
         let generatedContent: any = null;
         try {
           generatedContent = JSON.parse(rawContent);
