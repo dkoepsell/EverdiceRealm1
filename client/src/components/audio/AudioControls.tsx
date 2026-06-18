@@ -8,8 +8,30 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Volume2, VolumeX, Music2, Swords, Mic, Square } from "lucide-react";
-import { ReactNode } from "react";
+import { Volume2, VolumeX, Music2, Swords, Mic, Square, Zap } from "lucide-react";
+import { ReactNode, useState } from "react";
+
+/**
+ * "Reduce graphics effects" preference. Disables GPU-expensive backdrop/blur effects
+ * (see index.css html.reduce-fx) by toggling a class on <html>; persisted to
+ * localStorage and applied pre-paint by the boot script in index.html. Helps on
+ * high-DPI / 4K displays where frosted-glass blur saturates the compositor.
+ */
+function useReduceFx(): [boolean, (v: boolean) => void] {
+  const [on, setOn] = useState(
+    () => typeof document !== "undefined" && document.documentElement.classList.contains("reduce-fx"),
+  );
+  const set = (v: boolean) => {
+    setOn(v);
+    try {
+      localStorage.setItem("everdice:reduceFx", v ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+    if (typeof document !== "undefined") document.documentElement.classList.toggle("reduce-fx", v);
+  };
+  return [on, set];
+}
 
 function VolumeRow({
   icon,
@@ -48,6 +70,7 @@ function VolumeRow({
 
 export default function AudioControls() {
   const audio = useAudio();
+  const [reduceFx, setReduceFx] = useReduceFx();
   const silent = audio.muted || audio.master === 0;
   const TriggerIcon = silent ? VolumeX : Volume2;
 
@@ -110,6 +133,14 @@ export default function AudioControls() {
             <span>Narrate story aloud</span>
           </label>
           <Switch id="auto-narrate" checked={audio.autoNarrate} onCheckedChange={audio.setAutoNarrate} />
+        </div>
+
+        <div className="flex items-center justify-between border-t pt-3">
+          <label htmlFor="reduce-fx" className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Zap className="h-4 w-4" />
+            <span>Reduce graphics effects</span>
+          </label>
+          <Switch id="reduce-fx" checked={reduceFx} onCheckedChange={setReduceFx} />
         </div>
 
         {audio.narration !== "idle" && (

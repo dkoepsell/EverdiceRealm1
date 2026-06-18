@@ -154,6 +154,42 @@
     @apply touch-manipulation;
   }
 
+  /* ── Graphics performance ─────────────────────────────────────────────────
+     backdrop-filter: blur() is the single most expensive common effect: it must
+     re-sample and re-blur everything behind the element, and that recomputes on
+     every frame the backdrop changes (scroll, animation, hover). The cost scales
+     with the blurred area in *device* pixels, so on a 4K / high-DPI display it can
+     saturate the GPU compositor and make the whole desktop jerky, while a lower-res
+     screen copes fine. Two mitigations:
+
+     1) GLOBAL (everyone): drop the blur on large always-on surfaces — sticky headers
+        and fixed/full-screen overlays — where the backdrop is huge and constantly
+        invalidated. The element keeps its translucent background, just un-frosted. */
+  .fixed[class*="backdrop-blur"],
+  .sticky[class*="backdrop-blur"] {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* 2) OPT-IN (html.reduce-fx, toggled in the audio/display popover; also auto-on when
+        the OS "reduce motion" setting is enabled): remove ALL backdrop blur and every
+        decorative blur() so no blurred layer is composited anywhere. */
+  html.reduce-fx *,
+  html.reduce-fx *::before,
+  html.reduce-fx *::after {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  html.reduce-fx .blur-sm,
+  html.reduce-fx .blur,
+  html.reduce-fx .blur-md,
+  html.reduce-fx .blur-lg,
+  html.reduce-fx .blur-xl,
+  html.reduce-fx .blur-2xl,
+  html.reduce-fx .blur-3xl {
+    filter: none !important;
+  }
+
   /* Cinzel for h1/h2 (D&D display headings), Alegreya for h3–h6 */
   h1, h2 {
     font-family: 'Cinzel', 'Alegreya', serif;

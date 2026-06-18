@@ -5,6 +5,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <title>Everdice - Fantasy RPG Companion</title>
+    <!-- Apply the "reduce graphics effects" class before first paint (no flash of frosted UI).
+         On = stored pref, or (when unset) the OS "reduce motion" accessibility setting. -->
+    <script>
+      (function () {
+        try {
+          var v = localStorage.getItem('everdice:reduceFx');
+          var on = v === '1' || (v === null && window.matchMedia &&
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+          if (on) document.documentElement.classList.add('reduce-fx');
+        } catch (e) {}
+      })();
+    </script>
     <meta name="description" content="AI-enhanced tabletop RPG companion app for creating characters, managing campaigns, and learning game mechanics. Uses open rules from the SRD 5.1 under Creative Commons Attribution 4.0." />
     <meta name="keywords" content="tabletop RPG, fantasy roleplaying, character creation, campaign management, dice roller, SRD compatible, 5e compatible" />
     
