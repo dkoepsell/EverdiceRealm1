@@ -172,8 +172,9 @@
   }
 
   /* 2) OPT-IN (html.reduce-fx, toggled in the audio/display popover; also auto-on when
-        the OS "reduce motion" setting is enabled): remove ALL backdrop blur and every
-        decorative blur() so no blurred layer is composited anywhere. */
+        the OS "reduce motion" setting is enabled): remove ALL backdrop blur, every
+        decorative blur(), and perpetual decorative animations — so no blurred layer is
+        composited and nothing repaints every frame while idle. */
   html.reduce-fx *,
   html.reduce-fx *::before,
   html.reduce-fx *::after {
@@ -188,6 +189,17 @@
   html.reduce-fx .blur-2xl,
   html.reduce-fx .blur-3xl {
     filter: none !important;
+  }
+
+  /* reduce-fx also quiets perpetual DECORATIVE animations (status dots, sparkles,
+     glints, skeleton shimmer). Each repaints every frame; over many elements on a
+     high-DPI display that alone keeps the compositor busy. Loading spinners
+     (.animate-spin) are intentionally kept — they're transient and signal activity. */
+  html.reduce-fx .animate-pulse,
+  html.reduce-fx .animate-ping,
+  html.reduce-fx .animate-bounce,
+  html.reduce-fx .animate-glint {
+    animation: none !important;
   }
 
   /* Cinzel for h1/h2 (D&D display headings), Alegreya for h3–h6 */

@@ -13,9 +13,10 @@ import { ReactNode, useState } from "react";
 
 /**
  * "Reduce graphics effects" preference. Disables GPU-expensive backdrop/blur effects
- * (see index.css html.reduce-fx) by toggling a class on <html>; persisted to
- * localStorage and applied pre-paint by the boot script in index.html. Helps on
- * high-DPI / 4K displays where frosted-glass blur saturates the compositor.
+ * and perpetual decorative animations (see index.css html.reduce-fx) by toggling a
+ * class on <html>; persisted to localStorage and applied pre-paint by the boot script
+ * in index.html. Helps on high-DPI / 4K displays where frosted-glass blur and
+ * always-animating elements saturate the compositor.
  */
 function useReduceFx(): [boolean, (v: boolean) => void] {
   const [on, setOn] = useState(
