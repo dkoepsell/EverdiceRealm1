@@ -16535,7 +16535,9 @@ PRESSURE SYSTEM (required):
 
 ${customPrompt ? `THEME NOTES: ${customPrompt}` : ''}
 
-Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITECTURE — a living world simulator where every action cascades, factions compete, meters transform the environment, and the climax is assembled from the world state. NOT a linear module.`;
+Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITECTURE — a living world simulator where every action cascades, factions compete, meters transform the environment, and the climax is assembled from the world state. NOT a linear module.
+
+OUTPUT BUDGET — CRITICAL: Your entire response MUST be ONE complete, valid, fully-closed JSON object. Keep every prose/description field to 1–2 tight sentences — do NOT pad or write lavish prose. Finishing the JSON (every bracket and quote closed) is FAR more important than verbosity. If you are running long, shorten descriptions; NEVER leave the JSON truncated or unterminated.`;
 
         const { client: aiClient, model: aiModel } = await getAIClient(req.user?.id);
         const richLabel = attempt === 0 ? 'Generating your campaign' : 'Refining the campaign';
@@ -16557,11 +16559,15 @@ Generate a complete CAML 2.0 JSON adventure with GENRE-ADAPTIVE REACTIVE ARCHITE
               ],
               response_format: { type: "json_object" },
               temperature: attempt === 0 ? 0.7 : 0.5, // Lower temp on retry
-              max_tokens: 16000,
+              // 16k truncated the JSON mid-structure in prod (the reactive schema is large).
+              // Streaming removes the timeout pressure, so give real headroom; the Anthropic
+              // adapter routes >8192 through the extended-output beta. The prompt's OUTPUT
+              // BUDGET directive keeps the model from filling all of it.
+              max_tokens: 32000,
             },
             {
               idleMs: 90000,
-              maxMs: 900000,
+              maxMs: 960000,
               onProgress: (_chars, elapsedMs) =>
                 setStage(`${richLabel}… (${Math.round(elapsedMs / 1000)}s — still writing)`),
             },
