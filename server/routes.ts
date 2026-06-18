@@ -24287,7 +24287,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           }
           
           const completionNote = `\n\n--- Campaign Completed: "${campaign.title}" ---\nTitle Earned: ${earnedTitle}\nTrait Earned: ${earnedTrait}\nEnding: ${completionEndingType}${leveledUp ? `\nLeveled Up: ${currentLevel} → ${newLevel}` : ''}\nRewards: ${completionXP} XP, ${goldReward} gold, ${silverReward} silver`;
-          charUpdates.backstory = ((pChar.backstory || '') + completionNote).slice(-3000);
+          charUpdates.backgroundStory = ((pChar.backgroundStory || '') + completionNote).slice(-3000);
           
           await db.update(characters).set(charUpdates).where(eq(characters.id, pChar.id));
           
