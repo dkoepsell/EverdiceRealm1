@@ -3734,18 +3734,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         id="story-scene"
                         className="scroll-mt-24 relative bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-black dark:to-slate-900 p-6 rounded-xl shadow-2xl mb-6 overflow-hidden"
                         style={{
-                          animation: 'narrativePulse 3s ease-in-out infinite',
+                          // NOTE: previously ran `narrativePulse 3s infinite` animating box-shadow.
+                          // Animating a large blurred box-shadow re-rasterizes it every frame; on
+                          // high-DPI/4K displays that pinned the GPU and made the whole desktop
+                          // jerky (measured ~38 layouts + ~118 style-recalcs/sec while idle). The
+                          // static glow below keeps the look without the per-frame paint cost.
                           boxShadow: '0 0 20px rgba(251, 191, 36, 0.4), 0 0 40px rgba(251, 191, 36, 0.2), inset 0 1px 0 rgba(255,255,255,0.1)',
                           border: '3px solid',
                           borderImage: 'linear-gradient(135deg, #f59e0b, #fbbf24, #f59e0b) 1'
                         }}
                       >
-                        <style>{`
-                          @keyframes narrativePulse {
-                            0%, 100% { box-shadow: 0 0 20px rgba(251, 191, 36, 0.4), 0 0 40px rgba(251, 191, 36, 0.2); }
-                            50% { box-shadow: 0 0 30px rgba(251, 191, 36, 0.6), 0 0 60px rgba(251, 191, 36, 0.3); }
-                          }
-                        `}</style>
                         <div className="flex items-center gap-2 mb-4">
                           <Sparkles className="h-6 w-6 text-amber-400 animate-pulse" />
                           <h3 className="text-xl font-bold text-amber-400 tracking-wide">Current Scene</h3>
