@@ -19432,6 +19432,21 @@ When reached, factions will react: ${(currentMilestone.factionReactions || []).m
       }
 
       // ============================================
+      // SESSION HISTORY + CHAPTER SCENE COUNT
+      // Hoisted above the CAML2 skeleton because the complications-timing logic
+      // below (chapterProgress) reads scenesInChapter2. Previously these were
+      // declared further down, causing a TDZ "Cannot access 'scenesInChapter2'
+      // before initialization" crash whenever a campaign had a complicationsQueue.
+      // ============================================
+      const allCampaignSessions = await storage.getCampaignSessions(campaignId);
+      const narrativeLog2 = Array.isArray((campaign as any).narrativeLog) ? (campaign as any).narrativeLog : [];
+      const lastGateEntry2 = [...narrativeLog2].reverse().find((e: any) => e.type === 'chapter_gate');
+      const lastGateMs2 = lastGateEntry2?.timestamp ? Date.parse(lastGateEntry2.timestamp) : NaN;
+      const scenesInChapter2 = !isNaN(lastGateMs2)
+        ? allCampaignSessions.filter(s => s.createdAt && new Date(s.createdAt).getTime() > lastGateMs2).length
+        : allCampaignSessions.length;
+
+      // ============================================
       // CAML2 ADVENTURE SKELETON — Villain, Complications, Encounters
       // ============================================
       let caml2AdventurePrompt = '';
@@ -19668,7 +19683,6 @@ If they resolve the final challenge, respond with:
       // ============================================
       // SCENE HISTORY DIGEST — Anti-Repetition Memory (Route 2)
       // ============================================
-      const allCampaignSessions = await storage.getCampaignSessions(campaignId);
       const recentCampaignSessions = allCampaignSessions.slice(-8);
       let sceneHistoryDigest2 = "";
       if (recentCampaignSessions.length > 0) {
@@ -19727,12 +19741,8 @@ CONTENT VARIETY RULES (STRICTLY ENFORCED):
       const advanceChapterGatesList = Array.isArray((campaign as any).chapterGates) ? (campaign as any).chapterGates : [];
       const currentGateForSpine2 = advanceChapterGatesList.find((g: any) => g.chapter === currentChapter);
       const completedGates2 = advanceChapterGatesList.filter((g: any) => g.chapter < currentChapter);
-      const narrativeLog2 = Array.isArray((campaign as any).narrativeLog) ? (campaign as any).narrativeLog : [];
-      const lastGateEntry2 = [...narrativeLog2].reverse().find((e: any) => e.type === 'chapter_gate');
-      const lastGateMs2 = lastGateEntry2?.timestamp ? Date.parse(lastGateEntry2.timestamp) : NaN;
-      const scenesInChapter2 = !isNaN(lastGateMs2)
-        ? allCampaignSessions.filter(s => s.createdAt && new Date(s.createdAt).getTime() > lastGateMs2).length
-        : allCampaignSessions.length;
+      // narrativeLog2 / lastGateEntry2 / lastGateMs2 / scenesInChapter2 are computed
+      // earlier (hoisted above the CAML2 skeleton) — see SESSION HISTORY block.
 
       let camlStorySpine2 = `
 ═══════════════════════════════════════════════════════════
@@ -23571,13 +23581,13 @@ Choices should include 4 options with at least 2 requiring dice rolls.
             console.log(`Auto-advanced campaign ${campaignId} to session ${newSessionData.sessionNumber}`);
             
             // D&D 5e: Recharge magical items at dawn (new session/chapter = new day)
-            if (character?.id) {
+            if (playerCharacter?.id) {
               try {
-                const sessionRecharge = await rechargeCharacterItems(character.id);
+                const sessionRecharge = await rechargeCharacterItems(playerCharacter.id);
                 if (sessionRecharge.recharged.length > 0 || sessionRecharge.destroyed.length > 0) {
                   // Store recharge data so it can be included in the response
                   (mergedStoryState as any).itemRechargeAtDawn = sessionRecharge;
-                  console.log(`[Session Recharge] Items recharged for character ${character.id}:`, 
+                  console.log(`[Session Recharge] Items recharged for character ${playerCharacter.id}:`,
                     sessionRecharge.recharged.map(r => `${r.itemName}: +${r.chargesRegained}`).join(', '));
                 }
               } catch (rechargeErr) {
@@ -23715,8 +23725,12 @@ Choices should include 4 options with at least 2 requiring dice rolls.
       }
       
       // DM AUTHORING DOCTRINE: Process campaign stake updates and narrative log in main advance-story
+      // doctrineUpdates is declared at handler scope (not inside the try) because the
+      // campaign-completion block far below reads doctrineUpdates.campaignStakes. When it
+      // lived inside the try it was out of scope there, throwing "doctrineUpdates is not
+      // defined" and aborting completion (no rewards granted).
+      const doctrineUpdates: any = {};
       try {
-        const doctrineUpdates: any = {};
         let doctrineChanged = false;
         
         // Apply campaign stake updates with anti-oscillation enforcement
@@ -24079,7 +24093,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         try {
           const campaignNarrative = storyAdvancement.narrative || campaign.description || campaign.title;
           const campaignTheme = (campaign as any).narrativeStyle || 'classic_fantasy';
-          const charClass = character?.class || 'adventurer';
+          const charClass = playerCharacter?.class || 'adventurer';
           const endingStyle = storyAdvancement.endingType || 'standard_resolution';
           
           const itemRarities = (campaign as any).difficulty === 'Heroic' 
@@ -24149,12 +24163,12 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         }
         
         // Add reward items to character inventory for ALL participants
-        const allParticipantCharsForItems = participants && participants.length > 0 
+        const allParticipantCharsForItems = participants && participants.length > 0
           ? await Promise.all(participants.map(async (p: any) => {
               if (p.characterId) return storage.getCharacter(p.characterId);
               return null;
             }))
-          : (character ? [character] : []);
+          : (playerCharacter ? [playerCharacter] : []);
         
         for (const pChar of allParticipantCharsForItems) {
           if (!pChar) continue;
@@ -24224,14 +24238,14 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         }
         
         // Apply permanent character state changes to ALL participants
-        const allParticipantChars = participants && participants.length > 0 
+        const allParticipantChars = participants && participants.length > 0
           ? await Promise.all(participants.map(async (p: any) => {
               if (p.characterId) {
                 return storage.getCharacter(p.characterId);
               }
               return null;
             }))
-          : (character ? [character] : []);
+          : (playerCharacter ? [playerCharacter] : []);
         
         const xpThresholds = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
         const hitDiceMap: Record<string, number> = {
@@ -24278,7 +24292,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           await db.update(characters).set(charUpdates).where(eq(characters.id, pChar.id));
           
           // Track the current player's character updates for the response
-          if (character && pChar.id === character.id) {
+          if (playerCharacter && pChar.id === playerCharacter.id) {
             primaryCharUpdates = charUpdates;
           }
           
@@ -24332,14 +24346,14 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           earnedTitle,
           earnedTrait,
           rewardItems: campaignRewardItems,
-          leveledUp: character ? (primaryCharUpdates.level > (character.level || 1)) : false,
-          newLevel: primaryCharUpdates.level || (character?.level || 1),
+          leveledUp: playerCharacter ? (primaryCharUpdates.level > (playerCharacter.level || 1)) : false,
+          newLevel: primaryCharUpdates.level || (playerCharacter?.level || 1),
           campaignQuestion: (campaign as any).campaignQuestion || null,
           forceCompleted: forceCompletion,
           message: `Congratulations! You have completed "${campaign.title}"!`
         };
         
-        console.log(`[Campaign Completion] Campaign ${campaignId} completed successfully — ending: ${endingType}`);
+        console.log(`[Campaign Completion] Campaign ${campaignId} completed successfully — ending: ${completionEndingType}`);
       }
       
       // ═══════════════════════════════════════════════════════════════════
