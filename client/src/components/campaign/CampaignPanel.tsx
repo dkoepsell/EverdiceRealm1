@@ -184,7 +184,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     refetchInterval: 15000,
   });
 
-  // DM Session state for group voting
+  // DM Session state for group voting. Only relevant in multiplayer — for solo play
+  // this 3s poll just re-rendered the (very large) panel every few seconds for nothing,
+  // a needless idle cost. Gate it to group play.
   const { data: dmSessionState } = useQuery<{
     activeGroupChoices?: any[];
     groupChoiceVotes?: any[];
@@ -192,7 +194,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     groupChoiceResolution?: any;
   }>({
     queryKey: [`/api/campaigns/${campaign.id}/dm-session-state`],
-    refetchInterval: 3000,
+    enabled: !!campaign.id && !isSoloPlay,
+    refetchInterval: isSoloPlay ? false : 3000,
   });
 
   // Mutation for voting on group choices
