@@ -21,6 +21,7 @@ import {
   MapPin, BookOpen, Heart, Package, AlertTriangle
 } from "lucide-react";
 import type { SharedAdventure, SharedItem, TradingPostReview } from "@shared/schema";
+import { AdventureCoverArt } from "@/components/adventure/adventure-cover-art";
 import parchmentFrame from "@assets/image_1768600727955.png";
 
 interface AdventureWithAuthor extends SharedAdventure {
@@ -548,15 +549,15 @@ export default function TradingPostPage() {
                   className="overflow-hidden cursor-pointer hover:border-amber-500/40 transition-all hover:shadow-lg hover:shadow-amber-500/5 bg-slate-900/50 border-amber-500/10"
                   onClick={() => setSelectedAdventure(adventure.id)}
                 >
-                  {adventure.coverImageUrl ? (
-                    <div className="h-40 overflow-hidden">
-                      <img src={adventure.coverImageUrl} alt={adventure.title} className="w-full h-full object-cover" />
-                    </div>
-                  ) : (
-                    <div className="h-40 bg-gradient-to-br from-amber-900/40 to-orange-900/30 flex items-center justify-center">
-                      <Scroll className="h-12 w-12 text-amber-500/30" />
-                    </div>
-                  )}
+                  <div className="h-40 overflow-hidden">
+                    <AdventureCoverArt
+                      coverImageUrl={adventure.coverImageUrl}
+                      title={adventure.title}
+                      seed={adventure.id}
+                      genre={adventure.genre}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                   <CardContent className="p-4 space-y-3">
                     <div>
                       <h3 className="font-fantasy font-bold text-lg text-white line-clamp-1">{adventure.title}</h3>
@@ -938,11 +939,15 @@ export default function TradingPostPage() {
           ) : adventureDetail ? (
             <>
               <DialogHeader className="space-y-0 pb-0">
-                {adventureDetail.coverImageUrl && (
-                  <div className="h-48 -mx-6 -mt-6 mb-4 overflow-hidden rounded-t-lg">
-                    <img src={adventureDetail.coverImageUrl} alt={adventureDetail.title} className="w-full h-full object-cover" />
-                  </div>
-                )}
+                <div className="h-48 -mx-6 -mt-6 mb-4 overflow-hidden rounded-t-lg">
+                  <AdventureCoverArt
+                    coverImageUrl={adventureDetail.coverImageUrl}
+                    title={adventureDetail.title}
+                    seed={adventureDetail.id}
+                    genre={adventureDetail.genre}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
                 <DialogTitle className="font-fantasy text-2xl text-white">{adventureDetail.title}</DialogTitle>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>by {adventureDetail.author?.username || "Unknown"}</span>

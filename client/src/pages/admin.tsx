@@ -130,11 +130,18 @@ export default function AdminPage() {
   const { data: adminUsers = [], isLoading: usersLoading, error: usersError } = useQuery<AdminUser[]>({
     queryKey: ['/api/admin/users'],
     enabled: !!user?.isAdmin,
+    // God-mode list must stay live: the global queryClient default is staleTime:Infinity
+    // with no refetch, which otherwise caches the user list for the whole session so
+    // newly-signed-up/active users (visible in The Hearth) never appear here.
+    staleTime: 0,
+    refetchInterval: 30000,
   });
 
   const { data: allCampaigns = [], isLoading: campaignsLoading } = useQuery<Campaign[]>({
     queryKey: ['/api/admin/campaigns'],
     enabled: !!user?.isAdmin,
+    staleTime: 0,
+    refetchInterval: 30000,
   });
 
   const { data: selectedUserCharacters = [], isLoading: charactersLoading } = useQuery<Character[]>({

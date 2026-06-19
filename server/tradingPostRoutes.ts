@@ -70,6 +70,57 @@ async function generateAdventureCoverArt(title: string, description: string, gen
   }
 }
 
+// Lazy generate-on-view backfill: when a published adventure is browsed/viewed without
+// cover art, generate it in the background and persist so it shows on a later load. The
+// client renders a deterministic procedural placeholder in the meantime, so there is no
+// blocking on the request path. Generation runs one-at-a-time to stay within rate limits.
+type CoverArtJob = { id: number; title: string; description: string; genre: string };
+const coverArtInFlight = new Set<number>();
+const coverArtQueue: CoverArtJob[] = [];
+let coverArtDraining = false;
+
+async function drainCoverArtQueue() {
+  if (coverArtDraining) return;
+  coverArtDraining = true;
+  try {
+    while (coverArtQueue.length > 0) {
+      const job = coverArtQueue.shift()!;
+      try {
+        const url = await generateAdventureCoverArt(job.title, job.description, job.genre);
+        if (url) {
+          await db.update(sharedAdventures).set({ coverImageUrl: url }).where(eq(sharedAdventures.id, job.id));
+        }
+      } catch (error: any) {
+        console.error(`Cover art backfill failed for adventure ${job.id}:`, error.message);
+      } finally {
+        coverArtInFlight.delete(job.id);
+      }
+    }
+  } finally {
+    coverArtDraining = false;
+  }
+}
+
+function enqueueCoverArtBackfill(adventure: {
+  id: number;
+  title: string;
+  description: string;
+  genre: string | null;
+  coverImageUrl: string | null;
+}) {
+  if (adventure.coverImageUrl) return;
+  if (!process.env.OPENAI_API_KEY) return; // no AI available — client placeholder covers it
+  if (coverArtInFlight.has(adventure.id)) return;
+  coverArtInFlight.add(adventure.id);
+  coverArtQueue.push({
+    id: adventure.id,
+    title: adventure.title,
+    description: adventure.description,
+    genre: adventure.genre || "fantasy",
+  });
+  void drainCoverArtQueue();
+}
+
 export function registerTradingPostRoutes(app: Express) {
   app.get("/api/trading-post/adventures/featured", async (_req, res) => {
     try {
@@ -79,6 +130,8 @@ export function registerTradingPostRoutes(app: Express) {
         .where(eq(sharedAdventures.status, "published"))
         .orderBy(desc(sharedAdventures.downloadCount))
         .limit(10);
+
+      featured.forEach(enqueueCoverArtBackfill);
 
       const authorIds = Array.from(new Set(featured.map((a) => a.authorId)));
       const authorUsers =
@@ -146,6 +199,8 @@ export function registerTradingPostRoutes(app: Express) {
         .limit(limit)
         .offset(offset);
 
+      adventures.forEach(enqueueCoverArtBackfill);
+
       const authorIds = Array.from(new Set(adventures.map((a) => a.authorId)));
       const authorUsers =
         authorIds.length > 0
@@ -183,6 +238,8 @@ export function registerTradingPostRoutes(app: Express) {
       if (!adventure) {
         return res.status(404).json({ message: "Adventure not found" });
       }
+
+      enqueueCoverArtBackfill(adventure);
 
       const [author] = await db
         .select({ id: users.id, username: users.username, displayName: users.displayName, avatarUrl: users.avatarUrl })
