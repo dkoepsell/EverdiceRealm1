@@ -1991,25 +1991,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("Testing OpenAI portrait generation...");
       const response = await openai.images.generate({
-        model: "dall-e-3",
+        model: "gpt-image-1", // current OpenAI image model (dall-e-3 rejects `style`)
         prompt: testPrompt,
         n: 1,
         size: "1024x1024",
-        quality: "standard",
-        style: "vivid",
+        quality: "medium",
       });
-      
-      console.log("OpenAI response:", response);
-      
-      const imageData = response.data?.[0];
-      if (!imageData || !imageData.url) {
+
+      // gpt-image-1 returns base64, not a URL.
+      const b64 = response.data?.[0]?.b64_json;
+      if (!b64) {
         throw new Error("No image data returned from OpenAI");
       }
-      
-      res.json({ 
-        success: true, 
-        message: "Test portrait generation successful", 
-        url: imageData.url
+
+      res.json({
+        success: true,
+        message: "Test portrait generation successful",
+        bytes: Buffer.from(b64, "base64").length
       });
     } catch (error: any) {
       console.error("Error testing portrait generation:", error);
@@ -2466,23 +2464,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       const response = await openai.images.generate({
-        model: "dall-e-3",
+        model: "gpt-image-1", // current OpenAI image model (dall-e-3 rejects `style`)
         prompt: prompt,
         n: 1,
         size: "1024x1024",
-        quality: "standard",
-        style: "vivid",
+        quality: "medium",
       });
-      
-      const imageData = response.data?.[0];
-      if (!imageData || !imageData.url) {
+
+      // gpt-image-1 returns base64 — persist it to object storage and return a stable URL
+      // (the old dall-e URL was temporary and expired).
+      const b64 = response.data?.[0]?.b64_json;
+      if (!b64) {
         throw new Error("No image data returned from OpenAI");
       }
-      
-      res.json({ 
+      const imageBuffer = Buffer.from(b64, "base64");
+      const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+      if (!bucketId) {
+        throw new Error("No object storage bucket configured");
+      }
+      const uuid = randomUUID();
+      const file = objectStorageClient.bucket(bucketId).file(`public/monsters/${uuid}.png`);
+      await file.save(imageBuffer, {
+        contentType: "image/png",
+        metadata: { cacheControl: "public, max-age=31536000" },
+      });
+      const imageUrl = `/objects/monsters/${uuid}.png`;
+
+      res.json({
         success: true,
-        imageUrl: imageData.url,
-        monsterName 
+        imageUrl,
+        monsterName
       });
     } catch (error: any) {
       console.error("Error generating monster image:", error);

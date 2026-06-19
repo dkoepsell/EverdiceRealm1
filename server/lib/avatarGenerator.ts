@@ -21,21 +21,22 @@ export async function generateUserAvatar(options: {
     console.log(`Generating avatar with prompt: ${prompt}`);
     
     const response: ImagesResponse = await openai.images.generate({
-      model: "dall-e-3",
+      model: "gpt-image-1", // current OpenAI image model (dall-e-3 rejects `style` and is deprecated)
       prompt: prompt,
       n: 1,
       size: "1024x1024",
-      quality: "standard",
-      style: "vivid",
+      quality: "medium",
     });
 
-    const imageData = response.data?.[0];
-    if (!imageData || !imageData.url) {
+    // gpt-image-1 returns base64, not a URL.
+    const b64 = response.data?.[0]?.b64_json;
+    if (!b64) {
       throw new Error("No image data returned from OpenAI");
     }
-    
-    const persistentUrl = await saveAvatarToObjectStorage(imageData.url, `avatars/${randomUUID()}.png`);
-    
+    const imageBuffer = Buffer.from(b64, "base64");
+
+    const persistentUrl = await saveAvatarToObjectStorage(imageBuffer, `avatars/${randomUUID()}.png`);
+
     return { url: persistentUrl };
   } catch (error: any) {
     console.error("Error generating avatar:", error.message);
@@ -43,40 +44,25 @@ export async function generateUserAvatar(options: {
   }
 }
 
-async function saveAvatarToObjectStorage(imageUrl: string, objectPath: string): Promise<string> {
-  try {
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to download image: ${response.statusText}`);
-    }
-    
-    const imageBuffer = Buffer.from(await response.arrayBuffer());
-    
-    const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-    
-    if (!bucketId) {
-      console.warn("No DEFAULT_OBJECT_STORAGE_BUCKET_ID configured, using temporary URL");
-      return imageUrl;
-    }
-    
-    const bucket = objectStorageClient.bucket(bucketId);
-    const fullObjectPath = `public/${objectPath}`;
-    const file = bucket.file(fullObjectPath);
-    
-    await file.save(imageBuffer, {
-      contentType: "image/png",
-      metadata: {
-        cacheControl: "public, max-age=31536000",
-      },
-    });
-    
-    console.log(`Avatar saved to object storage: /objects/${objectPath}`);
-    return `/objects/${objectPath}`;
-  } catch (error: any) {
-    console.error("Error saving avatar to object storage:", error.message);
-    console.warn("Falling back to temporary DALL-E URL");
-    return imageUrl;
+async function saveAvatarToObjectStorage(imageBuffer: Buffer, objectPath: string): Promise<string> {
+  const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+  if (!bucketId) {
+    throw new Error("No DEFAULT_OBJECT_STORAGE_BUCKET_ID configured");
   }
+
+  const bucket = objectStorageClient.bucket(bucketId);
+  const fullObjectPath = `public/${objectPath}`;
+  const file = bucket.file(fullObjectPath);
+
+  await file.save(imageBuffer, {
+    contentType: "image/png",
+    metadata: {
+      cacheControl: "public, max-age=31536000",
+    },
+  });
+
+  console.log(`Avatar saved to object storage: /objects/${objectPath}`);
+  return `/objects/${objectPath}`;
 }
 
 function hashString(str: string): number {
