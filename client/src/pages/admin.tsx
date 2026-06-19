@@ -11,8 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
-  Loader2, Users, Swords, Shield, Eye, Crown, User, Calendar, MapPin, 
-  BarChart3, Activity, TrendingUp, Clock, Dice6, Sparkles, MousePointer 
+  Loader2, Users, Swords, Shield, Eye, Crown, User, Calendar, MapPin,
+  BarChart3, Activity, TrendingUp, Clock, Dice6, Sparkles, MousePointer,
+  Download, Mail
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -32,6 +33,57 @@ interface AdminUser {
   campaignCount: number;
   totalEvents: number;
   lastActivity: string | null;
+}
+
+interface UserDetail {
+  user: {
+    id: number;
+    username: string;
+    email: string | null;
+    displayName: string | null;
+    avatarUrl: string | null;
+    lastLogin: string | null;
+    isAdmin: boolean;
+    createdAt: string;
+    discordUserId: string | null;
+    discordUsername: string | null;
+    hasCompletedDemo: boolean | null;
+  };
+  signupSource: "discord" | "local";
+  characters: Character[];
+  ownedCampaigns: Campaign[];
+  playerCampaigns: Array<{
+    campaignId: number;
+    role: string | null;
+    title: string | null;
+    ownerId: number | null;
+    isCompleted: boolean | null;
+    currentSession: number | null;
+    difficulty: string | null;
+  }>;
+  engagement: {
+    totalEvents: number;
+    firstActivity: string | null;
+    lastActivity: string | null;
+    diceRolls: number;
+    sessions: {
+      count: number;
+      totalMinutes: number;
+      lastSessionAt: string | null;
+      devices: Array<{ deviceType: string; count: number }>;
+    };
+    topFeatures: Array<{ name: string; count: number }>;
+    recentEvents: Array<{
+      eventType: string | null;
+      eventCategory: string | null;
+      eventName: string | null;
+      pageUrl: string | null;
+      createdAt: string;
+    }>;
+    daysSinceSignup: number | null;
+    daysSinceActive: number | null;
+    status: "new" | "active" | "dormant" | "churned";
+  };
 }
 
 interface AnalyticsOverview {
@@ -144,8 +196,13 @@ export default function AdminPage() {
     refetchInterval: 30000,
   });
 
-  const { data: selectedUserCharacters = [], isLoading: charactersLoading } = useQuery<Character[]>({
-    queryKey: ['/api/admin/users', selectedUserId, 'characters'],
+  const { data: userDetail, isLoading: userDetailLoading } = useQuery<UserDetail>({
+    queryKey: ['/api/admin/users', selectedUserId, 'detail'],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/users/${selectedUserId}/detail`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to load user detail');
+      return res.json();
+    },
     enabled: !!selectedUserId && !!user?.isAdmin,
   });
 
@@ -241,6 +298,36 @@ export default function AdminPage() {
       toast({ title: "Failed to update admin status", description: error.message, variant: "destructive" });
     }
   });
+
+  // Export the full user list (with marketing signals) as CSV for downstream analysis.
+  const exportUsersCsv = () => {
+    const headers = ['id', 'username', 'displayName', 'email', 'isAdmin', 'signedUp', 'lastActive', 'characters', 'campaigns', 'events'];
+    const escape = (v: unknown) => {
+      const s = v === null || v === undefined ? '' : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows = adminUsers.map((u) => [
+      u.id, u.username, u.displayName || '', u.email || '', u.isAdmin,
+      u.createdAt ? new Date(u.createdAt).toISOString() : '',
+      u.lastActivity || u.lastLogin || '',
+      u.characterCount, u.campaignCount, u.totalEvents,
+    ].map(escape).join(','));
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `everdice-users-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const statusStyles: Record<string, string> = {
+    active: 'bg-emerald-500 text-white',
+    new: 'bg-blue-500 text-white',
+    dormant: 'bg-amber-500 text-white',
+    churned: 'bg-red-500/80 text-white',
+  };
 
   if (authLoading) {
     return (
@@ -1020,11 +1107,18 @@ export default function AdminPage() {
           <TabsContent value="users">
             <Card className="border-primary/20 bg-card/50 backdrop-blur">
               <CardHeader className="bg-gradient-to-r from-primary/5 to-amber-500/5 border-b border-border">
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  All Users
-                </CardTitle>
-                <CardDescription>View and manage all registered users and their characters</CardDescription>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-primary" />
+                      All Users
+                    </CardTitle>
+                    <CardDescription>Click a user to see their full profile — characters, campaigns, and engagement</CardDescription>
+                  </div>
+                  <Button size="sm" variant="outline" className="border-primary/30 hover:bg-primary/10" onClick={exportUsersCsv}>
+                    <Download className="h-3 w-3 mr-1" /> Export CSV
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="p-0">
                 {usersLoading ? (
@@ -1092,51 +1186,14 @@ export default function AdminPage() {
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-2">
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <Button 
-                                      size="sm" 
-                                      variant="outline"
-                                      className="border-primary/30 hover:bg-primary/10"
-                                      onClick={() => setSelectedUserId(adminUser.id)}
-                                    >
-                                      <Eye className="h-3 w-3 mr-1" /> Characters
-                                    </Button>
-                                  </DialogTrigger>
-                                  <DialogContent className="max-w-2xl">
-                                    <DialogHeader>
-                                      <DialogTitle>Characters for {adminUser.displayName || adminUser.username}</DialogTitle>
-                                    </DialogHeader>
-                                    {charactersLoading ? (
-                                      <div className="flex justify-center py-8">
-                                        <Loader2 className="h-6 w-6 animate-spin" />
-                                      </div>
-                                    ) : selectedUserCharacters.length === 0 ? (
-                                      <p className="text-muted-foreground py-4">No characters created yet.</p>
-                                    ) : (
-                                      <ScrollArea className="h-[400px]">
-                                        <div className="space-y-3">
-                                          {selectedUserCharacters.map((char) => (
-                                            <Card key={char.id} className="p-4 border-primary/20">
-                                              <div className="flex items-center justify-between">
-                                                <div>
-                                                  <h4 className="font-semibold">{char.name}</h4>
-                                                  <p className="text-sm text-muted-foreground">
-                                                    Level {char.level} {char.race} {char.class}
-                                                  </p>
-                                                </div>
-                                                <div className="text-right text-sm">
-                                                  <div>HP: {char.hitPoints}/{char.maxHitPoints}</div>
-                                                  <div>XP: {char.experience || 0}</div>
-                                                </div>
-                                              </div>
-                                            </Card>
-                                          ))}
-                                        </div>
-                                      </ScrollArea>
-                                    )}
-                                  </DialogContent>
-                                </Dialog>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-primary/30 hover:bg-primary/10"
+                                  onClick={() => setSelectedUserId(adminUser.id)}
+                                >
+                                  <Eye className="h-3 w-3 mr-1" /> Profile
+                                </Button>
                                 {adminUser.id !== user.id && (
                                   <Button
                                     size="sm"
@@ -1223,6 +1280,194 @@ export default function AdminPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Comprehensive per-user profile (marketing / acquisition detail) */}
+      <Dialog open={selectedUserId !== null} onOpenChange={(open) => { if (!open) setSelectedUserId(null); }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+          {userDetailLoading || !userDetail ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-3">
+                  {userDetail.user.avatarUrl ? (
+                    <img src={userDetail.user.avatarUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
+                  ) : (
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/20 to-amber-500/20 flex items-center justify-center">
+                      <User className="h-5 w-5 text-primary" />
+                    </div>
+                  )}
+                  <div>
+                    <div>{userDetail.user.displayName || userDetail.user.username}</div>
+                    <div className="text-xs font-normal text-muted-foreground">@{userDetail.user.username}</div>
+                  </div>
+                  <Badge className={`ml-auto ${statusStyles[userDetail.engagement.status]}`}>
+                    {userDetail.engagement.status}
+                  </Badge>
+                </DialogTitle>
+              </DialogHeader>
+
+              <ScrollArea className="flex-1 -mx-6 px-6">
+                <div className="space-y-5 pb-2">
+                  {/* Identity & acquisition */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                    <div>
+                      <div className="text-xs text-muted-foreground flex items-center gap-1"><Mail className="h-3 w-3" /> Email</div>
+                      <div className="font-medium break-all">{userDetail.user.email || '—'}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">Signup source</div>
+                      <div className="font-medium capitalize">
+                        {userDetail.signupSource}
+                        {userDetail.user.discordUsername ? ` (${userDetail.user.discordUsername})` : ''}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" /> Signed up</div>
+                      <div className="font-medium">
+                        {userDetail.user.createdAt ? new Date(userDetail.user.createdAt).toLocaleDateString() : '—'}
+                        {userDetail.engagement.daysSinceSignup !== null ? ` (${userDetail.engagement.daysSinceSignup}d ago)` : ''}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">Last active</div>
+                      <div className="font-medium">
+                        {userDetail.engagement.lastActivity ? new Date(userDetail.engagement.lastActivity).toLocaleDateString() : 'Never'}
+                        {userDetail.engagement.daysSinceActive !== null ? ` (${userDetail.engagement.daysSinceActive}d ago)` : ''}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">Completed demo</div>
+                      <div className="font-medium">{userDetail.user.hasCompletedDemo ? 'Yes' : 'No'}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">Role</div>
+                      <div className="font-medium">{userDetail.user.isAdmin ? 'Admin' : 'User'}</div>
+                    </div>
+                  </div>
+
+                  {/* Engagement metrics */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                      { label: 'Events', value: userDetail.engagement.totalEvents, icon: Activity },
+                      { label: 'Sessions', value: userDetail.engagement.sessions.count, icon: Clock },
+                      { label: 'Minutes played', value: Math.round(userDetail.engagement.sessions.totalMinutes), icon: TrendingUp },
+                      { label: 'Dice rolls', value: userDetail.engagement.diceRolls, icon: Dice6 },
+                    ].map((m) => (
+                      <Card key={m.label} className="p-3 border-primary/20">
+                        <div className="text-xs text-muted-foreground flex items-center gap-1"><m.icon className="h-3 w-3" /> {m.label}</div>
+                        <div className="text-xl font-bold">{m.value.toLocaleString()}</div>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Characters */}
+                  <div>
+                    <h4 className="font-semibold mb-2 flex items-center gap-2"><Swords className="h-4 w-4 text-primary" /> Characters ({userDetail.characters.length})</h4>
+                    {userDetail.characters.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No characters created yet.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {userDetail.characters.map((char) => (
+                          <Card key={char.id} className="p-3 border-primary/20 flex items-center gap-3">
+                            {char.portraitUrl ? (
+                              <img src={char.portraitUrl} alt="" className="h-10 w-10 rounded object-cover" />
+                            ) : (
+                              <div className="h-10 w-10 rounded bg-muted flex items-center justify-center"><User className="h-4 w-4 text-muted-foreground" /></div>
+                            )}
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">{char.name}</div>
+                              <div className="text-xs text-muted-foreground">Lvl {char.level} {char.race} {char.class} · {char.experience || 0} XP{char.status && char.status !== 'active' ? ` · ${char.status}` : ''}</div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Owned campaigns */}
+                  <div>
+                    <h4 className="font-semibold mb-2 flex items-center gap-2"><MapPin className="h-4 w-4 text-amber-500" /> Owned campaigns ({userDetail.ownedCampaigns.length})</h4>
+                    {userDetail.ownedCampaigns.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No campaigns created.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {userDetail.ownedCampaigns.map((c) => (
+                          <div key={c.id} className="flex items-center justify-between text-sm border-b border-border/50 pb-1.5">
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">{c.title}</div>
+                              <div className="text-xs text-muted-foreground">Chapter {c.currentSession} · {c.difficulty}{c.isPublished ? ' · published' : ''}</div>
+                            </div>
+                            {c.isCompleted ? (
+                              <Badge className="bg-emerald-500 text-white">Completed</Badge>
+                            ) : c.isArchived ? (
+                              <Badge variant="secondary">Archived</Badge>
+                            ) : (
+                              <Badge className="bg-blue-500 text-white">Active</Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Co-play campaigns */}
+                  {userDetail.playerCampaigns.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold mb-2 flex items-center gap-2"><Users className="h-4 w-4 text-primary" /> Plays in ({userDetail.playerCampaigns.length})</h4>
+                      <div className="space-y-1.5">
+                        {userDetail.playerCampaigns.map((c) => (
+                          <div key={c.campaignId} className="flex items-center justify-between text-sm">
+                            <span className="truncate">{c.title || `Campaign #${c.campaignId}`}</span>
+                            <Badge variant="outline" className="capitalize">{c.role || 'player'}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Top features */}
+                  {userDetail.engagement.topFeatures.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold mb-2 flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Top features used</h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {userDetail.engagement.topFeatures.map((f) => (
+                          <Badge key={f.name} variant="secondary">{f.name} · {f.count}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Devices */}
+                  {userDetail.engagement.sessions.devices.length > 0 && (
+                    <div className="text-sm">
+                      <span className="text-xs text-muted-foreground">Devices: </span>
+                      {userDetail.engagement.sessions.devices.map((d) => `${d.deviceType} (${d.count})`).join(', ')}
+                    </div>
+                  )}
+
+                  {/* Recent activity */}
+                  {userDetail.engagement.recentEvents.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold mb-2 flex items-center gap-2"><Activity className="h-4 w-4 text-primary" /> Recent activity</h4>
+                      <div className="space-y-1 text-xs">
+                        {userDetail.engagement.recentEvents.slice(0, 12).map((e, i) => (
+                          <div key={i} className="flex items-center justify-between gap-2 text-muted-foreground">
+                            <span className="truncate">{e.eventName || e.eventType}{e.eventCategory ? ` · ${e.eventCategory}` : ''}</span>
+                            <span className="shrink-0">{new Date(e.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

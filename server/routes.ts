@@ -28082,6 +28082,155 @@ Snapshots must include at least 2 forked endings.`;
     }
   });
   
+  // Comprehensive per-user profile for marketing / acquisition analysis (admin only).
+  // Bundles identity + contact + signup source, full character roster, owned and
+  // joined campaigns, and engagement/recency signals into one payload.
+  app.get("/api/admin/users/:userId/detail", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const { password, twoFactorSecret, ...safeUser } = user;
+
+      // Character roster (full detail)
+      const userCharacters = await storage.getCharactersByUserId(userId);
+
+      // Campaigns this user owns
+      const ownedCampaigns = await db
+        .select()
+        .from(campaigns)
+        .where(eq(campaigns.userId, userId))
+        .orderBy(desc(campaigns.updatedAt));
+
+      // Campaigns this user participates in (co-play), with role
+      const joinedRows = await db
+        .select({
+          campaignId: campaignParticipants.campaignId,
+          role: campaignParticipants.role,
+          joinedAt: campaignParticipants.joinedAt,
+          lastActiveAt: campaignParticipants.lastActiveAt,
+          title: campaigns.title,
+          ownerId: campaigns.userId,
+          isCompleted: campaigns.isCompleted,
+          isArchived: campaigns.isArchived,
+          currentSession: campaigns.currentSession,
+          difficulty: campaigns.difficulty,
+        })
+        .from(campaignParticipants)
+        .leftJoin(campaigns, eq(campaignParticipants.campaignId, campaigns.id))
+        .where(eq(campaignParticipants.userId, userId));
+      const playerCampaigns = joinedRows.filter((r) => r.ownerId !== userId);
+
+      // Engagement: activity events
+      const [eventAgg] = await db
+        .select({
+          total: sql<number>`count(*)`,
+          firstActivity: sql<string>`min(${userActivityEvents.createdAt})`,
+          lastActivity: sql<string>`max(${userActivityEvents.createdAt})`,
+        })
+        .from(userActivityEvents)
+        .where(eq(userActivityEvents.userId, userId));
+
+      const topFeatures = await db
+        .select({ name: userActivityEvents.eventName, count: sql<number>`count(*)` })
+        .from(userActivityEvents)
+        .where(eq(userActivityEvents.userId, userId))
+        .groupBy(userActivityEvents.eventName)
+        .orderBy(sql`count(*) DESC`)
+        .limit(8);
+
+      const recentEvents = await db
+        .select({
+          eventType: userActivityEvents.eventType,
+          eventCategory: userActivityEvents.eventCategory,
+          eventName: userActivityEvents.eventName,
+          pageUrl: userActivityEvents.pageUrl,
+          createdAt: userActivityEvents.createdAt,
+        })
+        .from(userActivityEvents)
+        .where(eq(userActivityEvents.userId, userId))
+        .orderBy(desc(userActivityEvents.createdAt))
+        .limit(20);
+
+      // Sessions summary
+      const [sessionAgg] = await db
+        .select({
+          count: sql<number>`count(*)`,
+          totalMinutes: sql<number>`coalesce(sum(${userSessionsAnalytics.durationMinutes}), 0)`,
+          lastSessionAt: sql<string>`max(${userSessionsAnalytics.startedAt})`,
+        })
+        .from(userSessionsAnalytics)
+        .where(eq(userSessionsAnalytics.userId, userId));
+
+      const deviceRows = await db
+        .select({ deviceType: userSessionsAnalytics.deviceType, count: sql<number>`count(*)` })
+        .from(userSessionsAnalytics)
+        .where(eq(userSessionsAnalytics.userId, userId))
+        .groupBy(userSessionsAnalytics.deviceType);
+
+      // Dice rolls (engagement depth)
+      const [diceAgg] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(diceRolls)
+        .where(eq(diceRolls.userId, userId));
+
+      // Derive recency / lifecycle status
+      const now = Date.now();
+      const DAY = 24 * 60 * 60 * 1000;
+      const lastActiveStr = eventAgg?.lastActivity || user.lastLogin || null;
+      const daysSinceActive = lastActiveStr
+        ? Math.floor((now - new Date(lastActiveStr).getTime()) / DAY)
+        : null;
+      const daysSinceSignup = user.createdAt
+        ? Math.floor((now - new Date(user.createdAt).getTime()) / DAY)
+        : null;
+      let status: "new" | "active" | "dormant" | "churned" = "new";
+      if (daysSinceActive === null) {
+        status = daysSinceSignup !== null && daysSinceSignup <= 3 ? "new" : "churned";
+      } else if (daysSinceActive <= 7) {
+        status = "active";
+      } else if (daysSinceActive <= 30) {
+        status = "dormant";
+      } else {
+        status = "churned";
+      }
+
+      res.json({
+        user: safeUser,
+        signupSource: user.discordUserId ? "discord" : "local",
+        characters: userCharacters,
+        ownedCampaigns,
+        playerCampaigns,
+        engagement: {
+          totalEvents: Number(eventAgg?.total || 0),
+          firstActivity: eventAgg?.firstActivity || null,
+          lastActivity: lastActiveStr,
+          diceRolls: Number(diceAgg?.count || 0),
+          sessions: {
+            count: Number(sessionAgg?.count || 0),
+            totalMinutes: Number(sessionAgg?.totalMinutes || 0),
+            lastSessionAt: sessionAgg?.lastSessionAt || null,
+            devices: deviceRows.map((d) => ({ deviceType: d.deviceType || "unknown", count: Number(d.count) })),
+          },
+          topFeatures: topFeatures.map((f) => ({ name: f.name || "unknown", count: Number(f.count) })),
+          recentEvents,
+          daysSinceSignup,
+          daysSinceActive,
+          status,
+        },
+      });
+    } catch (error) {
+      console.error("Admin: Failed to fetch user detail:", error);
+      res.status(500).json({ message: "Failed to fetch user detail" });
+    }
+  });
+
   // Get all campaigns (admin only) - including archived
   app.get("/api/admin/campaigns", isAuthenticated, requireAdmin, async (req, res) => {
     try {
