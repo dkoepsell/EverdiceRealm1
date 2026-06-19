@@ -19228,7 +19228,10 @@ You may use this suggestion or create your own — but it should feel natural fo
         deferredConsequences: [],
         identityFormation: null,
         sceneCount: 0,
-        quietReckoningTriggered: false
+        quietReckoningTriggered: false,
+        // Tally of concrete rewards earned across session 1, surfaced in the
+        // first-session wrap-up (The Quiet Reckoning). Accumulated from combat rewards.
+        rewardsEarned: { xp: 0, gold: 0, items: [] as string[] }
       };
       
       const SESSION1_RECKONING_THRESHOLD = 7;
@@ -21977,7 +21980,16 @@ ${cachedNarrative}
         ].slice(-5),
         identityFormation: aiRetention.identityFormation || session1Retention.identityFormation,
         sceneCount: session1SceneCount + 1,
-        quietReckoningTriggered: session1Retention.quietReckoningTriggered
+        quietReckoningTriggered: session1Retention.quietReckoningTriggered,
+        // Accumulate this scene's combat rewards into the running session-1 tally.
+        rewardsEarned: {
+          xp: (session1Retention.rewardsEarned?.xp || 0) + (postCombatRewardsData?.xpAwarded || 0),
+          gold: (session1Retention.rewardsEarned?.gold || 0) + (postCombatRewardsData?.goldAwarded || 0),
+          items: [
+            ...(session1Retention.rewardsEarned?.items || []),
+            ...((postCombatRewardsData?.lootItems || []).map((i: any) => i.name).filter(Boolean))
+          ].slice(-20)
+        }
       } : session1Retention;
       
       // Track combat round count: increment when in combat, reset when combat ends
@@ -24416,7 +24428,39 @@ Respond with JSON:
           
           quietReckoningData = JSON.parse(reckoningResponse.choices[0].message.content || '{}');
           console.log(`[Quiet Reckoning] Generated successfully for campaign ${campaignId}`);
-          
+
+          // First-session wrap-up: concrete rewards earned + character growth snapshot.
+          // Re-fetch the character so growth reflects this scene's freshly-applied rewards.
+          try {
+            const freshChar = playerCharacter?.id
+              ? (await storage.getCharacter(playerCharacter.id)) || playerCharacter
+              : playerCharacter;
+            const earned = (updatedSession1Retention as any)?.rewardsEarned || { xp: 0, gold: 0, items: [] };
+            const xpInfo = getXPToNextLevel(freshChar?.experience || 0);
+            let inventoryCount = 0;
+            try {
+              inventoryCount = freshChar?.id ? (await storage.getCharacterInventory(freshChar.id)).length : 0;
+            } catch { inventoryCount = ((freshChar?.inventory as any[]) || []).length; }
+            quietReckoningData.sessionRewards = {
+              earned: {
+                xp: earned.xp || 0,
+                gold: earned.gold || 0,
+                items: earned.items || [],
+              },
+              growth: {
+                level: freshChar?.level || 1,
+                experience: freshChar?.experience || 0,
+                xpToNextLevel: xpInfo.xpNeeded,
+                xpPercent: xpInfo.percentComplete,
+                goldTotal: freshChar?.gold || 0,
+                inventoryCount,
+                skillsPracticed: ((updatedSession1Retention as any)?.growthObservations || []).slice(-4),
+              },
+            };
+          } catch (rewardErr) {
+            console.error("[Quiet Reckoning] Failed to build sessionRewards:", rewardErr);
+          }
+
           mergedStoryState.session1Retention = {
             ...updatedSession1Retention,
             quietReckoningTriggered: true

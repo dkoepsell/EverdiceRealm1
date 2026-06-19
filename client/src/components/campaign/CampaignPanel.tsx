@@ -6,6 +6,8 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { generateStory, StoryRequest } from "@/lib/openai";
 import { DiceType, DiceRoll, DiceRollResult, rollDice, clientRollDice, parseAndRollDice, rollSpellAttack, SpellDamageResult, SpellAttackResult } from "@/lib/dice";
 import { getSkillModifier, parseDCFromText, calculateSuccessProbability, getLikelihoodDescription } from "@/lib/skills";
+import { trackEvent } from "@/lib/analytics";
+import { FirstSessionWrapUp, type SessionRewards } from "./FirstSessionWrapUp";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useAudio } from "@/hooks/use-audio";
@@ -354,6 +356,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     toolMastery: string;
     unresolvedHook: string;
     returnPromise: string;
+    sessionRewards?: SessionRewards;
   } | null>(null);
   const [showQuietReckoning, setShowQuietReckoning] = useState(false);
   
@@ -1862,6 +1865,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       if (data.quietReckoning && data.quietReckoning.reckoningNarrative) {
         setQuietReckoningData(data.quietReckoning);
         setShowQuietReckoning(true);
+        trackEvent("first_session", "wrapup_shown", {
+          campaignId: campaign?.id,
+          earnedXp: data.quietReckoning.sessionRewards?.earned?.xp ?? 0,
+          level: data.quietReckoning.sessionRewards?.growth?.level ?? null,
+        }, { campaignId: campaign?.id });
       }
       
       // Close dialogs
@@ -7745,11 +7753,25 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   </p>
                 </div>
               )}
+
+              {quietReckoningData.sessionRewards && (
+                <FirstSessionWrapUp
+                  rewards={quietReckoningData.sessionRewards}
+                  onNavigate={(path, ctaId) => {
+                    trackEvent("first_session", "wrapup_cta_click",
+                      { cta: ctaId, path, campaignId: campaign?.id },
+                      { campaignId: campaign?.id });
+                    setShowQuietReckoning(false);
+                    setQuietReckoningData(null);
+                    navigate(path);
+                  }}
+                />
+              )}
             </div>
           )}
 
           <div className="flex justify-center mt-2">
-            <Button 
+            <Button
               onClick={() => {
                 setShowQuietReckoning(false);
                 setQuietReckoningData(null);
