@@ -4740,7 +4740,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const updatedCharacter = await storage.updateCharacter(id, updateData);
-      
+
+      // Keep systems consistent: equipping a base-equipment item into a slot clears any
+      // magical inventory item that was occupying the same slot.
+      await db.execute(sql`
+        UPDATE character_inventory SET is_equipped = false, equip_slot = null
+        WHERE character_id = ${id} AND equip_slot = ${slot}
+      `);
+
       res.json({
         character: updatedCharacter,
         message: `Equipped ${displayName} to ${slot} slot`
@@ -4808,7 +4815,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const updatedCharacter = await storage.updateCharacter(id, updateData);
-      
+
+      // Keep systems consistent: also clear any magical inventory item in this slot.
+      await db.execute(sql`
+        UPDATE character_inventory SET is_equipped = false, equip_slot = null
+        WHERE character_id = ${id} AND equip_slot = ${slot}
+      `);
+
       res.json({
         character: updatedCharacter,
         message: `Unequipped ${unequippedItem} from ${slot} slot`
@@ -29224,10 +29237,40 @@ Snapshots must include at least 2 forked endings.`;
           }
         }
         
+        const characterId = parseInt(req.params.characterId);
+        const slotField: Record<string, string> = {
+          weapon: "equippedWeapon", armor: "equippedArmor", shield: "equippedShield", accessory: "equippedAccessory",
+        };
+        // Only one inventory item per slot — unequip any other item currently in this slot.
+        await db.execute(sql`
+          UPDATE character_inventory SET is_equipped = false, equip_slot = null
+          WHERE character_id = ${characterId} AND equip_slot = ${slot} AND id <> ${itemId}
+        `);
         const item = await storage.equipItem(itemId, slot);
+        // Bridge to the character's equipped<Slot> field so the top equipment slot reflects it.
+        if (slotField[slot] && itemData?.name) {
+          await storage.updateCharacter(characterId, { [slotField[slot]]: itemData.name, updatedAt: new Date().toISOString() });
+        }
         res.json({ message: "Item equipped!", item });
       } else {
+        const characterId = parseInt(req.params.characterId);
+        const existingItem = await db.execute(sql`SELECT * FROM character_inventory WHERE id = ${itemId}`);
+        const itemData = existingItem.rows[0] as any;
         const item = await storage.unequipItem(itemId);
+        // Clear the matching character slot if it still points at this item.
+        const slotField: Record<string, string> = {
+          weapon: "equippedWeapon", armor: "equippedArmor", shield: "equippedShield", accessory: "equippedAccessory",
+        };
+        const field = itemData?.equip_slot ? slotField[itemData.equip_slot] : null;
+        if (field && itemData?.name) {
+          const character = await storage.getCharacter(characterId);
+          const raw = character ? (character as any)[field] : null;
+          let slotName = raw;
+          try { slotName = JSON.parse(raw).name || raw; } catch { /* plain string */ }
+          if (slotName === itemData.name) {
+            await storage.updateCharacter(characterId, { [field]: null, updatedAt: new Date().toISOString() });
+          }
+        }
         res.json({ message: "Item unequipped!", item });
       }
     } catch (error) {

@@ -6083,6 +6083,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                         slot: magicItem.is_equipped ? undefined : (magicSlots[0] || 'accessory')
                                       });
                                       queryClient.invalidateQueries({ queryKey: ['/api/characters', activeCharacter.id, 'magical-inventory'] });
+                                      // Equipping a magical item also updates the character's equipped slots —
+                                      // refresh character data so the top Weapon/Armor/Shield/Accessory boxes update.
+                                      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+                                      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
                                     } catch (err) {
                                       console.error('Failed to equip/unequip:', err);
                                     }
