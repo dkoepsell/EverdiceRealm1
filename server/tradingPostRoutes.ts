@@ -27,25 +27,19 @@ async function generateAdventureCoverArt(title: string, description: string, gen
     const prompt = `Create a stunning fantasy adventure cover art for a tabletop RPG adventure called "${title}". Genre: ${genre}. ${description.substring(0, 200)}. Style: Epic fantasy book cover art with dramatic lighting, rich colors, and an atmosphere of mystery and adventure. The image should evoke the feeling of an exciting quest ahead, suitable for a fantasy RPG module cover.`;
 
     const response = await openai.images.generate({
-      model: "dall-e-3",
+      model: "gpt-image-1", // current OpenAI image model (dall-e-3 rejects `style` and is deprecated)
       prompt,
       n: 1,
       size: "1024x1024",
-      quality: "standard",
-      style: "vivid",
+      quality: "medium",
     });
 
-    const imageData = response.data?.[0];
-    if (!imageData || !imageData.url) {
+    // gpt-image-1 returns base64, not a URL.
+    const b64 = response.data?.[0]?.b64_json;
+    if (!b64) {
       return "";
     }
-
-    const imageResponse = await fetch(imageData.url);
-    if (!imageResponse.ok) {
-      return "";
-    }
-
-    const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+    const imageBuffer = Buffer.from(b64, "base64");
 
     const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
     if (!bucketId) {
