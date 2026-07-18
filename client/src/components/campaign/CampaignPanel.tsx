@@ -5324,9 +5324,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     </h3>
                     <div className="max-h-64 overflow-y-auto space-y-2 border rounded-md p-3 bg-white dark:bg-slate-800">
                       {[...(parsedStoryState.journeyLog as any[])].reverse().map((entry: any) => (
-                        <div 
-                          key={entry.id} 
-                          className={`p-3 rounded-lg text-sm border-l-4 shadow-sm ${
+                        <div
+                          key={entry.id}
+                          className={`cv-auto p-3 rounded-lg text-sm border-l-4 shadow-sm ${
                             entry.type === 'combat' || entry.type === 'combat_resolved' 
                               ? 'border-l-red-500 bg-red-50 dark:bg-red-950/30' 
                               : entry.type === 'trap' || entry.type === 'trap_resolved'
@@ -6915,9 +6915,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     </div>
                   ) : (
                     chatMessages.map((msg, index) => (
-                      <div 
+                      <div
                         key={msg.id || index}
-                        className={`flex flex-col ${msg.userId === user?.id ? 'items-end' : 'items-start'}`}
+                        className={`cv-auto flex flex-col ${msg.userId === user?.id ? 'items-end' : 'items-start'}`}
                         data-testid={`chat-message-${msg.id || index}`}
                       >
                         <div className="flex items-center gap-2 mb-1">

@@ -202,6 +202,16 @@
     animation: none !important;
   }
 
+  /* Long, growing scroll lists (story/journey/combat/chat logs) get expensive to scroll
+     as they accumulate rows, because off-screen rows are still laid out and painted.
+     `content-visibility: auto` lets the browser skip layout/paint for rows outside the
+     viewport; `contain-intrinsic-size` reserves an approximate height so the scrollbar
+     stays stable. Apply to individual list-item wrappers via the .cv-auto class. */
+  .cv-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: 0 64px;
+  }
+
   /* Cinzel for h1/h2 (D&D display headings), Alegreya for h3–h6 */
   h1, h2 {
     font-family: 'Cinzel', 'Alegreya', serif;

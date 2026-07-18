@@ -199,6 +199,21 @@
   #skip:hover,#skip:focus-visible{color:var(--parchment);border-color:var(--parchment-dim)}
   #skip:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 
+  #sound{
+    position:absolute;top:1.2rem;left:1.4rem;z-index:10;
+    background:rgba(13,10,7,.55);
+    border:1px solid rgba(237,228,211,.25);
+    color:var(--parchment-dim);
+    font:500 .78rem/1 'Inter',sans-serif;
+    letter-spacing:.08em;
+    padding:.55rem 1rem;border-radius:999px;
+    cursor:pointer;
+    transition:color 200ms,border-color 200ms;
+  }
+  #sound:hover,#sound:focus-visible{color:var(--parchment);border-color:var(--parchment-dim)}
+  #sound:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  #sound[aria-pressed="true"]{color:var(--amber);border-color:var(--amber)}
+
   #progress{
     position:absolute;bottom:0;left:0;height:2px;width:100%;
     background:rgba(237,228,211,.08);z-index:10;
@@ -224,6 +239,9 @@
 
 <div id="trailer" role="region" aria-label="Everdice introduction">
   <button id="skip" type="button">Skip intro →</button>
+  <!-- Cinematic score: the stored "journey's end" track (with lyrics), served at /objects/music/reward.mp3 -->
+  <audio id="score" preload="auto" loop></audio>
+  <button id="sound" type="button" aria-pressed="false" title="Toggle music">🔇 Play music</button>
 
   <!-- 1 · Cold open -->
   <section class="scene" data-hold="7800" aria-hidden="true">
@@ -297,6 +315,55 @@
   const replay   = document.getElementById('replay');
   const reduced  = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let idx = -1, timer = null, typing = [];
+
+  // ---- Cinematic music: the stored "journey's end" score (with lyrics) ----
+  // Served at /objects/music/reward.mp3 (same URL the in-app audio engine uses for the
+  // reward cue). Browsers block audible autoplay without a user gesture on THIS document
+  // (the trailer arrives via a full-page redirect), so we: (1) attempt autoplay, (2) unlock
+  // on the first interaction anywhere, and (3) expose an explicit sound toggle.
+  const audio    = document.getElementById('score');
+  const soundBtn = document.getElementById('sound');
+  let musicOn = false, musicUnlocked = false;
+  if (audio) audio.src = '/objects/music/reward.mp3';
+
+  function fadeVol(target, ms){
+    if (!audio) return;
+    const start = audio.volume, t0 = performance.now();
+    (function step(t){
+      const k = ms <= 0 ? 1 : Math.min(1, (t - t0) / ms);
+      audio.volume = Math.max(0, Math.min(1, start + (target - start) * k));
+      if (k < 1) requestAnimationFrame(step);
+    })(performance.now());
+  }
+  function startMusic(){
+    if (!audio || musicOn) return;
+    audio.volume = 0;
+    audio.play().then(function(){
+      musicOn = true; musicUnlocked = true;
+      soundBtn.setAttribute('aria-pressed','true');
+      soundBtn.textContent = '🔊 Music';
+      fadeVol(0.7, 1600);
+    }).catch(function(){
+      // Autoplay blocked — will start on the first user interaction (listener below).
+      soundBtn.setAttribute('aria-pressed','false');
+      soundBtn.textContent = '🔇 Play music';
+    });
+  }
+  function stopMusic(){
+    if (!audio) return;
+    musicOn = false;
+    fadeVol(0, 450);
+    setTimeout(function(){ try { audio.pause(); } catch(e){} }, 480);
+    soundBtn.setAttribute('aria-pressed','false');
+    soundBtn.textContent = '🔇 Play music';
+  }
+  if (soundBtn) soundBtn.addEventListener('click', function(){ musicOn ? stopMusic() : startMusic(); });
+  // Unlock audio on the first interaction anywhere on the page.
+  ['pointerdown','keydown','touchstart'].forEach(function(evt){
+    document.addEventListener(evt, function unlock(){
+      if (!musicUnlocked && !musicOn) startMusic();
+    }, { once:false, passive:true });
+  });
 
   function clearTimers(){
     clearTimeout(timer);
@@ -388,6 +455,8 @@
   }
 
   show(0);
+  // Kick off the score with the trailer (falls back to first-interaction unlock if blocked).
+  startMusic();
 })();
 </script>
 </body>

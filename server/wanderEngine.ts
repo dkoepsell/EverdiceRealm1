@@ -1,3 +1,9 @@
+import {
+  getRandomAnalyticPuzzle,
+  generateExplorationChest,
+  generateExplorationTrap,
+} from "./lib/explorationPuzzles";
+
 export interface CuratedOutcome {
   type: 'discovery' | 'quiet' | 'risk' | 'none';
   title: string;
@@ -6,14 +12,18 @@ export interface CuratedOutcome {
   choices: Array<{
     id: string;
     label: string;
-    intentTag: 'investigate' | 'avoid' | 'engage' | 'retreat' | 'camp';
+    intentTag: 'investigate' | 'avoid' | 'engage' | 'retreat' | 'camp' | 'solve';
     mechanicalEffects?: Record<string, any>;
+    /** For 'solve' (analytic puzzle) choices: marks the correct answer option. */
+    isPuzzleSolution?: boolean;
   }>;
   rewards?: Array<{
     kind: 'knowledge' | 'consumable' | 'trinket' | 'key_fragment' | 'faction_token';
     name: string;
     quantity: number;
   }>;
+  /** Present for analytic-puzzle outcomes — reasoning revealed after answering. */
+  puzzleExplanation?: string;
   markerType?: 'landmark' | 'trace' | 'hazard' | 'resource' | 'npc_echo' | 'opportunity';
   combatSeed?: {
     encounterType: 'ambush' | 'pursuit' | 'lair_scout';
@@ -1359,6 +1369,84 @@ export function calculateDangerRating(params: {
   return Math.max(0, Math.min(100, danger));
 }
 
+// ─── Structured exploration encounters (chest / trap / analytic puzzle) ───────
+// These reuse wander's existing choice→intentTag flow, so they render and resolve
+// with NO new UI: the player just clicks a choice button.
+
+function mapChestReward(items?: string[], gold?: number): CuratedOutcome['rewards'] {
+  const rewards: CuratedOutcome['rewards'] = [];
+  (items || []).forEach((name) => rewards!.push({ kind: 'trinket', name, quantity: 1 }));
+  if (gold) rewards!.push({ kind: 'faction_token', name: `${gold} gold`, quantity: gold });
+  return rewards;
+}
+
+/** A hidden chest/cache the player can inspect for traps, force open, or leave. */
+function buildChestOutcome(level: number): CuratedOutcome {
+  const chest = generateExplorationChest({ level });
+  return {
+    type: 'discovery',
+    title: 'A Hidden Cache',
+    reveal: chest.description,
+    detail: chest.trapped ? 'Something about the lid seam makes you wary.' : undefined,
+    choices: [
+      { id: 'inspect', label: `Check it for traps first (Investigation)`, intentTag: 'investigate' },
+      { id: 'force', label: chest.locked ? `Force the lock open` : `Open it`, intentTag: 'engage' },
+      { id: 'leave', label: 'Leave it be', intentTag: 'avoid' },
+    ],
+    rewards: mapChestReward(chest.reward.items, chest.reward.gold),
+    markerType: 'resource',
+  } as CuratedOutcome;
+}
+
+/** A concealed trap the player can spot & disarm, rush past, or carefully probe. */
+function buildTrapOutcome(level: number): CuratedOutcome {
+  const trap = generateExplorationTrap({ level });
+  return {
+    type: 'risk',
+    title: 'A Concealed Hazard',
+    reveal: `${trap.triggerDescription} It has the marks of a ${trap.trapType.replace(/_/g, ' ')} trap.`,
+    detail: trap.disarmHint,
+    choices: [
+      { id: 'disarm', label: `Disarm it (Thieves' Tools DC ${trap.disarmDC})`, intentTag: 'investigate' },
+      { id: 'rush', label: 'Rush past and risk it', intentTag: 'engage' },
+      { id: 'back', label: 'Back away carefully', intentTag: 'retreat' },
+    ],
+  } as CuratedOutcome;
+}
+
+/**
+ * An analytic puzzle rendered as multiple choice — the player must reason out the
+ * answer and pick the correct option. Correct → reward; wrong → the reasoning is
+ * revealed. Uses only puzzles that carry explicit choices.
+ */
+function buildPuzzleOutcome(level: number): CuratedOutcome | null {
+  // Only multiple-choice puzzles can render as clickable options without a text box.
+  let puzzle = getRandomAnalyticPuzzle({ maxDifficulty: level + 2 });
+  for (let i = 0; i < 6 && !(puzzle.choices && puzzle.choices.length); i++) {
+    puzzle = getRandomAnalyticPuzzle();
+  }
+  if (!puzzle.choices || !puzzle.choices.length) return null;
+
+  const choices = puzzle.choices.map((c) => ({
+    id: c.id,
+    label: c.text,
+    intentTag: 'solve' as const,
+    isPuzzleSolution:
+      c.id.toLowerCase() === puzzle.answer.toLowerCase() ||
+      c.text.toLowerCase() === puzzle.answer.toLowerCase(),
+  }));
+
+  return {
+    type: 'discovery',
+    title: 'A Warded Riddle',
+    reveal: puzzle.description,
+    detail: puzzle.hint,
+    choices,
+    rewards: mapChestReward(puzzle.reward.items, puzzle.reward.gold),
+    puzzleExplanation: puzzle.explanation,
+  } as CuratedOutcome;
+}
+
 export function rollOutcome(params: {
   biome: string;
   dangerRating: number;
@@ -1367,6 +1455,19 @@ export function rollOutcome(params: {
 }): CuratedOutcome {
   const biomeKey = (Object.keys(CURATED_OUTCOMES).includes(params.biome) ? params.biome : 'grass') as BiomeKey;
   const outcomes = CURATED_OUTCOMES[biomeKey];
+
+  // Roughly 1-in-4 explorations surfaces a structured chest / trap / analytic puzzle,
+  // giving standalone wander the chests, traps, and reasoning challenges it lacked.
+  const encounterLevel = 3;
+  {
+    const encRoll = Math.random();
+    if (encRoll < 0.10) {
+      const puzzle = buildPuzzleOutcome(encounterLevel);
+      if (puzzle) return puzzle;
+    }
+    if (encRoll < 0.20) return buildChestOutcome(encounterLevel);
+    if (encRoll < 0.28) return buildTrapOutcome(encounterLevel);
+  }
 
   let pDiscovery = 0.45;
   let pQuiet = 0.25;
@@ -1431,6 +1532,8 @@ export function resolveChoice(choice: {
   outcome: CuratedOutcome;
   characterLevel: number;
   fatigue: number;
+  /** Which choice the player picked — needed to grade analytic ('solve') puzzles. */
+  choiceId?: string;
 }): {
   narrativeResult: string;
   rewards: Array<{ kind: string; name: string; quantity: number }>;
@@ -1440,7 +1543,7 @@ export function resolveChoice(choice: {
   combatTriggered: boolean;
   combatSeed?: any;
 } {
-  const { intentTag, outcome, characterLevel, fatigue } = choice;
+  const { intentTag, outcome, characterLevel, fatigue, choiceId } = choice;
   let narrativeResult = '';
   let rewards: Array<{ kind: string; name: string; quantity: number }> = [];
   let fatigueChange = 0;
@@ -1536,6 +1639,22 @@ export function resolveChoice(choice: {
       dangerChange = -5;
       if (outcome.rewards && outcome.rewards.length > 0) {
         rewards = [outcome.rewards[0]];
+      }
+      break;
+    }
+
+    case 'solve': {
+      // Analytic puzzle: grade the chosen option. Correct → reward + reasoning; wrong → reasoning revealed.
+      const picked = outcome.choices.find(c => c.id === choiceId);
+      const isCorrect = !!picked?.isPuzzleSolution;
+      fatigueChange = 1;
+      if (isCorrect) {
+        narrativeResult = `Correct. ${outcome.puzzleExplanation || ''}`.trim();
+        if (outcome.rewards) rewards = [...outcome.rewards];
+        dangerChange = -3;
+      } else {
+        narrativeResult = `That isn't it. ${outcome.puzzleExplanation || ''}`.trim();
+        dangerChange = 2;
       }
       break;
     }

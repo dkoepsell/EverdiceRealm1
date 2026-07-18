@@ -85,6 +85,12 @@ import { generateUserAvatar } from "./lib/avatarGenerator";
 import { registerCampaignDeploymentRoutes } from "./lib/campaignDeploy";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { registerTradingPostRoutes } from "./tradingPostRoutes";
+import {
+  getRandomAnalyticPuzzle,
+  checkPuzzleAnswer,
+  generateExplorationChest,
+  generateExplorationTrap,
+} from "./lib/explorationPuzzles";
 import { registerStreamingRoutes } from "./storyStreaming";
 import { registerEconomyRoutes } from "./economyRoutes";
 import { syncMarketItemStats } from "./economyEngine";
@@ -11006,7 +11012,9 @@ Return your response as a JSON object with these fields:
       let narrativePrompt = `The party moves ${direction} to (${newPosition.x}, ${newPosition.y}), entering ${tileDesc}.`;
       let encounterTriggered = false;
       let encounterData: any = null;
-      
+      // Rough party level for scaling chest loot & trap danger during exploration.
+      const partyLevel = Math.max(1, Math.min(4, (storyState as any)?.partyLevel || (campaign as any)?.level || 2));
+
       // Check for special tile interactions that require choices
       if (tileType === 'trap') {
         encounterTriggered = true;
@@ -11070,65 +11078,31 @@ Return your response as a JSON object with these fields:
       
       // Interactive riddle encounter chance - requires TYPED answers, not skill checks
       // These are verbal puzzles that test player knowledge and thinking
-      if (!encounterTriggered && Math.random() < 0.15) {
-        const riddleEncounters = [
-          {
-            description: 'A stone guardian blocks the passage. Its eyes glow as it speaks: "I have cities, but no houses live there. I have mountains, but no trees grow there. I have water, but no fish swim there. What am I?"',
-            answer: 'map',
-            alternateAnswers: ['a map', 'maps'],
-            hint: 'Think about what shows places without being the places themselves...',
-            successNarrative: 'The guardian nods slowly. "Wisdom opens doors that strength cannot." The stone figure steps aside, revealing a hidden alcove with treasure.',
-            failureNarrative: 'The guardian shakes its head. "Ponder more deeply, traveler. You may try again." The passage remains blocked.',
-            reward: { gold: 50, xp: 40, items: ['Ring of Minor Protection'] }
-          },
-          {
-            description: 'An ancient spirit materializes before you, speaking in a hollow voice: "The more you take, the more you leave behind. What am I?"',
-            answer: 'footsteps',
-            alternateAnswers: ['steps', 'footprints', 'tracks'],
-            hint: 'Consider what happens when you walk...',
-            successNarrative: 'The spirit smiles warmly. "You understand the journey matters as much as the destination." It fades, leaving behind a glowing orb of knowledge.',
-            failureNarrative: 'The spirit looks disappointed. "The answer walks with you always. Think on it." The spirit waits patiently.',
-            reward: { xp: 35, items: ['Orb of Insight'] }
-          },
-          {
-            description: 'A sphinx-like statue animates and poses: "I speak without a mouth and hear without ears. I have no body, but I come alive with the wind. What am I?"',
-            answer: 'echo',
-            alternateAnswers: ['an echo', 'echoes'],
-            hint: 'Listen to the mountains...',
-            successNarrative: 'The sphinx purrs with satisfaction. "Your mind is sharp. May your echoes carry far." A compartment opens in its base.',
-            failureNarrative: 'The sphinx closes its eyes. "Listen more carefully to the world around you."',
-            reward: { gold: 30, xp: 45 }
-          },
-          {
-            description: 'Glowing runes on the door pulse with each heartbeat. A voice whispers: "I fly without wings. I cry without eyes. Wherever I go, darkness dies. What am I?"',
-            answer: 'cloud',
-            alternateAnswers: ['a cloud', 'clouds', 'rain cloud'],
-            hint: 'Look to the sky when storms gather...',
-            successNarrative: 'The runes flash brilliantly and the door swings open. Rain begins to fall gently, blessing your passage.',
-            failureNarrative: 'The runes dim slightly. "The sky holds many secrets. Look up and think again."',
-            reward: { xp: 40, items: ['Cloak of the Storm'] }
-          },
-          {
-            description: 'A mischievous fey creature appears, giggling: "What can travel around the world while staying in a corner?"',
-            answer: 'stamp',
-            alternateAnswers: ['a stamp', 'postage stamp', 'stamps'],
-            hint: 'Think about letters and messages...',
-            successNarrative: 'The fey claps delightedly! "Oh, clever, clever! Here, take this for your wit!" It tosses you a pouch of gold.',
-            failureNarrative: 'The fey pouts. "No no no! Think smaller, think paper!" It crosses its arms, waiting.',
-            reward: { gold: 40, xp: 30 }
-          }
-        ];
-        const riddle = riddleEncounters[Math.floor(Math.random() * riddleEncounters.length)];
+      if (!encounterTriggered && Math.random() < 0.22) {
+        // Analytic puzzle: the player must actually reason out and type/choose an answer
+        // (riddles, logic, number sequences, ciphers, deduction, anagrams…). Pulled from the
+        // shared pool so campaign, delve, and wander all draw on the same growing library.
+        const seenIds: string[] = Array.isArray(storyState.seenPuzzleIds) ? storyState.seenPuzzleIds : [];
+        const puzzle = getRandomAnalyticPuzzle({ excludeIds: seenIds });
+        // For multiple-choice puzzles, surface the lettered options so a typed "A"/"gold" both work.
+        const optionsText = puzzle.choices && puzzle.choices.length
+          ? '\n\nOptions:\n' + puzzle.choices.map((c, i) => `${String.fromCharCode(65 + i)}) ${c.text}`).join('\n')
+          : '';
         encounterTriggered = true;
         encounterData = {
           type: 'riddle',
-          description: riddle.description,
-          answer: riddle.answer.toLowerCase(),
-          alternateAnswers: riddle.alternateAnswers.map((a: string) => a.toLowerCase()),
-          hint: riddle.hint,
-          successNarrative: riddle.successNarrative,
-          failureNarrative: riddle.failureNarrative,
-          reward: riddle.reward,
+          puzzleId: puzzle.id,
+          category: puzzle.category,
+          difficulty: puzzle.difficulty,
+          description: puzzle.description + optionsText,
+          answer: puzzle.answer.toLowerCase(),
+          alternateAnswers: puzzle.alternateAnswers.map((a: string) => a.toLowerCase()),
+          puzzleChoices: puzzle.choices || null,
+          hint: puzzle.hint,
+          explanation: puzzle.explanation,
+          successNarrative: puzzle.successNarrative,
+          failureNarrative: puzzle.failureNarrative,
+          reward: puzzle.reward,
           choices: [
             { id: 'answer_riddle', text: 'Type your answer...', type: 'text_input', rollRequired: null },
             { id: 'request_hint', text: 'Ask for a hint', rollRequired: null },
@@ -11139,7 +11113,44 @@ Return your response as a JSON object with these fields:
           attempts: 0
         };
       }
-      
+
+      // Hidden chest/cache — more treasure to find during ordinary exploration.
+      if (!encounterTriggered && Math.random() < 0.16) {
+        const chest = generateExplorationChest({ level: partyLevel });
+        encounterTriggered = true;
+        encounterData = {
+          type: 'treasure',
+          description: `You discover a hidden cache. ${chest.description}`,
+          chestType: chest.chestType,
+          reward: chest.reward,
+          choices: [
+            { id: 'search', text: `Search for traps (Investigation DC ${chest.trapDetectDC})`, rollRequired: { type: 'd20', skill: 'investigation' } },
+            { id: 'open', text: chest.locked ? `Force the lock (Thieves' Tools DC ${chest.lockDC})` : 'Open it immediately', rollRequired: chest.locked ? { type: 'd20', skill: 'thieves_tools' } : null },
+            { id: 'leave', text: 'Leave it alone', rollRequired: null }
+          ],
+          resolved: false
+        };
+      }
+
+      // Sprung trap — more hazards to spot and disarm during ordinary exploration.
+      if (!encounterTriggered && Math.random() < 0.13) {
+        const trap = generateExplorationTrap({ level: partyLevel });
+        encounterTriggered = true;
+        encounterData = {
+          type: 'trap',
+          description: `${trap.triggerDescription} It looks like a ${trap.trapType.replace(/_/g, ' ')} trap.`,
+          trapType: trap.trapType,
+          damage: trap.damage,
+          effect: trap.effect,
+          choices: [
+            { id: 'dodge', text: `Attempt to dodge (${trap.saveAbility} save DC ${trap.saveDC})`, rollRequired: { type: 'd20', skill: trap.saveAbility.toLowerCase() } },
+            { id: 'disarm', text: `Try to disarm it (Thieves' Tools DC ${trap.disarmDC})`, rollRequired: { type: 'd20', skill: 'thieves_tools' } },
+            { id: 'take_hit', text: 'Brace for impact', rollRequired: null }
+          ],
+          resolved: false
+        };
+      }
+
       // Dialogue/conversation encounter - branching conversations with consequences
       if (!encounterTriggered && Math.random() < 0.18) {
         const dialogueEncounters = [
@@ -11892,20 +11903,27 @@ Return your response as a JSON object with these fields:
         } else if (encounter.type === 'riddle') {
           // Interactive riddle encounters - requires typed answer
           if (choiceId === 'answer_riddle') {
-            const playerAnswer = (req.body.riddleAnswer || '').toLowerCase().trim();
-            const correctAnswer = encounter.answer?.toLowerCase();
-            const alternateAnswers = (encounter.alternateAnswers || []).map((a: string) => a.toLowerCase());
-            
-            const isCorrect = playerAnswer === correctAnswer || alternateAnswers.includes(playerAnswer);
-            
+            const playerAnswer = (req.body.riddleAnswer || '').trim();
+            // Route through the shared analytic checker: tolerates articles/punctuation,
+            // accepts numeric and word-number answers, and multiple-choice letters/text.
+            const isCorrect = checkPuzzleAnswer({
+              answer: encounter.answer || '',
+              alternateAnswers: encounter.alternateAnswers || [],
+              choices: encounter.puzzleChoices || undefined,
+            }, playerAnswer).correct;
+
             if (isCorrect) {
-              outcome.narrative = encounter.successNarrative || "You solved the riddle!";
+              outcome.narrative = (encounter.successNarrative || "You solved the puzzle!")
+                + (encounter.explanation ? `\n\n(${encounter.explanation})` : '');
               outcome.success = true;
               outcome.rewards = encounter.reward;
             } else {
               const attempts = (encounter.attempts || 0) + 1;
               if (attempts >= 3) {
-                outcome.narrative = "After three attempts, the guardian shakes its head sadly. 'Perhaps another time, traveler.' The riddle fades, but you may encounter it again in your journey.";
+                outcome.narrative = "After three attempts, the guardian shakes its head sadly. 'Perhaps another time, traveler.'"
+                  + (encounter.answer ? ` The answer was: ${encounter.answer}.` : '')
+                  + (encounter.explanation ? ` ${encounter.explanation}` : '')
+                  + " The puzzle fades.";
                 outcome.success = false;
               } else {
                 outcome.narrative = encounter.failureNarrative || "That is not correct. Think carefully...";
@@ -12020,6 +12038,10 @@ Return your response as a JSON object with these fields:
           }
         },
         journeyLog: [...existingJourneyLog, resolutionEntry].slice(-50),
+        // Remember analytic puzzles we've served so we don't repeat them soon.
+        seenPuzzleIds: (encounterType === 'riddle' && encounter.puzzleId)
+          ? [...(Array.isArray(storyState.seenPuzzleIds) ? storyState.seenPuzzleIds : []), encounter.puzzleId].slice(-12)
+          : storyState.seenPuzzleIds,
         adventureProgress,
         adventureRequirements: requirements,
         adventureCompletion: completionStatus
@@ -19189,7 +19211,11 @@ Instead, describe environments that MATCH the campaign's actual setting and the 
       // Track scenes since last combat for random encounter nudging
       const sessionStoryState = (currentSession.storyState as any) || {};
       const scenesSinceCombat = sessionStoryState.scenesSinceCombat ?? 0;
-      const shouldNudgeCombat = previousSceneType !== 'Combat' && scenesSinceCombat >= 4;
+      const shouldNudgeCombat = previousSceneType !== 'Combat' && scenesSinceCombat >= 3;
+      // Hard escalation: after this many bloodless scenes, combat is no longer a suggestion.
+      // Even a "non-combat" campaign style must eventually present a real fight so the world
+      // has stakes — a campaign with ZERO combat should not be possible.
+      const mustForceCombat = previousSceneType !== 'Combat' && scenesSinceCombat >= 6;
       
       // Build environment-aware random encounter suggestion when combat is overdue
       let randomEncounterNudge = '';
@@ -19284,7 +19310,19 @@ Instead, describe environments that MATCH the campaign's actual setting and the 
         const themeEncounters = encounterSuggestions[detectedTheme] || encounterSuggestions.dungeon;
         const suggestion = themeEncounters[Math.floor(Math.random() * themeEncounters.length)];
         
-        randomEncounterNudge = `
+        randomEncounterNudge = mustForceCombat ? `
+⚔️ MANDATORY COMBAT — THIS IS NOT OPTIONAL:
+It has been ${scenesSinceCombat} scenes without a real fight. Regardless of tone or a "non-combat" style, the party MUST enter actual combat THIS scene. A campaign with zero combat is not acceptable.
+
+You MUST this turn:
+- Set "inCombat": true in the storyState.
+- Populate combatants with level-appropriate enemies (name, hp/maxHp, ac, initiative) that fit this ${detectedTheme} setting.
+- Set sceneType to "Combat" and describe the threat attacking NOW — a one-line warning is fine, but the fight begins this turn.
+- Offer combat-oriented choices (attack, cast, defend, maneuver), not ways to simply avoid the encounter.
+
+Suggested encounter for this ${detectedTheme} setting: "${suggestion}"
+Adapt it or invent your own, but it must fit the environment and start real combat now.
+` : `
 RANDOM ENCOUNTER ALERT — COMBAT IS OVERDUE:
 It has been ${scenesSinceCombat} scenes since the last combat. The world should feel dangerous!
 STRONGLY consider introducing a combat encounter this scene. This doesn't have to be the main plot — it can be a random but contextually appropriate threat.
@@ -20187,6 +20225,13 @@ DUNGEON MAP SYNCHRONIZATION (CRITICAL):
 - Add features (chests, altars, etc) that you describe in the narrative to the features array
 - This ensures the dungeon map visually matches your storytelling
 
+PARTY MOVEMENT TRACKING (CRITICAL — the exploration map depends on this):
+- The exploration map advances the party's position ONLY from what you report here, so be accurate.
+- Whenever the party PHYSICALLY CHANGES LOCATION — enters a new room/area, travels to a new place, crosses into a new region, descends/climbs, is teleported, or "arrives" somewhere new — you MUST set movement.occurred = true, set movement.destination to the new place's NAME, and update storyState.location to that same name.
+- Provide movement.direction as a compass heading when the fiction implies one; otherwise leave it null (occurred can still be true).
+- If the party STAYS PUT — searching, talking, inspecting, fighting in place, resting, or making a decision without travelling — set movement.occurred = false and keep storyState.location unchanged. Do NOT report movement for non-travel actions.
+- When the party returns to a previously-visited place, set movement.destination to that place's EXACT earlier name so the map snaps them back instead of drawing a new tile.
+
 MAP NARRATIVE INTEGRATION (IMPORTANT):
 - Use mapModifications to add narrative context to map tiles that players can see
 - When describing a new room/area, add an "update_narrative" modification at the player's current position
@@ -20321,7 +20366,8 @@ Respond with JSON:
   "narrativeLogEntry": {"xpReason": "Why XP was earned", "stakeReason": "Which stakes changed and why", "foreclosedReason": "What options closed", "choiceCost": "What the choice cost/closed/escalated"},
   "movement": {
     "occurred": true/false,
-    "direction": "up/down/left/right/null (if movement occurred, which direction on the map grid)",
+    "direction": "north/south/east/west/northeast/northwest/southeast/southwest/null (the compass heading of the move, or null if the party relocated without a clear direction)",
+    "destination": "The NAME of the place the party moved to (e.g. 'The Ruined Chapel', 'Eastern Chamber', 'Thornwood Village') — MUST match storyState.location. null if they did not relocate.",
     "description": "Brief description of where the party moved (e.g. 'entered the eastern chamber', 'descended the stairs')"
   },
   "dungeonState": {
@@ -20820,12 +20866,33 @@ ${cachedNarrative}
       let movementActuallyOccurred = false;  // Track if movement was allowed by map
       let movementBlockedReason: string | null = null;
       const movement = storyAdvancement.movement;
-      const hasAIMovement = movement && movement.occurred && movement.direction;
+      const aiSaysMoved = !!(movement && movement.occurred);
+      const hasAIMovement = aiSaysMoved && movement.direction;
       const hasDetectedMovement = detectedMovement.isMovement && detectedMovement.direction;
-      
+
+      // Extract the AI's reported (post-turn) location name. The prompt already requires
+      // storyState.location / dungeonState.currentRoom to reflect the party's CURRENT place,
+      // so a change here is a reliable signal the party relocated — even when no compass
+      // direction is present ("you arrive at the ruined chapel", "you are teleported...").
+      const rawNewLocation = storyAdvancement.storyState?.location
+        || storyAdvancement.storyState?.currentLocation
+        || movement?.destination || '';
+      const newLocationName = (typeof rawNewLocation === 'string'
+        ? rawNewLocation
+        : (rawNewLocation?.name || '')).toString().trim();
+      const prevLocationName = (typeof currentLocation === 'string' ? currentLocation : '').toString().trim();
+      const locationChanged = !!newLocationName && !!prevLocationName
+        && newLocationName.toLowerCase() !== prevLocationName.toLowerCase();
+
       // Use detected movement if AI didn't provide it
-      const effectiveDirection = hasAIMovement ? movement.direction : 
+      const effectiveDirection = hasAIMovement ? movement.direction :
                                   (hasDetectedMovement ? detectedMovement.direction : null);
+
+      // The party has RELOCATED (and the exploration map must advance) if the AI flagged a
+      // move, a compass direction was detected in the choice, OR the narrative's current
+      // location name changed. Previously the map only advanced when a compass direction was
+      // present, so the vast majority of narrative turns left the party's hex frozen.
+      const movementOccurred = aiSaysMoved || hasDetectedMovement || locationChanged;
       
       // ALWAYS try to fetch the current map to return it (even without movement)
       try {
@@ -20842,8 +20909,8 @@ ${cachedNarrative}
         console.error("Failed to fetch map for return:", e);
       }
       
-      if (effectiveDirection) {
-        console.log(`Processing movement - AI movement: ${hasAIMovement}, Detected movement: ${hasDetectedMovement}, Direction: ${effectiveDirection}`);
+      if (movementOccurred) {
+        console.log(`Processing movement - AI movement: ${hasAIMovement}, Detected movement: ${hasDetectedMovement}, Location changed: ${locationChanged} (${prevLocationName} -> ${newLocationName}), Direction: ${effectiveDirection}`);
         try {
           // Get the current dungeon map for this campaign - use flexible location matching
           const allMaps = await storage.getCampaignDungeonMaps(campaignId);
@@ -20899,8 +20966,8 @@ ${cachedNarrative}
               return null;
             };
             
-            const canonicalDirection = normalizeDirection(effectiveDirection);
-            
+            const canonicalDirection = effectiveDirection ? normalizeDirection(effectiveDirection) : null;
+
             // Calculate new position based on direction
             const directionOffsets: Record<string, {x: number, y: number}> = {
               up: { x: 0, y: -1 },
@@ -21095,15 +21162,60 @@ ${cachedNarrative}
             const currentQ = explorationState.currentHexQ || 0;
             const currentR = explorationState.currentHexR || 0;
             
-            // Convert cardinal direction to hex direction
+            // Resolve where the party actually moved to. Prefer snapping back to a hex we've
+            // already visited when the narrative names a known location (backtracking/revisits),
+            // so the map mirrors the party's ACTUAL position instead of always drifting to a
+            // brand-new tile. Otherwise step to an adjacent hex using the best available
+            // direction; and if there's no directional signal at all, spread into the first
+            // unexplored neighbour so the map keeps growing with the party's exploration.
             const cardinalToHexDir: Record<string, HexDirection> = {
-              'up': 'n', 'north': 'n', 'n': 'n',
-              'down': 's', 'south': 's', 's': 's',
-              'right': 'se', 'east': 'se', 'e': 'se',
-              'left': 'nw', 'west': 'nw', 'w': 'nw'
+              'up': 'n', 'north': 'n', 'n': 'n', 'ne': 'ne', 'northeast': 'ne',
+              'down': 's', 'south': 's', 's': 's', 'sw': 'sw', 'southwest': 'sw',
+              'right': 'se', 'east': 'se', 'e': 'se', 'se': 'se', 'southeast': 'se',
+              'left': 'nw', 'west': 'nw', 'w': 'nw', 'nw': 'nw', 'northwest': 'nw'
             };
-            const hexDir = cardinalToHexDir[(effectiveDirection || '').toLowerCase()] || 'n';
-            const newCoords = getAdjacentHexCoordinates(currentQ, currentR, hexDir);
+
+            let newCoords: { q: number; r: number } | null = null;
+
+            // (1) Snap back to an already-known location by name (handles revisits/backtracking).
+            if (newLocationName) {
+              const knownHexes = await storage.getExplorationHexes(campaignId);
+              const known = knownHexes.find((h: any) =>
+                (h.locationName || '').trim().toLowerCase() === newLocationName.toLowerCase()
+                && !(h.q === currentQ && h.r === currentR)
+              );
+              if (known) {
+                newCoords = { q: known.q, r: known.r };
+                console.log(`[Exploration] Party returned to known location "${newLocationName}" at (${known.q}, ${known.r})`);
+              }
+            }
+
+            // (2) Otherwise, step to an adjacent hex.
+            if (!newCoords) {
+              let hexDir: HexDirection | null = effectiveDirection
+                ? (cardinalToHexDir[effectiveDirection.toLowerCase()] || null)
+                : null;
+
+              // Parse a compass hint out of the movement description / narrative text.
+              if (!hexDir) {
+                const hintText = `${movement?.description || ''} ${storyAdvancement.narrative || ''}`.toLowerCase();
+                for (const word of ['northeast', 'northwest', 'southeast', 'southwest', 'north', 'south', 'east', 'west']) {
+                  if (new RegExp(`\\b${word}\\b`).test(hintText)) { hexDir = cardinalToHexDir[word]; break; }
+                }
+              }
+
+              // No directional signal at all — advance into the first unexplored neighbour.
+              if (!hexDir) {
+                for (const d of ['n', 'ne', 'se', 's', 'sw', 'nw'] as HexDirection[]) {
+                  const c = getAdjacentHexCoordinates(currentQ, currentR, d);
+                  const existing = await storage.getExplorationHex(campaignId, c.q, c.r);
+                  if (!existing || !existing.isExplored) { hexDir = d; break; }
+                }
+                hexDir = hexDir || 'n';
+              }
+
+              newCoords = getAdjacentHexCoordinates(currentQ, currentR, hexDir);
+            }
             
             // Mark current hex (the one we're leaving) as explored
             let currentHex = await storage.getExplorationHex(campaignId, currentQ, currentR);
@@ -21134,6 +21246,7 @@ ${cachedNarrative}
             
             // Create new hex at destination
             let newHex = await storage.getExplorationHex(campaignId, newCoords.q, newCoords.r);
+            const destinationWasNew = !newHex;
             // Detect adventure setting for context-aware terrain generation
             // Priority: current narrative > chapter description > campaign title
             const adventureSetting = detectAdventureSetting(
@@ -21154,7 +21267,7 @@ ${cachedNarrative}
                 q: newCoords.q,
                 r: newCoords.r,
                 terrainType: parsed.terrainType || "Unknown",
-                locationName: parsed.currentLocation.name || dungeonState?.currentRoom || "Unknown",
+                locationName: newLocationName || parsed.currentLocation.name || dungeonState?.currentRoom || "Unknown",
                 locationDescription: parsed.currentLocation.description,
                 hexMeta,
                 isExplored: true,
@@ -21168,7 +21281,7 @@ ${cachedNarrative}
             } else {
               await storage.updateExplorationHex(newHex.id, {
                 terrainType: parsed.terrainType !== "Unknown" ? parsed.terrainType : newHex.terrainType,
-                locationName: parsed.currentLocation.name || dungeonState?.currentRoom || newHex.locationName,
+                locationName: newLocationName || parsed.currentLocation.name || dungeonState?.currentRoom || newHex.locationName,
                 locationDescription: parsed.currentLocation.description || newHex.locationDescription,
                 hexMeta,
                 isExplored: true,
@@ -21181,7 +21294,9 @@ ${cachedNarrative}
             await storage.updateExplorationState(parseInt(campaignId), {
               currentHexQ: newCoords.q,
               currentHexR: newCoords.r,
-              exploredHexCount: (explorationState.exploredHexCount || 0) + 1,
+              // Only count a hex as newly explored when we actually opened a new tile —
+              // revisiting/backtracking to a known location must not inflate the count.
+              exploredHexCount: (explorationState.exploredHexCount || 0) + (destinationWasNew ? 1 : 0),
               totalDistance: (explorationState.totalDistance || 0) + 1
             });
             console.log(`[Exploration] Player moved from (${currentQ}, ${currentR}) to (${newCoords.q}, ${newCoords.r})`);
@@ -22035,8 +22150,13 @@ ${cachedNarrative}
       
       // Track scenes since last combat — reset to 0 when combat occurs, increment otherwise
       const resolvedSceneType = storyAdvancement.sceneType || (storyAdvancement.storyState?.inCombat ? 'Combat' : null);
-      const newScenesSinceCombat = (resolvedSceneType === 'Combat' || storyAdvancement.storyState?.inCombat) 
-        ? 0 
+      // Reset the "scenes since combat" counter ONLY when a real fight is actually happening
+      // this turn (inCombat). Previously ANY scene the AI merely LABELLED 'Combat' reset the
+      // counter — so an intrigue/social campaign whose AI tagged tense but bloodless scenes as
+      // 'Combat' reset this forever and never triggered a true fight. Keying purely on inCombat
+      // guarantees the counter climbs until a genuine encounter occurs.
+      const newScenesSinceCombat = storyAdvancement.storyState?.inCombat
+        ? 0
         : (scenesSinceCombat + 1);
       
       // ═══════════════════════════════════════════════════════════════════

@@ -69,8 +69,10 @@ function Router() {
           backgroundImage: `url(${parchmentFrame})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          backgroundAttachment: 'fixed'
+          backgroundRepeat: 'no-repeat'
+          // NOTE: no `backgroundAttachment: 'fixed'` — this element is already position:fixed
+          // (pinned to the viewport), so the attachment was redundant AND forced a full-viewport
+          // main-thread repaint on every scroll frame (severe jank on high-DPI displays).
         }}
       />
       <Navbar />

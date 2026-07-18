@@ -172,6 +172,7 @@ export function registerWanderRoutes(router: Router) {
         outcome,
         characterLevel: 3,
         fatigue: run.fatigue,
+        choiceId,
       });
 
       let markerCreated = false;

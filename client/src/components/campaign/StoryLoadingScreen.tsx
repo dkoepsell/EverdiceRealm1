@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Sparkles, Sword, Shield, Heart, MapPin, Scroll, Moon, BookOpen, Compass, Users, Search, Footprints, Flame, Skull, Crown, Gem, TreePine, Mountain, Castle, Eye } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
@@ -79,11 +79,11 @@ function detectSceneContext(
 
 const crawlKeyframes = `
 @keyframes crawl-across {
-  0% { left: -5%; opacity: 0; }
+  0% { transform: translateX(-5vw); opacity: 0; }
   5% { opacity: 0.3; }
   50% { opacity: 0.35; }
   95% { opacity: 0.3; }
-  100% { left: 105%; opacity: 0; }
+  100% { transform: translateX(105vw); opacity: 0; }
 }
 @keyframes gentle-bob {
   0%, 100% { transform: translateY(0px); }
@@ -108,10 +108,11 @@ function CrawlingIcon({ sceneContext }: { sceneContext: SceneContext }) {
     <>
       <style>{crawlKeyframes}</style>
       <div
-        className="absolute pointer-events-none top-1/2"
+        className="absolute pointer-events-none top-1/2 left-0"
         style={{
+          // Animate transform (compositor-only) rather than `left` (which reflows every frame).
           animation: 'crawl-across 15s linear infinite',
-          willChange: 'left, opacity',
+          willChange: 'transform, opacity',
         }}
       >
         <div style={{ animation: 'gentle-bob 3s ease-in-out infinite' }}>
@@ -142,8 +143,9 @@ export function StoryLoadingScreen({
 }: StoryLoadingScreenProps) {
   const [flavorIndex, setFlavorIndex] = useState(0);
   const [fadeIn, setFadeIn] = useState(true);
-  const [elapsed, setElapsed] = useState(0);
-  const startTime = useRef(Date.now());
+  // Two coarse time thresholds instead of a running millisecond clock — see the effect below.
+  const [past4s, setPast4s] = useState(false);
+  const [past8s, setPast8s] = useState(false);
 
   const flavors = inCombat ? COMBAT_FLAVOR_TEXTS : FLAVOR_TEXTS;
 
@@ -168,10 +170,11 @@ export function StoryLoadingScreen({
   }, [flavors.length]);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setElapsed(Date.now() - startTime.current);
-    }, 50);
-    return () => clearInterval(timer);
+    // Only two elapsed-time thresholds actually matter (4s and 8s), so fire two timeouts
+    // instead of a 50ms interval that re-rendered this whole streaming screen 20×/second.
+    const t1 = setTimeout(() => setPast4s(true), 4000);
+    const t2 = setTimeout(() => setPast8s(true), 8000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
   const currentFlavor = flavors[flavorIndex];
@@ -227,7 +230,7 @@ export function StoryLoadingScreen({
                 <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
               <span className="text-sm text-amber-300/70 italic">
-                {elapsed > 8000 ? "Almost there — crafting your choices..." : "Weaving the full scene and your choices..."}
+                {past8s ? "Almost there — crafting your choices..." : "Weaving the full scene and your choices..."}
               </span>
             </div>
           </div>
@@ -268,7 +271,7 @@ export function StoryLoadingScreen({
                 {phaseLabel}
               </p>
 
-              {elapsed > 4000 && (
+              {past4s && (
                 <p className="mt-1 text-xs text-amber-200/40 animate-in fade-in duration-1000">
                   Some choices take longer to resolve
                 </p>
