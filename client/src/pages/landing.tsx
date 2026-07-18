@@ -35,6 +35,20 @@ export default function LandingPage() {
     const guestPlayed = localStorage.getItem('everdice_guest_played');
     setHasPlayedAsGuest(!!guestPlayed);
   }, []);
+
+  // Very-first-time site visitors get the cinematic intro once. We set the flag
+  // BEFORE redirecting so there's no loop, and skip it for anyone already logged
+  // in. The trailer (served statically at /intro.html) ends with "Enter the Realm".
+  useEffect(() => {
+    try {
+      if (!user && !localStorage.getItem('everdice_intro_seen')) {
+        localStorage.setItem('everdice_intro_seen', '1');
+        window.location.href = '/intro.html';
+      }
+    } catch {
+      /* localStorage unavailable — just skip the intro */
+    }
+  }, [user]);
   
   const handleGuestPlayComplete = () => {
     localStorage.setItem('everdice_guest_played', 'true');

@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Everdice — Intro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;1,500;1,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0d0a07;
+    --umber:#1c140c;
+    --parchment:#ede4d3;
+    --parchment-dim:#b8a888;
+    --amber:#d97706;
+    --ember:#f5a623;
+    --dur-scene:5200ms;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:var(--ink);
+    color:var(--parchment);
+    font-family:'Inter',system-ui,sans-serif;
+    overflow:hidden;
+  }
+
+  /* ---------- Stage ---------- */
+  #trailer{
+    position:fixed;inset:0;
+    display:grid;place-items:center;
+    background:
+      radial-gradient(120% 90% at 50% 110%, rgba(217,119,6,.10), transparent 60%),
+      radial-gradient(80% 60% at 50% 0%, rgba(28,20,12,.9), transparent),
+      var(--ink);
+  }
+  /* ambient ember drift */
+  .ember{
+    position:absolute;bottom:-10px;
+    width:3px;height:3px;border-radius:50%;
+    background:var(--ember);
+    opacity:0;
+    animation:rise linear infinite;
+    pointer-events:none;
+  }
+  @keyframes rise{
+    0%{transform:translateY(0) translateX(0);opacity:0}
+    10%{opacity:.55}
+    100%{transform:translateY(-105vh) translateX(var(--sway,20px));opacity:0}
+  }
+
+  /* ---------- Scenes ---------- */
+  .scene{
+    position:absolute;inset:0;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;
+    padding:2rem;
+    opacity:0;
+    visibility:hidden;
+    transition:opacity 900ms ease;
+  }
+  .scene.active{opacity:1;visibility:visible}
+  .scene.leaving{opacity:0;visibility:visible}
+
+  /* Scene 1 — narration */
+  .narration{
+    font-family:'Cormorant Garamond',serif;
+    font-style:italic;
+    font-weight:500;
+    font-size:clamp(1.5rem,3.6vw,2.6rem);
+    line-height:1.7;
+    max-width:34ch;
+    min-height:9em;
+  }
+  .narration .line{display:block;min-height:1.7em}
+  .caret{
+    display:inline-block;width:.55ch;
+    border-bottom:2px solid var(--ember);
+    animation:blink 1s steps(1) infinite;
+    transform:translateY(-.15em);
+  }
+  @keyframes blink{50%{opacity:0}}
+
+  /* Scene 2 — title */
+  .wordmark{
+    font-family:'Cinzel',serif;
+    font-weight:700;
+    font-size:clamp(2.6rem,9vw,6rem);
+    letter-spacing:.14em;
+    color:var(--parchment);
+    text-shadow:0 0 60px rgba(217,119,6,.35);
+  }
+  .wordmark span{color:var(--amber)}
+  .tagline{
+    margin-top:1.2rem;
+    font-family:'Cormorant Garamond',serif;
+    font-style:italic;font-weight:600;
+    font-size:clamp(1.1rem,2.6vw,1.6rem);
+    color:var(--parchment-dim);
+  }
+  .active .wordmark{animation:settle 1200ms cubic-bezier(.2,.9,.3,1) both}
+  .active .tagline{animation:fadeUp 900ms 700ms ease both}
+  @keyframes settle{
+    0%{opacity:0;transform:scale(1.12);letter-spacing:.3em;filter:blur(6px)}
+    100%{opacity:1;transform:scale(1);letter-spacing:.14em;filter:blur(0)}
+  }
+  @keyframes fadeUp{
+    from{opacity:0;transform:translateY(14px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+
+  /* Scenes 3–5 — feature beats */
+  .eyebrow{
+    font-size:.72rem;font-weight:600;
+    letter-spacing:.32em;text-transform:uppercase;
+    color:var(--amber);
+    margin-bottom:1.4rem;
+  }
+  .beat{
+    font-family:'Cormorant Garamond',serif;
+    font-weight:500;
+    font-size:clamp(1.35rem,3.2vw,2.2rem);
+    line-height:1.6;
+    max-width:38ch;
+    color:var(--parchment);
+  }
+  .beat em{font-style:italic;color:var(--ember)}
+  .active .eyebrow{animation:fadeUp 700ms ease both}
+  .active .beat{animation:fadeUp 900ms 250ms ease both}
+
+  /* Scene 6 — close */
+  .cta-title{
+    font-family:'Cinzel',serif;font-weight:500;
+    font-size:clamp(1.6rem,4.5vw,2.8rem);
+    letter-spacing:.08em;
+    margin:1.6rem 0 2rem;
+  }
+  .cta-btn{
+    display:inline-block;
+    font-family:'Inter',sans-serif;font-weight:600;font-size:1rem;
+    letter-spacing:.06em;
+    color:var(--ink);
+    background:linear-gradient(180deg,var(--ember),var(--amber));
+    padding:.95rem 2.4rem;border-radius:6px;
+    text-decoration:none;
+    box-shadow:0 0 40px rgba(217,119,6,.35);
+    transition:transform 200ms ease, box-shadow 200ms ease;
+  }
+  .cta-btn:hover,.cta-btn:focus-visible{transform:translateY(-2px);box-shadow:0 0 60px rgba(217,119,6,.55)}
+  .cta-btn:focus-visible{outline:2px solid var(--parchment);outline-offset:3px}
+  .srd{
+    margin-top:2.2rem;font-size:.7rem;letter-spacing:.08em;
+    color:var(--parchment-dim);opacity:.7;
+  }
+  .replay{
+    margin-top:.9rem;background:none;border:none;
+    color:var(--parchment-dim);font:inherit;font-size:.8rem;
+    letter-spacing:.06em;cursor:pointer;text-decoration:underline;
+    text-underline-offset:3px;
+  }
+  .replay:hover{color:var(--parchment)}
+  .active .cta-title{animation:fadeUp 800ms 400ms ease both}
+  .active .cta-btn{animation:fadeUp 800ms 750ms ease both}
+  .active .srd,.active .replay{animation:fadeUp 800ms 1000ms ease both}
+
+  /* ---------- The d20 ---------- */
+  .die{
+    width:clamp(84px,14vw,130px);
+    filter:drop-shadow(0 0 24px rgba(217,119,6,.35));
+  }
+  .die .face{fill:var(--umber);stroke:var(--amber);stroke-width:1.6}
+  .die .edge{stroke:var(--amber);stroke-width:1;opacity:.55;fill:none}
+  .die text{
+    font-family:'Cinzel',serif;font-weight:700;
+    fill:var(--ember);
+  }
+  .tumble{animation:tumble 1400ms cubic-bezier(.3,.7,.4,1) both}
+  @keyframes tumble{
+    0%{transform:translateY(-60vh) rotate(-540deg);opacity:0}
+    60%{opacity:1}
+    78%{transform:translateY(0) rotate(8deg)}
+    90%{transform:translateY(-14px) rotate(-4deg)}
+    100%{transform:translateY(0) rotate(0)}
+  }
+
+  /* ---------- Chrome ---------- */
+  #skip{
+    position:absolute;top:1.2rem;right:1.4rem;z-index:10;
+    background:rgba(13,10,7,.55);
+    border:1px solid rgba(237,228,211,.25);
+    color:var(--parchment-dim);
+    font:500 .78rem/1 'Inter',sans-serif;
+    letter-spacing:.1em;
+    padding:.55rem 1rem;border-radius:999px;
+    cursor:pointer;
+    transition:color 200ms,border-color 200ms;
+  }
+  #skip:hover,#skip:focus-visible{color:var(--parchment);border-color:var(--parchment-dim)}
+  #skip:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+  #progress{
+    position:absolute;bottom:0;left:0;height:2px;width:100%;
+    background:rgba(237,228,211,.08);z-index:10;
+  }
+  #progress i{
+    display:block;height:100%;width:0;
+    background:linear-gradient(90deg,var(--amber),var(--ember));
+    transition:width 400ms linear;
+  }
+
+  /* ---------- Reduced motion ---------- */
+  @media (prefers-reduced-motion: reduce){
+    .ember{display:none}
+    .scene{transition:opacity 300ms ease}
+    .active .wordmark,.active .tagline,.active .eyebrow,.active .beat,
+    .active .cta-title,.active .cta-btn,.active .srd,.active .replay{animation:none;opacity:1;transform:none}
+    .tumble{animation:none}
+    .caret{animation:none;opacity:0}
+  }
+</style>
+</head>
+<body>
+
+<div id="trailer" role="region" aria-label="Everdice introduction">
+  <button id="skip" type="button">Skip intro →</button>
+
+  <!-- 1 · Cold open -->
+  <section class="scene" data-hold="7800" aria-hidden="true">
+    <p class="narration" id="narration">
+      <span class="line" data-text="The torch gutters."></span>
+      <span class="line" data-text="Something stirs beyond the door."></span>
+      <span class="line" data-text="The dice are in your hand. What do you do?"></span>
+    </p>
+  </section>
+
+  <!-- 2 · Title -->
+  <section class="scene" data-hold="4600" aria-hidden="true">
+    <h1 class="wordmark">EVER<span>DICE</span></h1>
+    <p class="tagline">Tabletop adventure, played in words.</p>
+  </section>
+
+  <!-- 3 · All levels -->
+  <section class="scene" data-hold="5600" aria-hidden="true">
+    <p class="eyebrow">Every level of play</p>
+    <p class="beat">First session or your five-hundredth — built-in tutorials and gentle guidance teach the game <em>as you play it</em>.</p>
+  </section>
+
+  <!-- 4 · Solo or together -->
+  <section class="scene" data-hold="5600" aria-hidden="true">
+    <p class="eyebrow">Solo or together</p>
+    <p class="beat">Adventure alone whenever the mood strikes, or gather a party — live at the table, or by post, <em>one message at a time</em>.</p>
+  </section>
+
+  <!-- 5 · Persistence -->
+  <section class="scene" data-hold="5600" aria-hidden="true">
+    <p class="eyebrow">Your world remembers</p>
+    <p class="beat">Campaigns persist between sessions — every choice, wound, and rivalry waiting <em>exactly where you left them</em>.</p>
+  </section>
+
+  <!-- 6 · Close -->
+  <section class="scene" data-hold="999999" aria-hidden="true">
+    <svg class="die tumble" viewBox="0 0 100 100" aria-hidden="true">
+      <!-- hexagonal silhouette -->
+      <polygon class="face" points="50,4 90,27 90,73 50,96 10,73 10,27"/>
+      <!-- central down-pointing face (the 20) -->
+      <polygon class="edge" points="29,38 71,38 50,74"/>
+      <!-- top faces -->
+      <line class="edge" x1="50" y1="4"  x2="29" y2="38"/>
+      <line class="edge" x1="50" y1="4"  x2="71" y2="38"/>
+      <!-- right faces -->
+      <line class="edge" x1="90" y1="27" x2="71" y2="38"/>
+      <line class="edge" x1="90" y1="73" x2="71" y2="38"/>
+      <line class="edge" x1="90" y1="73" x2="50" y2="74"/>
+      <!-- bottom face -->
+      <line class="edge" x1="50" y1="96" x2="50" y2="74"/>
+      <!-- left faces -->
+      <line class="edge" x1="10" y1="73" x2="50" y2="74"/>
+      <line class="edge" x1="10" y1="73" x2="29" y2="38"/>
+      <line class="edge" x1="10" y1="27" x2="29" y2="38"/>
+      <text x="50" y="49" font-size="14" text-anchor="middle" dominant-baseline="middle">20</text>
+    </svg>
+    <h2 class="cta-title">Roll for adventure.</h2>
+    <a class="cta-btn" href="/auth">Enter the Realm</a>
+    <p class="srd">5e-compatible · Built on SRD 5.1 (CC-BY-4.0)</p>
+    <button class="replay" id="replay" type="button">↻ Watch again</button>
+  </section>
+
+  <div id="progress" aria-hidden="true"><i></i></div>
+</div>
+
+<script>
+(function(){
+  const scenes   = Array.from(document.querySelectorAll('.scene'));
+  const bar      = document.querySelector('#progress i');
+  const skipBtn  = document.getElementById('skip');
+  const replay   = document.getElementById('replay');
+  const reduced  = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let idx = -1, timer = null, typing = [];
+
+  function clearTimers(){
+    clearTimeout(timer);
+    typing.forEach(clearTimeout); typing = [];
+  }
+
+  function typeLines(container, done){
+    const lines = Array.from(container.querySelectorAll('.line'));
+    lines.forEach(l => l.textContent = '');
+    if (reduced){
+      lines.forEach(l => l.textContent = l.dataset.text);
+      done && done();
+      return;
+    }
+    const caret = document.createElement('span');
+    caret.className = 'caret';
+    let li = 0;
+    function nextLine(){
+      if (li >= lines.length){ caret.remove(); done && done(); return; }
+      const line = lines[li], text = line.dataset.text;
+      line.appendChild(caret);
+      let ci = 0;
+      function tick(){
+        line.insertBefore(document.createTextNode(text[ci]), caret);
+        ci++;
+        if (ci < text.length){
+          typing.push(setTimeout(tick, 34 + Math.random()*40));
+        } else {
+          li++;
+          typing.push(setTimeout(nextLine, 650));
+        }
+      }
+      typing.push(setTimeout(tick, li === 0 ? 500 : 100));
+    }
+    nextLine();
+  }
+
+  function show(i){
+    clearTimers();
+    scenes.forEach((s,n)=>{
+      s.classList.toggle('active', n===i);
+      s.classList.remove('leaving');
+      s.setAttribute('aria-hidden', n===i ? 'false' : 'true');
+    });
+    idx = i;
+    bar.style.width = ((i+1)/scenes.length*100) + '%';
+    skipBtn.style.display = (i === scenes.length - 1) ? 'none' : '';
+
+    const scene = scenes[i];
+    const hold  = reduced ? Math.min(+scene.dataset.hold, 4500) : +scene.dataset.hold;
+
+    // retrigger die tumble on final scene
+    const die = scene.querySelector('.die');
+    if (die){ die.classList.remove('tumble'); void die.offsetWidth; die.classList.add('tumble'); }
+
+    const narr = scene.querySelector('.narration');
+    if (narr){
+      typeLines(narr, ()=>{ timer = setTimeout(next, 1600); });
+    } else if (i < scenes.length - 1){
+      timer = setTimeout(next, hold);
+    }
+  }
+
+  function next(){
+    if (idx >= scenes.length - 1) return;
+    const cur = scenes[idx];
+    cur.classList.add('leaving'); cur.classList.remove('active');
+    setTimeout(()=>show(idx+1), reduced ? 150 : 500);
+  }
+
+  skipBtn.addEventListener('click', ()=>{ clearTimers(); show(scenes.length-1); skipBtn.style.display='none'; });
+  replay .addEventListener('click', ()=>{ skipBtn.style.display=''; show(0); });
+  document.addEventListener('keydown', e=>{
+    if (e.key === 'Escape'){ clearTimers(); show(scenes.length-1); skipBtn.style.display='none'; }
+    if (e.key === 'ArrowRight'){ clearTimers(); next(); }
+  });
+
+  // ambient embers
+  if (!reduced){
+    for (let i=0;i<14;i++){
+      const e = document.createElement('span');
+      e.className = 'ember';
+      e.style.left = (Math.random()*100)+'%';
+      e.style.setProperty('--sway', (Math.random()*80-40)+'px');
+      e.style.animationDuration = (7+Math.random()*8)+'s';
+      e.style.animationDelay = (Math.random()*10)+'s';
+      document.getElementById('trailer').appendChild(e);
+    }
+  }
+
+  show(0);
+})();
+</script>
+</body>
+</html>
