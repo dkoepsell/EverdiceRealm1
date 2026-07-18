@@ -77,6 +77,7 @@ import {
   characterInventory,
   characterBounties,
 } from "@shared/schema";
+import { mergeOnboardingState, parseOnboardingState } from "@shared/onboarding";
 import { setupAuth, isAuthenticated, requireAdmin } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";
 import { generateCharacterPortrait, generateCharacterBackground } from "./lib/characterImageGenerator";
@@ -1816,9 +1817,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // --- Onboarding state (first-run funnel, one-time tips, email prefs) ---
+  // Stored entirely in users.onboardingState jsonb so nothing here needs a migration.
+  app.patch("/api/user/onboarding", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const current = await storage.getUser(userId);
+      const patch = req.body && typeof req.body === "object" ? req.body : {};
+      const next = mergeOnboardingState(parseOnboardingState(current?.onboardingState), patch);
+      const updated = await storage.updateUser(userId, { onboardingState: next as any });
+      res.json({ onboardingState: updated?.onboardingState ?? next });
+    } catch (error) {
+      console.error("Onboarding update error:", error);
+      res.status(500).json({ message: "Failed to update onboarding state" });
+    }
+  });
+
+  // One-click unsubscribe from gentle re-engagement email. Unauthenticated by
+  // design (clicked from an email), validated by the per-user opaque token.
+  app.get("/api/email/unsubscribe", async (req, res) => {
+    try {
+      const userId = Number(req.query.u);
+      const token = String(req.query.t || "");
+      if (!userId || !token) {
+        return res.status(400).send("Invalid unsubscribe link.");
+      }
+      const user = await storage.getUser(userId);
+      const state = parseOnboardingState(user?.onboardingState);
+      if (!user || state.email?.unsubscribeToken !== token) {
+        return res.status(403).send("This unsubscribe link is no longer valid.");
+      }
+      const next = mergeOnboardingState(state, { email: { optOut: true } });
+      await storage.updateUser(userId, { onboardingState: next as any });
+      res
+        .status(200)
+        .type("html")
+        .send(
+          `<div style="font-family:Georgia,serif;max-width:480px;margin:60px auto;text-align:center;color:#1c140c">
+             <h2 style="color:#d97706">You're unsubscribed</h2>
+             <p>The Hearth will keep your seat, but we won't send you any more reminders. Safe travels.</p>
+             <p><a href="/" style="color:#d97706">Return to Everdice</a></p>
+           </div>`,
+        );
+    } catch (error) {
+      console.error("Unsubscribe error:", error);
+      res.status(500).send("Something went wrong.");
+    }
+  });
+
   app.post("/api/characters/quick-build", isAuthenticated, async (req: any, res) => {
     try {
-      const { campaignId } = req.body;
+      // Optional overrides let the first-run funnel offer chosen "pregen archetypes"
+      // (a class, sometimes a race) while still rolling stats + gear automatically.
+      const { campaignId, class: reqClass, race: reqRace, name: reqName } = req.body || {};
       const userId = req.user.id;
 
       const races = ["Human", "Elf", "Dwarf", "Halfling", "Half-Orc", "Tiefling", "Gnome", "Dragonborn"];
@@ -1834,10 +1885,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         Dragonborn: ["Rhogar", "Surina", "Balasar", "Jheri", "Torinn", "Kava"]
       };
 
-      const race = races[Math.floor(Math.random() * races.length)];
-      const charClass = classes[Math.floor(Math.random() * classes.length)];
+      const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+      const race = reqRace && races.some(r => r.toLowerCase() === String(reqRace).toLowerCase())
+        ? races.find(r => r.toLowerCase() === String(reqRace).toLowerCase())!
+        : races[Math.floor(Math.random() * races.length)];
+      const charClass = reqClass && classes.some(c => c.toLowerCase() === String(reqClass).toLowerCase())
+        ? classes.find(c => c.toLowerCase() === String(reqClass).toLowerCase())!
+        : classes[Math.floor(Math.random() * classes.length)];
       const names = namesByRace[race] || namesByRace.Human;
-      const name = names[Math.floor(Math.random() * names.length)];
+      const name = (typeof reqName === "string" && reqName.trim())
+        ? reqName.trim().slice(0, 40)
+        : names[Math.floor(Math.random() * names.length)];
 
       const rollStat = () => {
         const rolls = [1,2,3,4].map(() => Math.floor(Math.random() * 6) + 1);

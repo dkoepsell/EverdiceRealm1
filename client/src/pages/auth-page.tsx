@@ -40,6 +40,7 @@ const registerSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string(),
+  email: z.string().email("Enter a valid email").optional().or(z.literal("")),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"]
@@ -69,6 +70,7 @@ export default function AuthPage() {
       username: "",
       password: "",
       confirmPassword: "",
+      email: "",
     },
   });
   
@@ -80,8 +82,8 @@ export default function AuthPage() {
   useEffect(() => {
     if (user) {
       if (isNewRegistration) {
-        // New users get directed to The Hearth to explore the community
-        navigate("/hearth");
+        // New users get directed to the guided first-run funnel
+        navigate("/begin");
       } else {
         // Returning users go to their dashboard
         navigate("/");
@@ -238,10 +240,29 @@ export default function AuthPage() {
                         <FormItem>
                           <FormLabel>Confirm Password</FormLabel>
                           <FormControl>
-                            <Input 
-                              type="password" 
-                              placeholder="Confirm your password" 
-                              {...field} 
+                            <Input
+                              type="password"
+                              placeholder="Confirm your password"
+                              {...field}
+                              disabled={registerMutation.isPending}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={registerForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
+                          <FormControl>
+                            <Input
+                              type="email"
+                              placeholder="For the occasional gentle reminder — never shared"
+                              {...field}
                               disabled={registerMutation.isPending}
                             />
                           </FormControl>

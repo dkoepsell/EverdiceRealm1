@@ -8,6 +8,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic, log } from "./static";
 import { storage, DatabaseStorage } from "./storage";
 import { initDiscord, shutdownDiscord } from "./discord";
+import { startReengagementScheduler, stopReengagementScheduler } from "./lib/reengagement";
 import { serverLogger } from "./lib/logger";
 
 const app = express();
@@ -94,17 +95,26 @@ app.use((req, res, next) => {
       .catch((err: Error) => {
         log(`Discord initialization skipped: ${err.message}`);
       });
+
+    // Gentle email re-engagement scheduler (no-op unless SMTP is configured)
+    try {
+      startReengagementScheduler();
+    } catch (err) {
+      log(`Re-engagement scheduler skipped: ${(err as Error).message}`);
+    }
   });
   
   // Graceful shutdown handlers
   process.on('SIGTERM', async () => {
     log('Shutting down...');
+    stopReengagementScheduler();
     await shutdownDiscord();
     process.exit(0);
   });
   
   process.on('SIGINT', async () => {
     log('Shutting down...');
+    stopReengagementScheduler();
     await shutdownDiscord();
     process.exit(0);
   });

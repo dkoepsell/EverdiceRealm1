@@ -1174,7 +1174,9 @@ export class DatabaseStorage implements IStorage {
       .insert(users)
       .values({
         username: insertUser.username,
-        password: insertUser.password
+        password: insertUser.password,
+        ...(insertUser.email ? { email: insertUser.email } : {}),
+        ...(insertUser.displayName ? { displayName: insertUser.displayName } : {}),
       })
       .returning();
     return user;

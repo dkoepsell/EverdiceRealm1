@@ -57,6 +57,7 @@ import { WhileYouWereAway } from "./WhileYouWereAway";
 import TableChat from "@/components/dm-toolkit/TableChat";
 import CombatSpellPanel from "@/components/combat/CombatSpellPanel";
 import { LearningTip, useLearningTips } from "@/components/learning/LearningTip";
+import { CoachTip } from "@/components/onboarding/CoachTip";
 import { ContextualHint } from "@/components/ui/contextual-hint";
 import { FeatureDiscoveryPopup } from "@/components/ui/feature-discovery-popup";
 import { HowToPlayPanel } from "@/components/ui/how-to-play-panel";
@@ -3950,6 +3951,18 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   </Badge>
                                 )}
                               </div>
+                            )}
+
+                            {/* Contextual teaching: for new players in a tutorial campaign, when the
+                                DM's scaffolding signals they could use help, offer a gentle one-time
+                                link to the interactive trainers. Dismissal is remembered per-user. */}
+                            {isTutorial && scaffolding?.invitesElaboration && (
+                              <CoachTip
+                                tipId="play.stuck"
+                                message="Not sure what to do? You can practice the basics with quick interactive drills."
+                                learnHref="/learn?tab=practice"
+                                learnLabel="Practice"
+                              />
                             )}
 
                             {/* Scaffolding reveal controls (spec §5.1): soft "ideas?" at HYBRID,

@@ -31,6 +31,7 @@ const registerSchema = insertUserSchema.pick({
 }).extend({
   password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string(),
+  email: z.string().email("Enter a valid email").optional().or(z.literal("")),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"]

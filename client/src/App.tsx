@@ -37,6 +37,7 @@ const TavernPage = lazy(() => import("@/pages/tavern"));
 const GroupsPage = lazy(() => import("@/pages/groups"));
 const ProfilePage = lazy(() => import("@/pages/profile"));
 const HearthPage = lazy(() => import("@/pages/hearth"));
+const BeginPage = lazy(() => import("@/pages/begin"));
 const DMGuidePage = lazy(() => import("@/pages/dm-guide"));
 const TradingPostPage = lazy(() => import("@/pages/trading-post"));
 const WanderPage = lazy(() => import("@/pages/wander"));
@@ -80,6 +81,7 @@ function Router() {
             <Route path="/" component={LandingPage} />
             <ProtectedRoute path="/dashboard" component={Dashboard} />
             <ProtectedRoute path="/play" component={Dashboard} />
+            <ProtectedRoute path="/begin" component={BeginPage} />
             <ProtectedRoute path="/characters" component={Characters} />
             <ProtectedRoute path="/campaigns" component={Campaigns} />
             <ProtectedRoute path="/dice-roller" component={DiceRoller} />

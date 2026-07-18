@@ -10,6 +10,7 @@ import CampaignPanel from "@/components/campaign/CampaignPanel";
 import CampaignArchiveList from "@/components/campaign/CampaignArchiveList";
 import AdventureHistory from "@/components/adventure/AdventureHistory";
 import QuickStart from "@/components/onboarding/QuickStart";
+import { BecomeDMInvite } from "@/components/onboarding/BecomeDMInvite";
 import PlayerQuickStart from "@/components/PlayerQuickStart";
 import SinceLastTime from "@/components/SinceLastTime";
 import { WhatsNextModal, useWhatsNextModal } from "@/components/onboarding/WhatsNextModal";
@@ -413,11 +414,19 @@ export default function Dashboard() {
       {/* Return Visitor Prompt - gentle nudge to try new modes */}
       {!showLearnByPlaying && !showQuickStart && availableCampaigns.length > 0 && (
         <section className="container mx-auto px-4 pt-2">
-          <ReturnVisitorPrompt 
+          <ReturnVisitorPrompt
             userName={user?.username}
             hasSoloSession={availableCampaigns.length > 0}
             onDismiss={() => {}}
           />
+        </section>
+      )}
+
+      {/* Player -> DM on-ramp: once a player has finished an adventure, gently
+          invite them to learn to run their own. Hides once dismissed/accepted. */}
+      {!showLearnByPlaying && !showQuickStart && campaigns?.some((c: any) => c.isCompleted) && (
+        <section className="container mx-auto px-4 pt-2">
+          <BecomeDMInvite />
         </section>
       )}
 

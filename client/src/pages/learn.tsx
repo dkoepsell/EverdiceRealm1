@@ -1165,8 +1165,20 @@ const QUICK_REFERENCES = [
   }
 ];
 
+const VALID_LEARN_TABS = ["overview", "archetypes", "paths", "rules", "dm-guide", "practice"];
+
 export default function LearnPage() {
-  const [activeTab, setActiveTab] = useState("overview");
+  // Allow deep-linking to a specific tab, e.g. /learn?tab=practice or /learn?tab=rules
+  // (used by in-play coach-marks that route a stuck player to the right lesson).
+  const initialTab = (() => {
+    try {
+      const t = new URLSearchParams(window.location.search).get("tab");
+      return t && VALID_LEARN_TABS.includes(t) ? t : "overview";
+    } catch {
+      return "overview";
+    }
+  })();
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [offlineStatus, setOfflineStatus] = useState<'idle' | 'caching' | 'cached' | 'error'>('idle');
   const [isOnline, setIsOnline] = useState(true);
   const { toast } = useToast();

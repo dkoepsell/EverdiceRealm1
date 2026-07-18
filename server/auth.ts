@@ -97,18 +97,29 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "Username already exists" });
       }
 
-      // Keep it simple for now, just username and password
+      // Optional email (used only for gentle, opt-out re-engagement reminders).
+      const email = typeof req.body.email === "string" && req.body.email.trim()
+        ? req.body.email.trim()
+        : undefined;
+
       const user = await storage.createUser({
         username: req.body.username,
-        password: await hashPassword(req.body.password)
+        password: await hashPassword(req.body.password),
+        ...(email ? { email } : {}),
       });
 
       req.login(user, async (err) => {
         if (err) return next(err);
         try {
-          await storage.updateUser(user.id, { lastLogin: new Date().toISOString() });
+          // Seed the first-run funnel so the client can route new users to /begin.
+          await storage.updateUser(user.id, {
+            lastLogin: new Date().toISOString(),
+            onboardingState: {
+              funnel: { step: "character", startedAt: new Date().toISOString() },
+            } as any,
+          });
         } catch (e) {
-          console.warn("Failed to update lastLogin:", e);
+          console.warn("Failed to initialize new user state:", e);
         }
         const { password, twoFactorSecret, ...userWithoutSensitive } = user;
         res.status(201).json(userWithoutSensitive);

@@ -65,6 +65,14 @@ const NEXT_STEPS = [
     path: "/hearth",
     color: "from-purple-500 to-indigo-500",
   },
+  {
+    id: "become_dm",
+    icon: GraduationCap,
+    title: "Ready to run your own?",
+    description: "You've seen how it plays. Learn to design and run adventures of your own.",
+    path: "/dm-guide",
+    color: "from-rose-500 to-red-500",
+  },
 ] as const;
 
 export function FirstSessionWrapUp({ rewards, onNavigate }: FirstSessionWrapUpProps) {
