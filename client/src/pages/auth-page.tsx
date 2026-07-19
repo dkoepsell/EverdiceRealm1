@@ -50,7 +50,13 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
-  const [activeTab, setActiveTab] = useState("login");
+  const [activeTab, setActiveTab] = useState(() => {
+    // Visitors arriving from the guest demo should land on Register.
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("from") === "demo") {
+      return "register";
+    }
+    return "login";
+  });
   const [location, navigate] = useLocation();
   const { user, loginMutation, registerMutation } = useAuth();
 
@@ -74,14 +80,34 @@ export default function AuthPage() {
     },
   });
   
-  // Track if this is a new registration (to redirect to Hearth)
+  // Track if this is a new registration (to redirect to the first-run funnel)
   const isNewRegistration = registerMutation.isSuccess;
-  
-  // If user is already logged in, redirect appropriately
-  // New users go to Hearth for onboarding, returning users go to dashboard
+
+  // Did the visitor arrive here from the interactive guest demo?
+  const fromDemo =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("from") === "demo";
+
+  // If user is already logged in, redirect appropriately.
+  // New users go to the guided first-run funnel, returning users to dashboard.
   useEffect(() => {
     if (user) {
       if (isNewRegistration) {
+        // Link the guest-demo session to this new account so conversion is
+        // measurable (fixes demo_analytics.converted_user_id never being set).
+        try {
+          const sid = localStorage.getItem("everdice_demo_session");
+          if (sid) {
+            fetch("/api/demo/convert", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ sessionId: sid }),
+            }).catch(() => {});
+          }
+        } catch {
+          /* private mode — non-fatal */
+        }
         // New users get directed to the guided first-run funnel
         navigate("/begin");
       } else {
@@ -110,6 +136,11 @@ export default function AuthPage() {
     <div className="flex min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
       {/* Left column with form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6">
+        {fromDemo && (
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 lg:left-1/4 z-20 max-w-md w-[90%] rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-center text-sm text-amber-200 backdrop-blur">
+            Loved the demo? Create a free account to keep your hero and pick up where you left off.
+          </div>
+        )}
         <Card className="w-full max-w-md shadow-xl border-primary/10">
           <CardHeader className="space-y-1 pb-4">
             <CardTitle className="text-2xl font-bold text-center bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">

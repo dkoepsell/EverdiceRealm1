@@ -5,14 +5,19 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Sword, Sparkles, BookOpen, Shield, ArrowRight, Dices } from "lucide-react";
+import { Loader2, Sword, Sparkles, BookOpen, Shield, ArrowRight, Dices, Users, Feather } from "lucide-react";
+import type { UserIntent } from "@shared/onboarding";
 
 /**
  * First-run funnel. Signup routes new users here (see auth-page.tsx). Goal:
- * from "just signed up" to "playing a guided solo adventure" in well under a
- * minute — pick a hero, pick a tone, and we roll everything else and drop the
- * player straight into a tutorial campaign (isTutorial => GUIDED scaffolding +
- * the first-session Quiet Reckoning payoff).
+ * from "just signed up" to "playing" in well under a minute. Step 0 sorts the
+ * player by intent (new / experienced / DM-for-group / author) so each persona
+ * lands on the right path instead of one forced GUIDED solo tutorial:
+ *  - new_solo         -> guided solo tutorial (isTutorial => GUIDED scaffolding).
+ *  - experienced_solo -> engaging solo/co-op, isTutorial:false + OPEN rung.
+ *  - dm_group         -> /dm-toolkit?onboard=group (create campaign + invite group).
+ *  - author           -> /dm-toolkit?onboard=author (campaign authoring).
+ * If the visitor came from the guest demo we prefill their chosen class.
  */
 
 interface Archetype {
@@ -43,28 +48,80 @@ const TONES: Tone[] = [
   { id: "heroic", name: "High Adventure", title: "The Sunspire Gambit", description: "Grand stakes, bold deeds, and a name worth carving into legend." },
 ];
 
-type Step = "hero" | "tone";
+interface Intent {
+  id: UserIntent;
+  name: string;
+  blurb: string;
+  icon: React.ReactNode;
+}
+
+const INTENTS: Intent[] = [
+  { id: "new_solo", name: "I'm new to tabletop", blurb: "Learn by playing — your Dungeon Master will guide you step by step.", icon: <BookOpen className="h-6 w-6" /> },
+  { id: "experienced_solo", name: "I've played before", blurb: "Drop me into engaging solo or co-op play — go light on the hand-holding.", icon: <Sparkles className="h-6 w-6" /> },
+  { id: "dm_group", name: "Run a game for my group", blurb: "Create a campaign and bring your established table along.", icon: <Users className="h-6 w-6" /> },
+  { id: "author", name: "Plan & author campaigns", blurb: "Build worlds and adventures with the DM authoring tools.", icon: <Feather className="h-6 w-6" /> },
+];
+
+type Step = "intent" | "hero" | "tone";
+
+/** Best-effort read of the class the visitor picked in the guest demo. */
+function readDemoPrefill(): { charClass?: string } {
+  try {
+    const raw = localStorage.getItem("everdice_demo_choice");
+    if (!raw) return {};
+    const d = JSON.parse(raw);
+    return { charClass: typeof d?.class === "string" ? d.class : undefined };
+  } catch {
+    return {};
+  }
+}
 
 export default function BeginPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const [step, setStep] = useState<Step>("hero");
-  const [archetype, setArchetype] = useState<Archetype | null>(null);
+  const [prefill] = useState(readDemoPrefill);
+  const [intent, setIntent] = useState<UserIntent | null>(null);
+  const [step, setStep] = useState<Step>("intent");
+  const [archetype, setArchetype] = useState<Archetype | null>(
+    prefill.charClass ? ARCHETYPES.find((a) => a.charClass === prefill.charClass) ?? null : null,
+  );
   const [heroName, setHeroName] = useState("");
   const [tone, setTone] = useState<Tone | null>(null);
+
+  const experienced = intent === "experienced_solo";
+
+  // Persist the intent choice (best-effort telemetry; never blocks the flow).
+  const recordIntent = (i: UserIntent) => {
+    apiRequest("PATCH", "/api/user/onboarding", { intent: i }).catch(() => {});
+  };
+
+  const chooseIntent = (i: UserIntent) => {
+    setIntent(i);
+    recordIntent(i);
+    if (i === "dm_group") {
+      navigate("/dm-toolkit?onboard=group");
+      return;
+    }
+    if (i === "author") {
+      navigate("/dm-toolkit?onboard=author");
+      return;
+    }
+    setStep("hero");
+  };
 
   const start = useMutation({
     mutationFn: async () => {
       if (!archetype || !tone) throw new Error("Pick a hero and a tone first.");
 
-      // 1. Create the solo tutorial campaign.
+      // 1. Create the solo campaign. Newcomers get the guided tutorial; experienced
+      //    players skip it (no forced GUIDED rails).
       const campRes = await apiRequest("POST", "/api/campaigns", {
         title: tone.title,
         description: tone.description,
         difficulty: "balanced",
         narrativeStyle: "descriptive",
         setting: tone.id,
-        isTutorial: true,
+        isTutorial: !experienced,
       });
       const campaign = await campRes.json();
 
@@ -76,9 +133,20 @@ export default function BeginPage() {
       });
       const character = await charRes.json();
 
+      // 2b. Experienced players start at the OPEN rung (safety net on, but no
+      //     newbie coach-marks); they can still climb to PURE/expert in play.
+      if (experienced) {
+        try {
+          await apiRequest("PUT", `/api/campaigns/${campaign.id}/guidance`, { mode: "OPEN" });
+        } catch {
+          /* non-fatal — defaults to GUIDED, still playable */
+        }
+      }
+
       // 3. Make this the active campaign so the dashboard opens straight into it.
       try {
         localStorage.setItem("activeCampaignId", String(campaign.id));
+        localStorage.removeItem("everdice_demo_choice");
       } catch {
         /* private mode — the dashboard's most-recent fallback still selects it */
       }
@@ -86,6 +154,7 @@ export default function BeginPage() {
       // 4. Record funnel completion (best-effort — never block play on it).
       try {
         await apiRequest("PATCH", "/api/user/onboarding", {
+          intent: intent ?? "new_solo",
           funnel: {
             step: "playing",
             completedAt: new Date().toISOString(),
@@ -118,6 +187,19 @@ export default function BeginPage() {
 
   const busy = start.isPending;
 
+  const heading =
+    step === "intent" ? "What brings you here?" : step === "hero" ? "Choose your hero" : "Choose your tale";
+  const subheading =
+    step === "intent"
+      ? "Pick the path that fits you — you can change lanes anytime."
+      : step === "hero"
+        ? experienced
+          ? "We'll roll the stats and gear — pick who you want to be."
+          : "We'll roll the stats and gear — you just pick who you want to be."
+        : experienced
+          ? "Pick a mood and we'll drop you straight into play."
+          : "Pick a mood. Your Dungeon Master will take it from here, gently guiding your first steps.";
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-amber-950/20 to-slate-950 text-white flex items-center justify-center p-6">
       <div className="w-full max-w-2xl">
@@ -125,14 +207,40 @@ export default function BeginPage() {
         <div className="text-center mb-8">
           <p className="text-xs uppercase tracking-[0.3em] text-amber-400 mb-3">Welcome, adventurer</p>
           <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-amber-300 to-orange-400 bg-clip-text text-transparent">
-            {step === "hero" ? "Choose your hero" : "Choose your tale"}
+            {heading}
           </h1>
-          <p className="text-white/60 mt-2 text-sm">
-            {step === "hero"
-              ? "We'll roll the stats and gear — you just pick who you want to be."
-              : "Pick a mood. Your Dungeon Master will take it from here, gently guiding your first steps."}
-          </p>
+          <p className="text-white/60 mt-2 text-sm">{subheading}</p>
         </div>
+
+        {/* Step: intent */}
+        {step === "intent" && (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {INTENTS.map((it) => (
+                <button
+                  key={it.id}
+                  onClick={() => chooseIntent(it.id)}
+                  className="text-left rounded-xl border border-white/10 bg-white/5 p-4 transition-all hover:border-amber-400/50 hover:bg-amber-400/5"
+                >
+                  <div className="flex items-center gap-3 mb-1">
+                    <span className="text-amber-400">{it.icon}</span>
+                    <span className="font-semibold">{it.name}</span>
+                  </div>
+                  <p className="text-sm text-white/60">{it.blurb}</p>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex justify-center mt-8">
+              <button
+                onClick={() => navigate("/dashboard")}
+                className="text-sm text-white/40 hover:text-white/70 underline underline-offset-4"
+              >
+                Skip — I'll explore on my own
+              </button>
+            </div>
+          </>
+        )}
 
         {/* Step: hero */}
         {step === "hero" && (
@@ -170,8 +278,8 @@ export default function BeginPage() {
             </div>
 
             <div className="flex justify-between items-center mt-8">
-              <button onClick={() => navigate("/dashboard")} className="text-sm text-white/40 hover:text-white/70 underline underline-offset-4">
-                Skip — I'll explore on my own
+              <button onClick={() => setStep("intent")} className="text-sm text-white/40 hover:text-white/70 underline underline-offset-4">
+                ← Back
               </button>
               <Button disabled={!archetype} onClick={() => setStep("tone")} className="bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-semibold">
                 Next <ArrowRight className="ml-2 h-4 w-4" />

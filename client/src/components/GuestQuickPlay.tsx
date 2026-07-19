@@ -663,11 +663,22 @@ export default function GuestQuickPlay({
       setDiceResult(null);
       setShowOutcome(false);
     } else {
-      trackDemoEvent('completed', { 
+      trackDemoEvent('completed', {
         characterId: selectedCharacter,
         adventureId: selectedTheme,
         totalScenes: scenes.length
       });
+      // Carry the demo choice across the signup hop so /begin can prefill the
+      // player's class and /auth can mark the demo session converted.
+      try {
+        localStorage.setItem('everdice_demo_choice', JSON.stringify({
+          sessionId: getOrCreateSessionId(),
+          class: selectedChar.class,
+          theme: selectedAdventure.id,
+        }));
+      } catch {
+        /* private mode — non-fatal, we just lose prefill */
+      }
       setStep(3);
     }
   };

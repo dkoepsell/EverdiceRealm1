@@ -11,6 +11,15 @@
 
 export type FunnelStep = "character" | "tone" | "playing" | "done";
 
+/**
+ * What the user says they came here to do (early intent sort, step 0 of /begin).
+ * - new_solo:          brand-new to tabletop, wants the guided solo tutorial.
+ * - experienced_solo:  knows TTRPGs, wants engaging solo/co-op without hand-holding.
+ * - dm_group:          wants to run campaigns for an established group.
+ * - author:            wants to plan/author campaigns with the DM tools.
+ */
+export type UserIntent = "new_solo" | "experienced_solo" | "dm_group" | "author";
+
 export interface FunnelState {
   step: FunnelStep;
   startedAt?: string;
@@ -36,6 +45,8 @@ export interface EmailState {
 export interface OnboardingState {
   /** First-run funnel progress. */
   funnel?: FunnelState;
+  /** Early intent sort — which path the user chose at the top of /begin. */
+  intent?: UserIntent;
   /** IDs of one-time contextual tips the user has seen/dismissed. */
   seenTips?: string[];
   /** User dismissed the in-play "need a hand?" coach-mark for good. */

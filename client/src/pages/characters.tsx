@@ -494,6 +494,15 @@ export default function Characters() {
     queryKey: ['/api/characters'],
   });
 
+  // Controlled tab: brand-new users (no characters) should land on Quick Create,
+  // not the empty "My Characters" list one hop from the heavy Advanced form.
+  const [charTab, setCharTab] = useState<string | null>(null);
+  useEffect(() => {
+    if (charTab === null && !isLoading) {
+      setCharTab((characters?.length ?? 0) === 0 ? "quick" : "list");
+    }
+  }, [charTab, isLoading, characters]);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(createCharacterSchema),
     defaultValues: {
@@ -725,7 +734,7 @@ export default function Characters() {
       </div>
       
       <div className="container mx-auto px-4 pb-8">
-      <SidebarTabs defaultValue="list">
+      <SidebarTabs value={charTab ?? "list"} onValueChange={setCharTab}>
         <SidebarTabsList className="mb-6">
           <SidebarTabsTrigger value="list" className="flex items-center gap-2">
             <User size={16} />

@@ -124,7 +124,16 @@ export default function DMToolkit() {
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const { trackPageView, trackDMToolUse, trackFeatureUse, trackCampaignAction } = useAnalytics();
-  const [activeTab, setActiveTab] = useState("training");
+  const [activeTab, setActiveTab] = useState(() => {
+    // Early intent-sort from /begin routes DMs/authors straight to campaign building.
+    try {
+      const onb = new URLSearchParams(window.location.search).get("onboard");
+      if (onb === "group" || onb === "author") return "campaign-builder";
+    } catch {
+      /* SSR / private mode — fall through */
+    }
+    return "training";
+  });
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
   const [showAIGuide, setShowAIGuide] = useState(false);
   const [showQuickStart, setShowQuickStart] = useState(false);
@@ -139,6 +148,27 @@ export default function DMToolkit() {
   useEffect(() => {
     trackPageView('dm_toolkit');
   }, [trackPageView]);
+
+  // One-time guidance for users routed here from the /begin intent sort.
+  useEffect(() => {
+    let onb: string | null = null;
+    try {
+      onb = new URLSearchParams(window.location.search).get("onboard");
+    } catch {
+      /* private mode */
+    }
+    if (onb === "group") {
+      toast({
+        title: "Bring your group along",
+        description: "Build your campaign here, then open the Invitations tab to send join codes to your table.",
+      });
+    } else if (onb === "author") {
+      toast({
+        title: "Author freely",
+        description: "Design your world and adventure here — you can add players whenever you're ready.",
+      });
+    }
+  }, [toast]);
 
   useEffect(() => {
     setIsOnline(navigator.onLine);

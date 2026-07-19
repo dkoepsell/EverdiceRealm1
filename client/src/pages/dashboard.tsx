@@ -611,9 +611,9 @@ export default function Dashboard() {
                   </CardHeader>
                   <CardContent className="p-6 flex flex-col items-center justify-center min-h-[200px]">
                     <div className="text-center">
-                      <p className="text-lg mb-4 text-secondary">No characters found</p>
-                      <Link href="/characters">
-                        <Button className="bg-primary-light hover:bg-primary-dark text-white">Create Character</Button>
+                      <p className="text-lg mb-4 text-secondary">No characters yet — jump into a guided start</p>
+                      <Link href="/begin">
+                        <Button className="bg-primary-light hover:bg-primary-dark text-white">Start Playing</Button>
                       </Link>
                     </div>
                   </CardContent>
