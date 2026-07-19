@@ -1,4 +1,5 @@
 import { pgTable, text, serial, integer, boolean, jsonb, timestamp, real, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -12,7 +13,7 @@ export const users = pgTable("users", {
   avatarUrl: text("avatar_url"),
   lastLogin: text("last_login"),
   isAdmin: boolean("is_admin").notNull().default(false),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   twoFactorSecret: text("two_factor_secret"),
   twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
   discordUserId: text("discord_user_id"),
@@ -30,7 +31,7 @@ export const discordConnections = pgTable("discord_connections", {
   discordUsername: text("discord_username").notNull(),
   connectionCode: text("connection_code").notNull().unique(),
   expiresAt: text("expires_at").notNull(),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 });
 
 // Pending Discord choices - stores choices made via Discord buttons for web app to pick up
@@ -42,7 +43,7 @@ export const pendingDiscordChoices = pgTable("pending_discord_choices", {
   userId: integer("user_id").notNull(),
   choiceIndex: integer("choice_index").notNull(),
   choiceText: text("choice_text").notNull(),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   processed: boolean("processed").notNull().default(false),
 });
 
@@ -172,7 +173,7 @@ export const items = pgTable("items", {
   requiresAttunement: boolean("requires_attunement").default(false),
   magicBonus: integer("magic_bonus").default(0), // +1, +2, +3 magic items
   specialEffect: text("special_effect"), // Special magical effects
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 });
 
 export const insertItemSchema = createInsertSchema(items).omit({
@@ -403,7 +404,7 @@ export const learningContent = pgTable("learning_content", {
   difficulty: text("difficulty").notNull().default("beginner"), // beginner, intermediate, advanced
   relatedRules: text("related_rules"),
   examples: jsonb("examples").default([]),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   updatedAt: text("updated_at"),
 });
 
@@ -425,7 +426,7 @@ export const adventureTemplates = pgTable("adventure_templates", {
   tags: text("tags").array(),
   isPublic: boolean("is_public").default(true),
   createdBy: integer("created_by").notNull(), // User ID
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   updatedAt: text("updated_at"),
 });
 
@@ -449,7 +450,7 @@ export const encounters = pgTable("encounters", {
   xpReward: integer("xp_reward").default(0),
   notes: text("notes"),
   createdBy: integer("created_by").notNull(), // User ID
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   updatedAt: text("updated_at"),
 });
 
@@ -469,7 +470,7 @@ export const adventureElements = pgTable("adventure_elements", {
   details: jsonb("details").notNull(), // Element-specific details
   isPublic: boolean("is_public").default(false),
   createdBy: integer("created_by").notNull(), // User ID
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   updatedAt: text("updated_at"),
 });
 
@@ -519,7 +520,7 @@ export const npcs = pgTable("npcs", {
   portraitUrl: text("portrait_url"),
   isPublic: boolean("is_public").default(false),
   createdBy: integer("created_by").notNull(), // User ID
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   updatedAt: text("updated_at"),
 });
 
@@ -538,7 +539,7 @@ export const campaignNpcs = pgTable("campaign_npcs", {
   role: text("role").notNull().default("companion"), // companion, ally, neutral, enemy
   turnOrder: integer("turn_order"), // Position in turn order (null = not turn-based)
   isActive: boolean("is_active").default(true), // Whether NPC is active
-  joinedAt: text("joined_at").notNull().default(new Date().toISOString()),
+  joinedAt: text("joined_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   lastActiveAt: text("last_active_at"), // Last time they took a turn
   // Campaign-specific combat stats (overrides base NPC stats for this campaign)
   currentHp: integer("current_hp"), // Current HP in this campaign (null = use base NPC maxHitPoints)
@@ -575,7 +576,7 @@ export const campaignInvitations = pgTable("campaign_invitations", {
   role: text("role").notNull().default("player"), // Default role for the invitee (player, observer, co-dm)
   status: text("status").notNull().default("pending"), // pending, accepted, declined, expired
   createdBy: integer("created_by").notNull(), // User ID who created the invite
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   expiresAt: text("expires_at"), // When the invitation expires
   usedAt: text("used_at"), // When the invitation was used
   maxUses: integer("max_uses").default(1), // How many times the invite can be used
@@ -603,7 +604,7 @@ export const dmNotes = pgTable("dm_notes", {
   relatedEntityType: text("related_entity_type"), // Optional: npc, location, etc.
   relatedEntityId: integer("related_entity_id"), // Optional: ID of related entity
   createdBy: integer("created_by").notNull(), // User ID who created the note
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   updatedAt: text("updated_at"),
 }, (t) => [
   index("idx_dm_notes_campaign_id").on(t.campaignId),
@@ -728,7 +729,7 @@ export const chatMessages = pgTable("chat_messages", {
   diceRoll: jsonb("dice_roll"), // For dice roll messages
   isEdited: boolean("is_edited").default(false),
   editedAt: text("edited_at"),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_chat_messages_campaign_id").on(t.campaignId),
   index("idx_chat_messages_user_id").on(t.userId),
@@ -774,7 +775,7 @@ export const campaignDungeonMaps = pgTable("campaign_dungeon_maps", {
   discoveredSecrets: jsonb("discovered_secrets").default([]), // Secret doors/traps found
   lootedChests: jsonb("looted_chests").default([]), // Chest positions that have been looted
   isActive: boolean("is_active").default(true), // Whether this is the current active map
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   updatedAt: text("updated_at"),
 }, (t) => [
   index("idx_campaign_dungeon_maps_campaign_id").on(t.campaignId),
@@ -803,7 +804,7 @@ export const campaignExplorationHexes = pgTable("campaign_exploration_hexes", {
   revealedAt: text("revealed_at"),
   narrativeContext: text("narrative_context"), // The narrative that spawned this hex
   connectedDirections: jsonb("connected_directions").default([]), // Which directions have paths
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_campaign_exploration_hexes_campaign_id").on(t.campaignId),
 ]);
@@ -817,7 +818,7 @@ export const campaignExplorationState = pgTable("campaign_exploration_state", {
   exploredHexCount: integer("explored_hex_count").default(1),
   totalDistance: integer("total_distance").default(0), // Hexes traveled
   lastMovementAt: text("last_movement_at"),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   updatedAt: text("updated_at"),
 });
 
@@ -841,7 +842,7 @@ export const cityMaps = pgTable("city_maps", {
   seed: integer("seed").notNull(),
   layout: jsonb("layout").notNull(),
   discoveredBuildings: jsonb("discovered_buildings").default([]),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_city_maps_campaign_id").on(t.campaignId),
 ]);
@@ -863,7 +864,7 @@ export const capitalExploration = pgTable("capital_exploration", {
   revealedHexes: jsonb("revealed_hexes").default([]),
   discoveredBuildings: jsonb("discovered_buildings").default([]),
   hexLayout: jsonb("hex_layout"),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_capital_exploration_campaign_id").on(t.campaignId),
   index("idx_capital_exploration_user_id").on(t.userId),
@@ -892,7 +893,7 @@ export const trekRoutes = pgTable("trek_routes", {
   status: text("status").notNull().default("active"),
   pendingEncounter: jsonb("pending_encounter"),
   lootFound: jsonb("loot_found").default([]),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_trek_routes_campaign_id").on(t.campaignId),
   index("idx_trek_routes_user_id").on(t.userId),
@@ -920,7 +921,7 @@ export const campaignQuests = pgTable("campaign_quests", {
   silverReward: integer("silver_reward").default(0),
   lootRewards: jsonb("loot_rewards").default([]), // Array of item names/objects
   completedAt: text("completed_at"),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   order: integer("order").default(0), // Display order
   // Quest Board fields
   isPostedToBoard: boolean("is_posted_to_board").default(false),
@@ -956,7 +957,7 @@ export const characterBounties = pgTable("character_bounties", {
   status: text("status").notNull().default("accepted"), // accepted | completed | failed
   campaignId: integer("campaign_id"), // campaign the bounty fight runs in
   reward: integer("reward").notNull().default(0), // gold paid on victory
-  acceptedAt: text("accepted_at").notNull().default(new Date().toISOString()),
+  acceptedAt: text("accepted_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   resolvedAt: text("resolved_at"),
   cooldownUntil: text("cooldown_until"), // set on failure; blocks re-accept until past
 }, (t) => [
@@ -998,7 +999,7 @@ export const worldRegions = pgTable("world_regions", {
   mystery: integer("mystery").default(0), // Unexplained phenomena, rumors
   currentMood: text("current_mood").default("stable"), // stable, tense, volatile, erupting
   lastPressureUpdate: text("last_pressure_update"),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 });
 
 export const insertWorldRegionSchema = createInsertSchema(worldRegions).omit({
@@ -1027,7 +1028,7 @@ export const worldLocations = pgTable("world_locations", {
   // Lore
   lore: text("lore"),
   secrets: text("secrets"), // Hidden info revealed when discovered
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 });
 
 export const insertWorldLocationSchema = createInsertSchema(worldLocations).omit({
@@ -1058,7 +1059,7 @@ export const userWorldProgress = pgTable("user_world_progress", {
   lastCampaignId: integer("last_campaign_id"),
   // Notes the player made about this area
   playerNotes: text("player_notes"),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_user_world_progress_user_id").on(t.userId),
 ]);
@@ -1087,7 +1088,7 @@ export const worldEvents = pgTable("world_events", {
   triggerDetail: text("trigger_detail"),
   isActive: boolean("is_active").default(true),
   expiresAt: text("expires_at"),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 });
 
 export const insertWorldEventSchema = createInsertSchema(worldEvents).omit({
@@ -1113,7 +1114,7 @@ export const worldDiscoveries = pgTable("world_discoveries", {
   terrainType: text("terrain_type"),
   isPublic: boolean("is_public").default(true),
   metadata: jsonb("metadata").default({}),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_world_discoveries_source_campaign_id").on(t.sourceCampaignId),
 ]);
@@ -1133,7 +1134,7 @@ export const worldWhispers = pgTable("world_whispers", {
   message: text("message").notNull(),
   isRead: boolean("is_read").default(false),
   isDismissed: boolean("is_dismissed").default(false),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_world_whispers_campaign_id").on(t.campaignId),
 ]);
@@ -1166,7 +1167,7 @@ export const bulletinPosts = pgTable("bulletin_posts", {
   isActive: boolean("is_active").default(true),
   responseCount: integer("response_count").default(0),
   // Timestamps
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   updatedAt: text("updated_at"),
   expiresAt: text("expires_at"), // Auto-expire old posts
 }, (t) => [
@@ -1192,7 +1193,7 @@ export const bulletinResponses = pgTable("bulletin_responses", {
   // Contact preferences
   contactMethod: text("contact_method"), // in-app, discord, etc.
   contactInfo: text("contact_info"), // Optional contact details
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_bulletin_responses_post_id").on(t.postId),
   index("idx_bulletin_responses_user_id").on(t.userId),
@@ -1258,7 +1259,7 @@ export const dmSessionStates = pgTable("dm_session_states", {
   camlEntitySources: jsonb("caml_entity_sources").default({}), // {npcs: [], items: [], encounters: [], locations: []}
   // Status
   isActive: boolean("is_active").default(true),
-  startedAt: text("started_at").notNull().default(new Date().toISOString()),
+  startedAt: text("started_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   lastUpdatedAt: text("last_updated_at"),
 }, (t) => [
   index("idx_dm_session_states_campaign_id").on(t.campaignId),
@@ -1280,7 +1281,7 @@ export const factions = pgTable("factions", {
   type: text("type").notNull().default("group"), // group, institution, settlement, guild, religious, criminal
   disposition: text("disposition").default("neutral"), // friendly, neutral, suspicious, hostile
   values: text("values").array(), // What the faction values: honor, wealth, power, knowledge, etc.
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_factions_campaign_id").on(t.campaignId),
 ]);
@@ -1310,7 +1311,7 @@ export const characterReputationProfiles = pgTable("character_reputation_profile
   reputationNotes: text("reputation_notes"), // DM notes about this reputation
   // Update tracking
   lastEventId: integer("last_event_id"), // Last reputation event processed
-  lastUpdatedAt: text("last_updated_at").notNull().default(new Date().toISOString()),
+  lastUpdatedAt: text("last_updated_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_char_reputation_profiles_campaign_id").on(t.campaignId),
   index("idx_char_reputation_profiles_character_id").on(t.characterId),
@@ -1343,7 +1344,7 @@ export const reputationEvents = pgTable("reputation_events", {
   locationContext: text("location_context"), // Where it happened
   // Metadata
   isProcessed: boolean("is_processed").default(false), // Whether this was factored into profile
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_reputation_events_campaign_id").on(t.campaignId),
   index("idx_reputation_events_character_id").on(t.characterId),
@@ -1375,7 +1376,7 @@ export const playerGroups = pgTable("player_groups", {
   // Settings
   isPublic: boolean("is_public").default(true),
   maxMembers: integer("max_members").default(20),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   updatedAt: text("updated_at"),
 });
 
@@ -1395,7 +1396,7 @@ export const playerGroupMembers = pgTable("player_group_members", {
   characterId: integer("character_id"), // Which character represents them (optional)
   role: text("role").default("member"), // founder, leader, officer, member
   title: text("title"), // Custom title within the group
-  joinedAt: text("joined_at").notNull().default(new Date().toISOString()),
+  joinedAt: text("joined_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   isActive: boolean("is_active").default(true),
 }, (t) => [
   index("idx_player_group_members_group_id").on(t.groupId),
@@ -1418,7 +1419,7 @@ export const groupInvitations = pgTable("group_invitations", {
   inviteeId: integer("invitee_id").notNull(), // Who is being invited
   message: text("message"), // Optional message with the invite
   status: text("status").default("pending"), // pending, accepted, declined, expired
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   respondedAt: text("responded_at"),
 });
 
@@ -1443,7 +1444,7 @@ export const groupMessages = pgTable("group_messages", {
   isPinned: boolean("is_pinned").default(false),
   isAnnouncement: boolean("is_announcement").default(false),
   // Metadata
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   updatedAt: text("updated_at"),
 }, (t) => [
   index("idx_group_messages_group_id").on(t.groupId),
@@ -1475,7 +1476,7 @@ export const worldMemory = pgTable("world_memory", {
   causedByCharacterId: integer("caused_by_character_id"),
   triggeringEventId: integer("triggering_event_id"), // Link to reputation event
   // Timing
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   expiresAt: text("expires_at"), // When this memory fades (null = permanent)
 }, (t) => [
   index("idx_world_memory_campaign_id").on(t.campaignId),
@@ -1507,7 +1508,7 @@ export const unresolvedThreads = pgTable("unresolved_threads", {
   resolvedAt: text("resolved_at"),
   resolutionNotes: text("resolution_notes"),
   // Tracking
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   lastMentionedAt: text("last_mentioned_at"),
 }, (t) => [
   index("idx_unresolved_threads_campaign_id").on(t.campaignId),
@@ -1536,7 +1537,7 @@ export const characterArcInsights = pgTable("character_arc_insights", {
   isRevealed: boolean("is_revealed").default(false), // Whether player has seen this
   revealedAt: text("revealed_at"),
   // Tracking
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   expiresAt: text("expires_at"), // When insight is no longer relevant
 }, (t) => [
   index("idx_character_arc_insights_campaign_id").on(t.campaignId),
@@ -1587,7 +1588,7 @@ export const worldRumors = pgTable("world_rumors", {
   lastHeardAt: text("last_heard_at"),
   // Origin tracking
   generatedFromPattern: text("generated_from_pattern"), // What caused this rumor
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   expiresAt: text("expires_at"), // When rumor fades from circulation
 });
 
@@ -1622,7 +1623,7 @@ export const worldDevelopments = pgTable("world_developments", {
   resolution: text("resolution"),
   resolvedAt: text("resolved_at"),
   // Tracking
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   showAfter: text("show_after"), // Don't show until this date (for slow reveals)
 });
 
@@ -1647,7 +1648,7 @@ export const userActivityEvents = pgTable("user_activity_events", {
   campaignId: integer("campaign_id"), // If action is campaign-specific
   characterId: integer("character_id"), // If action is character-specific
   duration: integer("duration"), // Time spent in milliseconds (for timed events)
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_user_activity_events_user_id").on(t.userId),
 ]);
@@ -1819,7 +1820,7 @@ export const badges = pgTable("badges", {
   // Display settings
   color: text("color").default("#8B5CF6"), // Badge color theme
   rarity: text("rarity").default("common"), // 'common', 'uncommon', 'rare', 'legendary'
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 });
 
 export const insertBadgeSchema = createInsertSchema(badges).omit({
@@ -1881,7 +1882,7 @@ export const magicItemTemplates = pgTable("magic_item_templates", {
   // Flavor
   lore: text("lore"), // Background story of the item
   imageUrl: text("image_url"),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 });
 
 export const insertMagicItemTemplateSchema = createInsertSchema(magicItemTemplates).omit({
@@ -1925,7 +1926,7 @@ export const characterInventory = pgTable("character_inventory", {
   currentCharges: integer("current_charges"),
   // Value
   value: integer("value").default(0), // Gold value
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_character_inventory_character_id").on(t.characterId),
 ]);
@@ -1956,7 +1957,7 @@ export const milestoneRewards = pgTable("milestone_rewards", {
   claimedAt: text("claimed_at"),
   // Timestamps
   earnedAt: text("earned_at").notNull(),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_milestone_rewards_campaign_id").on(t.campaignId),
   index("idx_milestone_rewards_character_id").on(t.characterId),
@@ -1990,8 +1991,8 @@ export const playerProgression = pgTable("player_progression", {
   confirmCount: integer("confirm_count").notNull().default(0), // consecutive promote-qualifying evals
   lastRungChangeTurn: integer("last_rung_change_turn").notNull().default(0),
   totalTurns: integer("total_turns").notNull().default(0),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
-  updatedAt: text("updated_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
+  updatedAt: text("updated_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_player_progression_campaign_id").on(t.campaignId),
   index("idx_player_progression_user_id").on(t.userId),
@@ -2030,7 +2031,7 @@ export const hearthEvents = pgTable("hearth_events", {
   type: text("type").notNull(), // arrival, departure, toast, mark, board_post, milestone, system_murmur
   userId: integer("user_id"), // nullable for system events
   payload: jsonb("payload"), // { text, campaignId, summary, etc. }
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 });
 
 export const insertHearthEventSchema = createInsertSchema(hearthEvents).omit({
@@ -2047,7 +2048,7 @@ export const hearthBoardPosts = pgTable("hearth_board_posts", {
   title: text("title").notNull(),
   body: text("body"),
   pinned: boolean("pinned").default(false),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   expiresAt: text("expires_at"),
   deletedAt: text("deleted_at"),
 });
@@ -2082,7 +2083,7 @@ export const hearthMurmur = pgTable("hearth_murmur", {
   text: text("text").notNull(),
   activeFrom: text("active_from").notNull(),
   activeTo: text("active_to").notNull(),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 });
 
 export const insertHearthMurmurSchema = createInsertSchema(hearthMurmur).omit({
@@ -2315,7 +2316,7 @@ export const campaignSrdReferences = pgTable("campaign_srd_references", {
   entityData: jsonb("entity_data"), // Cached entity data for quick display
   notes: text("notes"), // Optional DM notes about this entity
   addedBy: integer("added_by").notNull(), // User who added it
-  addedAt: text("added_at").notNull().default(new Date().toISOString()),
+  addedAt: text("added_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_campaign_srd_references_campaign_id").on(t.campaignId),
 ]);
@@ -2326,7 +2327,7 @@ export const demoAnalytics = pgTable("demo_analytics", {
   sessionId: text("session_id").notNull(), // Browser fingerprint/session for tracking unique visitors
   eventType: text("event_type").notNull(), // started, character_selected, adventure_selected, scene_completed, dice_rolled, completed, converted
   eventData: jsonb("event_data"), // Additional event metadata (character chosen, adventure, scene number, etc.)
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   userAgent: text("user_agent"),
   referrer: text("referrer"),
   convertedUserId: integer("converted_user_id"), // If user signed up after demo, link to their user ID
@@ -2369,7 +2370,7 @@ export const sharedAdventures = pgTable("shared_adventures", {
   downloadCount: integer("download_count").default(0),
   isFeatured: boolean("is_featured").default(false),
   status: text("status").notNull().default("published"),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   updatedAt: text("updated_at"),
 });
 
@@ -2400,7 +2401,7 @@ export const sharedItems = pgTable("shared_items", {
   downloadCount: integer("download_count").default(0),
   isFeatured: boolean("is_featured").default(false),
   status: text("status").notNull().default("published"),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 });
 
 export const insertSharedItemSchema = createInsertSchema(sharedItems).omit({
@@ -2421,7 +2422,7 @@ export const tradingPostReviews = pgTable("trading_post_reviews", {
   targetId: integer("target_id").notNull(),
   rating: integer("rating").notNull(),
   comment: text("comment"),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_trading_post_reviews_user_id").on(t.userId),
 ]);
@@ -2461,7 +2462,7 @@ export const playerListings = pgTable("player_listings", {
   status: text("status").notNull().default("active"),
   buyerId: integer("buyer_id"),
   buyerCharacterId: integer("buyer_character_id"),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   soldAt: text("sold_at"),
 });
 
@@ -2492,7 +2493,7 @@ export const wanderRuns = pgTable("wander_runs", {
   lastOutcomeType: text("last_outcome_type"),
   status: text("status").notNull().default("active"),
   flags: jsonb("flags"),
-  startedAt: text("started_at").notNull().default(new Date().toISOString()),
+  startedAt: text("started_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   endedAt: text("ended_at"),
 }, (t) => [
   index("idx_wander_runs_campaign_id").on(t.campaignId),
@@ -2517,7 +2518,7 @@ export const wanderOutcomeLog = pgTable("wander_outcome_log", {
   outcomeType: text("outcome_type").notNull(),
   outcomePayload: jsonb("outcome_payload"),
   rewardPayload: jsonb("reward_payload"),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_wander_outcome_log_run_id").on(t.runId),
 ]);
@@ -2544,7 +2545,7 @@ export const wanderMarkers = pgTable("wander_markers", {
   linkedSceneId: text("linked_scene_id"),
   linkedFactionId: text("linked_faction_id"),
   linkedItemId: text("linked_item_id"),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   expiresAtTick: integer("expires_at_tick"),
 }, (t) => [
   index("idx_wander_markers_campaign_id").on(t.campaignId),
@@ -2599,7 +2600,7 @@ export const dungeonDefinitions = pgTable("dungeon_definitions", {
   nodeTable: jsonb("node_table").notNull(),
   rewardProfile: jsonb("reward_profile"),
   completionHooks: jsonb("completion_hooks"),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 });
 
 export const insertDungeonDefinitionSchema = createInsertSchema(dungeonDefinitions).omit({
@@ -2625,7 +2626,7 @@ export const dungeonRuns = pgTable("dungeon_runs", {
   supplies: integer("supplies").notNull().default(10),
   status: text("status").notNull().default("active"),
   flags: jsonb("flags"),
-  startedAt: text("started_at").notNull().default(new Date().toISOString()),
+  startedAt: text("started_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   endedAt: text("ended_at"),
 }, (t) => [
   index("idx_dungeon_runs_campaign_id").on(t.campaignId),
@@ -2667,7 +2668,7 @@ export const dungeonRewards = pgTable("dungeon_rewards", {
   unlockDrops: jsonb("unlock_drops"),
   goldValue: integer("gold_value").notNull().default(0),
   xpValue: integer("xp_value").notNull().default(0),
-  grantedAt: text("granted_at").notNull().default(new Date().toISOString()),
+  grantedAt: text("granted_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_dungeon_rewards_run_id").on(t.runId),
   index("idx_dungeon_rewards_user_id").on(t.userId),
@@ -2689,7 +2690,7 @@ export const llmConfigs = pgTable("llm_configs", {
   model: text("model"),
   isActive: boolean("is_active").notNull().default(true),
   label: text("label").notNull().default("My LLM"),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   updatedAt: text("updated_at"),
 }, (t) => [
   index("idx_llm_configs_user_id").on(t.userId),
@@ -2709,7 +2710,7 @@ export const userFeedback = pgTable("user_feedback", {
   feltSlow: boolean("felt_slow").notNull().default(false),
   wouldUse: boolean("would_use").notNull().default(false),
   comment: text("comment"),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 });
 
 export const insertUserFeedbackSchema = createInsertSchema(userFeedback).omit({
@@ -2732,7 +2733,7 @@ export const playerHouses = pgTable("player_houses", {
   storedItems: jsonb("stored_items").default([]),
   upgrades: jsonb("upgrades").default([]),
   purchasedAt: text("purchased_at").notNull(),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_player_houses_campaign_id").on(t.campaignId),
   index("idx_player_houses_character_id").on(t.characterId),
@@ -2753,7 +2754,7 @@ export const playerBank = pgTable("player_bank", {
   balance: integer("balance").notNull().default(0),
   lastInterestAt: text("last_interest_at"),
   transactions: jsonb("transactions").default([]),
-  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_player_bank_campaign_id").on(t.campaignId),
   index("idx_player_bank_character_id").on(t.characterId),
