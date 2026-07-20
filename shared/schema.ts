@@ -63,7 +63,7 @@ export const userSessions = pgTable("user_sessions", {
   userId: integer("user_id").notNull(),
   token: text("token").notNull().unique(),
   expiresAt: text("expires_at").notNull(),
-  createdAt: text("created_at").notNull(),
+  createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
   lastUsed: text("last_used"),
   userAgent: text("user_agent"),
   ipAddress: text("ip_address"),
@@ -134,7 +134,7 @@ export const characters = pgTable("characters", {
   backgroundStory: text("background_story"),
   // One-time rename: players may rename a generated character exactly once
   hasRenamedCharacter: boolean("has_renamed_character").default(false),
-  createdAt: text("created_at").notNull(),
+  createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
   updatedAt: text("updated_at"),
 }, (t) => [
   index("idx_characters_user_id").on(t.userId),
@@ -275,7 +275,7 @@ export const campaigns = pgTable("campaigns", {
   // Generated cover art for the adventure, preserved so it travels with the
   // campaign everywhere it appears (campaign cards, Trading Post listing, etc.).
   coverImageUrl: text("cover_image_url"),
-  createdAt: text("created_at").notNull(),
+  createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
   updatedAt: text("updated_at"),
 });
 
@@ -295,7 +295,7 @@ export const campaignParticipants = pgTable("campaign_participants", {
   role: text("role").notNull().default("player"), // DM or player
   turnOrder: integer("turn_order"), // Position in turn order (null = not turn-based)
   isActive: boolean("is_active").default(true), // Whether participant is active
-  joinedAt: text("joined_at").notNull(),
+  joinedAt: text("joined_at").notNull().$defaultFn(() => new Date().toISOString()),
   lastActiveAt: text("last_active_at"), // Last time they took a turn
 }, (t) => [
   index("idx_campaign_participants_campaign_id").on(t.campaignId),
@@ -321,7 +321,7 @@ export const campaignSessions = pgTable("campaign_sessions", {
   sessionXpReward: integer("session_xp_reward").default(0),
   isCompleted: boolean("is_completed").default(false),
   completedAt: text("completed_at"),
-  createdAt: text("created_at").notNull(),
+  createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
   updatedAt: text("updated_at"),
   // Enhanced story continuity fields
   previousSessionResult: jsonb("previous_session_result"), // What happened in previous session
@@ -359,7 +359,7 @@ export const adventureCompletions = pgTable("adventure_completions", {
   characterId: integer("character_id").notNull(),
   campaignId: integer("campaign_id").notNull(),
   xpAwarded: integer("xp_awarded").notNull(),
-  completedAt: text("completed_at").notNull(),
+  completedAt: text("completed_at").notNull().$defaultFn(() => new Date().toISOString()),
   notes: text("notes"),
 }, (t) => [
   index("idx_adventure_completions_user_id").on(t.userId),
@@ -383,7 +383,7 @@ export const diceRolls = pgTable("dice_rolls", {
   modifier: integer("modifier").default(0),
   count: integer("count").default(1), // Adding count field with default of 1
   purpose: text("purpose"),
-  createdAt: text("created_at").notNull(),
+  createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
 }, (t) => [
   index("idx_dice_rolls_user_id").on(t.userId),
 ]);
@@ -1557,7 +1557,7 @@ export const userSessionTracking = pgTable("user_session_tracking", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   campaignId: integer("campaign_id").notNull(),
-  lastLoginAt: text("last_login_at").notNull(),
+  lastLoginAt: text("last_login_at").notNull().$defaultFn(() => new Date().toISOString()),
   lastWorldStateHash: text("last_world_state_hash"), // To detect meaningful changes
   sinceThenBullets: jsonb("since_then_bullets").default([]), // Cached bullets for display
   bulletsCachedAt: text("bullets_cached_at"),
@@ -1666,7 +1666,7 @@ export const userSessionsAnalytics = pgTable("user_sessions_analytics", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   sessionId: text("session_id").notNull(),
-  startedAt: text("started_at").notNull(),
+  startedAt: text("started_at").notNull().$defaultFn(() => new Date().toISOString()),
   endedAt: text("ended_at"),
   durationMinutes: integer("duration_minutes"),
   pageViews: integer("page_views").default(0),
@@ -1757,7 +1757,7 @@ export const characterSpells = pgTable("character_spells", {
   // For spellbook casters (Wizard) - spells in spellbook vs just known
   inSpellbook: boolean("in_spellbook").default(true),
   // Acquisition tracking
-  acquiredAt: text("acquired_at").notNull(),
+  acquiredAt: text("acquired_at").notNull().$defaultFn(() => new Date().toISOString()),
   acquiredLevel: integer("acquired_level").default(1), // Character level when learned
   // Story context
   acquisitionStory: text("acquisition_story"), // How they learned it (quest reward, scroll study, etc.)
@@ -1835,7 +1835,7 @@ export const userBadges = pgTable("user_badges", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   badgeId: integer("badge_id").notNull(),
-  earnedAt: text("earned_at").notNull(),
+  earnedAt: text("earned_at").notNull().$defaultFn(() => new Date().toISOString()),
   // Context about how they earned it
   context: jsonb("context").default({}), // e.g., { campaignId: 5, characterName: "Thorin" }
   // Display preferences
@@ -1906,7 +1906,7 @@ export const characterInventory = pgTable("character_inventory", {
   isBound: boolean("is_bound").default(false), // Soulbound to character
   boundAt: text("bound_at"), // When item was bound
   acquiredFrom: text("acquired_from"), // "milestone", "shop", "quest", "loot"
-  acquiredAt: text("acquired_at").notNull(),
+  acquiredAt: text("acquired_at").notNull().$defaultFn(() => new Date().toISOString()),
   // Stats (copied from template or set manually)
   magicBonus: integer("magic_bonus").default(0),
   damageDice: text("damage_dice"),
@@ -1956,7 +1956,7 @@ export const milestoneRewards = pgTable("milestone_rewards", {
   isClaimed: boolean("is_claimed").default(false),
   claimedAt: text("claimed_at"),
   // Timestamps
-  earnedAt: text("earned_at").notNull(),
+  earnedAt: text("earned_at").notNull().$defaultFn(() => new Date().toISOString()),
   createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_milestone_rewards_campaign_id").on(t.campaignId),
@@ -2732,7 +2732,7 @@ export const playerHouses = pgTable("player_houses", {
   furnishings: jsonb("furnishings").default([]),
   storedItems: jsonb("stored_items").default([]),
   upgrades: jsonb("upgrades").default([]),
-  purchasedAt: text("purchased_at").notNull(),
+  purchasedAt: text("purchased_at").notNull().$defaultFn(() => new Date().toISOString()),
   createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 }, (t) => [
   index("idx_player_houses_campaign_id").on(t.campaignId),
