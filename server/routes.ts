@@ -7882,14 +7882,20 @@ Return your response as a JSON object with these fields:
         model: aiModel,
         messages: [{ role: "user", content: promptWithContext }],
         response_format: { type: "json_object" },
-        max_tokens: 1500,
+        // No max_tokens cap: rich scenes (narrative + choices + discoveredQuest)
+        // overflow a low cap, truncating the JSON so parsing fails and the
+        // player's action 500s. The main advance-story path is likewise uncapped.
       });
 
       const responseContent = response.choices[0].message.content;
       let storyData;
-      
+
       try {
-        storyData = JSON.parse(responseContent);
+        const cleaned = (responseContent || "")
+          .replace(/^```(?:json)?\s*/i, "")
+          .replace(/\s*```$/i, "")
+          .trim();
+        storyData = JSON.parse(cleaned);
         
         // Ensure the response has the expected structure
         if (!storyData.narrative || !storyData.sessionTitle || 
@@ -24634,10 +24640,16 @@ Respond with JSON:
             model: reckoningModel,
             messages: [{ role: "user", content: reckoningPrompt }],
             response_format: { type: "json_object" },
-            max_tokens: 800,
+            // No max_tokens cap: the prompt asks for a 5-paragraph scene plus
+            // several fields. A low cap (was 800) truncates the JSON mid-string,
+            // so this mandatory Session 1 ending silently fails to generate.
           });
-          
-          quietReckoningData = JSON.parse(reckoningResponse.choices[0].message.content || '{}');
+
+          const reckoningContent = (reckoningResponse.choices[0].message.content || '{}')
+            .replace(/^```(?:json)?\s*/i, "")
+            .replace(/\s*```$/i, "")
+            .trim();
+          quietReckoningData = JSON.parse(reckoningContent);
           console.log(`[Quiet Reckoning] Generated successfully for campaign ${campaignId}`);
 
           // First-session wrap-up: concrete rewards earned + character growth snapshot.
