@@ -5399,15 +5399,24 @@ Return your response as a JSON object with these fields:
         const response = await openaiClient.chat.completions.create({
           model: aiModel,
           messages: [{ role: "user", content: prompt }],
+          // No max_tokens cap here. A low cap (was 1500) truncates the JSON
+          // mid-string, so JSON.parse throws and EVERY new player is dropped
+          // into the generic fallback session below — this silently broke
+          // first-run for all new users. The ongoing turn loop (advanceStory)
+          // is likewise uncapped, which is why existing campaigns work fine.
           response_format: { type: "json_object" },
-          max_tokens: 1500,
         });
-        
+
         const responseContent = response.choices[0].message.content;
         let initialSessionData;
-        
+
         try {
-          initialSessionData = JSON.parse(responseContent);
+          // Strip any markdown code fences before parsing (defensive).
+          const cleanedContent = (responseContent || "")
+            .replace(/^```(?:json)?\s*/i, "")
+            .replace(/\s*```$/i, "")
+            .trim();
+          initialSessionData = JSON.parse(cleanedContent);
           
           // Ensure the response has the expected structure
           if (!initialSessionData.narrative || !initialSessionData.sessionTitle || 
