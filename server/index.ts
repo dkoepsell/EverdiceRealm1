@@ -12,9 +12,14 @@ import { startReengagementScheduler, stopReengagementScheduler } from "./lib/ree
 import { serverLogger } from "./lib/logger";
 
 const app = express();
+// Behind nginx on prod — trust the first proxy hop so req.ip / x-forwarded-for
+// reflect the real client (needed for the demo-turn per-IP rate limit).
+app.set('trust proxy', 1);
 app.use(compression({
   filter: (req, res) => {
+    // Disable compression for SSE endpoints — buffering breaks the stream.
     if (req.path.includes('advance-story-stream')) return false;
+    if (req.path === '/api/demo/turn') return false;
     return compression.filter(req, res);
   }
 }));

@@ -50,6 +50,22 @@ export default function LandingPage() {
     }
   }, [user]);
   
+  // Deep link into the demo: the intro trailer's primary CTA sends first-time
+  // visitors here as /?demo=1 so they land in a real playable turn, not the signup wall.
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('demo') === '1') {
+        setShowGuestPlay(true);
+        params.delete('demo');
+        const rest = params.toString();
+        window.history.replaceState({}, '', window.location.pathname + (rest ? `?${rest}` : ''));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const handleGuestPlayComplete = () => {
     localStorage.setItem('everdice_guest_played', 'true');
     setShowGuestPlay(false);

@@ -28938,7 +28938,155 @@ Snapshots must include at least 2 forked endings.`;
   });
 
   // ============ Demo Analytics Routes ============
-  
+
+  // --- Anonymous demo turn: ONE real AI-narrated turn, no account required ---
+  // In-memory anti-abuse guards (single prod box → in-memory Maps are sufficient;
+  // these persist for the process lifetime because the closures capture them).
+  const DEMO_MAX_TURNS_PER_SESSION = 2;   // primary cost cap: 2 real AI turns per visitor
+  const DEMO_MAX_TURNS_PER_IP_HOUR = 12;  // per-IP sliding window
+  const DEMO_MAX_TURNS_PER_DAY = 1500;    // global circuit breaker on AI spend
+  const demoTurnsBySession = new Map<string, number>();
+  const demoTurnsByIp = new Map<string, { count: number; windowStart: number }>();
+  let demoTurnsToday = { count: 0, day: new Date().toISOString().slice(0, 10) };
+
+  // Returns null if allowed, or a string reason if the request should fall back to scripted.
+  const demoTurnLimitReason = (sessionId: string, ip: string): string | null => {
+    const now = Date.now();
+    const today = new Date().toISOString().slice(0, 10);
+    if (demoTurnsToday.day !== today) demoTurnsToday = { count: 0, day: today };
+    if (demoTurnsToday.count >= DEMO_MAX_TURNS_PER_DAY) return "daily";
+
+    if ((demoTurnsBySession.get(sessionId) || 0) >= DEMO_MAX_TURNS_PER_SESSION) return "session";
+
+    const ipRec = demoTurnsByIp.get(ip);
+    if (!ipRec || now - ipRec.windowStart > 60 * 60 * 1000) {
+      // window expired or first hit — reset lazily
+    } else if (ipRec.count >= DEMO_MAX_TURNS_PER_IP_HOUR) {
+      return "ip";
+    }
+    return null;
+  };
+
+  const recordDemoTurn = (sessionId: string, ip: string) => {
+    const now = Date.now();
+    demoTurnsToday.count++;
+    demoTurnsBySession.set(sessionId, (demoTurnsBySession.get(sessionId) || 0) + 1);
+    const ipRec = demoTurnsByIp.get(ip);
+    if (!ipRec || now - ipRec.windowStart > 60 * 60 * 1000) {
+      demoTurnsByIp.set(ip, { count: 1, windowStart: now });
+    } else {
+      ipRec.count++;
+    }
+  };
+
+  // POST /api/demo/turn — public, SSE. Mirrors the authenticated
+  // /api/campaigns/:id/advance-story-stream contract (start → narrative → complete → done)
+  // but is fully self-contained: no DB campaign, no req.user. On any error/limit it emits
+  // `error` and the client silently falls back to the scripted demo scene.
+  app.post("/api/demo/turn", async (req, res) => {
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
+    const sendEvent = (event: string, data: any) => {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    try {
+      sendEvent("start", { status: "generating" });
+
+      const {
+        sessionId = "demo_unknown",
+        characterClass = "Fighter",
+        characterName,
+        adventureTheme = "dungeon",
+        sceneIndex = 0,
+        playerAction = "Continue the adventure",
+        previousNarrative = "",
+        rollResult,
+      } = (req.body || {}) as Record<string, any>;
+
+      const ip = ((req.headers["x-forwarded-for"] as string) || "").split(",")[0].trim() || req.ip || "unknown";
+
+      const limitReason = demoTurnLimitReason(String(sessionId), ip);
+      if (limitReason) {
+        sendEvent("error", { reason: "limit", detail: limitReason });
+        res.write("event: done\ndata: {}\n\n");
+        return res.end();
+      }
+
+      // Synthesize a fixed demo character + situation (a logged-out visitor has no DB state).
+      const cls = String(characterClass);
+      const name = characterName ? String(characterName) : `A lone ${cls.toLowerCase()}`;
+      const theme = String(adventureTheme);
+
+      const demoPrompt = `You are an expert Dungeon Master running a fast, vivid D&D 5e solo demo. This is a first-time player's very first turn — hook them.
+Theme: ${theme.toUpperCase()}
+Player Character: ${name} (Level 3 ${cls})
+${previousNarrative ? `Previous scene: ${String(previousNarrative).slice(0, 500)}` : "This is the opening scene of the adventure."}
+
+The player chose: "${String(playerAction).slice(0, 400)}"
+${rollResult ? `
+DICE OUTCOME — the player just rolled for this action:
+- Roll: d20 ${rollResult.result} vs DC ${rollResult.dc || 12}
+- Result: ${(rollResult.result || 0) >= (rollResult.dc || 12) ? "SUCCESS — show it paying off" : "FAILURE — show the complication, not a clean win"}
+Write the scene around this outcome. Do NOT contradict it.` : ""}
+
+Write ONLY the narrative prose for the next scene — 2-3 short, cinematic paragraphs (about 60-110 words). Second person ("you"). Make the world feel alive and reactive to the player's choice. End on a small beat of momentum or a light hook, but do NOT ask a question or list choices.
+No JSON, no choices, no game mechanics, no headings — just the story text.`;
+
+      try {
+        const { client: openaiClient, model: aiModel } = await getFastAIClient(undefined);
+        const stream = await openaiClient.chat.completions.create({
+          model: aiModel,
+          messages: [{ role: "user", content: demoPrompt }],
+          max_tokens: 400,
+          temperature: 0.9,
+          stream: true,
+        });
+
+        let accumulated = "";
+        for await (const chunk of stream) {
+          const delta = chunk.choices[0]?.delta?.content || "";
+          if (delta) {
+            accumulated += delta;
+            sendEvent("narrative", { text: accumulated });
+          }
+        }
+
+        if (accumulated.trim()) {
+          recordDemoTurn(String(sessionId), ip);
+          // Fire-and-forget analytics; never block the response on it.
+          db.insert(demoAnalytics).values({
+            sessionId: String(sessionId),
+            eventType: "demo_turn",
+            eventData: { sceneIndex, characterClass: cls, adventureTheme: theme },
+            userAgent: req.headers["user-agent"] || null,
+            referrer: req.headers.referer || null,
+            createdAt: new Date().toISOString(),
+          }).catch((e) => console.debug("Demo turn analytics failed:", e));
+          sendEvent("complete", { narrative: accumulated });
+        } else {
+          sendEvent("error", { reason: "empty" });
+        }
+      } catch (aiError: any) {
+        console.error("Demo turn: AI generation failed:", aiError?.message || aiError);
+        sendEvent("error", { reason: "ai", message: aiError?.message || "AI generation failed" });
+      }
+
+      res.write("event: done\ndata: {}\n\n");
+      res.end();
+    } catch (error: any) {
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Demo turn failed" });
+      } else {
+        try { sendEvent("error", { reason: "server" }); res.write("event: done\ndata: {}\n\n"); res.end(); } catch {}
+      }
+    }
+  });
+
   // Track demo events (public - no auth required)
   app.post("/api/demo/track", async (req, res) => {
     try {

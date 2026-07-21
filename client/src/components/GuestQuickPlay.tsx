@@ -31,7 +31,8 @@ import {
   Skull,
   Crown,
   ScrollText,
-  HelpCircle
+  HelpCircle,
+  Loader2
 } from "lucide-react";
 
 interface CharacterTemplate {
@@ -595,6 +596,11 @@ export default function GuestQuickPlay({
   const [showOutcome, setShowOutcome] = useState(false);
   const [narrativeRevealed, setNarrativeRevealed] = useState(false);
   const [stateUpdates, setStateUpdates] = useState<string[]>([]);
+  // Live AI narration for the "reaction" scenes (1 & 2). Keyed by scene index; when
+  // present it replaces the scripted narrative. Falls back to scripted on any failure.
+  const [aiNarratives, setAiNarratives] = useState<Record<number, string>>({});
+  const [aiStreaming, setAiStreaming] = useState(false);
+  const AI_LAST_SCENE = 2; // scenes 1 and 2 are narrated live by the real AI DM
 
   const selectedChar = CHARACTER_TEMPLATES.find(c => c.id === selectedCharacter) || autoChar;
   const selectedAdventure = ADVENTURE_THEMES.find(t => t.id === selectedTheme) || autoTheme;
@@ -604,6 +610,10 @@ export default function GuestQuickPlay({
     : [];
   
   const scene = scenes[currentScene];
+  // Prefer live AI narration for this scene when we have it; otherwise the scripted text.
+  const displayNarrative = aiNarratives[currentScene] ?? scene?.narrative ?? '';
+  const isLiveAiNarrative = typeof aiNarratives[currentScene] === 'string';
+  const aiWritingThisScene = aiStreaming && !isLiveAiNarrative && currentScene >= 1 && currentScene <= AI_LAST_SCENE;
 
   // Track demo start on mount
   useEffect(() => {
@@ -638,8 +648,72 @@ export default function GuestQuickPlay({
     }, 80);
   };
 
+  // Stream ONE real AI-narrated turn from /api/demo/turn into aiNarratives[targetScene].
+  // Mirrors the authenticated advance-story-stream SSE contract. On any failure the
+  // scripted narrative for that scene remains the fallback — the demo never hard-breaks.
+  const streamDemoTurn = async (
+    targetScene: number,
+    playerAction: string,
+    prevNarrative: string,
+    roll?: { result: number; dc: number },
+  ) => {
+    setAiStreaming(true);
+    setAiNarratives(prev => { const n = { ...prev }; delete n[targetScene]; return n; });
+    let gotText = false;
+    let failed = false;
+    try {
+      const resp = await fetch('/api/demo/turn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: getOrCreateSessionId(),
+          characterClass: selectedChar.class,
+          characterName: selectedChar.name,
+          adventureTheme: selectedAdventure.id,
+          sceneIndex: targetScene,
+          playerAction,
+          previousNarrative: prevNarrative,
+          rollResult: roll,
+        }),
+      });
+      if (!resp.ok || !resp.body) throw new Error('no stream');
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let event = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            event = line.slice(7).trim();
+          } else if (line.startsWith('data: ')) {
+            try {
+              const payload = JSON.parse(line.slice(6));
+              if (event === 'narrative' && typeof payload.text === 'string') {
+                gotText = true;
+                setAiNarratives(prev => ({ ...prev, [targetScene]: payload.text }));
+              } else if (event === 'error') {
+                failed = true;
+              }
+            } catch { /* ignore malformed frame */ }
+          }
+        }
+      }
+      if (failed || !gotText) throw new Error('no narration');
+    } catch {
+      // Drop any partial AI text so the scripted narrative shows instead.
+      setAiNarratives(prev => { const n = { ...prev }; delete n[targetScene]; return n; });
+    } finally {
+      setAiStreaming(false);
+    }
+  };
+
   const handleContinue = () => {
-    trackDemoEvent('scene_completed', { 
+    trackDemoEvent('scene_completed', {
       sceneNumber: currentScene + 1,
       characterId: selectedCharacter,
       adventureId: selectedTheme
@@ -658,7 +732,24 @@ export default function GuestQuickPlay({
     setStateUpdates(prev => [...prev, ...(sceneStateUpdates[currentScene] || ["Progress saved"])]);
 
     if (currentScene < scenes.length - 1) {
-      setCurrentScene(currentScene + 1);
+      const nextScene = currentScene + 1;
+      // Kick off a REAL AI-narrated turn for the reaction scenes (1 & 2), so the
+      // player sees the actual Dungeon Master respond to what they just chose/rolled.
+      // Runs async; the scripted narrative shows if the AI is unavailable.
+      if (nextScene >= 1 && nextScene <= AI_LAST_SCENE) {
+        let actionText = 'presses onward into the unknown';
+        let roll: { result: number; dc: number } | undefined;
+        if (scene?.requiresRoll && diceResult != null) {
+          actionText = `attempts a ${scene.requiresRoll.skill || scene.requiresRoll.type || 'skill'} check`;
+          roll = { result: diceResult, dc: scene.requiresRoll.dc };
+        } else if (selectedChoice && scene?.choices) {
+          const chosen = scene.choices.find(c => c.id === selectedChoice);
+          if (chosen?.text) actionText = chosen.text;
+        }
+        const prevNarrative = aiNarratives[currentScene] ?? scene?.narrative ?? '';
+        void streamDemoTurn(nextScene, actionText, prevNarrative, roll);
+      }
+      setCurrentScene(nextScene);
       setSelectedChoice(null);
       setDiceResult(null);
       setShowOutcome(false);
@@ -969,13 +1060,29 @@ export default function GuestQuickPlay({
                 {/* Narrative */}
                 <Card className="bg-slate-900/60 border-slate-700">
                   <CardContent className="p-5">
-                    <div className={`prose prose-invert prose-amber max-w-none transition-opacity duration-500 ${narrativeRevealed ? 'opacity-100' : 'opacity-0'}`}>
-                      {scene.narrative.split('\n\n').map((paragraph, i) => (
-                        <p key={i} className="text-slate-200 leading-relaxed mb-3 last:mb-0">
-                          {paragraph}
-                        </p>
-                      ))}
-                    </div>
+                    {isLiveAiNarrative && (
+                      <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-300 ring-1 ring-emerald-500/30">
+                        <Sparkles className="h-3 w-3" />
+                        Live AI · your real Dungeon Master
+                      </div>
+                    )}
+                    {aiWritingThisScene ? (
+                      <div className="flex items-center gap-2 py-4 text-slate-400">
+                        <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
+                        <span className="italic">The Dungeon Master is writing your turn…</span>
+                      </div>
+                    ) : (
+                      <div className={`prose prose-invert prose-amber max-w-none transition-opacity duration-500 ${narrativeRevealed ? 'opacity-100' : 'opacity-0'}`}>
+                        {displayNarrative.split('\n\n').map((paragraph, i) => (
+                          <p key={i} className="text-slate-200 leading-relaxed mb-3 last:mb-0">
+                            {paragraph}
+                          </p>
+                        ))}
+                        {aiStreaming && isLiveAiNarrative && (
+                          <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-emerald-400 align-middle" />
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
                 
@@ -1095,6 +1202,7 @@ export default function GuestQuickPlay({
                 <Button
                   onClick={handleContinue}
                   disabled={
+                    aiStreaming ||
                     (scene.choices && !selectedChoice && !scene.requiresRoll) ||
                     (scene.requiresRoll && !showOutcome)
                   }

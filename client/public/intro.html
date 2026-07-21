@@ -149,6 +149,16 @@
   }
   .cta-btn:hover,.cta-btn:focus-visible{transform:translateY(-2px);box-shadow:0 0 60px rgba(217,119,6,.55)}
   .cta-btn:focus-visible{outline:2px solid var(--parchment);outline-offset:3px}
+  .cta-note{
+    display:block;margin:.85rem 0 0;font-size:.78rem;letter-spacing:.05em;
+    color:var(--parchment-dim);opacity:.85;
+  }
+  .cta-secondary{
+    display:inline-block;margin-top:.5rem;font-family:'Inter',sans-serif;
+    font-size:.85rem;letter-spacing:.05em;color:var(--parchment-dim);
+    text-decoration:underline;text-underline-offset:3px;
+  }
+  .cta-secondary:hover,.cta-secondary:focus-visible{color:var(--parchment)}
   .srd{
     margin-top:2.2rem;font-size:.7rem;letter-spacing:.08em;
     color:var(--parchment-dim);opacity:.7;
@@ -299,7 +309,9 @@
       <text x="50" y="49" font-size="14" text-anchor="middle" dominant-baseline="middle">20</text>
     </svg>
     <h2 class="cta-title">Roll for adventure.</h2>
-    <a class="cta-btn" href="/auth">Enter the Realm</a>
+    <a class="cta-btn" href="/?demo=1">▶ Play a 2-minute demo</a>
+    <span class="cta-note">No signup — a live AI Dungeon Master runs your first turn.</span>
+    <a class="cta-secondary" href="/auth">Already have an account? Enter the Realm</a>
     <p class="srd">5e-compatible · Built on SRD 5.1 (CC-BY-4.0)</p>
     <button class="replay" id="replay" type="button">↻ Watch again</button>
   </section>
