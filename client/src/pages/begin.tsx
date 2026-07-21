@@ -5,7 +5,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Sword, Sparkles, BookOpen, Shield, ArrowRight, Dices, Users, Feather } from "lucide-react";
+import { Loader2, Sword, Sparkles, BookOpen, Shield, ArrowRight, Dices, Users, Feather, Wand2, Heart, UserRound } from "lucide-react";
 import type { UserIntent } from "@shared/onboarding";
 
 /**
@@ -62,7 +62,53 @@ const INTENTS: Intent[] = [
   { id: "author", name: "Plan & author campaigns", blurb: "Build worlds and adventures with the DM authoring tools.", icon: <Feather className="h-6 w-6" /> },
 ];
 
-type Step = "intent" | "hero" | "tone";
+type Step = "intent" | "hero" | "ally" | "tone";
+
+// Optional companion picks surfaced in the /begin funnel — the contextual clue that
+// NPC companions exist. Mirrors PlayerQuickStart's COMPANION_TEMPLATES; "solo" is a
+// first-class, equal-weight choice (adventuring alone), not a tucked-away skip.
+interface CompanionOption {
+  id: string;
+  name: string;
+  role: string;
+  companionType: "combat" | "healer" | "social" | "solo";
+  blurb: string;
+  icon: JSX.Element;
+}
+const COMPANION_OPTIONS: CompanionOption[] = [
+  {
+    id: "protector",
+    name: "Grimjaw the Bold",
+    role: "Warrior",
+    companionType: "combat",
+    blurb: "A front-line fighter who draws enemy blows and hits hard so you don't have to.",
+    icon: <Shield className="h-6 w-6" />,
+  },
+  {
+    id: "healer",
+    name: "Sister Maeve",
+    role: "Cleric",
+    companionType: "healer",
+    blurb: "A gentle healer who mends wounds and keeps your party standing in a long fight.",
+    icon: <Heart className="h-6 w-6" />,
+  },
+  {
+    id: "mentor",
+    name: "Elara the Sage",
+    role: "Guide",
+    companionType: "social",
+    blurb: "A witty guide who reads people and places, and nudges the story when you're stuck.",
+    icon: <Wand2 className="h-6 w-6" />,
+  },
+  {
+    id: "solo",
+    name: "Adventure alone",
+    role: "",
+    companionType: "solo",
+    blurb: "Set out on your own. You can always recruit a companion later from the Party tab.",
+    icon: <UserRound className="h-6 w-6" />,
+  },
+];
 
 /** Best-effort read of the class the visitor picked in the guest demo. */
 function readDemoPrefill(): { charClass?: string } {
@@ -87,6 +133,7 @@ export default function BeginPage() {
   );
   const [heroName, setHeroName] = useState("");
   const [tone, setTone] = useState<Tone | null>(null);
+  const [companion, setCompanion] = useState<CompanionOption | null>(null);
 
   const experienced = intent === "experienced_solo";
 
@@ -133,6 +180,33 @@ export default function BeginPage() {
       });
       const character = await charRes.json();
 
+      // 2c. Optionally attach the chosen companion to the new party. Best-effort:
+      //     a failed add must NEVER block the player from starting — they can still
+      //     recruit one later from the Party tab. Mirrors PlayerQuickStart's recipe.
+      if (companion && companion.companionType !== "solo") {
+        try {
+          const npcRes = await apiRequest("POST", "/api/npcs", {
+            name: companion.name,
+            race: "Human",
+            occupation: companion.role,
+            personality: companion.blurb,
+            hitPoints: 25,
+            maxHitPoints: 25,
+            armorClass: 14,
+            level: 3,
+            isCompanion: true,
+            companionType: companion.companionType,
+          });
+          const npc = await npcRes.json();
+          await apiRequest("POST", `/api/campaigns/${campaign.id}/npcs`, {
+            npcId: npc.id,
+            role: "companion",
+          });
+        } catch {
+          /* non-fatal — starts solo, companion can be added in play */
+        }
+      }
+
       // 2b. Experienced players start at the OPEN rung (safety net on, but no
       //     newbie coach-marks); they can still climb to PURE/expert in play.
       if (experienced) {
@@ -162,6 +236,7 @@ export default function BeginPage() {
             characterId: character.id,
             archetype: archetype.id,
             tone: tone.id,
+            companion: companion?.id ?? "solo",
           },
         });
       } catch {
@@ -188,7 +263,7 @@ export default function BeginPage() {
   const busy = start.isPending;
 
   const heading =
-    step === "intent" ? "What brings you here?" : step === "hero" ? "Choose your hero" : "Choose your tale";
+    step === "intent" ? "What brings you here?" : step === "hero" ? "Choose your hero" : step === "ally" ? "Who travels with you?" : "Choose your tale";
   const subheading =
     step === "intent"
       ? "Pick the path that fits you — you can change lanes anytime."
@@ -196,7 +271,9 @@ export default function BeginPage() {
         ? experienced
           ? "We'll roll the stats and gear — pick who you want to be."
           : "We'll roll the stats and gear — you just pick who you want to be."
-        : experienced
+        : step === "ally"
+          ? "Companions fight, heal, and add to the story. Bring an ally along — or set out solo."
+          : experienced
           ? "Pick a mood and we'll drop you straight into play."
           : "Pick a mood. Your Dungeon Master will take it from here, gently guiding your first steps.";
 
@@ -281,8 +358,50 @@ export default function BeginPage() {
               <button onClick={() => setStep("intent")} className="text-sm text-white/40 hover:text-white/70 underline underline-offset-4">
                 ← Back
               </button>
-              <Button disabled={!archetype} onClick={() => setStep("tone")} className="bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-semibold">
+              <Button disabled={!archetype} onClick={() => setStep("ally")} className="bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-semibold">
                 Next <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </>
+        )}
+
+        {/* Step: ally — optional companion pick; the contextual clue that companions exist */}
+        {step === "ally" && (
+          <>
+            <div className="grid grid-cols-1 gap-3">
+              {COMPANION_OPTIONS.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setCompanion(c)}
+                  disabled={busy}
+                  className={`text-left rounded-xl border p-4 transition-all flex items-start gap-3 ${
+                    companion?.id === c.id
+                      ? "border-amber-400 bg-amber-400/10 shadow-[0_0_24px_rgba(217,119,6,.25)]"
+                      : "border-white/10 bg-white/5 hover:border-amber-400/50"
+                  }`}
+                >
+                  <span className={c.companionType === "solo" ? "text-white/50" : "text-amber-400"}>{c.icon}</span>
+                  <span className="flex-1 block">
+                    <span className="font-semibold block">
+                      {c.name}
+                      {c.role && <span className="ml-2 text-xs uppercase tracking-wider text-amber-400/70">{c.role}</span>}
+                    </span>
+                    <span className="text-sm text-white/60 mt-1 block">{c.blurb}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex justify-between items-center mt-8">
+              <button onClick={() => setStep("hero")} disabled={busy} className="text-sm text-white/40 hover:text-white/70 underline underline-offset-4">
+                ← Back
+              </button>
+              <Button
+                disabled={busy}
+                onClick={() => setStep("tone")}
+                className="bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-semibold min-w-[190px]"
+              >
+                Continue <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
           </>
@@ -310,7 +429,7 @@ export default function BeginPage() {
             </div>
 
             <div className="flex justify-between items-center mt-8">
-              <button onClick={() => setStep("hero")} disabled={busy} className="text-sm text-white/40 hover:text-white/70 underline underline-offset-4">
+              <button onClick={() => setStep("ally")} disabled={busy} className="text-sm text-white/40 hover:text-white/70 underline underline-offset-4">
                 ← Back
               </button>
               <Button
