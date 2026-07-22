@@ -7789,7 +7789,24 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
           <div className="flex justify-center mt-2">
             <Button
-              onClick={() => {
+              onClick={async () => {
+                // Close the loop: mark Session 1 complete and open the next chapter, so the
+                // player has a real "next time" to return to (previously this button just
+                // dismissed the wrap-up — sessions never advanced, nobody reached Session 2).
+                try {
+                  const summary = quietReckoningData?.returnPromise
+                    || quietReckoningData?.unresolvedHook
+                    || undefined;
+                  if (campaign?.id) {
+                    await apiRequest('POST', `/api/campaigns/${campaign.id}/sessions/advance`, { summary });
+                    queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
+                    queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}`] });
+                  }
+                } catch (advanceErr) {
+                  console.error("Failed to advance to next session:", advanceErr);
+                }
+                trackEvent("first_session", "session_advanced",
+                  { campaignId: campaign?.id }, { campaignId: campaign?.id });
                 setShowQuietReckoning(false);
                 setQuietReckoningData(null);
               }}

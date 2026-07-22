@@ -5460,39 +5460,113 @@ Return your response as a JSON object with these fields:
         } catch (parseError) {
           console.error("Failed to parse OpenAI response for initial session:", parseError);
           console.log("Raw response:", responseContent);
-          
-          // Create a fallback session if parsing fails
-          const fallbackSessionData = {
-            campaignId: campaign.id,
-            sessionNumber: 1,
-            title: "The Adventure Begins",
-            narrative: "Your journey begins in a small settlement at the edge of the known world. The air is filled with possibility as you prepare to embark on your first adventure.",
-            location: "Starting Village",
-            choices: JSON.stringify([
-              { action: "Visit the local tavern", description: "Gather information from the locals", requiresDiceRoll: false },
-              { action: "Meet with the town elder", description: "Learn about problems facing the settlement", requiresDiceRoll: false },
-              { action: "Investigate nearby ruins", description: "Search for treasure and adventure", requiresDiceRoll: true, diceType: "d20", rollDC: 12, rollModifier: 0, rollPurpose: "Investigation Check", successText: "You find something interesting!", failureText: "Nothing catches your eye." }
-            ]),
-            storyState: JSON.stringify({
-              location: "Starting Village",
-              activeNPCs: [],
-              plotPoints: [],
-              conditions: [],
-              activeQuests: [
-                { id: "quest_main_1", title: "Uncover the Mystery", description: "Explore the village and discover what adventure awaits", status: "active", xpReward: 100 }
-              ]
-            }),
-            sessionXpReward: 100,
-            createdAt: new Date().toISOString(),
-          };
-          
-          await storage.createCampaignSession(fallbackSessionData);
-          console.log(`Created fallback session for campaign ${campaign.id} due to parsing error`);
+
+          // ONE retry before falling back — a single bad/truncated JSON response
+          // was dropping ~37% of new players into the bland canned opening below,
+          // which correlates with the biggest first-turn drop-off.
+          let recovered = false;
+          try {
+            const retry = await openaiClient.chat.completions.create({
+              model: aiModel,
+              messages: [{ role: "user", content: prompt + "\n\nReturn ONLY valid JSON. No prose, no markdown fences." }],
+              response_format: { type: "json_object" },
+            });
+            const retryContent = (retry.choices[0].message.content || "")
+              .replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+            const retryData = JSON.parse(retryContent);
+            if (retryData.narrative && Array.isArray(retryData.choices) && retryData.choices.length) {
+              await storage.createCampaignSession({
+                campaignId: campaign.id,
+                sessionNumber: 1,
+                title: retryData.sessionTitle || "The Adventure Begins",
+                narrative: retryData.narrative,
+                location: retryData.location || "The Threshold",
+                choices: JSON.stringify(retryData.choices),
+                storyState: JSON.stringify({
+                  location: retryData.location || "The Threshold",
+                  activeNPCs: [], plotPoints: [], conditions: [],
+                  activeQuests: retryData.activeQuests || [
+                    { id: "quest_main_1", title: "Begin the Adventure", description: "Explore your surroundings and discover the first clues", status: "active", xpReward: 100 }
+                  ],
+                }),
+                sessionXpReward: 100,
+                createdAt: new Date().toISOString(),
+              });
+              recovered = true;
+              console.log(`Recovered initial session for campaign ${campaign.id} on retry`);
+            }
+          } catch (retryError) {
+            console.error("Retry for initial session also failed:", retryError);
+          }
+
+          if (!recovered) {
+            // Evocative fallback — never the flat "small settlement" text. It opens
+            // on a concrete moment, ends on a hook, and offers one obvious first move.
+            let heroName = "you";
+            try {
+              if (req.body.characterId) {
+                const hc = await storage.getCharacter(req.body.characterId);
+                if (hc?.name) heroName = hc.name;
+              }
+            } catch { /* keep default */ }
+            const fallbackSessionData = {
+              campaignId: campaign.id,
+              sessionNumber: 1,
+              title: "A Knock at the Door",
+              narrative: `Rain hammers the shutters of the Wayfarer's Rest as you${heroName !== "you" ? `, ${heroName},` : ""} nurse a warm drink by the fire. The door bangs open and a breathless courier staggers in, mud to the knees, clutching a sealed letter marked with a broken wax crest. "I was told to find an adventurer," they gasp, eyes sweeping the room until they land on you. "Please — there isn't much time." The letter is still in their trembling hand. What do you do?`,
+              location: "The Wayfarer's Rest",
+              choices: JSON.stringify([
+                { action: "Take the letter and read it", description: "Find out what the courier is so afraid of", requiresDiceRoll: false },
+                { action: "Ask the courier who sent them", description: "Learn who knows your name before you commit", requiresDiceRoll: true, diceType: "d20", rollDC: 12, rollModifier: 0, skillType: "insight", rollPurpose: "Insight Check", successText: "You read the fear behind their eyes — this is no trick.", failureText: "They dodge the question, and the tavern falls quiet around you." },
+                { action: "Offer the courier a seat and a drink first", description: "Calm them down and earn their trust", requiresDiceRoll: false },
+                { action: "Refuse — this isn't your problem", description: "Turn back to your drink and see what happens", requiresDiceRoll: false },
+              ]),
+              storyState: JSON.stringify({
+                location: "The Wayfarer's Rest",
+                activeNPCs: [{ name: "The Courier", attitude: "desperate" }],
+                plotPoints: [],
+                conditions: [],
+                activeHook: "A desperate courier has brought a sealed letter meant for you.",
+                activeQuests: [
+                  { id: "quest_main_1", title: "The Sealed Letter", description: "Discover who sent the courier and what they need of you", status: "active", xpReward: 150 }
+                ]
+              }),
+              sessionXpReward: 100,
+              createdAt: new Date().toISOString(),
+            };
+            await storage.createCampaignSession(fallbackSessionData);
+            console.log(`Created evocative fallback session for campaign ${campaign.id}`);
+          }
         }
         
         // Update the campaign with the session number to establish the link
         await storage.updateCampaignSession(campaign.id, 1);
-        
+
+        // Seed an initial return-hook from the opening scene (background, non-blocking).
+        // 74% of first sessions end with zero turns; this guarantees even a player who
+        // bounces immediately has an evocative "Continue your story" teaser on their card.
+        (async () => {
+          try {
+            const seededSession = await storage.getCampaignSession(campaign.id, 1);
+            if (seededSession && !(seededSession as any).cliffhangerHook && seededSession.narrative) {
+              let seededState: any = seededSession.storyState;
+              if (typeof seededState === "string") { try { seededState = JSON.parse(seededState); } catch { seededState = {}; } }
+              const hook = await generateCliffhangerHook(
+                seededSession.narrative,
+                seededState || {},
+                campaign.title,
+              );
+              if (hook) {
+                await db.update(campaignSessions)
+                  .set({ cliffhangerHook: hook, cliffhangerGeneratedAt: new Date().toISOString() })
+                  .where(eq(campaignSessions.id, seededSession.id));
+              }
+            }
+          } catch (seedErr) {
+            console.error(`Failed to seed initial cliffhanger for campaign ${campaign.id}:`, seedErr);
+          }
+        })();
+
         // Generate initial dungeon map for the campaign with theme awareness
         try {
           // Detect theme from campaign title and description
@@ -19369,7 +19443,10 @@ You may use this suggestion or create your own — but it should feel natural fo
         rewardsEarned: { xp: 0, gold: 0, items: [] as string[] }
       };
       
-      const SESSION1_RECKONING_THRESHOLD = 7;
+      // Lowered 7 → 5: most players quit before turn 7, so the first-episode close
+      // (rewards + return hook + Session 2) almost never fired. A tighter 5-scene
+      // first episode is reachable and gives players a satisfying "chapter done" beat.
+      const SESSION1_RECKONING_THRESHOLD = 5;
       const shouldTriggerQuietReckoning = isSession1 && 
         session1SceneCount >= SESSION1_RECKONING_THRESHOLD && 
         !session1Retention.quietReckoningTriggered &&
@@ -22577,7 +22654,9 @@ ${cachedNarrative}
           ? Date.now() - new Date(updatedSession.cliffhangerGeneratedAt).getTime()
           : Infinity;
         const hookIsStale = hookAge > 30 * 60 * 1000; // 30 minutes
-        if (actionLogLen >= 3 && hookIsStale) {
+        // Fire after the FIRST action, not the third: most players who leave do so
+        // after 1-2 turns, and a return-hook is exactly what pulls them back.
+        if (actionLogLen >= 1 && hookIsStale) {
           generateCliffhangerHook(
             storyAdvancement.narrative || updatedSession.narrative || "",
             mergedStoryState,
@@ -24703,6 +24782,20 @@ Respond with JSON:
               sceneType: 'The Quiet Reckoning',
             }],
           });
+
+          // Persist the return lure as the session's cliffhanger so the dashboard card
+          // shows "Continue your story: <hook>" — this is what pulls a first-session
+          // player back for Session 2, and feeds the re-engagement email.
+          try {
+            const returnLure = quietReckoningData?.unresolvedHook || quietReckoningData?.returnPromise;
+            if (returnLure && currentSession?.id) {
+              await db.update(campaignSessions)
+                .set({ cliffhangerHook: returnLure, cliffhangerGeneratedAt: new Date().toISOString() })
+                .where(eq(campaignSessions.id, currentSession.id));
+            }
+          } catch (lureErr) {
+            console.error("[Quiet Reckoning] Failed to persist return lure:", lureErr);
+          }
         } catch (reckoningError) {
           console.error("[Quiet Reckoning] Failed to generate:", reckoningError);
         }
@@ -29137,7 +29230,18 @@ No JSON, no choices, no game mechanics, no headings — just the story text.`;
       await db.update(demoAnalytics)
         .set({ convertedUserId: userId })
         .where(eq(demoAnalytics.sessionId, sessionId));
-      
+
+      // Instrumentation: this flag was declared in schema but never written, so it
+      // read FALSE for 100% of users. Set it on conversion so we can actually segment
+      // "came from the demo" cohorts and measure their retention.
+      try {
+        await db.update(users)
+          .set({ hasCompletedDemo: true })
+          .where(eq(users.id, userId));
+      } catch (flagErr) {
+        console.error("Failed to set hasCompletedDemo on convert:", flagErr);
+      }
+
       res.json({ success: true });
     } catch (error) {
       console.error("Demo Analytics: Failed to mark conversion:", error);

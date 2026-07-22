@@ -594,6 +594,11 @@ export default function GuestQuickPlay({
   const [diceResult, setDiceResult] = useState<number | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const [showOutcome, setShowOutcome] = useState(false);
+  // Peak-moment capture: 28 people finish the demo but only ~2 sign up. We now offer
+  // the account at the emotional high — right after the first successful dice roll —
+  // instead of only at the wall afterward. Shown once per session.
+  const [showPeakCapture, setShowPeakCapture] = useState(false);
+  const [peakCaptureDismissed, setPeakCaptureDismissed] = useState(false);
   const [narrativeRevealed, setNarrativeRevealed] = useState(false);
   const [stateUpdates, setStateUpdates] = useState<string[]>([]);
   // Live AI narration for the "reaction" scenes (1 & 2). Keyed by scene index; when
@@ -643,9 +648,35 @@ export default function GuestQuickPlay({
         setIsRolling(false);
         const finalRoll = Math.floor(Math.random() * 20) + 1;
         setDiceResult(finalRoll);
-        setTimeout(() => setShowOutcome(true), 500);
+        setTimeout(() => {
+          setShowOutcome(true);
+          // Peak moment: a successful roll is the emotional high of the demo. Surface the
+          // "save your hero" capture here, once, unless the player already dismissed it.
+          const dc = scenes[currentScene]?.requiresRoll?.dc;
+          const succeeded = typeof dc === 'number' ? finalRoll >= dc : true;
+          if (succeeded && !peakCaptureDismissed) {
+            setTimeout(() => setShowPeakCapture(true), 900);
+          }
+        }, 500);
       }
     }, 80);
+  };
+
+  // Carry the demo choice across the signup hop — same key/shape /begin reads for class
+  // prefill; the demo session id is already persisted so /auth marks the conversion.
+  // Then hand off to the parent's completion flow.
+  const bridgeToSignup = (reason: string) => {
+    try {
+      localStorage.setItem('everdice_demo_choice', JSON.stringify({
+        sessionId: getOrCreateSessionId(),
+        class: selectedChar?.class,
+        theme: selectedTheme,
+      }));
+    } catch {
+      /* private mode — non-fatal, we just lose prefill */
+    }
+    trackDemoEvent('signup_intent', { reason, sceneNumber: currentScene + 1 });
+    onComplete();
   };
 
   // Stream ONE real AI-narrated turn from /api/demo/turn into aiNarratives[targetScene].
@@ -1172,16 +1203,46 @@ export default function GuestQuickPlay({
                       {/* Outcome */}
                       {showOutcome && diceResult && (
                         <Card className={`mt-4 ${
-                          diceResult >= scene.requiresRoll.dc 
-                            ? 'bg-emerald-950/40 border-emerald-800' 
+                          diceResult >= scene.requiresRoll.dc
+                            ? 'bg-emerald-950/40 border-emerald-800'
                             : 'bg-amber-950/40 border-amber-800'
                         }`}>
                           <CardContent className="py-4 text-left">
                             <p className="text-slate-200">
-                              {diceResult >= scene.requiresRoll.dc 
-                                ? scene.outcomeSuccess 
+                              {diceResult >= scene.requiresRoll.dc
+                                ? scene.outcomeSuccess
                                 : scene.outcomeFailure}
                             </p>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Peak-moment capture — offered at the emotional high, not the wall */}
+                      {showPeakCapture && (
+                        <Card className="mt-4 bg-gradient-to-r from-amber-950/60 via-orange-950/50 to-amber-950/60 border-amber-500/50 shadow-lg shadow-amber-900/30">
+                          <CardContent className="py-4 text-left">
+                            <p className="font-fantasy text-amber-200 text-lg mb-1">
+                              Nicely rolled, {selectedChar?.name || 'adventurer'}.
+                            </p>
+                            <p className="text-slate-300 text-sm mb-3">
+                              Create a free account to keep <span className="text-amber-300">{selectedChar?.name || 'this hero'}</span> and let the story continue where you leave off — no credit card, takes seconds.
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                onClick={() => bridgeToSignup('peak_dice_success')}
+                                className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                              >
+                                Save my hero & keep playing
+                                <ChevronRight className="ml-1 h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                onClick={() => { setShowPeakCapture(false); setPeakCaptureDismissed(true); }}
+                                className="text-slate-400 hover:text-slate-200"
+                              >
+                                Finish the demo first
+                              </Button>
+                            </div>
                           </CardContent>
                         </Card>
                       )}

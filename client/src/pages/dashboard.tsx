@@ -117,6 +117,22 @@ export default function Dashboard() {
     staleTime: 30000, // Data considered fresh for 30 seconds
   });
 
+  // Returning players: if nothing is selected (fresh device / cleared storage) but an
+  // unfinished campaign exists, auto-resume the most recent one so "Continue your story"
+  // — not "New Campaign" — is the default landing state. Players were re-rolling brand-new
+  // campaigns (7-8 each) instead of continuing; this makes the in-progress story the hero.
+  useEffect(() => {
+    if (selectedCampaignId) return;
+    if (!campaigns || campaigns.length === 0) return;
+    const ts = (c: any) => new Date(c.updatedAt || c.lastPlayedAt || c.createdAt || 0).getTime();
+    const resumable = campaigns
+      .filter((c: any) => !c.isCompleted && !c.isArchived)
+      .sort((a: any, b: any) => (ts(b) - ts(a)) || (b.id - a.id));
+    if (resumable.length > 0) {
+      setSelectedCampaignId(resumable[0].id);
+    }
+  }, [campaigns, selectedCampaignId]);
+
   // Fetch user stats
   useEffect(() => {
     // Function to fetch real user stats from the API
