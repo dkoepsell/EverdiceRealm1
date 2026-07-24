@@ -30663,19 +30663,79 @@ No JSON, no choices, no game mechanics, no headings — just the story text.`;
 
   app.post("/api/feedback", async (req: any, res) => {
     try {
-      const { feltConfusing, feltSlow, wouldUse, comment } = req.body;
+      const { feltConfusing, feltSlow, wouldUse, comment, rating, category, pagePath } = req.body;
       const userId = req.user?.id || null;
+      // Only accept a known category value; anything else becomes null.
+      const allowedCategories = ["bug", "idea", "praise"];
+      const safeCategory = allowedCategories.includes(category) ? category : null;
+      // Clamp rating to 1-5, or null if not a valid number.
+      const parsedRating = Number(rating);
+      const safeRating = Number.isFinite(parsedRating) && parsedRating >= 1 && parsedRating <= 5
+        ? Math.round(parsedRating)
+        : null;
       const feedback = await storage.createUserFeedback({
         userId,
+        rating: safeRating,
+        category: safeCategory,
         feltConfusing: feltConfusing || false,
         feltSlow: feltSlow || false,
         wouldUse: wouldUse || false,
         comment: comment || null,
+        pagePath: typeof pagePath === "string" ? pagePath.slice(0, 300) : null,
       });
       res.json({ success: true, id: feedback.id });
     } catch (error) {
       console.error("Failed to save feedback:", error);
       res.status(500).json({ message: "Failed to save feedback" });
+    }
+  });
+
+  // ---- Admin feedback inbox ----
+  app.get("/api/admin/feedback", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const onlyUnread = req.query.unread === "true";
+      const items = await storage.getUserFeedbackList({ onlyUnread, limit: 500 });
+      // Enrich with the submitter's username/email where we have a user id.
+      const enriched = await Promise.all(items.map(async (item) => {
+        if (!item.userId) return { ...item, user: null };
+        try {
+          const u = await storage.getUser(item.userId);
+          return {
+            ...item,
+            user: u ? { id: u.id, username: u.username, displayName: (u as any).displayName ?? null, email: u.email } : null,
+          };
+        } catch {
+          return { ...item, user: null };
+        }
+      }));
+      res.json(enriched);
+    } catch (error) {
+      console.error("Failed to load feedback:", error);
+      res.status(500).json({ message: "Failed to load feedback" });
+    }
+  });
+
+  app.get("/api/admin/feedback/unread-count", isAuthenticated, requireAdmin, async (_req, res) => {
+    try {
+      const count = await storage.getUnreadFeedbackCount();
+      res.json({ count });
+    } catch (error) {
+      console.error("Failed to count unread feedback:", error);
+      res.status(500).json({ message: "Failed to count unread feedback" });
+    }
+  });
+
+  app.patch("/api/admin/feedback/:id/read", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid feedback id" });
+      const isRead = req.body?.isRead !== false; // default to marking read
+      const updated = await storage.markFeedbackRead(id, isRead);
+      if (!updated) return res.status(404).json({ message: "Feedback not found" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to update feedback:", error);
+      res.status(500).json({ message: "Failed to update feedback" });
     }
   });
 

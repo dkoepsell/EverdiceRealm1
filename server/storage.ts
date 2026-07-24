@@ -554,6 +554,9 @@ export interface IStorage {
 
   // Feedback operations
   createUserFeedback(feedback: InsertUserFeedback): Promise<UserFeedback>;
+  getUserFeedbackList(options?: { onlyUnread?: boolean; limit?: number }): Promise<UserFeedback[]>;
+  getUnreadFeedbackCount(): Promise<number>;
+  markFeedbackRead(id: number, isRead: boolean): Promise<UserFeedback | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -895,6 +898,9 @@ export class MemStorage implements IStorage {
   async updateLlmConfig(id: number, updates: Partial<LlmConfig>): Promise<LlmConfig | undefined> { return undefined; }
   async deleteLlmConfig(id: number): Promise<boolean> { return false; }
   async createUserFeedback(feedback: InsertUserFeedback): Promise<UserFeedback> { throw new Error("Not implemented"); }
+  async getUserFeedbackList(options?: { onlyUnread?: boolean; limit?: number }): Promise<UserFeedback[]> { throw new Error("Not implemented"); }
+  async getUnreadFeedbackCount(): Promise<number> { throw new Error("Not implemented"); }
+  async markFeedbackRead(id: number, isRead: boolean): Promise<UserFeedback | undefined> { throw new Error("Not implemented"); }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4954,6 +4960,35 @@ export class DatabaseStorage implements IStorage {
       createdAt: new Date().toISOString(),
     }).returning();
     return result;
+  }
+
+  async getUserFeedbackList(options?: { onlyUnread?: boolean; limit?: number }): Promise<UserFeedback[]> {
+    let query = db.select().from(userFeedback).$dynamic();
+    if (options?.onlyUnread) {
+      query = query.where(eq(userFeedback.isRead, false));
+    }
+    query = query.orderBy(desc(userFeedback.createdAt));
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    return await query;
+  }
+
+  async getUnreadFeedbackCount(): Promise<number> {
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(userFeedback)
+      .where(eq(userFeedback.isRead, false));
+    return row?.count ?? 0;
+  }
+
+  async markFeedbackRead(id: number, isRead: boolean): Promise<UserFeedback | undefined> {
+    const [updated] = await db
+      .update(userFeedback)
+      .set({ isRead })
+      .where(eq(userFeedback.id, id))
+      .returning();
+    return updated;
   }
 }
 

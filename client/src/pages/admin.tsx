@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   Loader2, Users, Swords, Shield, Eye, Crown, User, Calendar, MapPin,
   BarChart3, Activity, TrendingUp, Clock, Dice6, Sparkles, MousePointer,
-  Download, Mail
+  Download, Mail, MessageSquare, Star, Bug, Lightbulb, Heart, Check
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -158,6 +158,21 @@ interface DemoAnalyticsData {
   funnelStats: { eventType: string; count: number }[];
 }
 
+interface FeedbackItem {
+  id: number;
+  userId: number | null;
+  rating: number | null;
+  category: "bug" | "idea" | "praise" | null;
+  feltConfusing: boolean;
+  feltSlow: boolean;
+  wouldUse: boolean;
+  comment: string | null;
+  pagePath: string | null;
+  isRead: boolean;
+  createdAt: string;
+  user: { id: number; username: string; displayName: string | null; email: string | null } | null;
+}
+
 const COLORS = ['#f59e0b', '#ef4444', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
 
 const CHARACTER_NAMES: Record<string, string> = {
@@ -296,6 +311,32 @@ export default function AdminPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Failed to update admin status", description: error.message, variant: "destructive" });
+    }
+  });
+
+  // Feedback inbox — poll periodically so the unread badge stays fresh.
+  const { data: feedbackItems = [], isLoading: feedbackLoading } = useQuery<FeedbackItem[]>({
+    queryKey: ['/api/admin/feedback'],
+    refetchInterval: 60000,
+  });
+
+  const { data: unreadFeedback } = useQuery<{ count: number }>({
+    queryKey: ['/api/admin/feedback/unread-count'],
+    refetchInterval: 60000,
+  });
+  const unreadFeedbackCount = unreadFeedback?.count ?? 0;
+
+  const markFeedbackReadMutation = useMutation({
+    mutationFn: async ({ id, isRead }: { id: number; isRead: boolean }) => {
+      const response = await apiRequest('PATCH', `/api/admin/feedback/${id}/read`, { isRead });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/feedback'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/feedback/unread-count'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to update feedback", description: error.message, variant: "destructive" });
     }
   });
 
@@ -501,6 +542,14 @@ export default function AdminPage() {
             </TabsTrigger>
             <TabsTrigger value="campaigns" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <MapPin className="h-4 w-4" /> Campaigns
+            </TabsTrigger>
+            <TabsTrigger value="feedback" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <MessageSquare className="h-4 w-4" /> Feedback
+              {unreadFeedbackCount > 0 && (
+                <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-600 px-1.5 text-xs font-bold text-white">
+                  {unreadFeedbackCount}
+                </span>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -1274,6 +1323,97 @@ export default function AdminPage() {
                       </TableBody>
                     </Table>
                   </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="feedback">
+            <Card className="border-primary/20 bg-card/50 backdrop-blur">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-amber-500" />
+                  Player Feedback
+                  {unreadFeedbackCount > 0 && (
+                    <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-600 px-1.5 text-xs font-bold text-white">
+                      {unreadFeedbackCount} new
+                    </span>
+                  )}
+                </CardTitle>
+                <CardDescription>Session feedback submitted from the in-app widget.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {feedbackLoading ? (
+                  <div className="flex justify-center py-10">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : feedbackItems.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-10 text-center">No feedback yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {feedbackItems.map((item) => {
+                      const CategoryIcon = item.category === "bug" ? Bug : item.category === "idea" ? Lightbulb : item.category === "praise" ? Heart : null;
+                      return (
+                        <div
+                          key={item.id}
+                          className={`rounded-lg border p-4 transition-colors ${
+                            item.isRead ? "border-border/40 bg-background/30" : "border-amber-500/40 bg-amber-500/5"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {!item.isRead && <span className="h-2 w-2 rounded-full bg-amber-500" aria-label="unread" />}
+                              {item.rating ? (
+                                <span className="flex items-center gap-0.5">
+                                  {[1, 2, 3, 4, 5].map((s) => (
+                                    <Star key={s} className={`h-3.5 w-3.5 ${s <= item.rating! ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`} />
+                                  ))}
+                                </span>
+                              ) : null}
+                              {item.category && CategoryIcon && (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 px-2 py-0.5 text-xs font-medium text-amber-100 capitalize">
+                                  <CategoryIcon className="h-3 w-3" /> {item.category}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                              {new Date(item.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+
+                          {item.comment && (
+                            <p className="mt-2 text-sm text-foreground/90 whitespace-pre-wrap">{item.comment}</p>
+                          )}
+
+                          {(item.feltConfusing || item.feltSlow || item.wouldUse) && (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {item.feltConfusing && <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-xs text-red-300">felt confusing</span>}
+                              {item.feltSlow && <span className="rounded bg-orange-500/15 px-1.5 py-0.5 text-xs text-orange-300">felt slow</span>}
+                              {item.wouldUse && <span className="rounded bg-green-500/15 px-1.5 py-0.5 text-xs text-green-300">would use</span>}
+                            </div>
+                          )}
+
+                          <div className="mt-3 flex items-center justify-between gap-4">
+                            <span className="text-xs text-muted-foreground">
+                              {item.user
+                                ? `${item.user.displayName || item.user.username}${item.user.email ? ` · ${item.user.email}` : ""}`
+                                : "Anonymous / logged-out"}
+                              {item.pagePath ? ` · ${item.pagePath}` : ""}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs"
+                              disabled={markFeedbackReadMutation.isPending}
+                              onClick={() => markFeedbackReadMutation.mutate({ id: item.id, isRead: !item.isRead })}
+                            >
+                              {item.isRead ? "Mark unread" : <><Check className="h-3.5 w-3.5 mr-1" /> Mark read</>}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </CardContent>
             </Card>

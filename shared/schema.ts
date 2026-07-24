@@ -2706,15 +2706,21 @@ export type LlmConfig = typeof llmConfigs.$inferSelect;
 export const userFeedback = pgTable("user_feedback", {
   id: serial("id").primaryKey(),
   userId: integer("user_id"),
+  rating: integer("rating"), // 1-5 star rating of the session (nullable)
+  category: text("category"), // 'bug' | 'idea' | 'praise' | null
   feltConfusing: boolean("felt_confusing").notNull().default(false),
   feltSlow: boolean("felt_slow").notNull().default(false),
   wouldUse: boolean("would_use").notNull().default(false),
   comment: text("comment"),
+  pagePath: text("page_path"), // where the user was when they left feedback
+  isRead: boolean("is_read").notNull().default(false), // admin inbox read flag
   createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 });
 
 export const insertUserFeedbackSchema = createInsertSchema(userFeedback).omit({
   id: true,
+  isRead: true,
+  createdAt: true,
 });
 
 export type InsertUserFeedback = z.infer<typeof insertUserFeedbackSchema>;

@@ -14,6 +14,7 @@ import { useEffect, lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import CoAdminBanner from "@/components/layout/CoAdminBanner";
 import InvitationAlert from "@/components/InvitationAlert";
 import parchmentFrame from "@assets/image_1768600727955.png";
 import { FeedbackWidget } from "@/components/ui/feedback-widget";
@@ -75,6 +76,7 @@ function Router() {
           // main-thread repaint on every scroll frame (severe jank on high-DPI displays).
         }}
       />
+      <CoAdminBanner />
       <Navbar />
       <InvitationAlert />
       <main className="flex-grow relative z-10">
