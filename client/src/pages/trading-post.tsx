@@ -239,15 +239,21 @@ export default function TradingPostPage() {
       const downloadResponse = await apiRequest("POST", `/api/trading-post/adventures/${id}/download`, {});
       const downloadData = await downloadResponse.json();
 
-      if (!downloadData.camlData) {
-        throw new Error("This adventure has no CAML data to import");
-      }
-
+      // Listings can hold CAML as an object, a string, or nothing at all. Send
+      // it through as-is and let the server decide; `listing` is the fallback
+      // it uses when there is no readable CAML.
       const importResponse = await apiRequest("POST", "/api/caml/import", {
-        content: JSON.stringify(downloadData.camlData),
+        content: downloadData.camlData ?? null,
         format: "json",
         createCampaign: true,
         campaignLength: "standard",
+        listing: {
+          title: adventureDetail?.title ?? "Imported Adventure",
+          description: adventureDetail?.description ?? "",
+          shortDescription: adventureDetail?.shortDescription ?? "",
+          genre: adventureDetail?.genre ?? "fantasy",
+          tags: adventureDetail?.tags ?? [],
+        },
       });
       return importResponse.json();
     },

@@ -28,7 +28,19 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CampaignPanel from "@/components/campaign/CampaignPanel";
-import { AlertCircle, Book, MapPin, Plus, Scroll, Wand2, Star, Play, Sparkles, ArrowRight, Lightbulb } from "lucide-react";
+import { AlertCircle, Book, MapPin, Plus, Scroll, Wand2, Star, Play, Sparkles, ArrowRight, Lightbulb, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
@@ -79,6 +91,7 @@ const narrativeStyles = [
 ];
 
 export default function Campaigns() {
+  const { user } = useAuth();
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [useAIGeneration, setUseAIGeneration] = useState(false);
   const [generatingCampaign, setGeneratingCampaign] = useState(false);
@@ -238,6 +251,29 @@ export default function Campaigns() {
     },
   });
 
+  const deleteCampaign = useMutation({
+    mutationFn: async (campaignId: number) => {
+      const response = await apiRequest("DELETE", `/api/campaigns/${campaignId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/campaigns/archived'] });
+      setSelectedCampaign(null);
+      toast({
+        title: "Adventure deleted",
+        description: "The adventure and everything in it has been permanently removed.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Couldn't delete adventure",
+        description: error?.message || "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       {/* Hero Section - Modern style matching landing page */}
@@ -375,18 +411,60 @@ export default function Campaigns() {
                             )}
                           </div>
                           
-                          {!isActive && !campaign.isArchived && !campaign.isCompleted && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="w-full border-primary/30 hover:bg-primary/10 hover:border-primary/50 transition-colors"
-                              onClick={(e) => setAsActiveAdventure(campaign.id, e)}
-                              data-testid={`button-set-active-campaign-${campaign.id}`}
-                            >
-                              <Star className="h-4 w-4 mr-2" />
-                              Set as Active
-                            </Button>
-                          )}
+                          <div className="flex gap-2">
+                            {!isActive && !campaign.isArchived && !campaign.isCompleted && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 border-primary/30 hover:bg-primary/10 hover:border-primary/50 transition-colors"
+                                onClick={(e) => setAsActiveAdventure(campaign.id, e)}
+                                data-testid={`button-set-active-campaign-${campaign.id}`}
+                              >
+                                <Star className="h-4 w-4 mr-2" />
+                                Set as Active
+                              </Button>
+                            )}
+
+                            {/* Only the creator can destroy an adventure; players who
+                                merely joined it see no delete affordance. */}
+                            {user?.id === campaign.userId && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className={`${isActive || campaign.isArchived || campaign.isCompleted ? 'w-full' : ''} border-red-500/30 text-red-500 hover:bg-red-500/10 hover:border-red-500/50 hover:text-red-500 transition-colors`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  data-testid={`button-delete-campaign-${campaign.id}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  {(isActive || campaign.isArchived || campaign.isCompleted) && (
+                                    <span className="ml-2">Delete</span>
+                                  )}
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete "{campaign.title}"?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This cannot be undone. The adventure and all of its chapters,
+                                    quests, NPCs and maps will be permanently deleted.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteCampaign.mutate(campaign.id)}
+                                    disabled={deleteCampaign.isPending}
+                                    className="bg-red-500 hover:bg-red-600"
+                                  >
+                                    {deleteCampaign.isPending ? "Deleting..." : "Delete permanently"}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                            )}
+                          </div>
                         </CardContent>
                       </Card>
                     </motion.div>

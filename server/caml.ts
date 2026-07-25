@@ -96,8 +96,173 @@ function validateCAML2Document(doc: any): CAML2Document | null {
   if (!doc.processes?.catalog) return null;
   if (!doc.transitions?.changes) return null;
   if (!doc.snapshots?.timeline || doc.snapshots.timeline.length === 0) return null;
-  
+
   return doc as CAML2Document;
+}
+
+/**
+ * Lenient counterpart to validateCAML2Document: fills in whatever layers a
+ * document is missing instead of rejecting it outright. Older exports,
+ * hand-authored files and AI-generated CAML routinely omit layers they have
+ * nothing to say about, and those documents are still perfectly importable —
+ * only meta.title is genuinely required.
+ */
+export function normalizeCAML2Document(doc: any): CAML2Document | null {
+  if (!doc || typeof doc !== 'object') return null;
+  const title = doc.meta?.title || doc.title;
+  if (!title) return null;
+
+  const id = doc.meta?.id || doc.id || generateCAMLId('ADV', String(title));
+  const entities = doc.world?.entities || {};
+
+  return {
+    ...doc,
+    caml_version: '2.0',
+    meta: {
+      ...(doc.meta || {}),
+      id,
+      title,
+      authors: Array.isArray(doc.meta?.authors) && doc.meta.authors.length > 0
+        ? doc.meta.authors
+        : ['Unknown'],
+    },
+    world: {
+      ...(doc.world || {}),
+      entities: {
+        characters: entities.characters || [],
+        locations: entities.locations || [],
+        items: entities.items || [],
+        factions: entities.factions || [],
+      },
+      connections: doc.world?.connections || [],
+    },
+    state: { ...(doc.state || {}), facts: doc.state?.facts || [] },
+    roles: { ...(doc.roles || {}), assignments: doc.roles?.assignments || [] },
+    processes: { ...(doc.processes || {}), catalog: doc.processes?.catalog || [] },
+    transitions: { ...(doc.transitions || {}), changes: doc.transitions?.changes || [] },
+    snapshots: {
+      ...(doc.snapshots || {}),
+      timeline: doc.snapshots?.timeline?.length
+        ? doc.snapshots.timeline
+        : [{
+            id: 'SNAP_0',
+            time_utc: doc.meta?.created_utc || new Date().toISOString(),
+            world_hash: 'placeholder',
+            state_hash: 'placeholder',
+            roles_hash: 'placeholder',
+            narration: doc.meta?.summary || doc.description || 'The adventure begins.',
+          }],
+    },
+  } as CAML2Document;
+}
+
+/** Does this object look like a CAML 2.0 document even if caml_version is absent? */
+function looksLikeCAML2(parsed: any): boolean {
+  return !!(parsed && typeof parsed === 'object' && parsed.meta?.title &&
+    (parsed.world || parsed.state || parsed.processes || parsed.snapshots));
+}
+
+/**
+ * Coerce whatever a caller hands us into a parsed object. Trading Post listings
+ * store CAML as jsonb, but depending on how they were published that value can
+ * be an object, a JSON string, a double-encoded JSON string, or raw YAML.
+ */
+function coerceToCAMLObject(input: unknown, format?: string): any {
+  if (input == null) return null;
+
+  if (typeof input === 'object') return input;
+
+  if (typeof input !== 'string') return null;
+  const text = input.trim();
+  if (!text) return null;
+
+  const tryJson = () => { try { return JSON.parse(text); } catch { return undefined; } };
+  const tryYaml = () => { try { return yaml.load(text); } catch { return undefined; } };
+
+  // Honour the declared format first, then fall back to the other parser.
+  const isYaml = format === 'yaml' || format === 'yml';
+  let parsed = isYaml ? tryYaml() : tryJson();
+  if (parsed === undefined) parsed = isYaml ? tryJson() : tryYaml();
+  if (parsed === undefined || parsed === null) return null;
+
+  // Double-encoded payloads (a JSON string containing JSON/YAML) unwrap here.
+  if (typeof parsed === 'string') return coerceToCAMLObject(parsed, format);
+  if (typeof parsed !== 'object') return null;
+
+  return parsed;
+}
+
+/**
+ * The forgiving entry point used by the import paths. Accepts an object or a
+ * string in either format, in 1.x or 2.0, complete or partial.
+ */
+export function parseCAMLFlexible(input: unknown, format?: string): CAML1xAdventurePack | null {
+  try {
+    const parsed = coerceToCAMLObject(input, format);
+    if (!parsed) return null;
+
+    if (parsed.caml_version === '2.0' || looksLikeCAML2(parsed)) {
+      const doc = validateCAML2Document(parsed) || normalizeCAML2Document(parsed);
+      if (doc) return convertCAML2ToLegacyPack(doc);
+    }
+
+    return parseLegacyCAML(parsed);
+  } catch (error) {
+    console.error('Failed to parse CAML content:', error);
+    return null;
+  }
+}
+
+/** Same leniency, but yielding a CAML 2.0 document (used to capture camlSource). */
+export function parseCAML2Flexible(input: unknown, format?: string): CAML2Document | null {
+  try {
+    const parsed = coerceToCAMLObject(input, format);
+    if (!parsed) return null;
+
+    if (parsed.caml_version === '2.0' || looksLikeCAML2(parsed)) {
+      return validateCAML2Document(parsed) || normalizeCAML2Document(parsed);
+    }
+
+    const legacy = parseLegacyCAML(parsed);
+    return legacy ? migrateCAML1xTo2(legacy) : null;
+  } catch (error) {
+    console.error('Failed to parse CAML 2.0 content:', error);
+    return null;
+  }
+}
+
+/**
+ * Last-resort pack built from a Trading Post listing's own metadata, so an
+ * adventure published without (or with unreadable) CAML is still importable
+ * as a playable campaign rather than a dead "Import" button.
+ */
+export function buildPackFromListing(listing: {
+  title: string;
+  description?: string | null;
+  shortDescription?: string | null;
+  genre?: string | null;
+  tags?: string[] | null;
+}): CAML1xAdventurePack {
+  const description = listing.description || listing.shortDescription || '';
+  const adventure: CAML1xAdventureModule = {
+    id: generateCAMLId('ADV', listing.title),
+    type: 'AdventureModule',
+    title: listing.title,
+    name: listing.title,
+    description,
+    synopsis: description,
+    setting: listing.genre || 'Fantasy',
+    tags: listing.tags || [],
+    locations: [],
+    npcs: [],
+    items: [],
+    encounters: [],
+    quests: [],
+    factions: [],
+    initialState: {},
+  } as CAML1xAdventureModule;
+
+  return { adventure, entities: buildLegacyEntityIndex(adventure) };
 }
 
 // ============================================================================

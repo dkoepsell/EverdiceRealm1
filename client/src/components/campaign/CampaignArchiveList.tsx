@@ -10,6 +10,7 @@ import { Archive, Bookmark, Calendar, CheckCircle, ChevronRight, Clock, RefreshC
 import { formatDistance } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +26,7 @@ import {
 export default function CampaignArchiveList() {
   const [activeTab, setActiveTab] = useState("active");
   const { toast } = useToast();
+  const { user } = useAuth();
   
   // Query to fetch all campaigns
   const {
@@ -139,6 +141,40 @@ export default function CampaignArchiveList() {
       });
     },
   });
+
+  // Deleting is offered wherever archiving is — an owner may not want a
+  // campaign kept around at all, archived or otherwise. Players who merely
+  // joined someone else's campaign get no delete affordance.
+  const deleteCampaignDialog = (campaign: Campaign) => user?.id !== campaign.userId ? null : (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600" data-testid={`button-delete-campaign-${campaign.id}`}>
+          <Trash className="h-4 w-4" />
+          <span className="hidden sm:inline ml-2">Delete</span>
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete "{campaign.title}"?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This action cannot be undone. The campaign and all of its sessions, quests, NPCs
+            and maps will be permanently deleted. If you only want it out of the way, archive
+            it instead.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => deleteMutation.mutate(campaign.id)}
+            disabled={deleteMutation.isPending}
+            className="bg-red-500 hover:bg-red-600"
+          >
+            {deleteMutation.isPending ? "Deleting..." : "Delete permanently"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 
   // Filter active campaigns (not archived, not completed)
   const activeCampaigns = campaigns.filter(campaign => !campaign.isArchived && !campaign.isCompleted);
@@ -340,6 +376,8 @@ export default function CampaignArchiveList() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
+
+                    {deleteCampaignDialog(campaign)}
                   </div>
                 </CardFooter>
               </Card>
@@ -419,6 +457,8 @@ export default function CampaignArchiveList() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
+
+                    {deleteCampaignDialog(campaign)}
                   </div>
                 </CardFooter>
               </Card>
@@ -475,32 +515,7 @@ export default function CampaignArchiveList() {
                     <RefreshCw className="h-4 w-4 mr-2" />
                     {restoreMutation.isPending ? "Restoring..." : "Restore"}
                   </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600">
-                        <Trash className="h-4 w-4" />
-                        <span className="hidden sm:inline ml-2">Delete</span>
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete campaign?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action cannot be undone. This will permanently delete the campaign and all its sessions.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction 
-                          onClick={() => deleteMutation.mutate(campaign.id)}
-                          disabled={deleteMutation.isPending}
-                          className="bg-red-500 hover:bg-red-600"
-                        >
-                          {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  {deleteCampaignDialog(campaign)}
                 </CardFooter>
               </Card>
             ))

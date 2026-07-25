@@ -107,6 +107,9 @@ import {
   parseCAMLJson,
   parseCAML2Yaml,
   parseCAML2Json,
+  parseCAMLFlexible,
+  parseCAML2Flexible,
+  buildPackFromListing,
   convertCAMLToCampaign,
   convertCampaignToCAML2, 
   exportToYAML, 
@@ -9359,7 +9362,40 @@ Return your response as a JSON object with these fields:
       res.status(500).json({ message: "Failed to archive campaign" });
     }
   });
-  
+
+  // Permanently delete a campaign (and everything hanging off it).
+  // Archiving only hides a campaign; owners can also destroy their own outright.
+  app.delete("/api/campaigns/:campaignId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const campaignId = parseInt(req.params.campaignId);
+      if (isNaN(campaignId)) {
+        return res.status(400).json({ message: "Invalid campaign ID" });
+      }
+
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+
+      const isOwner = campaign.userId === req.user.id;
+      const isStaff = req.user.isAdmin || (req.user as any).isCoAdmin;
+      if (!isOwner && !isStaff) {
+        return res.status(403).json({ message: "Not authorized to delete this campaign" });
+      }
+
+      await storage.deleteCampaign(campaignId);
+      console.log(`[Campaign] User ${req.user.id} permanently deleted campaign ${campaignId} ("${campaign.title}")`);
+      res.json({ success: true, message: "Campaign permanently deleted" });
+    } catch (error: any) {
+      console.error("Error deleting campaign:", error);
+      res.status(500).json({ message: `Failed to delete campaign: ${error?.message || "unknown error"}` });
+    }
+  });
+
   // Restore a campaign from archive
   app.post("/api/campaigns/:campaignId/restore", async (req, res) => {
     try {
@@ -26298,33 +26334,32 @@ Respond with JSON:
   // Import a CAML adventure (YAML or JSON)
   app.post("/api/caml/import", isAuthenticated, async (req, res) => {
     try {
-      const { content, format, createCampaign: shouldCreateCampaign, campaignLength } = req.body;
+      const { content, format, createCampaign: shouldCreateCampaign, campaignLength, listing } = req.body;
       const userId = req.user!.id;
-      
-      console.log("CAML import request:", { format, shouldCreateCampaign, contentLength: content?.length });
-      
-      if (!content) {
+
+      console.log("CAML import request:", { format, shouldCreateCampaign, contentType: typeof content, hasListing: !!listing?.title });
+
+      if (!content && !listing?.title) {
         return res.status(400).json({ message: "No content provided" });
       }
-      
-      let pack;
-      try {
-        if (format === 'yaml' || format === 'yml') {
-          pack = parseCAMLYaml(content);
-        } else {
-          pack = parseCAMLJson(content);
-        }
-      } catch (parseError) {
-        console.error("CAML parse error:", parseError);
-        return res.status(400).json({ message: `Parse error: ${parseError}` });
+
+      // parseCAMLFlexible accepts an object or a string, JSON or YAML, CAML 1.x
+      // or 2.0, and tolerates documents missing optional layers.
+      let pack = content ? parseCAMLFlexible(content, format) : null;
+
+      // A Trading Post listing may carry no CAML at all (or CAML we can't read).
+      // Fall back to its own metadata so the import still yields a campaign.
+      if (!pack && listing?.title) {
+        console.warn("CAML unreadable or absent; importing from listing metadata:", listing.title);
+        pack = buildPackFromListing(listing);
       }
-      
+
       console.log("CAML pack parsed:", pack ? "success" : "null", pack?.adventure?.title);
-      
+
       if (!pack) {
         return res.status(400).json({ message: "Failed to parse CAML content - invalid format" });
       }
-      
+
       const campaignData = convertCAMLToCampaign(pack);
       
       if (shouldCreateCampaign) {
@@ -26346,7 +26381,7 @@ Respond with JSON:
         // Capture the imported CAML 2.0 doc (if it is 2.0) as the source for re-publishing.
         let camlSource: any = null;
         try {
-          camlSource = (format === 'yaml' || format === 'yml') ? parseCAML2Yaml(content) : parseCAML2Json(content);
+          camlSource = content ? parseCAML2Flexible(content, format) : null;
         } catch { camlSource = null; }
 
         const campaign = await storage.createCampaign({
@@ -26364,7 +26399,10 @@ Respond with JSON:
         });
         
         // Wire doctrine fields from CAML 2.0 data into campaign
-        const rawContent = format === 'yaml' || format === 'yml' ? pack : (typeof content === 'string' ? JSON.parse(content) : content);
+        let rawContent: any = null;
+        try {
+          rawContent = typeof content === 'string' ? JSON.parse(content) : content;
+        } catch { rawContent = null; }
         const camlDoctrine = rawContent?.doctrine;
         if (camlDoctrine) {
           const doctrineUpdate: any = {};
@@ -26585,12 +26623,12 @@ Return your response as a JSON object with these fields:
           graph: buildAdventureGraph(caml2Doc)
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to import CAML adventure:", error);
-      res.status(500).json({ message: "Failed to import adventure" });
+      res.status(500).json({ message: `Failed to import adventure: ${error?.message || "unknown error"}` });
     }
   });
-  
+
   // Export a campaign as CAML
   app.get("/api/campaigns/:campaignId/export/caml", isAuthenticated, async (req, res) => {
     try {

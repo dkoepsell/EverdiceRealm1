@@ -1567,11 +1567,72 @@ export class DatabaseStorage implements IStorage {
     return campaign || undefined;
   }
   
+  // Tables whose campaign_id rows we deliberately keep (analytics history) —
+  // the reference is cleared instead of the row being removed.
+  private static readonly CAMPAIGN_REFS_TO_NULL: ReadonlyArray<[string, string]> = [
+    ["user_activity_events", "campaign_id"],
+    ["online_users", "current_campaign_id"],
+    ["user_world_progress", "last_campaign_id"],
+    ["world_discoveries", "source_campaign_id"],
+    ["world_events", "source_campaign_id"],
+    ["world_locations", "linked_campaign_id"],
+  ];
+
   async deleteCampaign(id: number): Promise<boolean> {
-    const result = await db
-      .delete(campaigns)
-      .where(eq(campaigns.id, id));
-    return true; // If no error occurs, consider it successful
+    // Roughly forty tables hang off campaigns and none of them declare ON
+    // DELETE CASCADE, so discover the children from the catalog rather than
+    // hard-coding a list that silently rots as the schema grows.
+    const nullOut = new Map(
+      DatabaseStorage.CAMPAIGN_REFS_TO_NULL.map(([table, column]) => [`${table}.${column}`, true])
+    );
+
+    const childRows = await db.execute(sql`
+      SELECT table_name, column_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND column_name = 'campaign_id'
+        AND table_name <> 'campaigns'
+      ORDER BY table_name
+    `);
+
+    for (const row of ((childRows as any).rows ?? childRows) as Array<{ table_name: string; column_name: string }>) {
+      const key = `${row.table_name}.${row.column_name}`;
+      try {
+        if (nullOut.has(key)) {
+          await db.execute(sql`
+            UPDATE ${sql.identifier(row.table_name)}
+            SET ${sql.identifier(row.column_name)} = NULL
+            WHERE ${sql.identifier(row.column_name)} = ${id}
+          `);
+        } else {
+          await db.execute(sql`
+            DELETE FROM ${sql.identifier(row.table_name)}
+            WHERE ${sql.identifier(row.column_name)} = ${id}
+          `);
+        }
+      } catch (error: any) {
+        // A single unwritable child table must not block the deletion the user
+        // asked for; log it and keep going.
+        console.error(`deleteCampaign: failed to clear ${key} for campaign ${id}:`, error?.message);
+      }
+    }
+
+    // Soft references on tables that have no plain campaign_id column.
+    for (const [table, column] of DatabaseStorage.CAMPAIGN_REFS_TO_NULL) {
+      if (column === "campaign_id") continue;
+      try {
+        await db.execute(sql`
+          UPDATE ${sql.identifier(table)}
+          SET ${sql.identifier(column)} = NULL
+          WHERE ${sql.identifier(column)} = ${id}
+        `);
+      } catch (error: any) {
+        console.error(`deleteCampaign: failed to clear ${table}.${column} for campaign ${id}:`, error?.message);
+      }
+    }
+
+    await db.delete(campaigns).where(eq(campaigns.id, id));
+    return true;
   }
   
   // Campaign Participant operations
