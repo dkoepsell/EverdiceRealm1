@@ -9458,7 +9458,7 @@ Return your response as a JSON object with these fields:
       const { prompt } = req.body;
       
       // Get existing character names to ensure uniqueness
-      const existingCharacters = await storage.getCharactersByUserId(ctx.userId);
+      const existingCharacters = await storage.getCharactersByUserId(req.user.id);
       const existingNames = existingCharacters.map(c => c.name);
       
       // Also get all character names in the database for global uniqueness
@@ -9576,7 +9576,7 @@ Return your response as a JSON object with these fields:
       }
       
       // Only campaign owner can archive
-      if (campaign.userId !== ctx.userId) {
+      if (campaign.userId !== req.user.id) {
         return res.status(403).json({ message: "Not authorized to archive this campaign" });
       }
       
@@ -9606,14 +9606,14 @@ Return your response as a JSON object with these fields:
         return res.status(404).json({ message: "Campaign not found" });
       }
 
-      const isOwner = campaign.userId === ctx.userId;
+      const isOwner = campaign.userId === req.user.id;
       const isStaff = req.user.isAdmin || (req.user as any).isCoAdmin;
       if (!isOwner && !isStaff) {
         return res.status(403).json({ message: "Not authorized to delete this campaign" });
       }
 
       await storage.deleteCampaign(campaignId);
-      console.log(`[Campaign] User ${ctx.userId} permanently deleted campaign ${campaignId} ("${campaign.title}")`);
+      console.log(`[Campaign] User ${req.user.id} permanently deleted campaign ${campaignId} ("${campaign.title}")`);
       res.json({ success: true, message: "Campaign permanently deleted" });
     } catch (error: any) {
       console.error("Error deleting campaign:", error);
@@ -9636,7 +9636,7 @@ Return your response as a JSON object with these fields:
       }
       
       // Only campaign owner can restore
-      if (campaign.userId !== ctx.userId) {
+      if (campaign.userId !== req.user.id) {
         return res.status(403).json({ message: "Not authorized to restore this campaign" });
       }
       
@@ -9668,15 +9668,15 @@ Return your response as a JSON object with these fields:
       }
       
       // Only campaign owner can complete
-      if (campaign.userId !== ctx.userId) {
+      if (campaign.userId !== req.user.id) {
         return res.status(403).json({ message: "Not authorized to complete this campaign" });
       }
       
       const completedCampaign = await storage.completeCampaign(campaignId);
 
       // Badge: full campaign completed
-      storage.tryAwardBadge(ctx.userId, 'Legend of the Realm', { campaignId })
-        .then(result => { if (result) broadcastToUser(ctx.userId, 'badge_unlocked', result.badge); })
+      storage.tryAwardBadge(req.user.id, 'Legend of the Realm', { campaignId })
+        .then(result => { if (result) broadcastToUser(req.user.id, 'badge_unlocked', result.badge); })
         .catch(() => {});
 
       // Mark world location/region as completed for all participants
@@ -9718,8 +9718,8 @@ Return your response as a JSON object with these fields:
       }
       
       // Check if user is authorized to view this campaign
-      const participant = await storage.getCampaignParticipant(campaignId, ctx.userId);
-      if (!participant && campaign.userId !== ctx.userId) {
+      const participant = await storage.getCampaignParticipant(campaignId, req.user.id);
+      if (!participant && campaign.userId !== req.user.id) {
         return res.status(403).json({ message: "Not authorized to view this campaign's participants" });
       }
       
@@ -9794,10 +9794,10 @@ Return your response as a JSON object with these fields:
       }
       
       // Users can either join themselves or the DM can add others
-      const targetUserId = req.body.userId || ctx.userId;
+      const targetUserId = req.body.userId || req.user.id;
       
       // If adding someone else, must be campaign owner
-      if (targetUserId !== ctx.userId && campaign.userId !== ctx.userId) {
+      if (targetUserId !== req.user.id && campaign.userId !== req.user.id) {
         return res.status(403).json({ message: "Only the campaign owner can add other participants" });
       }
       
@@ -9891,7 +9891,7 @@ Return your response as a JSON object with these fields:
       }
       
       // Only campaign owner or the participant themselves can remove
-      if (campaign.userId !== ctx.userId && userId !== ctx.userId) {
+      if (campaign.userId !== req.user.id && userId !== req.user.id) {
         return res.status(403).json({ message: "Not authorized to remove this participant" });
       }
       
