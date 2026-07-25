@@ -2,7 +2,7 @@ import {
   users, type User, type InsertUser,
   discordConnections,
   pendingDiscordChoices,
-  characters, type Character, type InsertCharacter,
+  characters, type Character, type InsertCharacter, type CharacterEngagement,
   campaigns, type Campaign, type InsertCampaign,
   campaignSessions, type CampaignSession, type InsertCampaignSession,
   diceRolls, type DiceRoll, type InsertDiceRoll,
@@ -121,6 +121,13 @@ export interface IStorage {
   getAllCharacters(): Promise<Character[]>;
   getCharactersByUserId(userId: number): Promise<Character[]>;
   getCharacter(id: number): Promise<Character | undefined>;
+
+  // Character engagement — a character is in exactly one place at a time
+  getCharacterEngagement(characterId: number): Promise<CharacterEngagement | null>;
+  getEngagementsForCharacters(characterIds: number[]): Promise<Map<number, CharacterEngagement | null>>;
+  setCharacterEngagement(characterId: number, kind: 'campaign' | 'wander' | 'delve', engagementId: number): Promise<void>;
+  clearCharacterEngagement(characterId: number): Promise<void>;
+  clearEngagementForTarget(kind: 'campaign' | 'wander' | 'delve', engagementId: number): Promise<void>;
   createCharacter(character: InsertCharacter): Promise<Character>;
   updateCharacter(id: number, character: Partial<Character>): Promise<Character | undefined>;
   deleteCharacter(id: number): Promise<boolean>;
@@ -1340,7 +1347,89 @@ export class DatabaseStorage implements IStorage {
     const [character] = await db.select().from(characters).where(eq(characters.id, id));
     return character || undefined;
   }
-  
+
+  // ===== Character engagement =====
+  // A character is in exactly one place at a time. `engagementKind` on the
+  // character row is authoritative, but wander/delve runs can also end without
+  // going through our exit paths (abandoned tabs, old data), so we self-heal
+  // against the run's real status rather than trusting the column blindly.
+
+  async getCharacterEngagement(characterId: number): Promise<CharacterEngagement | null> {
+    const character = await this.getCharacter(characterId);
+    if (!character) return null;
+    return this.resolveEngagement(character);
+  }
+
+  async getEngagementsForCharacters(characterIds: number[]): Promise<Map<number, CharacterEngagement | null>> {
+    const result = new Map<number, CharacterEngagement | null>();
+    if (characterIds.length === 0) return result;
+    const rows = await db.select().from(characters).where(inArray(characters.id, characterIds));
+    for (const row of rows) {
+      result.set(row.id, await this.resolveEngagement(row));
+    }
+    return result;
+  }
+
+  private async resolveEngagement(character: Character): Promise<CharacterEngagement | null> {
+    const kind = character.engagementKind || 'idle';
+    if (kind === 'idle' || !character.engagementId) return null;
+
+    if (kind === 'wander') {
+      const [run] = await db.select().from(wanderRuns).where(eq(wanderRuns.id, character.engagementId));
+      if (!run || run.status !== 'active') {
+        await this.clearCharacterEngagement(character.id);
+        return null;
+      }
+      return { kind: 'wander', id: run.id, label: 'out wandering the wilds', since: character.engagementSince ?? null };
+    }
+
+    if (kind === 'delve') {
+      const [run] = await db.select().from(dungeonRuns).where(eq(dungeonRuns.id, character.engagementId));
+      if (!run || run.status !== 'active') {
+        await this.clearCharacterEngagement(character.id);
+        return null;
+      }
+      return { kind: 'delve', id: run.id, label: 'deep in a dungeon', since: character.engagementSince ?? null };
+    }
+
+    if (kind === 'campaign') {
+      const campaign = await this.getCampaign(character.engagementId);
+      if (!campaign) {
+        await this.clearCharacterEngagement(character.id);
+        return null;
+      }
+      return {
+        kind: 'campaign',
+        id: campaign.id,
+        label: `in the field — ${campaign.title}`,
+        since: character.engagementSince ?? null,
+      };
+    }
+
+    // Unknown kind: treat as idle rather than locking the character out forever.
+    await this.clearCharacterEngagement(character.id);
+    return null;
+  }
+
+  async setCharacterEngagement(characterId: number, kind: 'campaign' | 'wander' | 'delve', engagementId: number): Promise<void> {
+    await db.update(characters)
+      .set({ engagementKind: kind, engagementId, engagementSince: new Date().toISOString() })
+      .where(eq(characters.id, characterId));
+  }
+
+  async clearCharacterEngagement(characterId: number): Promise<void> {
+    await db.update(characters)
+      .set({ engagementKind: 'idle', engagementId: null, engagementSince: null })
+      .where(eq(characters.id, characterId));
+  }
+
+  // Clear whichever characters were bound to a run/campaign that just ended.
+  async clearEngagementForTarget(kind: 'campaign' | 'wander' | 'delve', engagementId: number): Promise<void> {
+    await db.update(characters)
+      .set({ engagementKind: 'idle', engagementId: null, engagementSince: null })
+      .where(and(eq(characters.engagementKind, kind), eq(characters.engagementId, engagementId)));
+  }
+
   // Admin operations
   async getAllUsers(): Promise<User[]> {
     return db.select().from(users);

@@ -61,6 +61,12 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
   const [genType, setGenType] = useState('any');
   const [genPersonality, setGenPersonality] = useState('any');
 
+  // Generation and joining are now two steps. Playtest feedback asked for
+  // "some explicit way of having a companion join" — previously the generate
+  // call created the NPC and added them to the party in one shot, so a reroll
+  // wasn't possible and nobody ever agreed to anything.
+  const [candidate, setCandidate] = useState<any | null>(null);
+
   const generateCompanionMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest('POST', '/api/ai-generate/npc', {
@@ -73,20 +79,41 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
       return res.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaignId}/participants`] });
-      setIsGenerateOpen(false);
-      setGenRace('any');
-      setGenClass('any');
-      setGenType('any');
-      setGenPersonality('any');
+      setCandidate(data);
       toast({
-        title: `${data.name} has joined the party!`,
+        title: `${data.name} awaits your answer`,
         description: `${data.race} ${data.occupation} — ${data.personality}`,
       });
     },
     onError: (error: any) => {
       toast({
         title: 'Failed to generate companion',
+        description: error.message || 'Something went wrong',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const recruitCompanionMutation = useMutation({
+    mutationFn: async (npcId: number) => {
+      const res = await apiRequest('POST', `/api/campaigns/${campaignId}/companions/${npcId}/recruit`);
+      return res.json();
+    },
+    onSuccess: (_data, npcId) => {
+      const name = candidate?.name ?? 'Your companion';
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaignId}/participants`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaignId}/npcs`] });
+      setCandidate(null);
+      setIsGenerateOpen(false);
+      setGenRace('any');
+      setGenClass('any');
+      setGenType('any');
+      setGenPersonality('any');
+      toast({ title: `${name} has joined the party!` });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to recruit companion',
         description: error.message || 'Something went wrong',
         variant: 'destructive',
       });
@@ -420,18 +447,68 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
                     </Select>
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button
-                    onClick={() => generateCompanionMutation.mutate()}
-                    disabled={generateCompanionMutation.isPending}
-                    className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
-                  >
-                    {generateCompanionMutation.isPending ? (
-                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Conjuring companion...</>
-                    ) : (
-                      <><Wand2 className="h-4 w-4 mr-2" /> Generate Companion</>
+                {/* Step 2: meet them, then decide. */}
+                {candidate && (
+                  <div className="rounded-lg border border-purple-500/40 bg-purple-500/5 p-4 mt-2" data-testid="companion-candidate">
+                    <div className="flex items-baseline justify-between flex-wrap gap-2">
+                      <h4 className="text-lg font-semibold">{candidate.name}</h4>
+                      <span className="text-sm text-muted-foreground">
+                        {candidate.race} {candidate.occupation}
+                      </span>
+                    </div>
+                    {candidate.personality && (
+                      <p className="text-sm text-muted-foreground mt-1">{candidate.personality}</p>
                     )}
-                  </Button>
+                    {candidate.backstory && (
+                      <p className="text-sm mt-2 line-clamp-4">{candidate.backstory}</p>
+                    )}
+                  </div>
+                )}
+
+                <DialogFooter className="gap-2 sm:gap-2">
+                  {candidate ? (
+                    <>
+                      <Button
+                        onClick={() => recruitCompanionMutation.mutate(candidate.id)}
+                        disabled={recruitCompanionMutation.isPending}
+                        className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+                        data-testid="button-recruit-companion"
+                      >
+                        {recruitCompanionMutation.isPending ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Welcoming...</>
+                        ) : (
+                          <><UserPlus className="h-4 w-4 mr-2" /> Recruit {candidate.name}</>
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => generateCompanionMutation.mutate()}
+                        disabled={generateCompanionMutation.isPending || recruitCompanionMutation.isPending}
+                        data-testid="button-reroll-companion"
+                      >
+                        {generateCompanionMutation.isPending ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Conjuring...</>
+                        ) : (
+                          <><Wand2 className="h-4 w-4 mr-2" /> Someone else</>
+                        )}
+                      </Button>
+                      <Button variant="ghost" onClick={() => setCandidate(null)}>
+                        Not now
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      onClick={() => generateCompanionMutation.mutate()}
+                      disabled={generateCompanionMutation.isPending}
+                      className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+                    >
+                      {generateCompanionMutation.isPending ? (
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Conjuring companion...</>
+                      ) : (
+                        <><Wand2 className="h-4 w-4 mr-2" /> Generate Companion</>
+                      )}
+                    </Button>
+                  )}
                 </DialogFooter>
               </DialogContent>
             </Dialog>

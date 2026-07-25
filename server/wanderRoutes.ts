@@ -24,6 +24,22 @@ export function registerWanderRoutes(router: Router) {
         return res.status(400).json({ error: "An active wander run already exists for this campaign", existingRunId: existing.id });
       }
 
+      // A character is in one place at a time. The check above is keyed on
+      // (userId, campaignId), so it never noticed that this character was
+      // already mid-delve or in the field with another party.
+      const character = await storage.getCharacter(characterId);
+      if (!character || character.userId !== userId) {
+        return res.status(404).json({ error: "Character not found" });
+      }
+      const engagement = await storage.getCharacterEngagement(characterId);
+      if (engagement) {
+        return res.status(409).json({
+          code: "CHARACTER_ENGAGED",
+          error: `${character.name} is ${engagement.label}. Return to town before setting out again.`,
+          engagement,
+        });
+      }
+
       const run = await storage.createWanderRun({
         userId,
         campaignId,
@@ -47,6 +63,9 @@ export function registerWanderRoutes(router: Router) {
         discoveredAt: new Date().toISOString(),
         lastVisitedAt: new Date().toISOString(),
       });
+
+      // Mark the character as out in the field.
+      await storage.setCharacterEngagement(characterId, 'wander', run.id);
 
       res.json(run);
     } catch (error: any) {
@@ -257,6 +276,9 @@ export function registerWanderRoutes(router: Router) {
         status: "completed",
         endedAt: new Date().toISOString(),
       });
+
+      // The character is back in town and free to do other things.
+      await storage.clearEngagementForTarget('wander', runId);
 
       res.json({ summary, run: updatedRun });
     } catch (error: any) {

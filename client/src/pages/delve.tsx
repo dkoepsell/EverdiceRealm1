@@ -893,8 +893,9 @@ export default function DelvePage() {
                 </SelectTrigger>
                 <SelectContent className="bg-stone-800 border-stone-700">
                   {characters?.map((c: any) => (
-                    <SelectItem key={c.id} value={c.id.toString()} className="text-stone-200">
+                    <SelectItem key={c.id} value={c.id.toString()} className="text-stone-200" disabled={!!c.engagement}>
                       {c.name} — Lv.{c.level || 1} {c.class || ''}
+                      {c.engagement ? ` (${c.engagement.label})` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>

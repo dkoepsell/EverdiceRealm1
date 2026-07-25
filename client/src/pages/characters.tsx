@@ -3,7 +3,6 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Character, insertCharacterSchema } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { generateCharacterSuggestion } from "@/lib/openai";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -426,6 +425,10 @@ export default function Characters() {
   const [selectedCharacterInitialTab, setSelectedCharacterInitialTab] = useState<string>("main");
   const [expandedCharacterId, setExpandedCharacterId] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  // "Surprise Me": the computer rolls a whole character and you accept or reroll
+  // it. Deliberately has NO editable form — playtest feedback was that mixing
+  // AI generation into the manual builder made creation feel muddled.
+  const [surprisePreview, setSurprisePreview] = useState<any | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [isCreatingFromTemplate, setIsCreatingFromTemplate] = useState(false);
   const [generatingPortraitIds, setGeneratingPortraitIds] = useState<Set<number>>(new Set());
@@ -623,59 +626,35 @@ export default function Characters() {
     }
   };
 
-  const handleGenerateCharacter = async () => {
-    try {
-      setIsGenerating(true);
-      const prompt = "Generate a unique and interesting D&D character with a compelling backstory";
-      const suggestion = await generateCharacterSuggestion(prompt);
-      
-      // Parse ability scores from the suggestion
-      const abilities = {
-        strength: Math.floor(Math.random() * 10) + 8,
-        dexterity: Math.floor(Math.random() * 10) + 8,
-        constitution: Math.floor(Math.random() * 10) + 8,
-        intelligence: Math.floor(Math.random() * 10) + 8,
-        wisdom: Math.floor(Math.random() * 10) + 8,
-        charisma: Math.floor(Math.random() * 10) + 8,
-      };
-      
-      // Calculate hit points based on class and constitution
-      const baseHp = getBaseHitPoints(suggestion.class);
-      const conModifier = Math.floor((abilities.constitution - 10) / 2);
-      const maxHp = baseHp + conModifier;
-      
-      form.reset({
-        ...form.getValues(),
-        name: suggestion.name,
-        race: suggestion.race,
-        class: suggestion.class,
-        background: suggestion.background,
-        alignment: suggestion.alignment,
-        strength: abilities.strength,
-        dexterity: abilities.dexterity,
-        constitution: abilities.constitution,
-        intelligence: abilities.intelligence,
-        wisdom: abilities.wisdom,
-        charisma: abilities.charisma,
-        hitPoints: maxHp,
-        maxHitPoints: maxHp,
-        armorClass: 10 + Math.floor((abilities.dexterity - 10) / 2),
-      });
-      
-      toast({
-        title: "Character Generated",
-        description: "A new character concept has been generated. You can modify it before saving.",
-      });
-    } catch (error) {
-      toast({
-        title: "Generation Failed",
-        description: "Failed to generate character suggestion.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+  const rollSurpriseCharacter = useMutation({
+    mutationFn: async () => {
+      // preview:true rolls without persisting, so a reroll doesn't litter the
+      // roster with characters the player never wanted.
+      const res = await apiRequest('POST', '/api/characters/quick-build', { preview: true });
+      const data = await res.json();
+      return data.preview;
+    },
+    onSuccess: (preview: any) => setSurprisePreview(preview),
+    onError: (error: Error) => {
+      toast({ title: "Couldn't roll a character", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const keepSurpriseCharacter = useMutation({
+    mutationFn: async (payload: any) => {
+      const res = await apiRequest('POST', '/api/characters', payload);
+      return res.json();
+    },
+    onSuccess: (character: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      setSurprisePreview(null);
+      toast({ title: `${character.name} joins your roster`, description: "Ready for an adventure." });
+      setCharTab('list');
+    },
+    onError: (error: Error) => {
+      toast({ title: "Couldn't save character", description: error.message, variant: "destructive" });
+    },
+  });
 
   function getBaseHitPoints(characterClass: string): number {
     // Base hit points by class at level 1
@@ -742,20 +721,20 @@ export default function Characters() {
           </SidebarTabsTrigger>
           <OnboardingHint
             hintId="character_builder_class"
-            title="Quick Character Creation"
-            description="Pick a pre-made hero template and start playing immediately! Each template has balanced stats and abilities for their role."
+            title="Have One Made for You"
+            description="Pick a ready-made hero, or hit Surprise Me and let the dice build one for you. Either way you don't have to decide anything — just accept it and play."
             tip="Warriors tank damage, Wizards cast spells, Rogues sneak around - pick what sounds fun!"
             position="bottom"
             pulse={true}
           >
             <SidebarTabsTrigger value="quick" className="flex items-center gap-2">
               <Sparkles size={16} />
-              Quick Create
+              Made for Me
             </SidebarTabsTrigger>
           </OnboardingHint>
           <OnboardingHint
             hintId="character_builder_race"
-            title="Custom Character Builder"
+            title="Build It Yourself"
             description="Create a fully customized character by choosing race, class, abilities, and backstory. Full control for experienced players."
             tip="Hover over any stat to see what it does - we explain everything!"
             position="bottom"
@@ -763,7 +742,7 @@ export default function Characters() {
           >
             <SidebarTabsTrigger value="create" className="flex items-center gap-2">
               <Plus size={16} />
-              Advanced
+              Build It Myself
             </SidebarTabsTrigger>
           </OnboardingHint>
         </SidebarTabsList>
@@ -1429,6 +1408,100 @@ export default function Characters() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Surprise Me — the other half of the fork.
+              "You should either be creating the character yourself or have the
+              computer generate it (I liked the 'surprise me' option for
+              generating companions), but not both."
+              So: no editable form here. Roll, look, reroll or keep. */}
+          <Card className="mt-6 border-2 border-purple-500/30 bg-gradient-to-br from-purple-500/5 to-indigo-500/5">
+            <CardHeader>
+              <CardTitle className="font-fantasy flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-purple-400" />
+                Surprise Me
+              </CardTitle>
+              <CardDescription>
+                Let the dice decide everything — race, class, stats and gear. Reroll
+                until one feels right, then keep it.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {surprisePreview ? (
+                <div className="space-y-4" data-testid="surprise-preview">
+                  <div className="rounded-lg border border-purple-500/30 bg-background/60 p-4">
+                    <div className="flex items-baseline justify-between flex-wrap gap-2">
+                      <h3 className="text-xl font-fantasy font-bold">{surprisePreview.name}</h3>
+                      <span className="text-sm text-muted-foreground">
+                        Level {surprisePreview.level} {surprisePreview.race} {surprisePreview.class}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-4">
+                      {([
+                        ['STR', surprisePreview.strength],
+                        ['DEX', surprisePreview.dexterity],
+                        ['CON', surprisePreview.constitution],
+                        ['INT', surprisePreview.intelligence],
+                        ['WIS', surprisePreview.wisdom],
+                        ['CHA', surprisePreview.charisma],
+                      ] as [string, number][]).map(([label, value]) => (
+                        <div key={label} className="rounded-md bg-muted/40 p-2 text-center">
+                          <div className="text-xs text-muted-foreground">{label}</div>
+                          <div className="text-lg font-semibold">{value}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-4 mt-4 text-sm text-muted-foreground">
+                      <span>HP {surprisePreview.maxHitPoints}</span>
+                      <span>AC {surprisePreview.armorClass}</span>
+                      <span>{surprisePreview.equippedWeapon}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      onClick={() => keepSurpriseCharacter.mutate(surprisePreview)}
+                      disabled={keepSurpriseCharacter.isPending}
+                      className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600"
+                      data-testid="button-keep-surprise"
+                    >
+                      {keepSurpriseCharacter.isPending
+                        ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving…</>)
+                        : "Keep this character"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => rollSurpriseCharacter.mutate()}
+                      disabled={rollSurpriseCharacter.isPending}
+                      data-testid="button-reroll-surprise"
+                    >
+                      {rollSurpriseCharacter.isPending
+                        ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Rolling…</>)
+                        : "Roll another"}
+                    </Button>
+                    <Button variant="ghost" onClick={() => setSurprisePreview(null)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-center">
+                  <Button
+                    size="lg"
+                    onClick={() => rollSurpriseCharacter.mutate()}
+                    disabled={rollSurpriseCharacter.isPending}
+                    className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 px-8 py-6 text-lg shadow-lg"
+                    data-testid="button-roll-surprise"
+                  >
+                    {rollSurpriseCharacter.isPending ? (
+                      <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Rolling…</>
+                    ) : (
+                      <><Sparkles className="mr-2 h-5 w-5" /> Surprise Me</>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
         
         <TabsContent value="create">
@@ -1542,17 +1615,17 @@ export default function Characters() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <Card>
               <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle className="font-fantasy">Create New Character</CardTitle>
-                  <Button 
-                    variant="outline" 
-                    className="text-primary-light border-primary-light"
-                    onClick={handleGenerateCharacter}
-                    disabled={isGenerating}
-                  >
-                    {isGenerating ? "Generating..." : "Generate"}
-                  </Button>
-                </div>
+                {/* No "Generate" button here any more. Playtest feedback: "you
+                    should either be creating the character yourself or have the
+                    computer generate it... but not both." It used to roll a
+                    character with the AI and then dump it into this editable
+                    form, mixing the two modes. Generation now lives entirely in
+                    the Surprise Me tab. */}
+                <CardTitle className="font-fantasy">Build Your Character</CardTitle>
+                <CardDescription>
+                  Every choice is yours. Prefer to have one rolled for you? Try the
+                  Surprise Me tab.
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <Form {...form}>

@@ -128,6 +128,14 @@ export const characters = pgTable("characters", {
   exhaustionLevel: integer("exhaustion_level").default(0),
   // Downtime cooldowns: { [activityId]: cooldownUntilISO } — server-authoritative gate on Work activities
   downtimeState: jsonb("downtime_state").default({}),
+  // Engagement: where this character physically is right now. A character is in
+  // exactly one place at a time — you can't drink in the tavern with the same
+  // character who is mid-delve. Set on entering play, cleared by finishing or by
+  // an explicit "return to town".
+  //   'idle' | 'campaign' | 'wander' | 'delve'
+  engagementKind: text("engagement_kind").notNull().default("idle"),
+  engagementId: integer("engagement_id"),
+  engagementSince: text("engagement_since"),
   // Resurrection tracking
   deathTimestamp: text("death_timestamp"),
   resurrectedAt: text("resurrected_at"),
@@ -149,6 +157,20 @@ export const insertCharacterSchema = createInsertSchema(characters).omit({
 
 export type InsertCharacter = z.infer<typeof insertCharacterSchema>;
 export type Character = typeof characters.$inferSelect;
+
+/**
+ * Where a character currently is. `null` means idle — free to visit the tavern,
+ * the trading post, or start a new adventure. Attached to characters returned
+ * from GET /api/characters so the UI can grey out unavailable choices.
+ */
+export type CharacterEngagementKind = 'campaign' | 'wander' | 'delve';
+export interface CharacterEngagement {
+  kind: CharacterEngagementKind;
+  id: number;
+  /** Player-facing phrase, e.g. "deep in a dungeon". */
+  label: string;
+  since: string | null;
+}
 
 // Items database with D&D 5e stats
 export const items = pgTable("items", {

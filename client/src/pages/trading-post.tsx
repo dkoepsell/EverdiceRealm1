@@ -860,7 +860,9 @@ export default function TradingPostPage() {
                 <SelectTrigger><SelectValue placeholder="Select character..." /></SelectTrigger>
                 <SelectContent>
                   {characters.map((c: any) => (
-                    <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
+                    <SelectItem key={c.id} value={c.id.toString()} disabled={!!c.engagement}>
+                      {c.name}{c.engagement ? ` — ${c.engagement.label}` : ''}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -1411,8 +1413,9 @@ export default function TradingPostPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {characters.map((c: any) => (
-                        <SelectItem key={c.id} value={c.id.toString()}>
+                        <SelectItem key={c.id} value={c.id.toString()} disabled={!!c.engagement}>
                           {c.name} (Lv.{c.level || 1} {c.class})
+                          {c.engagement ? ` — ${c.engagement.label}` : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>

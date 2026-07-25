@@ -1735,9 +1735,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.id;
       const userCharacters = await storage.getCharactersByUserId(userId);
-      res.json(userCharacters);
+
+      // Attach engagement so the UI can grey out characters who are out in the
+      // field instead of silently letting you take them shopping mid-delve.
+      const engagements = await storage.getEngagementsForCharacters(userCharacters.map(c => c.id));
+      res.json(userCharacters.map(c => ({ ...c, engagement: engagements.get(c.id) ?? null })));
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch characters" });
+    }
+  });
+
+  // Explicit exit from the field. Ends any active wander/delve run and releases
+  // the character so town surfaces (tavern, trading post, downtime) unlock.
+  app.post("/api/characters/:id/return-to-town", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const character = await storage.getCharacter(id);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      if (character.userId !== req.user.id) {
+        return res.status(403).json({ message: "Not your character" });
+      }
+
+      const engagement = await storage.getCharacterEngagement(id);
+      if (!engagement) {
+        return res.json({ success: true, alreadyInTown: true });
+      }
+
+      if (engagement.kind === 'wander') {
+        await storage.updateWanderRun(engagement.id, {
+          status: "abandoned",
+          endedAt: new Date().toISOString(),
+        });
+      } else if (engagement.kind === 'delve') {
+        await storage.updateDungeonRun(engagement.id, {
+          status: "retreated",
+          endedAt: new Date().toISOString(),
+        });
+      }
+      // For 'campaign' there's nothing to end — the session stays where it is;
+      // the character simply steps out of the field.
+
+      await storage.clearCharacterEngagement(id);
+      res.json({ success: true, returnedFrom: engagement });
+    } catch (error) {
+      console.error("Failed to return character to town:", error);
+      res.status(500).json({ message: "Failed to return to town" });
     }
   });
 
@@ -1876,7 +1920,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Optional overrides let the first-run funnel offer chosen "pregen archetypes"
       // (a class, sometimes a race) while still rolling stats + gear automatically.
-      const { campaignId, class: reqClass, race: reqRace, name: reqName } = req.body || {};
+      // `preview: true` rolls a character and hands it back WITHOUT persisting,
+      // so "Surprise me" can offer Reroll / Keep instead of dropping a
+      // half-wanted character straight into the player's roster.
+      const { campaignId, class: reqClass, race: reqRace, name: reqName, preview } = req.body || {};
       const userId = req.user.id;
 
       const races = ["Human", "Elf", "Dwarf", "Halfling", "Half-Orc", "Tiefling", "Gnome", "Dragonborn"];
@@ -1952,7 +1999,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ];
       const equipment = [weapon, armor, "Backpack", "Waterskin", "Rations (5 days)"];
 
-      const character = await storage.createCharacter({
+      const characterPayload = {
         userId,
         name,
         race,
@@ -1972,7 +2019,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         equippedWeapon: weapon,
         equippedArmor: armor,
         proficiencyBonus: 2,
-      } as any);
+      };
+
+      // Preview: hand back the rolled character without saving it, so the
+      // "Surprise me" flow can offer Reroll / Keep.
+      if (preview) {
+        return res.json({ preview: characterPayload });
+      }
+
+      const character = await storage.createCharacter(characterPayload as any);
 
       if (campaignId) {
         await storage.addCampaignParticipant({
@@ -3366,6 +3421,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Not your character" });
       }
 
+      // Downtime is a town activity — not available to a character who is
+      // currently out in the field. "A character should be either in an
+      // adventure or out of one, and if he's in an adventure, the tavern
+      // shouldn't be available."
+      const engagement = await storage.getCharacterEngagement(id);
+      if (engagement) {
+        return res.status(409).json({
+          code: "CHARACTER_ENGAGED",
+          message: `${character.name} is ${engagement.label}. Return to town first.`,
+          engagement,
+        });
+      }
+
       const { getSkillModifier } = await import("../shared/rules/skills");
       const roll = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
       const d20 = () => Math.floor(Math.random() * 20) + 1;
@@ -3530,6 +3598,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const character = await storage.getCharacter(id);
       if (!character) return res.status(404).json({ message: "Character not found" });
       if ((character as any).userId !== req.user.id) return res.status(403).json({ message: "Not your character" });
+
+      // Bounty boards are a town activity — off-limits while out in the field.
+      const bountyEngagement = await storage.getCharacterEngagement(id);
+      if (bountyEngagement) {
+        return res.status(409).json({
+          code: "CHARACTER_ENGAGED",
+          message: `${character.name} is ${bountyEngagement.label}. Return to town first.`,
+          engagement: bountyEngagement,
+        });
+      }
 
       const { getBounty } = await import("../shared/rules/bounties");
       const { getAbilityModifier, getProficiencyBonus } = await import("../shared/rules/xp");
@@ -9491,7 +9569,19 @@ Return your response as a JSON object with these fields:
       if (existingParticipant) {
         return res.status(400).json({ message: "This character is already in this campaign" });
       }
-      
+
+      // ...and that they aren't already out in the field somewhere else. The
+      // check above only looks at THIS campaign, so a character mid-delve or
+      // adventuring with another party used to slip straight through.
+      const joinEngagement = await storage.getCharacterEngagement(validatedData.characterId);
+      if (joinEngagement && !(joinEngagement.kind === 'campaign' && joinEngagement.id === campaignId)) {
+        return res.status(409).json({
+          code: "CHARACTER_ENGAGED",
+          message: `${character.name} is ${joinEngagement.label}. Return to town before joining another party.`,
+          engagement: joinEngagement,
+        });
+      }
+
       const participant = await storage.addCampaignParticipant(validatedData);
       
       // Notify via WebSocket
@@ -15500,31 +15590,62 @@ Make this NPC feel like a real person with quirks and depth, not generic.`;
 
       const savedNpc = await storage.createNpc(npcRecord);
 
-      if (campaignId) {
-        const campaign = await storage.getCampaign(parseInt(campaignId));
-        if (campaign && campaign.userId === req.user.id) {
-          const defaultInventory = [
-            { name: "Potion of Healing", type: "potion", rarity: "common", description: "Restores 2d4+2 hit points", properties: "Consumable, healing", quantity: 2 }
-          ];
-          await storage.addNpcToCampaign({
-            campaignId: parseInt(campaignId),
-            npcId: savedNpc.id,
-            role: 'companion',
-            isActive: true,
-            joinedAt: new Date().toISOString(),
-            gold: loadout.gold,
-            inventory: defaultInventory,
-          } as any);
-        }
-      }
-
-      res.json({ ...savedNpc, backstory: aiResult.backstory });
+      // Generation no longer auto-joins the party. Playtest feedback asked for
+      // "some explicit way of having a companion join", so the client shows the
+      // rolled companion and the player recruits (or rerolls) deliberately via
+      // POST /api/campaigns/:campaignId/companions/:npcId/recruit.
+      res.json({ ...savedNpc, backstory: aiResult.backstory, recruited: false });
     } catch (error) {
       console.error("Failed to generate NPC:", error);
       res.status(500).json({ 
         message: "Failed to generate NPC",
         error: error instanceof Error ? error.message : "Unknown error"
       });
+    }
+  });
+
+  // Explicit companion recruitment. Generation (above) only creates the NPC;
+  // this is what actually brings them into the party.
+  app.post('/api/campaigns/:campaignId/companions/:npcId/recruit', isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const npcId = parseInt(req.params.npcId);
+
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      if (campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Only the campaign owner can recruit companions" });
+      }
+
+      const npc = await storage.getNpc(npcId);
+      if (!npc) {
+        return res.status(404).json({ message: "Companion not found" });
+      }
+
+      const existing = await storage.getCampaignNpcs(campaignId);
+      if (existing.some((n: any) => n.npcId === npcId)) {
+        return res.status(409).json({ message: `${npc.name} is already travelling with you.` });
+      }
+
+      const defaultInventory = [
+        { name: "Potion of Healing", type: "potion", rarity: "common", description: "Restores 2d4+2 hit points", properties: "Consumable, healing", quantity: 2 }
+      ];
+      await storage.addNpcToCampaign({
+        campaignId,
+        npcId,
+        role: 'companion',
+        isActive: true,
+        joinedAt: new Date().toISOString(),
+        gold: (npc as any).gold ?? 0,
+        inventory: defaultInventory,
+      } as any);
+
+      res.json({ success: true, npc });
+    } catch (error) {
+      console.error("Failed to recruit companion:", error);
+      res.status(500).json({ message: "Failed to recruit companion" });
     }
   });
 
@@ -18567,7 +18688,17 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
       // participants, so they never count; we measure distinct human user ids so a
       // solo player (with or without companions) is correctly treated as solo.
       const isMultiplayer = new Set(participants.map((p: any) => p.userId).filter((u: any) => u != null)).size > 1;
-      
+
+      // Taking a turn puts this player's character in the field. Town surfaces
+      // (tavern, trading post, downtime) lock until they explicitly return via
+      // POST /api/characters/:id/return-to-town or the session completes.
+      // Fire-and-forget: engagement bookkeeping must never block a story turn.
+      const actingParticipant = participants.find((p: any) => p.userId === req.user.id && p.characterId);
+      if (actingParticipant?.characterId) {
+        storage.setCharacterEngagement(actingParticipant.characterId, 'campaign', campaignId)
+          .catch(err => console.error('[Engagement] Failed to mark character in-field:', err));
+      }
+
       if (campaign.isTurnBased && isMultiplayer && !isDM && !skipTurnCheck) {
         // Check if it's this player's turn
         if (campaign.currentTurnUserId && campaign.currentTurnUserId !== req.user.id) {
@@ -24412,6 +24543,9 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           isCompleted: true,
           completedAt: new Date().toISOString()
         });
+
+        // The adventure is over — everyone's back in town.
+        await storage.clearEngagementForTarget('campaign', campaignId);
         
         // ═══════════════════════════════════════════════════════════════════
         // CAMPAIGN-THEMED REWARD ITEMS — Generated based on campaign story
@@ -29744,7 +29878,22 @@ No JSON, no choices, no game mechanics, no headings — just the story text.`;
       if (!characterId || !templateId) {
         return res.status(400).json({ message: "Character ID and template ID required" });
       }
-      
+
+      // Shopping is a town activity — you can't browse the magic shop from
+      // inside a dungeon.
+      const character = await storage.getCharacter(characterId);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+      const shopEngagement = await storage.getCharacterEngagement(characterId);
+      if (shopEngagement) {
+        return res.status(409).json({
+          code: "CHARACTER_ENGAGED",
+          message: `${character.name} is ${shopEngagement.label}. Return to town first.`,
+          engagement: shopEngagement,
+        });
+      }
+
       const result = await storage.purchaseMagicItem(characterId, templateId);
       if (!result.success) {
         return res.status(400).json({ message: result.error });

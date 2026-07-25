@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { formatDistanceToNow } from "date-fns";
+import EngagedCharacterNotice from "@/components/character/EngagedCharacterNotice";
 import {
   Dialog,
   DialogContent,
@@ -1276,7 +1277,13 @@ export default function TavernPage() {
     enabled: !!user
   });
 
-  const activeCharacter = characters.find(c => c.id === selectedCharacter) || characters[0];
+  // Prefer an explicitly chosen character; otherwise default to one who is
+  // actually in town. The old `|| characters[0]` silently picked whoever came
+  // first, including a character who was mid-delve.
+  const activeCharacter =
+    characters.find(c => c.id === selectedCharacter) ||
+    characters.find((c: any) => !c.engagement) ||
+    characters[0];
 
   const { data: bounties = [] } = useQuery<BountyView[]>({
     queryKey: ["/api/characters", activeCharacter?.id, "bounties"],
@@ -1755,12 +1762,20 @@ export default function TavernPage() {
               <SelectContent>
                 {characters.map((char: any) => (
                   <SelectItem key={char.id} value={char.id.toString()}>
-                    {char.name} (Lv. {char.level})
+                    {char.name} (Lv. {char.level}){char.engagement ? ` — ${char.engagement.label}` : ''}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+        )}
+
+        {activeCharacter?.engagement && (
+          <EngagedCharacterNotice
+            character={activeCharacter as any}
+            activity="visit the tavern"
+            className="mb-6"
+          />
         )}
 
         {activeCharacter && (

@@ -533,8 +533,9 @@ export default function WanderPage() {
                       </SelectTrigger>
                       <SelectContent>
                         {characters?.map((c: any) => (
-                          <SelectItem key={c.id} value={c.id.toString()}>
+                          <SelectItem key={c.id} value={c.id.toString()} disabled={!!c.engagement}>
                             {c.name} — Lv. {c.level || 1} {c.class || ""}
+                            {c.engagement ? ` (${c.engagement.label})` : ""}
                           </SelectItem>
                         ))}
                       </SelectContent>

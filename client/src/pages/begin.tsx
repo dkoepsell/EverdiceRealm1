@@ -160,8 +160,18 @@ export default function BeginPage() {
     mutationFn: async () => {
       if (!archetype || !tone) throw new Error("Pick a hero and a tone first.");
 
-      // 1. Create the solo campaign. Newcomers get the guided tutorial; experienced
-      //    players skip it (no forced GUIDED rails).
+      // 1. Roll the hero FIRST. Playtest feedback was that character creation
+      //    "should happen distinctly from being in the adventure" — creating the
+      //    campaign first made creation feel like a step inside the adventure
+      //    rather than something you do beforehand.
+      const charRes = await apiRequest("POST", "/api/characters/quick-build", {
+        class: archetype.charClass,
+        ...(heroName.trim() ? { name: heroName.trim() } : {}),
+      });
+      const character = await charRes.json();
+
+      // 2. Then create the solo campaign for them to adventure in. Newcomers get
+      //    the guided tutorial; experienced players skip it (no forced GUIDED rails).
       const campRes = await apiRequest("POST", "/api/campaigns", {
         title: tone.title,
         description: tone.description,
@@ -172,13 +182,11 @@ export default function BeginPage() {
       });
       const campaign = await campRes.json();
 
-      // 2. Roll a hero of the chosen archetype, linked to the campaign as a participant.
-      const charRes = await apiRequest("POST", "/api/characters/quick-build", {
-        campaignId: campaign.id,
-        class: archetype.charClass,
-        ...(heroName.trim() ? { name: heroName.trim() } : {}),
+      // 2a. Seat the hero in the campaign.
+      await apiRequest("POST", `/api/campaigns/${campaign.id}/participants`, {
+        characterId: character.id,
+        role: "player",
       });
-      const character = await charRes.json();
 
       // 2c. Optionally attach the chosen companion to the new party. Best-effort:
       //     a failed add must NEVER block the player from starting — they can still

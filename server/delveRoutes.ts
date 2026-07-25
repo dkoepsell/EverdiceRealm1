@@ -40,6 +40,22 @@ export function registerDelveRoutes(router: Router) {
         return res.status(409).json({ error: "An active dungeon run already exists for this campaign", run: existingRun });
       }
 
+      // A character is in one place at a time. The check above is keyed on
+      // (userId, campaignId), so it never noticed this character was already
+      // wandering or in the field with another party.
+      const character = await storage.getCharacter(characterId);
+      if (!character || character.userId !== userId) {
+        return res.status(404).json({ error: "Character not found" });
+      }
+      const engagement = await storage.getCharacterEngagement(characterId);
+      if (engagement) {
+        return res.status(409).json({
+          code: "CHARACTER_ENGAGED",
+          error: `${character.name} is ${engagement.label}. Return to town before delving.`,
+          engagement,
+        });
+      }
+
       const dungeonNodes = generateProceduralDungeon('goblin');
 
       const DUNGEON_PREFIXES = [
@@ -110,6 +126,9 @@ export function registerDelveRoutes(router: Router) {
       const revealedNodes = dungeonNodes.filter(n =>
         initialRevealed.some(c => c.q === n.q && c.r === n.r)
       );
+
+      // Mark the character as underground.
+      await storage.setCharacterEngagement(characterId, 'delve', run.id);
 
       res.json({ run, revealedNodes, currentNode: entranceNode });
     } catch (err: any) {
@@ -421,6 +440,9 @@ export function registerDelveRoutes(router: Router) {
         endedAt: new Date().toISOString(),
       });
 
+      // Back in town — free the character for other activities.
+      await storage.clearEngagementForTarget('delve', run.id);
+
       res.json({
         narrative: retreatResult.narrative,
         respawnedNodes: retreatResult.respawnedNodes,
@@ -462,6 +484,9 @@ export function registerDelveRoutes(router: Router) {
         status: bossDefeated ? "victory" : "ended",
         endedAt: new Date().toISOString(),
       });
+
+      // Back in town — free the character for other activities.
+      await storage.clearEngagementForTarget('delve', run.id);
 
       const rewards = await storage.getDungeonRewards(run.id);
 
