@@ -113,6 +113,13 @@ export function createWSConnection(force = false) {
           window.dispatchEvent(new CustomEvent('initiative_rolled', {
             detail: data.payload
           }));
+        } else if (data.type === 'turn_changed' || data.type === 'turn_change' || data.type === 'turn_ended') {
+          // Dispatch event whenever the multiplayer rotation moves, so a live
+          // table sees "your turn" the instant the previous player acts instead
+          // of waiting out the polling interval.
+          window.dispatchEvent(new CustomEvent('turn_changed', {
+            detail: data.payload
+          }));
         } else if (data.type === 'badge_unlocked') {
           // Dispatch event for badge unlock notifications
           window.dispatchEvent(new CustomEvent('badge_unlocked', {

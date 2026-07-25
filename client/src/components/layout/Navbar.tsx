@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import AudioControls from "@/components/audio/AudioControls";
+import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useAuth } from "@/hooks/use-auth";
 import { getQueryFn } from "@/lib/queryClient";
 import {
@@ -195,6 +196,7 @@ export default function Navbar() {
             <span className="text-white">
               <AudioControls />
             </span>
+            <ThemeToggle />
             <button
               className="lg:hidden text-white p-2 hover:bg-white/10 rounded-lg transition-colors"
               onClick={toggleMobileMenu}

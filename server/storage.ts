@@ -86,6 +86,10 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or, inArray, isNull } from "drizzle-orm";
+import { orderRoster, nextSeatIndex, type TurnRosterEntry } from "./lib/turnOrder";
+
+// One seat per human player; see server/lib/turnOrder.ts for the rules.
+export type { TurnRosterEntry };
 
 // modify the interface with any CRUD methods
 // you might need
@@ -158,8 +162,10 @@ export interface IStorage {
   removeCampaignParticipant(campaignId: number, userId: number): Promise<boolean>;
   
   // Turn-based campaign operations
+  getTurnRoster(campaignId: number): Promise<TurnRosterEntry[]>;
   getCurrentTurn(campaignId: number): Promise<{ userId: number; startedAt: string } | undefined>;
-  startNextTurn(campaignId: number): Promise<{ userId: number; startedAt: string } | undefined>;
+  startNextTurn(campaignId: number, opts?: { afterUserId?: number }): Promise<{ userId: number; startedAt: string } | undefined>;
+  setCurrentTurn(campaignId: number, userId: number): Promise<{ userId: number; startedAt: string } | undefined>;
   endCurrentTurn(campaignId: number): Promise<boolean>;
   rollInitiativeForSession(campaignId: number): Promise<Array<{ participantId: number; characterId: number; userId: number; characterName: string; initiative: number; roll: number; modifier: number }>>;
   
@@ -1740,66 +1746,86 @@ export class DatabaseStorage implements IStorage {
     return { userId: campaign.userId, startedAt: campaign.startedAt };
   }
   
-  async startNextTurn(campaignId: number): Promise<{ userId: number; startedAt: string } | undefined> {
-    // Get campaign with current turn info
-    const campaign = await this.getCampaign(campaignId);
-    if (!campaign || !campaign.isTurnBased) return undefined;
-    
-    // Get all active participants in turn order
+  /** The seating chart for a turn-based campaign; see lib/turnOrder.ts. */
+  async getTurnRoster(campaignId: number): Promise<TurnRosterEntry[]> {
     const participants = await db
       .select()
       .from(campaignParticipants)
       .where(and(
         eq(campaignParticipants.campaignId, campaignId),
         eq(campaignParticipants.isActive, true)
-      ))
-      .orderBy(asc(campaignParticipants.turnOrder));
-      
-    if (participants.length === 0) return undefined;
-    
-    let nextParticipantIndex = 0;
-    
-    // If there's a current user turn, find the next one
-    if (campaign.currentTurnUserId) {
-      const currentIndex = participants.findIndex(p => p.userId === campaign.currentTurnUserId);
-      if (currentIndex !== -1) {
-        nextParticipantIndex = (currentIndex + 1) % participants.length;
-      }
-    }
-    
-    const nextParticipant = participants[nextParticipantIndex];
+      ));
+
+    return orderRoster(participants);
+  }
+
+  /**
+   * Hand the turn to the player who sits after `afterUserId` (defaults to
+   * whoever currently holds it). Passing an explicit anchor matters when a
+   * player claimed a stalled turn out of order — the rotation should resume
+   * from where they actually sit, not from the seat they interrupted.
+   */
+  async startNextTurn(campaignId: number, opts?: { afterUserId?: number }): Promise<{ userId: number; startedAt: string } | undefined> {
+    // Get campaign with current turn info
+    const campaign = await this.getCampaign(campaignId);
+    if (!campaign || !campaign.isTurnBased) return undefined;
+
+    const roster = await this.getTurnRoster(campaignId);
+    if (roster.length === 0) return undefined;
+
+    const anchorUserId = opts?.afterUserId ?? campaign.currentTurnUserId ?? undefined;
+    const nextIndex = nextSeatIndex(roster, anchorUserId);
+    if (nextIndex === -1) return undefined;
+
+    return this.setCurrentTurn(campaignId, roster[nextIndex].userId);
+  }
+
+  /**
+   * Put the turn squarely on one player. Used when a player claims a stalled
+   * turn and when the DM jumps the rotation to a specific seat.
+   */
+  async setCurrentTurn(campaignId: number, userId: number): Promise<{ userId: number; startedAt: string } | undefined> {
+    const roster = await this.getTurnRoster(campaignId);
+    const seat = roster.find(p => p.userId === userId);
+    if (!seat) return undefined;
+
     const now = new Date().toISOString();
-    
-    // Update the campaign with the next turn
+
     const [updatedCampaign] = await db
       .update(campaigns)
       .set({
-        currentTurnUserId: nextParticipant.userId,
+        currentTurnUserId: userId,
         turnStartedAt: now
       })
       .where(eq(campaigns.id, campaignId))
       .returning();
-      
+
+    if (!updatedCampaign) return undefined;
+
     // Also update the participant's last active time
-    await this.updateCampaignParticipant(nextParticipant.id, {
+    await this.updateCampaignParticipant(seat.participantId, {
       lastActiveAt: now
     });
-      
-    return updatedCampaign 
-      ? { userId: nextParticipant.userId, startedAt: now } 
-      : undefined;
+
+    return { userId, startedAt: now };
   }
-  
+
+  /**
+   * Close the open turn without opening the next one.
+   *
+   * `currentTurnUserId` is deliberately left in place as a bookmark: clearing
+   * it too would rewind the rotation to the first seat the next time a turn
+   * starts. `getCurrentTurn` keys off `turnStartedAt`, so the campaign still
+   * reads as "no turn in progress" while the party's place is remembered.
+   */
   async endCurrentTurn(campaignId: number): Promise<boolean> {
-    // This simply marks the current turn as ended, without starting a new one
-    const result = await db
+    await db
       .update(campaigns)
       .set({
-        currentTurnUserId: null,
         turnStartedAt: null
       })
       .where(eq(campaigns.id, campaignId));
-      
+
     return true; // If no error occurs, consider it successful
   }
   

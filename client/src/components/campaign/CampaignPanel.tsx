@@ -49,6 +49,8 @@ import {
 import { SiDiscord } from "react-icons/si";
 import CampaignParticipants from "./CampaignParticipants";
 import TurnManager from "./TurnManager";
+import TurnBanner from "./TurnBanner";
+import { useCampaignTurn } from "@/hooks/use-campaign-turn";
 import CampaignDeploymentTab from "./CampaignDeploymentTab";
 import CampaignDashboard from "./CampaignDashboard";
 import { QuestBoard } from "./QuestBoard";
@@ -453,8 +455,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const railsRung: string = scaffolding?.rung || 'GUIDED';
   const railsCopy = RAILS_COPY[railsRung] || RAILS_COPY.GUIDED;
   const [tableChatCollapsed, setTableChatCollapsed] = useState(true);
+  // Combat's own initiative order — set from the encounter's combatant list.
   const [isMyTurn, setIsMyTurn] = useState(true);
   const [currentTurnName, setCurrentTurnName] = useState<string | null>(null);
+  // The campaign-level rotation, which governs ordinary (out-of-combat) play in
+  // a multiplayer party. Solo tables and free-for-all parties report enforced:false.
+  const { turn: campaignTurn } = useCampaignTurn(campaign.id);
+  const campaignTurnBlocked = !!campaignTurn?.enforced && !campaignTurn.canAct;
   const [newItemName, setNewItemName] = useState("");
   const [selectedPartyMemberType, setSelectedPartyMemberType] = useState<"character" | "npc">("character");
   const [selectedNpcId, setSelectedNpcId] = useState<number | null>(null);
@@ -3974,6 +3981,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           </div>
                         )}
                         
+                        {/* Whose turn it is, how long they've had it, and what you
+                            can do about it. Hidden during combat, which runs its
+                            own initiative order just below. */}
+                        <TurnBanner campaignId={campaign.id} hidden={!!parsedStoryState?.inCombat} />
+
                         {/* Choices integrated directly after narrative for immediate access */}
                         {!isAdvancingStory && choicesRevealed && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 && dmSessionState?.groupChoiceStatus !== 'pending' && (
                           <div className="mt-6 pt-5 border-t border-amber-500/30 animate-in fade-in slide-in-from-bottom-3 duration-500">
@@ -4038,7 +4050,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 const dc = choice.rollDC || parseDCFromText(choiceText);
                                 const skillName = choice.skillType || choice.rollPurpose?.toLowerCase().replace(/\s+check/i, '') || 'strength';
                                 const hasRoll = choice.requiresRoll || choice.requiresDiceRoll || dc;
-                                const actionDisabled = !isDM && !!currentTurnName && !isMyTurn;
+                                // Blocked either by combat initiative or by the campaign's turn rotation.
+                              const actionDisabled = (!isDM && !!currentTurnName && !isMyTurn) || campaignTurnBlocked;
                                 
                                 let tooltipContent = null;
                                 if (hasRoll && activeCharacter && dc) {
@@ -4174,20 +4187,22 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               )}
                               <div className="flex gap-2">
                                 <Input
-                                  placeholder="Try anything — e.g. 'I wedge my dagger under the floorboard and pry'"
+                                  placeholder={campaignTurnBlocked
+                                    ? `Waiting for ${campaignTurn?.currentPlayer?.characterName || campaignTurn?.currentPlayer?.displayName || campaignTurn?.currentPlayer?.username || 'another player'} to take their turn…`
+                                    : "Try anything — e.g. 'I wedge my dagger under the floorboard and pry'"}
                                   value={customAction}
                                   onChange={(e) => setCustomAction(e.target.value)}
                                   className="flex-1 bg-slate-700 border-amber-600/40 text-white placeholder:text-slate-400"
                                   onKeyPress={(e) => {
-                                    if (e.key === 'Enter' && customAction.trim() && !isAssessingAction) {
+                                    if (e.key === 'Enter' && customAction.trim() && !isAssessingAction && !campaignTurnBlocked) {
                                       handleCustomAction();
                                     }
                                   }}
-                                  disabled={isAssessingAction}
+                                  disabled={isAssessingAction || campaignTurnBlocked}
                                 />
                                 <Button
                                   onClick={handleCustomAction}
-                                  disabled={!customAction.trim() || isAdvancingStory || isAssessingAction || (!isDM && !!currentTurnName && !isMyTurn)}
+                                  disabled={!customAction.trim() || isAdvancingStory || isAssessingAction || (!isDM && !!currentTurnName && !isMyTurn) || campaignTurnBlocked}
                                   className="shrink-0 bg-amber-600 hover:bg-amber-500"
                                 >
                                   {isAssessingAction ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
@@ -6907,19 +6922,21 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   </div>
                 )}
                 
-                {isTurnBased && (
-                  <div className="mt-6">
-                    <h3 className="text-lg font-semibold mb-2">Turn Management</h3>
-                    <TurnManager 
-                      campaignId={campaign.id}
-                      isTurnBased={campaign.isTurnBased || false}
-                      isDM={isDM}
-                      onToggleTurnBased={(enabled) => {
-                        updateCampaignMutation.mutate({ isTurnBased: enabled });
-                      }}
-                    />
-                  </div>
-                )}
+                {/* Rendered whether or not turn order is currently on — the
+                    switch to turn it on lives inside, so gating this on
+                    isTurnBased made the mode unreachable. TurnManager hides
+                    itself at a table of one. */}
+                <div className="mt-6">
+                  <TurnManager
+                    campaignId={campaign.id}
+                    isTurnBased={campaign.isTurnBased || false}
+                    isDM={isDM}
+                    onToggleTurnBased={(enabled) => {
+                      setIsTurnBased(enabled);
+                      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}`] });
+                    }}
+                  />
+                </div>
                   </div>
                 </div>
               </div>

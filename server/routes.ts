@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
+import { buildTurnState, type TurnState } from "./lib/turnOrder";
 import { recordSoloTurn } from "./play/progression/recordTurn";
 import { buildScaffoldingResponse, resolveEffectiveRung, type ScaffoldingResponse } from "./play/suggestions/visibility";
 import { renderDiegetic } from "./play/suggestions/diegetic";
@@ -6154,142 +6155,336 @@ Return your response as a JSON object with these fields:
     }
   });
   
-  // Turn-based Campaign Management
-  
-  // Get the current turn information
-  app.get("/api/campaigns/:campaignId/turns/current", async (req, res) => {
+  // ─── Turn-based Campaign Management ──────────────────────────────────────
+  //
+  // Turn order exists to keep a multiplayer table legible, not to gate it shut.
+  // Two facts drive every rule below:
+  //
+  //   1. Parties play asynchronously. Someone will take their turn and then not
+  //      come back for two days. A rotation that can only be advanced by a
+  //      present player is a rotation that freezes the campaign, so an open
+  //      turn always expires and anyone at the table may then take over.
+  //   2. Parties also play synchronously. In a live session nobody wants to
+  //      click "end turn" — so taking a story action *is* ending your turn, and
+  //      the rotation advances on its own (see `advanceTurnAfterAction`).
+  //
+  // Turn order applies to human players only, one seat per player. It is only
+  // enforced at all when the campaign is explicitly turn-based AND more than
+  // one human is seated; solo play (with or without NPC companions) is never
+  // gated.
+
+  /**
+   * The full, player-facing picture of the rotation: who is up, who is next,
+   * how long they've had it, and what this viewer is allowed to do about it.
+   * The UI renders straight from this — there is no second source of truth.
+   */
+  async function describeTurn(campaign: any, userId: number) {
+    const campaignId = campaign.id;
+    const roster = await storage.getTurnRoster(campaignId);
+    const state = buildTurnState(campaign, roster, userId);
+
+    const seats = await Promise.all(roster.map(async (seat, index) => {
+      const user = await storage.getUser(seat.userId);
+      const character = await storage.getCharacter(seat.characterId);
+      return {
+        position: index + 1,
+        userId: seat.userId,
+        username: user?.username ?? 'Unknown',
+        displayName: user?.displayName ?? null,
+        characterId: seat.characterId,
+        characterName: character?.name ?? null,
+        isYou: seat.userId === userId,
+        isCurrent: seat.userId === state.currentTurnUserId,
+      };
+    }));
+
+    const currentSeat = seats.find(s => s.isCurrent) ?? null;
+    const currentIndex = currentSeat ? currentSeat.position - 1 : -1;
+    const nextSeat = seats.length > 0
+      ? seats[currentIndex === -1 ? 0 : (currentIndex + 1) % seats.length]
+      : null;
+
+    return {
+      ...state,
+      // `active` means a turn is genuinely open right now.
+      active: state.currentTurnUserId != null && state.startedAt != null,
+      seats,
+      currentPlayer: currentSeat,
+      nextPlayer: nextSeat,
+    };
+  }
+
+  /** Push the freshly-computed rotation to every connected client. */
+  async function broadcastTurnState(campaignId: number) {
+    const campaign = await storage.getCampaign(campaignId);
+    if (!campaign) return;
+    // Viewer-independent payload; each client re-derives "is it me" locally.
+    const summary = await describeTurn(campaign, -1);
+    const payload = {
+      campaignId,
+      currentTurnUserId: summary.currentTurnUserId,
+      startedAt: summary.startedAt,
+      expiresAt: summary.expiresAt,
+      currentPlayer: summary.currentPlayer,
+      nextPlayer: summary.nextPlayer,
+    };
+    // Both names are emitted because older clients listen for `turn_change`.
+    broadcastMessage('turn_changed', payload);
+    broadcastMessage('turn_change', payload);
+  }
+
+  /**
+   * Taking a story action consumes your turn. Called after a story turn has
+   * actually succeeded, so a failed AI call never costs a player their slot.
+   * The rotation resumes from the acting player's own seat, which is what makes
+   * a stalled-turn takeover leave the order intact rather than scrambled.
+   */
+  async function advanceTurnAfterAction(campaignId: number, actingUserId: number) {
     try {
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-      
-      const campaignId = parseInt(req.params.campaignId);
-      
-      // Verify the campaign exists
       const campaign = await storage.getCampaign(campaignId);
-      if (!campaign) {
-        return res.status(404).json({ message: "Campaign not found" });
-      }
-      
-      // Check if user is a participant
-      const participant = await storage.getCampaignParticipant(campaignId, req.user.id);
-      if (!participant && campaign.userId !== req.user.id) {
-        return res.status(403).json({ message: "Not authorized to view this campaign" });
-      }
-      
-      // Get current turn info
-      const turnInfo = await storage.getCurrentTurn(campaignId);
-      
-      if (!turnInfo) {
-        return res.json({ active: false });
-      }
-      
-      // Get user details for the current turn
-      const user = await storage.getUser(turnInfo.userId);
-      const participantInfo = await storage.getCampaignParticipant(campaignId, turnInfo.userId);
-      const character = participantInfo ? await storage.getCharacter(participantInfo.characterId) : null;
-      
+      if (!campaign?.isTurnBased) return;
+
+      const roster = await storage.getTurnRoster(campaignId);
+      if (roster.length < 2) return; // Solo table: nothing to pass to.
+      if (!roster.some(seat => seat.userId === actingUserId)) return; // DM-only action.
+
+      const next = await storage.startNextTurn(campaignId, { afterUserId: actingUserId });
+      if (!next) return;
+
+      await recordTrace(campaignId, "everdice.turnAdvanced", {
+        fromUserId: actingUserId,
+        toUserId: next.userId,
+        trigger: "action"
+      }, { who: `player.${actingUserId}` });
+
+      await broadcastTurnState(campaignId);
+    } catch (error) {
+      // Turn bookkeeping must never sink a story turn the player already took.
+      console.error("[Turns] Failed to advance turn after action:", error);
+    }
+  }
+
+  /** Shared guard for the turn endpoints: load the campaign, check membership. */
+  async function loadTurnContext(req: any, res: any) {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ message: "Not authenticated" });
+      return null;
+    }
+    const campaignId = parseInt(req.params.campaignId);
+    const campaign = await storage.getCampaign(campaignId);
+    if (!campaign) {
+      res.status(404).json({ message: "Campaign not found" });
+      return null;
+    }
+    const userId: number = req.user.id;
+    const participant = await storage.getCampaignParticipant(campaignId, userId);
+    if (!participant && campaign.userId !== userId) {
+      res.status(403).json({ message: "Not authorized to view this campaign" });
+      return null;
+    }
+    return { campaignId, campaign, userId, isDM: campaign.userId === userId };
+  }
+
+  // Get the current turn information — the single endpoint the play UI polls.
+  // `/turn` is the legacy alias, kept pointed at the same handler.
+  app.get(["/api/campaigns/:campaignId/turns/current", "/api/campaigns/:campaignId/turn"], async (req, res) => {
+    try {
+      const ctx = await loadTurnContext(req, res);
+      if (!ctx) return;
+
+      const summary = await describeTurn(ctx.campaign, ctx.userId);
+
       res.json({
-        active: true,
-        userId: turnInfo.userId,
-        username: user ? user.username : 'Unknown',
-        displayName: user ? user.displayName : null,
-        character: character,
-        startedAt: turnInfo.startedAt,
-        isCurrentUser: turnInfo.userId === req.user.id
+        ...summary,
+        // Legacy field names kept so older clients keep rendering.
+        userId: summary.currentTurnUserId,
+        username: summary.currentPlayer?.username ?? 'Unknown',
+        displayName: summary.currentPlayer?.displayName ?? null,
+        isCurrentUser: summary.isYourTurn,
       });
     } catch (error) {
       console.error("Error fetching current turn:", error);
       res.status(500).json({ message: "Failed to fetch current turn information" });
     }
   });
-  
-  // Start the next turn in the campaign
-  app.post("/api/campaigns/:campaignId/turns/next", async (req, res) => {
+
+  // Turn on / off turn order, and set how long a player may hold a turn.
+  // Without this the mode was unreachable: the only toggle lived inside a panel
+  // that itself only rendered once turn mode was already on.
+  app.post("/api/campaigns/:campaignId/turns/mode", async (req, res) => {
     try {
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "Not authenticated" });
+      const ctx = await loadTurnContext(req, res);
+      if (!ctx) return;
+      if (!ctx.isDM) {
+        return res.status(403).json({ message: "Only the DM can change turn mode" });
       }
-      
-      const campaignId = parseInt(req.params.campaignId);
-      
-      // Verify the campaign exists
-      const campaign = await storage.getCampaign(campaignId);
-      if (!campaign) {
-        return res.status(404).json({ message: "Campaign not found" });
+
+      const { enabled, timeLimitSeconds } = req.body ?? {};
+      if (typeof enabled !== 'boolean') {
+        return res.status(400).json({ message: "`enabled` must be true or false" });
       }
-      
-      // Only the DM can advance turns
-      if (campaign.userId !== req.user.id) {
-        return res.status(403).json({ message: "Only the DM can advance turns" });
+      if (timeLimitSeconds !== undefined && timeLimitSeconds !== null &&
+          (!Number.isInteger(timeLimitSeconds) || timeLimitSeconds < 60)) {
+        return res.status(400).json({ message: "`timeLimitSeconds` must be null or at least 60" });
       }
-      
-      // Start the next turn
-      const turnInfo = await storage.startNextTurn(campaignId);
-      
-      if (!turnInfo) {
-        return res.status(400).json({ message: "Failed to start next turn" });
+
+      const updates: any = { isTurnBased: enabled };
+      if (timeLimitSeconds !== undefined) updates.turnTimeLimit = timeLimitSeconds;
+
+      if (enabled) {
+        // Opening turn order with nobody up leaves the table staring at an
+        // empty rotation, so seat a player straight away. If the campaign was
+        // turn-based before, resume on the player who was up rather than
+        // skipping them for having been interrupted.
+        await storage.updateCampaign(ctx.campaignId, updates);
+        const refreshed = await storage.getCampaign(ctx.campaignId);
+        if (refreshed && !refreshed.turnStartedAt) {
+          const resumed = refreshed.currentTurnUserId != null
+            ? await storage.setCurrentTurn(ctx.campaignId, refreshed.currentTurnUserId)
+            : null;
+          if (!resumed) await storage.startNextTurn(ctx.campaignId);
+        }
+      } else {
+        // Leaving turn order returns the table to a free-for-all; the bookmark
+        // stays put so switching back resumes where the party left off.
+        await storage.updateCampaign(ctx.campaignId, { ...updates, turnStartedAt: null });
       }
-      
-      // Get user details for the new turn
-      const user = await storage.getUser(turnInfo.userId);
-      const participantInfo = await storage.getCampaignParticipant(campaignId, turnInfo.userId);
-      const character = participantInfo ? await storage.getCharacter(participantInfo.characterId) : null;
-      
-      // Broadcast turn change via WebSocket
-      broadcastMessage('turn_change', {
-        campaignId,
-        userId: turnInfo.userId,
-        username: user ? user.username : 'Unknown',
-        startedAt: turnInfo.startedAt
+
+      await recordTrace(ctx.campaignId, "everdice.turnModeChanged", {
+        enabled,
+        timeLimitSeconds: timeLimitSeconds ?? ctx.campaign.turnTimeLimit ?? null
+      }, { who: `player.${ctx.userId}` });
+
+      await broadcastTurnState(ctx.campaignId);
+
+      const campaign = await storage.getCampaign(ctx.campaignId);
+      res.json(await describeTurn(campaign, ctx.userId));
+    } catch (error) {
+      console.error("Error changing turn mode:", error);
+      res.status(500).json({ message: "Failed to change turn mode" });
+    }
+  });
+
+  // Advance the rotation. The DM may always do this; the player currently up
+  // may do it to pass; anyone may do it once the open turn has gone stale,
+  // which is what keeps an absent player from halting an async campaign.
+  app.post(["/api/campaigns/:campaignId/turns/next", "/api/campaigns/:campaignId/turn/next"], async (req, res) => {
+    try {
+      const ctx = await loadTurnContext(req, res);
+      if (!ctx) return;
+
+      const roster = await storage.getTurnRoster(ctx.campaignId);
+      const state = buildTurnState(ctx.campaign, roster, ctx.userId);
+
+      if (!state.isDM && !state.isYourTurn && !state.isStale && state.currentTurnUserId != null && state.startedAt != null) {
+        return res.status(403).json({
+          message: "Only the DM or the player whose turn it is can advance the turn.",
+          ...state
+        });
+      }
+
+      const skippedUserId = state.isStale && !state.isYourTurn && !state.isDM
+        ? state.currentTurnUserId
+        : null;
+
+      const turnInfo = await storage.startNextTurn(ctx.campaignId, {
+        afterUserId: state.currentTurnUserId ?? undefined
       });
-      
+
+      if (!turnInfo) {
+        return res.status(400).json({ message: "No players are seated in the turn order yet" });
+      }
+
+      await recordTrace(ctx.campaignId, "everdice.turnAdvanced", {
+        fromUserId: state.currentTurnUserId,
+        toUserId: turnInfo.userId,
+        trigger: skippedUserId ? "stalled" : (state.isDM ? "dm" : "pass")
+      }, { who: `player.${ctx.userId}` });
+
+      await broadcastTurnState(ctx.campaignId);
+
+      const campaign = await storage.getCampaign(ctx.campaignId);
+      const summary = await describeTurn(campaign, ctx.userId);
       res.json({
-        userId: turnInfo.userId,
-        username: user ? user.username : 'Unknown',
-        displayName: user ? user.displayName : null,
-        character: character,
-        startedAt: turnInfo.startedAt
+        ...summary,
+        skippedUserId,
+        // Legacy field names.
+        userId: summary.currentTurnUserId,
+        username: summary.currentPlayer?.username ?? 'Unknown',
+        displayName: summary.currentPlayer?.displayName ?? null,
+        startedAt: summary.startedAt,
       });
     } catch (error) {
       console.error("Error starting next turn:", error);
       res.status(500).json({ message: "Failed to start next turn" });
     }
   });
-  
-  // End the current turn
-  app.post("/api/campaigns/:campaignId/turns/end", async (req, res) => {
+
+  // Take a turn nobody is holding — either the table is idle or the player who
+  // was up has run out the clock. First to claim it gets it.
+  app.post("/api/campaigns/:campaignId/turns/claim", async (req, res) => {
     try {
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "Not authenticated" });
+      const ctx = await loadTurnContext(req, res);
+      if (!ctx) return;
+
+      const roster = await storage.getTurnRoster(ctx.campaignId);
+      const state = buildTurnState(ctx.campaign, roster, ctx.userId);
+
+      if (!roster.some(seat => seat.userId === ctx.userId)) {
+        return res.status(403).json({ message: "You are not seated in this campaign's turn order" });
       }
-      
-      const campaignId = parseInt(req.params.campaignId);
-      
-      // Verify the campaign exists
-      const campaign = await storage.getCampaign(campaignId);
-      if (!campaign) {
-        return res.status(404).json({ message: "Campaign not found" });
+
+      const turnOpen = state.currentTurnUserId != null && state.startedAt != null;
+      if (turnOpen && !state.isStale && !state.isYourTurn) {
+        return res.status(409).json({
+          message: "Another player still has time on their turn.",
+          ...state
+        });
       }
-      
-      // Only the DM or current player can end the turn
-      if (campaign.userId !== req.user.id && campaign.currentTurnUserId !== req.user.id) {
+
+      const claimed = await storage.setCurrentTurn(ctx.campaignId, ctx.userId);
+      if (!claimed) {
+        return res.status(400).json({ message: "Could not claim the turn" });
+      }
+
+      await recordTrace(ctx.campaignId, "everdice.turnClaimed", {
+        claimedByUserId: ctx.userId,
+        replacedUserId: state.isStale ? state.currentTurnUserId : null
+      }, { who: `player.${ctx.userId}` });
+
+      await broadcastTurnState(ctx.campaignId);
+
+      const campaign = await storage.getCampaign(ctx.campaignId);
+      res.json(await describeTurn(campaign, ctx.userId));
+    } catch (error) {
+      console.error("Error claiming turn:", error);
+      res.status(500).json({ message: "Failed to claim the turn" });
+    }
+  });
+
+  // Close the open turn without opening the next one — a deliberate pause, e.g.
+  // the DM stopping the clock between sessions. The party's place is kept.
+  app.post(["/api/campaigns/:campaignId/turns/end", "/api/campaigns/:campaignId/turn/end"], async (req, res) => {
+    try {
+      const ctx = await loadTurnContext(req, res);
+      if (!ctx) return;
+
+      if (!ctx.isDM && ctx.campaign.currentTurnUserId !== ctx.userId) {
         return res.status(403).json({ message: "Not authorized to end the current turn" });
       }
-      
-      // End the current turn
-      const result = await storage.endCurrentTurn(campaignId);
-      
-      // Broadcast turn end via WebSocket
-      broadcastMessage('turn_ended', { campaignId });
-      
-      res.json({ success: true });
+
+      await storage.endCurrentTurn(ctx.campaignId);
+      await broadcastTurnState(ctx.campaignId);
+      broadcastMessage('turn_ended', { campaignId: ctx.campaignId });
+
+      const campaign = await storage.getCampaign(ctx.campaignId);
+      res.json({ success: true, ...(await describeTurn(campaign, ctx.userId)) });
     } catch (error) {
       console.error("Error ending turn:", error);
       res.status(500).json({ message: "Failed to end turn" });
     }
   });
-  
+
   // Roll initiative for all participants to determine turn order
   app.post("/api/campaigns/:campaignId/initiative/roll", async (req, res) => {
     try {
@@ -6331,6 +6526,9 @@ Return your response as a JSON object with these fields:
         results: initiativeResults,
         currentTurnUserId: initiativeResults[0]?.userId
       });
+
+      // Rolling initiative reseats the whole table, so push the new rotation too.
+      await broadcastTurnState(campaignId);
       
       res.json({
         success: true,
@@ -9233,7 +9431,7 @@ Return your response as a JSON object with these fields:
       const { prompt } = req.body;
       
       // Get existing character names to ensure uniqueness
-      const existingCharacters = await storage.getCharactersByUserId(req.user.id);
+      const existingCharacters = await storage.getCharactersByUserId(ctx.userId);
       const existingNames = existingCharacters.map(c => c.name);
       
       // Also get all character names in the database for global uniqueness
@@ -9351,7 +9549,7 @@ Return your response as a JSON object with these fields:
       }
       
       // Only campaign owner can archive
-      if (campaign.userId !== req.user.id) {
+      if (campaign.userId !== ctx.userId) {
         return res.status(403).json({ message: "Not authorized to archive this campaign" });
       }
       
@@ -9381,14 +9579,14 @@ Return your response as a JSON object with these fields:
         return res.status(404).json({ message: "Campaign not found" });
       }
 
-      const isOwner = campaign.userId === req.user.id;
+      const isOwner = campaign.userId === ctx.userId;
       const isStaff = req.user.isAdmin || (req.user as any).isCoAdmin;
       if (!isOwner && !isStaff) {
         return res.status(403).json({ message: "Not authorized to delete this campaign" });
       }
 
       await storage.deleteCampaign(campaignId);
-      console.log(`[Campaign] User ${req.user.id} permanently deleted campaign ${campaignId} ("${campaign.title}")`);
+      console.log(`[Campaign] User ${ctx.userId} permanently deleted campaign ${campaignId} ("${campaign.title}")`);
       res.json({ success: true, message: "Campaign permanently deleted" });
     } catch (error: any) {
       console.error("Error deleting campaign:", error);
@@ -9411,7 +9609,7 @@ Return your response as a JSON object with these fields:
       }
       
       // Only campaign owner can restore
-      if (campaign.userId !== req.user.id) {
+      if (campaign.userId !== ctx.userId) {
         return res.status(403).json({ message: "Not authorized to restore this campaign" });
       }
       
@@ -9443,15 +9641,15 @@ Return your response as a JSON object with these fields:
       }
       
       // Only campaign owner can complete
-      if (campaign.userId !== req.user.id) {
+      if (campaign.userId !== ctx.userId) {
         return res.status(403).json({ message: "Not authorized to complete this campaign" });
       }
       
       const completedCampaign = await storage.completeCampaign(campaignId);
 
       // Badge: full campaign completed
-      storage.tryAwardBadge(req.user.id, 'Legend of the Realm', { campaignId })
-        .then(result => { if (result) broadcastToUser(req.user.id, 'badge_unlocked', result.badge); })
+      storage.tryAwardBadge(ctx.userId, 'Legend of the Realm', { campaignId })
+        .then(result => { if (result) broadcastToUser(ctx.userId, 'badge_unlocked', result.badge); })
         .catch(() => {});
 
       // Mark world location/region as completed for all participants
@@ -9493,8 +9691,8 @@ Return your response as a JSON object with these fields:
       }
       
       // Check if user is authorized to view this campaign
-      const participant = await storage.getCampaignParticipant(campaignId, req.user.id);
-      if (!participant && campaign.userId !== req.user.id) {
+      const participant = await storage.getCampaignParticipant(campaignId, ctx.userId);
+      if (!participant && campaign.userId !== ctx.userId) {
         return res.status(403).json({ message: "Not authorized to view this campaign's participants" });
       }
       
@@ -9569,10 +9767,10 @@ Return your response as a JSON object with these fields:
       }
       
       // Users can either join themselves or the DM can add others
-      const targetUserId = req.body.userId || req.user.id;
+      const targetUserId = req.body.userId || ctx.userId;
       
       // If adding someone else, must be campaign owner
-      if (targetUserId !== req.user.id && campaign.userId !== req.user.id) {
+      if (targetUserId !== ctx.userId && campaign.userId !== ctx.userId) {
         return res.status(403).json({ message: "Only the campaign owner can add other participants" });
       }
       
@@ -9656,7 +9854,7 @@ Return your response as a JSON object with these fields:
       }
       
       // Only campaign owner or the participant themselves can remove
-      if (campaign.userId !== req.user.id && userId !== req.user.id) {
+      if (campaign.userId !== ctx.userId && userId !== ctx.userId) {
         return res.status(403).json({ message: "Not authorized to remove this participant" });
       }
       
@@ -9679,153 +9877,10 @@ Return your response as a JSON object with these fields:
     }
   });
   
-  // Turn-based gameplay endpoints
-  
-  // Get current turn info
-  app.get("/api/campaigns/:campaignId/turn", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
-    
-    try {
-      const campaignId = parseInt(req.params.campaignId);
-      const campaign = await storage.getCampaign(campaignId);
-      
-      if (!campaign) {
-        return res.status(404).json({ message: "Campaign not found" });
-      }
-      
-      // Check if user is a participant
-      const participant = await storage.getCampaignParticipant(campaignId, req.user.id);
-      if (!participant && campaign.userId !== req.user.id) {
-        return res.status(403).json({ message: "Not authorized to view this campaign's turn information" });
-      }
-      
-      // If campaign is not turn-based, return error
-      if (!campaign.isTurnBased) {
-        return res.status(400).json({ message: "This campaign is not turn-based" });
-      }
-      
-      const turnInfo = await storage.getCurrentTurn(campaignId);
-      
-      if (!turnInfo) {
-        return res.json({ active: false });
-      }
-      
-      // Get additional info about the current player
-      const currentUser = await storage.getUser(turnInfo.userId);
-      const currentParticipant = await storage.getCampaignParticipant(campaignId, turnInfo.userId);
-      
-      res.json({
-        active: true,
-        userId: turnInfo.userId,
-        username: currentUser ? currentUser.username : 'Unknown',
-        displayName: currentUser ? currentUser.displayName : null,
-        startedAt: turnInfo.startedAt,
-        // Include time remaining if there's a time limit
-        timeLimit: campaign.turnTimeLimit,
-        isYourTurn: turnInfo.userId === req.user.id
-      });
-    } catch (error) {
-      console.error("Failed to get turn information:", error);
-      res.status(500).json({ message: "Failed to get turn information" });
-    }
-  });
-  
-  // Start next turn
-  app.post("/api/campaigns/:campaignId/turn/next", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
-    
-    try {
-      const campaignId = parseInt(req.params.campaignId);
-      const campaign = await storage.getCampaign(campaignId);
-      
-      if (!campaign) {
-        return res.status(404).json({ message: "Campaign not found" });
-      }
-      
-      // Only campaign owner or current player can end their turn
-      const currentTurn = await storage.getCurrentTurn(campaignId);
-      if (campaign.userId !== req.user.id && 
-          (!currentTurn || currentTurn.userId !== req.user.id)) {
-        return res.status(403).json({ message: "Not authorized to change turns" });
-      }
-      
-      // If campaign is not turn-based, return error
-      if (!campaign.isTurnBased) {
-        return res.status(400).json({ message: "This campaign is not turn-based" });
-      }
-      
-      const nextTurn = await storage.startNextTurn(campaignId);
-      
-      if (!nextTurn) {
-        return res.status(500).json({ message: "Failed to start next turn" });
-      }
-      
-      // Get additional info about the next player
-      const nextUser = await storage.getUser(nextTurn.userId);
-      
-      const turnInfo = {
-        userId: nextTurn.userId,
-        username: nextUser ? nextUser.username : 'Unknown',
-        displayName: nextUser ? nextUser.displayName : null,
-        startedAt: nextTurn.startedAt
-      };
-      
-      // Notify via WebSocket
-      broadcastMessage('turn_changed', {
-        campaignId,
-        ...turnInfo
-      });
-      
-      res.json(turnInfo);
-    } catch (error) {
-      console.error("Failed to start next turn:", error);
-      res.status(500).json({ message: "Failed to start next turn" });
-    }
-  });
-  
-  // End current turn without starting a new one
-  app.post("/api/campaigns/:campaignId/turn/end", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
-    
-    try {
-      const campaignId = parseInt(req.params.campaignId);
-      const campaign = await storage.getCampaign(campaignId);
-      
-      if (!campaign) {
-        return res.status(404).json({ message: "Campaign not found" });
-      }
-      
-      // Only campaign owner or current player can end their turn
-      const currentTurn = await storage.getCurrentTurn(campaignId);
-      if (campaign.userId !== req.user.id && 
-          (!currentTurn || currentTurn.userId !== req.user.id)) {
-        return res.status(403).json({ message: "Not authorized to end the current turn" });
-      }
-      
-      // If campaign is not turn-based, return error
-      if (!campaign.isTurnBased) {
-        return res.status(400).json({ message: "This campaign is not turn-based" });
-      }
-      
-      const success = await storage.endCurrentTurn(campaignId);
-      
-      if (!success) {
-        return res.status(500).json({ message: "Failed to end current turn" });
-      }
-      
-      // Notify via WebSocket
-      broadcastMessage('turn_ended', {
-        campaignId
-      });
-      
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Failed to end current turn:", error);
-      res.status(500).json({ message: "Failed to end current turn" });
-    }
-  });
-  
-  // Convert a campaign to turn-based or back to real-time
+  // Legacy singular `/turn` endpoints are aliases of the canonical `/turns`
+  // routes above; both paths are registered on the same handlers so the two
+  // surfaces can never drift apart on who is allowed to advance a turn.
+
   // NPC Companions API Routes
   
   // Get all NPCs
@@ -18699,7 +18754,9 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
       }
       
       const campaignId = parseInt(req.params.campaignId);
-      const { choice, rollResult, currentLocation, skipTurnCheck, intent } = req.body;
+      // `skipTurnCheck` is deliberately NOT read from the body: it used to let
+      // any client opt out of turn order simply by asking.
+      const { choice, rollResult, currentLocation, intent } = req.body;
 
       console.log(`[Advance Story] Campaign ${campaignId} - Choice: "${choice?.substring(0, 50)}..." by user ${req.user?.id}${intent ? ` [intent: ${intent}]` : ''}`);
       
@@ -18717,13 +18774,15 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
         (campaign as any).chapterGates = improvised.chapterGates;
       }
       
-      // Enforce turn order in multiplayer campaigns (unless DM or skipTurnCheck is true)
+      // Enforce turn order in multiplayer campaigns (the DM is never gated).
       const isDM = campaign.userId === req.user.id;
       const participants = await storage.getCampaignParticipants(campaignId);
       // "Multiplayer" = more than one LIVE human player. Companions are NPCs, not
-      // participants, so they never count; we measure distinct human user ids so a
-      // solo player (with or without companions) is correctly treated as solo.
-      const isMultiplayer = new Set(participants.map((p: any) => p.userId).filter((u: any) => u != null)).size > 1;
+      // participants, so they never count; the roster is one seat per human, so a
+      // solo player (with or without companions, or with two characters) is
+      // correctly treated as solo.
+      const turnRoster = await storage.getTurnRoster(campaignId);
+      const isMultiplayer = turnRoster.length > 1;
 
       // Taking a turn puts this player's character in the field. Town surfaces
       // (tavern, trading post, downtime) lock until they explicitly return via
@@ -18735,24 +18794,65 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
           .catch(err => console.error('[Engagement] Failed to mark character in-field:', err));
       }
 
-      if (campaign.isTurnBased && isMultiplayer && !isDM && !skipTurnCheck) {
-        // Check if it's this player's turn
-        if (campaign.currentTurnUserId && campaign.currentTurnUserId !== req.user.id) {
-          // Record the turn enforcement event
-          await recordTrace(campaignId, "everdice.turnEnforced", {
-            attemptedByUserId: req.user.id,
-            currentTurnUserId: campaign.currentTurnUserId,
-            blocked: true
+      const turnState = buildTurnState(campaign, turnRoster, req.user.id);
+      if (!turnState.canAct) {
+        const holder = await storage.getUser(turnState.currentTurnUserId!);
+        const holderName = holder?.displayName || holder?.username || 'another player';
+
+        await recordTrace(campaignId, "everdice.turnEnforced", {
+          attemptedByUserId: req.user.id,
+          currentTurnUserId: turnState.currentTurnUserId,
+          blocked: true
+        }, { who: `player.${req.user.id}` });
+
+        return res.status(403).json({
+          message: `It's ${holderName}'s turn right now.`,
+          currentTurnUserId: turnState.currentTurnUserId,
+          isTurnBased: true,
+          turnState,
+        });
+      }
+
+      // Does this action spend the actor's own turn? Only if they hold a seat and
+      // nobody else is legitimately mid-turn. The distinction matters for the DM,
+      // who is never gated: a DM narrating while a player is up must not quietly
+      // consume that player's turn.
+      const turnOpen = turnState.currentTurnUserId != null && turnState.startedAt != null;
+      const heldByAnotherPlayer = turnOpen &&
+        turnState.currentTurnUserId !== req.user.id &&
+        !turnState.isStale;
+      const isSeated = turnRoster.some(seat => seat.userId === req.user.id);
+      const consumesTurn = turnState.enforced && isSeated && !heldByAnotherPlayer;
+
+      // Acting on an open or expired turn claims the seat first, so the record of
+      // who acted stays honest and the rotation resumes from the right place.
+      if (consumesTurn && !turnState.isYourTurn) {
+        const claimed = await storage.setCurrentTurn(campaignId, req.user.id);
+        if (claimed) {
+          await recordTrace(campaignId, "everdice.turnClaimed", {
+            claimedByUserId: req.user.id,
+            replacedUserId: turnState.isStale ? turnState.currentTurnUserId : null
           }, { who: `player.${req.user.id}` });
-          
-          return res.status(403).json({ 
-            message: "It's not your turn. Please wait for other players to finish their turns.",
-            currentTurnUserId: campaign.currentTurnUserId,
-            isTurnBased: true
-          });
+          campaign.currentTurnUserId = req.user.id;
+          campaign.turnStartedAt = claimed.startedAt;
         }
       }
-      
+
+      // Sync play shouldn't require anyone to click "end turn": once this story
+      // turn actually lands, hand the rotation to the next player. Hooked to the
+      // response rather than to a single return path so every success route —
+      // streamed, cached, combat-triggering — advances exactly once, and a 4xx/5xx
+      // leaves the acting player's turn intact.
+      if (consumesTurn) {
+        const actingUserId = req.user.id;
+        res.on('finish', () => {
+          if (res.statusCode >= 200 && res.statusCode < 400) {
+            void advanceTurnAfterAction(campaignId, actingUserId);
+          }
+        });
+      }
+
+
       // Validate the player's choice against game rules
       const validationResult = validatePlayerChoice(choice, req.user, campaign, participants);
       if (!validationResult.valid) {
@@ -25065,6 +25165,26 @@ Respond with JSON:
       const campaign = await storage.getCampaign(campaignId);
       if (!campaign) {
         return res.status(404).json({ message: "Campaign not found" });
+      }
+
+      // Refuse off-turn players here as well as in /advance-story. The two run
+      // concurrently, so without this check a player who isn't up would pay for
+      // a full model call and watch the narrative stream in, only to be turned
+      // away by the sibling request a moment later.
+      const streamTurnState = buildTurnState(
+        campaign,
+        await storage.getTurnRoster(campaignId),
+        req.user!.id
+      );
+      if (!streamTurnState.canAct) {
+        const holder = await storage.getUser(streamTurnState.currentTurnUserId!);
+        const holderName = holder?.displayName || holder?.username || 'another player';
+        return res.status(403).json({
+          message: `It's ${holderName}'s turn right now.`,
+          currentTurnUserId: streamTurnState.currentTurnUserId,
+          isTurnBased: true,
+          turnState: streamTurnState,
+        });
       }
 
       // Clear any stale narrative from a prior turn up front, so the concurrent
