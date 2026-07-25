@@ -582,6 +582,12 @@ export default function HearthPage() {
                   </Button>
                 </Link>
               </div>
+              {/* The Hearth is for atmosphere; actual party-finding lives on the board. */}
+              <Link href="/community?tab=find-a-game">
+                <Button variant="ghost" className="w-full text-amber-300/80 hover:text-amber-200 hover:bg-amber-900/20 text-sm">
+                  Looking for players? Post to Find a Game →
+                </Button>
+              </Link>
             </CardContent>
           </Card>
           

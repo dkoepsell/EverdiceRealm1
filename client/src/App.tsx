@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
@@ -31,11 +31,10 @@ const DMToolkit = lazy(() => import("@/pages/dm-toolkit"));
 const LearnPage = lazy(() => import("@/pages/learn"));
 const WorldMapPage = lazy(() => import("@/pages/world-map"));
 const CAMLPage = lazy(() => import("@/pages/CAMLPage"));
-const BulletinBoardPage = lazy(() => import("@/pages/bulletin-board"));
+const CommunityPage = lazy(() => import("@/pages/community"));
 const AdminPage = lazy(() => import("@/pages/admin"));
 const LegalPage = lazy(() => import("@/pages/legal"));
 const TavernPage = lazy(() => import("@/pages/tavern"));
-const GroupsPage = lazy(() => import("@/pages/groups"));
 const ProfilePage = lazy(() => import("@/pages/profile"));
 const HearthPage = lazy(() => import("@/pages/hearth"));
 const BeginPage = lazy(() => import("@/pages/begin"));
@@ -45,7 +44,6 @@ const WanderPage = lazy(() => import("@/pages/wander"));
 const DelvePage = lazy(() => import("@/pages/delve"));
 const AISettingsPage = lazy(() => import("@/pages/ai-settings"));
 const HowItWorks = lazy(() => import("@/pages/how-it-works"));
-const TestPage = lazy(() => import("@/pages/test-page"));
 
 function PageLoader() {
   return (
@@ -92,15 +90,17 @@ function Router() {
             <ProtectedRoute path="/dm-toolkit" component={DMToolkit} />
             <ProtectedRoute path="/learn" component={LearnPage} />
             <Route path="/world-map" component={WorldMapPage} />
-            <ProtectedRoute path="/bulletin" component={BulletinBoardPage} />
+            {/* One Community destination. /bulletin and /groups are kept as
+                redirects so existing links and bookmarks still resolve. */}
+            <ProtectedRoute path="/community" component={CommunityPage} />
+            <Route path="/bulletin"><Redirect to="/community?tab=find-a-game" /></Route>
+            <Route path="/groups"><Redirect to="/community?tab=guilds" /></Route>
             <ProtectedRoute path="/tavern" component={TavernPage} />
             <ProtectedRoute path="/hearth" component={HearthPage} />
-            <ProtectedRoute path="/groups" component={GroupsPage} />
             <Route path="/trading-post" component={TradingPostPage} />
             <ProtectedRoute path="/wander" component={WanderPage} />
             <ProtectedRoute path="/delve" component={DelvePage} />
             <Route path="/caml" component={CAMLPage} />
-            <ProtectedRoute path="/test" component={TestPage} />
             <ProtectedRoute path="/admin" component={AdminPage} />
             <ProtectedRoute path="/profile" component={ProfilePage} />
             <ProtectedRoute path="/ai-settings" component={AISettingsPage} />

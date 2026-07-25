@@ -40,6 +40,8 @@ export default function Footer() {
             <ul className="space-y-2">
               <li><Link href="/" className="text-gray-300 hover:text-gold transition">Home</Link></li>
               <li><Link href="/characters" className="text-gray-300 hover:text-gold transition">Characters</Link></li>
+              <li><Link href="/community?tab=find-a-game" className="text-gray-300 hover:text-gold transition">Find a Game</Link></li>
+              <li><Link href="/community?tab=guilds" className="text-gray-300 hover:text-gold transition">Guilds &amp; Parties</Link></li>
               <li><Link href="/campaigns" className="text-gray-300 hover:text-gold transition">Campaigns</Link></li>
               <li><Link href="/dice-roller" className="text-gray-300 hover:text-gold transition">Dice Roller</Link></li>
               <li><Link href="/how-it-works" className="text-gray-300 hover:text-gold transition">How It Works</Link></li>

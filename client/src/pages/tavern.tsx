@@ -1023,7 +1023,7 @@ function RecentBulletinPosts() {
   return (
     <div className="grid gap-3">
       {recentPosts.map((post: any) => (
-        <Link key={post.id} href="/bulletin">
+        <Link key={post.id} href="/community?tab=find-a-game">
           <Card className="bg-slate-50 dark:bg-slate-800 hover:border-amber-500/50 transition-colors cursor-pointer">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
@@ -2509,7 +2509,7 @@ export default function TavernPage() {
                               <p className="text-sm text-amber-600 dark:text-amber-400">Post on the Bulletin Board to find other adventurers</p>
                             </div>
                           </div>
-                          <Link href="/bulletin">
+                          <Link href="/community?tab=find-a-game">
                             <Button className="bg-amber-600 hover:bg-amber-700 text-white">
                               <PenLine className="h-4 w-4 mr-2" />
                               Post LFG
@@ -2526,7 +2526,7 @@ export default function TavernPage() {
                           <MessageSquare className="h-4 w-4" />
                           Recent Party Requests
                         </h4>
-                        <Link href="/bulletin">
+                        <Link href="/community?tab=find-a-game">
                           <Button variant="ghost" size="sm" className="text-amber-600">
                             View All <ChevronRight className="h-4 w-4 ml-1" />
                           </Button>

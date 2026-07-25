@@ -128,15 +128,27 @@ export default function LandingPage() {
 
               <div className="flex flex-col items-center gap-4">
                 {user ? (
-                  <Link href="/dashboard">
-                    <Button 
-                      size="lg" 
-                      className="text-base px-8 py-6 font-semibold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-orange-500/25"
-                    >
-                      Continue Your Adventure
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </Button>
-                  </Link>
+                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                    <Link href="/dashboard">
+                      <Button 
+                        size="lg" 
+                        className="text-base px-8 py-6 font-semibold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-orange-500/25"
+                      >
+                        Continue Your Adventure
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </Button>
+                    </Link>
+                    {/* Playtesters went looking for "the forums" and found nothing. */}
+                    <Link href="/community?tab=find-a-game">
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        className="text-base px-8 py-6 font-semibold border-white/25 text-white/90 hover:bg-white/10"
+                      >
+                        Find people to play with
+                      </Button>
+                    </Link>
+                  </div>
                 ) : (
                   <>
                     <Button 

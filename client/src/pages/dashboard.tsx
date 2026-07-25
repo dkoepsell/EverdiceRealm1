@@ -19,7 +19,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
 import { getQueryFn, queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Bookmark, Calendar, History, User, Users, Activity, Star, Play, Sparkles, Sword, Shield, ScrollText, ChevronDown, ChevronUp, Heart, Zap, Package, Scroll, BookOpen, HelpCircle, Store, Download, ArrowRight } from "lucide-react";
+import { Bookmark, Calendar, History, User, Users, Users2, Activity, Star, Play, Sparkles, Sword, Shield, ScrollText, ChevronDown, ChevronUp, Heart, Zap, Package, Scroll, BookOpen, HelpCircle, Store, Download, ArrowRight, Compass, Pickaxe, Beer, Map } from "lucide-react";
 import { ReturnVisitorPrompt } from "@/components/learning/ReturnVisitorPrompt";
 import { Badge } from "@/components/ui/badge";
 import { HowToPlayPanel } from "@/components/ui/how-to-play-panel";
@@ -391,6 +391,41 @@ export default function Dashboard() {
         </div>
         </section>
       </div>
+      )}
+
+      {/* Where to go next.
+          These used to live in the navbar's 11-item "More" dropdown. Playtest
+          feedback was that the top level had too many options, so the town and
+          exploration surfaces moved here — they're things you do *with a
+          character*, not separate destinations. Community is surfaced because a
+          new player went looking for "the forums" and couldn't find them. */}
+      {user && (
+      <section className="container mx-auto px-4 py-4">
+        <h2 className="text-xl font-fantasy font-bold text-white/90 mb-3">Where to next?</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {[
+            { href: "/community", label: "Community", desc: "Find a game", icon: Users2, accent: "text-sky-400 border-sky-500/30" },
+            { href: "/wander", label: "Wander", desc: "Explore the wilds", icon: Compass, accent: "text-emerald-400 border-emerald-500/30" },
+            { href: "/delve", label: "Delve", desc: "Raid a dungeon", icon: Pickaxe, accent: "text-purple-400 border-purple-500/30" },
+            { href: "/tavern", label: "Tavern", desc: "Rest and resupply", icon: Beer, accent: "text-amber-400 border-amber-500/30" },
+            { href: "/trading-post", label: "Trading Post", desc: "Buy and sell", icon: Store, accent: "text-orange-400 border-orange-500/30" },
+            { href: "/world-map", label: "World Map", desc: "See the realm", icon: Map, accent: "text-teal-400 border-teal-500/30" },
+          ].map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.href} href={item.href}>
+                <Card className={`h-full bg-slate-900/60 border ${item.accent} hover:bg-slate-800/70 transition-colors cursor-pointer`} data-testid={`card-goto-${item.label.toLowerCase().replace(/ /g, '-')}`}>
+                  <CardContent className="p-4 text-center">
+                    <Icon className={`h-6 w-6 mx-auto mb-2 ${item.accent.split(' ')[0]}`} />
+                    <div className="text-white text-sm font-semibold">{item.label}</div>
+                    <div className="text-white/50 text-xs mt-0.5">{item.desc}</div>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
       )}
 
       {/* Learn by Playing - Solo adventure with companion */}

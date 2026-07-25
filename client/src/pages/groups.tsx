@@ -45,7 +45,12 @@ const groupTypeColors: Record<string, string> = {
   company: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
 };
 
-export default function GroupsPage() {
+interface GroupsPageProps {
+  /** When embedded in the /community hub, the page hero is rendered by the hub. */
+  embedded?: boolean;
+}
+
+export default function GroupsPage({ embedded = false }: GroupsPageProps = {}) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -354,6 +359,8 @@ export default function GroupsPage() {
           <Shield className="h-20 w-20 text-purple-300" />
         </div>
         <div className="relative z-10">
+          {/* Hero suppressed when embedded in /community, which has its own header. */}
+          {!embedded && <>
           <div className="flex items-center gap-3 mb-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm">
               <Users className="h-3 w-3" />
@@ -366,6 +373,7 @@ export default function GroupsPage() {
           <p className="text-lg text-white/70 mb-6">
             Form adventuring parties, establish guilds, and build your reputation together.
           </p>
+          </>}
           {user && (
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
               <DialogTrigger asChild>

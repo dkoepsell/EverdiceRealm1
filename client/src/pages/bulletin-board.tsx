@@ -53,7 +53,12 @@ interface PostWithResponses extends BulletinPost {
   responses?: BulletinResponse[];
 }
 
-export default function BulletinBoardPage() {
+interface BulletinBoardPageProps {
+  /** When embedded in the /community hub, the page hero is rendered by the hub. */
+  embedded?: boolean;
+}
+
+export default function BulletinBoardPage({ embedded = false }: BulletinBoardPageProps = {}) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [filter, setFilter] = useState<string>("all");
@@ -164,9 +169,13 @@ export default function BulletinBoardPage() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+    <div className={embedded ? "" : "min-h-screen bg-gradient-to-b from-background to-muted/20"}>
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-slate-900 via-amber-900/20 to-slate-900 py-8 md:py-12 overflow-hidden">
+      <section className={embedded ? "relative overflow-hidden pb-2" : "relative bg-gradient-to-br from-slate-900 via-amber-900/20 to-slate-900 py-8 md:py-12 overflow-hidden"}>
+        {/* Decorative hero — suppressed when embedded in the /community hub,
+            which renders its own header. The action row below always shows so
+            "Create Post" stays reachable in both layouts. */}
+        {!embedded && <>
         <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent"></div>
         <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl"></div>
         <div className="absolute top-6 right-8 md:right-16 opacity-15">
@@ -178,17 +187,20 @@ export default function BulletinBoardPage() {
         <div className="absolute bottom-6 right-12 md:right-28 opacity-10">
           <Gamepad2 className="h-12 w-12 md:h-16 md:w-16 text-amber-300" />
         </div>
+        </>}
         <div className="container mx-auto px-4 relative z-10">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
+              {!embedded && <>
               <div className="flex items-center gap-3 mb-3">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
                   <Users className="h-3 w-3" />
                   <span>Find Your Party</span>
                 </div>
               </div>
-              <h1 className="text-2xl md:text-3xl font-fantasy font-bold text-white mb-2">Bulletin Board</h1>
+              <h1 className="text-2xl md:text-3xl font-fantasy font-bold text-white mb-2">Find a Game</h1>
               <p className="text-white/60">Find players, join games, and connect with fellow adventurers</p>
+              </>}
             </div>
             {user && (
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>

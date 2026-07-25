@@ -37,7 +37,8 @@ import {
   Store,
   Compass,
   Pickaxe,
-  Brain
+  Brain,
+  Users2
 } from "lucide-react";
 
 export default function Navbar() {
@@ -73,27 +74,20 @@ export default function Navbar() {
   // Check if user owns any campaigns (is a DM)
   const hasDMCampaigns = campaigns.length > 0;
   
+  // Four pillars. Playtest feedback: "you've got a lot of content... it can be
+  // confusing, you should try to simplify the top level options."
+  //
+  // What used to be 5 main links + an 11-item "More" dropdown is now four
+  // destinations. The town/exploration surfaces (Wander, Delve, Tavern, Trading
+  // Post, World Map) are character-context actions, so they live on the Play
+  // page as cards rather than as top-level destinations. Every old route still
+  // resolves — only the nav surface shrank.
   const mainNavLinks = user ? [
-    { name: "Hearth", path: "/hearth", icon: Flame },
     { name: "Play", path: "/dashboard", icon: Play },
     { name: "Characters", path: "/characters", icon: Users },
-    { name: "Learn", path: "/learn", icon: BookOpen },
-    { name: "Run Session", path: "/dm-toolkit", icon: Wrench },
+    { name: "Community", path: "/community", icon: Users2 },
+    { name: "Run a Game", path: "/dm-toolkit", icon: Wrench },
   ] : [];
-  
-  const moreLinks = [
-    { name: "Wander", path: "/wander", icon: Compass },
-    { name: "Delve", path: "/delve", icon: Pickaxe },
-    { name: "Trading Post", path: "/trading-post", icon: Store },
-    { name: "Tavern", path: "/tavern", icon: Beer },
-    { name: "Guilds", path: "/groups", icon: Shield },
-    { name: "World Map", path: "/world-map", icon: Map },
-    { name: "DM Tools", path: "/dm-toolkit", icon: Wrench },
-    { name: "DM Guide", path: "/dm-guide", icon: BookOpen },
-    { name: "Dice Roller", path: "/dice-roller", icon: Dice5 },
-    { name: "Find Groups", path: "/bulletin", icon: MessageSquare },
-    { name: "CAML", path: "/caml", icon: FileCode },
-  ];
   
   const publicLinks = [
     { name: "Play", path: "/auth", icon: Play },
@@ -142,17 +136,25 @@ export default function Navbar() {
           <nav className="hidden lg:flex items-center space-x-1">
             {mainNavLinks.map((link) => {
               const Icon = link.icon;
+              // Group invites used to badge the "More" dropdown, which pointed
+              // nowhere useful. They belong on Community, which owns Guilds.
+              const showBadge = link.path === '/community' && pendingInvitationCount > 0;
               return (
                 <Link key={link.path} href={link.path}>
                   <Button
                     variant={isActive(link.path) ? "secondary" : "ghost"}
-                    className={`${isActive(link.path) 
-                      ? 'bg-white/20 text-white' 
+                    className={`relative ${isActive(link.path)
+                      ? 'bg-white/20 text-white'
                       : 'text-white/90 hover:text-white hover:bg-white/10'
                     } transition-all`}
                   >
                     <Icon className="h-4 w-4 mr-2" />
                     {link.name}
+                    {showBadge && (
+                      <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-red-500 text-white text-xs">
+                        {pendingInvitationCount}
+                      </Badge>
+                    )}
                   </Button>
                 </Link>
               );
@@ -175,43 +177,6 @@ export default function Navbar() {
                 </Link>
               );
             })}
-            
-            {user && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="text-white/90 hover:text-white hover:bg-white/10 relative">
-                    <MoreHorizontal className="h-4 w-4 mr-2" />
-                    More
-                    {pendingInvitationCount > 0 && (
-                      <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-red-500 text-white text-xs">
-                        {pendingInvitationCount}
-                      </Badge>
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  {moreLinks.map((link) => {
-                    const Icon = link.icon;
-                    const showBadge = link.path === '/groups' && pendingInvitationCount > 0;
-                    return (
-                      <DropdownMenuItem key={link.path} asChild>
-                        <Link href={link.path} className="flex items-center justify-between cursor-pointer w-full">
-                          <span className="flex items-center">
-                            <Icon className="h-4 w-4 mr-2" />
-                            {link.name}
-                          </span>
-                          {showBadge && (
-                            <Badge className="bg-red-500 text-white text-xs h-5 px-1.5">
-                              {pendingInvitationCount}
-                            </Badge>
-                          )}
-                        </Link>
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
             
             {(user?.isAdmin || user?.isCoAdmin) && (
               <Link href="/admin">
@@ -277,6 +242,19 @@ export default function Navbar() {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
+                      <Link href="/dice-roller" className="flex items-center cursor-pointer">
+                        <Dice5 className="h-4 w-4 mr-2" />
+                        Dice Roller
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/learn" className="flex items-center cursor-pointer">
+                        <BookOpen className="h-4 w-4 mr-2" />
+                        Learn to Play
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
                       <Link href="/profile" className="flex items-center cursor-pointer">
                         <Settings className="h-4 w-4 mr-2" />
                         Profile Settings
@@ -327,35 +305,15 @@ export default function Navbar() {
               <>
                 {mainNavLinks.map((link) => {
                   const Icon = link.icon;
+                  const showBadge = link.path === '/community' && pendingInvitationCount > 0;
                   return (
                     <Link key={link.path} href={link.path}>
                       <Button
                         variant="ghost"
-                        className={`w-full justify-start ${isActive(link.path) 
-                          ? 'bg-white/20 text-white' 
+                        className={`w-full justify-between ${isActive(link.path)
+                          ? 'bg-white/20 text-white'
                           : 'text-white/90 hover:text-white hover:bg-white/10'
                         }`}
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        <Icon className="h-4 w-4 mr-3" />
-                        {link.name}
-                      </Button>
-                    </Link>
-                  );
-                })}
-                
-                <div className="border-t border-white/10 my-2 pt-2">
-                  <p className="text-xs text-white/50 px-3 py-1">More Options</p>
-                </div>
-                
-                {moreLinks.map((link) => {
-                  const Icon = link.icon;
-                  const showBadge = link.path === '/groups' && pendingInvitationCount > 0;
-                  return (
-                    <Link key={link.path} href={link.path}>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-between text-white/80 hover:text-white hover:bg-white/10"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <span className="flex items-center">
