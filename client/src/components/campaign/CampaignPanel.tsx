@@ -1456,7 +1456,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   
   // Advance story mutation with enhanced skill check integration
   const advanceStory = useMutation({
-    mutationFn: async ({ choice, rollResult, streaming }: { choice: string; rollResult?: any; streaming?: boolean }) => {
+    mutationFn: async ({ choice, rollResult, streaming, intent }: { choice: string; rollResult?: any; streaming?: boolean; intent?: string }) => {
       const response = await apiRequest('POST', `/api/campaigns/${campaign.id}/advance-story`, {
         choice,
         rollResult,
@@ -1464,7 +1464,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         pacingMode,
         // When true, the server waits for the concurrently-streamed full-model
         // narrative so the persisted text matches what the player just read.
-        streaming
+        streaming,
+        // 'attack' tells the DM the player is initiating violence, so the scene
+        // should transition into combat rather than narrate a social outcome.
+        intent
       });
       return await response.json();
     },
@@ -2864,7 +2867,22 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   // Handle choice selection
   const handleChoiceSelection = (choice: any) => {
     setSelectedAction(choice.action);
-    
+
+    // A suggestion tagged as an attack is resolved with combat maths, never as a
+    // d20 skill check. The DM used to stamp these "intimidation" for lack of an
+    // attack option, so the player could never actually swing at anyone.
+    if (choice.skillType === 'attack') {
+      const enemies = (parsedStoryState?.combatants as any[] || []).filter(
+        (c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated' && (c.currentHp > 0 || c.currentHp === undefined)
+      );
+      if (enemies.length > 0) {
+        handleQuickWeaponAttack();
+      } else {
+        resolveCustomAction(choice.action, 'attack');
+      }
+      return;
+    }
+
     // Check if the choice requires a dice roll (handle both property naming conventions)
     if (choice.requiresRoll || choice.requiresDiceRoll) {
       // Set up the dice roll
@@ -2937,7 +2955,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   };
 
   // Resolve a free-form action straight to narration (no dice roll).
-  const resolveCustomAction = (actionText: string) => {
+  // `intent` is an optional hint ('attack') so the DM knows to open combat.
+  const resolveCustomAction = (actionText: string, intent?: string) => {
     setLastChosenAction(actionText);
     setStoryPhase('commit');
     setRevealText("");
@@ -2949,7 +2968,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     showTip('pacing');
     fetchRevealText(actionText, parsedStoryState?.inCombat || false, currentLocation);
     startNarrativeStream(actionText, currentLocation);
-    advanceStory.mutate({ choice: actionText, streaming: true }, {
+    advanceStory.mutate({ choice: actionText, streaming: true, intent }, {
       onSettled: () => {
         if (streamAbortRef.current) streamAbortRef.current.abort();
         setMutationReady(true);
@@ -2987,6 +3006,26 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         currentLocation,
       });
       const assessment = await resp.json();
+
+      // An attack is never a skill check. If combat is already running, resolve it
+      // with the real attack maths; if not, tell the DM to open combat rather than
+      // narrating a social outcome. (Previously this fell through to the skill
+      // classifier, which had no 'attack' option and kept picking Intimidation.)
+      if (assessment?.actionType === 'attack') {
+        setCustomAction("");
+        setElaborationNudge(null);
+
+        const enemies = (parsedStoryState?.combatants as any[] || []).filter(
+          (c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated' && (c.currentHp > 0 || c.currentHp === undefined)
+        );
+        if (enemies.length > 0) {
+          handleQuickWeaponAttack();
+        } else {
+          resolveCustomAction(actionText, 'attack');
+        }
+        return;
+      }
+
       if (assessment?.requiresRoll) {
         setCustomAction("");
         setElaborationNudge(null);

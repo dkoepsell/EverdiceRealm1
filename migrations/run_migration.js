@@ -3,10 +3,22 @@ const path = require('path');
 const { pool } = require('../server/db');
 
 async function runMigration() {
-  console.log('Running migration...');
-  
+  const fileName = process.argv[2];
+  if (!fileName) {
+    console.error('Usage: node migrations/run_migration.js <file.sql>');
+    process.exit(1);
+  }
+
+  console.log(`Running migration: ${fileName}`);
+
   try {
-    const sqlPath = path.join(__dirname, 'add_invitations_and_notes.sql');
+    const sqlPath = path.isAbsolute(fileName)
+      ? fileName
+      : path.join(__dirname, fileName);
+    if (!fs.existsSync(sqlPath)) {
+      console.error(`Migration file not found: ${sqlPath}`);
+      process.exit(1);
+    }
     const sql = fs.readFileSync(sqlPath, 'utf8');
     
     // Connect to the database

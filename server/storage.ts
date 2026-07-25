@@ -85,7 +85,7 @@ import {
   userActivityEvents
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql, asc, or, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, asc, or, inArray, isNull } from "drizzle-orm";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -347,9 +347,10 @@ export interface IStorage {
   getBulletinPost(id: number): Promise<BulletinPost | undefined>;
   createBulletinPost(post: InsertBulletinPost): Promise<BulletinPost>;
   updateBulletinPost(id: number, updates: Partial<BulletinPost>): Promise<BulletinPost | undefined>;
-  deleteBulletinPost(id: number): Promise<boolean>;
-  
+  deleteBulletinPost(id: number, deletedBy?: number): Promise<boolean>;
+
   // Bulletin Response operations
+  getBulletinResponse(id: number): Promise<BulletinResponse | undefined>;
   getBulletinResponses(postId: number): Promise<BulletinResponse[]>;
   createBulletinResponse(response: InsertBulletinResponse): Promise<BulletinResponse>;
   deleteBulletinResponse(id: number): Promise<boolean>;
@@ -3350,8 +3351,9 @@ export class DatabaseStorage implements IStorage {
   // Bulletin Board operations
   async getBulletinPosts(options?: { postType?: string; isActive?: boolean; limit?: number }): Promise<BulletinPost[]> {
     let query = db.select().from(bulletinPosts);
-    
-    const conditions = [];
+
+    // Moderated/removed posts are soft-deleted and never listed.
+    const conditions = [isNull(bulletinPosts.deletedAt)];
     if (options?.postType) {
       conditions.push(eq(bulletinPosts.postType, options.postType));
     }
@@ -3375,14 +3377,14 @@ export class DatabaseStorage implements IStorage {
   async getUserBulletinPosts(userId: number): Promise<BulletinPost[]> {
     return db.select()
       .from(bulletinPosts)
-      .where(eq(bulletinPosts.userId, userId))
+      .where(and(eq(bulletinPosts.userId, userId), isNull(bulletinPosts.deletedAt)))
       .orderBy(desc(bulletinPosts.createdAt));
   }
   
   async getBulletinPost(id: number): Promise<BulletinPost | undefined> {
     const [post] = await db.select()
       .from(bulletinPosts)
-      .where(eq(bulletinPosts.id, id));
+      .where(and(eq(bulletinPosts.id, id), isNull(bulletinPosts.deletedAt)));
     return post || undefined;
   }
   
@@ -3407,16 +3409,28 @@ export class DatabaseStorage implements IStorage {
     return updated || undefined;
   }
   
-  async deleteBulletinPost(id: number): Promise<boolean> {
-    // Also delete all responses to this post
-    await db.delete(bulletinResponses)
-      .where(eq(bulletinResponses.postId, id));
-    const result = await db.delete(bulletinPosts)
+  // Soft delete. `deletedBy` is the acting user — equal to the author's id for a
+  // self-delete, or a moderator's id when staff removes someone else's post.
+  // Responses are kept so a moderation decision stays auditable.
+  async deleteBulletinPost(id: number, deletedBy?: number): Promise<boolean> {
+    await db.update(bulletinPosts)
+      .set({
+        deletedAt: new Date().toISOString(),
+        deletedBy: deletedBy ?? null,
+        isActive: false,
+      })
       .where(eq(bulletinPosts.id, id));
     return true;
   }
   
   // Bulletin Response operations
+  async getBulletinResponse(id: number): Promise<BulletinResponse | undefined> {
+    const [response] = await db.select()
+      .from(bulletinResponses)
+      .where(eq(bulletinResponses.id, id));
+    return response || undefined;
+  }
+
   async getBulletinResponses(postId: number): Promise<BulletinResponse[]> {
     return db.select()
       .from(bulletinResponses)

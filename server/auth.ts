@@ -355,10 +355,27 @@ export function isAuthenticated(req: any, res: any, next: any) {
   res.status(401).json({ message: "Authentication required" });
 }
 
-// Admin middleware - must be used after isAuthenticated
+// Admin middleware - must be used after isAuthenticated.
+// Full admin only: this is the gate for granting/revoking admin and co-admin,
+// and for anything touching the user roster. Co-admins do NOT pass.
 export function requireAdmin(req: any, res: any, next: any) {
   if (req.user?.isAdmin) {
     return next();
   }
   res.status(403).json({ message: "Admin access required" });
+}
+
+// "Staff" = full admin OR co-admin.
+// Co-admins get analytics, the feedback inbox, and community moderation —
+// but never the ability to grant or revoke admin/co-admin status.
+export function isStaff(user: any): boolean {
+  return !!(user?.isAdmin || user?.isCoAdmin);
+}
+
+// Staff middleware - must be used after isAuthenticated
+export function requireStaff(req: any, res: any, next: any) {
+  if (isStaff(req.user)) {
+    return next();
+  }
+  res.status(403).json({ message: "Staff access required" });
 }

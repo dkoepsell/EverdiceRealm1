@@ -213,7 +213,7 @@ export default function Navbar() {
               </DropdownMenu>
             )}
             
-            {user?.isAdmin && (
+            {(user?.isAdmin || user?.isCoAdmin) && (
               <Link href="/admin">
                 <Button
                   variant="ghost"

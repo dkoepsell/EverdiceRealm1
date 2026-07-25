@@ -15,6 +15,7 @@ import {
   Eye, Moon, Wand2, ChevronDown, ChevronRight, Star, Clock, 
   Target, Circle, Search, Plus, Check, X, RefreshCw
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Spell {
   id: number;
@@ -398,6 +399,7 @@ export default function SpellBook({
   readOnly = false,
   compact = false
 }: SpellBookProps) {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [levelFilter, setLevelFilter] = useState<string>("all");
   const [schoolFilter, setSchoolFilter] = useState<string>("all");
@@ -425,25 +427,43 @@ export default function SpellBook({
     enabled: showLearnDialog,
   });
   
+  // Every mutation below reports failures. Previously none of them had an
+  // onError, so server errors ("Spell not found", "already knows this spell")
+  // were completely invisible and the buttons looked broken.
+  const mutationError = (verb: string) => (error: any) => {
+    toast({
+      title: `Couldn't ${verb} spell`,
+      description: error?.message || "Something went wrong. Please try again.",
+      variant: "destructive",
+    });
+  };
+
   const learnSpellMutation = useMutation({
     mutationFn: async ({ spellId, source }: { spellId: number; source?: string }) => {
       return apiRequest('POST', `/api/characters/${characterId}/spells`, { spellId, source: source || 'class' });
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: [`/api/characters/${characterId}/spells`] });
       queryClient.invalidateQueries({ queryKey: [`/api/characters/${characterId}/available-spells`] });
-    }
+      const learned = availableData?.spells?.find(s => s.id === variables.spellId);
+      toast({
+        title: "Spell learned",
+        description: learned ? `${learned.name} added to your spellbook.` : "Added to your spellbook.",
+      });
+    },
+    onError: mutationError('learn'),
   });
-  
+
   const prepareSpellMutation = useMutation({
     mutationFn: async ({ spellId, prepared }: { spellId: number; prepared: boolean }) => {
       return apiRequest('PATCH', `/api/characters/${characterId}/spells/${spellId}/prepare`, { prepared });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/characters/${characterId}/spells`] });
-    }
+    },
+    onError: mutationError('prepare'),
   });
-  
+
   const forgetSpellMutation = useMutation({
     mutationFn: async (spellId: number) => {
       return apiRequest('DELETE', `/api/characters/${characterId}/spells/${spellId}`);
@@ -451,7 +471,8 @@ export default function SpellBook({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/characters/${characterId}/spells`] });
       queryClient.invalidateQueries({ queryKey: [`/api/characters/${characterId}/available-spells`] });
-    }
+    },
+    onError: mutationError('forget'),
   });
   
   const filteredKnownSpells = knownSpells.filter(cs => {
@@ -524,24 +545,16 @@ export default function SpellBook({
                       </div>
                     ) : (
                       <div className="space-y-2 pr-4">
-                        {availableData?.spells.map((spell: any) => (
+                        {availableData?.spells.map((spell: Spell) => (
                           <SpellCard
-                            key={spell.name}
-                            spell={spell as Spell}
+                            key={spell.id}
+                            spell={spell}
                             isKnown={false}
-                            onLearn={() => {
-                              const spellFromDb = knownSpells.find(ks => ks.spell.name === spell.name);
-                              if (!spellFromDb) {
-                                fetch(`/api/spells?className=${characterClass.toLowerCase()}`)
-                                  .then(r => r.json())
-                                  .then((allSpells: Spell[]) => {
-                                    const dbSpell = allSpells.find(s => s.name === spell.name);
-                                    if (dbSpell) {
-                                      learnSpellMutation.mutate({ spellId: dbSpell.id });
-                                    }
-                                  });
-                              }
-                            }}
+                            // /available-spells now returns real DB rows, so the id
+                            // can go straight to the mutation. This used to do a
+                            // name lookup against an empty `spells` table and then
+                            // silently do nothing when it missed.
+                            onLearn={() => learnSpellMutation.mutate({ spellId: spell.id })}
                             showActions={true}
                           />
                         ))}

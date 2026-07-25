@@ -112,6 +112,9 @@ export default function BulletinBoardPage() {
     }
   });
 
+  // Staff (admin or co-admin) can remove any post, not just their own.
+  const isStaff = !!(user?.isAdmin || (user as any)?.isCoAdmin);
+
   const deletePostMutation = useMutation({
     mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/bulletin/${id}`);
@@ -120,6 +123,9 @@ export default function BulletinBoardPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/bulletin"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bulletin/my-posts"] });
       toast({ title: "Post Deleted" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Couldn't delete post", description: error.message, variant: "destructive" });
     }
   });
 
@@ -483,9 +489,29 @@ export default function BulletinBoardPage() {
                       </div>
                     </CardContent>
                     <CardFooter className="border-t border-slate-700 pt-3">
-                      <div className="flex items-center gap-2 text-slate-400">
-                        <MessageSquare className="h-4 w-4" />
-                        <span>{post.responseCount || 0} responses</span>
+                      <div className="flex w-full items-center justify-between">
+                        <div className="flex items-center gap-2 text-slate-400">
+                          <MessageSquare className="h-4 w-4" />
+                          <span>{post.responseCount || 0} responses</span>
+                        </div>
+                        {/* Staff moderation: remove someone else's post. */}
+                        {isStaff && post.userId !== user?.id && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`Remove this post ("${post.title}")? This hides it from the board.`)) {
+                                deletePostMutation.mutate(post.id);
+                              }
+                            }}
+                            className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                            data-testid={`button-moderate-post-${post.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Remove
+                          </Button>
+                        )}
                       </div>
                     </CardFooter>
                   </Card>

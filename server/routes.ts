@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { recordSoloTurn } from "./play/progression/recordTurn";
 import { buildScaffoldingResponse, resolveEffectiveRung, type ScaffoldingResponse } from "./play/suggestions/visibility";
 import { renderDiegetic } from "./play/suggestions/diegetic";
+import { detectAttackIntent } from "./play/attackIntent";
 import { playerNeedsElaborationHelp, MIRROR_INSTRUCTION } from "./play/suggestions/elaboration";
 import { rollVerbosityGuidance } from "./play/mechanics/verbosity";
 import { consultOracle, ORACLE_LIKELIHOODS, type OracleLikelihood } from "./play/oracle/oracle";
@@ -78,7 +79,7 @@ import {
   characterBounties,
 } from "@shared/schema";
 import { mergeOnboardingState, parseOnboardingState } from "@shared/onboarding";
-import { setupAuth, isAuthenticated, requireAdmin } from "./auth";
+import { setupAuth, isAuthenticated, requireAdmin, requireStaff, isStaff } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";
 import { generateCharacterPortrait, generateCharacterBackground } from "./lib/characterImageGenerator";
 import { generateUserAvatar } from "./lib/avatarGenerator";
@@ -5384,7 +5385,7 @@ Return your response as a JSON object with these fields:
   - requiresDiceRoll: Boolean indicating if this action requires a dice roll
   - diceType: If requiresDiceRoll is true, include the type of dice to roll ("d20" for most skill checks)
   - rollDC: If requiresDiceRoll is true, include the DC/difficulty (number to beat) for this roll
-  - skillType: The skill or ability used (e.g., "perception", "persuasion", "stealth", "athletics", "investigation", "arcana", "insight"). IMPORTANT: Vary the skills used - social skills for NPC interactions, mental skills for investigation, physical skills as appropriate.
+  - skillType: The skill or ability used (e.g., "perception", "persuasion", "stealth", "athletics", "investigation", "arcana", "insight"), OR the literal value "attack" if the choice is striking a creature. IMPORTANT: Vary the skills used - social skills for NPC interactions, mental skills for investigation, physical skills as appropriate. NEVER label an attack as "intimidation" - intimidation is only for threatening someone WITHOUT striking them.
   - rollPurpose: A short explanation of what the roll is for (e.g., "Perception Check", "Persuasion Check", "Investigation Check")
   - successText: Brief text to display on a successful roll
   - failureText: Brief text describing a meaningful consequence (world changes, NPC reacts, opportunity shifts) - NOT just "you fail"
@@ -6744,22 +6745,27 @@ Return your response as a JSON object with these fields:
         return res.status(404).json({ message: "Character not found" });
       }
       
-      const { getSpellsAvailableForCharacter, isSpellcastingClass } = await import("./spellData");
-      
+      const { isSpellcastingClass, getMaxSpellLevel } = await import("./spellData");
+
       if (!isSpellcastingClass(character.class)) {
         return res.json({ spells: [], message: `${character.class} is not a spellcasting class` });
       }
-      
-      // Get all spells available for this class
-      const allAvailable = getSpellsAvailableForCharacter(character.class, character.level);
-      
+
+      // Read from the `spells` TABLE, not the static SRD array. The static rows
+      // carry no `id`, so the old filter below compared real spell ids against 0
+      // and never removed anything — already-known spells stayed in the "Learn"
+      // dialog forever, and the client had no id to POST back.
+      const classSpells = await storage.getSpellsByClass(character.class.toLowerCase());
+      const maxLevel = getMaxSpellLevel(character.class, character.level);
+      const allAvailable = classSpells.filter(s => (s.level ?? 0) <= maxLevel);
+
       // Get already known spells
       const knownSpells = await storage.getCharacterSpells(characterId);
       const knownIds = new Set(knownSpells.map(cs => cs.spellId));
-      
+
       // Filter out known spells
-      const available = allAvailable.filter(s => !knownIds.has((s as any).id || 0));
-      
+      const available = allAvailable.filter(s => !knownIds.has(s.id));
+
       res.json({
         class: character.class,
         level: character.level,
@@ -18536,9 +18542,9 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
       }
       
       const campaignId = parseInt(req.params.campaignId);
-      const { choice, rollResult, currentLocation, skipTurnCheck } = req.body;
-      
-      console.log(`[Advance Story] Campaign ${campaignId} - Choice: "${choice?.substring(0, 50)}..." by user ${req.user?.id}`);
+      const { choice, rollResult, currentLocation, skipTurnCheck, intent } = req.body;
+
+      console.log(`[Advance Story] Campaign ${campaignId} - Choice: "${choice?.substring(0, 50)}..." by user ${req.user?.id}${intent ? ` [intent: ${intent}]` : ''}`);
       
       // Get campaign to check turn-based settings
       const campaign = await storage.getCampaign(campaignId);
@@ -19043,6 +19049,19 @@ ${rollSuccess ?
   `The success should meaningfully impact the situation - NPCs may react favorably, obstacles are overcome, information is gained, or new opportunities arise.` : 
   `The failure should create interesting complications - NPCs may react negatively, obstacles remain or worsen, misinformation occurs, or new challenges emerge.`}
 Do not ignore this result. Build the entire next scene around this outcome.`;
+      }
+
+      // The player explicitly attacked someone. Without this the DM tends to
+      // narrate a social/skill outcome and combat never actually starts.
+      let attackIntentInfo = "";
+      if (intent === 'attack') {
+        attackIntentInfo = `
+COMBAT INITIATION — THE PLAYER IS ATTACKING:
+The player's action is an ATTACK on a creature, not a social or skill attempt.
+- You MUST set "inCombat": true in your response.
+- You MUST populate "combatants" with the player character(s) and every hostile present, each with name, type ("player"/"ally"/"enemy"/"boss"), maxHp, currentHp, armorClass and initiative.
+- Narrate the opening strike and the target's reaction. Do NOT resolve the whole fight in one paragraph, and do NOT convert this into an Intimidation, Persuasion or Athletics outcome.
+- If the target is genuinely non-hostile or helpless, still honour the attack: describe the consequences (bystanders scattering, guards summoned, reputation damage) rather than refusing the action.`;
       }
 
       // Get current quests from story state
@@ -20142,6 +20161,7 @@ MOVEMENT DETECTED: This is a movement action!
 - CRITICAL: Before allowing this movement, verify the direction is in PASSABLE EXITS above!
 ` : ''}
 ${skillCheckInfo}
+${attackIntentInfo}
 
 ${skillCheckContinuation}
 
@@ -20408,7 +20428,7 @@ Respond with JSON:
       "requiresDiceRoll": true/false,
       "diceType": "d20/d6/etc (if roll required)",
       "rollDC": "number (if roll required)",
-      "skillType": "the skill for this roll: perception/investigation/persuasion/deception/intimidation/insight/stealth/athletics/acrobatics/arcana/religion/nature/survival/medicine/animal_handling",
+      "skillType": "the skill for this roll: perception/investigation/persuasion/deception/intimidation/insight/stealth/athletics/acrobatics/arcana/religion/nature/survival/medicine/animal_handling — OR the literal value \"attack\" when the choice is striking a creature with a weapon or offensive spell. NEVER label an attack as intimidation; intimidation is only for threatening WITHOUT striking.",
       "rollPurpose": "What the roll represents (e.g., Persuasion Check, Perception Check)",
       "successText": "What happens on success",
       "failureText": "What happens on failure"
@@ -25109,6 +25129,19 @@ No JSON, no choices, no game mechanics — just the story text.`;
         'strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma',
       ];
 
+      // Fast path: an attack is not a skill check. Without this, the classifier
+      // below is forced to pick from VALID_SKILLS and reliably lands on
+      // Intimidation, which is why players couldn't attack anyone.
+      const attackIntent = detectAttackIntent(action);
+      if (attackIntent.isAttack) {
+        return res.json({
+          requiresRoll: false,
+          actionType: "attack",
+          target: attackIntent.target,
+          reason: "The player is attacking — resolve as combat, not a skill check.",
+        });
+      }
+
       const assessPrompt = `You are a D&D 5e Dungeon Master deciding whether a player's freely-typed action requires an ability check (dice roll).
 
 Current scene: ${previousNarrative || "(scene just beginning)"}
@@ -25116,14 +25149,19 @@ Location: ${currentLocation || storyState.location || "unknown"}
 ${inCombat ? "The party is IN COMBAT." : ""}
 Player's typed action: "${action.trim()}"
 
+FIRST, classify the action as one of:
+- "attack" — the player is using force on a creature: swinging a weapon, shooting, punching, charging, casting an offensive spell at someone, or otherwise trying to harm them. THIS IS NOT A SKILL CHECK. Never classify an attack as Intimidation, Athletics, or any other skill. Intimidation is only for THREATENING someone without actually striking them.
+- "skill" — an uncertain, consequential non-combat action that needs an ability check.
+- "none" — anything else.
+
 Call for a roll ONLY when the outcome is genuinely UNCERTAIN and CONSEQUENTIAL — the action could plausibly fail and failure matters. Examples that DO need a roll: picking a lock, sneaking past a guard, persuading/deceiving/intimidating an NPC, recalling lore, searching for hidden things, leaping a chasm, resisting a trap, climbing a sheer wall.
 Do NOT call for a roll for: walking/talking/looking around, mundane or automatic actions, things with no meaningful stakes, pure narration ("I admire the view"), or anything an ordinary person would simply succeed at. When in doubt, DO NOT require a roll — most actions should not.
 
-Choose the single most appropriate skill from this exact list (use the snake_case value verbatim): ${VALID_SKILLS.join(', ')}.
+If actionType is "skill", choose the single most appropriate skill from this exact list (use the snake_case value verbatim): ${VALID_SKILLS.join(', ')}.
 Set DC by difficulty: trivial 5, easy 10, medium 15, hard 20, very hard 25. Most checks should be 10-15.
 
 Respond with ONLY a JSON object, no prose:
-{"requiresRoll": boolean, "skill": "<one of the list, or empty if no roll>", "dc": <integer 5-25, or 0 if no roll>, "rollPurpose": "<short label like 'Stealth Check' or 'Persuasion Check'>", "reason": "<one short clause>"}`;
+{"actionType": "attack" | "skill" | "none", "requiresRoll": boolean, "target": "<who is being attacked, or empty>", "skill": "<one of the list, or empty if no roll>", "dc": <integer 5-25, or 0 if no roll>, "rollPurpose": "<short label like 'Stealth Check' or 'Persuasion Check'>", "reason": "<one short clause>"}`;
 
       const { client: openaiClient, model: aiModel } = await getFastAIClient(req.user?.id);
       const response = await openaiClient.chat.completions.create({
@@ -25136,19 +25174,30 @@ Respond with ONLY a JSON object, no prose:
       let parsed: any = null;
       try { parsed = JSON.parse(response.choices[0].message.content || "{}"); } catch {}
 
+      // Second chance for attacks the keyword pre-check missed.
+      if (parsed?.actionType === "attack") {
+        return res.json({
+          requiresRoll: false,
+          actionType: "attack",
+          target: parsed.target ? String(parsed.target) : undefined,
+          reason: String(parsed.reason || "The player is attacking."),
+        });
+      }
+
       if (!parsed || parsed.requiresRoll !== true) {
-        return res.json({ requiresRoll: false });
+        return res.json({ requiresRoll: false, actionType: "none" });
       }
 
       const skill = String(parsed.skill || "").toLowerCase().replace(/\s+/g, "_");
       if (!VALID_SKILLS.includes(skill)) {
         // No mappable skill → don't force a roll rather than guess wrong.
-        return res.json({ requiresRoll: false });
+        return res.json({ requiresRoll: false, actionType: "none" });
       }
       const dc = Math.max(5, Math.min(25, parseInt(parsed.dc, 10) || 12));
 
       return res.json({
         requiresRoll: true,
+        actionType: "skill",
         skill,
         dc,
         diceType: "d20",
@@ -27279,17 +27328,21 @@ Snapshots must include at least 2 forked endings.`;
       const id = parseInt(req.params.id);
       const userId = (req.user as any).id;
       
-      // Verify ownership
+      // Verify ownership, or staff moderating someone else's post
       const existing = await storage.getBulletinPost(id);
       if (!existing) {
         return res.status(404).json({ message: "Post not found" });
       }
-      if (existing.userId !== userId) {
+      const moderating = existing.userId !== userId;
+      if (moderating && !isStaff(req.user)) {
         return res.status(403).json({ message: "Not authorized to delete this post" });
       }
-      
-      await storage.deleteBulletinPost(id);
-      res.json({ success: true });
+      if (moderating) {
+        console.log(`[Moderation] user ${userId} removed bulletin post ${id} (author ${existing.userId})`);
+      }
+
+      await storage.deleteBulletinPost(id, userId);
+      res.json({ success: true, moderated: moderating });
     } catch (error) {
       console.error("Failed to delete bulletin post:", error);
       res.status(500).json({ message: "Failed to delete post" });
@@ -27322,10 +27375,26 @@ Snapshots must include at least 2 forked endings.`;
     }
   });
   
-  // Delete a response (owner only)
+  // Delete a response (author, the post's author, or staff)
   app.delete("/api/bulletin/response/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const userId = (req.user as any).id;
+
+      // Previously this route had NO authorization check at all — any logged-in
+      // user could delete any response.
+      const response = await storage.getBulletinResponse(id);
+      if (!response) {
+        return res.status(404).json({ message: "Response not found" });
+      }
+      if (response.userId !== userId && !isStaff(req.user)) {
+        // The author of the post being responded to may also remove responses.
+        const post = await storage.getBulletinPost(response.postId);
+        if (!post || post.userId !== userId) {
+          return res.status(403).json({ message: "Not authorized to delete this response" });
+        }
+      }
+
       await storage.deleteBulletinResponse(id);
       res.json({ success: true });
     } catch (error) {
@@ -28604,32 +28673,63 @@ Snapshots must include at least 2 forked endings.`;
     }
   });
   
-  // Toggle user admin status (admin only)
+  // Toggle user admin status (FULL ADMIN ONLY — co-admins must never reach this).
+  // This and toggle-co-admin below are the only places isAdmin/isCoAdmin are written.
   app.patch("/api/admin/users/:userId/toggle-admin", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const targetUserId = parseInt(req.params.userId);
       const currentUserId = req.user.id;
-      
+
       // Prevent admin from removing their own admin status
       if (targetUserId === currentUserId) {
         return res.status(400).json({ message: "Cannot modify your own admin status" });
       }
-      
+
       const [user] = await db.select().from(users).where(eq(users.id, targetUserId));
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const [updated] = await db
         .update(users)
         .set({ isAdmin: !user.isAdmin })
         .where(eq(users.id, targetUserId))
         .returning();
-      
-      const { password, ...sanitizedUser } = updated;
+
+      const { password, twoFactorSecret, ...sanitizedUser } = updated;
       res.json(sanitizedUser);
     } catch (error) {
       console.error("Admin: Failed to toggle admin status:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  // Toggle user co-admin status (FULL ADMIN ONLY).
+  // Co-admins get analytics + feedback + community moderation, never role grants.
+  app.patch("/api/admin/users/:userId/toggle-co-admin", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const targetUserId = parseInt(req.params.userId);
+      const currentUserId = req.user.id;
+
+      if (targetUserId === currentUserId) {
+        return res.status(400).json({ message: "Cannot modify your own co-admin status" });
+      }
+
+      const [user] = await db.select().from(users).where(eq(users.id, targetUserId));
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const [updated] = await db
+        .update(users)
+        .set({ isCoAdmin: !user.isCoAdmin })
+        .where(eq(users.id, targetUserId))
+        .returning();
+
+      const { password, twoFactorSecret, ...sanitizedUser } = updated;
+      res.json(sanitizedUser);
+    } catch (error) {
+      console.error("Admin: Failed to toggle co-admin status:", error);
       res.status(500).json({ message: "Failed to update user" });
     }
   });
@@ -28697,7 +28797,7 @@ Snapshots must include at least 2 forked endings.`;
   // ===== Admin Analytics Endpoints =====
   
   // Get analytics overview (admin only)
-  app.get("/api/admin/analytics/overview", isAuthenticated, requireAdmin, async (req, res) => {
+  app.get("/api/admin/analytics/overview", isAuthenticated, requireStaff, async (req, res) => {
     try {
       const now = new Date();
       const today = now.toISOString().split('T')[0];
@@ -28771,7 +28871,7 @@ Snapshots must include at least 2 forked endings.`;
   });
   
   // Get activity breakdown by category (admin only)
-  app.get("/api/admin/analytics/activity-breakdown", isAuthenticated, requireAdmin, async (req, res) => {
+  app.get("/api/admin/analytics/activity-breakdown", isAuthenticated, requireStaff, async (req, res) => {
     try {
       const days = parseInt(req.query.days as string) || 7;
       const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -28792,7 +28892,7 @@ Snapshots must include at least 2 forked endings.`;
   });
   
   // Get top features (admin only)
-  app.get("/api/admin/analytics/top-features", isAuthenticated, requireAdmin, async (req, res) => {
+  app.get("/api/admin/analytics/top-features", isAuthenticated, requireStaff, async (req, res) => {
     try {
       const days = parseInt(req.query.days as string) || 7;
       const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -28815,7 +28915,7 @@ Snapshots must include at least 2 forked endings.`;
   });
   
   // Get user activity timeline (admin only)
-  app.get("/api/admin/analytics/timeline", isAuthenticated, requireAdmin, async (req, res) => {
+  app.get("/api/admin/analytics/timeline", isAuthenticated, requireStaff, async (req, res) => {
     try {
       const days = parseInt(req.query.days as string) || 14;
       const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -28837,7 +28937,7 @@ Snapshots must include at least 2 forked endings.`;
   });
   
   // Get most active users (admin only)
-  app.get("/api/admin/analytics/active-users", isAuthenticated, requireAdmin, async (req, res) => {
+  app.get("/api/admin/analytics/active-users", isAuthenticated, requireStaff, async (req, res) => {
     try {
       const days = parseInt(req.query.days as string) || 7;
       const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -28877,7 +28977,7 @@ Snapshots must include at least 2 forked endings.`;
   });
   
   // Get session statistics (admin only)
-  app.get("/api/admin/analytics/sessions", isAuthenticated, requireAdmin, async (req, res) => {
+  app.get("/api/admin/analytics/sessions", isAuthenticated, requireStaff, async (req, res) => {
     try {
       const days = parseInt(req.query.days as string) || 7;
       const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -28896,7 +28996,7 @@ Snapshots must include at least 2 forked endings.`;
   });
 
   // Get page-level analytics (time spent per page)
-  app.get("/api/admin/analytics/page-stats", isAuthenticated, requireAdmin, async (req, res) => {
+  app.get("/api/admin/analytics/page-stats", isAuthenticated, requireStaff, async (req, res) => {
     try {
       const days = parseInt(req.query.days as string) || 7;
       const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -28950,7 +29050,7 @@ Snapshots must include at least 2 forked endings.`;
   });
 
   // Get click analytics
-  app.get("/api/admin/analytics/clicks", isAuthenticated, requireAdmin, async (req, res) => {
+  app.get("/api/admin/analytics/clicks", isAuthenticated, requireStaff, async (req, res) => {
     try {
       const days = parseInt(req.query.days as string) || 7;
       const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -28993,7 +29093,7 @@ Snapshots must include at least 2 forked endings.`;
   });
 
   // Get detailed event breakdown with granular data
-  app.get("/api/admin/analytics/detailed-events", isAuthenticated, requireAdmin, async (req, res) => {
+  app.get("/api/admin/analytics/detailed-events", isAuthenticated, requireStaff, async (req, res) => {
     try {
       const days = parseInt(req.query.days as string) || 7;
       const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -29250,7 +29350,7 @@ No JSON, no choices, no game mechanics, no headings — just the story text.`;
   });
   
   // Get demo analytics overview (admin only)
-  app.get("/api/admin/analytics/demo", isAuthenticated, requireAdmin, async (req, res) => {
+  app.get("/api/admin/analytics/demo", isAuthenticated, requireStaff, async (req, res) => {
     try {
       const days = parseInt(req.query.days as string) || 30;
       const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -30162,7 +30262,7 @@ No JSON, no choices, no game mechanics, no headings — just the story text.`;
     }
   });
 
-  // DELETE /api/hearth/board/:postId - Delete own post
+  // DELETE /api/hearth/board/:postId - Delete own post (or staff moderation)
   app.delete("/api/hearth/board/:postId", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).id;
@@ -30176,7 +30276,9 @@ No JSON, no choices, no game mechanics, no headings — just the story text.`;
         return res.status(404).json({ message: "Post not found" });
       }
 
-      if (post.userId !== userId) {
+      if (post.userId !== userId && isStaff(req.user)) {
+        console.log(`[Moderation] user ${userId} removed hearth post ${postId} (author ${post.userId})`);
+      } else if (post.userId !== userId) {
         return res.status(403).json({ message: "Cannot delete another's post" });
       }
 
@@ -30691,7 +30793,7 @@ No JSON, no choices, no game mechanics, no headings — just the story text.`;
   });
 
   // ---- Admin feedback inbox ----
-  app.get("/api/admin/feedback", isAuthenticated, requireAdmin, async (req, res) => {
+  app.get("/api/admin/feedback", isAuthenticated, requireStaff, async (req, res) => {
     try {
       const onlyUnread = req.query.unread === "true";
       const items = await storage.getUserFeedbackList({ onlyUnread, limit: 500 });
@@ -30715,7 +30817,7 @@ No JSON, no choices, no game mechanics, no headings — just the story text.`;
     }
   });
 
-  app.get("/api/admin/feedback/unread-count", isAuthenticated, requireAdmin, async (_req, res) => {
+  app.get("/api/admin/feedback/unread-count", isAuthenticated, requireStaff, async (_req, res) => {
     try {
       const count = await storage.getUnreadFeedbackCount();
       res.json({ count });
@@ -30725,7 +30827,7 @@ No JSON, no choices, no game mechanics, no headings — just the story text.`;
     }
   });
 
-  app.patch("/api/admin/feedback/:id/read", isAuthenticated, requireAdmin, async (req, res) => {
+  app.patch("/api/admin/feedback/:id/read", isAuthenticated, requireStaff, async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
       if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid feedback id" });

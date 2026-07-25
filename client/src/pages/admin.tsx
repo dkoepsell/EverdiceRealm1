@@ -28,6 +28,7 @@ interface AdminUser {
   displayName: string | null;
   lastLogin: string | null;
   isAdmin: boolean;
+  isCoAdmin: boolean;
   createdAt: string;
   characterCount: number;
   campaignCount: number;
@@ -44,6 +45,7 @@ interface UserDetail {
     avatarUrl: string | null;
     lastLogin: string | null;
     isAdmin: boolean;
+    isCoAdmin: boolean;
     createdAt: string;
     discordUserId: string | null;
     discordUsername: string | null;
@@ -189,6 +191,10 @@ const ADVENTURE_NAMES: Record<string, string> = {
 
 export default function AdminPage() {
   const { user, isLoading: authLoading } = useAuth();
+  // Co-admins are "staff": analytics, feedback and moderation only. Full admins
+  // additionally get the user roster, campaign list, and role granting.
+  const isFullAdmin = !!user?.isAdmin;
+  const isStaff = !!(user?.isAdmin || user?.isCoAdmin);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -196,7 +202,7 @@ export default function AdminPage() {
 
   const { data: adminUsers = [], isLoading: usersLoading, error: usersError } = useQuery<AdminUser[]>({
     queryKey: ['/api/admin/users'],
-    enabled: !!user?.isAdmin,
+    enabled: isFullAdmin,
     // God-mode list must stay live: the global queryClient default is staleTime:Infinity
     // with no refetch, which otherwise caches the user list for the whole session so
     // newly-signed-up/active users (visible in The Hearth) never appear here.
@@ -206,7 +212,7 @@ export default function AdminPage() {
 
   const { data: allCampaigns = [], isLoading: campaignsLoading } = useQuery<Campaign[]>({
     queryKey: ['/api/admin/campaigns'],
-    enabled: !!user?.isAdmin,
+    enabled: isFullAdmin,
     staleTime: 0,
     refetchInterval: 30000,
   });
@@ -223,7 +229,7 @@ export default function AdminPage() {
 
   const { data: analyticsOverview, isLoading: analyticsLoading } = useQuery<AnalyticsOverview>({
     queryKey: ['/api/admin/analytics/overview'],
-    enabled: !!user?.isAdmin,
+    enabled: isStaff,
     refetchInterval: 30000,
   });
 
@@ -233,7 +239,7 @@ export default function AdminPage() {
       const res = await fetch(`/api/admin/analytics/activity-breakdown?days=${timeRange}`);
       return res.json();
     },
-    enabled: !!user?.isAdmin,
+    enabled: isStaff,
   });
 
   const { data: topFeatures = [] } = useQuery<TopFeature[]>({
@@ -242,7 +248,7 @@ export default function AdminPage() {
       const res = await fetch(`/api/admin/analytics/top-features?days=${timeRange}`);
       return res.json();
     },
-    enabled: !!user?.isAdmin,
+    enabled: isStaff,
   });
 
   const { data: timeline = [] } = useQuery<TimelinePoint[]>({
@@ -251,7 +257,7 @@ export default function AdminPage() {
       const res = await fetch(`/api/admin/analytics/timeline?days=${timeRange}`);
       return res.json();
     },
-    enabled: !!user?.isAdmin,
+    enabled: isStaff,
   });
 
   const { data: activeUsers = [] } = useQuery<ActiveUser[]>({
@@ -260,7 +266,7 @@ export default function AdminPage() {
       const res = await fetch(`/api/admin/analytics/active-users?days=${timeRange}`);
       return res.json();
     },
-    enabled: !!user?.isAdmin,
+    enabled: isStaff,
   });
 
   const { data: pageStats = [] } = useQuery<PageStat[]>({
@@ -269,7 +275,7 @@ export default function AdminPage() {
       const res = await fetch(`/api/admin/analytics/page-stats?days=${timeRange}`);
       return res.json();
     },
-    enabled: !!user?.isAdmin,
+    enabled: isStaff,
   });
 
   const { data: clickStats = [] } = useQuery<ClickStat[]>({
@@ -278,7 +284,7 @@ export default function AdminPage() {
       const res = await fetch(`/api/admin/analytics/clicks?days=${timeRange}`);
       return res.json();
     },
-    enabled: !!user?.isAdmin,
+    enabled: isStaff,
   });
 
   const { data: detailedEvents = [] } = useQuery<DetailedEvent[]>({
@@ -287,7 +293,7 @@ export default function AdminPage() {
       const res = await fetch(`/api/admin/analytics/detailed-events?days=${timeRange}`);
       return res.json();
     },
-    enabled: !!user?.isAdmin,
+    enabled: isStaff,
   });
 
   const { data: demoAnalytics } = useQuery<DemoAnalyticsData>({
@@ -296,7 +302,7 @@ export default function AdminPage() {
       const res = await fetch(`/api/admin/analytics/demo?days=${timeRange}`);
       return res.json();
     },
-    enabled: !!user?.isAdmin,
+    enabled: isStaff,
     refetchInterval: 60000,
   });
 
@@ -311,6 +317,20 @@ export default function AdminPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Failed to update admin status", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const toggleCoAdminMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const response = await apiRequest('PATCH', `/api/admin/users/${userId}/toggle-co-admin`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({ title: "Co-admin status updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to update co-admin status", description: error.message, variant: "destructive" });
     }
   });
 
@@ -342,13 +362,13 @@ export default function AdminPage() {
 
   // Export the full user list (with marketing signals) as CSV for downstream analysis.
   const exportUsersCsv = () => {
-    const headers = ['id', 'username', 'displayName', 'email', 'isAdmin', 'signedUp', 'lastActive', 'characters', 'campaigns', 'events'];
+    const headers = ['id', 'username', 'displayName', 'email', 'isAdmin', 'isCoAdmin', 'signedUp', 'lastActive', 'characters', 'campaigns', 'events'];
     const escape = (v: unknown) => {
       const s = v === null || v === undefined ? '' : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const rows = adminUsers.map((u) => [
-      u.id, u.username, u.displayName || '', u.email || '', u.isAdmin,
+      u.id, u.username, u.displayName || '', u.email || '', u.isAdmin, u.isCoAdmin,
       u.createdAt ? new Date(u.createdAt).toISOString() : '',
       u.lastActivity || u.lastLogin || '',
       u.characterCount, u.campaignCount, u.totalEvents,
@@ -383,7 +403,7 @@ export default function AdminPage() {
     return null;
   }
 
-  if (!user.isAdmin) {
+  if (!isStaff) {
     return (
       <div className="container mx-auto px-4 py-12">
         <Card className="max-w-md mx-auto border-red-500/30">
@@ -402,7 +422,8 @@ export default function AdminPage() {
     );
   }
 
-  if (usersError) {
+  // Co-admins never fetch the roster, so a roster error must not blank their page.
+  if (usersError && isFullAdmin) {
     return (
       <div className="container mx-auto px-4 py-12">
         <Card className="max-w-md mx-auto">
@@ -537,12 +558,18 @@ export default function AdminPage() {
             <TabsTrigger value="demo" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Sparkles className="h-4 w-4" /> Demo & Conversions
             </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Users className="h-4 w-4" /> Users
-            </TabsTrigger>
-            <TabsTrigger value="campaigns" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <MapPin className="h-4 w-4" /> Campaigns
-            </TabsTrigger>
+            {/* User roster and campaign list are full-admin only — co-admins get
+                analytics, conversions and the feedback inbox. */}
+            {isFullAdmin && (
+              <TabsTrigger value="users" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <Users className="h-4 w-4" /> Users
+              </TabsTrigger>
+            )}
+            {isFullAdmin && (
+              <TabsTrigger value="campaigns" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <MapPin className="h-4 w-4" /> Campaigns
+              </TabsTrigger>
+            )}
             <TabsTrigger value="feedback" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <MessageSquare className="h-4 w-4" /> Feedback
               {unreadFeedbackCount > 0 && (
@@ -1229,6 +1256,10 @@ export default function AdminPage() {
                                 <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
                                   <Crown className="h-3 w-3 mr-1" /> Admin
                                 </Badge>
+                              ) : adminUser.isCoAdmin ? (
+                                <Badge className="bg-gradient-to-r from-sky-600 to-indigo-600 text-white">
+                                  <Shield className="h-3 w-3 mr-1" /> Co-Admin
+                                </Badge>
                               ) : (
                                 <Badge variant="outline">User</Badge>
                               )}
@@ -1244,14 +1275,29 @@ export default function AdminPage() {
                                   <Eye className="h-3 w-3 mr-1" /> Profile
                                 </Button>
                                 {adminUser.id !== user.id && (
-                                  <Button
-                                    size="sm"
-                                    variant={adminUser.isAdmin ? "destructive" : "default"}
-                                    onClick={() => toggleAdminMutation.mutate(adminUser.id)}
-                                    disabled={toggleAdminMutation.isPending}
-                                  >
-                                    {adminUser.isAdmin ? 'Remove Admin' : 'Make Admin'}
-                                  </Button>
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant={adminUser.isAdmin ? "destructive" : "default"}
+                                      onClick={() => toggleAdminMutation.mutate(adminUser.id)}
+                                      disabled={toggleAdminMutation.isPending}
+                                    >
+                                      {adminUser.isAdmin ? 'Remove Admin' : 'Make Admin'}
+                                    </Button>
+                                    {/* Co-admin: analytics + feedback + community
+                                        moderation, but cannot grant or revoke roles. */}
+                                    {!adminUser.isAdmin && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="border-sky-500/40 hover:bg-sky-500/10"
+                                        onClick={() => toggleCoAdminMutation.mutate(adminUser.id)}
+                                        disabled={toggleCoAdminMutation.isPending}
+                                      >
+                                        {adminUser.isCoAdmin ? 'Remove Co-Admin' : 'Make Co-Admin'}
+                                      </Button>
+                                    )}
+                                  </>
                                 )}
                               </div>
                             </TableCell>

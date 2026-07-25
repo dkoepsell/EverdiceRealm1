@@ -13,6 +13,9 @@ export const users = pgTable("users", {
   avatarUrl: text("avatar_url"),
   lastLogin: text("last_login"),
   isAdmin: boolean("is_admin").notNull().default(false),
+  // Co-admin: staff access to analytics, the feedback inbox and board moderation.
+  // Deliberately CANNOT grant or revoke admin/co-admin — that stays isAdmin-only.
+  isCoAdmin: boolean("is_co_admin").notNull().default(false),
   createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   twoFactorSecret: text("two_factor_secret"),
   twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
@@ -1170,6 +1173,10 @@ export const bulletinPosts = pgTable("bulletin_posts", {
   createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   updatedAt: text("updated_at"),
   expiresAt: text("expires_at"), // Auto-expire old posts
+  // Moderation: soft delete + audit trail. deletedBy is the moderating user's id
+  // (equal to userId when the author removed their own post).
+  deletedAt: text("deleted_at"),
+  deletedBy: integer("deleted_by"),
 }, (t) => [
   index("idx_bulletin_posts_user_id").on(t.userId),
 ]);
@@ -1179,6 +1186,8 @@ export const insertBulletinPostSchema = createInsertSchema(bulletinPosts).omit({
   responseCount: true,
   createdAt: true,
   updatedAt: true,
+  deletedAt: true,
+  deletedBy: true,
 });
 
 export type InsertBulletinPost = z.infer<typeof insertBulletinPostSchema>;

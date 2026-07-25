@@ -54,6 +54,17 @@ app.use((req, res, next) => {
       
       // Run migration to add narrative data to existing dungeon maps
       await storage.migrateDungeonMapsWithNarrative();
+
+      // Seed the SRD spell list if the table is empty. Nothing ever called
+      // POST /api/spells/seed, so the `spells` table stayed empty in every
+      // environment — which made the "Learn Spell" button a silent no-op,
+      // because the client looked spells up by name in an empty table.
+      const existingSpells = await storage.getAllSpells();
+      if (existingSpells.length === 0) {
+        const { SRD_SPELLS } = await import("./spellData");
+        const seeded = await storage.seedSpells(SRD_SPELLS);
+        log(`Seeded ${seeded} SRD spells`);
+      }
     } catch (error) {
       console.error('Error initializing sample data:', error);
     }
