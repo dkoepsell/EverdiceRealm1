@@ -5264,8 +5264,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         coverImageUrl: req.body.coverImageUrl ?? req.body.coverArtUrl ?? req.body.generatedContent?.coverArtUrl ?? null,
       });
       
+      // One title per player. Two campaigns with the same name are impossible to
+      // tell apart in the campaign picker, the DM toolkit switcher, and every
+      // engagement error that names a campaign ("Vexorath is currently in The
+      // Hollow Crown" — which one?), which strands the player on the wrong save.
+      const duplicateTitle = await storage.getCampaignByUserAndTitle(req.user.id, campaignData.title);
+      if (duplicateTitle) {
+        return res.status(409).json({
+          code: "DUPLICATE_CAMPAIGN_TITLE",
+          message: `You already have a campaign called "${duplicateTitle.title}". Give this one a different name.`,
+          existingCampaignId: duplicateTitle.id,
+        });
+      }
+
       const campaign = await storage.createCampaign(campaignData);
-      
+
       // Wire doctrine from generated CAML 2.0 content into campaign
       const generatedContent = req.body.generatedContent;
       if (generatedContent?.caml2?.doctrine || generatedContent?.doctrine) {
@@ -5964,8 +5977,22 @@ Return your response as a JSON object with these fields:
       }
       
       const updates = req.body;
+
+      // Renaming into a collision is the same trap as creating one — see the
+      // duplicate-title guard on POST /api/campaigns.
+      if (typeof updates.title === 'string' && updates.title.trim()) {
+        const clash = await storage.getCampaignByUserAndTitle(req.user.id, updates.title);
+        if (clash && clash.id !== id) {
+          return res.status(409).json({
+            code: "DUPLICATE_CAMPAIGN_TITLE",
+            message: `You already have a campaign called "${clash.title}". Give this one a different name.`,
+            existingCampaignId: clash.id,
+          });
+        }
+      }
+
       const updatedCampaign = await storage.updateCampaign(id, updates);
-      
+
       res.json(updatedCampaign);
     } catch (error) {
       console.error("Error updating campaign:", error);
@@ -9798,10 +9825,20 @@ Return your response as a JSON object with these fields:
         return res.status(404).json({ message: "Character not found" });
       }
       
-      // Check if this specific character is already in the campaign
+      // Check if this specific character is already in the campaign.
+      //
+      // A leftover row here used to be a hard 400, which produced a dead end: a
+      // character that had lost its seat in the roster was invisible in the
+      // party UI, yet re-adding it was refused as "already in this campaign"
+      // with no way to get it back. Re-adding is now idempotent — the existing
+      // row is reactivated and returned, so "add my character back" does what
+      // it says whether or not a row survived.
       const existingParticipant = await storage.getCampaignParticipantByCharacter(campaignId, validatedData.characterId);
       if (existingParticipant) {
-        return res.status(400).json({ message: "This character is already in this campaign" });
+        const reseated = existingParticipant.isActive
+          ? existingParticipant
+          : await storage.updateCampaignParticipant(existingParticipant.id, { isActive: true });
+        return res.status(200).json(reseated ?? existingParticipant);
       }
 
       // ...and that they aren't already out in the field somewhere else. The
@@ -18788,11 +18825,23 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
       // (tavern, trading post, downtime) lock until they explicitly return via
       // POST /api/characters/:id/return-to-town or the session completes.
       // Fire-and-forget: engagement bookkeeping must never block a story turn.
-      const actingParticipant = participants.find((p: any) => p.userId === req.user.id && p.characterId);
-      if (actingParticipant?.characterId) {
-        storage.setCharacterEngagement(actingParticipant.characterId, 'campaign', campaignId)
+      //
+      // Read the acting character off the turn roster, not off `participants`.
+      // `participants` is ordered by turnOrder, which initiative rolls renumber,
+      // so for a player with two characters in the party it could name a
+      // different character than the roster seat — locking one character in the
+      // field while the player adventured with the other.
+      const actingSeat = turnRoster.find(seat => seat.userId === req.user.id && seat.characterId);
+      if (actingSeat?.characterId) {
+        storage.setCharacterEngagement(actingSeat.characterId, 'campaign', campaignId)
           .catch(err => console.error('[Engagement] Failed to mark character in-field:', err));
       }
+
+      // Taking a turn is what "last played" means. Nothing else stamped the
+      // campaign row, so every campaign had a NULL updatedAt and the dashboard
+      // could not tell an in-progress story from one created and abandoned.
+      storage.updateCampaign(campaignId, { updatedAt: new Date().toISOString() })
+        .catch(err => console.error('[Campaign] Failed to stamp last-played:', err));
 
       const turnState = buildTurnState(campaign, turnRoster, req.user.id);
       if (!turnState.canAct) {

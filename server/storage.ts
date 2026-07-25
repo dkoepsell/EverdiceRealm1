@@ -146,6 +146,7 @@ export interface IStorage {
   getCampaign(id: number): Promise<Campaign | undefined>;
   getCampaignByDeploymentCode(code: string): Promise<Campaign | undefined>;
   getCampaignByDiscordChannel(channelId: string): Promise<Campaign | undefined>;
+  getCampaignByUserAndTitle(userId: number, title: string): Promise<Campaign | undefined>;
   createCampaign(campaign: InsertCampaign): Promise<Campaign>;
   updateCampaign(id: number, campaign: Partial<Campaign>): Promise<Campaign | undefined>;
   updateCampaignSession(id: number, sessionNumber: number): Promise<Campaign | undefined>;
@@ -712,6 +713,12 @@ export class MemStorage implements IStorage {
   
   async getCampaignByDeploymentCode(code: string): Promise<Campaign | undefined> {
     return Array.from(this.campaignStore.values()).find(c => c.deploymentCode === code);
+  }
+
+  async getCampaignByUserAndTitle(userId: number, title: string): Promise<Campaign | undefined> {
+    const wanted = title.trim().toLowerCase();
+    return Array.from(this.campaignStore.values())
+      .find(c => c.userId === userId && (c.title ?? '').trim().toLowerCase() === wanted);
   }
   
   async getCampaignByDiscordChannel(channelId: string): Promise<Campaign | undefined> {
@@ -1520,6 +1527,19 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(campaigns.discordChannelId, channelId), eq(campaigns.isDiscordDeployed, true)));
     return campaign || undefined;
   }
+
+  // Case- and whitespace-insensitive, and deliberately NOT filtered by archived
+  // /completed: two campaigns with the same name are indistinguishable in every
+  // picker and error message the player sees ("X is currently in The Hollow
+  // Crown" — which one?), whether or not one of them is shelved.
+  async getCampaignByUserAndTitle(userId: number, title: string): Promise<Campaign | undefined> {
+    const [campaign] = await db.select().from(campaigns)
+      .where(and(
+        eq(campaigns.userId, userId),
+        sql`lower(trim(${campaigns.title})) = ${title.trim().toLowerCase()}`
+      ));
+    return campaign || undefined;
+  }
   
   async archiveCampaign(id: number): Promise<Campaign | undefined> {
     const [campaign] = await db
@@ -1556,14 +1576,19 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updateCampaign(id: number, campaignUpdate: Partial<Campaign>): Promise<Campaign | undefined> {
+    // Stamp updatedAt on every write. It was never set anywhere, so it was NULL
+    // for every campaign ever created — which silently broke "resume what you
+    // played last" on the dashboard: with no timestamp to sort by, ranking fell
+    // through to createdAt and a brand-new, never-played campaign outranked the
+    // story actually in progress.
     const [campaign] = await db
       .update(campaigns)
-      .set(campaignUpdate)
+      .set({ updatedAt: new Date().toISOString(), ...campaignUpdate })
       .where(eq(campaigns.id, id))
       .returning();
     return campaign || undefined;
   }
-  
+
   async updateCampaignSession(id: number, sessionNumber: number): Promise<Campaign | undefined> {
     const [campaign] = await db
       .update(campaigns)
@@ -1703,13 +1728,36 @@ export class DatabaseStorage implements IStorage {
   }
   
   async removeCampaignParticipant(campaignId: number, userId: number): Promise<boolean> {
-    const result = await db
+    // Read the seats first: deleting the rows is what releases the characters,
+    // but the engagement lock lives on the character, not on the row. Without
+    // this the character stays flagged as "in campaign N" forever after leaving
+    // and every other party/wander/delve refuses it with CHARACTER_ENGAGED,
+    // with no surviving participant row to explain why.
+    const leaving = await db
+      .select()
+      .from(campaignParticipants)
+      .where(and(
+        eq(campaignParticipants.campaignId, campaignId),
+        eq(campaignParticipants.userId, userId)
+      ));
+
+    await db
       .delete(campaignParticipants)
       .where(and(
         eq(campaignParticipants.campaignId, campaignId),
         eq(campaignParticipants.userId, userId)
       ));
-      
+
+    for (const seat of leaving) {
+      if (seat.characterId == null) continue;
+      const engagement = await this.getCharacterEngagement(seat.characterId);
+      // Only release characters this campaign was actually holding — never
+      // stomp a character that has since moved on to a wander or delve.
+      if (engagement?.kind === 'campaign' && engagement.id === campaignId) {
+        await this.clearCharacterEngagement(seat.characterId);
+      }
+    }
+
     return true; // If no error occurs, consider it successful
   }
   

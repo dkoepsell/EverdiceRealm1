@@ -1986,7 +1986,11 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                 </TabsList>
 
                 {/* EMERGING CONSEQUENCES Tab */}
-                <TabsContent value="queue" className="h-[calc(100%-36px)] flex flex-col p-3 mt-0 overflow-hidden space-y-3">
+                {/* Sized by the parent flex column (`flex-1` + `min-h-0`), not by
+                    `calc(100% - 36px)`: that magic number silently tracked the
+                    TabsList's h-9 and resolved to auto whenever an ancestor had
+                    no definite height, collapsing the panel to nothing. */}
+                <TabsContent value="queue" className="min-h-0 flex flex-col p-3 mt-0 overflow-hidden space-y-3">
                   {/* Group Choice Voting Panel */}
                   <GroupChoicePanel
                     campaignId={selectedCampaignId}
@@ -2025,7 +2029,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                 </TabsContent>
 
                 {/* DICE Tab - Roll dice, manage initiative */}
-                <TabsContent value="dice" className="h-[calc(100%-36px)] p-3 mt-0 overflow-y-auto space-y-3">
+                <TabsContent value="dice" className="min-h-0 p-3 mt-0 overflow-y-auto space-y-3">
                   <DMDiceRoller onRoll={handleDiceRoll} />
                   <InitiativeTracker
                     combatants={combatants}
@@ -2053,7 +2057,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                 </TabsContent>
 
                 {/* AI WHISPER Tab */}
-                <TabsContent value="whisper" className="h-[calc(100%-36px)] p-3 mt-0 overflow-y-auto">
+                <TabsContent value="whisper" className="min-h-0 p-3 mt-0 overflow-y-auto">
                   <AIWhisperPanel
                     whispers={aiWhispers}
                     onDismiss={handleDismissWhisper}
@@ -2065,7 +2069,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                 </TabsContent>
 
                 {/* SAY Tab - Tell Your Story */}
-                <TabsContent value="say" className="h-[calc(100%-36px)] p-3 mt-0 overflow-y-auto">
+                <TabsContent value="say" className="min-h-0 p-3 mt-0 overflow-y-auto">
                   <Card className="flex-1 border-2 border-amber-500/40 bg-gradient-to-b from-amber-500/10 to-transparent">
                     <CardHeader className="p-3 pb-2">
                       <CardTitle className="text-sm flex items-center gap-2 text-amber-500">

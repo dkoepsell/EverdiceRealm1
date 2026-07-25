@@ -122,15 +122,16 @@ export default function Dashboard() {
   // — not "New Campaign" — is the default landing state. Players were re-rolling brand-new
   // campaigns (7-8 each) instead of continuing; this makes the in-progress story the hero.
   useEffect(() => {
-    if (selectedCampaignId) return;
     if (!campaigns || campaigns.length === 0) return;
     const ts = (c: any) => new Date(c.updatedAt || c.lastPlayedAt || c.createdAt || 0).getTime();
     const resumable = campaigns
       .filter((c: any) => !c.isCompleted && !c.isArchived)
       .sort((a: any, b: any) => (ts(b) - ts(a)) || (b.id - a.id));
-    if (resumable.length > 0) {
-      setSelectedCampaignId(resumable[0].id);
-    }
+    if (resumable.length === 0) return;
+    // Keep an explicit choice; only pick one when there is none, or when the
+    // remembered campaign is gone (archived, completed, deleted).
+    if (selectedCampaignId && resumable.some((c: any) => c.id === selectedCampaignId)) return;
+    setSelectedCampaignId(resumable[0].id);
   }, [campaigns, selectedCampaignId]);
 
   // Fetch user stats
@@ -229,23 +230,11 @@ export default function Dashboard() {
   // Get available campaigns (non-archived, non-completed)
   const availableCampaigns = campaigns?.filter(campaign => !campaign.isArchived && !campaign.isCompleted) || [];
   
-  // Auto-select first campaign if none selected (or saved one doesn't exist) and campaigns are available
-  useEffect(() => {
-    if (availableCampaigns.length > 0) {
-      // Check if saved campaign still exists in available campaigns
-      const savedExists = selectedCampaignId && availableCampaigns.some(c => c.id === selectedCampaignId);
-      
-      if (!savedExists) {
-        // Auto-select the most recently created campaign
-        const mostRecent = [...availableCampaigns].sort((a, b) => {
-          const dateA = new Date(a.createdAt);
-          const dateB = new Date(b.createdAt);
-          return dateB.getTime() - dateA.getTime();
-        })[0];
-        setSelectedCampaignId(mostRecent.id);
-      }
-    }
-  }, [selectedCampaignId, availableCampaigns]);
+  // Campaign auto-selection lives in ONE place — the resume effect above, which
+  // ranks by when a campaign was last PLAYED. A second effect used to run here
+  // ranking by when it was CREATED, so a freshly-made, never-played campaign
+  // outranked the story actually in progress and the two effects fought over
+  // the same state.
   
   // Helper function to set a campaign as active
   const setAsActiveAdventure = (campaignId: number) => {
@@ -271,8 +260,12 @@ export default function Dashboard() {
     return null;
   }, [participants, user]);
 
-  // Use participant character if available, otherwise fallback to owned characters
-  const activeCharacter = participantCharacter || (characters.length > 0 ? characters[0] : null);
+  // The character you are playing in THIS adventure — never a stand-in. The old
+  // `|| characters[0]` fallback meant that opening a campaign you had not joined
+  // silently showed your lowest-id character as if it were your hero there, so
+  // the adventure looked like it had swapped your character out from under you.
+  // No seat means no character; the UI prompts you to join instead.
+  const activeCharacter = participantCharacter;
 
   const isNewUser = characters.length === 0 && availableCampaigns.length === 0;
   const [showQuickStart, setShowQuickStart] = useState(false);
@@ -658,15 +651,33 @@ export default function Dashboard() {
               ) : (
                 <Card className="bg-secondary-light rounded-lg shadow-xl overflow-hidden">
                   <CardHeader className="bg-primary p-4">
-                    <CardTitle className="font-fantasy text-xl font-bold text-white">Create a Character</CardTitle>
+                    <CardTitle className="font-fantasy text-xl font-bold text-white">
+                      {characters.length > 0 ? "No Character in This Adventure" : "Create a Character"}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="p-6 flex flex-col items-center justify-center min-h-[200px]">
-                    <div className="text-center">
-                      <p className="text-lg mb-4 text-secondary">No characters yet — jump into a guided start</p>
-                      <Link href="/begin">
-                        <Button className="bg-primary-light hover:bg-primary-dark text-white">Start Playing</Button>
-                      </Link>
-                    </div>
+                    {/* Having characters but no seat here is a different problem from
+                        having no characters at all, and it used to be invisible: the
+                        dashboard just showed your first character as though it were
+                        your hero in this campaign. */}
+                    {characters.length > 0 ? (
+                      <div className="text-center">
+                        <p className="text-lg mb-4 text-secondary">
+                          None of your characters have joined
+                          {activeCampaign?.title ? ` “${activeCampaign.title}”` : " this adventure"} yet.
+                        </p>
+                        <Link href="/characters">
+                          <Button className="bg-primary-light hover:bg-primary-dark text-white">Choose a Character</Button>
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <p className="text-lg mb-4 text-secondary">No characters yet — jump into a guided start</p>
+                        <Link href="/begin">
+                          <Button className="bg-primary-light hover:bg-primary-dark text-white">Start Playing</Button>
+                        </Link>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}

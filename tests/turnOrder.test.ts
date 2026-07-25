@@ -44,10 +44,26 @@ group('orderRoster', () => {
     [10, 20, 30]
   );
 
+  // The seat goes to the character the player JOINED with (lowest participant
+  // id), even when their second character holds a better turn order. Picking by
+  // turnOrder looked equivalent but wasn't: rollInitiativeForSession renumbers
+  // turnOrder from initiative rolls, so the seat — and therefore the character
+  // the player is shown as playing — used to change at random mid-campaign.
   check(
-    'gives a player with two characters exactly one seat, at their earliest slot',
-    orderRoster([seat(1, 10, 5), seat(2, 10, 2), seat(3, 20, 3)]).map(s => [s.userId, s.turnOrder]),
-    [[10, 2], [20, 3]]
+    'gives a player with two characters exactly one seat, the one they joined with',
+    orderRoster([seat(1, 10, 5), seat(2, 10, 2), seat(3, 20, 3)]).map(s => [s.userId, s.characterId]),
+    [[20, 30], [10, 10]]
+  );
+
+  check(
+    'the seat survives an initiative reshuffle that favours the other character',
+    // Same two rows, re-rolled: character 10's order worsens, character 20's
+    // improves. The player still plays the character they joined with.
+    [
+      orderRoster([seat(1, 10, 2), seat(2, 10, 9)]).map(s => s.characterId),
+      orderRoster([seat(1, 10, 9), seat(2, 10, 2)]).map(s => s.characterId),
+    ],
+    [[10], [10]]
   );
 
   check(

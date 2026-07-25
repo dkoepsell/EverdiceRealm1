@@ -68,6 +68,13 @@ export interface TurnCampaignFields {
  * for the crime of bringing a second character. Rows with no turn order sort to
  * the end, so a mid-campaign joiner queues behind the players who already
  * rolled initiative instead of jumping the line.
+ *
+ * Which of a player's characters holds that seat is decided by join order —
+ * the lowest participant id — and NOT by `turnOrder`. `turnOrder` looks like
+ * join order but isn't: `rollInitiativeForSession` renumbers it from initiative
+ * rolls, so picking the seat by turn order meant a second character could take
+ * the seat away from the one the player had been adventuring with, silently and
+ * at random, every time initiative was rolled.
  */
 export function orderRoster(rows: Array<{
   id: number;
@@ -90,10 +97,8 @@ export function orderRoster(rows: Array<{
       seatByUser.set(row.userId, candidate);
       continue;
     }
-    const existingOrder = existing.turnOrder ?? Number.MAX_SAFE_INTEGER;
-    const candidateOrder = candidate.turnOrder ?? Number.MAX_SAFE_INTEGER;
-    if (candidateOrder < existingOrder ||
-        (candidateOrder === existingOrder && candidate.participantId < existing.participantId)) {
+    // Join order only. See the note above on why turnOrder must not decide this.
+    if (candidate.participantId < existing.participantId) {
       seatByUser.set(row.userId, candidate);
     }
   }
