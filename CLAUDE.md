@@ -9,14 +9,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Dev Commands
 
 ```bash
-npm run dev        # Start dev server (Express + Vite HMR) on port 5000
-npm run build      # Production build: Vite → dist/public/, esbuild → dist/index.js
-npm run start      # Run production build
-npm run check      # TypeScript type-check without emit
-npm run db:push    # Apply Drizzle schema changes to PostgreSQL
+npm run dev            # Start dev server (Express + Vite HMR) on port 5000
+npm run build          # Production build: Vite → dist/public/, esbuild → dist/index.js
+npm run start          # Run production build
+npm run check          # TypeScript type-check without emit (raw tsc — prints the whole backlog)
+npm run check:gate     # Fail only on NEW type errors, vs the committed baseline
+npm run check:baseline # Re-record the baseline after fixing or knowingly adding errors
+npm run db:push        # Apply Drizzle schema changes to PostgreSQL
 ```
 
-No test runner or linter is configured — `npm run check` is the primary code-quality gate.
+**The build is type-gated.** `prebuild` runs `check:gate`, so `npm run build` refuses
+to produce `dist/` if any file gained type errors it did not have before. This matters
+because the server bundle is built by **esbuild, which does not type-check** — without
+the gate a compile error ships silently. One did: `ctx.userId` in thirteen handlers that
+never defined `ctx` threw `ReferenceError` and 500'd every request to them in production,
+while `tsc` had been reporting it as `Cannot find name 'ctx'` the whole time.
+
+`npm run check` alone is **not** a usable gate — the repo carries a backlog of ~341
+pre-existing errors, so a raw run is always red and a new error hides in the noise. The
+gate keys errors by `file|TScode` and compares counts against
+`scripts/typecheck-baseline.json`. Re-record it only when you understand what changed.
+
+⚠️ Building the server bundle by invoking `esbuild` directly (the server-only deploy path,
+when shipping `dist/` to the box is blocked) **bypasses the gate** — run `npm run check:gate`
+by hand first.
+
+Tests: no runner is configured, but plain assertion suites under `/tests` run directly,
+e.g. `npx tsx tests/turnOrder.test.ts`.
 
 ## Required Environment Variables
 
