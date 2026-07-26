@@ -1684,6 +1684,43 @@ export const userActivityEvents = pgTable("user_activity_events", {
   index("idx_user_activity_events_user_id").on(t.userId),
 ]);
 
+// Anonymous-capable pageview log. Separate from user_activity_events on purpose:
+// that table's user_id is NOT NULL, so it structurally cannot hold a logged-out
+// visitor — which is nearly everyone we want to count. No IP is stored, hashed
+// or otherwise; visitor_id is a random per-browser-session token, so these rows
+// identify a visit, not a person.
+export const siteVisits = pgTable("site_visits", {
+  id: serial("id").primaryKey(),
+  visitToken: text("visit_token").notNull().unique(), // client-generated, lets the exit beacon close out this row
+  sessionId: text("session_id").notNull(),
+  userId: integer("user_id"), // nullable — populated only when the visitor is signed in
+  path: text("path").notNull(),
+  // First-touch attribution: recorded on the session's landing hit and then
+  // repeated on later hits, so grouping by referrer doesn't credit our own pages.
+  referrerHost: text("referrer_host"), // null = direct
+  referrerUrl: text("referrer_url"),
+  utmSource: text("utm_source"),
+  utmMedium: text("utm_medium"),
+  utmCampaign: text("utm_campaign"),
+  landingPath: text("landing_path"),
+  isLanding: boolean("is_landing").notNull().default(false),
+  deviceType: text("device_type"),
+  durationMs: integer("duration_ms"), // filled in by the exit beacon; null = never closed out
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
+}, (t) => [
+  index("idx_site_visits_created_at").on(t.createdAt),
+  index("idx_site_visits_session_id").on(t.sessionId),
+  index("idx_site_visits_referrer_host").on(t.referrerHost),
+  index("idx_site_visits_path").on(t.path),
+]);
+
+export const insertSiteVisitSchema = createInsertSchema(siteVisits).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertSiteVisit = z.infer<typeof insertSiteVisitSchema>;
+export type SiteVisit = typeof siteVisits.$inferSelect;
+
 export const insertUserActivityEventSchema = createInsertSchema(userActivityEvents).omit({
   id: true,
   createdAt: true,

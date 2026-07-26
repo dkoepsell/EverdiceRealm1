@@ -60,6 +60,7 @@ import {
   worldRegions,
   diceRolls,
   userActivityEvents,
+  siteVisits,
   userSessionsAnalytics,
   hearthPresence,
   hearthEvents,
@@ -29076,7 +29077,122 @@ Snapshots must include at least 2 forked endings.`;
   });
   
   // ===== Analytics Tracking Endpoints =====
-  
+
+  // Anonymous pageview ingest. Intentionally NOT behind isAuthenticated: the
+  // point is to count logged-out arrivals and attribute where they came from,
+  // and every other analytics route rejects them with a 401.
+  //
+  // Being public, it's the one analytics surface a stranger can write to, so it
+  // is validated strictly, capped per-IP, and stores nothing it wasn't given.
+  // The IP is used for the rate-limit bucket only — never written to the row.
+  const visitRateLimit = new Map<string, { count: number; windowStart: number }>();
+  const VISIT_WINDOW_MS = 60_000;
+  const VISIT_MAX_PER_WINDOW = 120; // generous for real browsing, closes off flooding
+
+  function visitRateLimited(ip: string): boolean {
+    const now = Date.now();
+    const bucket = visitRateLimit.get(ip);
+    if (!bucket || now - bucket.windowStart > VISIT_WINDOW_MS) {
+      visitRateLimit.set(ip, { count: 1, windowStart: now });
+      // Opportunistic sweep so the map can't grow without bound.
+      if (visitRateLimit.size > 5000) {
+        // forEach rather than for..of: this repo's tsc target can't iterate a
+        // Map directly (TS2802). Deleting during forEach is safe for Map.
+        visitRateLimit.forEach((value, key) => {
+          if (now - value.windowStart > VISIT_WINDOW_MS) visitRateLimit.delete(key);
+        });
+      }
+      return false;
+    }
+    bucket.count += 1;
+    return bucket.count > VISIT_MAX_PER_WINDOW;
+  }
+
+  const trimmed = (max: number) => z.string().trim().max(max).optional().nullable();
+  const visitPayloadSchema = z.object({
+    visitToken: z.string().trim().min(8).max(100),
+    sessionId: z.string().trim().min(8).max(100),
+    path: z.string().trim().min(1).max(500),
+    isLanding: z.boolean().optional().default(false),
+    deviceType: z.enum(["desktop", "mobile", "tablet"]).optional().nullable(),
+    referrerHost: trimmed(255),
+    referrerUrl: trimmed(500),
+    utmSource: trimmed(255),
+    utmMedium: trimmed(255),
+    utmCampaign: trimmed(255),
+    landingPath: trimmed(500),
+  });
+
+  app.post("/api/analytics/visit", async (req: any, res) => {
+    try {
+      if (visitRateLimited(req.ip || "unknown")) {
+        return res.status(429).json({ error: "Too many requests" });
+      }
+
+      const parsed = visitPayloadSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid payload" });
+      }
+      const v = parsed.data;
+
+      await db
+        .insert(siteVisits)
+        .values({
+          visitToken: v.visitToken,
+          sessionId: v.sessionId,
+          // Present only when the visitor happens to be signed in; the row is
+          // valid and counted either way.
+          userId: req.user?.id ?? null,
+          path: v.path,
+          isLanding: v.isLanding,
+          deviceType: v.deviceType ?? null,
+          referrerHost: v.referrerHost ?? null,
+          referrerUrl: v.referrerUrl ?? null,
+          utmSource: v.utmSource ?? null,
+          utmMedium: v.utmMedium ?? null,
+          utmCampaign: v.utmCampaign ?? null,
+          landingPath: v.landingPath ?? null,
+        })
+        // A retried beacon must not create a second row for the same view.
+        .onConflictDoNothing({ target: siteVisits.visitToken });
+
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error recording site visit:", error);
+      // Analytics failures must never surface to the visitor.
+      res.status(204).end();
+    }
+  });
+
+  // Closes out a visit with its dwell time. Arrives via navigator.sendBeacon on
+  // pagehide, so it may land after the user is gone — keep it cheap and silent.
+  app.post("/api/analytics/visit/close", async (req: any, res) => {
+    try {
+      if (visitRateLimited(req.ip || "unknown")) {
+        return res.status(429).json({ error: "Too many requests" });
+      }
+
+      const parsed = z
+        .object({
+          visitToken: z.string().trim().min(8).max(100),
+          // Cap at 6h so a laptop left open overnight can't skew the averages.
+          durationMs: z.number().int().min(1000).max(6 * 60 * 60 * 1000),
+        })
+        .safeParse(req.body);
+      if (!parsed.success) return res.status(204).end();
+
+      await db
+        .update(siteVisits)
+        .set({ durationMs: parsed.data.durationMs })
+        .where(eq(siteVisits.visitToken, parsed.data.visitToken));
+
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error closing site visit:", error);
+      res.status(204).end();
+    }
+  });
+
   // Track user activity event (for frontend tracking)
   app.post("/api/analytics/event", isAuthenticated, async (req: any, res) => {
     try {
@@ -29342,51 +29458,166 @@ Snapshots must include at least 2 forked endings.`;
       const days = parseInt(req.query.days as string) || 7;
       const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
       
-      // Get page view counts
-      const pageViews = await db.select({
-        page: sql<string>`(${userActivityEvents.eventData}->>'page')`,
+      // Reads site_visits, not user_activity_events. The old query paired
+      // 'page_view' with 'page_exit' rows, but nothing in the client ever
+      // emitted either — lib/analytics.trackPageView(), the only producer, had
+      // no call sites — so this panel was structurally empty. site_visits also
+      // covers logged-out traffic, which user_activity_events cannot represent.
+      // avg()/sum() skip NULL duration_ms, i.e. visits never closed out.
+      const rows = await db.select({
+        page: siteVisits.path,
         views: sql<number>`count(*)`,
-        uniqueUsers: sql<number>`count(distinct ${userActivityEvents.userId})`
+        uniqueSessions: sql<number>`count(distinct ${siteVisits.sessionId})`,
+        avgTimeSpentMs: sql<number>`avg(${siteVisits.durationMs})`,
+        totalTimeSpentMs: sql<number>`sum(${siteVisits.durationMs})`
       })
-        .from(userActivityEvents)
-        .where(and(
-          gte(userActivityEvents.createdAt, sinceDate),
-          eq(userActivityEvents.eventName, "page_view")
-        ))
-        .groupBy(sql`${userActivityEvents.eventData}->>'page'`)
+        .from(siteVisits)
+        .where(gte(siteVisits.createdAt, sinceDate))
+        .groupBy(siteVisits.path)
         .orderBy(sql`count(*) DESC`)
         .limit(20);
-      
-      // Get time spent from page_exit events only (where duration is stored)
-      const pageDurations = await db.select({
-        page: sql<string>`(${userActivityEvents.eventData}->>'page')`,
-        avgTimeSpentMs: sql<number>`avg(${userActivityEvents.duration})`,
-        totalTimeSpentMs: sql<number>`sum(${userActivityEvents.duration})`
-      })
-        .from(userActivityEvents)
-        .where(and(
-          gte(userActivityEvents.createdAt, sinceDate),
-          eq(userActivityEvents.eventName, "page_exit"),
-          sql`${userActivityEvents.duration} IS NOT NULL AND ${userActivityEvents.duration} > 0`
-        ))
-        .groupBy(sql`${userActivityEvents.eventData}->>'page'`);
-      
-      // Merge the data
-      const durationMap = new Map(pageDurations.map(d => [d.page, d]));
-      
-      res.json(pageViews.map(p => {
-        const duration = durationMap.get(p.page);
-        return {
-          page: p.page || '/',
-          views: Number(p.views) || 0,
-          avgTimeSpentSeconds: duration ? Math.round((Number(duration.avgTimeSpentMs) || 0) / 1000) : 0,
-          totalTimeSpentMinutes: duration ? Math.round((Number(duration.totalTimeSpentMs) || 0) / 60000) : 0,
-          uniqueUsers: Number(p.uniqueUsers) || 0
-        };
-      }));
+
+      res.json(rows.map(r => ({
+        page: r.page || '/',
+        views: Number(r.views) || 0,
+        avgTimeSpentSeconds: Math.round((Number(r.avgTimeSpentMs) || 0) / 1000),
+        totalTimeSpentMinutes: Math.round((Number(r.totalTimeSpentMs) || 0) / 60000),
+        // Sessions, not users — anonymous visitors have no user id to count.
+        uniqueUsers: Number(r.uniqueSessions) || 0
+      })));
     } catch (error) {
       console.error("Admin Analytics: Failed to fetch page stats:", error);
       res.status(500).json({ message: "Failed to fetch page stats" });
+    }
+  });
+
+  // Visitor totals + a daily series, counting logged-out traffic.
+  app.get("/api/admin/analytics/visitors", isAuthenticated, requireStaff, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 30;
+      const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+      // created_at is stored as an ISO text column, so slice the date off the
+      // front rather than date_trunc — it sorts and groups identically.
+      const daily = await db.select({
+        date: sql<string>`substring(${siteVisits.createdAt} from 1 for 10)`,
+        visitors: sql<number>`count(distinct ${siteVisits.sessionId})`,
+        pageviews: sql<number>`count(*)`,
+        signedIn: sql<number>`count(distinct ${siteVisits.userId})`
+      })
+        .from(siteVisits)
+        .where(gte(siteVisits.createdAt, sinceDate))
+        .groupBy(sql`substring(${siteVisits.createdAt} from 1 for 10)`)
+        .orderBy(sql`substring(${siteVisits.createdAt} from 1 for 10)`);
+
+      const totals = await db.select({
+        visitors: sql<number>`count(distinct ${siteVisits.sessionId})`,
+        pageviews: sql<number>`count(*)`,
+        // One landing row per session, so this is the session count.
+        sessions: sql<number>`count(*) filter (where ${siteVisits.isLanding} = true)`
+      })
+        .from(siteVisits)
+        .where(gte(siteVisits.createdAt, sinceDate));
+
+      const byDevice = await db.select({
+        deviceType: siteVisits.deviceType,
+        visitors: sql<number>`count(distinct ${siteVisits.sessionId})`
+      })
+        .from(siteVisits)
+        .where(gte(siteVisits.createdAt, sinceDate))
+        .groupBy(siteVisits.deviceType)
+        .orderBy(sql`count(distinct ${siteVisits.sessionId}) DESC`);
+
+      res.json({
+        totals: {
+          visitors: Number(totals[0]?.visitors) || 0,
+          pageviews: Number(totals[0]?.pageviews) || 0,
+          sessions: Number(totals[0]?.sessions) || 0,
+        },
+        daily: daily.map(d => ({
+          date: d.date,
+          visitors: Number(d.visitors) || 0,
+          pageviews: Number(d.pageviews) || 0,
+          signedIn: Number(d.signedIn) || 0,
+        })),
+        byDevice: byDevice.map(d => ({
+          deviceType: d.deviceType || "unknown",
+          visitors: Number(d.visitors) || 0,
+        })),
+      });
+    } catch (error) {
+      console.error("Admin Analytics: Failed to fetch visitors:", error);
+      res.status(500).json({ message: "Failed to fetch visitors" });
+    }
+  });
+
+  // Where visitors came from: referring host, UTM campaign, and landing page.
+  app.get("/api/admin/analytics/referrers", isAuthenticated, requireStaff, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 30;
+      const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+      // Count each session once. Attribution is first-touch and repeated on
+      // every row of the session, so counting rows would just weight by depth.
+      const referrers = await db.select({
+        referrerHost: siteVisits.referrerHost,
+        visitors: sql<number>`count(distinct ${siteVisits.sessionId})`
+      })
+        .from(siteVisits)
+        .where(gte(siteVisits.createdAt, sinceDate))
+        .groupBy(siteVisits.referrerHost)
+        .orderBy(sql`count(distinct ${siteVisits.sessionId}) DESC`)
+        .limit(20);
+
+      const campaigns = await db.select({
+        source: siteVisits.utmSource,
+        medium: siteVisits.utmMedium,
+        campaign: siteVisits.utmCampaign,
+        visitors: sql<number>`count(distinct ${siteVisits.sessionId})`
+      })
+        .from(siteVisits)
+        .where(and(
+          gte(siteVisits.createdAt, sinceDate),
+          sql`${siteVisits.utmSource} IS NOT NULL`
+        ))
+        .groupBy(siteVisits.utmSource, siteVisits.utmMedium, siteVisits.utmCampaign)
+        .orderBy(sql`count(distinct ${siteVisits.sessionId}) DESC`)
+        .limit(20);
+
+      const landingPages = await db.select({
+        path: siteVisits.landingPath,
+        visitors: sql<number>`count(distinct ${siteVisits.sessionId})`
+      })
+        .from(siteVisits)
+        .where(and(
+          gte(siteVisits.createdAt, sinceDate),
+          eq(siteVisits.isLanding, true)
+        ))
+        .groupBy(siteVisits.landingPath)
+        .orderBy(sql`count(distinct ${siteVisits.sessionId}) DESC`)
+        .limit(20);
+
+      res.json({
+        // null referrer_host means the visitor typed the URL, used a bookmark,
+        // or arrived from a client that strips Referer — all "Direct".
+        referrers: referrers.map(r => ({
+          referrerHost: r.referrerHost || "Direct / none",
+          visitors: Number(r.visitors) || 0,
+        })),
+        campaigns: campaigns.map(c => ({
+          source: c.source || "",
+          medium: c.medium || "",
+          campaign: c.campaign || "",
+          visitors: Number(c.visitors) || 0,
+        })),
+        landingPages: landingPages.map(l => ({
+          path: l.path || "/",
+          visitors: Number(l.visitors) || 0,
+        })),
+      });
+    } catch (error) {
+      console.error("Admin Analytics: Failed to fetch referrers:", error);
+      res.status(500).json({ message: "Failed to fetch referrers" });
     }
   });
 

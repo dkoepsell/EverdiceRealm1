@@ -18,6 +18,8 @@ import CoAdminBanner from "@/components/layout/CoAdminBanner";
 import InvitationAlert from "@/components/InvitationAlert";
 import parchmentFrame from "@assets/image_1768600727955.png";
 import { FeedbackWidget } from "@/components/ui/feedback-widget";
+import { useVisitTracking } from "@/hooks/use-visit-tracking";
+import { useClickTracking } from "@/hooks/use-click-tracking";
 
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
@@ -61,6 +63,11 @@ function AuthAwareEffects() {
 }
 
 function Router() {
+  // Deliberately here rather than in AuthAwareEffects: visit tracking has to run
+  // for logged-out traffic, which is the whole point of it.
+  useVisitTracking();
+  useClickTracking();
+
   return (
     <div className="flex flex-col min-h-screen relative">
       <div 

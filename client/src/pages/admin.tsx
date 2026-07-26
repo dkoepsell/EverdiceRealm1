@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   Loader2, Users, Swords, Shield, Eye, Crown, User, Calendar, MapPin,
   BarChart3, Activity, TrendingUp, Clock, Dice6, Sparkles, MousePointer,
-  Download, Mail, MessageSquare, Star, Bug, Lightbulb, Heart, Check
+  Download, Mail, MessageSquare, Star, Bug, Lightbulb, Heart, Check, ExternalLink
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -126,6 +126,18 @@ interface PageStat {
   avgTimeSpentSeconds: number;
   totalTimeSpentMinutes: number;
   uniqueUsers: number;
+}
+
+interface VisitorStats {
+  totals: { visitors: number; pageviews: number; sessions: number };
+  daily: { date: string; visitors: number; pageviews: number; signedIn: number }[];
+  byDevice: { deviceType: string; visitors: number }[];
+}
+
+interface ReferrerStats {
+  referrers: { referrerHost: string; visitors: number }[];
+  campaigns: { source: string; medium: string; campaign: string; visitors: number }[];
+  landingPages: { path: string; visitors: number }[];
 }
 
 interface ClickStat {
@@ -273,6 +285,24 @@ export default function AdminPage() {
     queryKey: ['/api/admin/analytics/page-stats', timeRange],
     queryFn: async () => {
       const res = await fetch(`/api/admin/analytics/page-stats?days=${timeRange}`);
+      return res.json();
+    },
+    enabled: isStaff,
+  });
+
+  const { data: visitorStats } = useQuery<VisitorStats>({
+    queryKey: ['/api/admin/analytics/visitors', timeRange],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/analytics/visitors?days=${timeRange}`);
+      return res.json();
+    },
+    enabled: isStaff,
+  });
+
+  const { data: referrerStats } = useQuery<ReferrerStats>({
+    queryKey: ['/api/admin/analytics/referrers', timeRange],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/analytics/referrers?days=${timeRange}`);
       return res.json();
     },
     enabled: isStaff,
@@ -758,6 +788,132 @@ export default function AdminPage() {
                           <p>No active user data yet</p>
                           <p className="text-sm">Active users will appear here</p>
                         </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Visitors & Acquisition — includes logged-out traffic, which the
+                  user_activity_events-backed panels below cannot see. */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                <Card className="border-primary/20 bg-card/50 backdrop-blur">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Users className="h-5 w-5 text-emerald-500" />
+                      Visitors
+                    </CardTitle>
+                    <CardDescription>Unique sessions, including signed-out visitors</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      <div className="text-center p-2 rounded-lg bg-muted/30">
+                        <p className="text-2xl font-bold">{visitorStats?.totals.visitors ?? 0}</p>
+                        <p className="text-xs text-muted-foreground">Visitors</p>
+                      </div>
+                      <div className="text-center p-2 rounded-lg bg-muted/30">
+                        <p className="text-2xl font-bold">{visitorStats?.totals.pageviews ?? 0}</p>
+                        <p className="text-xs text-muted-foreground">Pageviews</p>
+                      </div>
+                      <div className="text-center p-2 rounded-lg bg-muted/30">
+                        <p className="text-2xl font-bold">{visitorStats?.totals.sessions ?? 0}</p>
+                        <p className="text-xs text-muted-foreground">Sessions</p>
+                      </div>
+                    </div>
+                    {visitorStats?.daily?.length ? (
+                      <div className="space-y-1 max-h-52 overflow-y-auto">
+                        {visitorStats.daily.slice().reverse().map((d) => (
+                          <div key={d.date} className="flex items-center justify-between text-sm py-1 border-b border-border/40 last:border-0">
+                            <span className="text-muted-foreground">{d.date}</span>
+                            <span>
+                              <span className="font-medium">{d.visitors}</span>
+                              <span className="text-muted-foreground text-xs"> visitors · {d.pageviews} views</span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 text-muted-foreground">
+                        <p>No visitor data yet</p>
+                        <p className="text-sm">Visits will appear here</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="border-primary/20 bg-card/50 backdrop-blur">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <ExternalLink className="h-5 w-5 text-amber-500" />
+                      Traffic Sources
+                    </CardTitle>
+                    <CardDescription>Where visitors were referred from</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {referrerStats?.referrers?.length ? (
+                      <div className="space-y-2 max-h-72 overflow-y-auto">
+                        {referrerStats.referrers.map((r) => (
+                          <div key={r.referrerHost} className="flex items-center justify-between text-sm py-1 border-b border-border/40 last:border-0">
+                            <span className="truncate mr-2" title={r.referrerHost}>{r.referrerHost}</span>
+                            <span className="font-medium shrink-0">{r.visitors}</span>
+                          </div>
+                        ))}
+                        {referrerStats.campaigns.length > 0 && (
+                          <div className="pt-3 mt-1 border-t border-border/60">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Campaigns (UTM)</p>
+                            {referrerStats.campaigns.map((c, i) => (
+                              <div key={`${c.source}-${c.medium}-${c.campaign}-${i}`} className="flex items-center justify-between text-sm py-1">
+                                <span className="truncate mr-2">
+                                  {c.source}{c.medium ? ` / ${c.medium}` : ""}{c.campaign ? ` · ${c.campaign}` : ""}
+                                </span>
+                                <span className="font-medium shrink-0">{c.visitors}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 text-muted-foreground">
+                        <p>No referrer data yet</p>
+                        <p className="text-sm">Traffic sources will appear here</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="border-primary/20 bg-card/50 backdrop-blur">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Eye className="h-5 w-5 text-violet-500" />
+                      Landing Pages
+                    </CardTitle>
+                    <CardDescription>First page of each visit</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {referrerStats?.landingPages?.length ? (
+                      <div className="space-y-2 max-h-72 overflow-y-auto">
+                        {referrerStats.landingPages.map((l) => (
+                          <div key={l.path} className="flex items-center justify-between text-sm py-1 border-b border-border/40 last:border-0">
+                            <span className="truncate mr-2" title={l.path}>{l.path}</span>
+                            <span className="font-medium shrink-0">{l.visitors}</span>
+                          </div>
+                        ))}
+                        {visitorStats?.byDevice?.length ? (
+                          <div className="pt-3 mt-1 border-t border-border/60">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Devices</p>
+                            {visitorStats.byDevice.map((d) => (
+                              <div key={d.deviceType} className="flex items-center justify-between text-sm py-1">
+                                <span className="capitalize">{d.deviceType}</span>
+                                <span className="font-medium">{d.visitors}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 text-muted-foreground">
+                        <p>No landing page data yet</p>
+                        <p className="text-sm">Entry pages will appear here</p>
                       </div>
                     )}
                   </CardContent>
