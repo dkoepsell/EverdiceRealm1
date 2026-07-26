@@ -44,6 +44,7 @@ const WanderPage = lazy(() => import("@/pages/wander"));
 const DelvePage = lazy(() => import("@/pages/delve"));
 const AISettingsPage = lazy(() => import("@/pages/ai-settings"));
 const HowItWorks = lazy(() => import("@/pages/how-it-works"));
+const BlogPage = lazy(() => import("@/pages/blog"));
 
 function PageLoader() {
   return (
@@ -106,6 +107,7 @@ function Router() {
             <ProtectedRoute path="/ai-settings" component={AISettingsPage} />
             <Route path="/how-it-works" component={HowItWorks} />
             <Route path="/dm-guide" component={DMGuidePage} />
+            <Route path="/blog" component={BlogPage} />
             <Route path="/legal" component={LegalPage} />
             <Route path="/auth" component={AuthPage} />
             <Route component={NotFound} />
