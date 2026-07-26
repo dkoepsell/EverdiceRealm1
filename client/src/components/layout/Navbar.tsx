@@ -39,7 +39,8 @@ import {
   Compass,
   Pickaxe,
   Brain,
-  Users2
+  Users2,
+  Newspaper
 } from "lucide-react";
 
 export default function Navbar() {
@@ -94,6 +95,7 @@ export default function Navbar() {
     { name: "Play", path: "/auth", icon: Play },
     { name: "Run a Game", path: "/auth", icon: Compass },
     { name: "Learn", path: "/how-it-works", icon: BookOpen },
+    { name: "Blog", path: "/blog", icon: Newspaper },
   ];
 
   const isActive = (path: string) => {
@@ -253,6 +255,12 @@ export default function Navbar() {
                       <Link href="/learn" className="flex items-center cursor-pointer">
                         <BookOpen className="h-4 w-4 mr-2" />
                         Learn to Play
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/blog" className="flex items-center cursor-pointer">
+                        <Newspaper className="h-4 w-4 mr-2" />
+                        Blog
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />

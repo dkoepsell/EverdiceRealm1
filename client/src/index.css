@@ -412,3 +412,93 @@
   }
   .dark ::-webkit-scrollbar-thumb:hover { background-color: hsl(43 50% 35%); }
 }
+
+/* ── Soro blog embed (/blog) ──
+     The widget injects its own <style> at runtime, hardcoded to a light theme:
+     #1a1a1a body text and #666 metadata on a transparent background, which is
+     unreadable over ours. It has no theme option — the stylesheet it ships is
+     literally id="soro-blog-styles-light" — so we restyle it here.
+
+     Two things make these rules stick. Specificity: every selector is prefixed
+     with the #soro-blog mount, so (1,1,0) beats the widget's (0,1,0) no matter
+     that its <style> lands later in <head>. And theme tokens rather than fixed
+     light colors, so the embed follows our light/dark toggle instead of just
+     inverting the problem for light-mode readers.
+
+     Deliberately OUTSIDE @layer components: Tailwind tree-shakes that layer
+     against the source scan, and these class names exist only in markup the
+     widget builds at runtime. Inside the layer everything but `.soro-blog`
+     itself was silently purged from the production CSS. */
+  #soro-blog .soro-blog {
+    color: hsl(var(--foreground));
+    font-size: 1.0625rem;
+    line-height: 1.7;
+  }
+
+  #soro-blog .soro-blog-card {
+    background: hsl(var(--card) / 0.6);
+    border-color: hsl(var(--border));
+  }
+  #soro-blog .soro-blog-card:hover { border-color: hsl(var(--gold) / 0.5); }
+
+  #soro-blog .soro-blog-card-title,
+  #soro-blog .soro-blog-article-title {
+    color: hsl(var(--foreground));
+    font-family: 'Cinzel', serif;
+  }
+  #soro-blog .soro-blog-card-title    { font-size: 1.375rem; line-height: 1.35; }
+  #soro-blog .soro-blog-article-title { font-size: 2.25rem;  line-height: 1.25; }
+
+  /* Was #666 — fails contrast on the parchment-dark background at any size. */
+  #soro-blog .soro-blog-card-excerpt,
+  #soro-blog .soro-blog-card-date,
+  #soro-blog .soro-blog-article-date,
+  #soro-blog .soro-blog-empty,
+  #soro-blog .soro-blog-error,
+  #soro-blog .soro-blog-loading {
+    color: hsl(var(--muted-foreground));
+  }
+  #soro-blog .soro-blog-card-excerpt { font-size: 1rem; line-height: 1.6; }
+  #soro-blog .soro-blog-card-date,
+  #soro-blog .soro-blog-article-date { font-size: 0.9375rem; }
+
+  #soro-blog .soro-blog-article-content {
+    color: hsl(var(--foreground));
+    font-size: 1.0625rem;
+    line-height: 1.75;
+  }
+  #soro-blog .soro-blog-article-content h1,
+  #soro-blog .soro-blog-article-content h2,
+  #soro-blog .soro-blog-article-content h3,
+  #soro-blog .soro-blog-article-content strong {
+    color: hsl(var(--foreground));
+  }
+  #soro-blog .soro-blog-article-content h2 { font-size: 1.625rem; }
+  #soro-blog .soro-blog-article-content h3 { font-size: 1.3125rem; }
+  #soro-blog .soro-blog-article-content blockquote {
+    border-left: 3px solid hsl(var(--gold) / 0.6);
+    color: hsl(var(--muted-foreground));
+  }
+  #soro-blog .soro-blog-article-content code,
+  #soro-blog .soro-blog-article-content pre {
+    background: hsl(var(--muted));
+    color: hsl(var(--foreground));
+  }
+
+  /* Was #0066cc — near-invisible on dark, and off-palette on light. */
+  #soro-blog .soro-blog a,
+  #soro-blog .soro-blog-article-content a,
+  #soro-blog .soro-blog-back {
+    color: hsl(var(--gold));
+  }
+  #soro-blog .soro-blog a:hover,
+  #soro-blog .soro-blog-article-content a:hover,
+  #soro-blog .soro-blog-back:hover {
+    color: hsl(var(--gold));
+    text-decoration: underline;
+  }
+
+  #soro-blog .soro-blog-spinner {
+    border-color: hsl(var(--border));
+    border-top-color: hsl(var(--gold));
+  }
