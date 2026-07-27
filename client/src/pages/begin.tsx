@@ -179,6 +179,11 @@ export default function BeginPage() {
         narrativeStyle: "descriptive",
         setting: tone.id,
         isTutorial: !experienced,
+        // Seat this exact hero. The server seats the creator either way, but
+        // without an explicit id it falls back to the newest character — pass it
+        // so the seat is deterministic and step 2a below stays a no-op rather
+        // than adding a second seat for the same player.
+        characterId: character.id,
       });
       const campaign = await campRes.json();
 

@@ -3327,7 +3327,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   };
   
   // If user is not yet a participant, show a join button
-  const showJoinButton = !userParticipant && !participantsLoading && user && user.id !== campaign.userId;
+  // Owners are NOT excluded here. They used to be, which meant anyone who
+  // created a campaign without a seated character had no Join button — and
+  // NoCharacterPrompt was suppressed for them too (it was gated on !isDM), so
+  // the campaign was permanently unenterable by the only person who could see it.
+  // The join mutation already assigns the right role for an owner.
+  const showJoinButton = !userParticipant && !participantsLoading && !!user;
   
   return (
     <div className="w-full">
@@ -3604,8 +3609,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
             
             <TabsContent value="narrative" className="p-4 sm:p-6">
               <div className="space-y-4">
-                {/* No Character Prompt — shown when player has no character assigned */}
-                {!isDM && !activeCharacter && !sessionsLoading && (
+                {/* No Character Prompt — shown when the viewer holds no seat in
+                    this campaign at all. Was gated on !isDM, but isDM is
+                    ownership rather than role, so it hid this from every solo
+                    player who created their own campaign — exactly the people
+                    who needed it. Keyed on !userParticipant rather than bare
+                    !activeCharacter so a DM who is seated and deliberately plays
+                    no character isn't nagged to make one. */}
+                {!userParticipant && !activeCharacter && !sessionsLoading && (
                   <NoCharacterPrompt
                     campaignId={campaign.id}
                     userId={user?.id || 0}

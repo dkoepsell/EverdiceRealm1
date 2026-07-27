@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Campaign, insertCampaignSchema, WorldRegion, WorldLocation } from "@shared/schema";
 import { queryClient, apiRequest, getQueryFn } from "@/lib/queryClient";
@@ -93,6 +94,11 @@ const narrativeStyles = [
 export default function Campaigns() {
   const { user } = useAuth();
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  // Controlled so the empty-state CTA can switch tabs. It used to fake a click
+  // with dispatchEvent(new Event('click')), which is non-bubbling and not a
+  // MouseEvent, so React's delegated listener never fired and the button did
+  // nothing at all.
+  const [activeTab, setActiveTab] = useState("list");
   const [useAIGeneration, setUseAIGeneration] = useState(false);
   const [generatingCampaign, setGeneratingCampaign] = useState(false);
   const [campaignTheme, setCampaignTheme] = useState("");
@@ -114,6 +120,7 @@ export default function Campaigns() {
   };
   
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const { trackPageView, trackCampaignAction, trackFeatureUse } = useAnalytics();
 
   useEffect(() => {
@@ -232,15 +239,32 @@ export default function Campaigns() {
       const response = await apiRequest("POST", "/api/campaigns", data);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (campaign) => {
       queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
-      toast({
-        title: "Campaign Created",
-        description: "Your campaign has been successfully created.",
-      });
       form.reset();
       setUseAIGeneration(false);
       setCampaignTheme("");
+
+      // Take the player into the adventure. This used to stop at the toast and
+      // form.reset(), which read as "nothing happened" — players responded by
+      // hitting Create again, several times (one made 8 identical campaigns in
+      // 42 minutes), and none of those campaigns ever saw a turn.
+      if (campaign?.id) {
+        // Set the active adventure directly rather than via
+        // setAsActiveAdventure(), which raises its own toast.
+        setActiveCampaignId(campaign.id);
+        localStorage.setItem('activeCampaignId', campaign.id.toString());
+        toast({
+          title: "Campaign Created",
+          description: "Your adventure is ready — opening it now.",
+        });
+        navigate("/dashboard");
+      } else {
+        toast({
+          title: "Campaign Created",
+          description: "Your campaign has been successfully created.",
+        });
+      }
     },
     onError: (error) => {
       toast({
@@ -304,7 +328,7 @@ export default function Campaigns() {
       </div>
       
       <div className="container mx-auto px-4 pb-8">
-      <Tabs defaultValue="list">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-6">
           <TabsTrigger value="list" className="flex items-center gap-2">
             <Book size={16} />
@@ -509,7 +533,7 @@ export default function Campaigns() {
               <Button 
                 size="lg"
                 className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-orange-500/25"
-                onClick={() => document.querySelector('[value="create"]')?.dispatchEvent(new Event('click'))}
+                onClick={() => setActiveTab("create")}
               >
                 <Sparkles className="mr-2 h-5 w-5" />
                 Create Your First Campaign

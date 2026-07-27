@@ -5344,15 +5344,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[Campaign Create] Wired ${Object.keys(caml2Update).length} CAML2 adventure skeleton fields`);
       }
       
-      // Add the creator as a DM participant if a characterId is provided
-      if (req.body.characterId) {
-        await storage.addCampaignParticipant({
-          campaignId: campaign.id,
-          userId: req.user.id,
-          characterId: req.body.characterId,
-          role: 'dm',
-          joinedAt: new Date().toISOString()
-        });
+      // Always seat the creator. This used to be gated on req.body.characterId,
+      // which the /campaigns create form never sends — so campaigns made anywhere
+      // except /begin ended up with zero participants. A campaign with no
+      // participant row is unenterable, and CampaignPanel denies its own owner
+      // both the Join button and the NoCharacterPrompt fallback, so there was no
+      // way back in: 23 of 30 zero-turn campaigns were orphaned this way.
+      // Falls back to the user's newest character (id desc — createdAt is text
+      // and not reliably set on older rows).
+      try {
+        const existingSeat = await storage.getCampaignParticipant(campaign.id, req.user.id);
+        if (!existingSeat) {
+          let seatCharacterId = req.body.characterId;
+          if (!seatCharacterId) {
+            const owned = await storage.getCharactersByUserId(req.user.id);
+            seatCharacterId = owned.sort((a, b) => b.id - a.id)[0]?.id;
+          }
+
+          if (seatCharacterId) {
+            await storage.addCampaignParticipant({
+              campaignId: campaign.id,
+              userId: req.user.id,
+              characterId: seatCharacterId,
+              // 'dm' only when the caller asks for it; a solo player creating
+              // their own adventure is a player, and the DM-role seat is what
+              // suppressed the character prompts in the panel.
+              role: req.body.role === 'dm' ? 'dm' : 'player',
+              joinedAt: new Date().toISOString()
+            });
+            console.log(`[Campaign Create] Seated creator ${req.user.id} with character ${seatCharacterId}`);
+          } else {
+            console.warn(`[Campaign Create] User ${req.user.id} has no character to seat in campaign ${campaign.id}`);
+          }
+        }
+      } catch (seatError) {
+        // Never fail campaign creation over the seat — the panel's join path
+        // (fixed alongside this) can still recover it.
+        console.error("[Campaign Create] Failed to seat creator:", seatError);
       }
       
       // Add selected assets to the campaign if provided

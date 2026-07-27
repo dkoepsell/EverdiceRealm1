@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Character, insertCharacterSchema } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -438,6 +440,16 @@ export default function Characters() {
   
   const characterSheetRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const [, navigate] = useLocation();
+
+  // This page had no link to /campaigns, /dashboard or /begin anywhere in it, so
+  // creating a hero here was a dead end — you got a toast and an empty form.
+  // Every character-creation path now offers the next step explicitly.
+  const startAdventureAction = (
+    <ToastAction altText="Start an adventure" onClick={() => navigate("/campaigns")}>
+      Start an adventure
+    </ToastAction>
+  );
   const { trackPageView, trackCharacterAction, trackFeatureUse } = useAnalytics();
 
   useEffect(() => {
@@ -539,7 +551,8 @@ export default function Characters() {
       queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
       toast({
         title: "Character Created",
-        description: "Your character has been successfully created.",
+        description: "Your hero is ready — now take them on an adventure.",
+        action: startAdventureAction,
       });
       form.reset();
     },
@@ -648,7 +661,11 @@ export default function Characters() {
     onSuccess: (character: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
       setSurprisePreview(null);
-      toast({ title: `${character.name} joins your roster`, description: "Ready for an adventure." });
+      toast({
+        title: `${character.name} joins your roster`,
+        description: "Ready for an adventure.",
+        action: startAdventureAction,
+      });
       setCharTab('list');
     },
     onError: (error: Error) => {
