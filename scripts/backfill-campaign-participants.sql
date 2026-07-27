@@ -57,10 +57,20 @@ SELECT
   true,
   now()::text
 FROM target t
--- Belt and braces: never double-seat, so re-running is safe.
+-- Guard on the CHARACTER already holding a seat anywhere, not on this specific
+-- (campaign, user) pair.
+--
+-- The pair-based guard this replaces made the script non-idempotent and it did
+-- real damage: after the first run those campaigns were no longer orphaned, so
+-- the target CTE simply picked each user's NEXT orphaned campaign and seated
+-- the same character a second time. A re-run inserted 4 more rows instead of 0
+-- (repaired by scripts/repair-duplicate-participant-seats.sql).
+--
+-- Keyed on character_id, a second run finds every backfilled character already
+-- seated and inserts nothing.
 WHERE NOT EXISTS (
   SELECT 1 FROM campaign_participants p
-  WHERE p.campaign_id = t.campaign_id AND p.user_id = t.user_id
+  WHERE p.character_id = t.character_id
 );
 
 -- Expected: INSERT 0 5 on first run (users 37, 45, 49, 62, 69), INSERT 0 0 after.
