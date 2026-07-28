@@ -65,6 +65,8 @@ import {
   hearthPresence,
   hearthEvents,
   hearthBoardPosts,
+  hearthPostReactions,
+  hearthPostReplies,
   hearthUserState,
   hearthMurmur,
   insertHearthBoardPostSchema,
@@ -101,7 +103,7 @@ import { recordPurchase, recordSale, getItemPrice, getSellPrice } from "./econom
 import { generateWorldEvents, aggregateDiscoveries } from "./lib/worldEventEngine";
 import { generatePostCombatRewards, type PostCombatRewards, type DefeatedEnemy } from "./postCombatRewards";
 import { db } from "./db";
-import { eq, sql, desc, and, gte, isNull } from "drizzle-orm";
+import { eq, sql, desc, and, gte, isNull, inArray } from "drizzle-orm";
 import OpenAI from "openai";
 import { getXPFromCR, calculateEncounterXP, QUEST_XP_REWARDS, getLevelFromXP, getXPToNextLevel } from "../shared/rules/xp";
 import { 
@@ -23742,27 +23744,37 @@ ${cachedNarrative}
       // Check completion conditions - evaluate FULL campaign state, not just this turn
       // Calculate detailed progress breakdown for frontend display
       const progressMetrics = adventureProgress.encounters || {};
+
+      // adventureProgress counters are campaign-cumulative — they are never reset when a
+      // chapter turns. Read raw, chapter 2's progress bar opened at whatever chapter 1 had
+      // banked and sat pegged at 100% from its first turn, which is what "I finished chapter
+      // 1 but chapter 2 never appeared" looks like from the player's side. Subtract the
+      // snapshot taken at the last chapter gate so each chapter's bar starts from zero.
+      // (Same anchoring the gate logic already does for scenesThisChapter, via turnsAtGate.)
+      const progressAnchor = [...((campaign as any).narrativeLog || [])].reverse()
+        .find((e: any) => e.type === 'chapter_gate' && e.progressAtGate)?.progressAtGate || {};
+      const sinceGate = (done: number, key: string) => Math.max(0, done - (progressAnchor[key] || 0));
       const requirementMetrics = adventureRequirements.encounters || {};
       
       // Combat encounters - lowered defaults for faster progression
       const combatRequired = requirementMetrics.combat || 2; // Default 2 combat encounters (was 3)
-      const combatDone = progressMetrics.combat || 0;
+      const combatDone = sinceGate(progressMetrics.combat || 0, "combat");
       
       // Trap encounters - lowered for faster progression
       const trapRequired = requirementMetrics.trap || 1; // Default 1 trap encounter (was 2)
-      const trapDone = progressMetrics.trap || 0;
+      const trapDone = sinceGate(progressMetrics.trap || 0, "trap");
       
       // Treasure encounters
       const treasureRequired = requirementMetrics.treasure || 1; // Default 1 treasure (was 2)
-      const treasureDone = progressMetrics.treasure || 0;
+      const treasureDone = sinceGate(progressMetrics.treasure || 0, "treasure");
       
       // Puzzles
       const puzzlesRequired = adventureRequirements.puzzles || 1; // Default 1 puzzle
-      const puzzlesDone = adventureProgress.puzzles || 0;
+      const puzzlesDone = sinceGate(adventureProgress.puzzles || 0, "puzzles");
       
       // Discoveries
       const discoveriesRequired = adventureRequirements.discoveries || 1; // Default 1 discovery (was 2)
-      const discoveriesDone = adventureProgress.discoveries || 0;
+      const discoveriesDone = sinceGate(adventureProgress.discoveries || 0, "discoveries");
       
       // Calculate totals (capped at required for percentage)
       const totalRequired = combatRequired + trapRequired + treasureRequired + puzzlesRequired + discoveriesRequired;
@@ -23777,7 +23789,12 @@ ${cachedNarrative}
       
       // Add turn-based progression bonus to make chapters advance faster
       // Soft caps: +10% at 10 turns, +20% at 20 turns, +35% at 30 turns, +50% at 40 turns
-      const turnsThisChapter = mergedStoryState.turnsInChapter || 0;
+      // turnsInChapter is misnamed — it increments every turn and is never reset on a chapter
+      // turn, so it is really turns-in-campaign. Anchor it to the turn count recorded at the
+      // last gate, or chapter 2 inherits chapter 1's turnBonus and opens near 100%.
+      const turnsAtLastGate = [...((campaign as any).narrativeLog || [])].reverse()
+        .find((e: any) => e.type === 'chapter_gate' && typeof e.turnsAtGate === 'number')?.turnsAtGate || 0;
+      const turnsThisChapter = Math.max(0, (mergedStoryState.turnsInChapter || 0) - turnsAtLastGate);
       let turnBonus = 0;
       if (turnsThisChapter >= 40) turnBonus = 50;
       else if (turnsThisChapter >= 30) turnBonus = 35;
@@ -24403,6 +24420,13 @@ Choices should include 4 options with at least 2 requiring dice rolls.
       // lived inside the try it was out of scope there, throwing "doctrineUpdates is not
       // defined" and aborting completion (no rewards granted).
       const doctrineUpdates: any = {};
+      // Set when either the chapter gate or the hard cap advances the chapter, so the
+      // response can tell the client a chapter actually turned. Declared at handler scope
+      // (like doctrineUpdates above) because the response is built far below the try.
+      // Without this the only signal was campaigns.current_session quietly incrementing in
+      // the DB, which the play screen never re-read — chapter 2 existed but nothing on
+      // screen ever said so.
+      let advancedToChapter: number | null = null;
       try {
         let doctrineChanged = false;
         
@@ -24521,6 +24545,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
             if (scenesThisChapter >= CHAPTER_MIN_SCENES_R2) {
               doctrineUpdates.currentSession = currentChapter + 1;
               doctrineChanged = true;
+              advancedToChapter = currentChapter + 1;
               console.log(`DOCTRINE CHAPTER GATE MET (main): Chapter ${currentChapter} → ${currentChapter + 1} — ${gate.reason} (after ${scenesThisChapter} scenes)`);
 
               currentNarrativeLog.push({
@@ -24531,6 +24556,15 @@ Choices should include 4 options with at least 2 requiring dice rolls.
                 chapter: currentChapter,
                 scene: -1,
                 turnsAtGate: turnsNowForGate,
+                // Cumulative counters at the moment this chapter closed. The next chapter's progress
+                // bar subtracts these so it starts from zero instead of inheriting this chapter's.
+                progressAtGate: {
+                  combat: progressMetrics.combat || 0,
+                  trap: progressMetrics.trap || 0,
+                  treasure: progressMetrics.treasure || 0,
+                  puzzles: adventureProgress.puzzles || 0,
+                  discoveries: adventureProgress.discoveries || 0,
+                },
                 timestamp: new Date().toISOString(),
                 type: 'chapter_gate'
               });
@@ -24546,6 +24580,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         if (!doctrineUpdates.currentSession && scenesThisChapter >= CHAPTER_HARD_CAP_R2 && currentChapter < totalChapters) {
           doctrineUpdates.currentSession = currentChapter + 1;
           doctrineChanged = true;
+          advancedToChapter = currentChapter + 1;
           console.log(`HARD-CAP CHAPTER ADVANCE (main): Chapter ${currentChapter} → ${currentChapter + 1} after ${scenesThisChapter} scenes`);
           currentNarrativeLog.push({
             xpReason: `Chapter ${currentChapter} completed (narrative pressure)`,
@@ -24555,6 +24590,15 @@ Choices should include 4 options with at least 2 requiring dice rolls.
             chapter: currentChapter,
             scene: -1,
             turnsAtGate: turnsNowForGate,
+            // Cumulative counters at the moment this chapter closed. The next chapter's progress
+            // bar subtracts these so it starts from zero instead of inheriting this chapter's.
+            progressAtGate: {
+              combat: progressMetrics.combat || 0,
+              trap: progressMetrics.trap || 0,
+              treasure: progressMetrics.treasure || 0,
+              puzzles: adventureProgress.puzzles || 0,
+              discoveries: adventureProgress.discoveries || 0,
+            },
             timestamp: new Date().toISOString(),
             type: 'chapter_gate'
           });
@@ -25170,14 +25214,20 @@ Respond with JSON:
       }
       
       // Persist chapter advancement from boss defeat (if applicable and not already advanced by CAML doctrine)
-      if (postCombatRewardsData?.shouldAdvanceChapter && !storyAdvancement.chapterGateMet) {
+      // `advancedToChapter` guard: the gate/hard-cap block above may already have advanced
+      // this turn. currentChapter is captured before that block, so recomputing from it here
+      // would re-derive the same number and mask the real advance from the response.
+      if (postCombatRewardsData?.shouldAdvanceChapter && !storyAdvancement.chapterGateMet && !advancedToChapter && currentChapter < totalChapters) {
         try {
-          const newChapter = (campaign.currentSession || 1) + 1;
+          const newChapter = currentChapter + 1;
           await storage.updateCampaign(campaignId, {
             currentSession: newChapter,
             updatedAt: new Date().toISOString()
           });
-          console.log(`[Post-Combat Rewards] Boss defeat chapter advancement: ${campaign.currentSession} → ${newChapter}`);
+          // Without this the boss-defeat path advanced the chapter in the DB and told the
+          // client nothing — the same silent advance the gate path had.
+          advancedToChapter = newChapter;
+          console.log(`[Post-Combat Rewards] Boss defeat chapter advancement: ${currentChapter} → ${newChapter}`);
         } catch (chapterErr) {
           console.error('[Post-Combat Rewards] Failed to persist chapter advancement:', chapterErr);
         }
@@ -25204,9 +25254,15 @@ Respond with JSON:
           discoveriesMade: discoveriesDone,
           trapsOvercome: trapDone
         } : null,
-        currentChapter,
+        // Report the chapter the party is in AFTER this turn. `currentChapter` is captured
+        // at the top of the handler, before the gate/hard-cap can advance it, so returning
+        // it raw told the client "still chapter 1" on the very turn chapter 2 began.
+        currentChapter: advancedToChapter ?? currentChapter,
+        // Non-null only on the turn a chapter actually turned — this is what the client
+        // needs to announce the transition and re-read the campaign row.
+        chapterAdvanced: advancedToChapter ? { from: currentChapter, to: advancedToChapter } : null,
         totalChapters,
-        isOnFinalChapter,
+        isOnFinalChapter: (advancedToChapter ?? currentChapter) >= totalChapters,
         campaignCompletion: campaignCompletionData,
         campaignStakeUpdates: storyAdvancement.campaignStakeUpdates || [],
         chapterGateMet: storyAdvancement.chapterGateMet || (postCombatRewardsData?.shouldAdvanceChapter ? {
@@ -30733,6 +30789,60 @@ No JSON, no choices, no game mechanics, no headings — just the story text.`;
         .orderBy(desc(hearthBoardPosts.pinned), desc(hearthBoardPosts.createdAt))
         .limit(20);
 
+      // Reactions and replies for the posts we're about to send. Fetched as two batched
+      // queries keyed on the visible post ids rather than per-post, so adding threads to
+      // the board costs two round trips regardless of how many posts are on screen.
+      const boardPostIds = boardPosts.map(p => p.post.id);
+      const reactionRows = boardPostIds.length
+        ? await db.select({
+            postId: hearthPostReactions.postId,
+            userId: hearthPostReactions.userId
+          })
+          .from(hearthPostReactions)
+          .where(and(
+            inArray(hearthPostReactions.postId, boardPostIds),
+            eq(hearthPostReactions.kind, "up")
+          ))
+        : [];
+      const replyRows = boardPostIds.length
+        ? await db.select({
+            reply: hearthPostReplies,
+            user: { id: users.id, displayName: users.displayName, username: users.username }
+          })
+          .from(hearthPostReplies)
+          .leftJoin(users, eq(hearthPostReplies.userId, users.id))
+          .where(and(
+            inArray(hearthPostReplies.postId, boardPostIds),
+            sql`${hearthPostReplies.deletedAt} IS NULL`
+          ))
+          .orderBy(hearthPostReplies.createdAt)
+        : [];
+
+      const reactionCounts = new Map<number, number>();
+      const viewerReactedPosts = new Set<number>();
+      for (const r of reactionRows) {
+        reactionCounts.set(r.postId, (reactionCounts.get(r.postId) || 0) + 1);
+        if (r.userId === userId) viewerReactedPosts.add(r.postId);
+      }
+      const repliesByPost = new Map<number, any[]>();
+      for (const r of replyRows) {
+        const list = repliesByPost.get(r.reply.postId) || [];
+        list.push({
+          id: r.reply.id,
+          body: r.reply.body,
+          createdAt: r.reply.createdAt,
+          userId: r.reply.userId,
+          author: r.user?.displayName || r.user?.username || "Someone"
+        });
+        repliesByPost.set(r.reply.postId, list);
+      }
+      // Attached to each serialized post below.
+      const decorate = (postId: number) => ({
+        reactions: reactionCounts.get(postId) || 0,
+        viewerReacted: viewerReactedPosts.has(postId),
+        replies: repliesByPost.get(postId) || []
+      });
+
       // Get recent hearth events (memories)
       const events = await db.select({
         event: hearthEvents,
@@ -30778,7 +30888,8 @@ No JSON, no choices, no game mechanics, no headings — just the story text.`;
             body: p.post.body,
             userId: p.post.userId,
             displayName: p.user?.displayName || p.user?.username || "Anonymous",
-            createdAt: p.post.createdAt
+            createdAt: p.post.createdAt,
+            ...decorate(p.post.id)
           })),
           recent: boardPosts.filter(p => !p.post.pinned).slice(0, 10).map(p => ({
             id: p.post.id,
@@ -30787,7 +30898,8 @@ No JSON, no choices, no game mechanics, no headings — just the story text.`;
             body: p.post.body,
             userId: p.post.userId,
             displayName: p.user?.displayName || p.user?.username || "Anonymous",
-            createdAt: p.post.createdAt
+            createdAt: p.post.createdAt,
+            ...decorate(p.post.id)
           }))
         },
         events: events.map(e => ({
@@ -30905,6 +31017,134 @@ No JSON, no choices, no game mechanics, no headings — just the story text.`;
     } catch (error) {
       console.error("Failed to delete post:", error);
       res.status(500).json({ message: "Failed to delete post" });
+    }
+  });
+
+  // POST /api/hearth/board/:postId/react - Toggle a thumbs-up on a board post.
+  // Idempotent per user: reacting twice removes the reaction. The response carries the
+  // fresh count and the viewer's own state so the client never has to guess.
+  app.post("/api/hearth/board/:postId/react", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const postId = parseInt(req.params.postId);
+      if (!Number.isFinite(postId)) {
+        return res.status(400).json({ message: "Invalid post id" });
+      }
+
+      const [post] = await db.select().from(hearthBoardPosts)
+        .where(eq(hearthBoardPosts.id, postId))
+        .limit(1);
+      if (!post || post.deletedAt) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+
+      const [existing] = await db.select().from(hearthPostReactions)
+        .where(and(
+          eq(hearthPostReactions.postId, postId),
+          eq(hearthPostReactions.userId, userId),
+          eq(hearthPostReactions.kind, "up")
+        ))
+        .limit(1);
+
+      if (existing) {
+        await db.delete(hearthPostReactions).where(eq(hearthPostReactions.id, existing.id));
+      } else {
+        await db.insert(hearthPostReactions).values({
+          postId,
+          userId,
+          kind: "up",
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      const [{ count }] = await db.select({ count: sql<number>`count(*)::int` })
+        .from(hearthPostReactions)
+        .where(and(eq(hearthPostReactions.postId, postId), eq(hearthPostReactions.kind, "up")));
+
+      res.json({ success: true, reactions: count, viewerReacted: !existing });
+    } catch (error) {
+      console.error("Failed to toggle board reaction:", error);
+      res.status(500).json({ message: "Failed to react to post" });
+    }
+  });
+
+  // POST /api/hearth/board/:postId/replies - Reply to a board post.
+  // Flat thread: a post plus its replies. No nesting, which keeps moderation and
+  // rendering simple while still making the board a conversation.
+  app.post("/api/hearth/board/:postId/replies", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const postId = parseInt(req.params.postId);
+      const { body } = req.body;
+
+      if (!Number.isFinite(postId)) {
+        return res.status(400).json({ message: "Invalid post id" });
+      }
+      const trimmed = typeof body === "string" ? body.trim() : "";
+      if (!trimmed) {
+        return res.status(400).json({ message: "Reply cannot be empty" });
+      }
+
+      const [post] = await db.select().from(hearthBoardPosts)
+        .where(eq(hearthBoardPosts.id, postId))
+        .limit(1);
+      if (!post || post.deletedAt) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+
+      const [reply] = await db.insert(hearthPostReplies).values({
+        postId,
+        userId,
+        // Same 500-char ceiling the post body uses.
+        body: trimmed.slice(0, 500),
+        createdAt: new Date().toISOString()
+      }).returning();
+
+      await db.insert(hearthEvents).values({
+        type: "board_reply",
+        userId,
+        payload: { postId, replyId: reply.id, title: (post.title || "").slice(0, 40) },
+        createdAt: new Date().toISOString()
+      });
+
+      res.json({ success: true, reply });
+    } catch (error) {
+      console.error("Failed to create board reply:", error);
+      res.status(500).json({ message: "Failed to post reply" });
+    }
+  });
+
+  // DELETE /api/hearth/board/replies/:replyId - Delete own reply (or staff moderation)
+  app.delete("/api/hearth/board/replies/:replyId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const replyId = parseInt(req.params.replyId);
+      if (!Number.isFinite(replyId)) {
+        return res.status(400).json({ message: "Invalid reply id" });
+      }
+
+      const [reply] = await db.select().from(hearthPostReplies)
+        .where(eq(hearthPostReplies.id, replyId))
+        .limit(1);
+      if (!reply) {
+        return res.status(404).json({ message: "Reply not found" });
+      }
+
+      if (reply.userId !== userId) {
+        if (!isStaff(req.user)) {
+          return res.status(403).json({ message: "Cannot delete another's reply" });
+        }
+        console.log(`[Moderation] user ${userId} removed hearth reply ${replyId} (author ${reply.userId})`);
+      }
+
+      await db.update(hearthPostReplies)
+        .set({ deletedAt: new Date().toISOString() })
+        .where(eq(hearthPostReplies.id, replyId));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete reply:", error);
+      res.status(500).json({ message: "Failed to delete reply" });
     }
   });
 

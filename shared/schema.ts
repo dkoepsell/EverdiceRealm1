@@ -2127,6 +2127,46 @@ export const insertHearthBoardPostSchema = createInsertSchema(hearthBoardPosts).
 export type InsertHearthBoardPost = z.infer<typeof insertHearthBoardPostSchema>;
 export type HearthBoardPost = typeof hearthBoardPosts.$inferSelect;
 
+// Reactions on board posts. One row per (post, user, kind) so a reaction is a toggle
+// rather than a counter that can be spammed — the unique index is what enforces it.
+// `kind` is open-ended for future reactions but only "up" is wired up today.
+export const hearthPostReactions = pgTable("hearth_post_reactions", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull(),
+  userId: integer("user_id").notNull(),
+  kind: text("kind").notNull().default("up"),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
+}, (t) => [
+  uniqueIndex("uq_hearth_post_reaction").on(t.postId, t.userId, t.kind),
+  index("idx_hearth_post_reactions_post").on(t.postId),
+]);
+
+export const insertHearthPostReactionSchema = createInsertSchema(hearthPostReactions).omit({
+  id: true,
+});
+export type InsertHearthPostReaction = z.infer<typeof insertHearthPostReactionSchema>;
+export type HearthPostReaction = typeof hearthPostReactions.$inferSelect;
+
+// Replies to board posts. Flat, not nested — a board post plus its replies is a thread,
+// which is the conversation shape the noticeboard was missing. Soft-deleted like posts so
+// removing a reply does not orphan the rest of the thread.
+export const hearthPostReplies = pgTable("hearth_post_replies", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull(),
+  userId: integer("user_id").notNull(),
+  body: text("body").notNull(),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
+  deletedAt: text("deleted_at"),
+}, (t) => [
+  index("idx_hearth_post_replies_post").on(t.postId),
+]);
+
+export const insertHearthPostReplySchema = createInsertSchema(hearthPostReplies).omit({
+  id: true,
+});
+export type InsertHearthPostReply = z.infer<typeof insertHearthPostReplySchema>;
+export type HearthPostReply = typeof hearthPostReplies.$inferSelect;
+
 // Hearth User State - Personal seat and return behavior
 export const hearthUserState = pgTable("hearth_user_state", {
   userId: integer("user_id").primaryKey(),

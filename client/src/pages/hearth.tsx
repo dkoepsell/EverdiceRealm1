@@ -36,7 +36,8 @@ import {
   Trophy,
   Newspaper,
   Star,
-  Shield
+  Shield,
+  ThumbsUp
 } from "lucide-react";
 import hearthBackground from "@assets/image_1769304828468.png";
 
@@ -177,6 +178,10 @@ export default function HearthPage() {
   const [showToastDialog, setShowToastDialog] = useState(false);
   const [newPost, setNewPost] = useState({ category: "message", title: "", body: "" });
   const [toastText, setToastText] = useState("");
+  // Per-post reply composer text and which threads are expanded, both keyed by post id so
+  // several threads can be open at once without clobbering each other's draft.
+  const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
+  const [openThreads, setOpenThreads] = useState<Record<number, boolean>>({});
 
   const { data: snapshot, isLoading, refetch } = useQuery<HearthSnapshot>({
     queryKey: ["/api/hearth/snapshot"],
@@ -235,6 +240,47 @@ export default function HearthPage() {
       setShowPostDialog(false);
       setNewPost({ category: "message", title: "", body: "" });
       toast({ title: "Note posted to the board" });
+    }
+  });
+
+  // Thumbs-up. The server toggles, so a second click removes the reaction.
+  const reactToPostMutation = useMutation({
+    mutationFn: async (postId: number) => {
+      const res = await apiRequest("POST", `/api/hearth/board/${postId}/react`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/hearth/snapshot"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Couldn't react", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const replyToPostMutation = useMutation({
+    mutationFn: async ({ postId, body }: { postId: number; body: string }) => {
+      const res = await apiRequest("POST", `/api/hearth/board/${postId}/replies`, { body });
+      return res.json();
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/hearth/snapshot"] });
+      setReplyDrafts((prev) => ({ ...prev, [variables.postId]: "" }));
+    },
+    onError: (error: Error) => {
+      toast({ title: "Couldn't post reply", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const deleteReplyMutation = useMutation({
+    mutationFn: async (replyId: number) => {
+      const res = await apiRequest("DELETE", `/api/hearth/board/replies/${replyId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/hearth/snapshot"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Couldn't delete reply", description: error.message, variant: "destructive" });
     }
   });
 
@@ -497,9 +543,24 @@ export default function HearthPage() {
               
               <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 {filteredPosts.length === 0 ? (
-                  <p className="text-amber-400/60 text-sm italic text-center py-4">
-                    No notes right now. The board is clean, for once.
-                  </p>
+                  // An empty board that only says it's empty reads as "there is nothing to
+                  // do here" — playtesters came away thinking there was no way to post at
+                  // all. Say what the board is for and offer the action inline.
+                  <div className="text-center py-4 space-y-2">
+                    <p className="text-amber-400/60 text-sm italic">
+                      No notes right now. The board is clean, for once.
+                    </p>
+                    <p className="text-amber-400/50 text-xs">
+                      Pin a hook, look for a party, or just say hello — anyone at the Hearth can reply.
+                    </p>
+                    <Button
+                      size="sm"
+                      className="bg-amber-800 hover:bg-amber-700 text-amber-100"
+                      onClick={() => setShowPostDialog(true)}
+                    >
+                      Pin a note
+                    </Button>
+                  </div>
                 ) : (
                   filteredPosts.map(post => (
                     <div key={post.id} className="p-2 bg-amber-900/30 rounded border border-amber-800/30">
@@ -527,6 +588,87 @@ export default function HearthPage() {
                           </Button>
                         )}
                       </div>
+
+                      {/* Thumbs-up and thread. A post with no way to respond reads as a
+                          notice; a post you can agree with and answer reads as a
+                          conversation, which is what the board was missing. */}
+                      <div className="flex items-center gap-2 mt-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={reactToPostMutation.isPending}
+                          className={`h-6 px-2 text-xs gap-1 ${
+                            post.viewerReacted
+                              ? "text-amber-200 bg-amber-800/50 hover:bg-amber-800/70"
+                              : "text-amber-400/70 hover:text-amber-200"
+                          }`}
+                          onClick={() => reactToPostMutation.mutate(post.id)}
+                          aria-pressed={!!post.viewerReacted}
+                          aria-label={post.viewerReacted ? "Remove your thumbs-up" : "Give a thumbs-up"}
+                        >
+                          <ThumbsUp className="w-3 h-3" />
+                          {post.reactions > 0 ? post.reactions : ""}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs gap-1 text-amber-400/70 hover:text-amber-200"
+                          onClick={() => setOpenThreads(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
+                        >
+                          <MessageSquare className="w-3 h-3" />
+                          {(post.replies?.length || 0) > 0
+                            ? `${post.replies.length} ${post.replies.length === 1 ? "reply" : "replies"}`
+                            : "Reply"}
+                        </Button>
+                      </div>
+
+                      {/* Replies stay collapsed until asked for, but a post that already has
+                          replies opens expanded so the conversation is visible at a glance. */}
+                      {(openThreads[post.id] ?? (post.replies?.length || 0) > 0) && (
+                        <div className="mt-2 pl-3 border-l border-amber-800/40 space-y-2">
+                          {(post.replies || []).map((reply: any) => (
+                            <div key={reply.id} className="flex items-start justify-between gap-2">
+                              <p className="text-amber-200/80 text-xs leading-relaxed flex-1">
+                                {reply.body}
+                                <span className="text-amber-500/50"> — {reply.author}</span>
+                              </p>
+                              {reply.userId === snapshot?.me?.userId && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-amber-500/50 hover:text-red-400 h-5 w-5 p-0 shrink-0"
+                                  onClick={() => deleteReplyMutation.mutate(reply.id)}
+                                  aria-label="Delete your reply"
+                                >
+                                  ×
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={replyDrafts[post.id] || ""}
+                              onChange={(e) => setReplyDrafts(prev => ({ ...prev, [post.id]: e.target.value }))}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && (replyDrafts[post.id] || "").trim()) {
+                                  replyToPostMutation.mutate({ postId: post.id, body: replyDrafts[post.id] });
+                                }
+                              }}
+                              placeholder="Say something…"
+                              maxLength={500}
+                              className="h-7 text-xs bg-amber-950/50 border-amber-800/40 text-amber-100 placeholder:text-amber-500/40"
+                            />
+                            <Button
+                              size="sm"
+                              className="h-7 text-xs bg-amber-800 hover:bg-amber-700 text-amber-100"
+                              disabled={!(replyDrafts[post.id] || "").trim() || replyToPostMutation.isPending}
+                              onClick={() => replyToPostMutation.mutate({ postId: post.id, body: replyDrafts[post.id] })}
+                            >
+                              Post
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))
                 )}

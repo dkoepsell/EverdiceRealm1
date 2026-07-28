@@ -388,6 +388,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [worldLocationId, setWorldLocationId] = useState<number | null>(campaign.worldLocationId || null);
   const [settingsChanged, setSettingsChanged] = useState(false);
   const [currentSession, setCurrentSession] = useState<CampaignSession | null>(null);
+  // Chapter the party is actually in. The `campaign` prop is a click-time snapshot from a
+  // staleTime:Infinity query, so campaign.currentSession stays frozen for the whole play
+  // session — when a chapter gate fired, the header kept reading "Chapter 1" forever and
+  // chapter 2 never appeared to exist. advance-story reports the post-advance chapter; hold
+  // it here so the UI tracks the server between refetches.
+  const [liveChapter, setLiveChapter] = useState<number | null>(null);
+  const chapterNumber = liveChapter ?? campaign.currentSession ?? 1;
+  // Selecting a different campaign must drop the previous campaign's chapter.
+  useEffect(() => { setLiveChapter(null); }, [campaign.id]);
   const [isTurnBased, setIsTurnBased] = useState(campaign.isTurnBased || false);
   const [isTutorial, setIsTutorial] = useState((campaign as any).isTutorial || false);
   const [currentDiceRoll, setCurrentDiceRoll] = useState<{
@@ -1867,6 +1876,26 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
       }
       
+      // Chapter gate / hard cap advanced the chapter. This is the normal way chapters turn
+      // (metrics-based advancement, which sets sessionAdvanced above, is disabled for any
+      // campaign with chapter gates — and every campaign gets gates improvised on its first
+      // turn). Nothing used to react here, so the chapter silently advanced server-side and
+      // the player was left waiting for a chapter 2 that had already begun.
+      if (data.chapterAdvanced?.to) {
+        setLiveChapter(data.chapterAdvanced.to);
+        setChapterJustAdvanced(true);
+        toast({
+          title: `🎉 Chapter ${data.chapterAdvanced.from} Complete!`,
+          description: `Beginning Chapter ${data.chapterAdvanced.to}${data.totalChapters ? ` of ${data.totalChapters}` : ''}...`,
+        });
+        // The campaign row's currentSession changed — drop the cached copy the parent page
+        // holds, or the header reverts to the stale chapter on the next render.
+        queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/sessions`] });
+      } else if (typeof data.currentChapter === 'number') {
+        setLiveChapter(data.currentChapter);
+      }
+
       // Update chapter progress state if available
       if (data.chapterProgress) {
         setChapterProgress(data.chapterProgress);
@@ -3736,7 +3765,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             <Scroll className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                             <div>
                               <span className="text-sm text-amber-700 dark:text-amber-300 font-semibold">
-                                Chapter {campaign.currentSession || 1} of {campaign.totalChapters || 5}
+                                Chapter {chapterNumber} of {campaign.totalChapters || 5}
                               </span>
                               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
                                 {currentSession.title.replace(/^(Session|Chapter)\s*\d+:\s*/i, '')}
@@ -3752,7 +3781,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           <div className="flex justify-between items-center">
                             <div className="flex gap-1 flex-1">
                               {Array.from({ length: campaign.totalChapters || 5 }).map((_, i) => {
-                                const chapterNum = campaign.currentSession || 1;
+                                const chapterNum = chapterNumber;
                                 const isCurrent = i === chapterNum - 1;
                                 const isCompleted = i < chapterNum - 1;
                                 return (
@@ -3770,7 +3799,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 );
                               })}
                             </div>
-                            {(campaign.currentSession || 1) >= (campaign.totalChapters || 5) && (
+                            {chapterNumber >= (campaign.totalChapters || 5) && (
                               <span className="text-xs ml-2">🏆</span>
                             )}
                           </div>
@@ -3906,7 +3935,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         {isDM && !isAdvancingStory && (
                           <StoryControls
                             campaignId={campaign.id}
-                            currentChapter={campaign.currentSession || 1}
+                            currentChapter={chapterNumber}
                             totalChapters={(campaign as any).totalChapters || 5}
                             scenesInChapter={scenesInCurrentChapter}
                             pacingMode={pacingMode}
@@ -4799,7 +4828,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         : scenesIn >= 7 ? 'moderate'
                         : scenesIn >= 5 ? 'gentle'
                         : 'normal';
-                      const currentCh = cpd?.currentChapter ?? (campaign.currentSession || 1);
+                      const currentCh = cpd?.currentChapter ?? chapterNumber;
                       const totalCh = cpd?.totalChapters ?? (campaign.totalChapters || 5);
                       const finished = currentCh >= totalCh;
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Campaign, insertCampaignSchema, WorldRegion, WorldLocation } from "@shared/schema";
@@ -131,6 +131,17 @@ export default function Campaigns() {
     queryKey: ['/api/campaigns'],
     queryFn: getQueryFn({ on401: "throw" })
   });
+
+  // selectedCampaign is the snapshot captured when the card was clicked, so fields that
+  // change during play — currentSession above all — stay frozen at their page-load values.
+  // Re-read the row from the list query (which the play panel invalidates on a chapter
+  // advance) so the panel renders live campaign state instead of a stale copy.
+  const liveCampaign = useMemo(
+    () => (selectedCampaign
+      ? campaigns?.find((c) => c.id === selectedCampaign.id) ?? selectedCampaign
+      : null),
+    [campaigns, selectedCampaign]
+  );
 
   const { data: characters } = useQuery({
     queryKey: ['/api/characters'],
@@ -496,7 +507,7 @@ export default function Campaigns() {
                 })}
               </div>
               
-              {selectedCampaign && (
+              {liveCampaign && (
                 <div className="mt-4">
                   <div className="flex justify-end mb-3">
                     <Button 
@@ -509,7 +520,7 @@ export default function Campaigns() {
                     </Button>
                   </div>
                   <div className="min-h-[80vh]">
-                    <CampaignPanel campaign={selectedCampaign} />
+                    <CampaignPanel campaign={liveCampaign} />
                   </div>
                 </div>
               )}
