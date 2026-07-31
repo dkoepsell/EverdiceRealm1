@@ -502,6 +502,16 @@ export default function LandingPage() {
           <p className="text-sm text-muted-foreground/60 mt-6">
             Version 2.0 — now out of beta. Feedback shapes the system.
           </p>
+          <div className="mt-8 flex justify-center">
+            <a href="https://launchstag.com" target="_blank" rel="noopener">
+              <img
+                src="https://launchstag.com/badge-dark.svg"
+                alt="Featured on Launchstag"
+                width="198"
+                height="62"
+              />
+            </a>
+          </div>
         </div>
       </section>
 
