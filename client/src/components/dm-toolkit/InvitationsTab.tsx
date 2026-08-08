@@ -166,7 +166,9 @@ export default function InvitationsTab() {
 
   // Fetch invitations if a campaign is selected
   const { data: invitations = [], isLoading: isLoadingInvitations } = useQuery<Invitation[]>({
-    queryKey: ["/api/campaigns", selectedCampaignId, "invitations", refreshKey],
+    // The default query fn uses queryKey[0] verbatim as the URL, so the path has to
+    // be the whole first element — otherwise this fetched /api/campaigns instead.
+    queryKey: [`/api/campaigns/${selectedCampaignId}/invitations`, refreshKey],
     enabled: !!selectedCampaignId,
     refetchOnWindowFocus: false,
   });

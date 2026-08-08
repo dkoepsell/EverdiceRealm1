@@ -259,6 +259,9 @@ export interface IStorage {
   createCampaignInvitation(invitation: InsertCampaignInvitation): Promise<CampaignInvitation>;
   getCampaignInvitations(campaignId: number): Promise<CampaignInvitation[]>;
   getCampaignInvitationByCode(inviteCode: string): Promise<CampaignInvitation | undefined>;
+  getCampaignInvitationById(id: number): Promise<CampaignInvitation | undefined>;
+  getPendingCampaignInvitationsForUser(userId: number): Promise<CampaignInvitation[]>;
+  updateCampaignInvitationStatus(id: number, status: string): Promise<CampaignInvitation | undefined>;
   updateCampaignInvitation(id: number, updates: Partial<CampaignInvitation>): Promise<CampaignInvitation | undefined>;
   useInvitation(inviteCode: string): Promise<CampaignInvitation | undefined>;
   deleteCampaignInvitation(id: number): Promise<boolean>;
@@ -1096,6 +1099,30 @@ export class DatabaseStorage implements IStorage {
     const [invitation] = await db.select().from(campaignInvitations)
       .where(eq(campaignInvitations.inviteCode, inviteCode));
     return invitation;
+  }
+
+  async getCampaignInvitationById(id: number): Promise<CampaignInvitation | undefined> {
+    const [invitation] = await db.select().from(campaignInvitations)
+      .where(eq(campaignInvitations.id, id));
+    return invitation;
+  }
+
+  // Invitations addressed to a specific user that are still awaiting an answer
+  async getPendingCampaignInvitationsForUser(userId: number): Promise<CampaignInvitation[]> {
+    return await db.select().from(campaignInvitations)
+      .where(and(
+        eq(campaignInvitations.invitedUserId, userId),
+        eq(campaignInvitations.status, 'pending')
+      ))
+      .orderBy(desc(campaignInvitations.createdAt));
+  }
+
+  async updateCampaignInvitationStatus(id: number, status: string): Promise<CampaignInvitation | undefined> {
+    const [updated] = await db.update(campaignInvitations)
+      .set({ status })
+      .where(eq(campaignInvitations.id, id))
+      .returning();
+    return updated;
   }
   
   async updateCampaignInvitation(id: number, updates: Partial<CampaignInvitation>): Promise<CampaignInvitation | undefined> {

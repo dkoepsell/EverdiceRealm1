@@ -598,6 +598,7 @@ export const campaignInvitations = pgTable("campaign_invitations", {
   campaignId: integer("campaign_id").notNull(),
   inviteCode: text("invite_code").notNull().unique(), // Unique code for joining
   email: text("email"), // Optional email for direct invites
+  invitedUserId: integer("invited_user_id"), // Optional: a specific existing user this invite is addressed to
   role: text("role").notNull().default("player"), // Default role for the invitee (player, observer, co-dm)
   status: text("status").notNull().default("pending"), // pending, accepted, declined, expired
   createdBy: integer("created_by").notNull(), // User ID who created the invite

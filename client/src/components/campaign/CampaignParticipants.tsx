@@ -40,6 +40,8 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
+  const [inviteRole, setInviteRole] = useState('player');
+  const [swappingUserId, setSwappingUserId] = useState<number | null>(null);
   
   // Extended participant interface for NPCs
   interface ExtendedParticipant extends CampaignParticipant {
@@ -135,39 +137,87 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
     enabled: isDM && isInviteDialogOpen
   });
 
-  // Fetch characters for selected user
-  const { data: userCharacters = [] } = useQuery<Character[]>({
-    queryKey: ['/api/characters', selectedUserId],
-    enabled: !!selectedUserId && isInviteDialogOpen
-  });
-  
   // Fetch current user's characters for dropdown
   const { data: myCharacters = [] } = useQuery<Character[]>({
     queryKey: ['/api/characters'],
     enabled: !!user
   });
 
-  // Add participant mutation
+  // Invite a player. We never assign them a character — the invitation is theirs
+  // to accept with a character they own.
+  const inviteUserMutation = useMutation({
+    mutationFn: async (data: { invitedUserId: number; role: string }) => {
+      const res = await apiRequest(
+        'POST',
+        `/api/campaigns/${campaignId}/invitations`,
+        { ...data, maxUses: 1 }
+      );
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaignId}/invitations`] });
+      setIsInviteDialogOpen(false);
+      setSelectedUserId(null);
+      toast({
+        title: 'Invitation sent',
+        description: "They'll choose which of their characters to play when they accept."
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Failed to send invitation',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+
+  // Seat yourself with one of your own characters
   const addParticipantMutation = useMutation({
     mutationFn: async (data: { userId: number; characterId: number; role: string }) => {
       const res = await apiRequest(
-        'POST', 
-        `/api/campaigns/${campaignId}/participants`, 
+        'POST',
+        `/api/campaigns/${campaignId}/participants`,
         data
       );
       return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaignId}/participants`] });
-      setIsInviteDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
       toast({
-        title: 'Participant added',
-        description: 'The user has been added to the campaign'
+        title: 'Joined the campaign',
+        description: 'Your character has taken a seat at the table'
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Failed to add participant',
+        title: 'Failed to join',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+
+  // Swap the character sitting in a seat
+  const changeCharacterMutation = useMutation({
+    mutationFn: async ({ userId, characterId }: { userId: number; characterId: number }) => {
+      const res = await apiRequest(
+        'PATCH',
+        `/api/campaigns/${campaignId}/participants/${userId}/character`,
+        { characterId }
+      );
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaignId}/participants`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      setSwappingUserId(null);
+      toast({ title: 'Character changed' });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Failed to change character',
         description: error.message,
         variant: 'destructive'
       });
@@ -198,20 +248,19 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
     }
   });
 
-  const handleAddParticipant = () => {
-    if (!selectedUserId || !selectedCharacterId) {
+  const handleInviteUser = () => {
+    if (!selectedUserId) {
       toast({
         title: 'Missing information',
-        description: 'Please select a user and character',
+        description: 'Please select a player to invite',
         variant: 'destructive'
       });
       return;
     }
 
-    addParticipantMutation.mutate({
-      userId: selectedUserId,
-      characterId: selectedCharacterId,
-      role: 'player'
+    inviteUserMutation.mutate({
+      invitedUserId: selectedUserId,
+      role: inviteRole
     });
   };
 
@@ -525,16 +574,16 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Add Participant</DialogTitle>
+                  <DialogTitle>Invite a Player</DialogTitle>
                   <DialogDescription>
-                    Invite a user to join your campaign with a character.
+                    Send an invitation. They pick which of their own characters to play when they accept.
                   </DialogDescription>
                 </DialogHeader>
-                
+
                 <div className="grid gap-4 py-4">
                   <div className="space-y-2">
-                    <label htmlFor="user" className="text-sm font-medium text-slate-900 dark:text-slate-100">User</label>
-                    <Select 
+                    <label htmlFor="user" className="text-sm font-medium text-slate-900 dark:text-slate-100">Player</label>
+                    <Select
                       onValueChange={(value) => setSelectedUserId(Number(value))}
                     >
                       <SelectTrigger>
@@ -549,33 +598,33 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div className="space-y-2">
-                    <label htmlFor="character" className="text-sm font-medium text-slate-900 dark:text-slate-100">Character</label>
-                    <Select
-                      onValueChange={(value) => setSelectedCharacterId(Number(value))}
-                      disabled={!selectedUserId}
-                    >
+                    <label htmlFor="role" className="text-sm font-medium text-slate-900 dark:text-slate-100">Role</label>
+                    <Select value={inviteRole} onValueChange={setInviteRole}>
                       <SelectTrigger>
-                        <SelectValue placeholder={!selectedUserId ? "Select user first" : "Select character"} />
+                        <SelectValue placeholder="Player" />
                       </SelectTrigger>
                       <SelectContent>
-                        {userCharacters?.map(character => (
-                          <SelectItem key={character.id} value={character.id.toString()}>
-                            {character.name} ({character.race} {character.class})
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="player">Player</SelectItem>
+                        <SelectItem value="observer">Observer</SelectItem>
+                        <SelectItem value="co-dm">Co-DM</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    They'll see the invitation next time they open Everdice, and choose their own
+                    character — you don't assign one for them.
+                  </p>
                 </div>
-                
+
                 <DialogFooter>
-                  <Button 
-                    onClick={handleAddParticipant} 
-                    disabled={!selectedUserId || !selectedCharacterId || addParticipantMutation.isPending}
+                  <Button
+                    onClick={handleInviteUser}
+                    disabled={!selectedUserId || inviteUserMutation.isPending}
                   >
-                    {addParticipantMutation.isPending ? 'Adding...' : 'Add to Campaign'}
+                    {inviteUserMutation.isPending ? 'Sending...' : 'Send Invitation'}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -721,7 +770,52 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
                 <p className="text-gray-700 text-xs">
                   Level {participant.isNpc ? (participant.npc?.level || 1) : (participant.character?.level || 1)} {participant.isNpc ? participant.npc?.race : participant.character?.race} {participant.isNpc ? participant.npc?.occupation : participant.character?.class}
                 </p>
-                
+
+                {/* Your own seat: swap in a different character of yours */}
+                {!participant.isNpc && participant.userId === user?.id && (
+                  <div className="mt-2">
+                    {swappingUserId === participant.userId ? (
+                      <div className="flex items-center gap-2">
+                        <Select
+                          onValueChange={(value) => changeCharacterMutation.mutate({
+                            userId: participant.userId,
+                            characterId: Number(value)
+                          })}
+                          disabled={changeCharacterMutation.isPending}
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue placeholder="Choose a character" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {myCharacters.map(character => (
+                              <SelectItem key={character.id} value={character.id.toString()}>
+                                {character.name} — Level {character.level} {character.race} {character.class}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setSwappingUserId(null)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => setSwappingUserId(participant.userId)}
+                      >
+                        Play a different character
+                      </Button>
+                    )}
+                  </div>
+                )}
+
                 {/* Combat Stats - HP, Weapon, AC for Players */}
                 {!participant.isNpc && participant.character && (
                   <div className="mt-2 flex flex-wrap gap-2">

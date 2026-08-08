@@ -9907,7 +9907,79 @@ Return your response as a JSON object with these fields:
       }
     }
   });
-  
+
+  // Swap which character a seat is playing. A player owns their own seat; the DM
+  // may reassign on a player's behalf, but never to a character they don't own.
+  app.patch("/api/campaigns/:campaignId/participants/:userId/character", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = parseInt(req.params.userId);
+      const characterId = parseInt(req.body?.characterId);
+
+      if (!characterId || Number.isNaN(characterId)) {
+        return res.status(400).json({ message: "characterId is required" });
+      }
+
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+
+      if (userId !== req.user.id && campaign.userId !== req.user.id) {
+        return res.status(403).json({ message: "Not authorized to change this participant's character" });
+      }
+
+      const seat = await storage.getCampaignParticipant(campaignId, userId);
+      if (!seat) {
+        return res.status(404).json({ message: "Participant not found" });
+      }
+
+      const character = await storage.getCharacter(characterId);
+      if (!character) {
+        return res.status(404).json({ message: "Character not found" });
+      }
+
+      if (character.userId !== userId) {
+        return res.status(403).json({ message: "That character belongs to another player" });
+      }
+
+      if (seat.characterId === characterId) {
+        return res.json(seat);
+      }
+
+      // Don't yank a character out of another campaign or an active run
+      if (character.engagementKind && character.engagementKind !== 'idle' &&
+          !(character.engagementKind === 'campaign' && character.engagementId === campaignId)) {
+        return res.status(409).json({
+          message: `${character.name} is busy elsewhere — finish or leave that adventure first.`
+        });
+      }
+
+      const previousCharacterId = seat.characterId;
+      const updated = await storage.updateCampaignParticipant(seat.id, { characterId });
+
+      // Keep engagement pointing at the character actually being played
+      if (previousCharacterId && previousCharacterId !== characterId) {
+        await storage.clearCharacterEngagement(previousCharacterId);
+      }
+      await storage.setCharacterEngagement(characterId, 'campaign', campaignId);
+
+      broadcastMessage('participant_character_changed', {
+        campaignId,
+        userId,
+        characterId,
+        characterName: character.name
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to change participant character:", error);
+      res.status(500).json({ message: "Failed to change participant character" });
+    }
+  });
+
   // Remove a participant from a campaign
   app.delete("/api/campaigns/:campaignId/participants/:userId", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
@@ -14814,14 +14886,32 @@ Focus on:
         return res.status(403).json({ message: "Only the DM can create invitations" });
       }
       
+      // The DM may address an invitation to a specific existing user; older
+      // clients send that as `userId`.
+      const invitedUserId = req.body.invitedUserId ?? req.body.userId ?? null;
+
+      if (invitedUserId) {
+        const existingSeat = await storage.getCampaignParticipant(campaignId, Number(invitedUserId));
+        if (existingSeat) {
+          return res.status(409).json({ message: "That player is already in this campaign" });
+        }
+        const pending = await storage.getPendingCampaignInvitationsForUser(Number(invitedUserId));
+        const duplicate = pending.find(inv => inv.campaignId === campaignId);
+        if (duplicate) {
+          return res.status(200).json(duplicate);
+        }
+      }
+
       // Create invitation with createdBy field
+      const { userId: _ignoredUserId, ...invitationBody } = req.body ?? {};
       const invitationData = {
-        ...req.body,
+        ...invitationBody,
+        invitedUserId: invitedUserId ? Number(invitedUserId) : null,
         campaignId,
         createdBy: req.user.id,
         createdAt: new Date().toISOString()
       };
-      
+
       // Generate random invite code if not provided
       if (!invitationData.inviteCode) {
         invitationData.inviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -14837,6 +14927,124 @@ Focus on:
     } catch (error) {
       console.error("Failed to create invitation:", error);
       res.status(500).json({ message: "Failed to create invitation" });
+    }
+  });
+
+  // Campaign invitations addressed to the signed-in user, with enough context to
+  // decide: which campaign, who invited them, and which of their characters are free.
+  app.get("/api/campaign-invitations/pending", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+
+    try {
+      const invitations = await storage.getPendingCampaignInvitationsForUser(req.user.id);
+
+      const enriched = await Promise.all(invitations.map(async (invitation) => {
+        const campaign = await storage.getCampaign(invitation.campaignId);
+        const inviter = invitation.createdBy ? await storage.getUser(invitation.createdBy) : undefined;
+        const alreadySeated = await storage.getCampaignParticipant(invitation.campaignId, req.user.id);
+        return {
+          ...invitation,
+          campaignTitle: campaign?.title ?? 'A campaign',
+          campaignDescription: campaign?.description ?? null,
+          campaignDifficulty: campaign?.difficulty ?? null,
+          inviterName: inviter?.displayName || inviter?.username || 'A Dungeon Master',
+          alreadyJoined: !!alreadySeated
+        };
+      }));
+
+      // Drop invitations that are moot because the player is already seated
+      res.json(enriched.filter(inv => !inv.alreadyJoined));
+    } catch (error) {
+      console.error("Failed to fetch pending campaign invitations:", error);
+      res.status(500).json({ message: "Failed to fetch pending campaign invitations" });
+    }
+  });
+
+  // Accept an invitation addressed to you, playing a character you choose
+  app.post("/api/campaign-invitations/:id/accept", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+
+    try {
+      const invitationId = parseInt(req.params.id);
+      const characterId = parseInt(req.body?.characterId);
+
+      if (!characterId || Number.isNaN(characterId)) {
+        return res.status(400).json({ message: "Choose a character to play first" });
+      }
+
+      const invitation = await storage.getCampaignInvitationById(invitationId);
+      if (!invitation) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+
+      if (invitation.invitedUserId !== req.user.id) {
+        return res.status(403).json({ message: "This invitation isn't addressed to you" });
+      }
+
+      if (invitation.status !== 'pending') {
+        return res.status(400).json({ message: `This invitation is already ${invitation.status}` });
+      }
+
+      const character = await storage.getCharacter(characterId);
+      if (!character || character.userId !== req.user.id) {
+        return res.status(403).json({ message: "That isn't one of your characters" });
+      }
+
+      const existingSeat = await storage.getCampaignParticipant(invitation.campaignId, req.user.id);
+      if (existingSeat) {
+        await storage.updateCampaignInvitationStatus(invitationId, 'accepted');
+        return res.json({ success: true, participant: existingSeat, message: "You're already in this campaign" });
+      }
+
+      const participant = await storage.addCampaignParticipant({
+        campaignId: invitation.campaignId,
+        userId: req.user.id,
+        characterId,
+        role: invitation.role || 'player',
+        joinedAt: new Date().toISOString()
+      });
+
+      await storage.setCharacterEngagement(characterId, 'campaign', invitation.campaignId);
+      await storage.updateCampaignInvitationStatus(invitationId, 'accepted');
+
+      broadcastMessage('participant_joined', {
+        campaignId: invitation.campaignId,
+        userId: req.user.id,
+        role: invitation.role
+      });
+
+      res.json({ success: true, participant, campaignId: invitation.campaignId });
+    } catch (error) {
+      console.error("Failed to accept campaign invitation:", error);
+      res.status(500).json({ message: "Failed to accept invitation" });
+    }
+  });
+
+  // Decline an invitation addressed to you
+  app.post("/api/campaign-invitations/:id/decline", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+
+    try {
+      const invitationId = parseInt(req.params.id);
+      const invitation = await storage.getCampaignInvitationById(invitationId);
+
+      if (!invitation) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+
+      if (invitation.invitedUserId !== req.user.id) {
+        return res.status(403).json({ message: "This invitation isn't addressed to you" });
+      }
+
+      if (invitation.status !== 'pending') {
+        return res.status(400).json({ message: `This invitation is already ${invitation.status}` });
+      }
+
+      const updated = await storage.updateCampaignInvitationStatus(invitationId, 'declined');
+      res.json({ success: true, invitation: updated });
+    } catch (error) {
+      console.error("Failed to decline campaign invitation:", error);
+      res.status(500).json({ message: "Failed to decline invitation" });
     }
   });
   
@@ -14936,12 +15144,29 @@ Focus on:
       if (!invitation) {
         return res.status(404).json({ message: "Invitation not found or expired" });
       }
-      
+
       // Check if invitation is still valid
       if (invitation.status !== 'pending') {
         return res.status(400).json({ message: `Invitation is ${invitation.status}` });
       }
-      
+
+      // Only your own characters may take the seat
+      const character = await storage.getCharacter(characterId);
+      if (!character || character.userId !== req.user.id) {
+        return res.status(403).json({ message: "That isn't one of your characters" });
+      }
+
+      // Joining twice would create a duplicate seat
+      const existingSeat = await storage.getCampaignParticipant(invitation.campaignId, req.user.id);
+      if (existingSeat) {
+        return res.json({
+          success: true,
+          participant: existingSeat,
+          campaignId: invitation.campaignId,
+          message: "You're already in this campaign"
+        });
+      }
+
       // Use the invitation (this increments the use count)
       const updatedInvitation = await storage.useInvitation(code);
       if (!updatedInvitation) {
@@ -14953,21 +15178,23 @@ Focus on:
         campaignId: invitation.campaignId,
         userId: req.user.id,
         characterId,
-        role: invitation.role,
-        permissions: 'standard',
+        role: invitation.role || 'player',
         joinedAt: new Date().toISOString()
       });
-      
+
+      await storage.setCharacterEngagement(characterId, 'campaign', invitation.campaignId);
+
       // Broadcast to connected clients about new participant
       broadcastMessage('participant_joined', {
         campaignId: invitation.campaignId,
         userId: req.user.id,
         role: invitation.role
       });
-      
+
       res.json({
         success: true,
         participant,
+        campaignId: invitation.campaignId,
         message: "Successfully joined campaign"
       });
     } catch (error) {

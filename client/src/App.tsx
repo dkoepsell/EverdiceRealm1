@@ -16,6 +16,8 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import CoAdminBanner from "@/components/layout/CoAdminBanner";
 import InvitationAlert from "@/components/InvitationAlert";
+import CampaignInvitationAlert from "@/components/CampaignInvitationAlert";
+import JoinCampaign from "@/pages/join-campaign";
 import parchmentFrame from "@assets/image_1768600727955.png";
 import { FeedbackWidget } from "@/components/ui/feedback-widget";
 import { useVisitTracking } from "@/hooks/use-visit-tracking";
@@ -85,6 +87,7 @@ function Router() {
       <CoAdminBanner />
       <Navbar />
       <InvitationAlert />
+      <CampaignInvitationAlert />
       <main className="flex-grow relative z-10">
         <Suspense fallback={<PageLoader />}>
           <Switch>
@@ -117,6 +120,10 @@ function Router() {
             <Route path="/blog" component={BlogPage} />
             <Route path="/legal" component={LegalPage} />
             <Route path="/auth" component={AuthPage} />
+            {/* Invite links land here; the invitee picks their own character */}
+            <Route path="/join/:code" component={JoinCampaign} />
+            <Route path="/join-campaign/:code" component={JoinCampaign} />
+            <Route path="/join" component={JoinCampaign} />
             <Route component={NotFound} />
           </Switch>
         </Suspense>
