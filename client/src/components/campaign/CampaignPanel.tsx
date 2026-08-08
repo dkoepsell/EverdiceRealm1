@@ -101,17 +101,20 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     enabled: !!campaign.id,
   });
 
-  // Solo play = the only place the scaffolding dial applies (spec §11).
   // Measured by distinct LIVE human players (distinct userIds), NOT raw
   // participant rows — companions are NPCs, not participants, and even if a
   // human is listed more than once it shouldn't read as multiplayer.
   const livePlayerCount = new Set((participants || []).map((p: any) => p.userId).filter((u: any) => u != null)).size;
   const isSoloPlay = livePlayerCount <= 1;
+  // The rails are per-player, not per-table: player_progression is keyed on
+  // (campaignId, userId), so each player at a co-op table rides their own dial —
+  // one can stay on GUIDED while another plays PURE. It used to be solo-only,
+  // which meant seating a second player made the controls vanish mid-campaign.
   // Guidance level (progressive scaffolding) — seeds the dial on load so a
   // progressed player sees the right visibility before their first turn.
   const { data: guidanceData } = useQuery<any>({
     queryKey: [`/api/campaigns/${campaign.id}/guidance`],
-    enabled: !!campaign.id && isSoloPlay,
+    enabled: !!campaign.id,
   });
   // Seed the dial from the loaded guidance (overwritten per-turn by advance-story).
   useEffect(() => {
@@ -419,8 +422,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   // for a vague freeform action while the player is still learning. null = none.
   const [elaborationNudge, setElaborationNudge] = useState<string | null>(null);
   // Derived suggestion-visibility (spec §5.1). Null when the dial doesn't apply
-  // (multiplayer / pre-migration) -> behave exactly as before (show everything).
-  const scaffoldVis = (isSoloPlay && scaffolding?.visibility) ? scaffolding.visibility : null;
+  // (pre-migration) -> behave exactly as before (show everything). At a co-op
+  // table this is each player's own view of the choice list, not the table's.
+  const scaffoldVis = scaffolding?.visibility ?? null;
   const scaffoldRevealMode: string = scaffoldVis?.revealMode ?? 'persistent';
   const scaffoldMaxSuggestions: number | null = scaffoldVis?.maxSuggestions ?? null;
   // PURE shows nothing, ever; otherwise the grid shows when persistent or revealed.
@@ -1506,7 +1510,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
       // Progressive scaffolding: capture the rung-driven visibility for this turn.
       // A new turn collapses any prior reveal so HYBRID/OPEN start hidden again.
-      if (data && data.scaffolding !== undefined) {
+      // Only overwrite with a real block — a null (the self-guarding path on the
+      // server) would otherwise blank the rails controls mid-session.
+      if (data?.scaffolding) {
         setScaffolding(data.scaffolding);
       }
       setSuggestionsRevealed(false);
@@ -3944,10 +3950,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           />
                         )}
                         
-                        {/* Player-facing guidance / "training wheels" panel (solo). Always visible
+                        {/* Player-facing guidance / "training wheels" panel. Always visible
                             — including at PURE — so the rails can be toggled back on anytime.
-                            Makes clear players start on rails and should work to get off them. */}
-                        {isSoloPlay && scaffolding?.rung && !scaffolding?.expertMode && (
+                            Makes clear players start on rails and should work to get off them.
+                            Shown in co-op too: the rung is this player's own, not the table's. */}
+                        {scaffolding?.rung && !scaffolding?.expertMode && (
                           <div className="mt-5 p-3.5 rounded-xl border border-amber-500/40 bg-gradient-to-br from-amber-950/40 to-slate-900/40" data-testid="guidance-panel">
                             <div className="flex items-start justify-between gap-4 flex-wrap">
                               <div className="flex items-start gap-2.5 min-w-0 flex-1">
@@ -4160,7 +4167,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             {/* Custom Action — always available; the only input at OPEN/PURE. */}
                             <div className="mt-3 p-3 bg-slate-800/50 rounded-lg border border-slate-600/50">
                               {/* §9 Auto-offer expert/oracle mode once the player reaches PURE organically. */}
-                              {isSoloPlay && scaffolding?.offerExpertMode && (
+                              {scaffolding?.offerExpertMode && (
                                 <div className="mb-2 p-2.5 rounded-md bg-indigo-900/30 border border-indigo-500/40 text-sm text-indigo-100 flex items-center justify-between gap-3" data-testid="expert-offer">
                                   <span>You're playing in pure prose now. Switch to <b>expert mode</b>? Suggestions off, oracle on.</span>
                                   <Button size="sm" className="shrink-0 bg-indigo-600 hover:bg-indigo-500" onClick={() => setGuidanceMutation.mutate({ expertMode: true })} data-testid="enable-expert">
@@ -4170,7 +4177,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               )}
 
                               {/* §9 Oracle panel — generative friction in place of suggestions. */}
-                              {isSoloPlay && scaffolding?.expertMode && (
+                              {scaffolding?.expertMode && (
                                 <div className="mb-3 p-3 rounded-lg bg-indigo-950/40 border border-indigo-500/30" data-testid="oracle-panel">
                                   <div className="flex items-center justify-between mb-2">
                                     <h5 className="font-semibold text-sm text-indigo-200">Ask the Oracle</h5>
@@ -4214,7 +4221,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 <Sparkles className="h-4 w-4 text-amber-300" />
                                 {scaffoldVis?.inputProminence === 'primary' ? 'What do you do?' : 'Describe your own action'}
                               </h5>
-                              {isSoloPlay && !scaffolding?.expertMode && (
+                              {!scaffolding?.expertMode && (
                                 <p className="text-[12px] text-amber-100/70 mb-2 leading-snug">
                                   You're never limited to the options above — type <span className="italic">anything</span> your character does. Going off-menu is the real game, and the world will respond.
                                 </p>

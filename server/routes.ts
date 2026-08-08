@@ -23203,12 +23203,15 @@ ${cachedNarrative}
 
       // Progressive scaffolding (Phase 1 — the dial). Record this turn's signal,
       // evaluate the player's rung, and act on it: the resulting rung governs how
-      // the choices we return are presented (visibility-by-rung, §5.1). Solo play
-      // only: human-DM/multiplayer tables are out of scope (spec §11). Self-
-      // guarding — if anything fails (e.g. table not yet migrated), scaffolding
-      // stays null and the client falls back to showing all choices.
+      // the choices we return are presented (visibility-by-rung, §5.1).
+      // Progression is keyed on (campaignId, userId), so this runs at a co-op
+      // table too — each player rides their own rails. What stays table-level is
+      // the shared stuff: the narrative prompt's verbosity and the persisted
+      // diegetic hints, both still solo-only below. Self-guarding — if anything
+      // fails (e.g. table not yet migrated), scaffolding stays null and the
+      // client falls back to showing all choices.
       let scaffolding: ScaffoldingResponse | null = null;
-      if (!isMultiplayer && choice && typeof choice === "string" && choice.trim()) {
+      if (choice && typeof choice === "string" && choice.trim()) {
         let rawChoices: any = (currentSession as any)?.choices;
         if (typeof rawChoices === "string") {
           try { rawChoices = JSON.parse(rawChoices); } catch { rawChoices = []; }
