@@ -1,11 +1,12 @@
 {
-  "total": 341,
+  "total": 340,
   "counts": {
     "client/src/components/caml/AdventureGraph.tsx|TS2802": 1,
     "client/src/components/campaign/CampaignDeploymentTab.tsx|TS2339": 1,
     "client/src/components/campaign/CampaignPanel.fixed.tsx|TS2353": 1,
-    "client/src/components/campaign/CampaignPanel.fixed.tsx|TS2304": 3,
+    "client/src/components/campaign/CampaignPanel.fixed.tsx|TS2552": 2,
     "client/src/components/campaign/CampaignPanel.fixed.tsx|TS2322": 1,
+    "client/src/components/campaign/CampaignPanel.fixed.tsx|TS2304": 1,
     "client/src/components/chat/UniversalChat.tsx|TS2345": 2,
     "client/src/components/dm-toolkit/AIAssistedDMGuide.tsx|TS2322": 1,
     "client/src/components/dm-toolkit/DMTrainingCenterTab.tsx|TS2802": 1,
@@ -31,7 +32,7 @@
     "client/src/pages/profile.tsx|TS2339": 1,
     "server/auth.ts|TS2339": 1,
     "server/auth.ts|TS7006": 3,
-    "server/routes.ts|TS2353": 3,
+    "server/routes.ts|TS2353": 2,
     "server/routes.ts|TS2551": 15,
     "server/routes.ts|TS2802": 8,
     "server/routes.ts|TS7006": 6,

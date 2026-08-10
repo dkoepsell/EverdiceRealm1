@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ChevronsUpDown, Shield, User, UserPlus, X, Users, Sword, Heart, ImageIcon, Loader2, Sparkles, Wand2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Character, User as UserType } from '@shared/schema';
+import PartyAidActions from '@/components/campaign/PartyAidActions';
 
 interface CampaignParticipant {
   id: number;
@@ -130,6 +131,12 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
   
   // The backend already combines participants and NPCs, so we use participants directly
   const allParticipants = participants;
+
+  // The character this player is fielding here — the "from" side of any aid
+  // they offer. Without one (a DM, or a spectator) there's nothing to give with.
+  const myCharacterId = participants.find(
+    (p: ExtendedParticipant) => p.userId === user?.id && !p.isNpc && p.characterId
+  )?.characterId;
 
   // Fetch all users
   const { data: users = [] } = useQuery<UserType[]>({
@@ -740,26 +747,47 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
                   </div>
                 ) : (
                   // For player characters
-                  (isDM || user?.id === participant.userId) && participant.role !== 'dm' && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-6 w-6" 
-                            onClick={() => handleRemoveParticipant(participant.userId)}
-                            disabled={removeParticipantMutation.isPending}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Remove participant</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )
+                  <>
+                    {/* Aid another player's character. In async play they may be
+                        downed or dead for days with nobody able to reach them,
+                        so this is offered to any party member, not just the DM. */}
+                    {myCharacterId &&
+                      participant.role !== 'dm' &&
+                      participant.characterId &&
+                      participant.characterId !== myCharacterId && (
+                        <PartyAidActions
+                          campaignId={campaignId}
+                          myCharacterId={myCharacterId}
+                          target={{
+                            characterId: participant.characterId,
+                            name: participant.character?.name || 'this character',
+                            status: participant.character?.status,
+                            hitPoints: participant.character?.hitPoints,
+                            maxHitPoints: participant.character?.maxHitPoints,
+                          }}
+                        />
+                      )}
+                    {(isDM || user?.id === participant.userId) && participant.role !== 'dm' && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => handleRemoveParticipant(participant.userId)}
+                              disabled={removeParticipantMutation.isPending}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Remove participant</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </>
                 )}
               </div>
             </CardHeader>

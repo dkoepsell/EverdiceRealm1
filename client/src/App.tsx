@@ -1,4 +1,5 @@
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
@@ -68,6 +69,9 @@ function Router() {
   // Deliberately here rather than in AuthAwareEffects: visit tracking has to run
   // for logged-out traffic, which is the whole point of it.
   useVisitTracking();
+  // Keyed into the page-level ErrorBoundary below so that navigating away from
+  // a crashed page clears the error instead of trapping the player on it.
+  const [location] = useLocation();
   useClickTracking();
 
   return (
@@ -89,6 +93,7 @@ function Router() {
       <InvitationAlert />
       <CampaignInvitationAlert />
       <main className="flex-grow relative z-10">
+        <ErrorBoundary label="page" resetKey={location}>
         <Suspense fallback={<PageLoader />}>
           <Switch>
             <Route path="/" component={LandingPage} />
@@ -127,6 +132,7 @@ function Router() {
             <Route component={NotFound} />
           </Switch>
         </Suspense>
+        </ErrorBoundary>
       </main>
       <Footer />
     </div>
@@ -154,21 +160,26 @@ function App() {
   }, []);
   
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="dark">
-        <TooltipProvider>
-          <AudioProvider>
-            <AuthProvider>
-              <AuthAwareEffects />
-              <AudioEventBridge />
-              <Toaster />
-              <Router />
-              <FeedbackWidget variant="floating" />
-            </AuthProvider>
-          </AudioProvider>
-        </TooltipProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    // Outermost backstop: the page-level boundary inside <Router /> handles most
+    // crashes while keeping the navbar usable, but a throw in the chrome itself
+    // (navbar, providers, alerts) would sail past it and blank the app.
+    <ErrorBoundary label="root">
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider attribute="class" defaultTheme="dark">
+          <TooltipProvider>
+            <AudioProvider>
+              <AuthProvider>
+                <AuthAwareEffects />
+                <AudioEventBridge />
+                <Toaster />
+                <Router />
+                <FeedbackWidget variant="floating" />
+              </AuthProvider>
+            </AudioProvider>
+          </TooltipProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

@@ -15191,6 +15191,43 @@ Focus on:
         role: invitation.role
       });
 
+      // The broadcast above only reaches whoever happens to be connected right
+      // now, so in async play a join can go completely unnoticed — the DM finds
+      // a stranger in the turn order with no idea when they arrived. Record it
+      // in the turn log too, where it survives until each player has read it.
+      try {
+        const joinedCharacter = characterId ? await storage.getCharacter(characterId) : null;
+        const logged = await storage.recordCampaignTurn({
+          campaignId: invitation.campaignId,
+          sessionId: null,
+          userId: req.user.id,
+          characterId: characterId ?? null,
+          actorName: req.user.displayName || req.user.username || 'A new player',
+          characterName: joinedCharacter?.name ?? null,
+          choice: null,
+          narrative: `${req.user.displayName || req.user.username || 'A new player'} joined the party${
+            joinedCharacter?.name ? ` as ${joinedCharacter.name}` : ''
+          }.`,
+          rollResult: null,
+          sceneType: 'Party',
+          chapterNumber: null,
+        });
+
+        // The joiner doesn't need to be told about their own arrival.
+        await storage.setLastSeenTurnLogId(req.user.id, invitation.campaignId, logged.id);
+
+        broadcastMessage('party_turn_recorded', {
+          campaignId: invitation.campaignId,
+          turnId: logged.id,
+          actorName: logged.actorName,
+          characterName: logged.characterName,
+          createdAt: logged.createdAt,
+        });
+      } catch (err) {
+        // Never fail the join over a log write.
+        console.error('[TurnLog] Failed to record party join:', err);
+      }
+
       res.json({
         success: true,
         participant,
@@ -23856,6 +23893,14 @@ ${cachedNarrative}
             maxHitPoints: newMaxHitPoints,
             gold: newGold,
             status: newStatus,
+            // Stamp the moment of death, and clear it on anyone who is no
+            // longer dead. Revivify vs Raise Dead turns entirely on how long
+            // ago this was, and without it every death looks equally old.
+            ...(newStatus === 'dead'
+              ? (character.status !== 'dead'
+                  ? { deathTimestamp: new Date().toISOString() }
+                  : {})
+              : { deathTimestamp: null }),
             deathSaveSuccesses,
             deathSaveFailures,
             equipment: newEquipment,
@@ -29197,6 +29242,439 @@ Snapshots must include at least 2 forked endings.`;
     }
   });
 
+  // ---- Party mutual aid --------------------------------------------------
+  // In async play the party isn't in the room together: a character can sit
+  // downed, dead, or broke for days waiting on whoever holds the potion. These
+  // let one player act for another directly. Every transfer runs in a single
+  // transaction, because a half-applied hand-off either duplicates an item or
+  // destroys it, and players notice both.
+
+  /**
+   * Both characters must be in this campaign, and the giver must be the
+   * requester's own character — otherwise a player could empty someone else's
+   * purse. Returns the pair, or a reason to refuse.
+   */
+  async function resolvePartyPair(
+    campaignId: number,
+    userId: number,
+    fromCharacterId: number,
+    toCharacterId: number,
+  ): Promise<{ error: string; status: number } | { from: any; to: any }> {
+    if (!Number.isInteger(fromCharacterId) || !Number.isInteger(toCharacterId)) {
+      return { error: "Both characters must be specified", status: 400 };
+    }
+    if (fromCharacterId === toCharacterId) {
+      return { error: "Pick a different character to give to", status: 400 };
+    }
+
+    const participants = await storage.getCampaignParticipants(campaignId);
+    const inParty = new Set(participants.map((p) => p.characterId));
+    if (!inParty.has(fromCharacterId) || !inParty.has(toCharacterId)) {
+      return { error: "Both characters must be in this campaign", status: 403 };
+    }
+
+    const [from, to] = await Promise.all([
+      storage.getCharacter(fromCharacterId),
+      storage.getCharacter(toCharacterId),
+    ]);
+    if (!from || !to) return { error: "Character not found", status: 404 };
+    if (from.userId !== userId) {
+      return { error: "You can only give away your own character's things", status: 403 };
+    }
+    return { from, to };
+  }
+
+  // Mirrors how party turns are recorded so aid shows up in the same chronicle
+  // and the same "while you were away" notice as everything else.
+  async function logPartyAid(
+    campaignId: number,
+    userId: number,
+    actor: any,
+    narrative: string,
+  ) {
+    try {
+      const logged = await storage.recordCampaignTurn({
+        campaignId,
+        sessionId: null,
+        userId,
+        characterId: actor?.id ?? null,
+        actorName: actor?.name ?? "A party member",
+        characterName: actor?.name ?? null,
+        choice: null,
+        narrative,
+        rollResult: null,
+        sceneType: "Party",
+        chapterNumber: null,
+      });
+      await storage.setLastSeenTurnLogId(userId, campaignId, logged.id);
+      broadcastMessage("party_turn_recorded", {
+        campaignId,
+        turnId: logged.id,
+        actorName: logged.actorName,
+        characterName: logged.characterName,
+        createdAt: logged.createdAt,
+      });
+    } catch (err) {
+      console.error("[TurnLog] Failed to record party aid:", err);
+    }
+  }
+
+  // Hand coin to another party member.
+  app.post("/api/campaigns/:campaignId/party/give-gold", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const fromCharacterId = parseInt(req.body?.fromCharacterId);
+      const toCharacterId = parseInt(req.body?.toCharacterId);
+      const amount = parseInt(req.body?.amount);
+
+      if (!Number.isInteger(amount) || amount <= 0) {
+        return res.status(400).json({ message: "Enter an amount of at least 1 gold" });
+      }
+
+      const pair = await resolvePartyPair(campaignId, req.user.id, fromCharacterId, toCharacterId);
+      if ("error" in pair) return res.status(pair.status).json({ message: pair.error });
+      const { from, to } = pair;
+
+      if ((from.gold ?? 0) < amount) {
+        return res.status(400).json({ message: `${from.name} only has ${from.gold ?? 0} gold` });
+      }
+
+      // Guarded UPDATE rather than read-then-write: two simultaneous gifts from
+      // the same purse would otherwise both pass the check above and overdraw it.
+      const moved = await db.transaction(async (tx) => {
+        const [debited] = await tx
+          .update(characters)
+          .set({ gold: sql`${characters.gold} - ${amount}` })
+          .where(and(eq(characters.id, from.id), gte(characters.gold, amount)))
+          .returning();
+        if (!debited) return null;
+        await tx
+          .update(characters)
+          .set({ gold: sql`COALESCE(${characters.gold}, 0) + ${amount}` })
+          .where(eq(characters.id, to.id));
+        return debited;
+      });
+
+      if (!moved) {
+        return res.status(409).json({ message: "That gold was already spent — try again" });
+      }
+
+      await logPartyAid(
+        campaignId,
+        req.user.id,
+        from,
+        `${from.name} gave ${amount} gold to ${to.name}.`,
+      );
+
+      res.json({ success: true, amount, remainingGold: moved.gold });
+    } catch (error) {
+      console.error("Failed to give gold:", error);
+      res.status(500).json({ message: "Failed to give gold" });
+    }
+  });
+
+  // Hand an item across. Equipped or attuned gear has to be taken off first —
+  // silently unequipping someone's armour mid-fight is a nasty surprise.
+  app.post("/api/campaigns/:campaignId/party/give-item", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const fromCharacterId = parseInt(req.body?.fromCharacterId);
+      const toCharacterId = parseInt(req.body?.toCharacterId);
+      const itemId = parseInt(req.body?.itemId);
+      const quantity = req.body?.quantity == null ? 1 : parseInt(req.body.quantity);
+
+      if (!Number.isInteger(quantity) || quantity <= 0) {
+        return res.status(400).json({ message: "Quantity must be at least 1" });
+      }
+
+      const pair = await resolvePartyPair(campaignId, req.user.id, fromCharacterId, toCharacterId);
+      if ("error" in pair) return res.status(pair.status).json({ message: pair.error });
+      const { from, to } = pair;
+
+      const [item] = await db
+        .select()
+        .from(characterInventory)
+        .where(and(eq(characterInventory.id, itemId), eq(characterInventory.characterId, from.id)));
+
+      if (!item) return res.status(404).json({ message: "That item isn't in your pack" });
+      if (item.isEquipped) {
+        return res.status(400).json({ message: `Unequip ${item.name} before giving it away` });
+      }
+      if (item.isAttuned) {
+        return res.status(400).json({ message: `End your attunement to ${item.name} first` });
+      }
+      if ((item.quantity ?? 1) < quantity) {
+        return res.status(400).json({ message: `You only have ${item.quantity ?? 1} of those` });
+      }
+
+      await db.transaction(async (tx) => {
+        const remaining = (item.quantity ?? 1) - quantity;
+        if (remaining > 0) {
+          await tx
+            .update(characterInventory)
+            .set({ quantity: remaining })
+            .where(eq(characterInventory.id, item.id));
+        } else {
+          await tx.delete(characterInventory).where(eq(characterInventory.id, item.id));
+        }
+
+        // Merge into an identical stack if the recipient already carries one,
+        // so handing over 3 rations doesn't litter their pack with 3 rows.
+        const [existing] = await tx
+          .select()
+          .from(characterInventory)
+          .where(
+            and(
+              eq(characterInventory.characterId, to.id),
+              eq(characterInventory.name, item.name),
+              eq(characterInventory.type, item.type),
+            ),
+          );
+
+        if (existing) {
+          await tx
+            .update(characterInventory)
+            .set({ quantity: (existing.quantity ?? 1) + quantity })
+            .where(eq(characterInventory.id, existing.id));
+        } else {
+          const { id: _dropId, characterId: _dropChar, ...rest } = item as any;
+          await tx.insert(characterInventory).values({
+            ...rest,
+            characterId: to.id,
+            quantity,
+            isEquipped: false,
+            isAttuned: false,
+          });
+        }
+      });
+
+      await logPartyAid(
+        campaignId,
+        req.user.id,
+        from,
+        `${from.name} gave ${quantity > 1 ? `${quantity} ` : ""}${item.name} to ${to.name}.`,
+      );
+
+      res.json({ success: true, item: item.name, quantity });
+    } catch (error) {
+      console.error("Failed to give item:", error);
+      res.status(500).json({ message: "Failed to give item" });
+    }
+  });
+
+  // Potion strength by name — 5e's four tiers. Anything unrecognised is treated
+  // as a basic potion rather than refused, since homebrew names are common.
+  function healingPotionDice(name: string): { count: number; bonus: number } | null {
+    const n = (name || "").toLowerCase();
+    if (!n.includes("potion") || !n.includes("healing")) return null;
+    if (n.includes("supreme")) return { count: 10, bonus: 20 };
+    if (n.includes("superior")) return { count: 8, bonus: 8 };
+    if (n.includes("greater")) return { count: 4, bonus: 4 };
+    return { count: 2, bonus: 2 };
+  }
+
+  // Pour a healing potion down an ally's throat. Administering a potion to an
+  // unconscious ally is a legal action in 5e, and it's the single most common
+  // thing a party needs to do for someone who isn't at the table right now.
+  app.post("/api/campaigns/:campaignId/party/use-potion", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const fromCharacterId = parseInt(req.body?.fromCharacterId);
+      const toCharacterId = parseInt(req.body?.toCharacterId);
+      const itemId = parseInt(req.body?.itemId);
+
+      const pair = await resolvePartyPair(campaignId, req.user.id, fromCharacterId, toCharacterId);
+      if ("error" in pair) return res.status(pair.status).json({ message: pair.error });
+      const { from, to } = pair;
+
+      // A potion does nothing for the dead — that needs Revivify or Raise Dead.
+      if (to.status === "dead") {
+        return res.status(400).json({
+          message: `${to.name} is dead. A potion won't help — they need to be revived.`,
+        });
+      }
+
+      const [item] = await db
+        .select()
+        .from(characterInventory)
+        .where(and(eq(characterInventory.id, itemId), eq(characterInventory.characterId, from.id)));
+
+      if (!item) return res.status(404).json({ message: "That potion isn't in your pack" });
+      const dice = healingPotionDice(item.name);
+      if (!dice) return res.status(400).json({ message: `${item.name} isn't a healing potion` });
+
+      let rolls: number[] = [];
+      for (let i = 0; i < dice.count; i++) rolls.push(Math.floor(Math.random() * 4) + 1);
+      const healed = rolls.reduce((a, b) => a + b, 0) + dice.bonus;
+
+      const maxHp = to.maxHitPoints ?? 0;
+      const newHp = Math.min(maxHp, Math.max(0, to.hitPoints ?? 0) + healed);
+      const wasDown = to.status === "unconscious" || to.status === "stabilized";
+
+      await db.transaction(async (tx) => {
+        const remaining = (item.quantity ?? 1) - 1;
+        if (remaining > 0) {
+          await tx
+            .update(characterInventory)
+            .set({ quantity: remaining })
+            .where(eq(characterInventory.id, item.id));
+        } else {
+          await tx.delete(characterInventory).where(eq(characterInventory.id, item.id));
+        }
+        await tx
+          .update(characters)
+          .set({
+            hitPoints: newHp,
+            // Any healing above 0 HP ends the dying condition and wipes the
+            // death-save tally, per PHB "Damage at 0 Hit Points".
+            status: newHp > 0 ? "conscious" : to.status,
+            deathSaveSuccesses: newHp > 0 ? 0 : to.deathSaveSuccesses,
+            deathSaveFailures: newHp > 0 ? 0 : to.deathSaveFailures,
+          })
+          .where(eq(characters.id, to.id));
+      });
+
+      const selfAdministered = from.id === to.id;
+      await logPartyAid(
+        campaignId,
+        req.user.id,
+        from,
+        selfAdministered
+          ? `${from.name} drank ${item.name}, recovering ${healed} hit points.`
+          : `${from.name} gave ${item.name} to ${to.name}, recovering ${healed} hit points${
+              wasDown ? " and bringing them back to consciousness" : ""
+            }.`,
+      );
+
+      res.json({
+        success: true,
+        healed,
+        rolls,
+        hitPoints: newHp,
+        maxHitPoints: maxHp,
+        revived: wasDown && newHp > 0,
+      });
+    } catch (error) {
+      console.error("Failed to use potion:", error);
+      res.status(500).json({ message: "Failed to use potion" });
+    }
+  });
+
+  // Bring a dead party member back. Which spell applies depends on how long
+  // they've been dead: Revivify inside a minute, Raise Dead out to ten days.
+  // Past that it's Resurrection, which is above what a party can do unaided.
+  // The caster requirement is deliberately dropped — in async play the one
+  // cleric may be offline for days, and that deadlock is what stranded the
+  // player who prompted this. Paying the diamond is the cost that matters.
+  app.post("/api/campaigns/:campaignId/party/revive", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const fromCharacterId = parseInt(req.body?.fromCharacterId);
+      const toCharacterId = parseInt(req.body?.toCharacterId);
+
+      const pair = await resolvePartyPair(campaignId, req.user.id, fromCharacterId, toCharacterId);
+      if ("error" in pair) return res.status(pair.status).json({ message: pair.error });
+      const { from, to } = pair;
+
+      if (to.status !== "dead") {
+        return res.status(400).json({ message: `${to.name} isn't dead.` });
+      }
+
+      // deathTimestamp is free-text, and is missing entirely on anyone who died
+      // before it started being recorded. Unknown must fall through to Raise
+      // Dead, not to the refusal below — treating "we don't know" as "too long
+      // ago" would strand exactly the players this exists for.
+      const diedAtMs = to.deathTimestamp ? Date.parse(to.deathTimestamp) : NaN;
+      const minutesDead = Number.isFinite(diedAtMs) ? (Date.now() - diedAtMs) / 60000 : null;
+
+      let spell: string;
+      let cost: number;
+      if (minutesDead !== null && minutesDead <= 1) {
+        spell = "Revivify";
+        cost = 300;
+      } else if (minutesDead === null || minutesDead <= 10 * 24 * 60) {
+        spell = "Raise Dead";
+        cost = 500;
+      } else {
+        return res.status(400).json({
+          message: `${to.name} has been dead more than ten days. Only Resurrection can reach them now — ask your DM.`,
+        });
+      }
+
+      if ((from.gold ?? 0) < cost) {
+        return res.status(400).json({
+          message: `${spell} consumes a diamond worth ${cost} gold. ${from.name} has ${from.gold ?? 0}.`,
+        });
+      }
+
+      // Guarded debit so two rescuers can't both pay from one purse, and a
+      // guarded revive so a second caster isn't charged for a casting that
+      // someone else already completed.
+      const revived = await db.transaction(async (tx) => {
+        // Debit first, guarded: if the purse can't cover it nothing else has
+        // been touched yet, so we can bail with no state to undo.
+        const [paid] = await tx
+          .update(characters)
+          .set({ gold: sql`${characters.gold} - ${cost}` })
+          .where(and(eq(characters.id, from.id), gte(characters.gold, cost)))
+          .returning();
+        if (!paid) return { outcome: "broke" as const };
+
+        // Both spells return the target at exactly 1 hit point. Guarded on
+        // status='dead' so a second rescuer racing the first is a no-op.
+        const [target] = await tx
+          .update(characters)
+          .set({
+            hitPoints: 1,
+            status: "conscious",
+            deathSaveSuccesses: 0,
+            deathSaveFailures: 0,
+            deathTimestamp: null,
+          })
+          .where(and(eq(characters.id, to.id), eq(characters.status, "dead")))
+          .returning();
+
+        if (!target) {
+          // Someone got there first. Hand the diamond back rather than charging
+          // for a casting that did nothing. Deliberately a compensating credit
+          // instead of tx.rollback(), which throws in drizzle and would surface
+          // to the player as a 500 rather than a clean "already revived".
+          await tx
+            .update(characters)
+            .set({ gold: sql`${characters.gold} + ${cost}` })
+            .where(eq(characters.id, from.id));
+          return { outcome: "already" as const };
+        }
+        return { outcome: "revived" as const, paid, target };
+      });
+
+      if (revived.outcome === "already") {
+        return res.status(409).json({ message: `${to.name} has already been brought back.` });
+      }
+      if (revived.outcome === "broke") {
+        return res.status(409).json({ message: "That gold was already spent — try again" });
+      }
+
+      await logPartyAid(
+        campaignId,
+        req.user.id,
+        from,
+        `${from.name} cast ${spell} on ${to.name}, spending a diamond worth ${cost} gold. ${to.name} draws breath again at 1 hit point.`,
+      );
+
+      res.json({
+        success: true,
+        spell,
+        cost,
+        remainingGold: revived.paid.gold,
+        target: { id: to.id, name: to.name, hitPoints: 1, status: "conscious" },
+      });
+    } catch (error) {
+      console.error("Failed to revive character:", error);
+      res.status(500).json({ message: "Failed to revive character" });
+    }
+  });
+
   // The lasting trace: the full chronicle, newest first, paged backwards.
   app.get("/api/campaigns/:campaignId/turn-log", isAuthenticated, async (req: any, res) => {
     try {
@@ -29673,6 +30151,34 @@ Snapshots must include at least 2 forked endings.`;
       console.error("Error closing site visit:", error);
       res.status(204).end();
     }
+  });
+
+  // A client-side crash used to leave no trace at all: the player saw a blank
+  // page, refreshed, and we never heard about it. The ErrorBoundary posts here
+  // so the throw lands in the server log where we can actually find it.
+  // Deliberately unauthenticated — a crash in the auth chrome must still report.
+  app.post("/api/client-errors", async (req: any, res) => {
+    try {
+      const { message, stack, componentStack, boundary, path, userAgent } = req.body ?? {};
+      const trim = (v: unknown, n: number) =>
+        typeof v === "string" ? v.slice(0, n) : undefined;
+      console.error(
+        "[ClientError]",
+        JSON.stringify({
+          boundary: trim(boundary, 40) ?? "unknown",
+          path: trim(path, 200),
+          message: trim(message, 500),
+          userId: req.user?.id ?? null,
+          userAgent: trim(userAgent, 200),
+          stack: trim(stack, 2000),
+          componentStack: trim(componentStack, 2000),
+        }),
+      );
+    } catch (error) {
+      console.error("Failed to record client error:", error);
+    }
+    // Always 204 — the reporter must never retry or surface a failure to the player.
+    res.status(204).end();
   });
 
   // Track user activity event (for frontend tracking)
