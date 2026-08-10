@@ -23201,6 +23201,56 @@ ${cachedNarrative}
       
       console.log(`[Advance Story] Session ${updatedSession?.id} updated successfully - new narrative length: ${updatedSession?.narrative?.length || 0}`);
 
+      // Write this turn into the party's permanent chronicle, attributed to the
+      // player who took it. Asynchronous tables run on this record: it is what
+      // tells the next player to log in that someone moved, in whose words, and
+      // it is the only place that memory survives the 200-entry action log.
+      //
+      // Fire-and-forget on purpose — the story turn has already been saved and
+      // answered, and no chronicle failure may cost a player the turn they took.
+      const chroniclerUserId = (req as any).user?.id;
+      void (async () => {
+        // Guest/demo play has no seated user, so there is nobody to attribute a
+        // turn to and nobody waiting to be told about it.
+        if (!chroniclerUserId) return;
+        try {
+          const actor = await storage.getUser(chroniclerUserId);
+          const seat = turnRoster.find(s => s.userId === chroniclerUserId);
+          const actorCharacter = seat?.characterId
+            ? await storage.getCharacter(seat.characterId)
+            : null;
+
+          const logged = await storage.recordCampaignTurn({
+            campaignId,
+            sessionId: updatedSession?.id ?? currentSession?.id ?? null,
+            userId: chroniclerUserId,
+            characterId: seat?.characterId ?? null,
+            actorName: actor?.displayName || actor?.username || 'A player',
+            characterName: actorCharacter?.name ?? null,
+            choice: typeof choice === 'string' ? choice : (choice ? JSON.stringify(choice) : null),
+            narrative: storyAdvancement.narrative ?? null,
+            rollResult: rollResult ?? null,
+            sceneType: storyAdvancement.sceneType || (mergedStoryState?.inCombat ? 'Combat' : 'Exploration'),
+            chapterNumber: (campaign as any).currentSession ?? null,
+          });
+
+          // The acting player has by definition already read their own turn.
+          await storage.setLastSeenTurnLogId(chroniclerUserId, campaignId, logged.id);
+
+          // Everyone else's client learns there is something new to read without
+          // waiting for a poll or a page reload.
+          broadcastMessage('party_turn_recorded', {
+            campaignId,
+            turnId: logged.id,
+            actorName: logged.actorName,
+            characterName: logged.characterName,
+            createdAt: logged.createdAt,
+          });
+        } catch (err) {
+          console.error('[TurnLog] Failed to record party turn:', err);
+        }
+      })();
+
       // Progressive scaffolding (Phase 1 — the dial). Record this turn's signal,
       // evaluate the player's rung, and act on it: the resulting rung governs how
       // the choices we return are presented (visibility-by-rung, §5.1).
@@ -29059,6 +29109,124 @@ Snapshots must include at least 2 forked endings.`;
   });
   
   // "While You Were Away" — world events + cliffhanger recap since last visit
+  // ---------------------------------------------------------------------------
+  // Party turn log — what other players did, in their own words.
+  //
+  // "While you were away" is atmosphere: world events and a recap. These three
+  // endpoints are the record. An asynchronous table only works if a player who
+  // opens the campaign on Thursday is told plainly that Mira moved on Tuesday,
+  // can read exactly what she chose and exactly what the table saw in reply, and
+  // can still find that moment a month later.
+  // ---------------------------------------------------------------------------
+
+  // Sign-in level notice: across every table this player sits at, where did the
+  // party move without them? This is what reaches them before they have chosen a
+  // campaign to open.
+  app.get("/api/me/party-activity", isAuthenticated, async (req: any, res) => {
+    try {
+      const activity = await storage.getPartyActivityForUser(req.user.id);
+      res.json({
+        campaigns: activity,
+        totalUnseen: activity.reduce((sum, a) => sum + a.unseenCount, 0),
+      });
+    } catch (error) {
+      console.error("Failed to fetch party activity:", error);
+      res.status(500).json({ message: "Failed to fetch party activity" });
+    }
+  });
+
+  // How many turns other players have taken that this viewer has not read, with
+  // the full text of each.
+  app.get("/api/campaigns/:campaignId/turns/unseen", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = req.user.id;
+      if (!Number.isFinite(campaignId)) {
+        return res.status(400).json({ message: "Invalid campaign id" });
+      }
+
+      const participants = await storage.getCampaignParticipants(campaignId);
+      const isSeated = participants.some((p: any) => p.userId === userId);
+      const campaign = await storage.getCampaign(campaignId);
+      if (!isSeated && campaign?.userId !== userId) {
+        return res.status(403).json({ message: "You are not at this table" });
+      }
+
+      const tracking = await storage.getUserSessionTracking(userId, campaignId);
+      let afterId = tracking?.lastSeenTurnLogId ?? 0;
+
+      // First run for this player (or a table that predates the chronicle): show
+      // recent history rather than either nothing or the campaign's whole past.
+      // Without this, everyone who joined before the turn log shipped would get a
+      // permanently empty notice.
+      if (!afterId) {
+        const backfill = await storage.getCampaignTurnLog(campaignId, { limit: 6 });
+        afterId = backfill.length ? backfill[backfill.length - 1].id - 1 : 0;
+      }
+
+      const turns = await storage.getUnseenCampaignTurns(campaignId, userId, afterId);
+      const latestTurnId = await storage.getLatestCampaignTurnId(campaignId);
+
+      res.json({
+        turns,
+        count: turns.length,
+        latestTurnId,
+        lastSeenTurnId: tracking?.lastSeenTurnLogId ?? 0,
+      });
+    } catch (error) {
+      console.error("Failed to fetch unseen party turns:", error);
+      res.status(500).json({ message: "Failed to fetch unseen party turns" });
+    }
+  });
+
+  // Mark the chronicle read up to a point. Sent when the player actually sees the
+  // notice, not when the page loads — a turn nobody looked at is still unread.
+  app.post("/api/campaigns/:campaignId/turns/seen", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const turnId = parseInt(req.body?.lastTurnId);
+      if (!Number.isFinite(campaignId) || !Number.isFinite(turnId) || turnId < 0) {
+        return res.status(400).json({ message: "Invalid campaign or turn id" });
+      }
+
+      await storage.setLastSeenTurnLogId(req.user.id, campaignId, turnId);
+      res.json({ ok: true, lastSeenTurnId: turnId });
+    } catch (error) {
+      console.error("Failed to mark party turns as seen:", error);
+      res.status(500).json({ message: "Failed to mark party turns as seen" });
+    }
+  });
+
+  // The lasting trace: the full chronicle, newest first, paged backwards.
+  app.get("/api/campaigns/:campaignId/turn-log", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = req.user.id;
+      if (!Number.isFinite(campaignId)) {
+        return res.status(400).json({ message: "Invalid campaign id" });
+      }
+
+      const participants = await storage.getCampaignParticipants(campaignId);
+      const isSeated = participants.some((p: any) => p.userId === userId);
+      const campaign = await storage.getCampaign(campaignId);
+      if (!isSeated && campaign?.userId !== userId) {
+        return res.status(403).json({ message: "You are not at this table" });
+      }
+
+      const limit = parseInt(req.query.limit) || 50;
+      const beforeId = parseInt(req.query.beforeId) || undefined;
+      const entries = await storage.getCampaignTurnLog(campaignId, { limit, beforeId });
+
+      res.json({
+        entries,
+        hasMore: entries.length === Math.min(Math.max(limit, 1), 200),
+      });
+    } catch (error) {
+      console.error("Failed to fetch campaign turn log:", error);
+      res.status(500).json({ message: "Failed to fetch campaign turn log" });
+    }
+  });
+
   app.get("/api/campaigns/:campaignId/while-you-were-away", isAuthenticated, async (req: any, res) => {
     try {
       const campaignId = parseInt(req.params.campaignId);

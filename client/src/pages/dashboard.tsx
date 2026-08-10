@@ -14,6 +14,7 @@ import { BecomeDMInvite } from "@/components/onboarding/BecomeDMInvite";
 import PlayerQuickStart from "@/components/PlayerQuickStart";
 import SinceLastTime from "@/components/SinceLastTime";
 import { WhatsNextModal, useWhatsNextModal } from "@/components/onboarding/WhatsNextModal";
+import { PartyActivityBanner } from "@/components/campaign/PartyActivityBanner";
 import { Character, Campaign, SharedAdventure } from "@shared/schema";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
@@ -278,9 +279,12 @@ export default function Dashboard() {
       <WhatsNextModal 
         isOpen={whatsNextOpen} 
         onClose={closeWhatsNext} 
-        completedType={completedType} 
+        completedType={completedType}
       />
-      
+
+      {/* The party moved without you — say so before anything else on the page */}
+      <PartyActivityBanner />
+
       {/* Hero Section - landing/marketing banner; hidden during active play (duplicative of the play header below) */}
       {!activeCampaign && (
       <div className="container mx-auto px-4 pt-8 pb-2">

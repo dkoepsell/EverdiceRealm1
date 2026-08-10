@@ -56,6 +56,8 @@ import CampaignDashboard from "./CampaignDashboard";
 import { QuestBoard } from "./QuestBoard";
 import { CombatLogPanel } from "./CombatLogPanel";
 import { WhileYouWereAway } from "./WhileYouWereAway";
+import { PartyTurnsSinceYouLeft } from "./PartyTurnsSinceYouLeft";
+import { PartyChronicle } from "./PartyChronicle";
 import TableChat from "@/components/dm-toolkit/TableChat";
 import CombatSpellPanel from "@/components/combat/CombatSpellPanel";
 import { LearningTip, useLearningTips } from "@/components/learning/LearningTip";
@@ -4819,6 +4821,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </div>
                     )}
                     
+                    {/* What the rest of the party did — named, in full, first thing */}
+                    <PartyTurnsSinceYouLeft campaignId={campaign.id} />
+
+                    {/* The chronicle stays reachable once you are caught up; a
+                        record you can only open while you have unread news is not
+                        a record. */}
+                    <div className="mb-3 flex justify-end">
+                      <PartyChronicle campaignId={campaign.id} />
+                    </div>
+
                     {/* While You Were Away */}
                     <WhileYouWereAway campaignId={campaign.id} />
 

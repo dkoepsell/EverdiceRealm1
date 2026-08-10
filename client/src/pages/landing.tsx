@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
+import { PartyActivityBanner } from "@/components/campaign/PartyActivityBanner";
 import { 
   Sparkles, 
   Users, 
@@ -82,6 +83,10 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen">
+      {/* A signed-in player lands here, so the news that the party moved has to
+          reach them here too — not only once they find their way to a campaign. */}
+      {user && <PartyActivityBanner />}
+
       {/* Hero Section */}
       <section 
         className="relative min-h-screen flex items-center justify-center"

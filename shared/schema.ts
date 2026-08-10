@@ -1593,10 +1593,47 @@ export const userSessionTracking = pgTable("user_session_tracking", {
   lastWorldStateHash: text("last_world_state_hash"), // To detect meaningful changes
   sinceThenBullets: jsonb("since_then_bullets").default([]), // Cached bullets for display
   bulletsCachedAt: text("bullets_cached_at"),
+  // How far this player has read the party's turn log. Everything after this id
+  // is news to them, which is what makes the "while you were away" notice exact
+  // rather than a guess based on elapsed time.
+  lastSeenTurnLogId: integer("last_seen_turn_log_id").default(0),
 }, (t) => [
   index("idx_user_session_tracking_campaign_id").on(t.campaignId),
   index("idx_user_session_tracking_user_id").on(t.userId),
 ]);
+
+// The party's permanent, attributed record of who did what.
+//
+// `campaign_sessions.action_log` already keeps a rolling window of the last 200
+// entries, but it records only *what* happened — never *who* chose it — and it
+// throws history away. An asynchronous table needs the opposite: a player who
+// comes back on Thursday must be able to see that it was Mira who bribed the
+// guard on Tuesday, read her exact words and the full reply the table got, and
+// still find that moment months later. So this table is append-only, attributed,
+// and never trimmed.
+export const campaignTurnLog = pgTable("campaign_turn_log", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  sessionId: integer("session_id"),
+  userId: integer("user_id"), // Null for DM/system narration with no seated player
+  characterId: integer("character_id"),
+  // Names are denormalised on purpose: a player can leave the table or rename a
+  // character, and the chronicle must still read correctly years later.
+  actorName: text("actor_name").notNull(),
+  characterName: text("character_name"),
+  choice: text("choice"), // The player's own words — the choice they made
+  narrative: text("narrative"), // The full text the table saw in reply
+  rollResult: jsonb("roll_result"),
+  sceneType: text("scene_type"),
+  chapterNumber: integer("chapter_number"),
+  createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
+}, (t) => [
+  index("idx_campaign_turn_log_campaign_id").on(t.campaignId),
+  index("idx_campaign_turn_log_campaign_seq").on(t.campaignId, t.id),
+]);
+
+export type CampaignTurnLogEntry = typeof campaignTurnLog.$inferSelect;
+export type InsertCampaignTurnLogEntry = typeof campaignTurnLog.$inferInsert;
 
 // World Rumors - Background narrative suggestions, not missions
 export const worldRumors = pgTable("world_rumors", {

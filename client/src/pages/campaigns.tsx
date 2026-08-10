@@ -132,6 +132,22 @@ export default function Campaigns() {
     queryFn: getQueryFn({ on401: "throw" })
   });
 
+  // Deep link: /campaigns?open=<id> lands straight in that campaign. The party
+  // activity notice on the dashboard points here, and a notice you have to go
+  // hunting through a card grid to act on is not much of a notice.
+  const [autoOpenHandled, setAutoOpenHandled] = useState(false);
+  useEffect(() => {
+    if (autoOpenHandled || !campaigns?.length) return;
+    const requested = parseInt(new URLSearchParams(window.location.search).get('open') || '');
+    if (!Number.isFinite(requested)) {
+      setAutoOpenHandled(true);
+      return;
+    }
+    const match = campaigns.find(c => c.id === requested);
+    if (match) setSelectedCampaign(match);
+    setAutoOpenHandled(true);
+  }, [campaigns, autoOpenHandled]);
+
   // selectedCampaign is the snapshot captured when the card was clicked, so fields that
   // change during play — currentSession above all — stay frozen at their page-load values.
   // Re-read the row from the list query (which the play panel invalidates on a chapter

@@ -125,6 +125,12 @@ export function createWSConnection(force = false) {
           window.dispatchEvent(new CustomEvent('badge_unlocked', {
             detail: data.payload
           }));
+        } else if (data.type === 'party_turn_recorded') {
+          // Another player took a turn. Anyone with the campaign open should be
+          // told now rather than on their next reload.
+          window.dispatchEvent(new CustomEvent('party_turn_recorded', {
+            detail: data.payload
+          }));
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);

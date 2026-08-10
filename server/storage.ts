@@ -54,6 +54,7 @@ import {
   unresolvedThreads, type UnresolvedThread, type InsertUnresolvedThread,
   characterArcInsights, type CharacterArcInsight, type InsertCharacterArcInsight,
   userSessionTracking,
+  campaignTurnLog, type CampaignTurnLogEntry, type InsertCampaignTurnLogEntry,
   // Spell system
   spells, type Spell, type InsertSpell,
   characterSpells, type CharacterSpell, type InsertCharacterSpell,
@@ -85,7 +86,7 @@ import {
   userActivityEvents
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql, asc, or, inArray, isNull } from "drizzle-orm";
+import { eq, and, desc, sql, asc, or, inArray, isNull, gt, lt, ne } from "drizzle-orm";
 import { orderRoster, nextSeatIndex, type TurnRosterEntry } from "./lib/turnOrder";
 
 // One seat per human player; see server/lib/turnOrder.ts for the rules.
@@ -464,7 +465,22 @@ export interface IStorage {
   getUserSessionTracking(userId: number, campaignId: number): Promise<any>;
   updateUserSessionTracking(userId: number, campaignId: number, bullets: any[]): Promise<any>;
   getSinceLastTimeBullets(userId: number, campaignId: number): Promise<string[]>;
-  
+
+  // Party turn log — permanent, attributed record of who chose what
+  recordCampaignTurn(entry: InsertCampaignTurnLogEntry): Promise<CampaignTurnLogEntry>;
+  getCampaignTurnLog(campaignId: number, options?: { limit?: number; beforeId?: number }): Promise<CampaignTurnLogEntry[]>;
+  getUnseenCampaignTurns(campaignId: number, userId: number, afterId: number, limit?: number): Promise<CampaignTurnLogEntry[]>;
+  getLatestCampaignTurnId(campaignId: number): Promise<number>;
+  getPartyActivityForUser(userId: number): Promise<Array<{
+    campaignId: number;
+    campaignTitle: string;
+    unseenCount: number;
+    latestTurnId: number;
+    lastActorName: string | null;
+    lastTurnAt: string | null;
+  }>>;
+  setLastSeenTurnLogId(userId: number, campaignId: number, turnLogId: number): Promise<void>;
+
   // Spell Library operations
   getAllSpells(): Promise<Spell[]>;
   getSpell(id: number): Promise<Spell | undefined>;
@@ -4445,7 +4461,187 @@ export class DatabaseStorage implements IStorage {
     if (!tracking || !tracking.sinceThenBullets) return [];
     return tracking.sinceThenBullets as string[];
   }
-  
+
+  // ---------------------------------------------------------------------------
+  // Party turn log — the permanent, attributed record of who chose what.
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Append one turn to the campaign's chronicle. Never throws into the caller:
+   * a story turn the player already took must not be lost because bookkeeping
+   * failed, so failures are logged and swallowed by the caller.
+   */
+  async recordCampaignTurn(entry: InsertCampaignTurnLogEntry): Promise<CampaignTurnLogEntry> {
+    const [created] = await db.insert(campaignTurnLog).values(entry).returning();
+    return created;
+  }
+
+  /**
+   * The chronicle, newest first. `beforeId` pages backwards through history.
+   */
+  async getCampaignTurnLog(
+    campaignId: number,
+    options: { limit?: number; beforeId?: number } = {}
+  ): Promise<CampaignTurnLogEntry[]> {
+    const limit = Math.min(Math.max(options.limit ?? 50, 1), 200);
+    const conditions = [eq(campaignTurnLog.campaignId, campaignId)];
+    if (options.beforeId) conditions.push(lt(campaignTurnLog.id, options.beforeId));
+
+    return db.select()
+      .from(campaignTurnLog)
+      .where(and(...conditions))
+      .orderBy(desc(campaignTurnLog.id))
+      .limit(limit);
+  }
+
+  /**
+   * Turns taken by *other* players that this viewer has not read yet, oldest
+   * first so they read as a story. Their own turns are excluded — nobody needs
+   * to be told what they themselves did.
+   */
+  async getUnseenCampaignTurns(
+    campaignId: number,
+    userId: number,
+    afterId: number,
+    limit = 25
+  ): Promise<CampaignTurnLogEntry[]> {
+    return db.select()
+      .from(campaignTurnLog)
+      .where(and(
+        eq(campaignTurnLog.campaignId, campaignId),
+        gt(campaignTurnLog.id, afterId),
+        or(isNull(campaignTurnLog.userId), ne(campaignTurnLog.userId, userId))!
+      ))
+      .orderBy(asc(campaignTurnLog.id))
+      .limit(limit);
+  }
+
+  /**
+   * Across every table this player sits at, how many turns other players have
+   * taken that they have not read. This is what makes the notice reach them at
+   * sign-in, before they have picked a campaign to open.
+   *
+   * One grouped query over the log, not one per campaign — a player with a dozen
+   * tables should not cost a dozen round trips on every dashboard load.
+   */
+  async getPartyActivityForUser(userId: number): Promise<Array<{
+    campaignId: number;
+    campaignTitle: string;
+    unseenCount: number;
+    latestTurnId: number;
+    lastActorName: string | null;
+    lastTurnAt: string | null;
+  }>> {
+    const seats = await db.select({ campaignId: campaignParticipants.campaignId })
+      .from(campaignParticipants)
+      .where(and(
+        eq(campaignParticipants.userId, userId),
+        eq(campaignParticipants.isActive, true)
+      ));
+
+    const campaignIds = Array.from(new Set(seats.map(s => s.campaignId))).filter(Boolean) as number[];
+    if (campaignIds.length === 0) return [];
+
+    const trackingRows = await db.select()
+      .from(userSessionTracking)
+      .where(and(
+        eq(userSessionTracking.userId, userId),
+        inArray(userSessionTracking.campaignId, campaignIds)
+      ));
+    const markerByCampaign = new Map(
+      trackingRows.map(t => [t.campaignId, t.lastSeenTurnLogId ?? 0])
+    );
+
+    const scopes = campaignIds.map(id => and(
+      eq(campaignTurnLog.campaignId, id),
+      gt(campaignTurnLog.id, markerByCampaign.get(id) ?? 0)
+    ));
+
+    const grouped = await db.select({
+      campaignId: campaignTurnLog.campaignId,
+      unseenCount: sql<number>`count(*)::int`,
+      latestTurnId: sql<number>`max(${campaignTurnLog.id})::int`,
+    })
+      .from(campaignTurnLog)
+      .where(and(
+        or(...scopes)!,
+        or(isNull(campaignTurnLog.userId), ne(campaignTurnLog.userId, userId))!
+      ))
+      .groupBy(campaignTurnLog.campaignId);
+
+    if (grouped.length === 0) return [];
+
+    const activeIds = grouped.map(g => g.campaignId);
+    const [campaignRows, latestRows] = await Promise.all([
+      db.select({ id: campaigns.id, title: campaigns.title })
+        .from(campaigns)
+        .where(inArray(campaigns.id, activeIds)),
+      db.select({
+        id: campaignTurnLog.id,
+        campaignId: campaignTurnLog.campaignId,
+        actorName: campaignTurnLog.actorName,
+        characterName: campaignTurnLog.characterName,
+        createdAt: campaignTurnLog.createdAt,
+      })
+        .from(campaignTurnLog)
+        .where(inArray(campaignTurnLog.id, grouped.map(g => g.latestTurnId))),
+    ]);
+
+    const titleById = new Map(campaignRows.map(c => [c.id, c.title]));
+    const latestById = new Map(latestRows.map(r => [r.id, r]));
+
+    return grouped
+      .map(g => {
+        const latest = latestById.get(g.latestTurnId);
+        return {
+          campaignId: g.campaignId,
+          campaignTitle: titleById.get(g.campaignId) ?? "Your campaign",
+          unseenCount: g.unseenCount,
+          latestTurnId: g.latestTurnId,
+          lastActorName: latest?.characterName || latest?.actorName || null,
+          lastTurnAt: latest?.createdAt ?? null,
+        };
+      })
+      .sort((a, b) => (b.lastTurnAt ?? "").localeCompare(a.lastTurnAt ?? ""));
+  }
+
+  /** Highest turn id in the campaign, or 0 when nothing has been logged yet. */
+  async getLatestCampaignTurnId(campaignId: number): Promise<number> {
+    const [row] = await db.select({ id: campaignTurnLog.id })
+      .from(campaignTurnLog)
+      .where(eq(campaignTurnLog.campaignId, campaignId))
+      .orderBy(desc(campaignTurnLog.id))
+      .limit(1);
+    return row?.id ?? 0;
+  }
+
+  /**
+   * Move a player's read marker forward. Only ever forward — an out-of-order
+   * request from a stale tab must not resurrect turns the player already read.
+   */
+  async setLastSeenTurnLogId(userId: number, campaignId: number, turnLogId: number): Promise<void> {
+    const existing = await this.getUserSessionTracking(userId, campaignId);
+
+    if (!existing) {
+      await db.insert(userSessionTracking).values({
+        userId,
+        campaignId,
+        lastLoginAt: new Date().toISOString(),
+        lastSeenTurnLogId: turnLogId,
+      });
+      return;
+    }
+
+    if ((existing.lastSeenTurnLogId ?? 0) >= turnLogId) return;
+
+    await db.update(userSessionTracking)
+      .set({ lastSeenTurnLogId: turnLogId })
+      .where(and(
+        eq(userSessionTracking.userId, userId),
+        eq(userSessionTracking.campaignId, campaignId)
+      ));
+  }
+
   // Spell Library operations
   async getAllSpells(): Promise<Spell[]> {
     return db.select().from(spells).orderBy(asc(spells.level), asc(spells.name));
