@@ -29242,6 +29242,33 @@ Snapshots must include at least 2 forked endings.`;
     }
   });
 
+  // The older /api/characters/:id/inventory returns character.equipment — a
+  // list of plain strings — wrapped in an object. That's a different thing from
+  // the character_inventory table, which is what actually carries ids,
+  // quantities and attunement, and so is what handing an item over needs.
+  // Returns a bare array; the party-aid UI filters it directly.
+  app.get("/api/characters/:id/inventory-items", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const character = await storage.getCharacter(id);
+      if (!character) return res.status(404).json({ message: "Character not found" });
+      if (character.userId !== req.user.id) {
+        return res.status(403).json({ message: "That isn't your character" });
+      }
+      // Drizzle's query builder rather than raw SQL, so the caller gets
+      // camelCase fields instead of the table's snake_case columns.
+      const rows = await db
+        .select()
+        .from(characterInventory)
+        .where(eq(characterInventory.characterId, id))
+        .orderBy(characterInventory.name);
+      res.json(rows);
+    } catch (error) {
+      console.error("Failed to fetch inventory items:", error);
+      res.status(500).json({ message: "Failed to fetch inventory items" });
+    }
+  });
+
   // ---- Party mutual aid --------------------------------------------------
   // In async play the party isn't in the room together: a character can sit
   // downed, dead, or broke for days waiting on whoever holds the potion. These

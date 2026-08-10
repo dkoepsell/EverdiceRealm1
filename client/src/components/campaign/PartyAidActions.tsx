@@ -68,20 +68,28 @@ export default function PartyAidActions({
   const isDead = target.status === "dead";
   const isDown = target.status === "unconscious" || target.status === "stabilized";
 
-  const { data: inventory = [] } = useQuery<InventoryItem[]>({
-    queryKey: [`/api/characters/${myCharacterId}/inventory`],
+  // Deliberately /inventory-items, not /inventory — the latter returns an
+  // object wrapping character.equipment (plain strings), which has no item ids
+  // to hand over and isn't even an array.
+  const { data: inventory } = useQuery<InventoryItem[]>({
+    queryKey: [`/api/characters/${myCharacterId}/inventory-items`],
     enabled: open,
   });
 
-  const potions = inventory.filter((i) => {
-    const n = (i.name || "").toLowerCase();
+  // Never trust the shape: an endpoint returning an object here previously took
+  // the whole page down, and a missing potion list is a far better failure than
+  // a crash in the middle of trying to revive someone.
+  const items: InventoryItem[] = Array.isArray(inventory) ? inventory : [];
+
+  const potions = items.filter((i) => {
+    const n = (i?.name || "").toLowerCase();
     return n.includes("potion") && n.includes("healing");
   });
-  const giftable = inventory.filter((i) => !i.isEquipped && !i.isAttuned);
+  const giftable = items.filter((i) => !i?.isEquipped && !i?.isAttuned);
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaignId}/participants`] });
-    queryClient.invalidateQueries({ queryKey: [`/api/characters/${myCharacterId}/inventory`] });
+    queryClient.invalidateQueries({ queryKey: [`/api/characters/${myCharacterId}/inventory-items`] });
     queryClient.invalidateQueries({ queryKey: [`/api/characters/${myCharacterId}`] });
     queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaignId}/turn-log`] });
   };
