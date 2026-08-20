@@ -4031,9 +4031,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         )}
                         
                         {/* Whose turn it is, how long they've had it, and what you
-                            can do about it. Hidden during combat, which runs its
-                            own initiative order just below. */}
-                        <TurnBanner campaignId={campaign.id} hidden={!!parsedStoryState?.inCombat} />
+                            can do about it. This used to hide itself during combat,
+                            deferring to "combat's own initiative order" — but that
+                            order is only ever populated by the Table Chat socket,
+                            which is collapsed by default in async play. So in the
+                            case that needed it most, the banner vanished while the
+                            server kept enforcing the rotation, leaving the blocked
+                            player staring at dead buttons with nothing explaining
+                            why. The rotation governs combat too; always show it. */}
+                        <TurnBanner campaignId={campaign.id} />
 
                         {/* Choices integrated directly after narrative for immediate access */}
                         {!isAdvancingStory && choicesRevealed && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 && dmSessionState?.groupChoiceStatus !== 'pending' && (

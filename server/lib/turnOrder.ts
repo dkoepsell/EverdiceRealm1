@@ -135,6 +135,13 @@ export function buildTurnState(
   now: number = Date.now()
 ): TurnState {
   const isDM = campaign.userId === userId;
+  // The DM bypass exists so a DM can narrate while a player is mid-turn. It must
+  // NOT extend to a DM who also holds a seat: an owner playing their own
+  // character is a player like any other, and exempting them let them take turn
+  // after turn while the rotation sat parked on the player they were skipping —
+  // in an async co-op game, the other player never got to move.
+  const isSeated = roster.some(seat => seat.userId === userId);
+  const dmMayBypass = isDM && !isSeated;
   const isTurnBased = !!campaign.isTurnBased;
   const playerCount = roster.length;
   const currentTurnUserId = campaign.currentTurnUserId ?? null;
@@ -161,7 +168,7 @@ export function buildTurnState(
 
   let canAct = true;
   let blockedReason: string | null = null;
-  if (enforced && !isDM && turnOpen && !isYourTurn && !isStale) {
+  if (enforced && !dmMayBypass && turnOpen && !isYourTurn && !isStale) {
     canAct = false;
     blockedReason = "It's another player's turn.";
   }

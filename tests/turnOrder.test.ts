@@ -130,6 +130,27 @@ group('buildTurnState — an open turn', () => {
     "It's another player's turn."
   );
   check('the DM is never blocked', buildTurnState(campaign, roster3, DM, T0).canAct, true);
+
+  // The bypass is for a DM narrating from outside the party. A DM who also holds
+  // a seat is a player, and letting them act out of turn meant they could take
+  // turn after turn in an async game while the rotation stayed parked on the
+  // player they were skipping — that player never got to move.
+  const seatedDmRoster = orderRoster([seat(1, 10, 1), seat(2, 20, 2), seat(3, DM, 3)]);
+  check(
+    'a DM who also holds a seat is gated like any other player',
+    buildTurnState(campaign, seatedDmRoster, DM, T0).canAct,
+    false
+  );
+  check(
+    'a seated DM still acts freely on their own turn',
+    buildTurnState({ ...campaign, currentTurnUserId: DM }, seatedDmRoster, DM, T0).canAct,
+    true
+  );
+  check(
+    'a seated DM can still take over a stalled turn',
+    buildTurnState(campaign, seatedDmRoster, DM, T0 + 3601 * 1000).canAct,
+    true
+  );
   check(
     'the expiry is the start plus the limit',
     buildTurnState(campaign, roster3, 20, T0).expiresAt,

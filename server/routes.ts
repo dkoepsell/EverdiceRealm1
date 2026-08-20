@@ -19127,6 +19127,10 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
       // different character than the roster seat — locking one character in the
       // field while the player adventured with the other.
       const actingSeat = turnRoster.find(seat => seat.userId === req.user.id && seat.characterId);
+      // Every downstream "who is doing this?" lookup keys off this, not off
+      // `participants[0]`. An unseated DM narrating for the party has no seat, so
+      // it stays null and those call sites fall back to the first seat.
+      const actingCharacterId: number | null = actingSeat?.characterId ?? null;
       if (actingSeat?.characterId) {
         storage.setCharacterEngagement(actingSeat.characterId, 'campaign', campaignId)
           .catch(err => console.error('[Engagement] Failed to mark character in-field:', err));
@@ -19684,7 +19688,11 @@ The player's action is an ATTACK on a creature, not a social or skill attempt.
       let isSoloAdventure = participants && participants.length === 1;
       
       if (participants && participants.length > 0) {
-        const character = await storage.getCharacter(participants[0].characterId);
+        // The character the AI narrates as must be the one whose player actually
+        // took this turn. `participants[0]` is merely the lowest turnOrder seat,
+        // so in multiplayer every player's turn was narrated as seat 1's hero.
+        // A DM with no seat of their own still falls back to the first seat.
+        const character = await storage.getCharacter(actingCharacterId ?? participants[0].characterId);
         playerCharacter = character;
         if (character) {
           // Get equipped weapon from inventory (first item is typically equipped)
@@ -21547,10 +21555,11 @@ ${cachedNarrative}
         const campaign = await storage.getCampaign(campaignId);
         const participants = await storage.getCampaignParticipants(campaignId);
         if (participants && participants.length > 0) {
-          const characterId = participants[0].characterId;
+          // Loot goes to whoever searched, not to whoever holds turn order 1.
+          const characterId = actingCharacterId ?? participants[0].characterId;
           const character = await storage.getCharacter(characterId);
           if (character) {
-            const itemRarity = character.level < 3 ? 'common' : 
+            const itemRarity = character.level < 3 ? 'common' :
                              character.level < 6 ? 'uncommon' : 
                              character.level < 10 ? 'rare' : 'very rare';
             
@@ -23411,7 +23420,11 @@ ${cachedNarrative}
       let characterProgression = null;
       // participants already fetched earlier for character info
       if (participants && participants.length > 0) {
-        const characterId = participants[0].characterId;
+        // Attacks, enemy damage, and XP all resolve against this character. Using
+        // `participants[0]` meant the first seat swung every player's weapon and
+        // soaked every enemy hit, while the other players' characters sat at full
+        // HP outside the fight — see the party assembly below.
+        const characterId = actingCharacterId ?? participants[0].characterId;
         const character = await storage.getCharacter(characterId);
         if (character) {
           const newXP = (character.experience || 0) + xpAwarded;
@@ -23515,8 +23528,23 @@ ${cachedNarrative}
             damageDealt = combatEffects.playerDamageDealt || 0;
           }
           
-          // Process enemy attacks against party (player + companions) - check inCombat regardless of combatEffects
-          console.log(`Combat processing check: isInCombat=${isInCombat} (AI=${storyAdvancement.storyState?.inCombat}, merged=${mergedStoryState.inCombat}), enemyCount=${enemyCombatants.length}, companionCount=${companionCombatants.length}, aiCombatEffects=${!!combatEffects}`);
+          // Enemies get one round per PARTY round, not one per player action.
+          // This block runs on every combat action, so at a table of N players the
+          // monsters were taking N rounds for every one the party got — a two-player
+          // fight was twice as lethal as the encounter budget assumed, and the
+          // damage all landed on one character besides. Track who has swung this
+          // round and let the enemies answer only once the party has come round.
+          const seatedUserIds = turnRoster.filter(s => s.characterId).map(s => s.userId);
+          const alreadyActed: number[] = Array.isArray((mergedStoryState as any).combatActedUserIds)
+            ? (mergedStoryState as any).combatActedUserIds
+            : [];
+          const actedThisRound = Array.from(new Set([...alreadyActed, req.user.id]));
+          // Solo tables and DM-driven actions keep the old every-action cadence.
+          const partyRoundComplete = seatedUserIds.length < 2 ||
+            seatedUserIds.every(id => actedThisRound.includes(id));
+          (mergedStoryState as any).combatActedUserIds = partyRoundComplete ? [] : actedThisRound;
+
+          console.log(`Combat processing check: isInCombat=${isInCombat} (AI=${storyAdvancement.storyState?.inCombat}, merged=${mergedStoryState.inCombat}), enemyCount=${enemyCombatants.length}, companionCount=${companionCombatants.length}, aiCombatEffects=${!!combatEffects}, partyRoundComplete=${partyRoundComplete} (${actedThisRound.length}/${seatedUserIds.length} acted)`);
           if (enemyCombatants.length > 0 && isInCombat) {
               // Fetch equipment stats for the character to calculate combat stats
               const equippedItemNames: string[] = [];
@@ -23569,10 +23597,63 @@ ${cachedNarrative}
                 level: character.level
               };
               
-              const partyMembers = [playerCombatant, ...companionCombatants];
-              
-              // Use CombatManager to resolve enemy attacks with proper D&D mechanics
-              const combatResult = processEnemyAttacks(enemyCombatants, partyMembers);
+              // The rest of the party's human players are combatants too, not
+              // scenery. Only the acting player used to be in `partyMembers`, so
+              // enemies had exactly one legal target no matter how many people
+              // were at the table: every hit landed on whoever happened to be
+              // taking the turn, and the other players' characters sat at full HP
+              // outside a fight they were supposedly in.
+              const allySeats = turnRoster.filter(
+                seat => seat.characterId && seat.characterId !== character.id
+              );
+              const allyCombatants: Combatant[] = (await Promise.all(
+                allySeats.map(async (seat) => {
+                  const ally = await storage.getCharacter(seat.characterId!);
+                  if (!ally) return null;
+                  // Allies are resolved from base stats rather than a second
+                  // equipment lookup per seat — their gear only matters on their
+                  // own turn, and this runs on every combat action.
+                  const allyStats = calculateEffectiveCombatStats({
+                    level: ally.level,
+                    strength: ally.strength,
+                    dexterity: ally.dexterity,
+                    constitution: ally.constitution,
+                    equippedWeapon: ally.equippedWeapon ?? undefined,
+                    equippedArmor: ally.equippedArmor ?? undefined,
+                    equippedShield: ally.equippedShield ?? undefined,
+                    armorClass: ally.armorClass,
+                    class: ally.class
+                  }, {});
+                  return {
+                    id: ally.id,
+                    name: ally.name,
+                    type: 'player',
+                    currentHp: ally.hitPoints,
+                    maxHp: ally.maxHitPoints,
+                    armorClass: allyStats.armorClass,
+                    attackBonus: allyStats.attackBonus,
+                    damageRoll: allyStats.damageRoll,
+                    status: (ally.hitPoints ?? 0) <= 0 ? 'unconscious' : 'conscious',
+                    level: ally.level
+                  } as Combatant;
+                })
+              )).filter((c): c is Combatant => c !== null);
+
+              const partyMembers = [playerCombatant, ...allyCombatants, ...companionCombatants];
+
+              // Use CombatManager to resolve enemy attacks with proper D&D mechanics.
+              // Held until the whole party has acted, so the monsters answer the
+              // party once per round rather than once per player (see above).
+              const combatResult: CombatTurnResult = partyRoundComplete
+                ? processEnemyAttacks(enemyCombatants, partyMembers)
+                : {
+                    logs: [],
+                    updatedCombatants: [...enemyCombatants, ...partyMembers],
+                    enemyDamageDealt: [],
+                    partyDamageDealt: [],
+                    combatSummary: '',
+                    mechanicsExplanation: ''
+                  };
               detailedCombatLogs = combatResult.logs;
               
               // PLAYER WEAPON ATTACK: Process server-side when choice is a weapon attack
@@ -23737,10 +23818,35 @@ ${cachedNarrative}
                     WHERE id = ${cn.id}
                   `);
                   console.log(`Database update complete for companion ${damageEntry.name}`);
-                  
+
                   // Find the combat log for this companion to include mechanics
                   const logEntry = detailedCombatLogs.find(l => l.target === damageEntry.name);
-                  
+
+                  enhancedPartyDamage.push({
+                    name: damageEntry.name,
+                    damageTaken: damageEntry.damageTaken,
+                    newHp: damageEntry.newHp,
+                    maxHp: damageEntry.maxHp,
+                    defeated: damageEntry.defeated,
+                    attackRoll: logEntry?.attackRoll,
+                    targetAC: logEntry?.targetAC,
+                    mechanicsBreakdown: logEntry?.mechanicsBreakdown
+                  });
+                  continue;
+                }
+
+                // Another player's character took the hit. Their HP lives on the
+                // characters row, not on campaign_npcs, so the companion branch
+                // above silently dropped it — which is how a party member could
+                // stand in a fight for an hour and never lose a hit point.
+                const allyHit = allyCombatants.find(a => a.name === damageEntry.name);
+                if (allyHit && typeof allyHit.id === 'number') {
+                  await storage.updateCharacter(allyHit.id, {
+                    hitPoints: Math.max(0, damageEntry.newHp),
+                    ...(damageEntry.newHp <= 0 ? { status: 'unconscious' } : {})
+                  });
+
+                  const logEntry = detailedCombatLogs.find(l => l.target === damageEntry.name);
                   enhancedPartyDamage.push({
                     name: damageEntry.name,
                     damageTaken: damageEntry.damageTaken,
