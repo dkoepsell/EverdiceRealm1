@@ -1,7 +1,7 @@
 import { db } from "../db";
 import { 
   campaigns, characters, worldRegions, worldEvents, worldDiscoveries, 
-  worldWhispers, campaignParticipants, campaignExplorationHexes,
+  worldWhispers, worldRumors, campaignParticipants, campaignExplorationHexes,
   adventureCompletions, diceRolls
 } from "@shared/schema";
 import { eq, desc, sql, and, gt, inArray } from "drizzle-orm";
@@ -497,4 +497,150 @@ async function findNearestRegionIds(): Promise<number[]> {
     .from(worldRegions)
     .limit(1);
   return regions.map(r => r.id);
+}
+
+// ---------------------------------------------------------------------------
+// Scheduler
+//
+// generateWorldEvents() and aggregateDiscoveries() were only ever reachable from a manual
+// button on the world map, so the living world stood still between hand-cranks. This runs
+// them on a timer so regions actually shift mood, danger and instability between visits.
+// ---------------------------------------------------------------------------
+
+let worldEventTimer: ReturnType<typeof setInterval> | null = null;
+let lastWorldEventDay: string | null = null;
+
+export function startWorldEventScheduler(): void {
+  if (worldEventTimer) return;
+
+  const RUN_HOUR = Number(process.env.WORLD_EVENT_HOUR ?? 4); // quiet hour, server local
+
+  const tick = async () => {
+    try {
+      const now = new Date();
+      const day = now.toISOString().slice(0, 10);
+      if (now.getHours() !== RUN_HOUR) return;
+      if (lastWorldEventDay === day) return;
+      lastWorldEventDay = day;
+
+      const events = await generateWorldEvents();
+      const discoveries = await aggregateDiscoveries();
+      const rumors = await generateRumors();
+      console.log(`[worldEvents] daily pass: ${events} event(s), ${discoveries} discovery record(s), ${rumors} rumor(s)`);
+    } catch (err) {
+      console.warn("[worldEvents] scheduler tick failed:", (err as Error)?.message);
+    }
+  };
+
+  worldEventTimer = setInterval(tick, 60 * 60 * 1000); // hourly check, fires once a day
+  console.log(`[worldEvents] scheduler started (daily near ${RUN_HOUR}:00 server time)`);
+}
+
+export function stopWorldEventScheduler(): void {
+  if (worldEventTimer) {
+    clearInterval(worldEventTimer);
+    worldEventTimer = null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rumors
+//
+// `client/src/pages/tavern.tsx` already calls GET /api/world/rumors/random on every
+// session — but world_rumors had zero rows, so the tavern has been asking the world for
+// news since launch and the world has never had anything to say. These rumors are built
+// from real events and from what *other players' characters* actually found, which is the
+// cheapest way to make a solo campaign feel like it sits inside an inhabited world.
+// ---------------------------------------------------------------------------
+
+const RUMOR_OPENERS = [
+  "Word around the fire is that",
+  "A caravan guard swears that",
+  "You overhear two locals muttering that",
+  "The innkeeper lowers their voice:",
+  "A road-worn traveler claims that",
+];
+
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/**
+ * Refreshes the rumor mill from recent world events and other players' discoveries.
+ * Returns the number of rumors created. Safe to run repeatedly — it skips anything
+ * already turned into a rumor.
+ */
+export async function generateRumors(): Promise<number> {
+  let created = 0;
+
+  try {
+    // Retire stale rumors so the mill stays current.
+    await db.update(worldRumors)
+      .set({ isActive: false })
+      .where(sql`is_active = true AND created_at < ${new Date(Date.now() - 14 * 86400_000).toISOString()}`);
+
+    // 1) Rumors from recent world events.
+    const recentEvents = await db.select()
+      .from(worldEvents)
+      .where(sql`is_active = true`)
+      .orderBy(desc(worldEvents.createdAt))
+      .limit(20);
+
+    for (const event of recentEvents) {
+      const key = `event:${event.id}`;
+      const [exists] = await db.select({ id: worldRumors.id })
+        .from(worldRumors)
+        .where(sql`generated_from_pattern = ${key}`)
+        .limit(1);
+      if (exists) continue;
+
+      const regionIds = Array.isArray(event.affectedRegionIds) ? (event.affectedRegionIds as number[]) : [];
+      const narrative = `${pick(RUMOR_OPENERS)} ${event.title}. ${(event.description || "").slice(0, 180)}`.trim();
+
+      await db.insert(worldRumors).values({
+        regionId: regionIds[0] ?? null,
+        narrative,
+        source: "world_event",
+        rumorType: event.eventType || "event",
+        isActive: true,
+        generatedFromPattern: key,
+      } as any);
+      created++;
+    }
+
+    // 2) Rumors from what other adventurers found — the shared-world signal.
+    const recentDiscoveries = await db.select()
+      .from(worldDiscoveries)
+      .where(sql`discovered_by_character_name IS NOT NULL AND is_public = true`)
+      .orderBy(desc(worldDiscoveries.createdAt))
+      .limit(20);
+
+    for (const discovery of recentDiscoveries) {
+      const key = `discovery:${discovery.id}`;
+      const [exists] = await db.select({ id: worldRumors.id })
+        .from(worldRumors)
+        .where(sql`generated_from_pattern = ${key}`)
+        .limit(1);
+      if (exists) continue;
+
+      const who = discovery.discoveredByCharacterName;
+      const what = discovery.title || discovery.terrainType || "something worth seeing";
+      const narrative = `${pick(RUMOR_OPENERS)} an adventurer named ${who} came through not long ago, and found ${what}.`;
+
+      await db.insert(worldRumors).values({
+        regionId: discovery.regionId ?? null,
+        narrative,
+        source: "discovery",
+        rumorType: "traveler",
+        suggestsOpportunity: true,
+        isActive: true,
+        generatedFromPattern: key,
+      } as any);
+      created++;
+    }
+  } catch (error) {
+    console.error("[worldEvents] Failed to generate rumors:", error);
+  }
+
+  return created;
 }

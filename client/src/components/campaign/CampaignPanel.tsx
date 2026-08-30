@@ -7,6 +7,7 @@ import { generateStory, StoryRequest } from "@/lib/openai";
 import { DiceType, DiceRoll, DiceRollResult, rollDice, clientRollDice, parseAndRollDice, rollSpellAttack, SpellDamageResult, SpellAttackResult } from "@/lib/dice";
 import { getSkillModifier, parseDCFromText, calculateSuccessProbability, getLikelihoodDescription } from "@/lib/skills";
 import { trackEvent } from "@/lib/analytics";
+import WorldPlaceStrip from "@/components/world/WorldPlaceStrip";
 import { FirstSessionWrapUp, type SessionRewards } from "./FirstSessionWrapUp";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -3901,7 +3902,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           <h3 className="text-xl font-bold text-amber-400 tracking-wide">Current Scene</h3>
                           <div className="flex-1 h-px bg-gradient-to-r from-amber-500/50 to-transparent ml-2" />
                         </div>
-                        
+
+                        {/* Where this is, in the shared world — the region, its current
+                            mood, and who else has walked the same ground. */}
+                        <div className="mb-4">
+                          <WorldPlaceStrip campaignId={campaign.id} />
+                        </div>
+
                         {isAdvancingStory ? (
                           <StoryLoadingScreen
                             previousNarrative={currentSession?.narrative}

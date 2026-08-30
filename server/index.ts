@@ -9,6 +9,7 @@ import { serveStatic, log } from "./static";
 import { storage, DatabaseStorage } from "./storage";
 import { initDiscord, shutdownDiscord } from "./discord";
 import { startReengagementScheduler, stopReengagementScheduler } from "./lib/reengagement";
+import { startWorldEventScheduler, stopWorldEventScheduler } from "./lib/worldEventEngine";
 import { serverLogger } from "./lib/logger";
 
 const app = express();
@@ -118,12 +119,23 @@ app.use((req, res, next) => {
     } catch (err) {
       log(`Re-engagement scheduler skipped: ${(err as Error).message}`);
     }
+
+    // Turn the crank on the living world. The engine that moves region pressure, writes
+    // whispers and aggregates discoveries was only ever reachable from a manual button on
+    // the world map, so the world last changed on 2026-08-06 and stood still after that.
+    // A world that has moved while you were away is the strongest reason to come back.
+    try {
+      startWorldEventScheduler();
+    } catch (err) {
+      log(`World event scheduler skipped: ${(err as Error).message}`);
+    }
   });
   
   // Graceful shutdown handlers
   process.on('SIGTERM', async () => {
     log('Shutting down...');
     stopReengagementScheduler();
+    stopWorldEventScheduler();
     await shutdownDiscord();
     process.exit(0);
   });
@@ -131,6 +143,7 @@ app.use((req, res, next) => {
   process.on('SIGINT', async () => {
     log('Shutting down...');
     stopReengagementScheduler();
+    stopWorldEventScheduler();
     await shutdownDiscord();
     process.exit(0);
   });

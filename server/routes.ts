@@ -100,7 +100,8 @@ import { registerStreamingRoutes } from "./storyStreaming";
 import { registerEconomyRoutes } from "./economyRoutes";
 import { syncMarketItemStats } from "./economyEngine";
 import { recordPurchase, recordSale, getItemPrice, getSellPrice } from "./economyEngine";
-import { generateWorldEvents, aggregateDiscoveries } from "./lib/worldEventEngine";
+import { generateWorldEvents, aggregateDiscoveries, generateRumors } from "./lib/worldEventEngine";
+import { getWorldContext, formatWorldContext, pickRegionForCampaign, adoptInventedLocation, getRegionEventsSince } from "./lib/worldContext";
 import { generatePostCombatRewards, type PostCombatRewards, type DefeatedEnemy } from "./postCombatRewards";
 import { db } from "./db";
 import { eq, sql, desc, and, gte, isNull, inArray } from "drizzle-orm";
@@ -5278,6 +5279,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: `You already have a campaign called "${duplicateTitle.title}". Give this one a different name.`,
           existingCampaignId: duplicateTitle.id,
         });
+      }
+
+      // Anchor the campaign to a real region of the shared world. Without this the
+      // narrator invents a fresh, private geography every session — 41 distinct place
+      // names across 66 sessions, none of them canonical — and no two players are ever
+      // in the same world. Never fatal: an unanchored campaign just falls back to the
+      // old free-text location.
+      if (campaignData.worldRegionId == null) {
+        try {
+          const characters = await storage.getCharactersByUserId(req.user.id);
+          const partyLevel = characters.reduce((max: number, c: any) => Math.max(max, c.level || 1), 1);
+          const regionId = await pickRegionForCampaign(partyLevel);
+          if (regionId != null) {
+            (campaignData as any).worldRegionId = regionId;
+          }
+        } catch (anchorError) {
+          console.error("Failed to anchor campaign to a region:", anchorError);
+        }
       }
 
       const campaign = await storage.createCampaign(campaignData);
@@ -21621,6 +21640,13 @@ ${cachedNarrative}
       const locationChanged = !!newLocationName && !!prevLocationName
         && newLocationName.toLowerCase() !== prevLocationName.toLowerCase();
 
+      // Promote a place the narrator just named into the shared gazetteer, bound to this
+      // campaign's region, so other players can travel there later. Fire-and-forget: the
+      // story must never wait on, or fail because of, world bookkeeping.
+      if (newLocationName) {
+        void adoptInventedLocation(campaignId, newLocationName);
+      }
+
       // Use detected movement if AI didn't provide it
       const effectiveDirection = hasAIMovement ? movement.direction :
                                   (hasDetectedMovement ? detectedMovement.direction : null);
@@ -25863,6 +25889,11 @@ Respond with JSON:
         momentousContext = `\nPERMANENT DECISIONS ALREADY MADE (reflect their consequences — NEVER re-offer these):\n${momentousChoices.map((mc: any) => `- "${mc.choice}" → ${mc.consequence}${mc.powersGranted ? ` (Powers: ${mc.powersGranted})` : ''}`).join('\n')}`;
       }
 
+      // Where the party actually is, in the shared world. Null when the campaign has no
+      // region anchor yet, in which case formatWorldContext falls back to the old
+      // client-supplied free-text location.
+      const streamWorldContext = await getWorldContext(campaignId);
+
       const streamPrompt = `You are an expert Dungeon Master for a D&D 5e campaign with a ${narrativeStyle} storytelling style.
 Campaign: "${campaign.title}" — ${(campaign.description || "").slice(0, 300)}
 Theme: ${detectedTheme.toUpperCase()}
@@ -25873,7 +25904,7 @@ ${stakesContext}
 ${momentousContext}
 ${playerCharInfo}
 ${partyDesc ? `Party: ${partyDesc}` : ''}
-Location: ${currentLocation || "Unknown"}
+${formatWorldContext(streamWorldContext, currentLocation)}
 ${combatContext}
 
 Active Quests: ${currentQuests.length > 0 ? currentQuests.map((q: any) => q.title).join(', ') : 'None'}
@@ -26406,6 +26437,26 @@ Respond with JSON:
   // World Map API Routes
   // ========================================
 
+  // Where this campaign is, in the shared world — for the "you are here" strip on the
+  // play surface. Returns null when the campaign has no region anchor, and the client
+  // simply renders nothing rather than an empty shell.
+  app.get("/api/campaigns/:campaignId/world-context", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const campaignId = parseInt(req.params.campaignId);
+      if (Number.isNaN(campaignId)) {
+        return res.status(400).json({ message: "Invalid campaign id" });
+      }
+      const context = await getWorldContext(campaignId);
+      res.json(context);
+    } catch (error) {
+      console.error("Error fetching world context:", error);
+      res.status(500).json({ message: "Failed to fetch world context" });
+    }
+  });
+
   app.get("/api/world/party-positions", async (req, res) => {
     try {
       if (!req.isAuthenticated()) {
@@ -26419,24 +26470,44 @@ Respond with JSON:
         hexQ: number;
         hexR: number;
         isOwner: boolean;
+        characterName: string | null;
+        worldRegionId: number | null;
       }> = [];
 
+      // Every active party in the world, not just your own. The map renderer already
+      // groups and spreads overlapping flags, and `isOwner` distinguishes yours — this
+      // endpoint was built for a shared world and then filtered down to solo.
       for (const campaign of allCampaigns) {
         if (campaign.isCompleted || campaign.isArchived) continue;
-        const participants = await storage.getCampaignParticipants(campaign.id);
-        const isInvolved = campaign.userId === userId || participants.some((p: any) => p.userId === userId);
-        if (!isInvolved) continue;
 
         const state = await storage.getExplorationState(campaign.id);
-        if (state && state.currentHexQ != null && state.currentHexR != null) {
-          positions.push({
-            campaignId: campaign.id,
-            campaignTitle: campaign.title,
-            hexQ: state.currentHexQ,
-            hexR: state.currentHexR,
-            isOwner: campaign.userId === userId,
-          });
+        if (!state || state.currentHexQ == null || state.currentHexR == null) continue;
+
+        const isOwner = campaign.userId === userId;
+
+        // Name the character leading the party, so other travellers read as people
+        // rather than anonymous pins.
+        let characterName: string | null = null;
+        try {
+          const participants = await storage.getCampaignParticipants(campaign.id);
+          const lead = participants.find((p: any) => p.isActive && p.characterId) || participants[0];
+          if (lead?.characterId) {
+            const character = await storage.getCharacter(lead.characterId);
+            characterName = character?.name ?? null;
+          }
+        } catch {
+          // A missing character must not drop the party off the map.
         }
+
+        positions.push({
+          campaignId: campaign.id,
+          campaignTitle: isOwner ? campaign.title : (characterName ? `${characterName}'s party` : "A traveling party"),
+          hexQ: state.currentHexQ,
+          hexR: state.currentHexR,
+          isOwner,
+          characterName,
+          worldRegionId: campaign.worldRegionId ?? null,
+        });
       }
 
       res.json(positions);
@@ -26897,10 +26968,12 @@ Respond with JSON:
     try {
       const eventsCreated = await generateWorldEvents();
       const discoveriesCreated = await aggregateDiscoveries();
-      res.json({ 
-        eventsCreated, 
+      const rumorsCreated = await generateRumors();
+      res.json({
+        eventsCreated,
         discoveriesCreated,
-        message: `Generated ${eventsCreated} world events and ${discoveriesCreated} discoveries.`
+        rumorsCreated,
+        message: `Generated ${eventsCreated} world events, ${discoveriesCreated} discoveries and ${rumorsCreated} rumors.`
       });
     } catch (error) {
       console.error("Failed to generate world events:", error);
@@ -29246,8 +29319,16 @@ Snapshots must include at least 2 forked endings.`;
           new Date(m.createdAt) > lastLogin
         ).slice(0, 5);
         
-        const bullets = recentMemories.map(m => m.narrative);
-        
+        // Campaign memories are the party's own past. Region events come from the shared
+        // world — mostly driven by other players — and are what make coming back feel
+        // like returning to a place rather than reopening a document.
+        const regionEvents = await getRegionEventsSince(
+          campaignId,
+          tracking?.lastLoginAt || new Date(0).toISOString()
+        );
+
+        const bullets = [...regionEvents, ...recentMemories.map(m => m.narrative)].slice(0, 6);
+
         // Update tracking
         await storage.updateUserSessionTracking(userId, campaignId, bullets);
         
