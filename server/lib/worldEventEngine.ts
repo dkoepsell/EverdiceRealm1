@@ -265,8 +265,12 @@ async function scanNarrativeMilestones(candidates: EventCandidate[]) {
       .limit(20);
 
     for (const camp of activeCampaigns) {
-      const log = camp.narrativeLog as any[];
-      if (!log || log.length === 0) continue;
+      // narrativeLog is jsonb and is not always an array — one campaign in production
+      // holds an object, and `.slice` on it threw on every single run, so this scanner
+      // has never contributed a milestone event. A malformed row must skip, not abort
+      // the whole scan.
+      const log = Array.isArray(camp.narrativeLog) ? (camp.narrativeLog as any[]) : [];
+      if (log.length === 0) continue;
 
       const recentEntries = log.slice(-5);
       for (const entry of recentEntries) {
