@@ -547,8 +547,16 @@ export default function Characters() {
       const response = await apiRequest("POST", "/api/characters", data);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (character: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
+      // Character creation emitted no event, so the funnel read as if nobody built a
+      // character while 14 rows sat in the characters table.
+      if (character?.id) {
+        trackCharacterAction("create_character", character.id, {
+          class: character.class,
+          race: character.race,
+        });
+      }
       toast({
         title: "Character Created",
         description: "Your hero is ready — now take them on an adventure.",

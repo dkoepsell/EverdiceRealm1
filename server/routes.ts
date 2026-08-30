@@ -5575,8 +5575,13 @@ Return your response as a JSON object with these fields:
             title: initialSessionData.sessionTitle,
             narrative: initialSessionData.narrative,
             location: initialSessionData.location,
-            choices: JSON.stringify(initialSessionData.choices),
-            storyState: JSON.stringify(initialStoryState),
+            // `choices` and `storyState` are jsonb columns — pass the values, never a
+            // JSON string. Stringifying stores a JSON *string* instead of an array, and
+            // the client gates the choice buttons on Array.isArray(choices), so the
+            // player gets an opening scene with nothing to click and the campaign dies
+            // on turn one. Three of August's twelve campaigns died exactly this way.
+            choices: initialSessionData.choices,
+            storyState: initialStoryState,
             sessionXpReward: 100,
             createdAt: new Date().toISOString(),
           };
@@ -5608,14 +5613,14 @@ Return your response as a JSON object with these fields:
                 title: retryData.sessionTitle || "The Adventure Begins",
                 narrative: retryData.narrative,
                 location: retryData.location || "The Threshold",
-                choices: JSON.stringify(retryData.choices),
-                storyState: JSON.stringify({
+                choices: retryData.choices,
+                storyState: {
                   location: retryData.location || "The Threshold",
                   activeNPCs: [], plotPoints: [], conditions: [],
                   activeQuests: retryData.activeQuests || [
                     { id: "quest_main_1", title: "Begin the Adventure", description: "Explore your surroundings and discover the first clues", status: "active", xpReward: 100 }
                   ],
-                }),
+                },
                 sessionXpReward: 100,
                 createdAt: new Date().toISOString(),
               });
@@ -5642,13 +5647,13 @@ Return your response as a JSON object with these fields:
               title: "A Knock at the Door",
               narrative: `Rain hammers the shutters of the Wayfarer's Rest as you${heroName !== "you" ? `, ${heroName},` : ""} nurse a warm drink by the fire. The door bangs open and a breathless courier staggers in, mud to the knees, clutching a sealed letter marked with a broken wax crest. "I was told to find an adventurer," they gasp, eyes sweeping the room until they land on you. "Please — there isn't much time." The letter is still in their trembling hand. What do you do?`,
               location: "The Wayfarer's Rest",
-              choices: JSON.stringify([
+              choices: [
                 { action: "Take the letter and read it", description: "Find out what the courier is so afraid of", requiresDiceRoll: false },
                 { action: "Ask the courier who sent them", description: "Learn who knows your name before you commit", requiresDiceRoll: true, diceType: "d20", rollDC: 12, rollModifier: 0, skillType: "insight", rollPurpose: "Insight Check", successText: "You read the fear behind their eyes — this is no trick.", failureText: "They dodge the question, and the tavern falls quiet around you." },
                 { action: "Offer the courier a seat and a drink first", description: "Calm them down and earn their trust", requiresDiceRoll: false },
                 { action: "Refuse — this isn't your problem", description: "Turn back to your drink and see what happens", requiresDiceRoll: false },
-              ]),
-              storyState: JSON.stringify({
+              ],
+              storyState: {
                 location: "The Wayfarer's Rest",
                 activeNPCs: [{ name: "The Courier", attitude: "desperate" }],
                 plotPoints: [],
@@ -5657,7 +5662,7 @@ Return your response as a JSON object with these fields:
                 activeQuests: [
                   { id: "quest_main_1", title: "The Sealed Letter", description: "Discover who sent the courier and what they need of you", status: "active", xpReward: 150 }
                 ]
-              }),
+              },
               sessionXpReward: 100,
               createdAt: new Date().toISOString(),
             };
@@ -5903,12 +5908,12 @@ Return your response as a JSON object with these fields:
           title: "The Adventure Begins",
           narrative: "Your journey begins in a small settlement at the edge of the known world. The air is filled with possibility as you prepare to embark on your first adventure.",
           location: "Starting Village",
-          choices: JSON.stringify([
+          choices: [
             { action: "Visit the local tavern", description: "Gather information from the locals", requiresDiceRoll: false },
             { action: "Meet with the town elder", description: "Learn about problems facing the settlement", requiresDiceRoll: false },
             { action: "Investigate nearby ruins", description: "Search for treasure and adventure", requiresDiceRoll: true, diceType: "d20", rollDC: 12, rollModifier: 0, rollPurpose: "Investigation Check", successText: "You find something interesting!", failureText: "Nothing catches your eye." }
-          ]),
-          storyState: JSON.stringify({
+          ],
+          storyState: {
             location: "Starting Village",
             activeNPCs: [],
             plotPoints: [],
@@ -5916,7 +5921,7 @@ Return your response as a JSON object with these fields:
             activeQuests: [
               { id: "quest_main_1", title: "Uncover the Mystery", description: "Explore the village and discover what adventure awaits", status: "active", xpReward: 100 }
             ]
-          }),
+          },
           sessionXpReward: 100,
           createdAt: new Date().toISOString(),
         };

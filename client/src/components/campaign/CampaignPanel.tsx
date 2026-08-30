@@ -917,6 +917,45 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     }
   }, [currentSession?.storyState]);
 
+  // Parse choices the same way. This is load-bearing: the choice buttons render behind
+  // Array.isArray(choices), so a session whose jsonb column holds a JSON *string* instead
+  // of an array shows the player an opening scene with nothing to click — the campaign
+  // ends on turn one. Three of August's twelve campaigns died exactly that way before the
+  // write side was fixed, and old rows still carry the bad shape.
+  const parsedChoices = useMemo(() => {
+    const raw = (currentSession as any)?.choices;
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.error('Failed to parse session choices:', e);
+        return [];
+      }
+    }
+    return [];
+  }, [(currentSession as any)?.choices]);
+
+  // Dead-end detector. A scene that has narrative but no choices is unplayable — the
+  // player can read it and do nothing at all. That state killed 46 of 73 sessions before
+  // anyone noticed, because it looks fine in the database and produces no error. If it
+  // ever happens again, it should show up in analytics on the first occurrence.
+  const deadEndReported = useRef<string | null>(null);
+  useEffect(() => {
+    if (!currentSession?.narrative) return;
+    if (parsedChoices.length > 0) return;
+    if (isAdvancingStory) return;
+    const key = `${campaign.id}:${(currentSession as any)?.sessionNumber ?? "?"}`;
+    if (deadEndReported.current === key) return;
+    deadEndReported.current = key;
+    trackEvent("story", "scene_dead_end", {
+      sessionNumber: (currentSession as any)?.sessionNumber,
+      rawChoicesType: typeof (currentSession as any)?.choices,
+    }, { campaignId: campaign.id });
+  }, [currentSession?.narrative, parsedChoices.length, isAdvancingStory, campaign.id]);
+
   // Ambient music: crossfade the bed to match the current scene mood.
   useEffect(() => {
     const inCombat = parsedStoryState?.inCombat || false;
@@ -1494,6 +1533,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       return await response.json();
     },
     onSuccess: async (data) => {
+      trackEvent("story", "advance_succeeded", {
+        sessionNumber: data?.sessionNumber,
+      }, { campaignId: campaign.id });
+
       // CRITICAL: Update sessions cache AND currentSession immediately to avoid stale combat HP.
       // The response includes the latest session data (post-combat re-save), so use it to
       // update the React Query cache deterministically before the refetch.
@@ -1924,6 +1967,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       setShowChoiceDialog(false);
     },
     onError: (error: Error) => {
+      // Instrument the seam. Every campaign started in August died at its opening
+      // paragraph and nothing recorded why — a failure here was invisible in analytics
+      // and only reconstructable by joining raw tables.
+      trackEvent("story", "advance_failed", {
+        message: error.message?.slice(0, 200),
+      }, { campaignId: campaign.id });
+
       setIsAdvancingStory(false);
       setMutationReady(false);
       setStoryPhase('loading');
@@ -1947,10 +1997,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const prevChoicesKeyRef = useRef<string>('');
 
   useEffect(() => {
-    if (isAdvancingStory || !currentSession?.choices || !Array.isArray(currentSession.choices)) return;
-    if (currentSession.choices.length === 0) return;
+    if (isAdvancingStory || parsedChoices.length === 0) return;
 
-    const choicesKey = (currentSession.choices as any[]).map(c => typeof c === 'string' ? c : (c.text || c.action || '')).join('|');
+    const choicesKey = parsedChoices.map(c => typeof c === 'string' ? c : (c.text || c.action || '')).join('|');
     if (choicesKey === prevChoicesKeyRef.current) return;
     prevChoicesKeyRef.current = choicesKey;
     revealCacheRef.current.clear();
@@ -1965,7 +2014,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     const loc = currentLocation;
 
     const precompute = async () => {
-      for (const choice of currentSession.choices as any[]) {
+      for (const choice of parsedChoices) {
         if (controller.signal.aborted) return;
         const choiceText = typeof choice === 'string' ? choice : (choice.text || choice.action || '');
         if (!choiceText) continue;
@@ -4017,7 +4066,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         )}
 
                         {/* Choices loading indicator — shows briefly before choices appear */}
-                        {!isAdvancingStory && !choicesRevealed && !suggestionSectionHidden && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 && (
+                        {!isAdvancingStory && !choicesRevealed && !suggestionSectionHidden && parsedChoices.length > 0 && (
                           <div className="mt-6 pt-5 border-t border-amber-500/30 animate-in fade-in duration-300">
                             <div className="flex items-center gap-3 px-3 py-2.5">
                               <div className="flex gap-1">
@@ -4042,7 +4091,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         <TurnBanner campaignId={campaign.id} />
 
                         {/* Choices integrated directly after narrative for immediate access */}
-                        {!isAdvancingStory && choicesRevealed && currentSession.choices && Array.isArray(currentSession.choices) && currentSession.choices.length > 0 && dmSessionState?.groupChoiceStatus !== 'pending' && (
+                        {!isAdvancingStory && choicesRevealed && parsedChoices.length > 0 && dmSessionState?.groupChoiceStatus !== 'pending' && (
                           <div className="mt-6 pt-5 border-t border-amber-500/30 animate-in fade-in slide-in-from-bottom-3 duration-500">
                             {!suggestionSectionHidden && (
                               <div className="flex items-center justify-between mb-3">
@@ -4097,7 +4146,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             
                             {!suggestionSectionHidden && choiceGridVisible && (
                             <div className="grid grid-cols-1 gap-2">
-                              {(scaffoldMaxSuggestions != null ? currentSession.choices.slice(0, scaffoldMaxSuggestions) : currentSession.choices).map((choice: any, index: number) => {
+                              {(scaffoldMaxSuggestions != null ? parsedChoices.slice(0, scaffoldMaxSuggestions) : parsedChoices).map((choice: any, index: number) => {
                                 const choiceText = choice.action || choice.text || '';
                                 // Diegetic display (spec §5.2): show the in-fiction noticing/impulse
                                 // when the dial is active; the raw action is still what gets submitted.

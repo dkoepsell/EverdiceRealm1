@@ -277,6 +277,14 @@ export default function Campaigns() {
       // hitting Create again, several times (one made 8 identical campaigns in
       // 42 minutes), and none of those campaigns ever saw a turn.
       if (campaign?.id) {
+        // Campaign creation emitted no event, so the funnel showed 0 campaigns started
+        // against 10 rows in the campaigns table and the real drop-off was only visible
+        // by joining raw tables.
+        trackCampaignAction("campaign_start", campaign.id, {
+          aiGenerated: useAIGeneration,
+          campaignLength: campaign.campaignLength,
+        });
+
         // Set the active adventure directly rather than via
         // setAsActiveAdventure(), which raises its own toast.
         setActiveCampaignId(campaign.id);
