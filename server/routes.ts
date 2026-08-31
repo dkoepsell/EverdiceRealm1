@@ -1625,6 +1625,12 @@ type ClientWebSocket = WebSocket;
 const activeConnections = new Set<ClientWebSocket>();
 // Per-user connections for targeted broadcasts (badge unlocks, etc.)
 const userConnections = new Map<number, Set<ClientWebSocket>>();
+// Per-campaign connections. Every other broadcast in this file fans out to *every*
+// connected client and relies on each one to compare payload.campaignId and throw the
+// message away — which means an eight-player table sends eight times the traffic it needs
+// and every client is handed other tables' state. Location presence updates on every step,
+// so it gets a real subscription instead.
+const campaignConnections = new Map<number, Set<ClientWebSocket>>();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/health', (_req, res) => {
@@ -1664,6 +1670,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('WebSocket client connected');
     activeConnections.add(ws);
     let connectedUserId: number | null = null;
+    let subscribedCampaignId: number | null = null;
 
     ws.on('message', (message: any) => {
       try {
@@ -1678,6 +1685,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             connectedUserId = uid;
             if (!userConnections.has(uid)) userConnections.set(uid, new Set());
             userConnections.get(uid)!.add(ws);
+          }
+        } else if (data.type === 'join_campaign') {
+          // Subscribe this socket to one campaign's high-frequency updates. Sockets may
+          // move between campaigns, so drop the previous subscription first.
+          const cid = parseInt(data.payload?.campaignId);
+          if (!isNaN(cid)) {
+            if (subscribedCampaignId !== null && subscribedCampaignId !== cid) {
+              campaignConnections.get(subscribedCampaignId)?.delete(ws);
+            }
+            subscribedCampaignId = cid;
+            if (!campaignConnections.has(cid)) campaignConnections.set(cid, new Set());
+            campaignConnections.get(cid)!.add(ws);
+          }
+        } else if (data.type === 'leave_campaign') {
+          if (subscribedCampaignId !== null) {
+            campaignConnections.get(subscribedCampaignId)?.delete(ws);
+            subscribedCampaignId = null;
           }
         } else if (data.type === 'dice_roll') {
           // Broadcast dice roll to all connected clients
@@ -1706,6 +1730,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (connectedUserId !== null) {
         userConnections.get(connectedUserId)?.delete(ws);
       }
+      if (subscribedCampaignId !== null) {
+        const subs = campaignConnections.get(subscribedCampaignId);
+        subs?.delete(ws);
+        // Don't leak an empty Set per campaign for the life of the process.
+        if (subs && subs.size === 0) campaignConnections.delete(subscribedCampaignId);
+      }
     });
 
     ws.on('error', (error) => {
@@ -1713,6 +1743,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       activeConnections.delete(ws);
       if (connectedUserId !== null) {
         userConnections.get(connectedUserId)?.delete(ws);
+      }
+      if (subscribedCampaignId !== null) {
+        const subs = campaignConnections.get(subscribedCampaignId);
+        subs?.delete(ws);
+        // Don't leak an empty Set per campaign for the life of the process.
+        if (subs && subs.size === 0) campaignConnections.delete(subscribedCampaignId);
       }
     });
   });
@@ -1738,6 +1774,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
   }
+  /**
+   * Send to the sockets that have joined one campaign, and only those.
+   *
+   * Prefer this over broadcastMessage for anything that fires more than once per turn.
+   * broadcastMessage sends to every connected client and makes each one discard what
+   * isn't theirs, which is acceptable for a chapter advance and wasteful for movement.
+   */
+  function broadcastToCampaign(campaignId: number, type: string, payload: any) {
+    const sockets = campaignConnections.get(campaignId);
+    if (!sockets || sockets.size === 0) return;
+    const message = JSON.stringify({ type, payload: { ...payload, campaignId } });
+    sockets.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
+
   // API Routes
   app.get("/api/characters", isAuthenticated, async (req: any, res) => {
     try {
@@ -9086,6 +9140,7 @@ Return your response as a JSON object with these fields:
               exploredHexCount: (explorationState.exploredHexCount || 0) + 1,
               totalDistance: (explorationState.totalDistance || 0) + 1
             });
+            broadcastToCampaign(parseInt(campaignId), 'party_moved', { hexQ: newCoords.q, hexR: newCoords.r });
             console.log(`Player moved from (${currentQ}, ${currentR}) to (${newCoords.q}, ${newCoords.r})`);
           } else {
             // No movement, just update current hex with narrative context
@@ -12713,6 +12768,7 @@ Return your response as a JSON object with these fields:
         totalDistance: (state.totalDistance || 0) + 1,
         lastMovementAt: new Date().toISOString()
       });
+      broadcastToCampaign(campaignId, 'party_moved', { hexQ: targetQ, hexR: targetR });
       
       // If this is a newly explored hex, we need to trigger AI scene generation
       // Return flag indicating if narrative generation is needed
@@ -13276,6 +13332,7 @@ Return your response as a JSON object with these fields:
             currentHexR: originR,
             lastMovementAt: new Date().toISOString(),
           });
+          broadcastToCampaign(campaignId, 'party_moved', { hexQ: originQ, hexR: originR });
         }
         
         const lootFound = (route as any).lootFound || [];
@@ -13317,6 +13374,7 @@ Return your response as a JSON object with these fields:
           totalDistance: (state.totalDistance || 0) + 1,
           lastMovementAt: new Date().toISOString(),
         });
+        broadcastToCampaign(campaignId, 'party_moved', { hexQ: nextHex.q, hexR: nextHex.r });
       }
       
       await storage.updateTrekRoute(route.id, { currentStep: nextStep });
@@ -13768,6 +13826,7 @@ Award loot that makes sense for the encounter. Combat encounters should award mo
             currentHexR: originR,
             lastMovementAt: new Date().toISOString(),
           });
+          broadcastToCampaign(campaignId, 'party_moved', { hexQ: originQ, hexR: originR });
         }
       }
       

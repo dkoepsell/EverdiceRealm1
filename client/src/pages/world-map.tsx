@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import parchmentFrame from "@assets/image_1768600727955.png";
 import worldMapBackground from "@assets/image_1768601537026.png";
 import WorldHexMap from "@/components/world/WorldHexMap";
+import { usePartyPosition } from "@/hooks/use-party-position";
 import type { PartyPosition } from "@/components/world/WorldHexMap";
 import CityMap from "@/components/world/CityMap";
 import CapitalHexMap from "@/components/world/CapitalHexMap";
@@ -402,6 +403,11 @@ export default function WorldMapPage() {
     enabled: !!user,
     refetchInterval: 30000,
   });
+
+  // Move the party's own pin the moment it moves, rather than up to 30s later on the
+  // next poll. Also subscribes this socket to the campaign so movement is delivered
+  // only to this table.
+  usePartyPosition(activeCampaignId);
 
   const { data: regions = [], isLoading: regionsLoading } = useQuery<WorldRegion[]>({
     queryKey: ["/api/world/regions"],

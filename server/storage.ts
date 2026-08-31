@@ -5283,13 +5283,45 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
+  /**
+   * The fog of war for a campaign — everything ANY member of the party has uncovered.
+   *
+   * `hex_exploration_states` is keyed (userId, campaignId, hexQ, hexR) and this read used
+   * to filter on userId too, which meant two players sitting at the same table had two
+   * different maps: ground one had walked was still black for the other. Writes stay
+   * per-user so the record of who found what survives; only the read is widened.
+   *
+   * `userId` is retained in the signature and used to break ties, so a player's own
+   * record of a hex wins over a companion's when both exist.
+   */
   async getExploredHexes(userId: number, campaignId: number): Promise<HexExplorationState[]> {
-    return await db.select().from(hexExplorationStates).where(
-      and(
-        eq(hexExplorationStates.userId, userId),
-        eq(hexExplorationStates.campaignId, campaignId)
-      )
+    const rows = await db.select().from(hexExplorationStates).where(
+      eq(hexExplorationStates.campaignId, campaignId)
     );
+
+    // Collapse each hex to one entry. Prefer the caller's own row, then the most
+    // revealing state, so a hex someone actually visited never reads as merely "seen".
+    const rank = (state: string | null) =>
+      state === "visited" ? 3 : state === "noted" ? 2 : state === "seen" ? 1 : 0;
+
+    const byHex = new Map<string, HexExplorationState>();
+    for (const row of rows) {
+      const key = `${row.hexQ},${row.hexR}`;
+      const existing = byHex.get(key);
+      if (!existing) {
+        byHex.set(key, row);
+        continue;
+      }
+      const rowIsMine = row.userId === userId;
+      const existingIsMine = existing.userId === userId;
+      const better =
+        rowIsMine !== existingIsMine
+          ? rowIsMine                                   // own row wins
+          : rank(row.state) > rank(existing.state);     // else the more revealing state
+      if (better) byHex.set(key, row);
+    }
+
+    return Array.from(byHex.values());
   }
 
   // Delve Mode operations

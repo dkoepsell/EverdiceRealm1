@@ -31,21 +31,33 @@ export function isEmailConfigured(): boolean {
   return cachedConfigured;
 }
 
-/** Absolute base URL for links in emails (must be absolute — relative won't work in mail). */
+/**
+ * Absolute base URL for links in emails (must be absolute — relative won't work in mail).
+ *
+ * The fallback is the real production domain. It used to be `https://everdice.app`, which
+ * is not a domain we own, so every link in every re-engagement email would have pointed
+ * somewhere else entirely the moment SMTP was switched on.
+ */
 export function appBaseUrl(): string {
   return (
     process.env.APP_BASE_URL ||
     process.env.PUBLIC_URL ||
-    "https://everdice.app"
+    "https://realmofeverdice.com"
   ).replace(/\/$/, "");
 }
 
-/** The From address used for all outbound mail. */
+/**
+ * The From address used for all outbound mail.
+ *
+ * The fallback must be a deliverable address on a real domain. It used to be
+ * `no-reply@everdice.realm` — `.realm` is not a TLD, so every message would have hard
+ * bounced and taken the sending domain's reputation with it.
+ */
 export function emailFrom(): string {
   return (
     process.env.EMAIL_FROM ||
     process.env.SMTP_FROM ||
-    "Everdice <no-reply@everdice.realm>"
+    "Everdice <no-reply@realmofeverdice.com>"
   );
 }
 

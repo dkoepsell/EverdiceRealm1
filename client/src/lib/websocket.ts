@@ -131,6 +131,12 @@ export function createWSConnection(force = false) {
           window.dispatchEvent(new CustomEvent('party_turn_recorded', {
             detail: data.payload
           }));
+        } else if (data.type === 'party_moved') {
+          // The party's position on the shared world map changed. This one is sent
+          // only to sockets that joined the campaign, not to every client.
+          window.dispatchEvent(new CustomEvent('party_moved', {
+            detail: data.payload
+          }));
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
@@ -187,6 +193,21 @@ export function sendWSMessage(type: string, payload: any) {
 
 export function identifyUser(userId: number) {
   sendWSMessage('identify', { userId });
+}
+
+/**
+ * Subscribe this socket to one campaign's high-frequency updates.
+ *
+ * Most events in this app are broadcast to every connected client and filtered
+ * client-side. Position updates fire on every step, so they use a real per-campaign
+ * subscription instead — join here and the server sends them only to this table.
+ */
+export function joinCampaign(campaignId: number) {
+  sendWSMessage('join_campaign', { campaignId });
+}
+
+export function leaveCampaign() {
+  sendWSMessage('leave_campaign', {});
 }
 
 // Close connection when window closes
