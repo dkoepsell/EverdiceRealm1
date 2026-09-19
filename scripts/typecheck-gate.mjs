@@ -35,7 +35,15 @@ function runTsc() {
   try {
     // tsc exits non-zero whenever there are errors, which is the normal case
     // here — the output is what matters, not the exit code.
-    return execFileSync('npx', ['tsc', '--noEmit', '--pretty', 'false'], {
+    //
+    // `--incremental false` is load-bearing. tsconfig turns incremental builds
+    // on, and a warm tsbuildinfo makes tsc report a DIFFERENT set of errors for
+    // the same source: the committed baseline was recorded warm and recorded
+    // `server/routes.ts|TS2304: 4` when a cold run of the same commit reports
+    // 13. That cuts both ways — it trips the gate on innocent changes that
+    // happen to invalidate the cache, and it can hide real new errors behind a
+    // stale entry. The gate is only meaningful if the run is reproducible.
+    return execFileSync('npx', ['tsc', '--noEmit', '--pretty', 'false', '--incremental', 'false'], {
       cwd: join(HERE, '..'),
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
