@@ -818,8 +818,12 @@ export type CampaignDungeonMap = typeof campaignDungeonMaps.$inferSelect;
 export const campaignExplorationHexes = pgTable("campaign_exploration_hexes", {
   id: serial("id").primaryKey(),
   campaignId: integer("campaign_id").notNull(),
-  q: integer("q").notNull(), // Axial hex coordinate (column)
-  r: integer("r").notNull(), // Axial hex coordinate (row)
+  // Odd-r offset hex coordinates, pointy-top -- the layout the world map draws
+  // (see shared/world/hexGeometry.ts). Previously commented as "axial", which
+  // several server-side adjacency helpers still assume; they disagree with the
+  // renderer about which hexes touch. Layout is odd-r; treat it as the truth.
+  q: integer("q").notNull(), // column
+  r: integer("r").notNull(), // row
   terrainType: text("terrain_type").notNull().default("Unknown"),
   locationName: text("location_name"),
   locationDescription: text("location_description"),

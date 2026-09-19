@@ -108,6 +108,13 @@ export const TERRAIN_LABELS: Record<TerrainType, string> = {
   city: "City",
 };
 
+/**
+ * The seed the live world is generated from. Every consumer -- the player's
+ * web map, the admin viewer -- must pass this same value or they will render
+ * different worlds from the same regions.
+ */
+export const WORLD_SEED = 42;
+
 const GRID_SIZE = 100;
 const REGION_SCALE = 8;
 
@@ -325,7 +332,7 @@ function hexDistance(q1: number, r1: number, q2: number, r2: number): number {
 export function generateWorldHexMap(
   regions: WorldRegionData[],
   locations: WorldLocationData[],
-  seed: number = 42
+  seed: number = WORLD_SEED
 ): Map<string, WorldHex> {
   const hexMap = new Map<string, WorldHex>();
   const elevationNoise = simplexNoise2D(seed);

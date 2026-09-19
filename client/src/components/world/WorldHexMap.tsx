@@ -13,9 +13,11 @@ import {
   TERRAIN_LABELS,
   GRID_DIMENSIONS,
   getHexesInRadius,
+  WORLD_SEED,
   type WorldHex,
   type TerrainType,
-} from "@/lib/worldHexGenerator";
+} from "@shared/world/worldHexGenerator";
+import { hexToPixel, pixelToHex } from "@shared/world/hexGeometry";
 
 export interface PartyPosition {
   campaignId: number;
@@ -42,23 +44,6 @@ interface WorldHexMapProps {
 const HEX_SIZE = 8;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 5;
-
-function hexToPixel(q: number, r: number, size: number): { x: number; y: number } {
-  const hexWidth = Math.sqrt(3) * size;
-  const hexHeight = 2 * size;
-  const x = q * hexWidth + (r % 2 === 1 ? hexWidth / 2 : 0);
-  const y = r * hexHeight * 0.75;
-  return { x, y };
-}
-
-function pixelToHex(px: number, py: number, size: number): { q: number; r: number } {
-  const hexWidth = Math.sqrt(3) * size;
-  const hexHeight = 2 * size;
-  const r = Math.round(py / (hexHeight * 0.75));
-  const xOffset = r % 2 === 1 ? hexWidth / 2 : 0;
-  const q = Math.round((px - xOffset) / hexWidth);
-  return { q, r };
-}
 
 function getHexCorners(size: number): Array<{ x: number; y: number }> {
   const corners: Array<{ x: number; y: number }> = [];
@@ -144,7 +129,7 @@ export default function WorldHexMap({
       posX: l.posX || 50,
       posY: l.posY || 50,
     }));
-    return generateWorldHexMap(regionData, locationData, 42);
+    return generateWorldHexMap(regionData, locationData, WORLD_SEED);
   }, [regions, locations]);
 
   const effectiveRevealed = useMemo(() => {

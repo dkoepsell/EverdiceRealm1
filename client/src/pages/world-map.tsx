@@ -27,7 +27,7 @@ import { usePartyPosition } from "@/hooks/use-party-position";
 import type { PartyPosition } from "@/components/world/WorldHexMap";
 import CityMap from "@/components/world/CityMap";
 import CapitalHexMap from "@/components/world/CapitalHexMap";
-import type { WorldHex } from "@/lib/worldHexGenerator";
+import type { WorldHex } from "@shared/world/worldHexGenerator";
 import { useAnalytics } from "@/hooks/use-analytics";
 
 const terrainIcons: Record<string, typeof Mountain> = {
