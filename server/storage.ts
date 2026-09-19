@@ -88,6 +88,7 @@ import {
 import { db } from "./db";
 import { eq, and, desc, sql, asc, or, inArray, isNull, gt, lt, ne } from "drizzle-orm";
 import { orderRoster, nextSeatIndex, type TurnRosterEntry } from "./lib/turnOrder";
+import { emitWorld, nowIso } from "./lib/worldBus";
 
 // One seat per human player; see server/lib/turnOrder.ts for the rules.
 export type { TurnRosterEntry };
@@ -1629,6 +1630,18 @@ export class DatabaseStorage implements IStorage {
       .set({ updatedAt: new Date().toISOString(), ...campaignUpdate })
       .where(eq(campaigns.id, id))
       .returning();
+
+    // Completing or archiving retires a party from the shared world; flipping
+    // either flag back puts it on the map again. Only announce when this write
+    // actually touched one of the two flags.
+    if (campaign && (campaignUpdate.isCompleted !== undefined || campaignUpdate.isArchived !== undefined)) {
+      emitWorld({
+        type: "campaign_status",
+        campaignId: campaign.id,
+        status: campaign.isArchived ? "archived" : campaign.isCompleted ? "completed" : "active",
+        at: nowIso(),
+      });
+    }
     return campaign || undefined;
   }
 
@@ -3236,14 +3249,46 @@ export class DatabaseStorage implements IStorage {
         createdAt: new Date().toISOString()
       })
       .returning();
+
+    if (newHex.isExplored) {
+      emitWorld({
+        type: "hex_explored",
+        campaignId: newHex.campaignId,
+        hexQ: newHex.q,
+        hexR: newHex.r,
+        locationName: newHex.locationName ?? undefined,
+        terrainType: newHex.terrainType ?? undefined,
+        at: nowIso(),
+      });
+    }
     return newHex;
   }
-  
+
   async updateExplorationHex(id: number, updates: Partial<CampaignExplorationHex>): Promise<CampaignExplorationHex | undefined> {
+    // Fog only lifts once. Read the prior flag so re-saving an already-explored
+    // hex -- which the trek and move routes both do -- stays silent.
+    const wasExplored = updates.isExplored === true
+      ? (await db.select({ isExplored: campaignExplorationHexes.isExplored })
+          .from(campaignExplorationHexes)
+          .where(eq(campaignExplorationHexes.id, id)))[0]?.isExplored ?? false
+      : true;
+
     const [updated] = await db.update(campaignExplorationHexes)
       .set(updates)
       .where(eq(campaignExplorationHexes.id, id))
       .returning();
+
+    if (updated && updates.isExplored === true && !wasExplored) {
+      emitWorld({
+        type: "hex_explored",
+        campaignId: updated.campaignId,
+        hexQ: updated.q,
+        hexR: updated.r,
+        locationName: updated.locationName ?? undefined,
+        terrainType: updated.terrainType ?? undefined,
+        at: nowIso(),
+      });
+    }
     return updated || undefined;
   }
   
@@ -3267,10 +3312,25 @@ export class DatabaseStorage implements IStorage {
         createdAt: new Date().toISOString()
       })
       .returning();
+
+    // A party appearing on the map for the first time is a move from nowhere.
+    emitWorld({
+      type: "party_moved",
+      campaignId: newState.campaignId,
+      hexQ: newState.currentHexQ ?? 0,
+      hexR: newState.currentHexR ?? 0,
+      at: nowIso(),
+    });
     return newState;
   }
   
   async updateExplorationState(campaignId: number, updates: Partial<CampaignExplorationState>): Promise<CampaignExplorationState | undefined> {
+    // Only read the previous row when the caller is actually touching position.
+    // Most updates aren't a move, and this runs on every exploration write.
+    const movesParty =
+      updates.currentHexQ !== undefined || updates.currentHexR !== undefined;
+    const previous = movesParty ? await this.getExplorationState(campaignId) : undefined;
+
     const [updated] = await db.update(campaignExplorationState)
       .set({
         ...updates,
@@ -3278,6 +3338,24 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(campaignExplorationState.campaignId, campaignId))
       .returning();
+
+    if (updated && movesParty) {
+      const q = updated.currentHexQ ?? 0;
+      const r = updated.currentHexR ?? 0;
+      // A write that sets the same coordinates is not a move -- several routes
+      // re-save the whole state on every turn, and those must stay silent.
+      if (previous?.currentHexQ !== q || previous?.currentHexR !== r) {
+        emitWorld({
+          type: "party_moved",
+          campaignId,
+          hexQ: q,
+          hexR: r,
+          prevQ: previous?.currentHexQ ?? undefined,
+          prevR: previous?.currentHexR ?? undefined,
+          at: nowIso(),
+        });
+      }
+    }
     return updated || undefined;
   }
   
