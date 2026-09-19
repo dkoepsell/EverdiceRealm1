@@ -83,7 +83,7 @@ import {
   characterBounties,
 } from "@shared/schema";
 import { mergeOnboardingState, parseOnboardingState } from "@shared/onboarding";
-import { setupAuth, isAuthenticated, requireAdmin, requireStaff, isStaff } from "./auth";
+import { setupAuth, isAuthenticated, requireAdmin, requireStaff, isStaff, getSessionMiddleware } from "./auth";
 import { generateCampaign, CampaignGenerationRequest } from "./lib/openai";
 import { generateCharacterPortrait, generateCharacterBackground } from "./lib/characterImageGenerator";
 import { generateUserAvatar } from "./lib/avatarGenerator";
@@ -102,6 +102,7 @@ import { syncMarketItemStats } from "./economyEngine";
 import { recordPurchase, recordSale, getItemPrice, getSellPrice } from "./economyEngine";
 import { generateWorldEvents, aggregateDiscoveries, generateRumors } from "./lib/worldEventEngine";
 import { getWorldContext, formatWorldContext, pickRegionForCampaign, adoptInventedLocation, getRegionEventsSince } from "./lib/worldContext";
+import { onWorldEvent } from "./lib/worldBus";
 import { generatePostCombatRewards, type PostCombatRewards, type DefeatedEnemy } from "./postCombatRewards";
 import { db } from "./db";
 import { eq, sql, desc, and, gte, isNull, inArray } from "drizzle-orm";
@@ -1662,9 +1663,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create HTTP server
   const httpServer = createServer(app);
   
-  // Initialize WebSocket server
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-  
+  // Initialize WebSocket server.
+  //
+  // noServer + a manual upgrade handler so the session cookie can be read
+  // before the socket exists. Note this deliberately does NOT gate the
+  // upgrade on being logged in: TableChat, UniversalChat and the dice feed
+  // all open sockets for signed-out visitors today, and rejecting anonymous
+  // upgrades would silently break them. Anonymous sockets still connect; they
+  // simply arrive with sessionUserId null and cannot subscribe to the world
+  // feed.
+  const wss = new WebSocketServer({ noServer: true, path: '/ws' });
+
+  httpServer.on('upgrade', (req: any, socket: any, head: any) => {
+    const { pathname } = new URL(req.url ?? '/', 'http://localhost');
+    if (pathname !== '/ws') return; // leave other upgrades (Vite HMR) alone
+
+    // Run the same express-session middleware the HTTP side uses, so this
+    // reads the real signed cookie out of the shared pg store.
+    getSessionMiddleware()(req, {} as any, () => {
+      const sessionUserId: number | null = req.session?.passport?.user ?? null;
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        (ws as any).sessionUserId = sessionUserId;
+        wss.emit('connection', ws, req);
+      });
+    });
+  });
+
   // WebSocket event handlers
   wss.on('connection', (ws: WebSocket) => {
     console.log('WebSocket client connected');
@@ -1672,7 +1696,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let connectedUserId: number | null = null;
     let subscribedCampaignId: number | null = null;
 
-    ws.on('message', (message: any) => {
+    // Set by the upgrade handler from the session cookie. Unlike the userId in
+    // an `identify` message, the client cannot choose this value.
+    const sessionUserId: number | null = (ws as any).sessionUserId ?? null;
+    let unsubscribeWorld: (() => void) | null = null;
+
+    ws.on('message', async (message: any) => {
       try {
         const data = JSON.parse(message.toString());
         console.log('Received WebSocket message:', data);
@@ -1718,6 +1747,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else if (data.type === 'player_ready') {
           // Broadcast player ready status for coordinated actions
           broadcastMessage('player_ready', data.payload);
+        } else if (data.type === 'admin_world_subscribe') {
+          // Live feed for the admin world viewer. Authorised from the session
+          // cookie only -- never from anything in the message payload.
+          if (unsubscribeWorld) return; // already subscribed; ignore repeats
+          if (sessionUserId === null) {
+            ws.send(JSON.stringify({ type: 'admin_world_denied', payload: { reason: 'not_signed_in' } }));
+            return;
+          }
+          const user = await storage.getUser(sessionUserId);
+          if (!user?.isAdmin) {
+            ws.send(JSON.stringify({ type: 'admin_world_denied', payload: { reason: 'not_admin' } }));
+            return;
+          }
+          unsubscribeWorld = onWorldEvent((event) => {
+            if (ws.readyState !== WebSocket.OPEN) return;
+            ws.send(JSON.stringify({ type: 'world_event', payload: event }));
+          });
+          ws.send(JSON.stringify({ type: 'admin_world_subscribed', payload: { at: new Date().toISOString() } }));
+        } else if (data.type === 'admin_world_unsubscribe') {
+          if (unsubscribeWorld) { unsubscribeWorld(); unsubscribeWorld = null; }
         }
       } catch (error) {
         console.error('Error processing WebSocket message:', error);
@@ -1736,6 +1785,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Don't leak an empty Set per campaign for the life of the process.
         if (subs && subs.size === 0) campaignConnections.delete(subscribedCampaignId);
       }
+      if (unsubscribeWorld) { unsubscribeWorld(); unsubscribeWorld = null; }
     });
 
     ws.on('error', (error) => {
@@ -1750,6 +1800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Don't leak an empty Set per campaign for the life of the process.
         if (subs && subs.size === 0) campaignConnections.delete(subscribedCampaignId);
       }
+      if (unsubscribeWorld) { unsubscribeWorld(); unsubscribeWorld = null; }
     });
   });
 

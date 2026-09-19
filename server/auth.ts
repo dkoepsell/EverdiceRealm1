@@ -36,28 +36,47 @@ async function comparePasswords(supplied: string, stored: string) {
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
+const PgStore = connectPgSimple(session);
+
+let _sessionMiddleware: ReturnType<typeof session> | null = null;
+
+/**
+ * The one session middleware instance, shared by Express and by the WebSocket
+ * upgrade handler in routes.ts, so the upgrade path reads the same cookie from
+ * the same pg-backed store rather than trusting a userId the client sends over
+ * the socket.
+ *
+ * Built on first call, never at module scope. index.ts calls dotenv.config()
+ * in its body, which under ESM runs only after every import has been
+ * evaluated -- so anything reading process.env while this module is being
+ * imported sees nothing. Reading SESSION_SECRET there would silently fall back
+ * to a fresh randomUUID() on every boot and sign out every user on restart.
+ */
+export function getSessionMiddleware() {
+  if (!_sessionMiddleware) {
+    _sessionMiddleware = session({
+      store: new PgStore({
+        pool,
+        tableName: 'session',
+        createTableIfMissing: true,
+      }),
+      secret: process.env.SESSION_SECRET || randomUUID(),
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        // Set COOKIE_SECURE=true in .env only when the server is behind HTTPS.
+        // Defaults to false so HTTP deployments work; HTTPS deployments must opt in.
+        secure: process.env.COOKIE_SECURE === 'true',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      },
+    });
+  }
+  return _sessionMiddleware;
+}
+
 export function setupAuth(app: Express) {
-  const PgStore = connectPgSimple(session);
-
-  const sessionSettings: session.SessionOptions = {
-    store: new PgStore({
-      pool,
-      tableName: 'session',
-      createTableIfMissing: true,
-    }),
-    secret: process.env.SESSION_SECRET || randomUUID(),
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      // Set COOKIE_SECURE=true in .env only when the server is behind HTTPS.
-      // Defaults to false so HTTP deployments work; HTTPS deployments must opt in.
-      secure: process.env.COOKIE_SECURE === 'true',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    }
-  };
-
   app.set("trust proxy", 1);
-  app.use(session(sessionSettings));
+  app.use(getSessionMiddleware());
   app.use(passport.initialize());
   app.use(passport.session());
 
