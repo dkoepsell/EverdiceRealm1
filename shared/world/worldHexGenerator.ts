@@ -118,6 +118,11 @@ export const WORLD_SEED = 42;
 const GRID_SIZE = 100;
 const REGION_SCALE = 8;
 
+// Region terrains that count as open water. Rivers drain toward these and
+// hexes inside them can be coastline. The seeded regions use "shallow_water"
+// and "deep_water" as well as "ocean", so matching only "ocean" finds nothing.
+const WATER_REGION_TERRAINS = new Set(["ocean", "shallow_water", "deep_water"]);
+
 function seededRandom(seed: number): () => number {
   let s = seed;
   return () => {
@@ -310,6 +315,28 @@ function getTerrainForRegion(
       if (elevation > 0.3) return "shallow_water";
       return "deep_water";
 
+    case "deep_water":
+      if (elevation > 0.75) return "shallow_water";
+      return "deep_water";
+
+    case "shallow_water":
+      if (elevation > 0.5) return "beach";
+      return "shallow_water";
+
+    case "tundra":
+      if (moisture > 0.65) return "ice";
+      return "tundra";
+
+    case "hills":
+      if (elevation > 0.65) return "foothills";
+      if (elevation > 0.35) return "hills";
+      return "grassland";
+
+    case "ruins":
+      if (elevation > 0.6) return "ruins";
+      if (moisture > 0.45) return "ash_wastes";
+      return "plains";
+
     default:
       if (region.name.includes("Volcanic") || region.name.includes("Ember")) {
         if (elevation > 0.7) return "volcanic";
@@ -409,7 +436,7 @@ export function generateWorldHexMap(
 
   const riverPaths: Set<string> = new Set();
   const mountainRegions = regions.filter(r => r.terrain === "mountain");
-  const coastRegions = regions.filter(r => r.terrain === "ocean");
+  const coastRegions = regions.filter(r => WATER_REGION_TERRAINS.has(r.terrain));
   for (const mtn of mountainRegions) {
     const mtnBounds = getRegionBounds(mtn);
     const startQ = Math.round((mtnBounds.minQ + mtnBounds.maxQ) / 2);
@@ -427,8 +454,15 @@ export function generateWorldHexMap(
     let cq = startQ;
     let cr = startR;
     const maxSteps = 150;
+    // The meander below is a pure function of position, so a step and its
+    // opposite form a 2-cycle the walk can never escape: the river stalls a few
+    // hexes from its source and never reaches the coast. Track what this river
+    // has already flooded and fall back to a greedy step whenever the meander
+    // would double back, which keeps distance-to-target strictly decreasing.
+    const visited = new Set<string>();
     for (let s = 0; s < maxSteps; s++) {
       riverPaths.add(`${cq},${cr}`);
+      visited.add(`${cq},${cr}`);
       if (Math.abs(cq - targetQ) <= 1 && Math.abs(cr - targetR) <= 1) break;
       const dq = targetQ - cq;
       const dr = targetR - cr;
@@ -436,23 +470,31 @@ export function generateWorldHexMap(
       const n2 = detailNoise(cq * 0.08 + 100, cr * 0.08 + 100);
       const meander = (n1 + n2) * 0.5;
 
+      let nq = cq;
+      let nr = cr;
       if (meander > 0.15) {
-        const perpQ = dr > 0 ? 1 : (dr < 0 ? -1 : (n1 > 0 ? 1 : -1));
-        cq += perpQ;
-        cr += dr > 0 ? 1 : (dr < 0 ? -1 : 0);
+        nq += dr > 0 ? 1 : (dr < 0 ? -1 : (n1 > 0 ? 1 : -1));
+        nr += dr > 0 ? 1 : (dr < 0 ? -1 : 0);
       } else if (meander < -0.15) {
-        const perpR = dq > 0 ? 1 : (dq < 0 ? -1 : (n2 > 0 ? 1 : -1));
-        cr += perpR;
-        cq += dq > 0 ? 1 : (dq < 0 ? -1 : 0);
+        nr += dq > 0 ? 1 : (dq < 0 ? -1 : (n2 > 0 ? 1 : -1));
+        nq += dq > 0 ? 1 : (dq < 0 ? -1 : 0);
       } else if (Math.abs(dq) > Math.abs(dr)) {
-        cq += dq > 0 ? 1 : -1;
-        if (Math.abs(n1) > 0.05) cr += n1 > 0 ? 1 : -1;
+        nq += dq > 0 ? 1 : -1;
+        if (Math.abs(n1) > 0.05) nr += n1 > 0 ? 1 : -1;
       } else {
-        cr += dr > 0 ? 1 : -1;
-        if (Math.abs(n2) > 0.05) cq += n2 > 0 ? 1 : -1;
+        nr += dr > 0 ? 1 : -1;
+        if (Math.abs(n2) > 0.05) nq += n2 > 0 ? 1 : -1;
       }
-      cq = Math.max(0, Math.min(GRID_SIZE - 1, cq));
-      cr = Math.max(0, Math.min(GRID_SIZE - 1, cr));
+      nq = Math.max(0, Math.min(GRID_SIZE - 1, nq));
+      nr = Math.max(0, Math.min(GRID_SIZE - 1, nr));
+
+      if (visited.has(`${nq},${nr}`)) {
+        nq = cq + Math.sign(dq);
+        nr = cr + Math.sign(dr);
+        if (visited.has(`${nq},${nr}`)) break; // boxed in; stop this river
+      }
+      cq = nq;
+      cr = nr;
     }
   }
 
@@ -503,7 +545,7 @@ export function generateWorldHexMap(
         }
       }
 
-      const isCoast = region.terrain === "ocean" && elevation > 0.55;
+      const isCoast = WATER_REGION_TERRAINS.has(region.terrain) && elevation > 0.55;
 
       hexMap.set(key, {
         q, r,
