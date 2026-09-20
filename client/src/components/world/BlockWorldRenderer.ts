@@ -77,7 +77,12 @@ export class BlockWorldRenderer {
     }
 
     const box = new THREE.BoxGeometry(1, 1, 1);
-    const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    // NOT vertexColors. setColorAt fills instanceColor, which three applies via
+    // USE_INSTANCING_COLOR by itself. Asking for vertexColors as well defines
+    // USE_COLOR, and the shader then multiplies by a per-vertex `color`
+    // attribute that BoxGeometry does not have -- it reads as zero and every
+    // instance renders black.
+    const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
     const terrain = new THREE.InstancedMesh(box, mat, solid);
     terrain.instanceMatrix.setUsage(THREE.StaticDrawUsage);
 
@@ -115,7 +120,7 @@ export class BlockWorldRenderer {
     // Trees: a trunk box and a canopy box per tree.
     if (trees > 0) {
       const trunkMat = new THREE.MeshLambertMaterial({ color: BLOCK_COLORS.oak_log });
-      const leafMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+      const leafMat = new THREE.MeshLambertMaterial({ color: 0xffffff }); // instanceColor, see above
       const trunkMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.34, 1, 0.34), trunkMat, trees);
       const leafMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1.7, 1.5, 1.7), leafMat, trees);
       let t = 0;
