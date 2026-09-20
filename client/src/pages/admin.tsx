@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   Loader2, Users, Swords, Shield, Eye, Crown, User, Calendar, MapPin,
   BarChart3, Activity, TrendingUp, Clock, Dice6, Sparkles, MousePointer,
-  Download, Mail, MessageSquare, Star, Bug, Lightbulb, Heart, Check, ExternalLink
+  Download, Mail, MessageSquare, Star, Bug, Lightbulb, Heart, Check, ExternalLink, Box
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -609,6 +609,17 @@ export default function AdminPage() {
               )}
             </TabsTrigger>
           </TabsList>
+
+          {isFullAdmin && (
+            <div className="mt-3">
+              <Button variant="outline" size="sm" className="gap-2"
+                onClick={() => setLocation("/admin/world-blocks")}>
+                <Box className="h-4 w-4" />
+                World in blocks
+                <span className="text-xs text-muted-foreground">3D map of every party</span>
+              </Button>
+            </div>
+          )}
 
           <TabsContent value="analytics">
             <motion.div 

@@ -38,6 +38,7 @@ const WorldMapPage = lazy(() => import("@/pages/world-map"));
 const CAMLPage = lazy(() => import("@/pages/CAMLPage"));
 const CommunityPage = lazy(() => import("@/pages/community"));
 const AdminPage = lazy(() => import("@/pages/admin"));
+const AdminWorldBlocksPage = lazy(() => import("@/pages/admin-world-blocks"));
 const LegalPage = lazy(() => import("@/pages/legal"));
 const TavernPage = lazy(() => import("@/pages/tavern"));
 const ProfilePage = lazy(() => import("@/pages/profile"));
@@ -118,6 +119,7 @@ function Router() {
             <ProtectedRoute path="/delve" component={DelvePage} />
             <Route path="/caml" component={CAMLPage} />
             <ProtectedRoute path="/admin" component={AdminPage} />
+            <ProtectedRoute path="/admin/world-blocks" component={AdminWorldBlocksPage} />
             <ProtectedRoute path="/profile" component={ProfilePage} />
             <ProtectedRoute path="/ai-settings" component={AISettingsPage} />
             <Route path="/how-it-works" component={HowItWorks} />

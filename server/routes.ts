@@ -103,6 +103,7 @@ import { recordPurchase, recordSale, getItemPrice, getSellPrice } from "./econom
 import { generateWorldEvents, aggregateDiscoveries, generateRumors } from "./lib/worldEventEngine";
 import { getWorldContext, formatWorldContext, pickRegionForCampaign, adoptInventedLocation, getRegionEventsSince } from "./lib/worldContext";
 import { onWorldEvent } from "./lib/worldBus";
+import { WORLD_SEED } from "@shared/world/worldHexGenerator";
 import { generatePostCombatRewards, type PostCombatRewards, type DefeatedEnemy } from "./postCombatRewards";
 import { db } from "./db";
 import { eq, sql, desc, and, gte, isNull, inArray } from "drizzle-orm";
@@ -27071,6 +27072,53 @@ Respond with JSON:
     } catch (error) {
       console.error("Failed to fetch region events:", error);
       res.status(500).json({ message: "Failed to fetch region events" });
+    }
+  });
+
+  /**
+   * Everything the admin block viewer needs to draw the world, in one call.
+   *
+   * Deliberately does NOT ship voxels. The generator lives in shared/, so the
+   * client builds the same 80k-column world from the same seed in about 20ms;
+   * sending the columns instead would be roughly a megabyte per refresh to say
+   * what these few kilobytes already determine.
+   */
+  app.get("/api/admin/world/snapshot", requireAdmin, async (req, res) => {
+    try {
+      const [regions, locations, campaigns] = await Promise.all([
+        storage.getAllWorldRegions(),
+        storage.getWorldLocations(),
+        storage.getAllCampaigns(),
+      ]);
+
+      // Where every party currently stands. A campaign with no exploration
+      // state has never set foot on the map and is left out.
+      const parties = (await Promise.all(campaigns.map(async (c) => {
+        const state = await storage.getExplorationState(c.id);
+        if (!state || state.currentHexQ === null || state.currentHexR === null) return null;
+        const hexes = await storage.getExplorationHexes(c.id);
+        return {
+          campaignId: c.id,
+          title: c.title,
+          hexQ: state.currentHexQ,
+          hexR: state.currentHexR,
+          isArchived: !!c.isArchived,
+          isCompleted: !!c.isCompleted,
+          updatedAt: state.updatedAt ?? null,
+          exploredCount: hexes.filter(h => h.isExplored).length,
+        };
+      }))).filter(Boolean);
+
+      res.json({
+        seed: WORLD_SEED,
+        generatedAt: new Date().toISOString(),
+        regions,
+        locations,
+        parties,
+      });
+    } catch (error) {
+      console.error("Failed to build world snapshot:", error);
+      res.status(500).json({ message: "Failed to build world snapshot" });
     }
   });
 
