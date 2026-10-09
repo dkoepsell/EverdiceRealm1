@@ -4,6 +4,9 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { buildTurnState, buildSpotlightDirective, type TurnState } from "./lib/turnOrder";
 import { describeRollForNarrator, isAttackRoll, rollSucceeded } from "./lib/rollNarration";
+import { ensureCombatForAttack, attackIntentDirective } from "./lib/combatEntry";
+import { scenesInFinalChapter, streamFinaleDirective } from "./lib/finale";
+import { cleanChoices } from "./lib/choiceHygiene";
 import { recordSoloTurn } from "./play/progression/recordTurn";
 import { buildScaffoldingResponse, resolveEffectiveRung, type ScaffoldingResponse } from "./play/suggestions/visibility";
 import { renderDiegetic } from "./play/suggestions/diegetic";
@@ -19820,13 +19823,7 @@ Do not ignore this result. Build the entire next scene around this outcome.`;
       // narrate a social/skill outcome and combat never actually starts.
       let attackIntentInfo = "";
       if (intent === 'attack') {
-        attackIntentInfo = `
-COMBAT INITIATION — THE PLAYER IS ATTACKING:
-The player's action is an ATTACK on a creature, not a social or skill attempt.
-- You MUST set "inCombat": true in your response.
-- You MUST populate "combatants" with the player character(s) and every hostile present, each with name, type ("player"/"ally"/"enemy"/"boss"), maxHp, currentHp, armorClass and initiative.
-- Narrate the opening strike and the target's reaction. Do NOT resolve the whole fight in one paragraph, and do NOT convert this into an Intimidation, Persuasion or Athletics outcome.
-- If the target is genuinely non-hostile or helpless, still honour the attack: describe the consequences (bystanders scattering, guards summoned, reputation damage) rather than refusing the action.`;
+        attackIntentInfo = attackIntentDirective();
       }
 
       // Get current quests from story state
@@ -21204,7 +21201,7 @@ Respond with JSON:
     }
   ],
   "storyState": {
-    "location": "current location",
+    "location": "the specific place the party is standing at the END of this narrative (e.g. \"Throne Chamber\", not the corridor they left) — rename it whenever the narrative moves them into a new room or area",
     "activeNPCs": ["NPCs present"],
     "plotPoints": ["active plot elements"],
     "conditions": ["current conditions"],
@@ -21472,6 +21469,20 @@ ${cachedNarrative}
         type: rollResult?.type
       }));
       
+      // An attack outside combat on a creature the AI never put in combatants:
+      // start the fight here, or the hit lands on nothing and the creature is
+      // unkillable (see server/lib/combatEntry.ts).
+      const startedCombat = ensureCombatForAttack(
+        rollResult,
+        currentSession?.storyState as any,
+        storyAdvancement.storyState,
+        playerCharacter?.level || 1,
+      );
+      if (startedCombat) {
+        storyAdvancement.storyState = startedCombat;
+        console.log(`[Combat] Started combat from an attack on "${rollTarget}" the AI left out of combatants`);
+      }
+
       if (rollResult?.damage?.total && rollIsHit && rollTarget) {
         const targetName = rollTarget;
         const damageDealt = rollResult.damage.total;
@@ -23327,6 +23338,8 @@ ${cachedNarrative}
       // choices array (or omits the field) — especially mid-combat, where the movement
       // fallback above does not run — which left the player with no buttons and a stuck
       // turn. Inject context-appropriate defaults so play can always continue.
+      const gateLabels = toLogArray((campaign as any)?.chapterGates).flatMap((g: any) => [g?.requiredCommitment, g?.advanceWhen]);
+      finalChoices = cleanChoices(finalChoices, gateLabels);
       if (!Array.isArray(finalChoices) || finalChoices.length === 0) {
         if (inCombat) {
           finalChoices = [
@@ -25893,7 +25906,7 @@ Respond with JSON:
       }
 
       const campaignId = parseInt(req.params.campaignId);
-      const { choice, currentLocation, rollResult } = req.body;
+      const { choice, currentLocation, rollResult, intent } = req.body;
 
       const campaign = await storage.getCampaign(campaignId);
       if (!campaign) {
@@ -25970,6 +25983,10 @@ Respond with JSON:
       const narrativeStyle = campaign?.narrativeStyle || "Descriptive";
       const currentChapter = campaign.currentSession || 1;
       const totalChapters = campaign.totalChapters || 5;
+      const streamFinale = streamFinaleDirective(
+        currentChapter >= totalChapters,
+        scenesInFinalChapter(toLogArray((campaign as any).narrativeLog), storyState.turnsInChapter || 0),
+      );
       const campaignQuestion = (campaign as any).campaignQuestion || '';
 
       const recentSessions = sessions.slice(-5);
@@ -26054,7 +26071,7 @@ ${campaignQuestion ? `Campaign Question: "${campaignQuestion}"` : ''}
 ${chapterObjective}
 ${stakesContext}
 ${momentousContext}
-${playerCharInfo}${streamSpotlight}
+${playerCharInfo}${streamSpotlight}${streamFinale}
 ${partyDesc ? `Party: ${partyDesc}` : ''}
 ${formatWorldContext(streamWorldContext, currentLocation)}
 ${combatContext}
@@ -26071,7 +26088,7 @@ Current Story State: ${JSON.stringify({
 })}
 
 The player chose: "${choice || "Continue the adventure"}"
-${describeRollForNarrator(rollResult, streamActor?.name)}
+${describeRollForNarrator(rollResult, streamActor?.name)}${intent === 'attack' && !rollResult ? attackIntentDirective() : ''}
 ANTI-REPETITION — DO NOT reuse these:
 - Recent titles: ${recentTitles.map(t => `"${t}"`).join(', ')}
 - Recent locations: ${[...new Set(recentLocations)].join(', ')}

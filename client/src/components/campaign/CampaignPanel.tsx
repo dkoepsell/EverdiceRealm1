@@ -2085,7 +2085,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
   const streamAbortRef = useRef<AbortController | null>(null);
 
-  const startNarrativeStream = useCallback(async (choice: string, loc: string, rollResult?: any) => {
+  const startNarrativeStream = useCallback(async (choice: string, loc: string, rollResult?: any, intent?: string) => {
     if (streamAbortRef.current) {
       streamAbortRef.current.abort();
     }
@@ -2098,7 +2098,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         signal: controller.signal,
-        body: JSON.stringify({ choice, currentLocation: loc, pacingMode, rollResult }),
+        body: JSON.stringify({ choice, currentLocation: loc, pacingMode, rollResult, intent }),
       });
 
       if (!response.ok || !response.body) return;
@@ -3061,7 +3061,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
     showTip('pacing');
     fetchRevealText(actionText, parsedStoryState?.inCombat || false, currentLocation);
-    startNarrativeStream(actionText, currentLocation);
+    startNarrativeStream(actionText, currentLocation, undefined, intent);
     advanceStory.mutate({ choice: actionText, streaming: true, intent }, {
       onSettled: () => {
         if (streamAbortRef.current) streamAbortRef.current.abort();
