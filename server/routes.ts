@@ -2,7 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { buildTurnState, type TurnState } from "./lib/turnOrder";
+import { buildTurnState, buildSpotlightDirective, type TurnState } from "./lib/turnOrder";
+import { describeRollForNarrator, isAttackRoll, rollSucceeded } from "./lib/rollNarration";
 import { recordSoloTurn } from "./play/progression/recordTurn";
 import { buildScaffoldingResponse, resolveEffectiveRung, type ScaffoldingResponse } from "./play/suggestions/visibility";
 import { renderDiegetic } from "./play/suggestions/diegetic";
@@ -19266,6 +19267,17 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
       // `participants[0]`. An unseated DM narrating for the party has no seat, so
       // it stays null and those call sites fall back to the first seat.
       const actingCharacterId: number | null = actingSeat?.characterId ?? null;
+      // Keep the narrator from playing the other players' characters, and point
+      // the follow-up choices at whoever the rotation hands the turn to next.
+      let spotlightDirective = "";
+      if (isMultiplayer) {
+        const seatChars = await Promise.all(turnRoster.map(seat => storage.getCharacter(seat.characterId)));
+        spotlightDirective = buildSpotlightDirective(
+          turnRoster,
+          turnRoster.flatMap((seat, idx) => seatChars[idx] ? [{ userId: seat.userId, characterName: seatChars[idx]!.name }] : []),
+          actingSeat ? req.user.id : null,
+        );
+      }
       if (actingSeat?.characterId) {
         storage.setCharacterEngagement(actingSeat.characterId, 'campaign', campaignId)
           .catch(err => console.error('[Engagement] Failed to mark character in-field:', err));
@@ -19781,10 +19793,13 @@ NARRATIVE RULES (MANDATORY):
       let skillCheckContinuation = "";
       
       if (rollResult) {
-        const rollSuccess = rollResult.total >= (rollResult.dc || 10);
-        const skillType = rollResult.purpose || "skill check";
+        // Weapon attacks carry hit/attackRoll, not total/dc — reading them as a
+        // skill check made every hit a FAILURE.
+        const rollIsAttack = isAttackRoll(rollResult);
+        const rollSuccess = rollSucceeded(rollResult);
+        const skillType = rollIsAttack ? `attack on ${rollResult.targetName || "the target"}` : (rollResult.purpose || "skill check");
         
-        skillCheckInfo = `
+        skillCheckInfo = rollIsAttack ? describeRollForNarrator(rollResult) : `
 SKILL CHECK RESULT ANALYSIS:
 - Skill Check: ${skillType}
 - Roll: ${rollResult.diceType} rolled ${rollResult.result} + ${rollResult.modifier || 0} = ${rollResult.total}
@@ -20895,7 +20910,7 @@ ${currentQuests.length > 0 ? currentQuests.map((q: any) =>
 
 Current Narrative:
 ${currentSession.narrative}
-${playerCharacterInfo}
+${playerCharacterInfo}${spotlightDirective}
 
 Player Choice Made: ${choice}
 ${isWaypointTravel(choice) ? `
@@ -21408,7 +21423,7 @@ ${cachedNarrative}
       
       // Award XP for successful skill checks and story progression (D&D 5e style)
       if (rollResult) {
-        const wasSuccessful = rollResult.total >= (rollResult.dc || 10);
+        const wasSuccessful = rollSucceeded(rollResult);
         
         // Track skill usage for progression
         if (skillUsed && skillUsed !== "null") {
@@ -23172,16 +23187,27 @@ ${cachedNarrative}
             const character = await storage.getCharacter(participant.characterId);
             if (character) {
               // Check if this player is already in partyMembers
-              const alreadyInParty = (mergedStoryState.partyMembers as any[]).some(
+              const existingMember = (mergedStoryState.partyMembers as any[]).find(
                 (m: any) => m.name === character.name || (m.type === 'player' && m.characterId === character.id)
               );
-              
-              if (!alreadyInParty) {
+              const playerStatus = character.hitPoints <= 0 ? 'unconscious' :
+                character.hitPoints <= (character.maxHitPoints * 0.25) ? 'bloodied' :
+                character.hitPoints <= (character.maxHitPoints * 0.5) ? 'wounded' : 'healthy';
+
+              if (existingMember) {
+                // The character record is canonical (damage, healing and level-ups
+                // all write there). Without this refresh the party sheet froze at
+                // whatever HP the hero had when first added — a level-4 paladin
+                // still showed his level-1 max HP.
+                Object.assign(existingMember, {
+                  characterId: character.id,
+                  class: character.class,
+                  maxHp: character.maxHitPoints,
+                  currentHp: character.hitPoints,
+                  status: playerStatus,
+                });
+              } else {
                 // Add player character to partyMembers
-                const playerStatus = character.hitPoints <= 0 ? 'unconscious' :
-                  character.hitPoints <= (character.maxHitPoints * 0.25) ? 'bloodied' :
-                  character.hitPoints <= (character.maxHitPoints * 0.5) ? 'wounded' : 'healthy';
-                
                 (mergedStoryState.partyMembers as any[]).unshift({
                   characterId: character.id,
                   name: character.name,
@@ -25878,9 +25904,10 @@ Respond with JSON:
       // concurrently, so without this check a player who isn't up would pay for
       // a full model call and watch the narrative stream in, only to be turned
       // away by the sibling request a moment later.
+      const streamRoster = await storage.getTurnRoster(campaignId);
       const streamTurnState = buildTurnState(
         campaign,
-        await storage.getTurnRoster(campaignId),
+        streamRoster,
         req.user!.id
       );
       if (!streamTurnState.canAct) {
@@ -25918,6 +25945,20 @@ Respond with JSON:
       );
       const validCharacters = characters.filter(Boolean);
       const partyDesc = validCharacters.map(c => c ? `${c.name} (Level ${c.level || 1} ${c.race || "Human"} ${c.class || "Fighter"})` : "").filter(Boolean).join(", ");
+      // This stream is what both players read, and /advance-story adopts it as
+      // the canonical narrative — so it must narrate the hero whose player
+      // acted, not validCharacters[0] (the lowest seat). That bug made every
+      // multiplayer turn read as if seat 1's character had taken it.
+      const streamActingSeat = streamRoster.find(seat => seat.userId === req.user!.id && seat.characterId);
+      const streamActor = (streamActingSeat && validCharacters.find(c => c!.id === streamActingSeat.characterId)) || validCharacters[0];
+      const streamSpotlight = buildSpotlightDirective(
+        streamRoster,
+        streamRoster.flatMap(seat => {
+          const c = validCharacters.find(ch => ch!.id === seat.characterId);
+          return c ? [{ userId: seat.userId, characterName: c.name }] : [];
+        }),
+        streamActingSeat ? req.user!.id : null,
+      );
 
       const sessions = await storage.getCampaignSessions(campaignId);
       const latestSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
@@ -25967,7 +26008,7 @@ Respond with JSON:
 
       let playerCharInfo = "";
       if (validCharacters.length > 0) {
-        const pc = validCharacters[0];
+        const pc = streamActor!;
         if (pc) {
           playerCharInfo = `\nPlayer Character: ${pc.name} (Level ${pc.level || 1} ${pc.class || "Fighter"}, HP ${pc.hitPoints || 0}/${pc.maxHitPoints || 1}, AC ${pc.armorClass || 10}, Status: ${pc.status || 'conscious'})`;
         }
@@ -26013,7 +26054,7 @@ ${campaignQuestion ? `Campaign Question: "${campaignQuestion}"` : ''}
 ${chapterObjective}
 ${stakesContext}
 ${momentousContext}
-${playerCharInfo}
+${playerCharInfo}${streamSpotlight}
 ${partyDesc ? `Party: ${partyDesc}` : ''}
 ${formatWorldContext(streamWorldContext, currentLocation)}
 ${combatContext}
@@ -26030,13 +26071,7 @@ Current Story State: ${JSON.stringify({
 })}
 
 The player chose: "${choice || "Continue the adventure"}"
-${rollResult ? `
-DICE OUTCOME — the player just rolled for this action:
-- Check: ${rollResult.purpose || 'skill check'}
-- Roll: ${rollResult.diceType || 'd20'} ${rollResult.result} + ${rollResult.modifier || 0} = ${rollResult.total} vs DC ${rollResult.dc || 10}
-- Result: ${rollResult.total >= (rollResult.dc || 10) ? 'SUCCESS' : 'FAILURE'}
-Write the scene around this ${rollResult.total >= (rollResult.dc || 10) ? 'success' : 'failure'}. ${rollResult.total >= (rollResult.dc || 10) ? 'The attempt works — show it paying off.' : 'The attempt falls short — show the complication, not a clean win.'} Do NOT contradict this outcome.
-` : ''}
+${describeRollForNarrator(rollResult, streamActor?.name)}
 ANTI-REPETITION — DO NOT reuse these:
 - Recent titles: ${recentTitles.map(t => `"${t}"`).join(', ')}
 - Recent locations: ${[...new Set(recentLocations)].join(', ')}

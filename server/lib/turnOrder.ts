@@ -188,3 +188,42 @@ export function buildTurnState(
     blockedReason,
   };
 }
+
+/** A seated player's character, named for the narrator. */
+export interface SpotlightSeat {
+  userId: number;
+  characterName: string;
+}
+
+/**
+ * Prompt block that keeps the AI narrator from playing one player's character
+ * on another player's turn. Without it the narrator saw only the acting hero,
+ * so it freely decided what the *other* party members did, and it wrote the
+ * follow-up choices for the actor — yet the rotation had already passed, so
+ * the next player was handed choices that continued someone else's action.
+ *
+ * Returns "" for a solo table (nothing to keep apart).
+ */
+export function buildSpotlightDirective(
+  roster: TurnRosterEntry[],
+  seats: SpotlightSeat[],
+  actingUserId: number | null,
+): string {
+  if (roster.length < 2) return "";
+  const nameOf = (userId: number | undefined) =>
+    seats.find(s => s.userId === userId)?.characterName;
+
+  const actor = nameOf(actingUserId ?? undefined);
+  const others = seats.filter(s => s.userId !== actingUserId).map(s => s.characterName);
+  const nextSeat = actingUserId != null ? roster[nextSeatIndex(roster, actingUserId)] : undefined;
+  const next = nameOf(nextSeat?.userId);
+  if (!actor || others.length === 0) return "";
+
+  return `
+MULTIPLAYER TABLE — WHO IS ACTING:
+This turn's action was declared by ${actor}'s player. Every other hero (${others.join(", ")}) belongs to a different real person who is not acting right now.
+- Narrate ONLY ${actor}'s action and the world's response to it.
+- Do NOT decide what ${others.join(" or ")} says, does, decides, rolls, or feels. They may be present and react visibly in a sentence (a glance, standing ready), but never take an action, speak dialogue, or make a choice for them.
+- Do NOT write "you" as if the reader were ${actor} alone — address heroes by name.${next && next !== actor ? `
+- The turn now passes to ${next}. End the scene by turning the spotlight to ${next} (what do they see, what is in front of them), and write every choice as an action ${next} could take next — never a continuation of ${actor}'s action.` : ""}`;
+}

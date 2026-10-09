@@ -2960,7 +2960,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   
   // Handle choice selection
   const handleChoiceSelection = (choice: any) => {
-    setSelectedAction(choice.action);
+    setSelectedAction(choice.action || choice.text);
 
     // A suggestion tagged as an attack is resolved with combat maths, never as a
     // d20 skill check. The DM used to stamp these "intimidation" for lack of an
@@ -2972,7 +2972,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       if (enemies.length > 0) {
         handleQuickWeaponAttack();
       } else {
-        resolveCustomAction(choice.action, 'attack');
+        resolveCustomAction(choice.action || choice.text, 'attack');
       }
       return;
     }
@@ -3006,7 +3006,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       
       // Set up the dice roll with defaults for any missing values
       setCurrentDiceRoll({
-        action: choice.action,
+        action: choice.action || choice.text,
         diceType: diceType,
         rollDC: choice.rollDC || 10, // Default DC if none provided
         rollModifier: calculatedModifier,
@@ -3017,7 +3017,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       
       // Log for debugging
       console.log("Setting up dice roll:", {
-        action: choice.action,
+        action: choice.action || choice.text,
         diceType: diceType,
         rollDC: choice.rollDC || 10,
         rollModifier: calculatedModifier,

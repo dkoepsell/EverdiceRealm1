@@ -10,6 +10,7 @@ import {
   orderRoster,
   nextSeatIndex,
   buildTurnState,
+  buildSpotlightDirective,
   TURN_STALL_FALLBACK_SECONDS,
 } from '../server/lib/turnOrder';
 
@@ -207,6 +208,21 @@ group('buildTurnState — a closed turn', () => {
     nextSeatIndex(roster3, buildTurnState(paused, roster3, 10, T0).currentTurnUserId),
     1
   );
+});
+
+group('buildSpotlightDirective — the narrator plays only the actor', () => {
+  const seats = [
+    { userId: 10, characterName: 'Aldric' },
+    { userId: 20, characterName: 'Brenna' },
+  ];
+  const duo = roster3.slice(0, 2);
+  const text = buildSpotlightDirective(duo, seats, 20);
+
+  check('names the acting hero', text.includes("declared by Brenna's player"), true);
+  check('forbids acting for the other hero', text.includes('Do NOT decide what Aldric'), true);
+  check('hands the spotlight to the next seat', text.includes('The turn now passes to Aldric'), true);
+  check('solo tables get no directive', buildSpotlightDirective(roster3.slice(0, 1), seats.slice(0, 1), 10), '');
+  check('a non-seated actor (DM) gets no directive', buildSpotlightDirective(duo, seats, null), '');
 });
 
 console.log(`\n${checks - failures}/${checks} checks passed`);
