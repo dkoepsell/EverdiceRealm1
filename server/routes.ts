@@ -25587,6 +25587,9 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         };
         
         let primaryCharUpdates: any = {};
+        // Per-character level outcome, so party members who weren't the one
+        // to make the final move can still be shown their own result.
+        const levelResultsByCharacter: Record<number, { leveledUp: boolean; newLevel: number }> = {};
         
         for (const pChar of allParticipantChars) {
           if (!pChar) continue;
@@ -25603,6 +25606,7 @@ Choices should include 4 options with at least 2 requiring dice rolls.
             } else break;
           }
           const leveledUp = newLevel > currentLevel;
+          levelResultsByCharacter[pChar.id] = { leveledUp, newLevel };
           
           // HP increase on level-up
           const hitDieAvg = hitDiceMap[(pChar.class || '').toLowerCase()] || 5;
@@ -25684,7 +25688,21 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           forceCompleted: forceCompletion,
           message: `Congratulations! You have completed "${campaign.title}"!`
         };
-        
+
+        // Only the player who made the final move gets this response. Store the
+        // summary on the campaign so everyone else sees it when they next open it.
+        try {
+          const latestCampaign = await storage.getCampaign(campaignId);
+          await storage.updateCampaign(campaignId, {
+            worldState: {
+              ...(((latestCampaign as any)?.worldState as Record<string, any>) || {}),
+              completion: { ...campaignCompletionData, levelResultsByCharacter },
+            },
+          } as any);
+        } catch (persistErr) {
+          console.error(`[Campaign Completion] Failed to persist completion summary for campaign ${campaignId}:`, persistErr);
+        }
+
         console.log(`[Campaign Completion] Campaign ${campaignId} completed successfully — ending: ${completionEndingType}`);
       }
       

@@ -358,6 +358,44 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     } | null;
   } | null>(null);
 
+  // The finale's response only reaches the player who made the final move.
+  // Everyone else in the party learns the campaign ended from the summary the
+  // server stores on the campaign, shown once per player.
+  const completionSeenKey = `everdice.completionSeen.${campaign.id}.${user?.id}`;
+  const markCompletionSeen = () => {
+    try { localStorage.setItem(completionSeenKey, '1'); } catch {}
+  };
+  useEffect(() => {
+    const stored = (campaign as any).worldState?.completion;
+    if (!campaign.isCompleted || !stored || !user?.id || participantsLoading) return;
+    try { if (localStorage.getItem(completionSeenKey)) return; } catch {}
+    const myCharacterId = participants.find((p: any) => p.userId === user.id)?.characterId;
+    const myLevel = myCharacterId ? stored.levelResultsByCharacter?.[myCharacterId] : null;
+    setCampaignComplete(true);
+    setCompletionRewards({
+      xp: stored.completionXP || 0,
+      gold: stored.goldReward || 0,
+      silver: stored.silverReward || 0,
+      items: stored.rewardItems || [],
+      earnedTitle: stored.earnedTitle || '',
+      earnedTrait: stored.earnedTrait || '',
+      epilogue: stored.epilogue || '',
+      endingType: stored.endingType || 'standard_resolution',
+      chaptersCompleted: stored.chaptersCompleted || 0,
+      totalChapters: stored.totalChapters || 0,
+      questsCompleted: stored.questsCompleted || 0,
+      leveledUp: myLevel?.leveledUp || false,
+      newLevel: myLevel?.newLevel || 1,
+      stakesSummary: stored.stakesSummary || [],
+      characterGrowth: null,
+    });
+    toast({
+      title: "Campaign Complete!",
+      description: `Your party completed "${campaign.title}" — your rewards are in your character sheet.`,
+    });
+    markCompletionSeen();
+  }, [campaign.id, campaign.isCompleted, user?.id, participantsLoading]);
+
   // Session 1 Quiet Reckoning state
   const [quietReckoningData, setQuietReckoningData] = useState<{
     reckoningNarrative: string;
@@ -1621,6 +1659,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
           } else if (data.progression.completionRewards) {
             setCompletionRewards(data.progression.completionRewards);
           }
+          markCompletionSeen();
           toast({
             title: "Campaign Complete!",
             description: "Congratulations! You have completed this adventure!",
