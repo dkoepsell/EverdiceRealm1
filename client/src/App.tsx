@@ -31,6 +31,7 @@ import AuthPage from "@/pages/auth-page";
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const Characters = lazy(() => import("@/pages/characters"));
 const Campaigns = lazy(() => import("@/pages/campaigns"));
+const ChroniclesPage = lazy(() => import("@/pages/chronicles"));
 const DiceRoller = lazy(() => import("@/pages/dice-roller"));
 const DMToolkit = lazy(() => import("@/pages/dm-toolkit"));
 const LearnPage = lazy(() => import("@/pages/learn"));
@@ -103,6 +104,8 @@ function Router() {
             <ProtectedRoute path="/begin" component={BeginPage} />
             <ProtectedRoute path="/characters" component={Characters} />
             <ProtectedRoute path="/campaigns" component={Campaigns} />
+            <ProtectedRoute path="/chronicles" component={ChroniclesPage} />
+            <ProtectedRoute path="/chronicles/:id" component={ChroniclesPage} />
             <ProtectedRoute path="/dice-roller" component={DiceRoller} />
             <ProtectedRoute path="/dm-toolkit" component={DMToolkit} />
             <ProtectedRoute path="/learn" component={LearnPage} />

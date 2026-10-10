@@ -11,6 +11,7 @@ import WorldPlaceStrip from "@/components/world/WorldPlaceStrip";
 import { FirstSessionWrapUp, type SessionRewards } from "./FirstSessionWrapUp";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { hasSeenCompletion, markCompletionSeen as recordCompletionSeen } from "@/lib/completionSeen";
 import { useAudio } from "@/hooks/use-audio";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -361,14 +362,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   // The finale's response only reaches the player who made the final move.
   // Everyone else in the party learns the campaign ended from the summary the
   // server stores on the campaign, shown once per player.
-  const completionSeenKey = `everdice.completionSeen.${campaign.id}.${user?.id}`;
   const markCompletionSeen = () => {
-    try { localStorage.setItem(completionSeenKey, '1'); } catch {}
+    if (user?.id) recordCompletionSeen(campaign.id, user.id);
   };
   useEffect(() => {
     const stored = (campaign as any).worldState?.completion;
     if (!campaign.isCompleted || !stored || !user?.id || participantsLoading) return;
-    try { if (localStorage.getItem(completionSeenKey)) return; } catch {}
+    if (hasSeenCompletion(campaign.id, user.id)) return;
     const myCharacterId = participants.find((p: any) => p.userId === user.id)?.characterId;
     const myLevel = myCharacterId ? stored.levelResultsByCharacter?.[myCharacterId] : null;
     setCampaignComplete(true);
@@ -7896,7 +7896,19 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                   </div>
                 )}
 
-                <div className="flex gap-3 justify-center pt-2">
+                <div className="flex flex-wrap gap-3 justify-center pt-2">
+                  <Button 
+                    onClick={() => {
+                      setCampaignComplete(false);
+                      setCompletionRewards(null);
+                      navigate(`/chronicles/${campaign.id}`);
+                    }}
+                    variant="outline"
+                    className="border-amber-500/50 text-amber-300 hover:bg-amber-900/30 bg-transparent"
+                    data-testid="button-read-finished-story"
+                  >
+                    <BookOpen className="h-4 w-4 mr-2" /> Read the Story
+                  </Button>
                   <Button 
                     onClick={() => {
                       setCampaignComplete(false);

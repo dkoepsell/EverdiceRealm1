@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CampaignPanel from "@/components/campaign/CampaignPanel";
-import { AlertCircle, Book, MapPin, Plus, Scroll, Wand2, Star, Play, Sparkles, ArrowRight, Lightbulb, Trash2 } from "lucide-react";
+import { AlertCircle, Book, MapPin, Plus, Scroll, Wand2, Star, Play, Sparkles, ArrowRight, Lightbulb, Trash2, BookOpen } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -481,6 +481,19 @@ export default function Campaigns() {
                               >
                                 <Star className="h-4 w-4 mr-2" />
                                 Set as Active
+                              </Button>
+                            )}
+
+                            {campaign.isCompleted && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 border-amber-500/40 hover:bg-amber-500/10 hover:border-amber-500/60 transition-colors"
+                                onClick={(e) => { e.stopPropagation(); navigate(`/chronicles/${campaign.id}`); }}
+                                data-testid={`button-read-story-${campaign.id}`}
+                              >
+                                <BookOpen className="h-4 w-4 mr-2" />
+                                Read the Story
                               </Button>
                             )}
 

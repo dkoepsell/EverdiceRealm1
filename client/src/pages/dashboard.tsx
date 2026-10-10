@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { FinishedAdventureNotice } from "@/components/campaign/FinishedAdventureNotice";
 import { Link } from "wouter";
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
@@ -475,6 +476,14 @@ export default function Dashboard() {
       {!showLearnByPlaying && !showQuickStart && campaigns?.some((c: any) => c.isCompleted) && (
         <section className="container mx-auto px-4 pt-2">
           <BecomeDMInvite />
+        </section>
+      )}
+
+      {/* A finale only reaches the player who made the last move; everyone else
+          learns their campaign ended here. */}
+      {!showLearnByPlaying && !showQuickStart && (
+        <section className="container mx-auto px-4 pt-2">
+          <FinishedAdventureNotice campaigns={campaigns} />
         </section>
       )}
 

@@ -58,6 +58,7 @@ import {
   chatMessages,
   onlineUsers,
   campaignSessions,
+  campaignTurnLog,
   dmSessionStates,
   worldRumors,
   worldDevelopments,
@@ -157,6 +158,7 @@ import {
 
 import { getAIClient, getFastAIClient, getAppOpenAI, getAppAI } from "./lib/aiProvider";
 import { generateCliffhangerHook } from "./lib/cliffhanger";
+import { buildAdventureStory } from "./lib/adventureStory";
 import { generateReturnGreeting, getStreakReward } from "./lib/hearthGreeting";
 import { objectStorageClient } from "./replit_integrations/object_storage";
 import { randomUUID, createHash } from "crypto";
@@ -30119,6 +30121,93 @@ Snapshots must include at least 2 forked endings.`;
     } catch (error) {
       console.error("Failed to revive character:", error);
       res.status(500).json({ message: "Failed to revive character" });
+    }
+  });
+
+  // Finished adventures this player took part in, for reading back as stories.
+  app.get("/api/me/finished-adventures", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const seats = await db.select({ campaignId: campaignParticipants.campaignId, characterId: campaignParticipants.characterId })
+        .from(campaignParticipants)
+        .where(eq(campaignParticipants.userId, userId));
+      const seatedIds = seats.map((s) => s.campaignId);
+
+      const finished = await db.select().from(campaigns).where(and(
+        eq(campaigns.isCompleted, true),
+        seatedIds.length
+          ? sql`(${campaigns.userId} = ${userId} OR ${inArray(campaigns.id, seatedIds)})`
+          : eq(campaigns.userId, userId),
+      ));
+
+      const adventures = await Promise.all(finished.map(async (c: any) => {
+        const party = await storage.getCampaignParticipants(c.id);
+        const characters = await Promise.all(party.map((p: any) => p.characterId ? storage.getCharacter(p.characterId) : null));
+        const completion = c.worldState?.completion || null;
+        return {
+          id: c.id,
+          title: c.title,
+          description: c.description,
+          coverImageUrl: c.coverImageUrl || null,
+          completedAt: c.completedAt,
+          totalChapters: c.totalChapters,
+          earnedTitle: completion?.earnedTitle || null,
+          endingType: completion?.endingType || null,
+          party: characters.filter(Boolean).map((ch: any) => ch.name),
+        };
+      }));
+      adventures.sort((a, b) => String(b.completedAt || '').localeCompare(String(a.completedAt || '')));
+      res.json(adventures);
+    } catch (error) {
+      console.error("Failed to list finished adventures:", error);
+      res.status(500).json({ message: "Failed to list finished adventures" });
+    }
+  });
+
+  // A campaign's whole story, oldest first, grouped into chapters.
+  app.get("/api/campaigns/:campaignId/story", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const userId = req.user.id;
+      if (!Number.isFinite(campaignId)) {
+        return res.status(400).json({ message: "Invalid campaign id" });
+      }
+
+      const campaign: any = await storage.getCampaign(campaignId);
+      if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+      const party = await storage.getCampaignParticipants(campaignId);
+      if (campaign.userId !== userId && !party.some((p: any) => p.userId === userId)) {
+        return res.status(403).json({ message: "You were not at this table" });
+      }
+
+      const [turnLog, sessions, characters] = await Promise.all([
+        db.select().from(campaignTurnLog).where(eq(campaignTurnLog.campaignId, campaignId)),
+        storage.getCampaignSessions(campaignId),
+        Promise.all(party.map((p: any) => p.characterId ? storage.getCharacter(p.characterId) : null)),
+      ]);
+      const story = buildAdventureStory(turnLog as any[], sessions as any[]);
+      const completion = campaign.worldState?.completion || null;
+
+      res.json({
+        id: campaign.id,
+        title: campaign.title,
+        description: campaign.description,
+        coverImageUrl: campaign.coverImageUrl || null,
+        isCompleted: !!campaign.isCompleted,
+        completedAt: campaign.completedAt || null,
+        totalChapters: campaign.totalChapters,
+        party: characters.filter(Boolean).map((ch: any) => ({ name: ch.name, race: ch.race, class: ch.class, level: ch.level })),
+        completion: completion && {
+          earnedTitle: completion.earnedTitle || null,
+          earnedTrait: completion.earnedTrait || null,
+          endingType: completion.endingType || null,
+          epilogue: completion.epilogue || null,
+        },
+        ...story,
+      });
+    } catch (error) {
+      console.error("Failed to build campaign story:", error);
+      res.status(500).json({ message: "Failed to load this story" });
     }
   });
 
