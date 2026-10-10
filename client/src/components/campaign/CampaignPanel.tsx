@@ -86,6 +86,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [, navigate] = useLocation();
   
   const isDM = campaign.userId === user?.id;
+  // Finished campaigns are read-only; their story lives on in the Chronicles.
+  const campaignEnded = !!campaign.isCompleted;
   
   // Campaign sessions
   const { data: sessions = [], isLoading: sessionsLoading, isError: sessionsError } = useQuery<CampaignSession[]>({
@@ -4035,7 +4037,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         )}
 
                         {/* DM Story Controls — force advance chapter, story pacing */}
-                        {isDM && !isAdvancingStory && (
+                        {isDM && !isAdvancingStory && !campaignEnded && (
                           <StoryControls
                             campaignId={campaign.id}
                             currentChapter={chapterNumber}
@@ -4051,7 +4053,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             — including at PURE — so the rails can be toggled back on anytime.
                             Makes clear players start on rails and should work to get off them.
                             Shown in co-op too: the rung is this player's own, not the table's. */}
-                        {scaffolding?.rung && !scaffolding?.expertMode && (
+                        {scaffolding?.rung && !scaffolding?.expertMode && !campaignEnded && (
                           <div className="mt-5 p-3.5 rounded-xl border border-amber-500/40 bg-gradient-to-br from-amber-950/40 to-slate-900/40" data-testid="guidance-panel">
                             <div className="flex items-start justify-between gap-4 flex-wrap">
                               <div className="flex items-start gap-2.5 min-w-0 flex-1">
@@ -4112,7 +4114,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         )}
 
                         {/* Choices loading indicator — shows briefly before choices appear */}
-                        {!isAdvancingStory && !choicesRevealed && !suggestionSectionHidden && parsedChoices.length > 0 && (
+                        {!isAdvancingStory && !campaignEnded && !choicesRevealed && !suggestionSectionHidden && parsedChoices.length > 0 && (
                           <div className="mt-6 pt-5 border-t border-amber-500/30 animate-in fade-in duration-300">
                             <div className="flex items-center gap-3 px-3 py-2.5">
                               <div className="flex gap-1">
@@ -4134,10 +4136,31 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             server kept enforcing the rotation, leaving the blocked
                             player staring at dead buttons with nothing explaining
                             why. The rotation governs combat too; always show it. */}
-                        <TurnBanner campaignId={campaign.id} />
+                        {!campaignEnded && <TurnBanner campaignId={campaign.id} />}
+
+                        {/* A finished campaign is read, not played: no choices, no
+                            input — the server refuses play actions on it anyway. */}
+                        {campaignEnded && (
+                          <div className="mt-6 pt-5 border-t border-amber-500/30" data-testid="campaign-ended-panel">
+                            <div className="p-4 rounded-lg border border-amber-500/40 bg-amber-950/30 flex flex-col sm:flex-row sm:items-center gap-3">
+                              <Trophy className="h-6 w-6 text-amber-400 flex-shrink-0" />
+                              <div className="flex-1">
+                                <p className="font-semibold text-amber-200">This adventure has ended</p>
+                                <p className="text-sm text-amber-100/70">The tale of "{campaign.title}" is complete. Read it again from the start in your Chronicles.</p>
+                              </div>
+                              <Button
+                                onClick={() => navigate(`/chronicles/${campaign.id}`)}
+                                className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold"
+                                data-testid="button-ended-read-story"
+                              >
+                                <BookOpen className="h-4 w-4 mr-2" /> Read the Story
+                              </Button>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Choices integrated directly after narrative for immediate access */}
-                        {!isAdvancingStory && choicesRevealed && parsedChoices.length > 0 && dmSessionState?.groupChoiceStatus !== 'pending' && (
+                        {!isAdvancingStory && !campaignEnded && choicesRevealed && parsedChoices.length > 0 && dmSessionState?.groupChoiceStatus !== 'pending' && (
                           <div className="mt-6 pt-5 border-t border-amber-500/30 animate-in fade-in slide-in-from-bottom-3 duration-500">
                             {!suggestionSectionHidden && (
                               <div className="flex items-center justify-between mb-3">
@@ -4400,7 +4423,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     </ContextualHint>
                     
                     {/* Combat Status Display - only show when AI explicitly says inCombat is true AND there are living enemies */}
-                    {parsedStoryState?.inCombat && Array.isArray(parsedStoryState?.combatants) && (parsedStoryState.combatants as any[]).some((c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated' && (c.currentHp === undefined || c.currentHp > 0)) && (
+                    {!campaignEnded && parsedStoryState?.inCombat && Array.isArray(parsedStoryState?.combatants) && (parsedStoryState.combatants as any[]).some((c: any) => (c.type === 'enemy' || c.type === 'boss') && c.status !== 'defeated' && (c.currentHp === undefined || c.currentHp > 0)) && (
                       <div className="bg-red-50 dark:bg-red-950/30 p-4 rounded-md border-2 border-red-400 dark:border-red-700 mb-4">
                         <h4 className="font-bold flex items-center mb-3 text-lg" style={{ color: '#b91c1c' }}>
                           ⚔️ COMBAT!

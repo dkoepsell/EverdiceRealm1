@@ -159,6 +159,7 @@ import {
 import { getAIClient, getFastAIClient, getAppOpenAI, getAppAI } from "./lib/aiProvider";
 import { generateCliffhangerHook } from "./lib/cliffhanger";
 import { buildAdventureStory } from "./lib/adventureStory";
+import { blockFinishedCampaignPlay } from "./lib/finishedCampaignGuard";
 import { generateReturnGreeting, getStreakReward } from "./lib/hearthGreeting";
 import { objectStorageClient } from "./replit_integrations/object_storage";
 import { randomUUID, createHash } from "crypto";
@@ -1644,6 +1645,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok' });
   });
+
+  // Finished campaigns are read back in the Chronicles, not played on.
+  app.use(blockFinishedCampaignPlay((id) => storage.getCampaign(id)));
 
   // Setup authentication
   setupAuth(app);
