@@ -16945,6 +16945,27 @@ Create a specific creature (pick one of the reskins or create a thematic variant
         ? { locations: 5, npcs: 5, processes: 4, items: 3 }
         : { locations: 8, npcs: 8, processes: 6, items: 5 };
 
+      // Same theme + tone gives the model the same prompt, and it falls back on the same
+      // stock title every time ("The Hollow Crown" twice in a row). Name what already
+      // exists so it steers away, and add a random seed so each prompt is distinct.
+      let existingTitles: string[] = [];
+      try {
+        existingTitles = Array.from(new Set(
+          (await storage.getAllCampaigns())
+            .sort((a, b) => b.id - a.id)
+            .map(c => c.title?.trim())
+            .filter((t): t is string => !!t),
+        )).slice(0, 60);
+      } catch (e) {
+        console.warn('Campaign gen: could not load existing titles:', e);
+      }
+      const SEED_HOOKS = ['a stolen inheritance', 'a plague of silence', 'a drowned bell tower', 'a broken treaty', 'a migrating forest', 'a debt owed to the dead', 'a festival gone wrong', 'a vanished cartographer', 'a contract with a river spirit', 'a comet that will not set', 'a forged prophecy', 'a mine that breathes', 'an heir nobody wants', 'a lighthouse showing false stars', 'a guild war over a recipe', 'a sleeping titan used as farmland', 'a witch trial', 'a caravan that never arrives', 'a mirror that remembers', 'a mercenary company owed its pay'];
+      const seedHook = SEED_HOOKS[Math.floor(Math.random() * SEED_HOOKS.length)];
+      const uniquenessRules = `UNIQUENESS (mandatory):
+- This must be a brand-new adventure. Seed it from this premise: ${seedHook} (adapt it freely to the theme).
+- Avoid stock fantasy titles (no "Hollow Crown", "Shattered Throne", "Crimson Veil", "Ashen ..." and the like).${existingTitles.length ? `
+- The title, villain and premise must NOT match or closely resemble any of these existing campaigns: ${existingTitles.map(t => `"${t}"`).join(', ')}.` : ''}`;
+
       // Lean prompt for 'quick' mode — produces a playable CAML 2.0 adventure without the
       // heavy reactive-architecture sections, so the model emits far fewer tokens (fast).
       const QUICK_SYSTEM_PROMPT = `You generate a LEAN CAML 2.0 D&D 5e adventure SKELETON as a SINGLE JSON object — concise and playable, meant to be expanded later. CRITICAL: keep EVERY text field to ONE short sentence; do NOT over-elaborate — brevity keeps the output small and fast. Required top-level keys: caml_version ("2.0"); meta {id,title,summary (1-2 sentences),tags,levels:{min,max}}; doctrine {campaign_question (a one-sentence dilemma), stakes:[exactly 2 {id,name,value,max,drift}]}; world {entities:{characters:[3-5],locations:[3-5]},connections:[...]}; state {facts:[...]}; roles {assignments:[...]}; processes {catalog:[2-3 encounters/events]}; transitions {changes:[...]}; snapshots:[2 forked endings]. Use ORIGINAL names. Be brief. Output ONLY the JSON — no markdown fences, no commentary.`;
@@ -16953,6 +16974,7 @@ Create a specific creature (pick one of the reskins or create a thematic variant
 - theme: ${theme}; tone/type: ${type}; character levels: ${minLevel}-${maxLevel}
 - include exactly: 4 locations, 4 NPCs, 3 processes, 2 stakes, 2 forked endings
 - ONE concise sentence per description — this is a skeleton to expand later.${customPrompt ? `\n- guidance: ${customPrompt}` : ''}
+${uniquenessRules}
 Output ONLY the JSON object.`;
 
       // CAML 2.0 generation with retry logic
@@ -17354,6 +17376,8 @@ FORBIDDEN (CAML 1.x / linear patterns):
 ${attempt > 0 ? `PREVIOUS ATTEMPT FAILED: ${lastError}. Fix these issues.` : ''}`;
 
         const userPrompt = `Create a ${theme} adventure for D&D levels ${level}.
+
+${uniquenessRules}
 
 REQUIREMENTS:
 - Adventure ID: "${adventureId}"
