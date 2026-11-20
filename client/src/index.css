@@ -502,3 +502,75 @@
     border-color: hsl(var(--border));
     border-top-color: hsl(var(--gold));
   }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Everdice play design tokens (design PDF "simpler, more engaging play
+   screens"). A fixed dark parchment palette — the play surfaces look the
+   same in light and dark mode, like the mockups. Cinzel for titles (small
+   caps), Alegreya for prose and choices, Inter for UI.
+   ─────────────────────────────────────────────────────────────────────────── */
+:root {
+  --ed-bg: #14110e;
+  --ed-panel: #1a1511;
+  --ed-card: #221c17;
+  --ed-card-hi: #2b231d;
+  --ed-line: #3a3029;
+  --ed-ink: #f3e9d9;
+  --ed-muted: #a89a88;
+  --ed-faint: #7d7163;
+  --ed-gold: #e3a33c;
+  --ed-gold-soft: #f0c46a;
+  --ed-purple: #7e2fbf;
+  --ed-purple-hi: #9440d6;
+  --ed-violet-bg: #251c33;
+  --ed-violet-ink: #cbb3f0;
+  --ed-teal-bg: #1c2b28;
+  --ed-teal-line: #2f5a50;
+  --ed-teal: #7fd4b9;
+  --ed-rose: #e0674c;
+}
+
+@layer components {
+  .ed-surface { background: var(--ed-bg); color: var(--ed-ink); }
+  .ed-panel { background: var(--ed-panel); border: 1px solid var(--ed-line); border-radius: 1rem; color: var(--ed-ink); }
+  .ed-card { background: var(--ed-card); border: 1px solid var(--ed-line); border-radius: 0.875rem; color: var(--ed-ink); }
+  .ed-title { font-family: Cinzel, Alegreya, serif; font-variant: small-caps; letter-spacing: 0.02em; font-weight: 600; color: var(--ed-ink); }
+  .ed-prose { font-family: Alegreya, Georgia, serif; font-size: 1.2rem; line-height: 1.6; color: var(--ed-ink); }
+  .ed-label { font-family: Inter, ui-sans-serif, sans-serif; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ed-muted); }
+  .ed-muted { color: var(--ed-muted); }
+  .ed-gold { color: var(--ed-gold-soft); }
+  .ed-chip { display: inline-flex; align-items: center; border-radius: 0.375rem; padding: 0.15rem 0.55rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  .ed-chip-gold { background: var(--ed-gold); color: #1a130b; }
+  .ed-chip-violet { background: var(--ed-violet-bg); color: var(--ed-violet-ink); }
+  .ed-btn-primary { background: var(--ed-purple); color: #fff; border-radius: 0.875rem; font-weight: 600; }
+  .ed-btn-primary:hover:not(:disabled) { background: var(--ed-purple-hi); }
+  .ed-btn-primary:disabled { opacity: 0.5; }
+  .ed-choice {
+    display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 1rem;
+    background: var(--ed-card); border: 1px solid var(--ed-line); border-radius: 0.875rem;
+    padding: 0.85rem 1.1rem; text-align: left; color: var(--ed-ink);
+    font-family: Alegreya, Georgia, serif; font-size: 1.12rem; line-height: 1.35;
+    transition: border-color 120ms ease, background-color 120ms ease;
+  }
+  .ed-choice:hover:not(:disabled) { border-color: var(--ed-gold); background: var(--ed-card-hi); }
+  .ed-choice:disabled { opacity: 0.5; cursor: not-allowed; }
+  .ed-stat { background: var(--ed-card); border: 1px solid var(--ed-line); border-radius: 0.75rem; padding: 0.5rem 0.25rem; text-align: center; }
+  .ed-stat-hi { border-color: var(--ed-gold); }
+  .ed-input-dashed { border: 1px dashed var(--ed-line); border-radius: 0.875rem; background: transparent; }
+}
+
+/* Character sheet in the play design (design PDF). Re-themes every tab of the
+   parchment sheet onto the dark play palette without rewriting each tab. */
+@layer components {
+  .ed-sheet { background: var(--ed-panel) !important; border: 1px solid var(--ed-line); border-radius: 1rem; color: var(--ed-ink); }
+  .ed-sheet .character-sheet { background: var(--ed-panel) !important; background-image: none !important; }
+  .ed-sheet .bg-parchment-dark, .ed-sheet .bg-parchment { background: var(--ed-card) !important; border: 1px solid var(--ed-line); }
+  .ed-sheet .text-secondary, .ed-sheet .text-gray-700, .ed-sheet .text-gray-800, .ed-sheet .text-gray-900 { color: var(--ed-ink) !important; }
+  .ed-sheet .text-gray-600, .ed-sheet .text-gray-500, .ed-sheet .text-gray-400, .ed-sheet .text-muted-foreground { color: var(--ed-muted) !important; }
+  .ed-sheet .text-primary, .ed-sheet .text-primary-light { color: var(--ed-gold-soft) !important; }
+  .ed-sheet .border-primary, .ed-sheet .border-primary\/30 { border-color: var(--ed-line) !important; }
+  .ed-sheet h3.font-fantasy { font-family: Cinzel, Alegreya, serif; font-variant: small-caps; letter-spacing: 0.02em; }
+  .ed-sheet [role="tablist"] { background: var(--ed-card); color: var(--ed-muted); }
+  .ed-sheet [role="tab"][data-state="active"] { background: var(--ed-gold); color: #1a130b; }
+  .ed-sheet .bg-white { background: var(--ed-card) !important; }
+}

@@ -56,19 +56,19 @@ export function LearningPathCard({ characterId, onStarted }: { characterId: numb
   const visible = expanded ? data.lessons : data.lessons.filter((_, i) => nextIdx < 0 || i <= nextIdx + 1);
 
   return (
-    <div className="mb-6 rounded-2xl border border-stone-700 bg-stone-950/80 p-4 text-stone-100" data-testid="learning-path">
+    <div className="mb-6 ed-panel p-4" data-testid="learning-path">
       <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="font-serif text-xl text-amber-100">Learn the game by playing</h2>
+        <h2 className="ed-title text-xl">Learn the game by playing</h2>
         <span className="text-sm text-stone-400">{data.learned} of {data.total}</span>
       </div>
       <div className="space-y-2">
         {visible.map((l) =>
           l.state === "learned" ? (
-            <div key={l.id} className="flex items-center gap-3 rounded-xl border border-stone-700 bg-stone-900 px-3 py-2.5 text-stone-300">
+            <div key={l.id} className="flex items-center gap-3 rounded-xl ed-card px-3 py-2.5">
               <Check className="h-4 w-4 text-emerald-300" /> {l.title}{l.skipped && <span className="text-xs text-stone-500">(skipped)</span>}
             </div>
           ) : l.state === "next" ? (
-            <div key={l.id} className="rounded-xl border-2 border-amber-500 bg-stone-900 p-3">
+            <div key={l.id} className="rounded-[0.875rem] border border-[var(--ed-gold)] bg-[var(--ed-card)] p-3">
               <button type="button" className="flex w-full items-center gap-3 text-left" disabled={start.isPending} onClick={() => start.mutate(l)} data-testid={`lesson-start-${l.id}`}>
                 <Swords className="h-5 w-5 shrink-0 text-amber-300" />
                 <span className="flex-1">
@@ -80,7 +80,7 @@ export function LearningPathCard({ characterId, onStarted }: { characterId: numb
               <button type="button" className="mt-1 text-xs text-stone-500 hover:text-stone-300" onClick={() => skip.mutate(l.id)}>I know this one, skip it</button>
             </div>
           ) : (
-            <button key={l.id} type="button" onClick={() => start.mutate(l)} className="flex w-full items-center gap-3 rounded-xl border border-dashed border-stone-700 px-3 py-2.5 text-left text-stone-400 hover:text-stone-200">
+            <button key={l.id} type="button" onClick={() => start.mutate(l)} className="flex w-full items-center gap-3 rounded-xl border border-dashed border-[var(--ed-line)] px-3 py-2.5 text-left text-[var(--ed-muted)] hover:text-[var(--ed-ink)]">
               <Lock className="h-4 w-4" /> {l.title}
             </button>
           ),

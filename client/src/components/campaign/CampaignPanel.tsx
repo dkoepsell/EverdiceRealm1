@@ -5,6 +5,9 @@ import { BeatChip, TurnNotes, type TurnNotesData } from "@/components/play/TurnN
 import { JournalButton } from "@/components/play/Journal";
 import { HereNow } from "@/components/play/HereNow";
 import { LegendPicker } from "@/components/play/LegendPicker";
+import { CharacterRail } from "@/components/play/CharacterRail";
+import { PlayHeader } from "@/components/play/PlayHeader";
+import { PlayRightRail } from "@/components/play/PlayRightRail";
 import { EpisodeEndCard, type EpisodeCardData } from "@/components/play/EpisodeEndCard";
 import { CombatTurnPanel, ClockDial, type ClassTurnResult } from "@/components/combat/CombatTurnPanel";
 import { attackAbilityMod, weaponProfile } from "@shared/rules/classActions";
@@ -292,6 +295,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const engagementFlags = useMemo(() => resolveFlags(campaign as any), [campaign]);
   // A check rolled and resolved on the server (serverChecks flag), with its math shown.
   const [serverRollChoice, setServerRollChoice] = useState<any>(null);
+  // "Show the rules underneath" (design PDF header toggle), remembered per browser.
+  const [showRulesPref, setShowRulesPref] = useState<boolean>(() => {
+    try { return localStorage.getItem('everdice_show_rules') !== '0'; } catch { return true; }
+  });
+  const toggleRulesPref = (v: boolean) => {
+    setShowRulesPref(v);
+    try { localStorage.setItem('everdice_show_rules', v ? '1' : '0'); } catch { /* private mode */ }
+  };
   // Episodes (engagement spec 5.2): the card at a break point, and "about N minutes left".
   const [episodeCard, setEpisodeCard] = useState<EpisodeCardData | null>(null);
   const [episodeInfo, setEpisodeInfo] = useState<{ number: number; minutesLeft: number } | null>(null);
@@ -3974,119 +3985,70 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 
                 {/* Current Session */}
                 {currentSession && !parsedStoryState?.adventureEnded ? (
-                  <div className="mt-6 lg:grid lg:grid-cols-[12rem_minmax(0,1fr)] lg:gap-5 lg:items-start">
-                    <PartyQuickNav sections={storyNavSections} />
-                    <div className="space-y-4 min-w-0">
-                    {/* Chapter & Scene Header - Above narrative pane */}
-                    <div id="story-chapter" className="scroll-mt-24 rounded-lg border border-amber-200 dark:border-amber-800 overflow-hidden">
-                      <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 px-4 py-3">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-3">
-                            <Scroll className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                            <div>
-                              <span className="text-sm text-amber-700 dark:text-amber-300 font-semibold">
-                                Chapter {chapterNumber} of {campaign.totalChapters || 5}
-                              </span>
-                              {engagementFlags.episodes && episodeInfo && (
-                                <span className="ml-2 text-xs text-amber-700/80 dark:text-amber-300/70" data-testid="episode-info">
-                                  · Episode {episodeInfo.number}, about {episodeInfo.minutesLeft} minutes left
-                                </span>
-                              )}
-                              {engagementFlags.clocks && Array.isArray((parsedStoryState as any)?.clocks) && (
-                                <div className="mt-2 flex flex-wrap gap-4" data-testid="clock-row">
-                                  {((parsedStoryState as any).clocks as any[]).filter((c) => c.filled > 0).map((c) => (
-                                    <ClockDial key={c.id} name={c.name} filled={c.filled} segments={c.segments} />
-                                  ))}
-                                </div>
-                              )}
-                              {(engagementFlags.ledger || engagementFlags.rulesUnderneath) ? (
-                                <span className="ml-3 inline-block align-middle"><JournalButton campaignId={campaign.id} showLedger={engagementFlags.ledger} showRules={engagementFlags.rulesUnderneath} /></span>
-                              ) : null}
-                              {engagementFlags.inspiration && activeCharacter?.inspiration ? (
-                                <span className="ml-3 inline-flex items-center rounded-full border border-amber-500 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-300" data-testid="inspired-badge" title="Spend Inspiration for advantage on a roll">
-                                  ☆ Inspired
-                                </span>
-                              ) : null}
-                              {activeCharacter?.pendingLevelUp ? (
-                                <LevelUpButton characterId={activeCharacter.id} pendingLevelUp={activeCharacter.pendingLevelUp} className="ml-3 h-6 px-2 text-xs" />
-                              ) : null}
-                              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                                {currentSession.title.replace(/^(Session|Chapter)\s*\d+:\s*/i, '')}
-                              </h3>
-                            </div>
-                          </div>
-                          <Badge variant="outline" className="bg-white dark:bg-slate-800 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300">
-                            <MapPin className="h-3 w-3 mr-1" />
-                            {currentLocation}
-                          </Badge>
+                  <div className="mt-6 rounded-2xl ed-surface p-2 sm:p-4 lg:grid lg:grid-cols-[12rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)_17rem] lg:gap-5 lg:items-start">
+                    {/* Left column (design PDF): the character sheet on wide screens, then section nav. */}
+                    <div className="space-y-3">
+                      {activeCharacter && (
+                        <div className="hidden xl:block">
+                          <CharacterRail
+                            character={activeCharacter as any}
+                            highlightSkill={(parsedChoices.find((c: any) => c?.requiresDiceRoll && c?.skillType && c.skillType !== 'attack') as any)?.skillType ?? null}
+                          />
                         </div>
-                        <div className="mt-2">
-                          <div className="flex justify-between items-center">
-                            <div className="flex gap-1 flex-1">
-                              {Array.from({ length: campaign.totalChapters || 5 }).map((_, i) => {
-                                const chapterNum = chapterNumber;
-                                const isCurrent = i === chapterNum - 1;
-                                const isCompleted = i < chapterNum - 1;
-                                return (
-                                  <div
-                                    key={i}
-                                    className={`h-2 rounded-full transition-all ${
-                                      isCurrent
-                                        ? 'bg-amber-500 dark:bg-amber-400 animate-pulse'
-                                        : isCompleted
-                                        ? 'bg-amber-500 dark:bg-amber-400'
-                                        : 'bg-amber-200 dark:bg-amber-900/50'
-                                    }`}
-                                    style={{ width: `${100 / (campaign.totalChapters || 5) - 1}%`, minWidth: '12px' }}
-                                  />
-                                );
-                              })}
-                            </div>
-                            {chapterNumber >= (campaign.totalChapters || 5) && (
-                              <span className="text-xs ml-2">🏆</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-950/30 px-4 py-2 border-t border-amber-200 dark:border-amber-800">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Sparkles className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
-                            <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300">
-                              Scene {(parsedStoryState?.sceneCount ?? (currentSession?.playerChoicesMade as any[] || []).length) + 1}
-                            </span>
-                          </div>
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
-                            {(() => {
-                              const turns = parsedStoryState?.sceneCount ?? (currentSession?.playerChoicesMade as any[] || []).length;
-                              return `${turns} ${turns === 1 ? 'turn' : 'turns'} played`;
-                            })()}
-                          </span>
-                        </div>
-                      </div>
+                      )}
+                      <PartyQuickNav sections={storyNavSections} />
                     </div>
+                    <div className="space-y-4 min-w-0">
+                    {/* Phones and tablets: a one-line stat strip that opens the full sheet. */}
+                    {activeCharacter && (
+                      <div className="xl:hidden">
+                        <CharacterRail character={activeCharacter as any} variant="strip" />
+                      </div>
+                    )}
+                    {/* Chapter & Scene Header - Above narrative pane */}
+                    <PlayHeader
+                      title={campaign.title}
+                      chapter={chapterNumber}
+                      totalChapters={campaign.totalChapters || 5}
+                      goal={(() => {
+                        const gate = (Array.isArray((campaign as any).chapterGates) ? (campaign as any).chapterGates : []).find((g: any) => Number(g?.chapter) === chapterNumber);
+                        const text = String(gate?.advanceWhen || '').trim();
+                        return text ? (text.length > 70 ? `${text.slice(0, 67)}…` : text) : null;
+                      })()}
+                      episode={engagementFlags.episodes ? episodeInfo : null}
+                      clocks={engagementFlags.clocks && Array.isArray((parsedStoryState as any)?.clocks) ? (parsedStoryState as any).clocks : []}
+                      inspired={!!(engagementFlags.inspiration && activeCharacter?.inspiration)}
+                      showRules={engagementFlags.rulesUnderneath ? showRulesPref : null}
+                      onToggleRules={toggleRulesPref}
+                      actions={
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => window.dispatchEvent(new Event('everdice:home'))}
+                            className="rounded-full border border-[var(--ed-line)] px-3 py-1 text-xs ed-muted hover:text-[var(--ed-ink)]"
+                            data-testid="play-home"
+                          >
+                            Home
+                          </button>
+                          {activeCharacter?.pendingLevelUp ? (
+                            <LevelUpButton characterId={activeCharacter.id} pendingLevelUp={activeCharacter.pendingLevelUp} className="h-8 px-3 text-sm" />
+                          ) : null}
+                          {(engagementFlags.ledger || engagementFlags.rulesUnderneath) ? (
+                            <JournalButton campaignId={campaign.id} showLedger={engagementFlags.ledger} showRules={engagementFlags.rulesUnderneath} />
+                          ) : null}
+                          <span className="hidden items-center gap-1 rounded-full border border-[var(--ed-line)] px-2.5 py-1 text-xs ed-muted md:inline-flex">
+                            <MapPin className="h-3 w-3" />{currentLocation}
+                          </span>
+                        </>
+                      }
+                    />
                     
                     {/* ===== CURRENT SCENE - The main story area with glowing pulsing border ===== */}
                     <ContextualHint hintId="narrative_choices" position="bottom" delay={1000}>
                       <div
                         id="story-scene"
-                        className="scroll-mt-24 relative bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-black dark:to-slate-900 p-6 rounded-xl shadow-2xl mb-6 overflow-hidden"
-                        style={{
-                          // NOTE: previously ran `narrativePulse 3s infinite` animating box-shadow.
-                          // Animating a large blurred box-shadow re-rasterizes it every frame; on
-                          // high-DPI/4K displays that pinned the GPU and made the whole desktop
-                          // jerky (measured ~38 layouts + ~118 style-recalcs/sec while idle). The
-                          // static glow below keeps the look without the per-frame paint cost.
-                          boxShadow: '0 0 20px rgba(251, 191, 36, 0.4), 0 0 40px rgba(251, 191, 36, 0.2), inset 0 1px 0 rgba(255,255,255,0.1)',
-                          border: '3px solid',
-                          borderImage: 'linear-gradient(135deg, #f59e0b, #fbbf24, #f59e0b) 1'
-                        }}
+                        className="ed-panel scroll-mt-24 relative mb-6 overflow-hidden p-5 sm:p-7"
                       >
-                        <div className="flex items-center gap-2 mb-4">
-                          <Sparkles className="h-6 w-6 text-amber-400 animate-pulse" />
-                          <h3 className="text-xl font-bold text-amber-400 tracking-wide">Current Scene</h3>
-                          <div className="flex-1 h-px bg-gradient-to-r from-amber-500/50 to-transparent ml-2" />
-                        </div>
 
                         {/* Where this is, in the shared world — the region, its current
                             mood, and who else has walked the same ground. */}
@@ -4125,10 +4087,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         ) : currentSession.narrative ? (
                           <div className="animate-in fade-in duration-500">
                             {(engagementFlags.beats || engagementFlags.ledger) && <BeatChip beat={engagementFlags.beats ? (parsedStoryState as any)?.turnNotes?.beat : null} returning={engagementFlags.ledger ? (parsedStoryState as any)?.turnNotes?.returning : null} />}
-                            <p className="whitespace-pre-line break-words text-lg sm:text-xl leading-relaxed text-slate-100 font-medium overflow-hidden" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)', wordBreak: 'break-word' }}>
+                            <h3 className="ed-title mb-3 text-2xl sm:text-[1.9rem] leading-tight" data-testid="scene-title">
+                              {currentSession.title.replace(/^(Session|Chapter)\s*\d+:\s*/i, '')}
+                            </h3>
+                            <p className="ed-prose whitespace-pre-line break-words overflow-hidden" style={{ wordBreak: 'break-word' }}>
                               {currentSession.narrative}
                             </p>
-                            <TurnNotes notes={(parsedStoryState as any)?.turnNotes as TurnNotesData | undefined} showRules={engagementFlags.rulesUnderneath} />
+                            <TurnNotes notes={(parsedStoryState as any)?.turnNotes as TurnNotesData | undefined} showRules={engagementFlags.rulesUnderneath && showRulesPref} />
                             <button
                               onClick={() => (narration === "idle" ? narrateScene(currentSession.narrative) : stopNarration())}
                               className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-200/90 bg-amber-900/30 border border-amber-600/30 rounded-lg hover:bg-amber-900/50 transition-colors"
@@ -4307,12 +4272,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
                         {/* Choices integrated directly after narrative for immediate access */}
                         {!isAdvancingStory && !campaignEnded && choicesRevealed && parsedChoices.length > 0 && dmSessionState?.groupChoiceStatus !== 'pending' && (
-                          <div className="mt-6 pt-5 border-t border-amber-500/30 animate-in fade-in slide-in-from-bottom-3 duration-500">
+                          <div className="mt-6 pt-5 border-t border-[var(--ed-line)] animate-in fade-in slide-in-from-bottom-3 duration-500">
                             {!suggestionSectionHidden && (
                               <div className="flex items-center justify-between mb-3">
-                                <h4 className="font-bold text-amber-300 flex items-center">
-                                  <ArrowRight className="h-5 w-5 mr-2 animate-pulse" />
-                                  What will you do?
+                                <h4 className="ed-label">
+                                  What do you do?
                                 </h4>
                                 {currentTurnName && !isMyTurn && (
                                   <Badge variant="outline" className="text-amber-400 border-amber-500/50 bg-amber-900/30">
@@ -4359,7 +4323,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               </div>
                             )}
                             
-                            {engagementFlags.ledger && <HereNow campaignId={campaign.id} />}
+                            {engagementFlags.ledger && <div className="xl:hidden"><HereNow campaignId={campaign.id} /></div>}
                             {engagementFlags.classCombat && parsedStoryState?.inCombat && activeCharacter && (() => {
                               const w = weaponProfile((activeCharacter as any).equippedWeapon);
                               const mod = attackAbilityMod(w, activeCharacter.strength || 10, activeCharacter.dexterity || 10, { monk: String(activeCharacter.class).toLowerCase() === 'monk' });
@@ -4406,24 +4370,24 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 }
                                 
                                 const button = (
-                                  <Button 
+                                  <button
+                                    type="button"
                                     key={index}
-                                    variant="outline"
-                                    className={`justify-start h-auto py-3 px-4 bg-slate-800/80 border-2 border-amber-600/40 text-left w-full whitespace-normal hover:bg-slate-700 hover:border-amber-500 animate-in fade-in slide-in-from-bottom-2 duration-400 ${actionDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className="ed-choice animate-in fade-in slide-in-from-bottom-2 duration-400"
                                     style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'both' }}
                                     onClick={() => !actionDisabled && handleChoiceSelection(choice)}
                                     disabled={actionDisabled}
                                     data-testid={`choice-button-${index}`}
                                   >
-                                    <div className="flex items-start w-full min-w-0">
-                                      <ArrowRight className="h-5 w-5 mr-2 mt-0.5 shrink-0 text-amber-400" />
+                                    <div className="flex w-full min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                                       <div className="flex flex-col gap-1 flex-1 min-w-0">
-                                        <span className={`text-slate-100 font-medium text-sm sm:text-base break-words whitespace-normal leading-snug${choiceDisplay !== choiceText ? ' italic text-amber-100/90' : ''}`}>
+                                        <span className={`break-words whitespace-normal${choiceDisplay !== choiceText ? ' italic' : ''}`}>
                                           {choiceDisplay}
                                         </span>
+                                      </div>
                                         {engagementFlags.serverChecks && choice.skillType !== 'attack' ? (
                                           // Design PDF: "No roll" or "Persuasion · d20 +5". The DC stays hidden until you roll.
-                                          <span className={`text-xs ${hasRoll ? 'text-amber-300' : 'text-slate-400'}`} data-testid={`choice-roll-label-${index}`}>
+                                          <span className={`shrink-0 font-sans text-sm sm:text-right ${hasRoll ? 'ed-gold' : 'ed-muted'}`} data-testid={`choice-roll-label-${index}`}>
                                             {hasRoll && activeCharacter
                                               ? (() => { const m = checkModifier(activeCharacter as any, skillName); return `${m.label.replace(/^.*\((.*)\)$/, '$1')} · d20 ${m.total >= 0 ? '+' : ''}${m.total}`; })()
                                               : hasRoll ? 'Roll d20' : 'No roll'}
@@ -4440,9 +4404,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                             )}
                                           </div>
                                         )}
-                                      </div>
                                     </div>
-                                  </Button>
+                                  </button>
                                 );
                                 
                                 if (tooltipContent) {
@@ -4461,7 +4424,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             )}
 
                             {/* Custom Action — always available; the only input at OPEN/PURE. */}
-                            <div className="mt-3 p-3 bg-slate-800/50 rounded-lg border border-slate-600/50">
+                            <div className="mt-3">
                               {/* §9 Auto-offer expert/oracle mode once the player reaches PURE organically. */}
                               {scaffolding?.offerExpertMode && (
                                 <div className="mb-2 p-2.5 rounded-md bg-indigo-900/30 border border-indigo-500/40 text-sm text-indigo-100 flex items-center justify-between gap-3" data-testid="expert-offer">
@@ -4528,14 +4491,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                   <span className="block mt-1 not-italic text-[11px] text-amber-300/70">Add a detail, or press send again to go with it.</span>
                                 </div>
                               )}
-                              <div className="flex gap-2">
+                              <div className="ed-input-dashed flex items-center gap-2 p-1.5">
                                 <Input
                                   placeholder={campaignTurnBlocked
                                     ? `Waiting for ${campaignTurn?.currentPlayer?.characterName || campaignTurn?.currentPlayer?.displayName || campaignTurn?.currentPlayer?.username || 'another player'} to take their turn…`
-                                    : "Try anything — e.g. 'I wedge my dagger under the floorboard and pry'"}
+                                    : "Or say or do anything. The DM will tell you if it needs a roll."}
                                   value={customAction}
                                   onChange={(e) => setCustomAction(e.target.value)}
-                                  className="flex-1 bg-slate-700 border-amber-600/40 text-white placeholder:text-slate-400"
+                                  className="flex-1 h-12 border-0 bg-transparent font-fantasy text-lg text-[var(--ed-ink)] placeholder:text-[var(--ed-faint)] focus-visible:ring-0"
                                   onKeyPress={(e) => {
                                     if (e.key === 'Enter' && customAction.trim() && !isAssessingAction && !campaignTurnBlocked) {
                                       handleCustomAction();
@@ -4546,9 +4509,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 <Button
                                   onClick={handleCustomAction}
                                   disabled={!customAction.trim() || isAdvancingStory || isAssessingAction || (!isDM && !!currentTurnName && !isMyTurn) || campaignTurnBlocked}
-                                  className="shrink-0 bg-amber-600 hover:bg-amber-500"
+                                  className="ed-btn-primary h-12 shrink-0 px-5"
                                 >
-                                  {isAssessingAction ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                                  {isAssessingAction ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Act'}
                                 </Button>
                               </div>
                             </div>
@@ -5660,6 +5623,18 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         )}
                       </div>
                     )}
+                  </div>
+                  {/* Right column (design PDF, wide screens): here now, threads, how the table works, rules learned. */}
+                  <div className="hidden xl:block xl:sticky xl:top-20">
+                    <PlayRightRail
+                      campaignId={campaign.id}
+                      companions={(partyNpcs as any[]).filter((n) => (n?.status ?? 'conscious') === 'conscious' && n?.name).map((n) => ({ name: n.name, role: n.role }))}
+                      choices={!isAdvancingStory && choicesRevealed ? (parsedChoices as any[]) : []}
+                      inspired={!!(engagementFlags.inspiration && activeCharacter?.inspiration)}
+                      serverChecks={engagementFlags.serverChecks}
+                      showLedger={engagementFlags.ledger}
+                      showRules={engagementFlags.rulesUnderneath}
+                    />
                   </div>
                   </div>
                 ) : sessionsLoading ? (

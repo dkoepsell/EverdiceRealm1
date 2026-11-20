@@ -11,6 +11,13 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       colors: {
+        ed: {
+          bg: "var(--ed-bg)", panel: "var(--ed-panel)", card: "var(--ed-card)", "card-hi": "var(--ed-card-hi)",
+          line: "var(--ed-line)", ink: "var(--ed-ink)", muted: "var(--ed-muted)", faint: "var(--ed-faint)",
+          gold: "var(--ed-gold)", "gold-soft": "var(--ed-gold-soft)", purple: "var(--ed-purple)",
+          "violet-bg": "var(--ed-violet-bg)", "violet-ink": "var(--ed-violet-ink)",
+          "teal-bg": "var(--ed-teal-bg)", "teal-line": "var(--ed-teal-line)", teal: "var(--ed-teal)", rose: "var(--ed-rose)",
+        },
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {

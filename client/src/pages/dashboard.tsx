@@ -1,4 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { HomeScreen } from "@/components/play/HomeScreen";
+import { useLocation } from "wouter";
 import { LearningPathCard, useEngagementFlags } from "@/components/play/LearningPathCard";
 import { FinishedAdventureNotice } from "@/components/campaign/FinishedAdventureNotice";
 import { Link } from "wouter";
@@ -272,9 +274,46 @@ export default function Dashboard() {
   const activeCharacter = participantCharacter;
 
   const isNewUser = characters.length === 0 && availableCampaigns.length === 0;
+  const [routePath] = useLocation();
+  const [showHome, setShowHome] = useState<boolean>(() => {
+    try { return sessionStorage.getItem('everdice_in_play') !== '1'; } catch { return true; }
+  });
+  useEffect(() => {
+    if (routePath === '/play') setShowHome(false);
+  }, [routePath]);
+  useEffect(() => {
+    const goHome = () => {
+      try { sessionStorage.removeItem('everdice_in_play'); } catch { /* private mode */ }
+      setShowHome(true);
+      window.scrollTo({ top: 0 });
+    };
+    window.addEventListener('everdice:home', goHome);
+    return () => window.removeEventListener('everdice:home', goHome);
+  }, []);
+  const enterPlay = () => {
+    setShowHome(false);
+    try { sessionStorage.setItem('everdice_in_play', '1'); } catch { /* private mode */ }
+    window.scrollTo({ top: 0 });
+  };
   const [showQuickStart, setShowQuickStart] = useState(false);
   const [showLearnByPlaying, setShowLearnByPlaying] = useState(false);
   const [isCharacterSheetExpanded, setIsCharacterSheetExpanded] = useState(false);
+
+  // Home (design PDF page 1) is the landing view on /dashboard for returning
+  // players; Continue (or arriving via /play) goes straight into the adventure.
+  // Remembered for the browser session so a reload mid-play stays in play.
+  if (showHome && !isNewUser && !charactersLoading && !campaignsLoading) {
+    return (
+      <HomeScreen
+        username={user?.username ?? ""}
+        character={(activeCharacter as any) ?? characters[0] ?? null}
+        campaign={activeCampaign ?? null}
+        showLearningPath={!!engagementFlags?.learningPath}
+        onContinue={enterPlay}
+        onStartedLesson={(id) => { setSelectedCampaignId(id); enterPlay(); }}
+      />
+    );
+  }
 
   return (
     <div className="pb-16 min-h-screen bg-gradient-to-b from-background to-muted/20">

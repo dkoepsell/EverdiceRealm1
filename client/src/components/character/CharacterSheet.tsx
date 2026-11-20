@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { CharacterRail } from "@/components/play/CharacterRail";
 import { LevelUpButton } from "./LevelUpDialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -99,14 +100,14 @@ export default function CharacterSheet({ character, initialTab = "main" }: Chara
   };
 
   return (
-    <Card className="bg-secondary-light rounded-lg shadow-xl overflow-hidden">
-      <div className="bg-primary p-4 flex justify-between items-center">
-        <h2 className="font-fantasy text-xl font-bold text-white">Character Sheet</h2>
+    <Card className="ed-sheet overflow-hidden shadow-xl">
+      <div className="flex items-center justify-between border-b border-[var(--ed-line)] px-4 py-3">
+        <h2 className="ed-title text-xl">Character Sheet</h2>
         <div className="flex items-center gap-2">
           <Button 
             variant="ghost" 
             size="sm" 
-            className="text-white hover:bg-primary-dark"
+            className="text-[var(--ed-muted)] hover:bg-[var(--ed-card)] hover:text-[var(--ed-ink)]"
             onClick={() => exportCharacterPDF(character)}
             aria-label="Export character to PDF"
           >
@@ -115,7 +116,7 @@ export default function CharacterSheet({ character, initialTab = "main" }: Chara
           <Button 
             variant="ghost" 
             size="sm" 
-            className="text-white hover:bg-primary-dark"
+            className="text-[var(--ed-muted)] hover:bg-[var(--ed-card)] hover:text-[var(--ed-ink)]"
             onClick={toggleExpanded}
             aria-label={isExpanded ? "Collapse character sheet" : "Expand character sheet"}
           >
@@ -144,7 +145,7 @@ export default function CharacterSheet({ character, initialTab = "main" }: Chara
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <h3 className="font-fantasy text-xl font-bold text-primary">{character.name}</h3>
+                  <h3 className="ed-title text-2xl">{character.name}</h3>
                   {!(character as any).hasRenamedCharacter && (
                     <TooltipProvider>
                       <Tooltip>
@@ -159,7 +160,7 @@ export default function CharacterSheet({ character, initialTab = "main" }: Chara
                   )}
                 </div>
               )}
-              <span className="bg-primary text-white text-sm px-3 py-1 rounded-full shrink-0">Level {character.level}</span>
+              <span className="shrink-0 rounded-full border border-[var(--ed-gold)] px-3 py-1 text-sm ed-gold">Level {character.level}</span>
               <LevelUpButton characterId={character.id} pendingLevelUp={character.pendingLevelUp} className="shrink-0" />
             </div>
             
@@ -244,6 +245,10 @@ export default function CharacterSheet({ character, initialTab = "main" }: Chara
             </TabsList>
             
             <TabsContent value="main">
+              {/* The play sheet from the design PDF: real modifiers, passives, features, Hit Dice. */}
+              <div className="grid gap-5 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
+                <CharacterRail character={character as any} />
+                <div className="min-w-0">
               {/* Abilities */}
               <div className="mb-6 text-secondary">
                 <h3 className="font-fantasy text-lg font-bold mb-3 text-primary-light">Abilities</h3>
@@ -368,6 +373,8 @@ export default function CharacterSheet({ character, initialTab = "main" }: Chara
                     <p className="text-xs text-gray-400 italic">No conditions active</p>
                   )}
                 </div>
+              </div>
+              </div>
               </div>
             </TabsContent>
             
