@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { CharacterRail } from "@/components/play/CharacterRail";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Character, insertCharacterSchema } from "@shared/schema";
@@ -819,7 +820,7 @@ export default function Characters() {
                 return (
                   <Card 
                     key={character.id} 
-                    className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-900 border-2 border-amber-200 dark:border-amber-800/50"
+                    className="ed-panel"
                   >
                     <CardContent className="py-4">
                       {/* Compact Stats Bar - Same as Dashboard */}
@@ -881,7 +882,7 @@ export default function Characters() {
                               { name: 'WIS', value: character.wisdom || 10 },
                               { name: 'CHA', value: character.charisma || 10 },
                             ].map(stat => (
-                              <div key={stat.name} className="text-center px-2 py-1 bg-white/50 dark:bg-slate-700/50 rounded">
+                              <div key={stat.name} className="text-center px-2 py-1 ed-card rounded">
                                 <p className="text-xs text-muted-foreground">{stat.name}</p>
                                 <p className="font-bold text-sm">{stat.value}</p>
                               </div>
@@ -911,67 +912,17 @@ export default function Characters() {
 
                       {/* Expanded Character Sheet - Same as Dashboard */}
                       {isExpanded && (
-                        <div className="mt-6 pt-6 border-t border-amber-200 dark:border-amber-800/50">
+                        <div className="mt-6 pt-6 border-t border-[var(--ed-line)]">
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            {/* Left Column - Character Details & Ability Scores */}
-                            <div className="space-y-4">
-                              <div className="bg-white/50 dark:bg-slate-700/50 rounded-lg p-4">
-                                <h4 className="font-fantasy text-sm font-bold text-amber-800 dark:text-amber-200 mb-3 flex items-center gap-2">
-                                  <User className="h-4 w-4" />
-                                  Character Details
-                                </h4>
-                                <div className="space-y-2 text-sm">
-                                  <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Race:</span>
-                                    <span className="font-medium">{character.race}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Class:</span>
-                                    <span className="font-medium">{character.class}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Level:</span>
-                                    <span className="font-medium">{character.level}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-muted-foreground">XP:</span>
-                                    <span className="font-medium">{character.experience || 0}</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="bg-white/50 dark:bg-slate-700/50 rounded-lg p-4">
-                                <h4 className="font-fantasy text-sm font-bold text-amber-800 dark:text-amber-200 mb-3 flex items-center gap-2">
-                                  <Zap className="h-4 w-4" />
-                                  Ability Scores
-                                </h4>
-                                <div className="grid grid-cols-2 gap-2">
-                                  {[
-                                    { name: 'Strength', abbr: 'STR', value: character.strength || 10 },
-                                    { name: 'Dexterity', abbr: 'DEX', value: character.dexterity || 10 },
-                                    { name: 'Constitution', abbr: 'CON', value: character.constitution || 10 },
-                                    { name: 'Intelligence', abbr: 'INT', value: character.intelligence || 10 },
-                                    { name: 'Wisdom', abbr: 'WIS', value: character.wisdom || 10 },
-                                    { name: 'Charisma', abbr: 'CHA', value: character.charisma || 10 },
-                                  ].map(stat => {
-                                    const modifier = Math.floor((stat.value - 10) / 2);
-                                    const modifierStr = modifier >= 0 ? `+${modifier}` : `${modifier}`;
-                                    return (
-                                      <div key={stat.abbr} className="text-center p-2 bg-amber-100/50 dark:bg-amber-900/30 rounded">
-                                        <p className="text-xs text-muted-foreground">{stat.abbr}</p>
-                                        <p className="font-bold text-lg">{stat.value}</p>
-                                        <p className="text-xs text-amber-600 dark:text-amber-400">({modifierStr})</p>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
+                            {/* Left Column - the play sheet (design PDF): modifiers, passives, features, Hit Dice */}
+                            <div>
+                              <CharacterRail character={character as any} />
                             </div>
 
                             {/* Middle Column - Combat Stats */}
                             <div className="space-y-4">
-                              <div className="bg-white/50 dark:bg-slate-700/50 rounded-lg p-4">
-                                <h4 className="font-fantasy text-sm font-bold text-amber-800 dark:text-amber-200 mb-3 flex items-center gap-2">
+                              <div className="ed-card rounded-lg p-4">
+                                <h4 className="font-fantasy text-sm font-bold text-[var(--ed-gold-soft)] mb-3 flex items-center gap-2">
                                   <Heart className="h-4 w-4" />
                                   Combat Stats
                                 </h4>
@@ -1002,13 +953,13 @@ export default function Characters() {
                                 </div>
                               </div>
 
-                              <div className="bg-white/50 dark:bg-slate-700/50 rounded-lg p-4">
-                                <h4 className="font-fantasy text-sm font-bold text-amber-800 dark:text-amber-200 mb-3 flex items-center gap-2">
+                              <div className="ed-card rounded-lg p-4">
+                                <h4 className="font-fantasy text-sm font-bold text-[var(--ed-gold-soft)] mb-3 flex items-center gap-2">
                                   <Sword className="h-4 w-4" />
                                   Attack Bonuses
                                 </h4>
                                 <div className="space-y-2 text-sm">
-                                  <div className="flex justify-between items-center p-2 bg-amber-100/50 dark:bg-amber-900/30 rounded">
+                                  <div className="flex justify-between items-center p-2 bg-[var(--ed-card-hi)] rounded">
                                     <span>Melee Attack</span>
                                     <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900/30">
                                       {(() => {
@@ -1019,7 +970,7 @@ export default function Characters() {
                                       })()}
                                     </Badge>
                                   </div>
-                                  <div className="flex justify-between items-center p-2 bg-amber-100/50 dark:bg-amber-900/30 rounded">
+                                  <div className="flex justify-between items-center p-2 bg-[var(--ed-card-hi)] rounded">
                                     <span>Ranged Attack</span>
                                     <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900/30">
                                       {(() => {
@@ -1036,8 +987,8 @@ export default function Characters() {
 
                             {/* Right Column - Equipment & Background */}
                             <div className="space-y-4">
-                              <div className="bg-white/50 dark:bg-slate-700/50 rounded-lg p-4">
-                                <h4 className="font-fantasy text-sm font-bold text-amber-800 dark:text-amber-200 mb-3 flex items-center gap-2">
+                              <div className="ed-card rounded-lg p-4">
+                                <h4 className="font-fantasy text-sm font-bold text-[var(--ed-gold-soft)] mb-3 flex items-center gap-2">
                                   <Package className="h-4 w-4" />
                                   Equipment
                                 </h4>
@@ -1077,8 +1028,8 @@ export default function Characters() {
                                 })()}
                               </div>
 
-                              <div className="bg-white/50 dark:bg-slate-700/50 rounded-lg p-4">
-                                <h4 className="font-fantasy text-sm font-bold text-amber-800 dark:text-amber-200 mb-3 flex items-center gap-2">
+                              <div className="ed-card rounded-lg p-4">
+                                <h4 className="font-fantasy text-sm font-bold text-[var(--ed-gold-soft)] mb-3 flex items-center gap-2">
                                   <Scroll className="h-4 w-4" />
                                   Background
                                 </h4>
