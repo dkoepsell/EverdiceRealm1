@@ -21925,7 +21925,7 @@ ${cachedNarrative}
       const rulesFiredThisTurn = turnFlags.rulesUnderneath ? await recordRulesFired(req.user.id, turnMechanics.fired) : [];
       // Persist this turn's mechanics so a reload shows the same chips and panels.
       (mergedStoryState as any).turnNotes = {
-        beat: playedBeat,
+        beat: turnFlags.beats ? playedBeat : null,
         passiveNoticed: turnMechanics.passiveNoticed,
         inspirationAwarded: turnMechanics.inspirationAwarded,
         failureCost: turnMechanics.failureCost,

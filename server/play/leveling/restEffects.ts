@@ -41,7 +41,8 @@ export function hitDiceShortRest(character: Character, count: number) {
   const level = character.level || 1;
   const remaining = typeof character.hitDiceRemaining === "number" ? character.hitDiceRemaining : level;
   const die = hitDieFor(character.class);
-  const r = spendHitDice(die, character.constitution, remaining, count);
+  // No point spending a die at full health.
+  const r = spendHitDice(die, character.constitution, remaining, character.hitPoints >= character.maxHitPoints ? 0 : count);
   const newHp = Math.min(character.maxHitPoints, character.hitPoints + r.healed);
   return { ...r, die, newHp, healedActual: newHp - character.hitPoints, hitDiceRemaining: remaining - r.spent };
 }

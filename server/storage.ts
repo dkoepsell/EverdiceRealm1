@@ -89,7 +89,9 @@ import { db } from "./db";
 import { eq, and, desc, sql, asc, or, inArray, isNull, gt, lt, ne } from "drizzle-orm";
 import { orderRoster, nextSeatIndex, type TurnRosterEntry } from "./lib/turnOrder";
 import { emitWorld, nowIso } from "./lib/worldBus";
-import { levelOutcomeForXp, type LevelingMode } from "@shared/rules/leveling";
+import { buildFeatureState, levelOutcomeForXp, parseFeatureState, type LevelingMode } from "@shared/rules/leveling";
+import { getClassDef } from "@shared/rules/classProgression";
+import { ABILITY_NAMES, type AbilityName } from "@shared/rules/abilities";
 
 // One seat per human player; see server/lib/turnOrder.ts for the rules.
 export type { TurnRosterEntry };
@@ -1525,9 +1527,19 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createCharacter(insertCharacter: InsertCharacter): Promise<Character> {
+    // Every new character starts with its class features and full Hit Dice
+    // (engagement spec Phase 1); the backfill script only covers existing rows.
+    const withFeatures = { ...insertCharacter } as InsertCharacter & Record<string, unknown>;
+    const def = getClassDef(insertCharacter.class);
+    if (def && parseFeatureState((insertCharacter as any).features).length === 0) {
+      const scores = {} as Record<AbilityName, number>;
+      for (const a of ABILITY_NAMES) scores[a] = Number((insertCharacter as any)[a]) || 10;
+      withFeatures.features = buildFeatureState(def, Math.min(insertCharacter.level || 1, def.maxEncodedLevel), (insertCharacter as any).subclass ?? null, scores);
+    }
+    if ((insertCharacter as any).hitDiceRemaining == null) withFeatures.hitDiceRemaining = insertCharacter.level || 1;
     const [character] = await db
       .insert(characters)
-      .values(insertCharacter)
+      .values(withFeatures)
       .returning();
     return character;
   }
