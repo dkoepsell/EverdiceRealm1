@@ -95,6 +95,13 @@
   Run DB migrations manually (shell source doesn't handle & in URL):
     ssh root@204.168.167.44 "cd /root/EverdiceRealm1 && set -a && source .env && set +a && npx drizzle-kit push"
 
+  Engagement-spec migrations (additive, idempotent; run in numeric order, by hand,
+  NOT via drizzle-kit push, which drops the session table):
+    ssh root@204.168.167.44 'cd /root/EverdiceRealm1 && set -a && source .env && set +a && for f in scripts/migrations/*.sql; do psql "$DATABASE_URL" -f "$f"; done'
+
+  Engagement report (Phase 0, read-only; where players quit):
+    ssh root@204.168.167.44 'cd /root/EverdiceRealm1 && set -a && source .env && set +a && npm run report:engagement'
+
   View logs:
     ssh root@204.168.167.44 "pm2 logs everdice --lines 50 --nostream"
 

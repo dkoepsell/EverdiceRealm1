@@ -163,6 +163,7 @@ import { blockFinishedCampaignPlay } from "./lib/finishedCampaignGuard";
 import { generateReturnGreeting, getStreakReward } from "./lib/hearthGreeting";
 import { objectStorageClient } from "./replit_integrations/object_storage";
 import { randomUUID, createHash } from "crypto";
+import { normalizeCampaignLength, chaptersForLength } from "@shared/rules/campaignLength";
 
 // Lazy AI proxy — resolves at first use so the module loads without crashing when
 // OPENAI_API_KEY is absent. Prefers Anthropic if configured. Chat-completion routes that
@@ -5343,24 +5344,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Calculate total chapters based on campaign length selection
-      const campaignLength = req.body.campaignLength || 'standard';
-      let totalChapters: number;
-      
-      switch (campaignLength) {
-        case 'quick':
-          totalChapters = 3; // Quick Adventure: 3 chapters (~30 min)
-          break;
-        case 'epic':
-          totalChapters = 8 + Math.floor(Math.random() * 3); // 8, 9, or 10
-          break;
-        case 'legendary':
-          totalChapters = 12 + Math.floor(Math.random() * 4); // 12, 13, 14, or 15
-          break;
-        case 'standard':
-        default:
-          totalChapters = 5 + Math.floor(Math.random() * 2); // 5 or 6
-          break;
-      }
+      const campaignLength = normalizeCampaignLength(req.body.campaignLength);
+      const totalChapters = chaptersForLength(campaignLength);
       
       // Remove any client-provided totalChapters to ensure server controls chapter count
       const { totalChapters: _ignored, ...bodyWithoutChapters } = req.body;
@@ -5369,6 +5354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const campaignData = insertCampaignSchema.parse({
         ...bodyWithoutChapters,
+        campaignLength,
         userId: req.user.id,
         createdAt: new Date().toISOString(),
         currentSession: 1,
@@ -27384,20 +27370,7 @@ Respond with JSON:
       const campaignData = convertCAMLToCampaign(pack);
       
       if (shouldCreateCampaign) {
-        // Calculate total chapters based on campaign length
-        let totalChapters: number;
-        switch (campaignLength) {
-          case 'quick':
-            totalChapters = 3;
-            break;
-          case 'epic':
-            totalChapters = 6 + Math.floor(Math.random() * 3); // 6-8
-            break;
-          case 'standard':
-          default:
-            totalChapters = 4 + Math.floor(Math.random() * 2); // 4-5
-            break;
-        }
+        const totalChapters = chaptersForLength(normalizeCampaignLength(campaignLength), 'imported');
         
         // Capture the imported CAML 2.0 doc (if it is 2.0) as the source for re-publishing.
         let camlSource: any = null;
@@ -27411,7 +27384,7 @@ Respond with JSON:
           description: campaignData.description + (campaignData.setting ? `\n\nSetting: ${campaignData.setting}` : ''),
           difficulty: 'normal',
           narrativeStyle: 'balanced',
-          campaignLength: campaignLength || 'standard',
+          campaignLength: normalizeCampaignLength(campaignLength),
           totalChapters,
           currentSession: 1,
           camlSource,

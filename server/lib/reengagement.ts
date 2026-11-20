@@ -17,11 +17,11 @@ import { randomUUID } from "crypto";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { db } from "../db";
 import { storage } from "../storage";
+import { logServerEvent } from "./activityLog";
 import {
   users,
   campaigns,
   campaignSessions,
-  userActivityEvents,
   type User,
 } from "@shared/schema";
 import {
@@ -157,18 +157,8 @@ function escapeHtml(s: string): string {
 }
 
 async function recordReengagementEvent(userId: number, campaignId: number) {
-  try {
-    await db.insert(userActivityEvents).values({
-      userId,
-      eventType: "reengagement",
-      eventCategory: "retention",
-      eventName: "email_sent",
-      eventData: { campaignId },
-      campaignId,
-    } as typeof userActivityEvents.$inferInsert);
-  } catch (err) {
-    console.warn("[reengagement] failed to record event:", (err as Error)?.message);
-  }
+  // logServerEvent supplies the NOT NULL session_id this insert used to omit.
+  await logServerEvent(userId, "reengagement", "retention", "email_sent", { campaignId }, { campaignId });
 }
 
 /**

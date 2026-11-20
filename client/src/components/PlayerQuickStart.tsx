@@ -283,7 +283,7 @@ export default function PlayerQuickStart({
         description: `A beginner-friendly ${themeTemplate.description.toLowerCase()}. You'll learn as you play with ${companionTemplate.name} as your guide and companion.`,
         difficulty: "balanced",
         narrativeStyle: "tutorial_friendly",
-        campaignLength: "oneshot"
+        campaignLength: "one_shot"
       };
 
       const campaignResponse = await apiRequest("POST", "/api/campaigns", campaignData);

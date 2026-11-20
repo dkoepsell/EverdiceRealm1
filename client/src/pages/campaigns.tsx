@@ -76,7 +76,8 @@ const difficulties = [
 
 // Campaign length determines the number of chapters
 const campaignLengths = [
-  { value: "quick", label: "Quick Adventure", chapters: "3 chapters", time: "~30 min", description: "A short, focused adventure perfect for one sitting" },
+  { value: "one_shot", label: "One-Shot", chapters: "1 chapter", time: "~30 min", description: "A complete story in a single sitting" },
+  { value: "quick", label: "Quick Adventure", chapters: "3 chapters", time: "~1 hour", description: "A short, focused adventure perfect for one sitting" },
   { value: "standard", label: "Standard Quest", chapters: "5-6 chapters", time: "~1-2 hours", description: "A balanced story with room for exploration" },
   { value: "epic", label: "Epic Saga", chapters: "8-10 chapters", time: "~3-4 hours", description: "A sprawling adventure with multiple story arcs" },
   { value: "legendary", label: "Legendary Campaign", chapters: "12-15 chapters", time: "~6+ hours", description: "A sweeping multi-session saga across many sessions" },
@@ -458,7 +459,7 @@ export default function Campaigns() {
 
                           <div className="flex flex-wrap gap-1.5 mb-4">
                             <Badge variant="secondary" className="text-xs">
-                              {campaign.campaignLength === 'quick' ? 'Quick' : campaign.campaignLength === 'epic' ? 'Epic' : campaign.campaignLength === 'legendary' ? 'Legendary' : 'Standard'}
+                              {campaign.campaignLength === 'one_shot' ? 'One-Shot' : campaign.campaignLength === 'quick' ? 'Quick' : campaign.campaignLength === 'epic' ? 'Epic' : campaign.campaignLength === 'legendary' ? 'Legendary' : 'Standard'}
                             </Badge>
                             <Badge variant="secondary" className="text-xs">
                               {campaign.totalChapters || 5} chapters

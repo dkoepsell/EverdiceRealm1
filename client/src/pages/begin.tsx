@@ -179,6 +179,8 @@ export default function BeginPage() {
         narrativeStyle: "descriptive",
         setting: tone.id,
         isTutorial: !experienced,
+        // A first adventure should finish in one sitting: one chapter (~30 min).
+        campaignLength: "one_shot",
         // Seat this exact hero. The server seats the creator either way, but
         // without an explicit id it falls back to the newest character — pass it
         // so the seat is deterministic and step 2a below stays a no-op rather

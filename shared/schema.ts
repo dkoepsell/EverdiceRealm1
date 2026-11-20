@@ -300,6 +300,9 @@ export const campaigns = pgTable("campaigns", {
   // Generated cover art for the adventure, preserved so it travels with the
   // campaign everywhere it appears (campaign cards, Trading Post listing, etc.).
   coverImageUrl: text("cover_image_url"),
+  // Per-campaign override of ENGAGEMENT_FLAGS (shared/engagementFlags.ts).
+  // Null = use the defaults. Added by scripts/migrations/000-engagement-flags.sql.
+  engagementFlags: jsonb("engagement_flags"),
   createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
   updatedAt: text("updated_at"),
 });
