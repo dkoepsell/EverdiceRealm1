@@ -15,6 +15,8 @@ export interface TurnNotesData {
   inspirationAwarded?: string | null;
   failureCost?: { kind: string; detail: string } | null;
   rulesFired?: { id: string; name: string; body: string; count: number; detail?: string }[];
+  clockFired?: string | null;
+  encounterNotes?: string[];
 }
 
 const BEAT_LABEL: Record<string, string> = {
@@ -67,10 +69,10 @@ export function RuleUnderneath({ rule, forceOpen }: { rule: NonNullable<TurnNote
 
 export function TurnNotes({ notes, showRules = true }: { notes?: TurnNotesData | null; showRules?: boolean }) {
   if (!notes) return null;
-  const { passiveNoticed, failureCost, inspirationAwarded, rulesFired } = notes;
+  const { passiveNoticed, failureCost, inspirationAwarded, rulesFired, clockFired, encounterNotes } = notes;
   const passiveRule = rulesFired?.find((r) => r.id === "passive_check");
   const otherRules = (rulesFired ?? []).filter((r) => r.id !== "passive_check");
-  if (!passiveNoticed && !failureCost && !inspirationAwarded && !(showRules && otherRules.length)) return null;
+  if (!passiveNoticed && !failureCost && !inspirationAwarded && !clockFired && !encounterNotes?.length && !(showRules && otherRules.length)) return null;
   return (
     <div className="mt-3 space-y-2" data-testid="turn-notes">
       {passiveNoticed && (
@@ -89,6 +91,14 @@ export function TurnNotes({ notes, showRules = true }: { notes?: TurnNotesData |
           )}
         </div>
       )}
+      {clockFired && (
+        <div className="rounded-xl border border-orange-700/60 bg-orange-950/40 p-3 text-sm text-orange-100" data-testid="clock-fired">
+          <b>The clock ran out:</b> {clockFired}.
+        </div>
+      )}
+      {encounterNotes?.map((n) => (
+        <p key={n} className="text-sm text-amber-200" data-testid="encounter-note">{n}</p>
+      ))}
       {failureCost && (
         <div className="flex items-start gap-2 rounded-xl border border-red-800/50 bg-red-950/30 p-3 text-sm text-red-100" data-testid="failure-cost">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />

@@ -7,8 +7,11 @@
 import type { Character } from "@shared/schema";
 import { ABILITY_NAMES, type AbilityName } from "@shared/rules/abilities";
 import { parseFeatureState } from "@shared/rules/leveling";
-import { type RestKind, hitDiceAfterLongRest, rechargeFeatures } from "@shared/rules/rests";
+import { type RestKind, hitDiceAfterLongRest, rechargeFeatures, spendHitDice } from "@shared/rules/rests";
+import { hitDieFor } from "@shared/rules/leveling";
+import { resolveFlags } from "@shared/engagementFlags";
 import { storage } from "../../storage";
+import { fireFullClock, parseClocks, tickClocks } from "../clocks";
 
 export function restUpdates(character: Character, rest: RestKind): Partial<Character> {
   const scores = {} as Record<AbilityName, number>;
@@ -28,4 +31,35 @@ export async function restoreSpellSlots(character: Character, rest: RestKind): P
   if (!slots) return false;
   await storage.resetSpellSlots(character.id);
   return true;
+}
+
+/**
+ * Short rest with Hit Dice (5e): spend up to `count` dice, each healing its roll
+ * + Con modifier. Replaces the flat 25% heal when the client asks for it.
+ */
+export function hitDiceShortRest(character: Character, count: number) {
+  const level = character.level || 1;
+  const remaining = typeof character.hitDiceRemaining === "number" ? character.hitDiceRemaining : level;
+  const die = hitDieFor(character.class);
+  const r = spendHitDice(die, character.constitution, remaining, count);
+  const newHp = Math.min(character.maxHitPoints, character.hitPoints + r.healed);
+  return { ...r, die, newHp, healedActual: newHp - character.hitPoints, hitDiceRemaining: remaining - r.spent };
+}
+
+/** Resting where it isn't safe gives the enemy time (engagement spec 4.4). */
+export async function tickClocksForRest(campaignId: number, rest: "short" | "long", safe: boolean): Promise<string[]> {
+  const campaign = await storage.getCampaign(campaignId);
+  if (!campaign || !resolveFlags(campaign).clocks) return [];
+  const session = await storage.getCurrentSession(campaignId);
+  if (!session) return [];
+  const state: any = typeof session.storyState === "string" ? JSON.parse(session.storyState) : session.storyState ?? {};
+  if (rest === "short" && safe) return [];
+  const { clocks, ticks } = tickClocks(parseClocks(state.clocks), { rest: safe ? "safe" : "unsafe" });
+  const fired = fireFullClock(clocks);
+  await storage.updateSessionStoryState(campaignId, session.sessionNumber, {
+    ...state,
+    clocks: fired.clocks,
+    clockTrigger: fired.trigger ? { beat: fired.trigger.beat, directive: fired.trigger.directive, clockName: fired.trigger.clock.name } : state.clockTrigger ?? null,
+  });
+  return ticks.map((t) => `${clocks.find((c) => c.id === t.id)?.name ?? t.id} +${t.by} (${t.why})`);
 }

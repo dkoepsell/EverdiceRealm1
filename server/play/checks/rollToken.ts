@@ -29,12 +29,17 @@ export interface RollTokenPayload {
 const b64 = (s: string) => Buffer.from(s).toString("base64url");
 const sign = (body: string) => createHmac("sha256", KEY).update(body).digest("base64url");
 
-export function signRollToken(p: RollTokenPayload): string {
+/** Sign any payload that carries campaignId/userId/issuedAt. */
+export function signPayload<T extends { campaignId: number; userId: number; issuedAt: number }>(p: T): string {
   const body = b64(JSON.stringify(p));
   return `${body}.${sign(body)}`;
 }
 
-export function verifyRollToken(token: unknown, expect: { campaignId: number; userId: number }, now = Date.now()): RollTokenPayload | null {
+export function verifyPayload<T extends { campaignId: number; userId: number; issuedAt: number }>(
+  token: unknown,
+  expect: { campaignId: number; userId: number },
+  now = Date.now(),
+): T | null {
   if (typeof token !== "string" || !token.includes(".")) return null;
   const [body, sig] = token.split(".", 2);
   const good = sign(body);
@@ -42,7 +47,7 @@ export function verifyRollToken(token: unknown, expect: { campaignId: number; us
   const b = Buffer.from(good);
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   try {
-    const p = JSON.parse(Buffer.from(body, "base64url").toString()) as RollTokenPayload;
+    const p = JSON.parse(Buffer.from(body, "base64url").toString()) as T;
     if (p.campaignId !== expect.campaignId || p.userId !== expect.userId) return null;
     if (now - p.issuedAt > MAX_AGE_MS) return null;
     return p;
@@ -51,12 +56,54 @@ export function verifyRollToken(token: unknown, expect: { campaignId: number; us
   }
 }
 
+export function signRollToken(p: RollTokenPayload): string {
+  return signPayload(p);
+}
+
+export function verifyRollToken(token: unknown, expect: { campaignId: number; userId: number }, now = Date.now()): RollTokenPayload | null {
+  const p = verifyPayload<RollTokenPayload & { kind?: string }>(token, expect, now);
+  return p && p.kind !== "class_turn" ? p : null;
+}
+
+/** A combat turn resolved by /combat-action (engagement spec 4.3). */
+export interface ClassTurnPayload {
+  kind: "class_turn";
+  campaignId: number;
+  userId: number;
+  characterId: number;
+  issuedAt: number;
+  action: string;
+  targetName: string | null;
+  hit: boolean;
+  attackRoll: { roll: number; modifier: number; total: number; isCritical: boolean; isCriticalMiss: boolean } | null;
+  damageTotal: number;
+  damageType: string;
+  summary: string;
+  breakdown: string[];
+}
+
 /**
  * The rollResult the turn routes use. A valid token replaces whatever the
  * client sent; without one the client's roll is passed through unchanged
  * (older clients, and campaigns with serverChecks off).
  */
 export function trustedRollResult(rollResult: any, expect: { campaignId: number; userId: number }) {
+  const turn = verifyPayload<ClassTurnPayload>(rollResult?.token, expect);
+  if (turn?.kind === "class_turn") {
+    // Shaped like the client's weapon attack so the existing damage path applies it once.
+    return {
+      type: "class_turn",
+      serverResolved: true,
+      weaponName: turn.action,
+      targetName: turn.targetName,
+      hit: turn.hit,
+      isHit: turn.hit,
+      attackRoll: turn.attackRoll,
+      damage: turn.hit && turn.damageTotal > 0 ? { total: turn.damageTotal, damageType: turn.damageType } : undefined,
+      summary: turn.summary,
+      breakdown: turn.breakdown,
+    };
+  }
   const p = verifyRollToken(rollResult?.token, expect);
   if (!p) {
     if (rollResult && typeof rollResult === "object") {

@@ -21,7 +21,8 @@ import { registerWanderRoutes } from "./wanderRoutes";
 import { registerDelveRoutes } from "./delveRoutes";
 import { registerLevelUpRoutes } from "./play/leveling/routes";
 import { grantMilestoneLevel } from "./play/leveling/levelUps";
-import { restUpdates, restoreSpellSlots } from "./play/leveling/restEffects";
+import { applyDeathSave } from "@shared/rules/deathSaves";
+import { hitDiceShortRest, restUpdates, restoreSpellSlots, tickClocksForRest } from "./play/leveling/restEffects";
 import { levelOutcomeForXp, normalizeLevelingMode, xpForNextLevel, featuresPromptLine, parseFeatureState } from "@shared/rules/leveling";
 import { resolveFlags } from "@shared/engagementFlags";
 import { registerCheckRoutes } from "./play/checks/routes";
@@ -34,6 +35,8 @@ import { loadLedger, saveLedger } from "./play/ledger/store";
 import { mergeLedgerUpdates } from "./play/ledger/merge";
 import { ledgerPromptBlock, ledgerStreamLine, selectCallbacks } from "./play/ledger/callbacks";
 import { registerLedgerRoutes } from "./play/ledger/routes";
+import { registerCombatRoutes } from "./play/combat/routes";
+import { midTurn, playerCombatConditions, postTurn, preTurn } from "./play/combat/turnHooks";
 import { antiRepeatBlock } from "./play/prompt/history";
 import { parseNarrativeForLocations, generateHexMetaFromKeywords, getAllAdjacentCoordinates, getAdjacentHexCoordinates, detectMovementInNarrative, detectAdventureSetting, ENVIRONMENT_KEYWORDS, type HexDirection, type AdventureSetting } from "./narrativeHexParser";
 import { z } from "zod";
@@ -1691,6 +1694,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerLevelUpRoutes(app);
   registerCheckRoutes(app);
   registerLedgerRoutes(app);
+  registerCombatRoutes(app);
   
   syncMarketItemStats().catch(err => console.error("[Economy] Sync failed:", err));
   
@@ -2885,8 +2889,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Unconscious characters must be stabilized or healed first." });
       }
       
-      const healAmount = Math.max(1, Math.floor(character.maxHitPoints * 0.25));
-      const newHP = Math.min(character.maxHitPoints, character.hitPoints + healAmount);
+      // 5e short rest: spend Hit Dice (roll each + Con) when the client asks for it
+      // (engagement spec 4.4); otherwise the legacy flat 25% heal.
+      const hdCount = Number.isInteger(req.body?.hitDice) ? Math.max(0, req.body.hitDice) : null;
+      const hd = hdCount != null ? hitDiceShortRest(character, hdCount) : null;
+      const healAmount = hd ? hd.healed : Math.max(1, Math.floor(character.maxHitPoints * 0.25));
+      const newHP = hd ? hd.newHp : Math.min(character.maxHitPoints, character.hitPoints + healAmount);
       const actualHeal = newHP - character.hitPoints;
       
       // If healing brings HP above 0 and was stabilized, become conscious
@@ -2900,6 +2908,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: newStatus,
         // Features that recharge on a short rest (Second Wind, Action Surge, Ki...).
         ...restUpdates(character, "short"),
+        ...(hd ? { hitDiceRemaining: hd.hitDiceRemaining } : {}),
         updatedAt: new Date().toISOString()
       });
       await restoreSpellSlots(character, "short"); // Warlock Pact Magic
@@ -2935,11 +2944,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? ` Companions also rested: ${companionResults.map(c => `${c.name} +${c.healed} HP`).join(', ')}.`
         : '';
       
+      const shortRestClockTicks = campaignId ? await tickClocksForRest(Number(campaignId), "short", req.body?.safe !== false) : [];
       res.json({
         character: updatedCharacter,
         healedAmount: actualHeal,
         companionResults,
-        message: `Short rest complete. Recovered ${actualHeal} HP.${companionMsg}`
+        hitDice: hd ? { die: hd.die, rolls: hd.rolls, conMod: hd.conMod, spent: hd.spent, remaining: hd.hitDiceRemaining } : null,
+        clockTicks: shortRestClockTicks,
+        message: `Short rest complete. ${hd ? `Spent ${hd.spent} Hit ${hd.spent === 1 ? 'Die' : 'Dice'} (d${hd.die}: ${hd.rolls.join(', ') || 'none'}, ${hd.conMod >= 0 ? '+' : ''}${hd.conMod} Con each). ` : ''}Recovered ${actualHeal} HP.${companionMsg}`
       });
     } catch (error: any) {
       console.error("Error during short rest:", error);
@@ -2973,6 +2985,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: new Date().toISOString()
       } as any);
       const spellSlotsRestored = await restoreSpellSlots(character, "long");
+      // A long rest somewhere unsafe gives the enemy time (engagement spec 4.4).
+      const longRestClockTicks = campaignId ? await tickClocksForRest(Number(campaignId), "long", req.body?.safe === true) : [];
       
       // If campaignId provided, also fully heal all NPC companions
       const companionResults: any[] = [];
@@ -3020,6 +3034,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         companionResults,
         itemRecharge: itemRechargeResult,
         spellSlotsRestored,
+        clockTicks: longRestClockTicks,
         message: `Long rest complete. Fully restored to ${character.maxHitPoints} HP.${spellSlotsRestored ? ' Spell slots restored.' : ''}${companionMsg}${rechargeMsg}`
       });
     } catch (error: any) {
@@ -3050,34 +3065,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let message = "";
       let newHP = character.hitPoints;
       
-      if (roll === 20) {
-        // Natural 20: Regain 1 HP and become conscious
+      // The SRD rules live in shared/rules/deathSaves.ts (tested).
+      const save = applyDeathSave(roll, successes, failures);
+      successes = save.successes;
+      failures = save.failures;
+      message = save.message;
+      if (save.outcome === "regain_1hp") {
         newHP = 1;
         newStatus = "conscious";
-        successes = 0;
-        failures = 0;
-        message = "Critical success! You regain 1 HP and are conscious!";
-      } else if (roll === 1) {
-        // Natural 1: Two failures
-        failures += 2;
-        message = "Critical failure! Two death save failures.";
-      } else if (roll >= 10) {
-        // Success
-        successes += 1;
-        message = `Success (${roll})! ${successes}/3 successes.`;
-      } else {
-        // Failure
-        failures += 1;
-        message = `Failure (${roll}). ${failures}/3 failures.`;
-      }
-      
-      // Check for stabilization (3 successes) or death (3 failures)
-      if (successes >= 3) {
+      } else if (save.outcome === "stable") {
         newStatus = "stabilized";
-        message = "Stabilized! You are no longer dying.";
-      } else if (failures >= 3) {
+      } else if (save.outcome === "dead") {
         newStatus = "dead";
-        message = "You have died.";
       }
       
       const updatedCharacter = await storage.updateCharacter(id, {
@@ -18517,11 +18516,15 @@ Instead, describe environments that MATCH the campaign's actual setting and the 
       const sessionStoryState = (currentSession.storyState as any) || {};
       // Beat director (engagement spec 2.1): the rhythm of this scene is decided in code.
       const directorState = parseDirectorState(sessionStoryState.director, currentChapter);
-      const turnBeat = beatForTurn(directorState, {
+      // Threat clocks + encounter objective (engagement spec Phase 4). A clock that
+      // filled last turn fires now and sets this scene's beat.
+      const p4 = preTurn(turnFlags, sessionStoryState, campaign);
+      const turnBeat = p4.trigger && !sessionStoryState.inCombat ? p4.trigger.beat : beatForTurn(directorState, {
         inCombat: !!sessionStoryState.inCombat,
         attackIntent: detectAttackIntent(String(choice ?? '')).isAttack,
       });
       const promptExtras = buildPromptExtras(turnFlags, turnBeat, playerCharacter);
+      if (p4.promptLine) promptExtras.context += `\n${p4.promptLine}\n`;
       // Campaign Ledger (engagement spec Phase 3): memory of the cast, threads and deeds.
       const turnLedger = turnFlags.ledger ? await loadLedger(campaignId, campaign as any) : null;
       if (turnLedger) {
@@ -18531,11 +18534,11 @@ Instead, describe environments that MATCH the campaign's actual setting and the 
       const scenesSinceCombat = sessionStoryState.scenesSinceCombat ?? 0;
       // With the beat director on, combat comes from the fiction or the player —
       // never from a counter (spec: "combat only via triggers or explicit aggression").
-      const shouldNudgeCombat = !turnFlags.beats && previousSceneType !== 'Combat' && scenesSinceCombat >= 3;
+      const shouldNudgeCombat = !turnFlags.beats && !turnFlags.clocks && previousSceneType !== 'Combat' && scenesSinceCombat >= 3;
       // Hard escalation: after this many bloodless scenes, combat is no longer a suggestion.
       // Even a "non-combat" campaign style must eventually present a real fight so the world
       // has stakes — a campaign with ZERO combat should not be possible.
-      const mustForceCombat = !turnFlags.beats && previousSceneType !== 'Combat' && scenesSinceCombat >= 6;
+      const mustForceCombat = !turnFlags.beats && !turnFlags.clocks && previousSceneType !== 'Combat' && scenesSinceCombat >= 6;
       
       // Build environment-aware random encounter suggestion when combat is overdue
       let randomEncounterNudge = '';
@@ -20050,6 +20053,17 @@ ${cachedNarrative}
         }
       }
       
+      // Encounter objective and morale, decided in code (engagement spec 4.2).
+      const p4Mid = midTurn(turnFlags, currentSession?.storyState as any, storyAdvancement.storyState, {
+        choice,
+        classCombat: (currentSession?.storyState as any)?.classCombat,
+        rollSucceeded: rollResult ? (rollResult.success ?? (typeof rollResult.total === 'number' && typeof rollResult.dc === 'number' ? rollResult.total >= rollResult.dc : rollResult.isHit)) : false,
+        partyDown: ['unconscious', 'dead'].includes(String(playerCharacter?.status ?? '')),
+      });
+      if (p4Mid.combatants && storyAdvancement.storyState) storyAdvancement.storyState.combatants = p4Mid.combatants;
+      if (p4Mid.inCombat === false && storyAdvancement.storyState) storyAdvancement.storyState.inCombat = false;
+      const objectiveWonThisTurn = p4Mid.objectiveWon;
+
       // Decrement charges for wands/staves/charged items when used
       let chargeUpdate: { itemId: number; itemName: string; currentCharges: number; maxCharges: number; destroyed?: boolean } | null = null;
       if (rollResult?.type === 'magic_item' && rollResult?.itemName && playerCharacter?.id) {
@@ -21252,7 +21266,7 @@ ${cachedNarrative}
           );
           const allMergedEnemiesDefeated = mergedEnemyCombatants.length === 0 && savedEnemyCombatants.length > 0;
           
-          const isVictory = allEnemiesDefeated || allMergedEnemiesDefeated || 
+          const isVictory = objectiveWonThisTurn || allEnemiesDefeated || allMergedEnemiesDefeated || 
             ((combatEffects?.enemyDamage || []).filter((e: any) => e.defeated).length > 0 &&
              (combatEffects?.enemyDamage || []).filter((e: any) => e.defeated).length >= savedEnemyCombatants.length);
           
@@ -21847,8 +21861,25 @@ ${cachedNarrative}
         await storage.updateCharacter(playerCharacter.id, { personality: turnMechanics.personalitySeed } as any);
       }
       const playedBeat = String(storyAdvancement.sceneType || '').toLowerCase().includes('combat') ? 'combat' : turnBeat;
+      // Phase 4 state rides on the session's storyState; the model's storyState
+      // doesn't carry it, so it is set explicitly every turn.
+      const p4Post = postTurn(turnFlags, p4, currentSession.storyState, {
+        sceneType: storyAdvancement.sceneType,
+        choice,
+        roll: rollResult,
+        scenesInChapter: (mergedStoryState as any).turnsInChapter,
+        inCombat: !!(mergedStoryState as any).inCombat,
+      });
+      if (turnFlags.clocks) {
+        (mergedStoryState as any).clocks = p4Post.clocks;
+        (mergedStoryState as any).clockTrigger = p4Post.clockTrigger;
+      }
+      if (turnFlags.classCombat || turnFlags.clocks) {
+        (mergedStoryState as any).encounter = (mergedStoryState as any).inCombat ? p4Mid.encounter : null;
+      }
+      if (p4Post.classCombat) (mergedStoryState as any).classCombat = (mergedStoryState as any).inCombat ? p4Post.classCombat : undefined;
       if (turnFlags.beats) {
-        (mergedStoryState as any).director = pickNextBeat(directorState, playedBeat);
+        (mergedStoryState as any).director = pickNextBeat(directorState, playedBeat, { clockNearFull: p4.nearFull });
       }
       let ledgerMerge: ReturnType<typeof mergeLedgerUpdates> | null = null;
       if (turnLedger) {
@@ -21867,6 +21898,9 @@ ${cachedNarrative}
         rulesFired: rulesFiredThisTurn,
         roll: rollResult?.serverResolved ? rollResult : null,
         returning: ledgerMerge?.returning[0] ?? null,
+        clockTicks: p4Post.ticks,
+        clockFired: p4.trigger?.clockName ?? null,
+        encounterNotes: p4Mid.notes,
       };
       if (!Array.isArray(finalChoices) || finalChoices.length === 0) {
         if (inCombat) {
@@ -22293,7 +22327,9 @@ ${cachedNarrative}
                 attackBonus: combatStats.attackBonus,
                 damageRoll: combatStats.damageRoll,
                 status: 'conscious',
-                level: character.level
+                level: character.level,
+                // Dodge / Rage / Reckless Attack from this turn's class actions (engagement spec 4.3).
+                conditions: playerCombatConditions(currentSession.storyState),
               };
               
               // The rest of the party's human players are combatants too, not
@@ -24546,6 +24582,7 @@ Respond with JSON:
             attackIntent: detectAttackIntent(String(choice ?? '')).isAttack,
           })
         : null;
+      const streamP4 = preTurn(resolveFlags(campaign), storyState, campaign);
       const streamLedgerLine = resolveFlags(campaign).ledger
         ? await (async () => {
             const lg = await loadLedger(campaignId, campaign as any);
@@ -24662,7 +24699,7 @@ Current Story State: ${JSON.stringify({
 })}
 
 The player chose: "${choice || "Continue the adventure"}"
-${describeRollForNarrator(rollResult, streamActor?.name)}${intent === 'attack' && !rollResult ? attackIntentDirective() : ''}${streamBeat ? `\n${beatPromptLine(streamBeat)} (Write only the prose; the choices are written separately.)\n` : ''}${streamLedgerLine ? `\n${streamLedgerLine}\n` : ''}
+${describeRollForNarrator(rollResult, streamActor?.name)}${intent === 'attack' && !rollResult ? attackIntentDirective() : ''}${streamBeat ? `\n${beatPromptLine(streamBeat)} (Write only the prose; the choices are written separately.)\n` : ''}${streamLedgerLine ? `\n${streamLedgerLine}\n` : ''}${streamP4.promptLine ? `\n${streamP4.promptLine}\n` : ''}
 ${resolveFlags(campaign).promptDiet ? `${antiRepeatBlock(recentTitles, recentLocations, { ledger: resolveFlags(campaign).ledger })}
 ` : `ANTI-REPETITION — DO NOT reuse these:
 - Recent titles: ${recentTitles.map(t => `"${t}"`).join(', ')}

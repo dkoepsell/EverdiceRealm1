@@ -11,6 +11,14 @@
 export function describeRollForNarrator(rollResult: any, actorName?: string): string {
   if (!rollResult || typeof rollResult !== "object") return "";
 
+  // A combat turn resolved by the game (class features, action economy).
+  if (rollResult.type === "class_turn") {
+    const lines = Array.isArray(rollResult.breakdown) ? rollResult.breakdown.join("\n") : "";
+    const head = `\nTHE PLAYER'S TURN — resolved by the game; narrate exactly this, don't change any numbers:\n${rollResult.summary ?? ""}\n${lines}\n`;
+    if (!rollResult.attackRoll) return head;
+    return head + describeRollForNarrator({ ...rollResult, type: "weapon_attack" }, actorName);
+  }
+
   if (isAttackRoll(rollResult)) {
     const atk = rollResult.attackRoll || {};
     const hit = rollSucceeded(rollResult);

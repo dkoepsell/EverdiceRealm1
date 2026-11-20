@@ -4,6 +4,8 @@ import { RollDialog, type ServerRollResult } from "@/components/play/RollDialog"
 import { BeatChip, TurnNotes, type TurnNotesData } from "@/components/play/TurnNotes";
 import { JournalButton } from "@/components/play/Journal";
 import { HereNow } from "@/components/play/HereNow";
+import { CombatTurnPanel, ClockDial, type ClassTurnResult } from "@/components/combat/CombatTurnPanel";
+import { attackAbilityMod, weaponProfile } from "@shared/rules/classActions";
 import { resolveFlags } from "@shared/engagementFlags";
 import { checkModifier } from "@shared/rules/checks";
 import { useLocation } from "wouter";
@@ -3302,6 +3304,31 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     });
   }, [activeCharacter, parsedStoryState, selectedTargetIndex, isAdvancingStory, advanceStory, itemStatsMap, triggerCombatAdvance]);
   
+  // Submit a combat turn resolved on the server (engagement spec 4.3). The token
+  // carries the hit and damage; the turn routes apply it once.
+  const submitClassTurn = (actionText: string, r: ClassTurnResult) => {
+    queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+    setLastChosenAction(actionText);
+    setStoryPhase('commit');
+    setRevealText("");
+    setStreamedNarrative("");
+    setIsAdvancingStory(true);
+    setMutationReady(false);
+    setChoicesRevealed(false);
+    if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
+    fetchRevealText(actionText, true, currentLocation);
+    const rollResultData = { type: 'class_turn', token: r.token, summary: r.summary, targetName: r.targetName, hit: r.hit };
+    startNarrativeStream(actionText, currentLocation, rollResultData);
+    advanceStory.mutate({ choice: actionText, rollResult: rollResultData, streaming: true }, {
+      onSettled: () => {
+        if (streamAbortRef.current) streamAbortRef.current.abort();
+        setMutationReady(true);
+        setLastChosenAction("");
+        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/combat-action/options`] });
+      }
+    });
+  };
+
   // Submit a turn whose check was rolled on the server. The signed token rides
   // inside rollResult; both turn routes swap it for the server's own numbers.
   const submitServerRolledTurn = (actionText: string, r: ServerRollResult) => {
@@ -3940,6 +3967,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               <span className="text-sm text-amber-700 dark:text-amber-300 font-semibold">
                                 Chapter {chapterNumber} of {campaign.totalChapters || 5}
                               </span>
+                              {engagementFlags.clocks && Array.isArray((parsedStoryState as any)?.clocks) && (
+                                <div className="mt-2 flex flex-wrap gap-4" data-testid="clock-row">
+                                  {((parsedStoryState as any).clocks as any[]).filter((c) => c.filled > 0).map((c) => (
+                                    <ClockDial key={c.id} name={c.name} filled={c.filled} segments={c.segments} />
+                                  ))}
+                                </div>
+                              )}
                               {(engagementFlags.ledger || engagementFlags.rulesUnderneath) ? (
                                 <span className="ml-3 inline-block align-middle"><JournalButton campaignId={campaign.id} showLedger={engagementFlags.ledger} showRules={engagementFlags.rulesUnderneath} /></span>
                               ) : null}
@@ -4301,6 +4335,22 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                             )}
                             
                             {engagementFlags.ledger && <HereNow campaignId={campaign.id} />}
+                            {engagementFlags.classCombat && parsedStoryState?.inCombat && activeCharacter && (() => {
+                              const w = weaponProfile((activeCharacter as any).equippedWeapon);
+                              const mod = attackAbilityMod(w, activeCharacter.strength || 10, activeCharacter.dexterity || 10, { monk: String(activeCharacter.class).toLowerCase() === 'monk' });
+                              const prof = Math.floor(((activeCharacter.level || 1) - 1) / 4) + 2;
+                              return (
+                                <CombatTurnPanel
+                                  key={`${currentSession?.id}-${currentSession?.updatedAt ?? ''}`}
+                                  campaignId={campaign.id}
+                                  characterId={activeCharacter.id}
+                                  disabled={(!isDM && !!currentTurnName && !isMyTurn) || isAdvancingStory}
+                                  attackBonus={mod + prof}
+                                  abilityMod={mod}
+                                  onResolved={submitClassTurn}
+                                />
+                              );
+                            })()}
                             {!suggestionSectionHidden && choiceGridVisible && (
                             <div className="grid grid-cols-1 gap-2">
                               {(scaffoldMaxSuggestions != null ? parsedChoices.slice(0, scaffoldMaxSuggestions) : parsedChoices).map((choice: any, index: number) => {

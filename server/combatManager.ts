@@ -23,8 +23,24 @@ const CONDITION_EFFECTS: Record<string, {
   targetAdvantage?: boolean;
   autoCritAdjacent?: boolean;
   damageResistanceAll?: boolean;
+  targetDisadvantage?: boolean;
   note: string;
 }> = {
+  // Engagement spec Phase 4: states created by class actions in managed combat.
+  dodging: {
+    targetDisadvantage: true,
+    note: "Dodging: attacks against you have disadvantage until your next turn."
+  },
+  raging: {
+    // Rage grants resistance to bludgeoning, piercing and slashing damage. Enemy
+    // attacks resolved here are weapon/natural attacks, so this applies to them.
+    damageResistanceAll: true,
+    note: "Raging: resistance to bludgeoning, piercing and slashing damage."
+  },
+  reckless: {
+    targetAdvantage: true,
+    note: "Reckless Attack: attacks against you have advantage until your next turn."
+  },
   blinded: {
     attackerDisadvantage: true,
     targetAdvantage: true,
@@ -132,6 +148,10 @@ export function computeConditionModifiers(
       damageResistance = true;
       notes.push(effects.note);
     }
+    if (effects.targetDisadvantage) {
+      disadvantage = true;
+      notes.push(effects.note);
+    }
   }
 
   // Special case: invisible target has disadvantage on attacks against it
@@ -218,14 +238,15 @@ function rollD20(): number {
  * Returns { count, sides, modifier }
  */
 function parseDamageRoll(damageStr: string): { count: number; sides: number; modifier: number } {
-  const match = damageStr.match(/(\d+)d(\d+)(?:\+(\d+))?/i);
+  // "1d6-1" used to parse as +0: only "+N" was recognised.
+  const match = damageStr.match(/(\d+)d(\d+)(?:\s*([+-])\s*(\d+))?/i);
   if (!match) {
     return { count: 1, sides: 6, modifier: 0 }; // Default fallback
   }
   return {
     count: parseInt(match[1]),
     sides: parseInt(match[2]),
-    modifier: match[3] ? parseInt(match[3]) : 0
+    modifier: match[4] ? (match[3] === '-' ? -1 : 1) * parseInt(match[4]) : 0
   };
 }
 
