@@ -1,5 +1,9 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { LevelUpButton } from "@/components/character/LevelUpDialog";
+import { RollDialog, type ServerRollResult } from "@/components/play/RollDialog";
+import { BeatChip, TurnNotes, type TurnNotesData } from "@/components/play/TurnNotes";
+import { resolveFlags } from "@shared/engagementFlags";
+import { checkModifier } from "@shared/rules/checks";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Campaign, CampaignSession, Character, Npc, WorldRegion, WorldLocation } from "@shared/schema";
@@ -278,6 +282,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   // Local state
   const [showChoiceDialog, setShowChoiceDialog] = useState(false);
   const [showDiceRollDialog, setShowDiceRollDialog] = useState(false);
+  // Engagement spec flags for this campaign (shared/engagementFlags.ts).
+  const engagementFlags = useMemo(() => resolveFlags(campaign as any), [campaign]);
+  // A check rolled and resolved on the server (serverChecks flag), with its math shown.
+  const [serverRollChoice, setServerRollChoice] = useState<any>(null);
   const [showCharacterSelectionDialog, setShowCharacterSelectionDialog] = useState(false);
   const [expandedSessions, setExpandedSessions] = useState<number[]>([]);
   const [selectedAction, setSelectedAction] = useState("");
@@ -1975,6 +1983,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       // campaign with chapter gates — and every campaign gets gates improvised on its first
       // turn). Nothing used to react here, so the chapter silently advanced server-side and
       // the player was left waiting for a chapter 2 that had already begun.
+      if (data.turnNotes?.inspirationAwarded) {
+        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+      }
       if (data.levelUpEarned) {
         // A milestone earned a level (engagement spec 1.2): refresh the seated
         // characters so the glowing "Level up" button appears.
@@ -3030,6 +3041,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
 
     // Check if the choice requires a dice roll (handle both property naming conventions)
     if (choice.requiresRoll || choice.requiresDiceRoll) {
+      // Engagement spec Phase 2: ability checks roll on the server and show their math.
+      if (engagementFlags.serverChecks && (!choice.diceType || choice.diceType === 'd20')) {
+        setServerRollChoice({ ...choice, text: choice.action || choice.text });
+        return;
+      }
       // Set up the dice roll
       let diceType = choice.diceType as DiceType;
       console.log("Original dice type:", diceType);
@@ -3283,6 +3299,41 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
     });
   }, [activeCharacter, parsedStoryState, selectedTargetIndex, isAdvancingStory, advanceStory, itemStatsMap, triggerCombatAdvance]);
   
+  // Submit a turn whose check was rolled on the server. The signed token rides
+  // inside rollResult; both turn routes swap it for the server's own numbers.
+  const submitServerRolledTurn = (actionText: string, r: ServerRollResult) => {
+    setServerRollChoice(null);
+    if (r.rulesFired?.some((x) => x.id === 'inspiration')) {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+    }
+    setLastChosenAction(actionText);
+    setStoryPhase('commit');
+    setRevealText("");
+    setStreamedNarrative("");
+    setIsAdvancingStory(true);
+    setMutationReady(false);
+    setChoicesRevealed(false);
+    if (choicesRevealTimer.current) clearTimeout(choicesRevealTimer.current);
+    fetchRevealText(actionText, parsedStoryState?.inCombat || false, currentLocation);
+    const rollResultData = {
+      diceType: 'd20',
+      result: r.kept,
+      modifier: r.modifier.total,
+      total: r.total,
+      dc: r.dc,
+      purpose: r.modifier.label,
+      token: r.token,
+    };
+    startNarrativeStream(actionText, currentLocation, rollResultData);
+    advanceStory.mutate({ choice: actionText, rollResult: rollResultData, streaming: true }, {
+      onSettled: () => {
+        if (streamAbortRef.current) streamAbortRef.current.abort();
+        setMutationReady(true);
+        setLastChosenAction("");
+      }
+    });
+  };
+
   const handleDiceRoll = async () => {
     if (!currentDiceRoll) return;
     
@@ -3474,6 +3525,16 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   
   return (
     <div className="w-full">
+      {engagementFlags.serverChecks && (
+        <RollDialog
+          open={!!serverRollChoice}
+          campaignId={campaign.id}
+          characterId={activeCharacter?.id}
+          choice={serverRollChoice}
+          onCancel={() => setServerRollChoice(null)}
+          onResolved={(r) => submitServerRolledTurn(serverRollChoice?.text || 'Take action', r)}
+        />
+      )}
       {/* Dice Roll Dialog */}
       <Dialog open={showDiceRollDialog} onOpenChange={(open) => {
         if (!open) {
@@ -3876,6 +3937,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               <span className="text-sm text-amber-700 dark:text-amber-300 font-semibold">
                                 Chapter {chapterNumber} of {campaign.totalChapters || 5}
                               </span>
+                              {engagementFlags.inspiration && activeCharacter?.inspiration ? (
+                                <span className="ml-3 inline-flex items-center rounded-full border border-amber-500 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-300" data-testid="inspired-badge" title="Spend Inspiration for advantage on a roll">
+                                  ☆ Inspired
+                                </span>
+                              ) : null}
                               {activeCharacter?.pendingLevelUp ? (
                                 <LevelUpButton characterId={activeCharacter.id} pendingLevelUp={activeCharacter.pendingLevelUp} className="ml-3 h-6 px-2 text-xs" />
                               ) : null}
@@ -3993,9 +4059,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           />
                         ) : currentSession.narrative ? (
                           <div className="animate-in fade-in duration-500">
+                            {engagementFlags.beats && <BeatChip beat={(parsedStoryState as any)?.turnNotes?.beat} />}
                             <p className="whitespace-pre-line break-words text-lg sm:text-xl leading-relaxed text-slate-100 font-medium overflow-hidden" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)', wordBreak: 'break-word' }}>
                               {currentSession.narrative}
                             </p>
+                            <TurnNotes notes={(parsedStoryState as any)?.turnNotes as TurnNotesData | undefined} showRules={engagementFlags.rulesUnderneath} />
                             <button
                               onClick={() => (narration === "idle" ? narrateScene(currentSession.narrative) : stopNarration())}
                               className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-200/90 bg-amber-900/30 border border-amber-600/30 rounded-lg hover:bg-amber-900/50 transition-colors"
@@ -4240,7 +4308,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               const actionDisabled = (!isDM && !!currentTurnName && !isMyTurn) || campaignTurnBlocked;
                                 
                                 let tooltipContent = null;
-                                if (hasRoll && activeCharacter && dc) {
+                                if (hasRoll && activeCharacter && dc && !engagementFlags.serverChecks) {
                                   const { modifier, breakdown } = getSkillModifier(activeCharacter, skillName);
                                   const probability = calculateSuccessProbability(dc, modifier);
                                   const likelihood = getLikelihoodDescription(probability);
@@ -4271,7 +4339,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                         <span className={`text-slate-100 font-medium text-sm sm:text-base break-words whitespace-normal leading-snug${choiceDisplay !== choiceText ? ' italic text-amber-100/90' : ''}`}>
                                           {choiceDisplay}
                                         </span>
-                                        {hasRoll && dc && (
+                                        {engagementFlags.serverChecks && choice.skillType !== 'attack' ? (
+                                          // Design PDF: "No roll" or "Persuasion · d20 +5". The DC stays hidden until you roll.
+                                          <span className={`text-xs ${hasRoll ? 'text-amber-300' : 'text-slate-400'}`} data-testid={`choice-roll-label-${index}`}>
+                                            {hasRoll && activeCharacter
+                                              ? (() => { const m = checkModifier(activeCharacter as any, skillName); return `${m.label.replace(/^.*\((.*)\)$/, '$1')} · d20 ${m.total >= 0 ? '+' : ''}${m.total}`; })()
+                                              : hasRoll ? 'Roll d20' : 'No roll'}
+                                          </span>
+                                        ) : hasRoll && dc && (
                                           <div className="flex items-center gap-1">
                                             <span className="text-xs bg-amber-600 text-white px-2 py-0.5 rounded font-bold">
                                               {choice.rollPurpose && choice.rollPurpose !== "null" ? choice.rollPurpose : "Skill Check"} (d20)

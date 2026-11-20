@@ -24,6 +24,11 @@ import { grantMilestoneLevel } from "./play/leveling/levelUps";
 import { restUpdates, restoreSpellSlots } from "./play/leveling/restEffects";
 import { levelOutcomeForXp, normalizeLevelingMode, xpForNextLevel, featuresPromptLine, parseFeatureState } from "@shared/rules/leveling";
 import { resolveFlags } from "@shared/engagementFlags";
+import { registerCheckRoutes } from "./play/checks/routes";
+import { trustedRollResult } from "./play/checks/rollToken";
+import { beatForTurn, beatPromptLine, parseDirectorState, pickNextBeat } from "./play/director/beats";
+import { applyTurnMechanics, buildPromptExtras } from "./play/director/turnGuidance";
+import { recordRulesFired } from "./play/rules/rulesSeen";
 import { parseNarrativeForLocations, generateHexMetaFromKeywords, getAllAdjacentCoordinates, getAdjacentHexCoordinates, detectMovementInNarrative, detectAdventureSetting, ENVIRONMENT_KEYWORDS, type HexDirection, type AdventureSetting } from "./narrativeHexParser";
 import { z } from "zod";
 import { getDiscordStatus, sendToChannel, createSessionStartEmbed, createRecapEmbed, createRollEmbed, postCampaignEvent } from "./discord";
@@ -1678,6 +1683,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerDelveRoutes(app);
   
   registerLevelUpRoutes(app);
+  registerCheckRoutes(app);
   
   syncMarketItemStats().catch(err => console.error("[Economy] Sync failed:", err));
   
@@ -19239,7 +19245,10 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
       const campaignId = parseInt(req.params.campaignId);
       // `skipTurnCheck` is deliberately NOT read from the body: it used to let
       // any client opt out of turn order simply by asking.
-      const { choice, rollResult, currentLocation, intent } = req.body;
+      const { choice, rollResult: clientRollResult, currentLocation, intent } = req.body;
+      // A roll resolved on the server (/roll-check) arrives as a signed token and
+      // replaces whatever total the client sent (engagement spec Phase 2).
+      const rollResult = trustedRollResult(clientRollResult, { campaignId, userId: req.user.id });
 
       console.log(`[Advance Story] Campaign ${campaignId} - Choice: "${choice?.substring(0, 50)}..." by user ${req.user?.id}${intent ? ` [intent: ${intent}]` : ''}`);
       
@@ -20103,12 +20112,21 @@ Instead, describe environments that MATCH the campaign's actual setting and the 
       
       // Track scenes since last combat for random encounter nudging
       const sessionStoryState = (currentSession.storyState as any) || {};
+      // Beat director (engagement spec 2.1): the rhythm of this scene is decided in code.
+      const directorState = parseDirectorState(sessionStoryState.director, currentChapter);
+      const turnBeat = beatForTurn(directorState, {
+        inCombat: !!sessionStoryState.inCombat,
+        attackIntent: detectAttackIntent(String(choice ?? '')).isAttack,
+      });
+      const promptExtras = buildPromptExtras(turnFlags, turnBeat, playerCharacter);
       const scenesSinceCombat = sessionStoryState.scenesSinceCombat ?? 0;
-      const shouldNudgeCombat = previousSceneType !== 'Combat' && scenesSinceCombat >= 3;
+      // With the beat director on, combat comes from the fiction or the player —
+      // never from a counter (spec: "combat only via triggers or explicit aggression").
+      const shouldNudgeCombat = !turnFlags.beats && previousSceneType !== 'Combat' && scenesSinceCombat >= 3;
       // Hard escalation: after this many bloodless scenes, combat is no longer a suggestion.
       // Even a "non-combat" campaign style must eventually present a real fight so the world
       // has stakes — a campaign with ZERO combat should not be possible.
-      const mustForceCombat = previousSceneType !== 'Combat' && scenesSinceCombat >= 6;
+      const mustForceCombat = !turnFlags.beats && previousSceneType !== 'Combat' && scenesSinceCombat >= 6;
       
       // Build environment-aware random encounter suggestion when combat is overdue
       let randomEncounterNudge = '';
@@ -21165,8 +21183,8 @@ Generate the next story segment that:
 1. IMMEDIATELY shows what happened because of their specific action/roll
 2. Demonstrates clear success/failure consequences from the skill check
 3. Advances plot through character reactions and new developments
-4. Provides 4-5 diverse choices that build directly on what just occurred
-
+4. ${promptExtras.choiceRules ? 'Offers choices that fit the BEAT below and build directly on what just occurred' : 'Provides 4-5 diverse choices that build directly on what just occurred'}
+${promptExtras.context}
 VERBAL INTERACTION EMPHASIS - These are CRITICAL for good D&D:
 - Include NPCs that the player can TALK TO (not just fight)
 - Create situations where WHAT YOU SAY matters for story progression
@@ -21178,7 +21196,7 @@ VERBAL INTERACTION EMPHASIS - These are CRITICAL for good D&D:
 - Some encounters SHOULD be avoided through clever talking
 - Information from conversations should unlock new paths or reveal hidden truths
 
-CHOICE REQUIREMENTS:
+${promptExtras.choiceRules ?? `CHOICE REQUIREMENTS:
 - At least 4 choices, up to 5 maximum
 - AT LEAST 2 CHOICES should be DIALOGUE/SOCIAL options (talking to someone, asking questions, negotiating)
 - Include variety: dialogue, exploration, action, stealth, magic/investigation
@@ -21195,7 +21213,7 @@ CHOICE REQUIREMENTS:
   * Balance/tumbling: acrobatics
   * Magic knowledge: arcana
   * Religious knowledge: religion
-  * Nature/survival: survival, nature
+  * Nature/survival: survival, nature`}
 
 Respond with JSON:
 {
@@ -21301,6 +21319,7 @@ Respond with JSON:
     }
   ]
 }
+${promptExtras.schema}
 
 RESPONSE SIZE — CRITICAL FOR SPEED: Keep the JSON as small as the situation allows. OMIT any top-level field that does not apply or did not change this turn — do NOT pad with empty arrays, nulls, or placeholder objects.
 - ALWAYS include: "narrative", "choices", "sceneType", and "storyState" (at least "location" and "inCombat").
@@ -23359,6 +23378,33 @@ ${cachedNarrative}
       // turn. Inject context-appropriate defaults so play can always continue.
       const gateLabels = toLogArray((campaign as any)?.chapterGates).flatMap((g: any) => [g?.requiredCommitment, g?.advanceWhen]);
       finalChoices = cleanChoices(finalChoices, gateLabels);
+      // Phase 2 mechanics, checked in code: choices fit the beat, a passive notice
+      // only if the score really meets the DC, Inspiration only if not already held,
+      // a failure cost only after a failed roll.
+      const turnMechanics = applyTurnMechanics({ ...storyAdvancement, choices: finalChoices }, {
+        flags: turnFlags, beat: turnBeat, character: playerCharacter, rollResult,
+      });
+      finalChoices = turnMechanics.choices;
+      if (turnMechanics.inspirationAwarded && playerCharacter?.id) {
+        await storage.updateCharacter(playerCharacter.id, { inspiration: true } as any);
+      }
+      if (turnMechanics.personalitySeed && playerCharacter?.id) {
+        await storage.updateCharacter(playerCharacter.id, { personality: turnMechanics.personalitySeed } as any);
+      }
+      const playedBeat = String(storyAdvancement.sceneType || '').toLowerCase().includes('combat') ? 'combat' : turnBeat;
+      if (turnFlags.beats) {
+        (mergedStoryState as any).director = pickNextBeat(directorState, playedBeat);
+      }
+      const rulesFiredThisTurn = turnFlags.rulesUnderneath ? await recordRulesFired(req.user.id, turnMechanics.fired) : [];
+      // Persist this turn's mechanics so a reload shows the same chips and panels.
+      (mergedStoryState as any).turnNotes = {
+        beat: playedBeat,
+        passiveNoticed: turnMechanics.passiveNoticed,
+        inspirationAwarded: turnMechanics.inspirationAwarded,
+        failureCost: turnMechanics.failureCost,
+        rulesFired: rulesFiredThisTurn,
+        roll: rollResult?.serverResolved ? rollResult : null,
+      };
       if (!Array.isArray(finalChoices) || finalChoices.length === 0) {
         if (inCombat) {
           finalChoices = [
@@ -25928,6 +25974,7 @@ Respond with JSON:
         postCombatRewards: postCombatRewardsData,
         scaffolding,
         levelUpEarned: milestoneLevelEarned,
+        turnNotes: (mergedStoryState as any).turnNotes,
       });
       logServerEventAsync(req.user.id, "campaign_action", "story", "turn_submitted", {
         campaignId,
@@ -25956,7 +26003,8 @@ Respond with JSON:
       }
 
       const campaignId = parseInt(req.params.campaignId);
-      const { choice, currentLocation, rollResult, intent } = req.body;
+      const { choice, currentLocation, rollResult: clientRollResult, intent } = req.body;
+      const rollResult = trustedRollResult(clientRollResult, { campaignId, userId: req.user.id });
 
       const campaign = await storage.getCampaign(campaignId);
       if (!campaign) {
@@ -26028,6 +26076,13 @@ Respond with JSON:
       const previousNarrative = latestSession?.narrative || "";
       const storyState = (latestSession?.storyState as any) || {};
       const currentQuests = storyState.activeQuests || [];
+      // Same beat the structured pass reads (picked at the end of the last turn).
+      const streamBeat = resolveFlags(campaign).beats
+        ? beatForTurn(parseDirectorState(storyState.director, campaign.currentSession || 1), {
+            inCombat: !!storyState.inCombat,
+            attackIntent: detectAttackIntent(String(choice ?? '')).isAttack,
+          })
+        : null;
       const inCombat = storyState.inCombat || false;
 
       const narrativeStyle = campaign?.narrativeStyle || "Descriptive";
@@ -26138,7 +26193,7 @@ Current Story State: ${JSON.stringify({
 })}
 
 The player chose: "${choice || "Continue the adventure"}"
-${describeRollForNarrator(rollResult, streamActor?.name)}${intent === 'attack' && !rollResult ? attackIntentDirective() : ''}
+${describeRollForNarrator(rollResult, streamActor?.name)}${intent === 'attack' && !rollResult ? attackIntentDirective() : ''}${streamBeat ? `\n${beatPromptLine(streamBeat)} (Write only the prose; the choices are written separately.)\n` : ''}
 ANTI-REPETITION — DO NOT reuse these:
 - Recent titles: ${recentTitles.map(t => `"${t}"`).join(', ')}
 - Recent locations: ${[...new Set(recentLocations)].join(', ')}

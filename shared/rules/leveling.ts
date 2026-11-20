@@ -44,6 +44,8 @@ export interface PendingLevelUp {
 export interface CharacterFeatureState {
   id: string;
   usesRemaining?: number;
+  /** Choices made for the feature, e.g. Expertise skills ["stealth", "thieves_tools"]. */
+  choices?: string[];
 }
 
 export type AsiChoice =
@@ -140,7 +142,13 @@ export function parseFeatureState(raw: unknown): CharacterFeatureState[] {
   if (!Array.isArray(raw)) return [];
   return raw
     .filter((f): f is { id: string; usesRemaining?: unknown } => !!f && typeof (f as any).id === "string")
-    .map((f) => (typeof f.usesRemaining === "number" ? { id: f.id, usesRemaining: f.usesRemaining } : { id: f.id }));
+    .map((f) => {
+      const out: CharacterFeatureState = { id: f.id };
+      if (typeof f.usesRemaining === "number") out.usesRemaining = f.usesRemaining;
+      const ch = (f as any).choices;
+      if (Array.isArray(ch)) out.choices = ch.filter((c: unknown): c is string => typeof c === "string");
+      return out;
+    });
 }
 
 /**
@@ -160,11 +168,12 @@ export function buildFeatureState(
   const prev = new Map(previous.map((f) => [f.id, f]));
   const hasSubclass = !!subclass && subclass === def.subclass.id;
   return allFeaturesThrough(def, level, hasSubclass).map((f) => {
-    if (!f.uses) return { id: f.id };
+    const choices = prev.get(f.id)?.choices;
+    if (!f.uses) return choices ? { id: f.id, choices } : { id: f.id };
     const max = resolveUsesMax(f.uses.max, { classLevel: level, abilityScores: scores });
     const old = prev.get(f.id)?.usesRemaining;
     const usesRemaining = keepUses && typeof old === "number" ? Math.min(max, old) : max;
-    return { id: f.id, usesRemaining };
+    return choices ? { id: f.id, usesRemaining, choices } : { id: f.id, usesRemaining };
   });
 }
 

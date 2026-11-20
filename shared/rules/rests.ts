@@ -29,7 +29,7 @@ export function rechargeFeatures(
     const f = feats.get(s.id);
     if (!f?.uses) return s;
     if (rest === "short" && f.uses.recharge !== "short") return s;
-    return { id: s.id, usesRemaining: resolveUsesMax(f.uses.max, { classLevel: level, abilityScores: scores }) };
+    return { ...s, usesRemaining: resolveUsesMax(f.uses.max, { classLevel: level, abilityScores: scores }) };
   });
 }
 

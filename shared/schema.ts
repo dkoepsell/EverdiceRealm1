@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp, real, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, jsonb, timestamp, real, index, uniqueIndex, primaryKey } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -2872,6 +2872,21 @@ export const insertLlmConfigSchema = createInsertSchema(llmConfigs).omit({
 
 export type InsertLlmConfig = z.infer<typeof insertLlmConfigSchema>;
 export type LlmConfig = typeof llmConfigs.$inferSelect;
+
+// Which 5e rules each player has seen fire in play, and how often (engagement
+// spec Phase 2.3/3.4). Drives "The rule underneath" (auto-expanded the first 3
+// times) and the Journal's "Rules learned". scripts/migrations/002-rules-seen.sql.
+export const userRulesSeen = pgTable("user_rules_seen", {
+  userId: integer("user_id").notNull(),
+  ruleId: text("rule_id").notNull(),
+  count: integer("count").notNull().default(0),
+  firstSeenAt: text("first_seen_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
+  lastSeenAt: text("last_seen_at"),
+}, (t) => [
+  primaryKey({ columns: [t.userId, t.ruleId] }),
+]);
+
+export type UserRuleSeen = typeof userRulesSeen.$inferSelect;
 
 export const userFeedback = pgTable("user_feedback", {
   id: serial("id").primaryKey(),

@@ -7,6 +7,8 @@
 export const ENGAGEMENT_FLAGS = {
   /** Phase 1: pending level-ups with real 5e choices instead of silent HP bumps. */
   levelUps: false,
+  /** Phase 2: ability checks rolled and resolved on the server, math shown in the Roll dialog. */
+  serverChecks: false,
   /** Phase 2: the beat director picks turn rhythm in code. */
   beats: false,
   /** Phase 2: passive Perception/Insight/Investigation surfaced to narrator + UI. */
