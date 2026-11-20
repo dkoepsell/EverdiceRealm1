@@ -99,7 +99,13 @@
   NOT via drizzle-kit push, which drops the session table):
     ssh root@204.168.167.44 'cd /root/EverdiceRealm1 && set -a && source .env && set +a && for f in scripts/migrations/*.sql; do psql "$DATABASE_URL" -f "$f"; done'
 
-  ENGAGEMENT SPEC ROLLOUT (branch engagement-spec) — ORDER MATTERS:
+  ENGAGEMENT SPEC ROLLOUT — DONE 2026-11-20 (main 1f3616e): migrations 000-004 applied,
+  84 characters backfilled, every phase ON by default. Pre-rollout backup:
+  /root/pg-backups/everdice-pre-engagement-20261120-1632.dump
+  Rollback: flip defaults in shared/engagementFlags.ts and redeploy (the schema
+  additions are harmless to leave in place). Note the backfill needs the env:
+  `set -a && . ./.env && set +a && npx tsx scripts/backfill-features.ts`.
+  The original rollout order, for reference — ORDER MATTERS:
     1. Run migrations 000-004 (above) BEFORE restarting on the new build.
        shared/schema.ts selects the new columns (campaigns.engagement_flags,
        campaigns.leveling_mode, characters.features/subclass/pending_level_up/
