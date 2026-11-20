@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { LevelUpButton } from "./LevelUpDialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Character, PlayerGroupMember } from "@shared/schema";
@@ -159,6 +160,7 @@ export default function CharacterSheet({ character, initialTab = "main" }: Chara
                 </div>
               )}
               <span className="bg-primary text-white text-sm px-3 py-1 rounded-full shrink-0">Level {character.level}</span>
+              <LevelUpButton characterId={character.id} pendingLevelUp={character.pendingLevelUp} className="shrink-0" />
             </div>
             
             <div className="grid grid-cols-2 gap-4 mb-4">

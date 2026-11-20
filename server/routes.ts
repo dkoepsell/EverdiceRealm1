@@ -19,6 +19,11 @@ import { deriveVerbosityFromRung } from "./play/progression/config";
 import type { RulesVerbosity } from "./play/scaffolding.types";
 import { registerWanderRoutes } from "./wanderRoutes";
 import { registerDelveRoutes } from "./delveRoutes";
+import { registerLevelUpRoutes } from "./play/leveling/routes";
+import { grantMilestoneLevel } from "./play/leveling/levelUps";
+import { restUpdates, restoreSpellSlots } from "./play/leveling/restEffects";
+import { levelOutcomeForXp, normalizeLevelingMode, xpForNextLevel, featuresPromptLine, parseFeatureState } from "@shared/rules/leveling";
+import { resolveFlags } from "@shared/engagementFlags";
 import { parseNarrativeForLocations, generateHexMetaFromKeywords, getAllAdjacentCoordinates, getAdjacentHexCoordinates, detectMovementInNarrative, detectAdventureSetting, ENVIRONMENT_KEYWORDS, type HexDirection, type AdventureSetting } from "./narrativeHexParser";
 import { z } from "zod";
 import { getDiscordStatus, sendToChannel, createSessionStartEmbed, createRecapEmbed, createRollEmbed, postCampaignEvent } from "./discord";
@@ -1672,6 +1677,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   registerDelveRoutes(app);
   
+  registerLevelUpRoutes(app);
+  
   syncMarketItemStats().catch(err => console.error("[Economy] Sync failed:", err));
   
   // Create HTTP server
@@ -2878,8 +2885,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedCharacter = await storage.updateCharacter(id, {
         hitPoints: newHP,
         status: newStatus,
+        // Features that recharge on a short rest (Second Wind, Action Surge, Ki...).
+        ...restUpdates(character, "short"),
         updatedAt: new Date().toISOString()
       });
+      await restoreSpellSlots(character, "short"); // Warlock Pact Magic
       
       // If campaignId provided, also heal all NPC companions in the party
       const companionResults: any[] = [];
@@ -2945,8 +2955,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         deathSaveSuccesses: 0,
         deathSaveFailures: 0,
         exhaustionLevel: newExhaustion,
+        // Every limited feature, half your Hit Dice (min 1) and all spell slots return.
+        ...restUpdates(character, "long"),
         updatedAt: new Date().toISOString()
       } as any);
+      const spellSlotsRestored = await restoreSpellSlots(character, "long");
       
       // If campaignId provided, also fully heal all NPC companions
       const companionResults: any[] = [];
@@ -2993,7 +3006,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         healedAmount: actualHeal,
         companionResults,
         itemRecharge: itemRechargeResult,
-        message: `Long rest complete. Fully restored to ${character.maxHitPoints} HP.${companionMsg}${rechargeMsg}`
+        spellSlotsRestored,
+        message: `Long rest complete. Fully restored to ${character.maxHitPoints} HP.${spellSlotsRestored ? ' Spell slots restored.' : ''}${companionMsg}${rechargeMsg}`
       });
     } catch (error: any) {
       console.error("Error during long rest:", error);
@@ -14385,7 +14399,11 @@ Example output:
         if (character) {
           // Award XP
           if (completedQuest.xpReward) {
-            await storage.awardXPToCharacter(characterId, completedQuest.xpReward);
+            const questCampaign = await storage.getCampaign(parseInt(req.params.campaignId));
+            await storage.awardXPToCharacter(characterId, completedQuest.xpReward, {
+              levelUpsFlag: resolveFlags(questCampaign).levelUps,
+              mode: normalizeLevelingMode((questCampaign as any)?.levelingMode),
+            });
           }
           
           // Award gold
@@ -16512,43 +16530,16 @@ Create a specific creature (pick one of the reskins or create a thematic variant
       const newXP = (character.experience || 0) + parseInt(xp);
       const oldLevel = character.level || 1;
       
-      // Use D&D 5e XP thresholds from shared/rules/xp.ts
-      const { getLevelFromXP, getAbilityModifier } = await import('../shared/rules/xp');
-      const newLevel = getLevelFromXP(newXP);
-      
-      // If level increased, calculate HP increase using class hit dice
-      let newMaxHp = character.maxHitPoints;
-      let newCurrentHp = character.hitPoints;
-      
-      if (newLevel > oldLevel) {
-        // D&D 5e class hit dice
-        const CLASS_HIT_DICE: Record<string, number> = {
-          'Barbarian': 12,
-          'Fighter': 10,
-          'Paladin': 10,
-          'Ranger': 10,
-          'Bard': 8,
-          'Cleric': 8,
-          'Druid': 8,
-          'Monk': 8,
-          'Rogue': 8,
-          'Warlock': 8,
-          'Sorcerer': 6,
-          'Wizard': 6,
-        };
-        
-        const hitDie = CLASS_HIT_DICE[character.class] || 8;
-        const conMod = getAbilityModifier(character.constitution);
-        
-        // For each level gained, add average hit die roll + CON modifier
-        // D&D 5e uses average (hit die / 2 + 1) for leveling up
-        const levelsGained = newLevel - oldLevel;
-        const hpPerLevel = Math.floor(hitDie / 2) + 1 + conMod;
-        const hpGain = Math.max(levelsGained, levelsGained * hpPerLevel); // Minimum 1 HP per level
-        
-        newMaxHp = (character.maxHitPoints || 10) + hpGain;
-        newCurrentHp = (character.hitPoints || 10) + hpGain; // Heal the gained HP
-      }
+      // One decision point for every XP path (shared/rules/leveling.ts). A DM's
+      // XP award has no campaign, so it uses the default flags and XP leveling.
+      const outcome = levelOutcomeForXp(character, newXP, {
+        levelUpsFlag: resolveFlags(null).levelUps,
+        mode: "xp",
+        reason: "xp",
+      });
+      const newLevel = outcome.level;
+      const newMaxHp = (character.maxHitPoints || 10) + outcome.hpGain;
+      const newCurrentHp = (character.hitPoints || 10) + outcome.hpGain;
 
       // Update character
       const [updatedCharacter] = await db
@@ -16558,6 +16549,7 @@ Create a specific creature (pick one of the reskins or create a thematic variant
           level: newLevel,
           maxHitPoints: newMaxHp,
           hitPoints: newCurrentHp,
+          ...(outcome.pendingLevelUp !== undefined ? { pendingLevelUp: outcome.pendingLevelUp } : {}),
           updatedAt: new Date().toISOString()
         })
         .where(eq(characters.id, characterId))
@@ -16570,7 +16562,8 @@ Create a specific creature (pick one of the reskins or create a thematic variant
         character: updatedCharacter,
         xpAwarded: parseInt(xp),
         reason,
-        levelUp: newLevel > (character.level || 1)
+        levelUp: newLevel > (character.level || 1),
+        levelUpPending: !!outcome.pendingLevelUp,
       });
     } catch (error) {
       console.error("Failed to award XP:", error);
@@ -19256,6 +19249,8 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
         return res.status(404).json({ message: "Campaign not found" });
       }
       
+      const turnFlags = resolveFlags(campaign); // engagement spec feature flags for this campaign
+
       // DM Authoring Doctrine: Auto-improvise doctrine fields for campaigns that lack them
       const improvised = await improviseDoctrine(campaign);
       if (improvised) {
@@ -19890,7 +19885,10 @@ PLAYER CHARACTER:
 - Equipped Weapon: ${equippedWeapon}
 - Inventory: ${character.equipment && Array.isArray(character.equipment) ? character.equipment.join(', ') : 'Empty'}
 - Consumables: ${consumablesList}
-- Currency: ${gold} gp, ${silver} sp, ${copper} cp
+- Currency: ${gold} gp, ${silver} sp, ${copper} cp${turnFlags.levelUps ? (() => {
+  const line = featuresPromptLine(character.class, character.level || 1, character.subclass, parseFeatureState(character.features));
+  return line ? `\n- ${line}\n  (Offer choices that use these when the fiction fits, e.g. a bonus-action Dash/Hide for Cunning Action. Never invent uses beyond the counts shown.)` : '';
+})() : ''}
 
 IMPORTANT CHARACTER STATUS:
 ${character.status === 'dead' ? '⚠️ THIS CHARACTER IS DEAD - They cannot take actions, speak, or participate in the adventure. The adventure should focus on their death and its consequences.' : 
@@ -23630,29 +23628,19 @@ ${cachedNarrative}
         const character = await storage.getCharacter(characterId);
         if (character) {
           const newXP = (character.experience || 0) + xpAwarded;
-          // Use official D&D 5e XP thresholds for level calculation
-          const newLevel = getLevelFromXP(newXP);
-          const leveledUp = newLevel > character.level;
-          
-          // D&D 5e class hit dice for HP calculation
-          const CLASS_HIT_DICE: Record<string, number> = {
-            'Barbarian': 12, 'Fighter': 10, 'Paladin': 10, 'Ranger': 10,
-            'Bard': 8, 'Cleric': 8, 'Druid': 8, 'Monk': 8, 'Rogue': 8, 'Warlock': 8,
-            'Sorcerer': 6, 'Wizard': 6
-          };
-          
-          // Calculate HP increase on level up using D&D 5e rules
-          let newMaxHitPoints = character.maxHitPoints;
-          let hpGainFromLevelUp = 0;
-          if (leveledUp) {
-            const hitDie = CLASS_HIT_DICE[character.class] || 8;
-            const conMod = Math.floor((character.constitution - 10) / 2);
-            const levelsGained = newLevel - character.level;
-            // D&D 5e average: (hit die / 2) + 1 + CON modifier per level
-            const hpPerLevel = Math.floor(hitDie / 2) + 1 + conMod;
-            hpGainFromLevelUp = Math.max(levelsGained, levelsGained * hpPerLevel);
-            newMaxHitPoints = (character.maxHitPoints || 10) + hpGainFromLevelUp;
-          }
+          // One decision point for every XP path (shared/rules/leveling.ts): with
+          // the levelUps flag on, XP never silently raises a level — milestone
+          // campaigns level on chapter gates, XP campaigns record a pending level
+          // for the Level Up dialog.
+          const xpOutcome = levelOutcomeForXp(character, newXP, {
+            levelUpsFlag: turnFlags.levelUps,
+            mode: normalizeLevelingMode((campaign as any).levelingMode),
+            reason: "xp",
+          });
+          const newLevel = xpOutcome.level;
+          const leveledUp = xpOutcome.leveledUp;
+          const hpGainFromLevelUp = xpOutcome.hpGain;
+          const newMaxHitPoints = (character.maxHitPoints || 10) + hpGainFromLevelUp;
           
           // Apply combat damage if any
           const combatEffects = storyAdvancement.combatEffects;
@@ -24199,6 +24187,7 @@ ${cachedNarrative}
             level: newLevel,
             hitPoints: newHitPoints,
             maxHitPoints: newMaxHitPoints,
+            ...(xpOutcome.pendingLevelUp !== undefined ? { pendingLevelUp: xpOutcome.pendingLevelUp } : {}),
             gold: newGold,
             status: newStatus,
             // Stamp the moment of death, and clear it on anyone who is no
@@ -24607,9 +24596,8 @@ ${cachedNarrative}
               xpBefore: character?.experience || 0,
               xpAfter: (character?.experience || 0) + completionXP,
               xpToNextLevel: (() => {
-                const xpThresholds = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
                 const currentLevel = character?.level || 1;
-                const nextThreshold = xpThresholds[currentLevel] || 999999;
+                const nextThreshold = xpForNextLevel(currentLevel) ?? 999999;
                 return Math.max(0, nextThreshold - ((character?.experience || 0) + completionXP));
               })(),
               goldTotal: (character?.gold || 0) + goldReward,
@@ -25600,13 +25588,6 @@ Choices should include 4 options with at least 2 requiring dice rolls.
             }))
           : (playerCharacter ? [playerCharacter] : []);
         
-        const xpThresholds = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
-        const hitDiceMap: Record<string, number> = {
-          'barbarian': 7, 'fighter': 6, 'paladin': 6, 'ranger': 6,
-          'bard': 5, 'cleric': 5, 'druid': 5, 'monk': 5, 'rogue': 5, 'warlock': 5,
-          'sorcerer': 4, 'wizard': 4
-        };
-        
         let primaryCharUpdates: any = {};
         // Per-character level outcome, so party members who weren't the one
         // to make the final move can still be shown their own result.
@@ -25617,22 +25598,20 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           
           const charUpdates: any = {};
           
-          // XP and level-up check
+          // XP and level-up check — the shared rule (shared/rules/leveling.ts).
+          // This path used to read pChar.abilityScores.constitution, which doesn't
+          // exist (Constitution is its own column), so conMod was always 0.
           const newXP = (pChar.experience || 0) + completionXP;
           const currentLevel = pChar.level || 1;
-          let newLevel = currentLevel;
-          for (let lvl = currentLevel; lvl < xpThresholds.length; lvl++) {
-            if (newXP >= xpThresholds[lvl]) {
-              newLevel = lvl + 1;
-            } else break;
-          }
-          const leveledUp = newLevel > currentLevel;
-          levelResultsByCharacter[pChar.id] = { leveledUp, newLevel };
-          
-          // HP increase on level-up
-          const hitDieAvg = hitDiceMap[(pChar.class || '').toLowerCase()] || 5;
-          const conMod = pChar.abilityScores ? Math.floor(((pChar.abilityScores as any).constitution || 10) - 10) / 2 : 0;
-          const hpGain = leveledUp ? (newLevel - currentLevel) * (hitDieAvg + Math.floor(conMod)) : 0;
+          const completionMode = normalizeLevelingMode((campaign as any).levelingMode);
+          const completionOutcome = levelOutcomeForXp(pChar, newXP, {
+            levelUpsFlag: turnFlags.levelUps,
+            mode: completionMode,
+            reason: `campaign_complete:${campaignId}`,
+          });
+          const newLevel = completionOutcome.level;
+          const leveledUp = completionOutcome.leveledUp;
+          const hpGain = completionOutcome.hpGain;
           
           charUpdates.experience = newXP;
           charUpdates.gold = (pChar.gold || 0) + goldReward;
@@ -25640,8 +25619,18 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           if (leveledUp) {
             charUpdates.level = newLevel;
             charUpdates.maxHitPoints = (pChar.maxHitPoints || 10) + hpGain;
+            // Finishing an adventure ends with a full rest.
             charUpdates.hitPoints = (pChar.maxHitPoints || 10) + hpGain;
           }
+          if (completionOutcome.pendingLevelUp !== undefined) {
+            charUpdates.pendingLevelUp = completionOutcome.pendingLevelUp;
+          }
+          let levelPending = !!completionOutcome.pendingLevelUp;
+          if (turnFlags.levelUps && completionMode === "milestone") {
+            // Milestone: finishing the campaign earns a level (chosen in the Level Up dialog).
+            levelPending = !!(await grantMilestoneLevel(pChar.id, `campaign_complete:${campaignId}`));
+          }
+          levelResultsByCharacter[pChar.id] = { leveledUp: leveledUp || levelPending, newLevel: levelPending ? newLevel + 1 : newLevel };
           
           const completionNote = `\n\n--- Campaign Completed: "${campaign.title}" ---\nTitle Earned: ${earnedTitle}\nTrait Earned: ${earnedTrait}\nEnding: ${completionEndingType}${leveledUp ? `\nLeveled Up: ${currentLevel} → ${newLevel}` : ''}\nRewards: ${completionXP} XP, ${goldReward} gold, ${silverReward} silver`;
           charUpdates.backgroundStory = ((pChar.backgroundStory || '') + completionNote).slice(-3000);
@@ -25884,6 +25873,18 @@ Respond with JSON:
         }
       }
       
+      // Milestone leveling (engagement spec 1.2): a chapter that turned this turn —
+      // by gate, hard cap or boss fallback — earns every seated character one level,
+      // chosen in the Level Up dialog. Idempotent per chapter.
+      let milestoneLevelEarned = false;
+      if (advancedToChapter && turnFlags.levelUps && normalizeLevelingMode((campaign as any).levelingMode) === "milestone") {
+        const seated = Array.from(new Set((participants || []).map((p: any) => p.characterId).filter(Boolean))) as number[];
+        for (const cid of seated) {
+          const pendingNow = await grantMilestoneLevel(cid, `chapter_gate:${campaignId}:${currentChapter}`);
+          milestoneLevelEarned = milestoneLevelEarned || !!pendingNow;
+        }
+      }
+
       res.json({
         ...(sessionAdvanced && newSessionData ? newSessionData : updatedSession),
         progression: characterProgression,
@@ -25925,7 +25926,8 @@ Respond with JSON:
         itemRechargeAtDawn: (mergedStoryState as any).itemRechargeAtDawn || null,
         quietReckoning: quietReckoningData,
         postCombatRewards: postCombatRewardsData,
-        scaffolding
+        scaffolding,
+        levelUpEarned: milestoneLevelEarned,
       });
       logServerEventAsync(req.user.id, "campaign_action", "story", "turn_submitted", {
         campaignId,

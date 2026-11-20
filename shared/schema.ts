@@ -145,6 +145,21 @@ export const characters = pgTable("characters", {
   backgroundStory: text("background_story"),
   // One-time rename: players may rename a generated character exactly once
   hasRenamedCharacter: boolean("has_renamed_character").default(false),
+  // Engagement spec Phase 1–2 (scripts/migrations/001-level-ups.sql).
+  // Class features the character has, with remaining uses for limited ones:
+  // [{ id: "sneak_attack" }, { id: "second_wind", usesRemaining: 1 }]. Ids are
+  // from shared/rules/classes/*.
+  features: jsonb("features").default([]),
+  subclass: text("subclass"), // SRD subclass id, e.g. "thief"
+  // A level earned but not yet chosen through the Level Up dialog
+  // (PendingLevelUp in shared/rules/leveling.ts). Null when nothing is pending.
+  pendingLevelUp: jsonb("pending_level_up"),
+  // Unspent Hit Dice (5e: one per level; spent on short rests, half back on a long rest).
+  // Null = never tracked yet; treat as equal to level.
+  hitDiceRemaining: integer("hit_dice_remaining"),
+  inspiration: boolean("inspiration").default(false), // 5e Inspiration: have it or don't (cap 1)
+  // { traits?: string, ideal?: string, bond?: string, flaw?: string } — what Inspiration is earned by.
+  personality: jsonb("personality"),
   createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
   updatedAt: text("updated_at"),
 }, (t) => [
@@ -303,6 +318,8 @@ export const campaigns = pgTable("campaigns", {
   // Per-campaign override of ENGAGEMENT_FLAGS (shared/engagementFlags.ts).
   // Null = use the defaults. Added by scripts/migrations/000-engagement-flags.sql.
   engagementFlags: jsonb("engagement_flags"),
+  // "milestone" (level on chapter gates + completion; the default) or "xp".
+  levelingMode: text("leveling_mode").default("milestone"),
   createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
   updatedAt: text("updated_at"),
 });

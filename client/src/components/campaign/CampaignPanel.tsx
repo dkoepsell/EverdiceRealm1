@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { LevelUpButton } from "@/components/character/LevelUpDialog";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Campaign, CampaignSession, Character, Npc, WorldRegion, WorldLocation } from "@shared/schema";
@@ -1974,6 +1975,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       // campaign with chapter gates — and every campaign gets gates improvised on its first
       // turn). Nothing used to react here, so the chapter silently advanced server-side and
       // the player was left waiting for a chapter 2 that had already begun.
+      if (data.levelUpEarned) {
+        // A milestone earned a level (engagement spec 1.2): refresh the seated
+        // characters so the glowing "Level up" button appears.
+        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+        toast({
+          title: "★ Milestone reached: you've earned a level!",
+          description: "Tap \"Level up\" to choose how your character grows.",
+        });
+      }
       if (data.chapterAdvanced?.to) {
         setLiveChapter(data.chapterAdvanced.to);
         setChapterJustAdvanced(true);
@@ -3866,6 +3876,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               <span className="text-sm text-amber-700 dark:text-amber-300 font-semibold">
                                 Chapter {chapterNumber} of {campaign.totalChapters || 5}
                               </span>
+                              {activeCharacter?.pendingLevelUp ? (
+                                <LevelUpButton characterId={activeCharacter.id} pendingLevelUp={activeCharacter.pendingLevelUp} className="ml-3 h-6 px-2 text-xs" />
+                              ) : null}
                               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
                                 {currentSession.title.replace(/^(Session|Chapter)\s*\d+:\s*/i, '')}
                               </h3>

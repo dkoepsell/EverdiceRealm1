@@ -89,6 +89,7 @@ import { db } from "./db";
 import { eq, and, desc, sql, asc, or, inArray, isNull, gt, lt, ne } from "drizzle-orm";
 import { orderRoster, nextSeatIndex, type TurnRosterEntry } from "./lib/turnOrder";
 import { emitWorld, nowIso } from "./lib/worldBus";
+import { levelOutcomeForXp, type LevelingMode } from "@shared/rules/leveling";
 
 // One seat per human player; see server/lib/turnOrder.ts for the rules.
 export type { TurnRosterEntry };
@@ -194,7 +195,7 @@ export interface IStorage {
   getCompletionsForCharacter(characterId: number): Promise<AdventureCompletion[]>;
   
   // XP Management operations
-  awardXPToCharacter(characterId: number, xpAmount: number): Promise<Character | undefined>;
+  awardXPToCharacter(characterId: number, xpAmount: number, opts?: { levelUpsFlag: boolean; mode: LevelingMode }): Promise<Character | undefined>;
   
   // Learning Content operations
   getAllLearningContent(): Promise<LearningContent[]>;
@@ -2098,23 +2099,30 @@ export class DatabaseStorage implements IStorage {
   }
   
   // XP Management operations
-  async awardXPToCharacter(characterId: number, xpAmount: number): Promise<Character | undefined> {
-    // First get current character to calculate proper level
+  async awardXPToCharacter(
+    characterId: number,
+    xpAmount: number,
+    opts: { levelUpsFlag: boolean; mode: LevelingMode } = { levelUpsFlag: false, mode: "xp" },
+  ): Promise<Character | undefined> {
     const character = await this.getCharacter(characterId);
     if (!character) {
       return undefined;
     }
     
-    // Calculate new XP and level
+    // The shared rule (shared/rules/leveling.ts). This path used to raise the
+    // level without adding any hit points at all.
     const newTotalXP = (character.experience || 0) + xpAmount;
-    const newLevel = this.calculateLevelFromXP(newTotalXP);
+    const outcome = levelOutcomeForXp(character, newTotalXP, { ...opts, reason: "xp" });
+    const newLevel = outcome.level;
     
-    // Update the character
     const [updatedCharacter] = await db
       .update(characters)
       .set({ 
         experience: newTotalXP,
         level: newLevel,
+        maxHitPoints: (character.maxHitPoints || 10) + outcome.hpGain,
+        hitPoints: (character.hitPoints || 10) + outcome.hpGain,
+        ...(outcome.pendingLevelUp !== undefined ? { pendingLevelUp: outcome.pendingLevelUp } : {}),
         updatedAt: new Date().toISOString()
       })
       .where(eq(characters.id, characterId))
@@ -2124,30 +2132,7 @@ export class DatabaseStorage implements IStorage {
     return updatedCharacter || undefined;
   }
   
-  // Helper method to calculate character level from XP
-  private calculateLevelFromXP(xp: number): number {
-    // Standard D&D 5e XP table
-    if (xp < 300) return 1;
-    if (xp < 900) return 2;
-    if (xp < 2700) return 3;
-    if (xp < 6500) return 4;
-    if (xp < 14000) return 5;
-    if (xp < 23000) return 6;
-    if (xp < 34000) return 7;
-    if (xp < 48000) return 8;
-    if (xp < 64000) return 9;
-    if (xp < 85000) return 10;
-    if (xp < 100000) return 11;
-    if (xp < 120000) return 12;
-    if (xp < 140000) return 13;
-    if (xp < 165000) return 14;
-    if (xp < 195000) return 15;
-    if (xp < 225000) return 16;
-    if (xp < 265000) return 17;
-    if (xp < 305000) return 18;
-    if (xp < 355000) return 19;
-    return 20; // Max level in D&D 5e
-  }
+
 
   // Initialize sample data for demonstration if needed
   // Create a selection of pre-made companion NPCs for easy addition to campaigns
