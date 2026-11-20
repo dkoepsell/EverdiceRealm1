@@ -6,6 +6,7 @@
 import { storage } from "../../storage";
 import { getSpellSlotsByLevel } from "../../spellData";
 import { logServerEvent } from "../../lib/activityLog";
+import { recordRulesFired } from "../rules/rulesSeen";
 import type { Character } from "@shared/schema";
 import {
   type LevelUpChoices,
@@ -109,5 +110,6 @@ export async function completeLevelUp(
     },
     reason: pending.reason,
   }, { characterId: character.id });
+  await recordRulesFired(userId, [{ id: "level_up" }]);
   return { ok: true, character: updated ?? character, plan, hp: result.hp, newFeatureIds: result.newFeatureIds, morePending };
 }

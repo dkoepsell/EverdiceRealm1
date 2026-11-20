@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { DowntimeHooksCard } from "@/components/play/DowntimeHooksCard";
+import { LearningPathCard, useEngagementFlags } from "@/components/play/LearningPathCard";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -183,6 +185,8 @@ export default function HearthPage() {
   const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
   const [openThreads, setOpenThreads] = useState<Record<number, boolean>>({});
 
+  const { data: hearthFlags } = useEngagementFlags();
+  const [, navigateHearth] = useLocation();
   const { data: snapshot, isLoading, refetch } = useQuery<HearthSnapshot>({
     queryKey: ["/api/hearth/snapshot"],
     refetchInterval: 30000
@@ -732,6 +736,15 @@ export default function HearthPage() {
               </Link>
             </CardContent>
           </Card>
+          {hearthFlags?.downtime && <DowntimeHooksCard />}
+          {hearthFlags?.learningPath && (
+            <div className="w-full max-w-sm">
+              <LearningPathCard
+                characterId={null}
+                onStarted={(id) => { try { localStorage.setItem("activeCampaignId", String(id)); } catch { /* private mode */ } navigateHearth("/play"); }}
+              />
+            </div>
+          )}
           
           {/* Toast & Marks */}
           <Card className="bg-black/60 backdrop-blur border-amber-800/30 w-full max-w-sm">

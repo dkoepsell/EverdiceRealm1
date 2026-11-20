@@ -38,6 +38,10 @@ import { registerLedgerRoutes } from "./play/ledger/routes";
 import { registerCombatRoutes } from "./play/combat/routes";
 import { midTurn, playerCombatConditions, postTurn, preTurn } from "./play/combat/turnHooks";
 import { finishTurnEpisode } from "./play/episodeHook";
+import { registerBetweenRoutes } from "./play/between/routes";
+import { readLegend, seedFromLegends } from "./play/between/legend";
+import { lessonById, lessonPromptLine } from "@shared/rules/learningPath";
+import { reputationOf } from "@shared/ledger";
 import { itemsPromptLine } from "@shared/rules/magicItems";
 import { antiRepeatBlock } from "./play/prompt/history";
 import { parseNarrativeForLocations, generateHexMetaFromKeywords, getAllAdjacentCoordinates, getAdjacentHexCoordinates, detectMovementInNarrative, detectAdventureSetting, ENVIRONMENT_KEYWORDS, type HexDirection, type AdventureSetting } from "./narrativeHexParser";
@@ -1697,6 +1701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerCheckRoutes(app);
   registerLedgerRoutes(app);
   registerCombatRoutes(app);
+  registerBetweenRoutes(app);
   
   syncMarketItemStats().catch(err => console.error("[Economy] Sync failed:", err));
   
@@ -2914,6 +2919,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: new Date().toISOString()
       });
       await restoreSpellSlots(character, "short"); // Warlock Pact Magic
+      void recordRulesFired(character.userId, [{ id: "short_rest" }]);
       
       // If campaignId provided, also heal all NPC companions in the party
       const companionResults: any[] = [];
@@ -2987,6 +2993,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: new Date().toISOString()
       } as any);
       const spellSlotsRestored = await restoreSpellSlots(character, "long");
+      void recordRulesFired(character.userId, [{ id: "long_rest" }]);
       // A long rest somewhere unsafe gives the enemy time (engagement spec 4.4).
       const longRestClockTicks = campaignId ? await tickClocksForRest(Number(campaignId), "long", req.body?.safe === true) : [];
       
@@ -3069,6 +3076,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // The SRD rules live in shared/rules/deathSaves.ts (tested).
       const save = applyDeathSave(roll, successes, failures);
+      void recordRulesFired(character.userId, [{ id: "death_saves" }]);
       successes = save.successes;
       failures = save.failures;
       message = save.message;
@@ -18532,7 +18540,23 @@ Instead, describe environments that MATCH the campaign's actual setting and the 
         if (itemsLine) promptExtras.context += `\n${itemsLine}\n`;
       }
       // Campaign Ledger (engagement spec Phase 3): memory of the cast, threads and deeds.
-      const turnLedger = turnFlags.ledger ? await loadLedger(campaignId, campaign as any) : null;
+      let turnLedger = turnFlags.ledger ? await loadLedger(campaignId, campaign as any) : null;
+      if (turnLedger && turnLedger.turn === 0) {
+        // A new campaign: seat what the characters bring with them (a recurring NPC,
+        // their reputation, downtime rumors and contacts) — engagement spec 6.1/6.2.
+        const seatedChars = (await Promise.all(Array.from(new Set((participants || []).map((p: any) => p.characterId).filter(Boolean)))
+          .map((cid) => storage.getCharacter(cid as number)))).filter(Boolean) as any[];
+        const seeded = seedFromLegends(turnLedger, seatedChars.map((c) => readLegend(c.downtimeState)));
+        turnLedger = seeded.ledger;
+        if (seeded.usedHooks) {
+          for (const c of seatedChars) {
+            const d = (c.downtimeState && typeof c.downtimeState === 'object') ? c.downtimeState : {};
+            if (Array.isArray(d.hooks)) await storage.updateCharacter(c.id, { downtimeState: { ...d, hooks: d.hooks.map((h: any) => ({ ...h, used: true })) } } as any);
+          }
+        }
+      }
+      const turnLesson = lessonById((campaign as any).engagementFlags?.lesson);
+      if (turnLesson) promptExtras.context += `\n${lessonPromptLine(turnLesson)}\n`;
       if (turnLedger) {
         const callbacks = selectCallbacks(turnLedger, { location: sessionStoryState.location ?? currentLocation });
         promptExtras.context += `\n${ledgerPromptBlock(turnLedger, callbacks)}\n`;
@@ -24201,6 +24225,13 @@ Choices should include 4 options with at least 2 requiring dice rolls.
           console.log(`[Campaign Completion] Character ${pChar.name}: +${completionXP} XP, +${goldReward}g, +${silverReward}s${leveledUp ? `, LEVEL UP ${currentLevel}→${newLevel}` : ''}, title: "${earnedTitle}"`);
         }
         
+        let completionLegendNote = '';
+        if (turnFlags.ledger) {
+          const lg = await loadLedger(campaignId, campaign as any);
+          const rep = reputationOf(lg.deeds);
+          const lastDeed = lg.deeds[lg.deeds.length - 1];
+          completionLegendNote = `${rep ? `. Known across the region as ${rep.word}` : ''}${lastDeed ? `. ${lastDeed.summary.replace(/^You /, 'They ')}.` : ''}`;
+        }
         // Create adventure completion record for XP tracking
         if (participants && participants.length > 0) {
           for (const participant of participants) {
@@ -24210,7 +24241,9 @@ Choices should include 4 options with at least 2 requiring dice rolls.
               campaignId,
               xpAwarded: totalXpAwarded,
               completedAt: new Date().toISOString(),
-              notes: `Completed ${campaign.title} - Chapter ${currentChapter} of ${totalChapters}${earnedTitle ? ` — Title: ${earnedTitle}` : ''}`
+              // With the ledger on, the world remembers what kind of hero finished this
+              // story; the world event engine publishes these notes to the region (spec 6.3).
+              notes: `Completed ${campaign.title} - Chapter ${currentChapter} of ${totalChapters}${earnedTitle ? ` — Title: ${earnedTitle}` : ''}${completionLegendNote}`
             });
           }
         }

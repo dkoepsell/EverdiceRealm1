@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { LearningPathCard, useEngagementFlags } from "@/components/play/LearningPathCard";
 import { FinishedAdventureNotice } from "@/components/campaign/FinishedAdventureNotice";
 import { Link } from "wouter";
 import { useState, useEffect, useMemo } from "react";
@@ -101,6 +102,7 @@ export default function Dashboard() {
     }
   }, [selectedCampaignId]);
 
+  const { data: engagementFlags } = useEngagementFlags();
   const { data: characters = [], isLoading: charactersLoading } = useQuery<Character[]>({
     queryKey: ['/api/characters'],
     queryFn: getQueryFn({ on401: "throw" }),
@@ -285,6 +287,16 @@ export default function Dashboard() {
 
       {/* The party moved without you — say so before anything else on the page */}
       <PartyActivityBanner />
+
+      {/* Learning path one-shots (engagement spec; global learningPath flag). */}
+      {!activeCampaign && engagementFlags?.learningPath && (
+        <div className="container mx-auto px-4 pt-6">
+          <LearningPathCard
+            characterId={characters[0]?.id ?? null}
+            onStarted={(id) => setSelectedCampaignId(id)}
+          />
+        </div>
+      )}
 
       {/* Hero Section - landing/marketing banner; hidden during active play (duplicative of the play header below) */}
       {!activeCampaign && (

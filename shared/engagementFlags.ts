@@ -31,6 +31,8 @@ export const ENGAGEMENT_FLAGS = {
   learningPath: false,
   /** Phase 6: downtime activities between campaigns. */
   downtime: false,
+  /** Phase 6: Wander/puzzle content excludes what the player has seen; combinatorial rooms + generated puzzles. */
+  freshContent: false,
 } as const;
 
 export type EngagementFlag = keyof typeof ENGAGEMENT_FLAGS;
@@ -60,4 +62,24 @@ export function isFlagOn(
   flag: EngagementFlag,
 ): boolean {
   return resolveFlags(campaign)[flag];
+}
+
+/**
+ * Flags for surfaces that have no campaign yet (Home's learning path, the
+ * Hearth's downtime). Defaults, plus any listed in the server's
+ * ENGAGEMENT_FLAGS_ON env var (comma-separated), served at /api/engagement/flags.
+ */
+export function globalFlags(envList?: string | null): EngagementFlags {
+  const out = { ...ENGAGEMENT_FLAGS } as EngagementFlags;
+  for (const key of (envList ?? "").split(",").map((s) => s.trim())) {
+    if (key in out) out[key as EngagementFlag] = true;
+  }
+  return out;
+}
+
+/** Every flag on: used for learning-path one-shots, which exist to show the new systems. */
+export function allFlagsOn(): EngagementFlags {
+  const out = { ...ENGAGEMENT_FLAGS } as EngagementFlags;
+  for (const k of Object.keys(out) as EngagementFlag[]) out[k] = true;
+  return out;
 }

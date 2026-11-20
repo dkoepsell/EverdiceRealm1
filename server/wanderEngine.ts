@@ -1,3 +1,5 @@
+import { generatePuzzle } from "./play/content/puzzleGenerators";
+import { generateRoom } from "./play/content/rooms";
 import {
   getRandomAnalyticPuzzle,
   generateExplorationChest,
@@ -5,6 +7,8 @@ import {
 } from "./lib/explorationPuzzles";
 
 export interface CuratedOutcome {
+  /** Stable id for seen-content tracking (engagement spec 6.4). */
+  contentId?: string;
   type: 'discovery' | 'quiet' | 'risk' | 'none';
   title: string;
   reveal: string;
@@ -1419,11 +1423,14 @@ function buildTrapOutcome(level: number): CuratedOutcome {
  * answer and pick the correct option. Correct → reward; wrong → the reasoning is
  * revealed. Uses only puzzles that carry explicit choices.
  */
-function buildPuzzleOutcome(level: number): CuratedOutcome | null {
+function buildPuzzleOutcome(level: number, fresh?: { seen: Set<string> }): CuratedOutcome | null {
   // Only multiple-choice puzzles can render as clickable options without a text box.
-  let puzzle = getRandomAnalyticPuzzle({ maxDifficulty: level + 2 });
+  // With fresh content on, half the puzzles are generated from templates and
+  // seen ones are skipped until the pool runs dry (engagement spec 6.4).
+  const excludeIds = fresh ? Array.from(fresh.seen) : undefined;
+  let puzzle = fresh && Math.random() < 0.5 ? generatePuzzle(Math.random, fresh.seen) : getRandomAnalyticPuzzle({ maxDifficulty: level + 2, excludeIds });
   for (let i = 0; i < 6 && !(puzzle.choices && puzzle.choices.length); i++) {
-    puzzle = getRandomAnalyticPuzzle();
+    puzzle = fresh ? generatePuzzle(Math.random, fresh.seen) : getRandomAnalyticPuzzle();
   }
   if (!puzzle.choices || !puzzle.choices.length) return null;
 
@@ -1444,6 +1451,7 @@ function buildPuzzleOutcome(level: number): CuratedOutcome | null {
     choices,
     rewards: mapChestReward(puzzle.reward.items, puzzle.reward.gold),
     puzzleExplanation: puzzle.explanation,
+    contentId: `puzzle:${puzzle.id}`,
   } as CuratedOutcome;
 }
 
@@ -1452,6 +1460,8 @@ export function rollOutcome(params: {
   dangerRating: number;
   lastOutcomeType: string | null;
   tick: number;
+  /** Engagement spec 6.4: content ids this player has seen; enables generated rooms/puzzles. */
+  fresh?: { seen: Set<string> };
 }): CuratedOutcome {
   const biomeKey = (Object.keys(CURATED_OUTCOMES).includes(params.biome) ? params.biome : 'grass') as BiomeKey;
   const outcomes = CURATED_OUTCOMES[biomeKey];
@@ -1462,7 +1472,7 @@ export function rollOutcome(params: {
   {
     const encRoll = Math.random();
     if (encRoll < 0.10) {
-      const puzzle = buildPuzzleOutcome(encounterLevel);
+      const puzzle = buildPuzzleOutcome(encounterLevel, params.fresh ? { seen: new Set(Array.from(params.fresh.seen).filter((x) => x.startsWith('puzzle:')).map((x) => x.slice(7))) } : undefined);
       if (puzzle) return puzzle;
     }
     if (encRoll < 0.20) return buildChestOutcome(encounterLevel);
@@ -1515,7 +1525,20 @@ export function rollOutcome(params: {
     return { ...NOTHING_OUTCOME };
   }
 
-  const matching = outcomes.filter(o => o.type === chosenType);
+  let matching = outcomes.filter(o => o.type === chosenType);
+  if (params.fresh) {
+    // Curated outcomes become rarer "landmarks": half the time, or whenever every
+    // curated outcome of this type has been seen, roll a combinatorial room instead.
+    const unseen = matching.filter(o => !params.fresh!.seen.has(`outcome:${biomeKey}:${o.title}`));
+    if (unseen.length === 0 || Math.random() < 0.5) {
+      for (let i = 0; i < 8; i++) {
+        const room = generateRoom(biomeKey);
+        if (!params.fresh.seen.has(room.contentId)) return room;
+      }
+      return generateRoom(biomeKey);
+    }
+    matching = unseen;
+  }
   if (matching.length === 0) {
     const fallback = outcomes.filter(o => o.type === 'discovery');
     if (fallback.length === 0) {
@@ -1524,7 +1547,8 @@ export function rollOutcome(params: {
     return { ...fallback[Math.floor(Math.random() * fallback.length)] };
   }
 
-  return { ...matching[Math.floor(Math.random() * matching.length)] };
+  const picked = matching[Math.floor(Math.random() * matching.length)];
+  return { ...picked, contentId: `outcome:${biomeKey}:${picked.title}` } as CuratedOutcome;
 }
 
 export function resolveChoice(choice: {

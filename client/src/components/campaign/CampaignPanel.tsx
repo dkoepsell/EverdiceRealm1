@@ -4,6 +4,7 @@ import { RollDialog, type ServerRollResult } from "@/components/play/RollDialog"
 import { BeatChip, TurnNotes, type TurnNotesData } from "@/components/play/TurnNotes";
 import { JournalButton } from "@/components/play/Journal";
 import { HereNow } from "@/components/play/HereNow";
+import { LegendPicker } from "@/components/play/LegendPicker";
 import { EpisodeEndCard, type EpisodeCardData } from "@/components/play/EpisodeEndCard";
 import { CombatTurnPanel, ClockDial, type ClassTurnResult } from "@/components/combat/CombatTurnPanel";
 import { attackAbilityMod, weaponProfile } from "@shared/rules/classActions";
@@ -8087,6 +8088,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                     </div>
                   </div>
                 )}
+
+                {engagementFlags.ledger && <LegendPicker campaignId={campaign.id} characterId={activeCharacter?.id} />}
 
                 <div className="flex flex-wrap gap-3 justify-center pt-2">
                   <Button 

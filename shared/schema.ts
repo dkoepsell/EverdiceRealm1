@@ -2887,6 +2887,18 @@ export const campaignLedger = pgTable("campaign_ledger", {
   updatedAt: text("updated_at"),
 });
 
+// Content each player has already seen (engagement spec 6.4): Wander outcomes,
+// rooms and puzzles are excluded until the pool runs dry.
+// scripts/migrations/004-user-seen-content.sql.
+export const userSeenContent = pgTable("user_seen_content", {
+  userId: integer("user_id").notNull(),
+  kind: text("kind").notNull(), // "wander_outcome" | "room" | "puzzle"
+  contentId: text("content_id").notNull(),
+  seenAt: text("seen_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
+}, (t) => [
+  primaryKey({ columns: [t.userId, t.kind, t.contentId] }),
+]);
+
 // Which 5e rules each player has seen fire in play, and how often (engagement
 // spec Phase 2.3/3.4). Drives "The rule underneath" (auto-expanded the first 3
 // times) and the Journal's "Rules learned". scripts/migrations/002-rules-seen.sql.

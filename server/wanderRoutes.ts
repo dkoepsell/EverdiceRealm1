@@ -1,5 +1,7 @@
 import { Router, Request, Response } from "express";
 import { storage } from "./storage";
+import { globalFlags } from "@shared/engagementFlags";
+import { markSeen, seenIds } from "./play/content/seen";
 import {
   rollOutcome, calculateDangerRating, resolveChoice,
   generateWanderSummary, mapBiomeFromTerrain, CuratedOutcome
@@ -116,12 +118,17 @@ export function registerWanderRoutes(router: Router) {
         isHot: false,
       });
 
+      const fresh = globalFlags(process.env.ENGAGEMENT_FLAGS_ON).freshContent
+        ? { seen: await seenIds(userId, "wander") }
+        : undefined;
       const outcome = rollOutcome({
         biome,
         dangerRating,
         lastOutcomeType: run.lastOutcomeType,
         tick: newTick,
+        fresh,
       });
+      if (fresh && outcome.contentId) void markSeen(userId, "wander", outcome.contentId);
 
       const updatedRun = await storage.updateWanderRun(runId, {
         currentHexQ: toHexQ,

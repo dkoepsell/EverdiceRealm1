@@ -31,7 +31,10 @@ export function selectCallbacks(ledger: Ledger, ctx: { location?: string | null;
 
   const absent = ledger.cast
     .filter((c) => c.status === "alive" && c.timesMet > 0 && turn - c.lastSeenTurn >= 5)
-    .filter((c) => (here && (c.location ?? "").toLowerCase() === here) || openThreads.some((t) => overlaps(t.summary, `${c.want} ${c.role} ${c.name}`)) || (here && overlaps(here, c.want)))
+    .filter((c) =>
+      // Someone carried over from a previous campaign (firstSeenTurn < 0) returns early on, anywhere.
+      (c.firstSeenTurn < 0 && turn <= 8) ||
+      (here && (c.location ?? "").toLowerCase() === here) || openThreads.some((t) => overlaps(t.summary, `${c.want} ${c.role} ${c.name}`)) || (here && overlaps(here, c.want)))
     .sort((a, b) => b.timesMet - a.timesMet || Math.abs(b.attitude) - Math.abs(a.attitude))[0];
   if (absent && out.length < max) {
     const owes = absent.promisesMade[0] ? `; ${absent.promisesMade[0]}` : "";
