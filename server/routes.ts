@@ -42,6 +42,7 @@ import { registerBetweenRoutes } from "./play/between/routes";
 import { readLegend, seedFromLegends } from "./play/between/legend";
 import { lessonById, lessonPromptLine } from "@shared/rules/learningPath";
 import { reputationOf } from "@shared/ledger";
+import { normalizeNarrativeStyle } from "@shared/campaignOptions";
 import { itemsPromptLine } from "@shared/rules/magicItems";
 import { antiRepeatBlock } from "./play/prompt/history";
 import { parseNarrativeForLocations, generateHexMetaFromKeywords, getAllAdjacentCoordinates, getAdjacentHexCoordinates, detectMovementInNarrative, detectAdventureSetting, ENVIRONMENT_KEYWORDS, type HexDirection, type AdventureSetting } from "./narrativeHexParser";
@@ -18369,14 +18370,17 @@ You may create a new character or start a new adventure to continue playing.`;
       const narrativeStyle = campaign?.narrativeStyle || "Descriptive";
       const difficulty = campaign?.difficulty || "Normal - Balanced Challenge";
       
-      // Define narrative style instructions based on setting (case-insensitive lookup)
-      const normalizedStyle = narrativeStyle.toLowerCase();
+      // Narrative style, normalised the same way as the Settings dropdown
+      // (shared/campaignOptions.ts) — stored values vary by creation path.
+      const normalizedStyle = normalizeNarrativeStyle(narrativeStyle);
       const narrativeStyleInstructions = {
         "descriptive": "Use vivid, detailed descriptions of settings and actions. Paint the scene with sensory details.",
         "dramatic": "Focus on tension, emotion, and high-stakes moments. Build suspense and emphasize character reactions.",
         "conversational": "Keep the tone light and accessible. Use natural dialogue and straightforward descriptions.",
         "humorous": "Include witty observations, amusing situations, and playful narrative voice. Don't take things too seriously.",
-        "dark": "Emphasize danger, consequences, and grim atmosphere. Focus on moral ambiguity and harsh realities."
+        "dark": "Emphasize danger, consequences, and grim atmosphere. Focus on moral ambiguity and harsh realities.",
+        "heroic": "Classic heroic fantasy: bold deeds, clear stakes, moments where courage changes the outcome. Let the heroes feel heroic.",
+        "mystery": "Build intrigue: plant clues fairly, let NPCs hide things, reward careful questions and deduction over force."
       }[normalizedStyle] || "Use vivid, detailed descriptions of settings and actions.";
       
       // Detect adventure theme from campaign title, description, and current narrative

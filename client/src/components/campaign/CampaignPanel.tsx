@@ -13,6 +13,7 @@ import { CombatTurnPanel, ClockDial, type ClassTurnResult } from "@/components/c
 import { attackAbilityMod, weaponProfile } from "@shared/rules/classActions";
 import { resolveFlags } from "@shared/engagementFlags";
 import { checkModifier } from "@shared/rules/checks";
+import { DIFFICULTIES, NARRATIVE_STYLES, normalizeDifficulty, normalizeNarrativeStyle } from "@shared/campaignOptions";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Campaign, CampaignSession, Character, Npc, WorldRegion, WorldLocation } from "@shared/schema";
@@ -457,8 +458,14 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const [showCombatLogDialog, setShowCombatLogDialog] = useState(false);
   const [postCombatRewards, setPostCombatRewards] = useState<any>(null);
   const [selectedTargetIndex, setSelectedTargetIndex] = useState(0); // Combat target selection
-  const [narrativeStyle, setNarrativeStyle] = useState(campaign.narrativeStyle);
-  const [difficulty, setDifficulty] = useState(campaign.difficulty);
+  // Stored values vary by creation path; normalise so the Settings dropdowns
+  // always show the campaign's actual setting (shared/campaignOptions.ts).
+  const [narrativeStyle, setNarrativeStyle] = useState<string>(normalizeNarrativeStyle(campaign.narrativeStyle));
+  const [difficulty, setDifficulty] = useState<string>(normalizeDifficulty(campaign.difficulty));
+  useEffect(() => {
+    setNarrativeStyle(normalizeNarrativeStyle(campaign.narrativeStyle));
+    setDifficulty(normalizeDifficulty(campaign.difficulty));
+  }, [campaign.id, campaign.narrativeStyle, campaign.difficulty]);
   const [worldRegionId, setWorldRegionId] = useState<number | null>(campaign.worldRegionId || null);
   const [worldLocationId, setWorldLocationId] = useState<number | null>(campaign.worldLocationId || null);
   const [settingsChanged, setSettingsChanged] = useState(false);
@@ -7428,11 +7435,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         <SelectValue placeholder="Narrative style" />
                       </SelectTrigger>
                       <SelectContent className="bg-white dark:bg-slate-800">
-                        <SelectItem value="Descriptive">Descriptive</SelectItem>
-                        <SelectItem value="Dramatic">Dramatic</SelectItem>
-                        <SelectItem value="Conversational">Conversational</SelectItem>
-                        <SelectItem value="Humorous">Humorous</SelectItem>
-                        <SelectItem value="Dark">Dark</SelectItem>
+                        {NARRATIVE_STYLES.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -7444,9 +7449,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                         <SelectValue placeholder="Difficulty" />
                       </SelectTrigger>
                       <SelectContent className="bg-white dark:bg-slate-800">
-                        <SelectItem value="Easy - Beginner Friendly">Easy - Beginner Friendly</SelectItem>
-                        <SelectItem value="Normal - Balanced Challenge">Normal - Balanced Challenge</SelectItem>
-                        <SelectItem value="Hard - Deadly Encounters">Hard - Deadly Encounters</SelectItem>
+                        {DIFFICULTIES.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
