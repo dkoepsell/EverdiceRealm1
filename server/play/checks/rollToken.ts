@@ -6,7 +6,10 @@
  */
 import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 
-const KEY = process.env.SESSION_SECRET || randomBytes(32).toString("hex");
+// Read lazily: ESM evaluates imports before index.ts runs dotenv, so a
+// module-scope read would see no SESSION_SECRET and fall back to a random key.
+let fallbackKey: string | null = null;
+const key = () => process.env.SESSION_SECRET || (fallbackKey ??= randomBytes(32).toString("hex"));
 const MAX_AGE_MS = 30 * 60 * 1000;
 
 export interface RollTokenPayload {
@@ -27,7 +30,7 @@ export interface RollTokenPayload {
 }
 
 const b64 = (s: string) => Buffer.from(s).toString("base64url");
-const sign = (body: string) => createHmac("sha256", KEY).update(body).digest("base64url");
+const sign = (body: string) => createHmac("sha256", key()).update(body).digest("base64url");
 
 /** Sign any payload that carries campaignId/userId/issuedAt. */
 export function signPayload<T extends { campaignId: number; userId: number; issuedAt: number }>(p: T): string {
