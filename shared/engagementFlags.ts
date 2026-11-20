@@ -1,38 +1,41 @@
 /**
  * Engagement feature flags (engagement spec: "Ship each phase behind a feature
  * flag"). Defaults live here; a campaign can override any of them through its
- * `engagement_flags` jsonb column, so a phase can be switched on for one table
- * and compared against the Phase 0 engagement report before it goes wide.
+ * `engagement_flags` jsonb column (PATCH /api/campaigns/:id/engagement-flags).
+ *
+ * Rolled out 2026-11-20: every phase defaults ON. To pull one back for a single
+ * campaign, set it false in that campaign's override; to pull it back for
+ * everyone, flip the default here and redeploy.
  */
 export const ENGAGEMENT_FLAGS = {
   /** Phase 1: pending level-ups with real 5e choices instead of silent HP bumps. */
-  levelUps: false,
+  levelUps: true,
   /** Phase 2: ability checks rolled and resolved on the server, math shown in the Roll dialog. */
-  serverChecks: false,
+  serverChecks: true,
   /** Phase 2: the beat director picks turn rhythm in code. */
-  beats: false,
+  beats: true,
   /** Phase 2: passive Perception/Insight/Investigation surfaced to narrator + UI. */
-  passives: false,
+  passives: true,
   /** Phase 2: Inspiration, advantage/disadvantage, Help in the roll dialog. */
-  inspiration: false,
+  inspiration: true,
   /** Phase 7: modular, shorter per-turn prompt. */
-  promptDiet: false,
+  promptDiet: true,
   /** Phase 3: campaign ledger (recurring cast, threads, deeds, callbacks). */
-  ledger: false,
+  ledger: true,
   /** Phase 4: threat clocks replace the scenes-since-combat timer. */
-  clocks: false,
+  clocks: true,
   /** Phase 4: action economy + class signature actions in managed combat. */
-  classCombat: false,
+  classCombat: true,
   /** Phase 5: episode cards and "Previously on..." recaps. */
-  episodes: false,
+  episodes: true,
   /** Phase 2: "The rule underneath" explainers the first times a rule fires. */
-  rulesUnderneath: false,
+  rulesUnderneath: true,
   /** Phase 6: learning-path one-shots on the Home screen. */
-  learningPath: false,
+  learningPath: true,
   /** Phase 6: downtime activities between campaigns. */
-  downtime: false,
+  downtime: true,
   /** Phase 6: Wander/puzzle content excludes what the player has seen; combinatorial rooms + generated puzzles. */
-  freshContent: false,
+  freshContent: true,
 } as const;
 
 export type EngagementFlag = keyof typeof ENGAGEMENT_FLAGS;

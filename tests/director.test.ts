@@ -7,7 +7,9 @@
  */
 import { BEATS, type Beat, beatForTurn, clampToBeat, parseDirectorState, pickNextBeat } from '../server/play/director/beats';
 import { applyTurnMechanics, buildPromptExtras } from '../server/play/director/turnGuidance';
-import { ENGAGEMENT_FLAGS } from '../shared/engagementFlags';
+import { ENGAGEMENT_FLAGS as DEFAULT_FLAGS } from '../shared/engagementFlags';
+// Tests start from every flag OFF and switch on what they exercise.
+const ENGAGEMENT_FLAGS = Object.fromEntries(Object.keys(DEFAULT_FLAGS).map((k) => [k, false])) as unknown as typeof DEFAULT_FLAGS;
 import { signRollToken, trustedRollResult, verifyRollToken } from '../server/play/checks/rollToken';
 
 let failures = 0;

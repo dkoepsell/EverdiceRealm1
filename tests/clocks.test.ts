@@ -6,7 +6,9 @@
 import { clocksPromptLine, fireFullClock, seedClocks, tickClocks, clockNearFull } from '../server/play/clocks';
 import { assignObjective, checkMorale, evaluateEncounter } from '../server/play/encounters';
 import { midTurn, postTurn, preTurn } from '../server/play/combat/turnHooks';
-import { ENGAGEMENT_FLAGS } from '../shared/engagementFlags';
+import { ENGAGEMENT_FLAGS as DEFAULT_FLAGS } from '../shared/engagementFlags';
+// Tests start from every flag OFF and switch on what they exercise.
+const ENGAGEMENT_FLAGS = Object.fromEntries(Object.keys(DEFAULT_FLAGS).map((k) => [k, false])) as unknown as typeof DEFAULT_FLAGS;
 
 let failures = 0;
 let checks = 0;

@@ -24,12 +24,12 @@ function check(name: string, actual: unknown, expected: unknown) {
 
 console.log('engagement flags');
 check('null campaign gets defaults', resolveFlags(null), { ...ENGAGEMENT_FLAGS });
-check('override switches one flag on', resolveFlags({ engagementFlags: { beats: true } }).beats, true);
+check('override switches one flag off', resolveFlags({ engagementFlags: { beats: false } }).beats, false);
 check('override leaves others at default', resolveFlags({ engagementFlags: { beats: true } }).ledger, ENGAGEMENT_FLAGS.ledger);
 check('non-boolean override ignored', resolveFlags({ engagementFlags: { beats: 'yes' } }).beats, ENGAGEMENT_FLAGS.beats);
 check('unknown key ignored', 'bogus' in resolveFlags({ engagementFlags: { bogus: true } }), false);
 check('array override ignored', resolveFlags({ engagementFlags: [true] }), { ...ENGAGEMENT_FLAGS });
-check('isFlagOn reads override', isFlagOn({ engagementFlags: { clocks: true } }, 'clocks'), true);
+check('isFlagOn reads override', isFlagOn({ engagementFlags: { clocks: false } }, 'clocks'), false);
 
 console.log('campaign length');
 check('"oneshot" (PlayerQuickStart) is a one-shot', normalizeCampaignLength('oneshot'), 'one_shot');
