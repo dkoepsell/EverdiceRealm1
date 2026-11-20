@@ -99,6 +99,24 @@
   NOT via drizzle-kit push, which drops the session table):
     ssh root@204.168.167.44 'cd /root/EverdiceRealm1 && set -a && source .env && set +a && for f in scripts/migrations/*.sql; do psql "$DATABASE_URL" -f "$f"; done'
 
+  ENGAGEMENT SPEC ROLLOUT (branch engagement-spec) — ORDER MATTERS:
+    1. Run migrations 000-004 (above) BEFORE restarting on the new build.
+       shared/schema.ts selects the new columns (campaigns.engagement_flags,
+       campaigns.leveling_mode, characters.features/subclass/pending_level_up/
+       hit_dice_remaining/inspiration/personality), so the new server against
+       an un-migrated DB fails every character and campaign query.
+    2. Backfill class features + Hit Dice (safe to re-run):
+       ssh root@204.168.167.44 'cd /root/EverdiceRealm1 && npx tsx scripts/backfill-features.ts --dry-run && npx tsx scripts/backfill-features.ts'
+    3. Every phase ships OFF. Turn phases on for ONE campaign first:
+       PATCH /api/campaigns/:id/engagement-flags  {"levelUps":true,"serverChecks":true,...}
+       (or SQL: UPDATE campaigns SET engagement_flags = '{"levelUps":true}' WHERE id = N;)
+       Flags: levelUps serverChecks beats passives inspiration promptDiet ledger
+              clocks classCombat episodes rulesUnderneath learningPath downtime freshContent
+    4. Home/Hearth surfaces (no campaign) read ENGAGEMENT_FLAGS_ON in .env, e.g.
+       ENGAGEMENT_FLAGS_ON=learningPath,downtime,freshContent
+       Learning-path one-shots run with every flag on.
+    5. Compare: npm run report:engagement (turn latency, prompt size, drop-off) before/after.
+
   Engagement report (Phase 0, read-only; where players quit):
     ssh root@204.168.167.44 'cd /root/EverdiceRealm1 && set -a && source .env && set +a && npm run report:engagement'
 

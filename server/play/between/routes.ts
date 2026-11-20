@@ -11,7 +11,8 @@ import { sql } from "drizzle-orm";
 import { db } from "../../db";
 import { storage } from "../../storage";
 import { userRulesSeen, type Character } from "@shared/schema";
-import { allFlagsOn, globalFlags } from "@shared/engagementFlags";
+import { ENGAGEMENT_FLAGS, allFlagsOn, globalFlags, resolveFlags } from "@shared/engagementFlags";
+import { isStaff } from "../../auth";
 import { LESSONS, learningProgress, lessonById } from "@shared/rules/learningPath";
 import { reputationOf } from "@shared/ledger";
 import { rulesSeenFor } from "../rules/rulesSeen";
@@ -39,6 +40,31 @@ async function ownCharacter(req: Request, res: Response, userId: number): Promis
 }
 
 export function registerBetweenRoutes(app: Express) {
+  // Per-campaign engagement flags: GET to read the resolved set, PATCH { flag: boolean, ... }
+  // to switch phases on for one table (the campaign owner, or staff).
+  app.get("/api/campaigns/:campaignId/engagement-flags", async (req, res) => {
+    const userId = userOf(req, res);
+    if (userId == null) return;
+    const campaign = await storage.getCampaign(Number(req.params.campaignId));
+    if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+    res.json({ flags: resolveFlags(campaign), override: campaign.engagementFlags ?? null });
+  });
+
+  app.patch("/api/campaigns/:campaignId/engagement-flags", async (req, res) => {
+    const userId = userOf(req, res);
+    if (userId == null) return;
+    const campaign = await storage.getCampaign(Number(req.params.campaignId));
+    if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+    if (campaign.userId !== userId && !isStaff(req.user)) return res.status(403).json({ message: "Only the campaign's owner can change this." });
+    const current = (campaign.engagementFlags && typeof campaign.engagementFlags === "object" ? campaign.engagementFlags : {}) as Record<string, unknown>;
+    const next: Record<string, unknown> = { ...current };
+    for (const [k, v] of Object.entries(req.body ?? {})) {
+      if (k in ENGAGEMENT_FLAGS && typeof v === "boolean") next[k] = v;
+    }
+    const updated = await storage.updateCampaign(campaign.id, { engagementFlags: next } as any);
+    res.json({ flags: resolveFlags(updated ?? { engagementFlags: next }), override: next });
+  });
+
   app.get("/api/engagement/flags", (_req, res) => {
     res.json(globalFlags(process.env.ENGAGEMENT_FLAGS_ON));
   });
