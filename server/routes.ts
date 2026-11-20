@@ -164,6 +164,8 @@ import { generateReturnGreeting, getStreakReward } from "./lib/hearthGreeting";
 import { objectStorageClient } from "./replit_integrations/object_storage";
 import { randomUUID, createHash } from "crypto";
 import { normalizeCampaignLength, chaptersForLength } from "@shared/rules/campaignLength";
+import { logServerEventAsync } from "./lib/activityLog";
+import { choiceIndexOf } from "./lib/turnTelemetry";
 
 // Lazy AI proxy — resolves at first use so the module loads without crashing when
 // OPENAI_API_KEY is absent. Prefers Anthropic if configured. Chat-completion routes that
@@ -19236,6 +19238,7 @@ Example: [{"text":"Sneak past","description":"Use shadows to avoid detection","d
   // Advance story based on player choice with continuity
   app.post("/api/campaigns/:campaignId/advance-story", async (req, res) => {
     try {
+      const turnStartedAt = Date.now(); // turn_submitted latency (engagement report)
       if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -19765,6 +19768,8 @@ NARRATIVE RULES (MANDATORY):
       console.log(`[Advance Story] Chapter ${currentChapter}/${totalChapters} - Final chapter: ${isOnFinalChapter}`);
       
       let currentSession = await storage.getCurrentSession(campaignId);
+      // The menu the player chose from, captured before this turn rewrites the session.
+      const offeredChoices: any[] = Array.isArray(currentSession?.choices) ? (currentSession!.choices as any[]) : [];
       if (!currentSession) {
         // Auto-create a session for the campaign if none exists
         const initialStoryState = {
@@ -25922,6 +25927,15 @@ Respond with JSON:
         postCombatRewards: postCombatRewardsData,
         scaffolding
       });
+      logServerEventAsync(req.user.id, "campaign_action", "story", "turn_submitted", {
+        campaignId,
+        sceneType: storyAdvancement.sceneType || null,
+        choiceIndex: choiceIndexOf(offeredChoices, choice),
+        rolled: !!rollResult,
+        latencyMs: Date.now() - turnStartedAt,
+        promptChars: prompt.length,
+        chapter: advancedToChapter ?? currentChapter,
+      }, { campaignId });
     } catch (error: any) {
       console.error("Failed to advance story:", error);
       console.error("Error stack:", error?.stack);

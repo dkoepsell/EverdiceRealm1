@@ -5,6 +5,7 @@
  */
 import { ENGAGEMENT_FLAGS, resolveFlags, isFlagOn } from '../shared/engagementFlags';
 import { normalizeCampaignLength, chaptersForLength } from '../shared/rules/campaignLength';
+import { choiceIndexOf } from '../server/lib/turnTelemetry';
 
 let failures = 0;
 let checks = 0;
@@ -44,6 +45,15 @@ check('epic generated 8-10', [chaptersForLength('epic', 'generated', () => 0), c
 check('legendary generated 12-15', [chaptersForLength('legendary', 'generated', () => 0), chaptersForLength('legendary', 'generated', () => 0.99)], [12, 15]);
 check('imported standard 4-5', [chaptersForLength('standard', 'imported', () => 0), chaptersForLength('standard', 'imported', () => 0.99)], [4, 5]);
 check('imported epic 6-8', [chaptersForLength('epic', 'imported', () => 0), chaptersForLength('epic', 'imported', () => 0.99)], [6, 8]);
+
+console.log('turn telemetry');
+const menu = [{ text: 'Ask Mira about her brother' }, { text: 'Offer her gold', action: 'offer gold' }, 'Leave'];
+check('exact text match', choiceIndexOf(menu, 'Ask Mira about her brother'), 0);
+check('case/punctuation-insensitive', choiceIndexOf(menu, 'ask mira about her brother!'), 0);
+check('matches action field', choiceIndexOf(menu, 'offer gold'), 1);
+check('string choices', choiceIndexOf(menu, 'Leave'), 2);
+check('typed action is freeform', choiceIndexOf(menu, 'I climb the mast'), 'freeform');
+check('empty submission is freeform', choiceIndexOf(menu, ''), 'freeform');
 
 console.log(`\n${checks - failures}/${checks} checks passed`);
 if (failures) process.exit(1);

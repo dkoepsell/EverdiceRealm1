@@ -10,6 +10,7 @@ import { storage, DatabaseStorage } from "./storage";
 import { initDiscord, shutdownDiscord } from "./discord";
 import { startReengagementScheduler, stopReengagementScheduler } from "./lib/reengagement";
 import { startWorldEventScheduler, stopWorldEventScheduler } from "./lib/worldEventEngine";
+import { startEngagementJobs, stopEngagementJobs } from "./lib/engagementJobs";
 import { serverLogger } from "./lib/logger";
 
 const app = express();
@@ -129,6 +130,14 @@ app.use((req, res, next) => {
     } catch (err) {
       log(`World event scheduler skipped: ${(err as Error).message}`);
     }
+
+    // Nightly engagement bookkeeping: flag campaigns idle 7+ days so the
+    // engagement report can show where players stop.
+    try {
+      startEngagementJobs();
+    } catch (err) {
+      log(`Engagement jobs skipped: ${(err as Error).message}`);
+    }
   });
   
   // Graceful shutdown handlers
@@ -136,6 +145,7 @@ app.use((req, res, next) => {
     log('Shutting down...');
     stopReengagementScheduler();
     stopWorldEventScheduler();
+    stopEngagementJobs();
     await shutdownDiscord();
     process.exit(0);
   });
@@ -144,6 +154,7 @@ app.use((req, res, next) => {
     log('Shutting down...');
     stopReengagementScheduler();
     stopWorldEventScheduler();
+    stopEngagementJobs();
     await shutdownDiscord();
     process.exit(0);
   });

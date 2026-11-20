@@ -11,7 +11,8 @@
     "check": "tsc",
     "check:gate": "node scripts/typecheck-gate.mjs",
     "check:baseline": "node scripts/typecheck-gate.mjs --update",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "report:engagement": "psql \"$DATABASE_URL\" -f scripts/engagement-report.sql"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
