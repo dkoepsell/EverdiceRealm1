@@ -63,8 +63,8 @@ export function PartyQuickNav({ sections, title = "Jump to" }: PartyQuickNavProp
       aria-label="Party sections"
       className="lg:sticky lg:top-24 mb-4 lg:mb-0"
     >
-      <div className="rounded-lg border-2 border-amber-200 bg-white/80 p-2 shadow-sm">
-        <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-amber-700">
+      <div className="ed-card p-2">
+        <p className="ed-label px-2 py-1">
           {title}
         </p>
         {/* Horizontal scroll on mobile, vertical list on large screens. */}
@@ -79,11 +79,11 @@ export function PartyQuickNav({ sections, title = "Jump to" }: PartyQuickNavProp
                   onClick={() => handleJump(section.id)}
                   className={`flex w-full items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-left text-sm font-medium transition-colors ${
                     isActive
-                      ? "bg-amber-500/20 text-amber-900"
-                      : "text-slate-700 hover:bg-amber-100/70 hover:text-amber-900"
+                      ? "bg-[var(--ed-card-hi)] text-[var(--ed-gold-soft)]"
+                      : "text-[var(--ed-muted)] hover:bg-[var(--ed-card-hi)] hover:text-[var(--ed-ink)]"
                   }`}
                 >
-                  {Icon && <Icon className="h-4 w-4 flex-shrink-0 text-amber-600" />}
+                  {Icon && <Icon className="h-4 w-4 flex-shrink-0 text-[var(--ed-gold)]" />}
                   {section.label}
                 </button>
               </li>

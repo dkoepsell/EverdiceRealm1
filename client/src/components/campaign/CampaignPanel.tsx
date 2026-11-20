@@ -3867,7 +3867,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
               </TabsList>
             </ContextualHint>
             
-            <TabsContent value="narrative" className="p-4 sm:p-6">
+            <TabsContent value="narrative" className="ed-surface mt-0 p-3 sm:p-5">
               <div className="space-y-4">
                 {/* No Character Prompt — shown when the viewer holds no seat in
                     this campaign at all. Was gated on !isDM, but isDM is
@@ -3905,7 +3905,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 <div className="space-y-2">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
-                      <h2 className="text-2xl font-bold font-fantasy" style={{ color: '#0f172a' }}>
+                      {/* The play header below carries the title once a scene is running. */}
+                      <h2 className={`ed-title text-xl ${currentSession ? 'sr-only' : ''}`}>
                         {campaign.title}
                       </h2>
                     </div>
@@ -3952,11 +3953,13 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </Tooltip>
                     )}
                   </div>
-                  <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-md border">
-                    <p className="text-gray-900 dark:text-gray-50 font-semibold text-base leading-relaxed">
-                      {campaign.description}
-                    </p>
-                  </div>
+                  {!currentSession && (
+                    <div className="ed-card p-3">
+                      <p className="font-fantasy text-lg leading-relaxed text-[var(--ed-ink)]">
+                        {campaign.description}
+                      </p>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Adventure Ended - Game Over Display */}
@@ -3985,7 +3988,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                 
                 {/* Current Session */}
                 {currentSession && !parsedStoryState?.adventureEnded ? (
-                  <div className="mt-6 rounded-2xl ed-surface p-2 sm:p-4 lg:grid lg:grid-cols-[12rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)_17rem] lg:gap-5 lg:items-start">
+                  <div className="mt-2 lg:grid lg:grid-cols-[12rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)_17rem] lg:gap-5 lg:items-start">
                     {/* Left column (design PDF): the character sheet on wide screens, then section nav. */}
                     <div className="space-y-3">
                       {activeCharacter && (

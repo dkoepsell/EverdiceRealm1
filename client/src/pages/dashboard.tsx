@@ -299,10 +299,45 @@ export default function Dashboard() {
   const [showLearnByPlaying, setShowLearnByPlaying] = useState(false);
   const [isCharacterSheetExpanded, setIsCharacterSheetExpanded] = useState(false);
 
+  // "Where to next?" — above the page when you're between adventures, below the
+  // adventure while you're playing (the play screen comes first, per the design).
+  const whereToNext = user ? (
+      <section className="container mx-auto px-4 py-4">
+        <h2 className="text-xl font-fantasy font-bold text-white/90 mb-3">Where to next?</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {[
+            { href: "/community", label: "Community", desc: "Find a game", icon: Users2, accent: "text-sky-400 border-sky-500/30" },
+            { href: "/wander", label: "Wander", desc: "Explore the wilds", icon: Compass, accent: "text-emerald-400 border-emerald-500/30" },
+            { href: "/delve", label: "Delve", desc: "Raid a dungeon", icon: Pickaxe, accent: "text-purple-400 border-purple-500/30" },
+            { href: "/tavern", label: "Tavern", desc: "Rest and resupply", icon: Beer, accent: "text-amber-400 border-amber-500/30" },
+            { href: "/trading-post", label: "Trading Post", desc: "Buy and sell", icon: Store, accent: "text-orange-400 border-orange-500/30" },
+            { href: "/world-map", label: "World Map", desc: "See the realm", icon: Map, accent: "text-teal-400 border-teal-500/30" },
+          ].map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.href} href={item.href}>
+                <Card className={`h-full bg-slate-900/60 border ${item.accent} hover:bg-slate-800/70 transition-colors cursor-pointer`} data-testid={`card-goto-${item.label.toLowerCase().replace(/ /g, '-')}`}>
+                  <CardContent className="p-4 text-center">
+                    <Icon className={`h-6 w-6 mx-auto mb-2 ${item.accent.split(' ')[0]}`} />
+                    <div className="text-white text-sm font-semibold">{item.label}</div>
+                    <div className="text-white/50 text-xs mt-0.5">{item.desc}</div>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+  ) : null;
+
   // Home (design PDF page 1) is the landing view on /dashboard for returning
   // players; Continue (or arriving via /play) goes straight into the adventure.
   // Remembered for the browser session so a reload mid-play stays in play.
-  if (showHome && !isNewUser && !charactersLoading && !campaignsLoading) {
+  if (showHome && (charactersLoading || campaignsLoading)) {
+    // Don't mount the full play view (and its dozen queries) just to swap it for Home.
+    return <div className="ed-surface min-h-[calc(100vh-4rem)]" data-testid="home-loading" />;
+  }
+  if (showHome && !isNewUser) {
     return (
       <HomeScreen
         username={user?.username ?? ""}
@@ -448,34 +483,7 @@ export default function Dashboard() {
           exploration surfaces moved here — they're things you do *with a
           character*, not separate destinations. Community is surfaced because a
           new player went looking for "the forums" and couldn't find them. */}
-      {user && (
-      <section className="container mx-auto px-4 py-4">
-        <h2 className="text-xl font-fantasy font-bold text-white/90 mb-3">Where to next?</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {[
-            { href: "/community", label: "Community", desc: "Find a game", icon: Users2, accent: "text-sky-400 border-sky-500/30" },
-            { href: "/wander", label: "Wander", desc: "Explore the wilds", icon: Compass, accent: "text-emerald-400 border-emerald-500/30" },
-            { href: "/delve", label: "Delve", desc: "Raid a dungeon", icon: Pickaxe, accent: "text-purple-400 border-purple-500/30" },
-            { href: "/tavern", label: "Tavern", desc: "Rest and resupply", icon: Beer, accent: "text-amber-400 border-amber-500/30" },
-            { href: "/trading-post", label: "Trading Post", desc: "Buy and sell", icon: Store, accent: "text-orange-400 border-orange-500/30" },
-            { href: "/world-map", label: "World Map", desc: "See the realm", icon: Map, accent: "text-teal-400 border-teal-500/30" },
-          ].map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link key={item.href} href={item.href}>
-                <Card className={`h-full bg-slate-900/60 border ${item.accent} hover:bg-slate-800/70 transition-colors cursor-pointer`} data-testid={`card-goto-${item.label.toLowerCase().replace(/ /g, '-')}`}>
-                  <CardContent className="p-4 text-center">
-                    <Icon className={`h-6 w-6 mx-auto mb-2 ${item.accent.split(' ')[0]}`} />
-                    <div className="text-white text-sm font-semibold">{item.label}</div>
-                    <div className="text-white/50 text-xs mt-0.5">{item.desc}</div>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-      )}
+      {!activeCampaign && whereToNext}
 
       {/* Learn by Playing - Solo adventure with companion */}
       {showLearnByPlaying && !showQuickStart && (
@@ -512,7 +520,7 @@ export default function Dashboard() {
       )}
 
       {/* Return Visitor Prompt - gentle nudge to try new modes */}
-      {!showLearnByPlaying && !showQuickStart && availableCampaigns.length > 0 && (
+      {!activeCampaign && !showLearnByPlaying && !showQuickStart && availableCampaigns.length > 0 && (
         <section className="container mx-auto px-4 pt-2">
           <ReturnVisitorPrompt
             userName={user?.username}
@@ -594,20 +602,10 @@ export default function Dashboard() {
                 </Card>
               ) : activeCampaign ? (
                 <div className="space-y-4">
-                  {/* Mobile Active Adventure Header */}
-                  <Card className="border-2 border-amber-500/50">
-                    <CardHeader className="pb-2 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30">
-                      <div className="flex items-center gap-2">
-                        <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                        <CardTitle className="text-base font-fantasy">Active Adventure</CardTitle>
-                        <Badge variant="outline" className="text-xs bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/50 dark:text-amber-200 dark:border-amber-700">
-                          <Play className="h-2 w-2 mr-1" /> Playing
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-3 pb-3">
-                      {availableCampaigns.length > 1 ? (
-                        <Select 
+                  {/* Mobile: the play header shows the adventure; only a switcher is needed here. */}
+                  {availableCampaigns.length > 1 && (
+                    <div className="ed-panel px-3 py-2">
+                      <Select 
                           value={selectedCampaignId?.toString() || ""} 
                           onValueChange={(value) => setAsActiveAdventure(parseInt(value))}
                         >
@@ -625,14 +623,8 @@ export default function Dashboard() {
                             ))}
                           </SelectContent>
                         </Select>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm">{activeCampaign.title}</span>
-                          <Badge variant="secondary" className="text-xs">Session {activeCampaign.currentSession}</Badge>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                    </div>
+                  )}
                   <CampaignPanel campaign={activeCampaign} />
                 </div>
               ) : (
@@ -757,8 +749,9 @@ export default function Dashboard() {
       {/* Desktop Dashboard Content */}
       {!isMobile && (
         <div className="container mx-auto px-4 pt-2 pb-8">
-          {/* Character Quick Stats Bar - Expandable to full sheet */}
-          {activeCharacter && (
+          {/* Character Quick Stats Bar - Expandable to full sheet. During play the
+              character rail / stat strip in the play screen replaces it. */}
+          {activeCharacter && !activeCampaign && (
             <Card className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-900 border-2 border-amber-200 dark:border-amber-800/50">
               <CardContent className="py-4">
                 {/* Compact Stats Bar */}
@@ -1090,11 +1083,11 @@ export default function Dashboard() {
               ) : activeCampaign ? (
                 <div className="space-y-6">
                   {/* Active Adventure Header - Compact with dropdown */}
-                  <div className="flex items-center justify-between bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 px-4 py-2 rounded-lg border border-amber-300 dark:border-amber-700">
+                  <div className="ed-panel flex items-center justify-between px-4 py-2">
                     <div className="flex items-center gap-3">
-                      <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
+                      <Star className="h-4 w-4 text-[var(--ed-gold)] fill-[var(--ed-gold)]" />
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 dark:text-slate-100">{activeCampaign.title}</span>
+                        <span className="ed-title text-base">{activeCampaign.title}</span>
                         <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/50 dark:text-amber-200 dark:border-amber-700 text-xs">
                           Chapter {activeCampaign.currentSession}
                         </Badge>
@@ -1173,6 +1166,8 @@ export default function Dashboard() {
         </div>
       )}
       
+      {activeCampaign && whereToNext}
+
       {/* Trending from the Trading Post */}
       {featuredAdventures.length > 0 && (
         <div className="container mx-auto px-4 mt-8">
