@@ -30,6 +30,10 @@ import { beatForTurn, beatPromptLine, parseDirectorState, pickNextBeat } from ".
 import { applyTurnMechanics, buildPromptExtras } from "./play/director/turnGuidance";
 import { recordRulesFired } from "./play/rules/rulesSeen";
 import { buildTurnPrompt } from "./play/prompt";
+import { loadLedger, saveLedger } from "./play/ledger/store";
+import { mergeLedgerUpdates } from "./play/ledger/merge";
+import { ledgerPromptBlock, ledgerStreamLine, selectCallbacks } from "./play/ledger/callbacks";
+import { registerLedgerRoutes } from "./play/ledger/routes";
 import { antiRepeatBlock } from "./play/prompt/history";
 import { parseNarrativeForLocations, generateHexMetaFromKeywords, getAllAdjacentCoordinates, getAdjacentHexCoordinates, detectMovementInNarrative, detectAdventureSetting, ENVIRONMENT_KEYWORDS, type HexDirection, type AdventureSetting } from "./narrativeHexParser";
 import { z } from "zod";
@@ -1686,6 +1690,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   registerLevelUpRoutes(app);
   registerCheckRoutes(app);
+  registerLedgerRoutes(app);
   
   syncMarketItemStats().catch(err => console.error("[Economy] Sync failed:", err));
   
@@ -18517,6 +18522,12 @@ Instead, describe environments that MATCH the campaign's actual setting and the 
         attackIntent: detectAttackIntent(String(choice ?? '')).isAttack,
       });
       const promptExtras = buildPromptExtras(turnFlags, turnBeat, playerCharacter);
+      // Campaign Ledger (engagement spec Phase 3): memory of the cast, threads and deeds.
+      const turnLedger = turnFlags.ledger ? await loadLedger(campaignId, campaign as any) : null;
+      if (turnLedger) {
+        const callbacks = selectCallbacks(turnLedger, { location: sessionStoryState.location ?? currentLocation });
+        promptExtras.context += `\n${ledgerPromptBlock(turnLedger, callbacks)}\n`;
+      }
       const scenesSinceCombat = sessionStoryState.scenesSinceCombat ?? 0;
       // With the beat director on, combat comes from the fiction or the player —
       // never from a counter (spec: "combat only via triggers or explicit aggression").
@@ -19287,6 +19298,15 @@ This chapter has run for ${scenesInChapter2} scenes. Begin steering the narrativ
       }
 
       // Generate story continuation based on choice and previous context
+      // With the ledger on, repetition is avoided by memory (callbacks, a recurring
+      // cast), not by banning motifs and demanding a new NPC every scene.
+      if (turnFlags.ledger) {
+        sceneHistoryDigest2 = antiRepeatBlock(
+          recentCampaignSessions.map((s: any) => s.title),
+          recentCampaignSessions.map((s: any) => s.location),
+          { ledger: true },
+        );
+      }
       // Engagement spec Phase 7: the modular, shorter prompt (promptDiet flag).
       // Same JSON contract, so everything below handles either prompt.
       const prompt = turnFlags.promptDiet ? buildTurnPrompt({
@@ -21830,6 +21850,13 @@ ${cachedNarrative}
       if (turnFlags.beats) {
         (mergedStoryState as any).director = pickNextBeat(directorState, playedBeat);
       }
+      let ledgerMerge: ReturnType<typeof mergeLedgerUpdates> | null = null;
+      if (turnLedger) {
+        ledgerMerge = mergeLedgerUpdates(turnLedger, (storyAdvancement as any).ledgerUpdates, {
+          location: (mergedStoryState as any).location ?? currentLocation,
+        });
+        await saveLedger(campaignId, ledgerMerge.ledger);
+      }
       const rulesFiredThisTurn = turnFlags.rulesUnderneath ? await recordRulesFired(req.user.id, turnMechanics.fired) : [];
       // Persist this turn's mechanics so a reload shows the same chips and panels.
       (mergedStoryState as any).turnNotes = {
@@ -21839,6 +21866,7 @@ ${cachedNarrative}
         failureCost: turnMechanics.failureCost,
         rulesFired: rulesFiredThisTurn,
         roll: rollResult?.serverResolved ? rollResult : null,
+        returning: ledgerMerge?.returning[0] ?? null,
       };
       if (!Array.isArray(finalChoices) || finalChoices.length === 0) {
         if (inCombat) {
@@ -24518,6 +24546,12 @@ Respond with JSON:
             attackIntent: detectAttackIntent(String(choice ?? '')).isAttack,
           })
         : null;
+      const streamLedgerLine = resolveFlags(campaign).ledger
+        ? await (async () => {
+            const lg = await loadLedger(campaignId, campaign as any);
+            return ledgerStreamLine(lg, selectCallbacks(lg, { location: storyState.location ?? currentLocation }));
+          })()
+        : '';
       const inCombat = storyState.inCombat || false;
 
       const narrativeStyle = campaign?.narrativeStyle || "Descriptive";
@@ -24628,7 +24662,7 @@ Current Story State: ${JSON.stringify({
 })}
 
 The player chose: "${choice || "Continue the adventure"}"
-${describeRollForNarrator(rollResult, streamActor?.name)}${intent === 'attack' && !rollResult ? attackIntentDirective() : ''}${streamBeat ? `\n${beatPromptLine(streamBeat)} (Write only the prose; the choices are written separately.)\n` : ''}
+${describeRollForNarrator(rollResult, streamActor?.name)}${intent === 'attack' && !rollResult ? attackIntentDirective() : ''}${streamBeat ? `\n${beatPromptLine(streamBeat)} (Write only the prose; the choices are written separately.)\n` : ''}${streamLedgerLine ? `\n${streamLedgerLine}\n` : ''}
 ${resolveFlags(campaign).promptDiet ? `${antiRepeatBlock(recentTitles, recentLocations, { ledger: resolveFlags(campaign).ledger })}
 ` : `ANTI-REPETITION — DO NOT reuse these:
 - Recent titles: ${recentTitles.map(t => `"${t}"`).join(', ')}

@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { LevelUpButton } from "@/components/character/LevelUpDialog";
 import { RollDialog, type ServerRollResult } from "@/components/play/RollDialog";
 import { BeatChip, TurnNotes, type TurnNotesData } from "@/components/play/TurnNotes";
+import { JournalButton } from "@/components/play/Journal";
+import { HereNow } from "@/components/play/HereNow";
 import { resolveFlags } from "@shared/engagementFlags";
 import { checkModifier } from "@shared/rules/checks";
 import { useLocation } from "wouter";
@@ -1983,6 +1985,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       // campaign with chapter gates — and every campaign gets gates improvised on its first
       // turn). Nothing used to react here, so the chapter silently advanced server-side and
       // the player was left waiting for a chapter 2 that had already begun.
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/ledger`] });
       if (data.turnNotes?.inspirationAwarded) {
         queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
       }
@@ -3937,6 +3940,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               <span className="text-sm text-amber-700 dark:text-amber-300 font-semibold">
                                 Chapter {chapterNumber} of {campaign.totalChapters || 5}
                               </span>
+                              {(engagementFlags.ledger || engagementFlags.rulesUnderneath) ? (
+                                <span className="ml-3 inline-block align-middle"><JournalButton campaignId={campaign.id} showLedger={engagementFlags.ledger} showRules={engagementFlags.rulesUnderneath} /></span>
+                              ) : null}
                               {engagementFlags.inspiration && activeCharacter?.inspiration ? (
                                 <span className="ml-3 inline-flex items-center rounded-full border border-amber-500 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-300" data-testid="inspired-badge" title="Spend Inspiration for advantage on a roll">
                                   ☆ Inspired
@@ -4059,7 +4065,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           />
                         ) : currentSession.narrative ? (
                           <div className="animate-in fade-in duration-500">
-                            {engagementFlags.beats && <BeatChip beat={(parsedStoryState as any)?.turnNotes?.beat} />}
+                            {(engagementFlags.beats || engagementFlags.ledger) && <BeatChip beat={engagementFlags.beats ? (parsedStoryState as any)?.turnNotes?.beat : null} returning={engagementFlags.ledger ? (parsedStoryState as any)?.turnNotes?.returning : null} />}
                             <p className="whitespace-pre-line break-words text-lg sm:text-xl leading-relaxed text-slate-100 font-medium overflow-hidden" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)', wordBreak: 'break-word' }}>
                               {currentSession.narrative}
                             </p>
@@ -4294,6 +4300,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               </div>
                             )}
                             
+                            {engagementFlags.ledger && <HereNow campaignId={campaign.id} />}
                             {!suggestionSectionHidden && choiceGridVisible && (
                             <div className="grid grid-cols-1 gap-2">
                               {(scaffoldMaxSuggestions != null ? parsedChoices.slice(0, scaffoldMaxSuggestions) : parsedChoices).map((choice: any, index: number) => {

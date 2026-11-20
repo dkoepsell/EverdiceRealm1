@@ -2873,6 +2873,20 @@ export const insertLlmConfigSchema = createInsertSchema(llmConfigs).omit({
 export type InsertLlmConfig = z.infer<typeof insertLlmConfigSchema>;
 export type LlmConfig = typeof llmConfigs.$inferSelect;
 
+// Campaign Ledger (engagement spec Phase 3): structured memory of the cast,
+// open threads, the player's deeds, places and plot items — one row per
+// campaign. Shapes in shared/ledger.ts. scripts/migrations/003-campaign-ledger.sql.
+export const campaignLedger = pgTable("campaign_ledger", {
+  campaignId: integer("campaign_id").primaryKey(),
+  turn: integer("turn").notNull().default(0),
+  cast: jsonb("cast").notNull().default([]),
+  threads: jsonb("threads").notNull().default([]),
+  deeds: jsonb("deeds").notNull().default([]),
+  places: jsonb("places").notNull().default([]),
+  itemsOfNote: jsonb("items_of_note").notNull().default([]),
+  updatedAt: text("updated_at"),
+});
+
 // Which 5e rules each player has seen fire in play, and how often (engagement
 // spec Phase 2.3/3.4). Drives "The rule underneath" (auto-expanded the first 3
 // times) and the Journal's "Rules learned". scripts/migrations/002-rules-seen.sql.
