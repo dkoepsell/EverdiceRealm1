@@ -641,3 +641,23 @@
   .ed-tabs input, .ed-tabs textarea { color: var(--ed-ink); }
   .ed-tabs ::placeholder { color: var(--ed-faint); }
 }
+/* ed-tabs, part 2: translucent light surfaces, light gradients, and the
+   hard-coded inline colours (style={{ color: '#0f172a' }} etc.) that a class
+   remap can't reach. Browsers serialise inline hex colours as rgb(). */
+@layer components {
+  .ed-tabs [class*="bg-white/"], .ed-tabs [class*="bg-slate-50/"], .ed-tabs [class*="bg-slate-100/"],
+  .ed-tabs [class*="bg-gray-50/"], .ed-tabs [class*="bg-gray-100/"], .ed-tabs [class*="bg-stone-50/"] {
+    background-color: var(--ed-card) !important;
+  }
+  .ed-tabs .bg-gradient-to-b[class*="from-gray-100"], .ed-tabs .bg-gradient-to-b[class*="from-slate-100"],
+  .ed-tabs [class*="bg-gradient"][class*=" from-white"], .ed-tabs [class*="bg-gradient"][class*=" from-amber-50"],
+  .ed-tabs [class*="bg-gradient"][class*=" from-orange-50"], .ed-tabs [class*="bg-gradient"][class*=" from-slate-50"],
+  .ed-tabs [class*="bg-gradient"][class*=" from-gray-50"], .ed-tabs [class*="bg-gradient"][class*=" from-yellow-100"] {
+    background-image: none !important; background-color: var(--ed-card) !important;
+  }
+  .ed-tabs [style*="color: rgb(15, 23, 42)"], .ed-tabs [style*="color: rgb(30, 41, 59)"], .ed-tabs [style*="color: rgb(51, 65, 85)"] { color: var(--ed-ink) !important; }
+  .ed-tabs [style*="color: rgb(71, 85, 105)"], .ed-tabs [style*="color: rgb(100, 116, 139)"] { color: var(--ed-muted) !important; }
+  .ed-tabs [style*="color: rgb(146, 64, 14)"], .ed-tabs [style*="color: rgb(120, 53, 15)"], .ed-tabs [style*="color: rgb(124, 45, 18)"], .ed-tabs [style*="color: rgb(180, 83, 9)"] { color: var(--ed-gold-soft) !important; }
+  .ed-tabs [style*="color: rgb(185, 28, 28)"], .ed-tabs [style*="color: rgb(153, 27, 27)"] { color: var(--ed-rose) !important; }
+  .ed-tabs [style*="color: rgb(21, 128, 61)"], .ed-tabs [style*="color: rgb(22, 101, 52)"] { color: var(--ed-teal) !important; }
+}
