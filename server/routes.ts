@@ -33,10 +33,12 @@ import { recordRulesFired } from "./play/rules/rulesSeen";
 import { buildTurnPrompt } from "./play/prompt";
 import { loadLedger, saveLedger } from "./play/ledger/store";
 import { mergeLedgerUpdates } from "./play/ledger/merge";
-import { ledgerPromptBlock, ledgerStreamLine, selectCallbacks } from "./play/ledger/callbacks";
+import { buildRecap, ledgerPromptBlock, ledgerStreamLine, selectCallbacks } from "./play/ledger/callbacks";
 import { registerLedgerRoutes } from "./play/ledger/routes";
 import { registerCombatRoutes } from "./play/combat/routes";
 import { midTurn, playerCombatConditions, postTurn, preTurn } from "./play/combat/turnHooks";
+import { finishTurnEpisode } from "./play/episodeHook";
+import { itemsPromptLine } from "@shared/rules/magicItems";
 import { antiRepeatBlock } from "./play/prompt/history";
 import { parseNarrativeForLocations, generateHexMetaFromKeywords, getAllAdjacentCoordinates, getAdjacentHexCoordinates, detectMovementInNarrative, detectAdventureSetting, ENVIRONMENT_KEYWORDS, type HexDirection, type AdventureSetting } from "./narrativeHexParser";
 import { z } from "zod";
@@ -182,7 +184,7 @@ import { blockFinishedCampaignPlay } from "./lib/finishedCampaignGuard";
 import { generateReturnGreeting, getStreakReward } from "./lib/hearthGreeting";
 import { objectStorageClient } from "./replit_integrations/object_storage";
 import { randomUUID, createHash } from "crypto";
-import { normalizeCampaignLength, chaptersForLength } from "@shared/rules/campaignLength";
+import { normalizeCampaignLength, chaptersForLength, pacingForLength } from "@shared/rules/campaignLength";
 import { logServerEventAsync } from "./lib/activityLog";
 import { choiceIndexOf } from "./lib/turnTelemetry";
 
@@ -18525,6 +18527,10 @@ Instead, describe environments that MATCH the campaign's actual setting and the 
       });
       const promptExtras = buildPromptExtras(turnFlags, turnBeat, playerCharacter);
       if (p4.promptLine) promptExtras.context += `\n${p4.promptLine}\n`;
+      if (turnFlags.episodes && playerCharacter) {
+        const itemsLine = itemsPromptLine(Array.isArray(playerCharacter.equipment) ? playerCharacter.equipment : []);
+        if (itemsLine) promptExtras.context += `\n${itemsLine}\n`;
+      }
       // Campaign Ledger (engagement spec Phase 3): memory of the cast, threads and deeds.
       const turnLedger = turnFlags.ledger ? await loadLedger(campaignId, campaign as any) : null;
       if (turnLedger) {
@@ -19268,9 +19274,11 @@ ${upcomingGates2.slice(0, 2).map((g: any) => `- Chapter ${g.chapter}: "${g.advan
       // CHAPTER PROGRESSION NUDGING (Route 2)
       // ============================================
       let chapterNudge2 = "";
-      const GENTLE2 = 5;
-      const MODERATE2 = 7;
-      const URGENT2 = 9;
+      // Chapter-close nudges scale with campaign length when episodes are on (spec 5.1).
+      const lengthPacing = turnFlags.episodes ? pacingForLength(normalizeCampaignLength((campaign as any).campaignLength)) : null;
+      const GENTLE2 = lengthPacing?.nudges[0] ?? 5;
+      const MODERATE2 = lengthPacing?.nudges[1] ?? 7;
+      const URGENT2 = lengthPacing?.nudges[2] ?? 9;
 
       if (currentGateForSpine2 && scenesInChapter2 >= GENTLE2) {
         if (scenesInChapter2 >= URGENT2) {
@@ -21877,6 +21885,8 @@ ${cachedNarrative}
       if (turnFlags.classCombat || turnFlags.clocks) {
         (mergedStoryState as any).encounter = (mergedStoryState as any).inCombat ? p4Mid.encounter : null;
       }
+      // The episode counter lives on storyState too; carry it (the hook below advances it).
+      if (turnFlags.episodes) (mergedStoryState as any).episode = (currentSession.storyState as any)?.episode;
       if (p4Post.classCombat) (mergedStoryState as any).classCombat = (mergedStoryState as any).inCombat ? p4Post.classCombat : undefined;
       if (turnFlags.beats) {
         (mergedStoryState as any).director = pickNextBeat(directorState, playedBeat, { clockNearFull: p4.nearFull });
@@ -23677,8 +23687,9 @@ Choices should include 4 options with at least 2 requiring dice rolls.
         // Backstop only — chapters should advance when their GOAL/gate is met (~8-12
         // scenes per the prompt), not get chopped at this cap. Keep it above the target
         // window so goal-driven advancement is the norm, not turn-counter advancement.
-        const PACING_HARD_CAP = _pacing === 'brisk' ? 9 : _pacing === 'relaxed' ? 18 : 13;
-        const PACING_MIN_SCENES = _pacing === 'brisk' ? 4 : _pacing === 'relaxed' ? 7 : 5;
+        const _explicitPacing = (campaign as any).pacingMode || (campaign as any).storyPacing;
+        const PACING_HARD_CAP = !_explicitPacing && lengthPacing ? lengthPacing.hardCap : _pacing === 'brisk' ? 9 : _pacing === 'relaxed' ? 18 : 13;
+        const PACING_MIN_SCENES = !_explicitPacing && lengthPacing ? lengthPacing.minScenes : _pacing === 'brisk' ? 4 : _pacing === 'relaxed' ? 7 : 5;
 
         // Reliable per-chapter scene counter for gate decisions.
         // scenesInChapter2 (computed earlier from session-row timestamps) never grows
@@ -24421,6 +24432,26 @@ Respond with JSON:
       // Milestone leveling (engagement spec 1.2): a chapter that turned this turn —
       // by gate, hard cap or boss fallback — earns every seated character one level,
       // chosen in the Level Up dialog. Idempotent per chapter.
+      // Episodes, chapter loot, "about N minutes left" (engagement spec Phase 5).
+      const episodeHook = turnFlags.episodes
+        ? await finishTurnEpisode({
+            campaignId,
+            campaign,
+            characterId: actingCharacterId ?? participants?.[0]?.characterId ?? null,
+            chapterAdvanced: !!advancedToChapter,
+            inCombat: !!(mergedStoryState as any).inCombat,
+            sessionBreakpoint: !!storyAdvancement.sessionBreakpoint,
+            beat: (mergedStoryState as any).turnNotes?.beat ?? null,
+            items: (Array.isArray(storyAdvancement.rewardItems) ? storyAdvancement.rewardItems : []).map((r: any) => (typeof r === 'string' ? r : r?.name)).filter(Boolean),
+            allies: (ledgerMerge?.introduced ?? []).filter((n) => (ledgerMerge?.ledger.cast.find((c) => c.name === n)?.attitude ?? 0) >= 1),
+            rules: ((mergedStoryState as any).turnNotes?.rulesFired ?? []).map((r: any) => r.name),
+            narrative: storyAdvancement.narrative || '',
+            cliffhanger: null,
+            title: currentSession.title || '',
+            prevEpisode: (currentSession.storyState as any)?.episode,
+          }).catch((err) => { console.warn('[episodes] hook failed:', err?.message); return null; })
+        : null;
+
       let milestoneLevelEarned = false;
       if (advancedToChapter && turnFlags.levelUps && normalizeLevelingMode((campaign as any).levelingMode) === "milestone") {
         const seated = Array.from(new Set((participants || []).map((p: any) => p.characterId).filter(Boolean))) as number[];
@@ -24474,6 +24505,9 @@ Respond with JSON:
         scaffolding,
         levelUpEarned: milestoneLevelEarned,
         turnNotes: (mergedStoryState as any).turnNotes,
+        episode: episodeHook?.episode ?? null,
+        episodeEnd: episodeHook?.episodeEnd ?? null,
+        lootItem: episodeHook?.lootItem ?? null,
       });
       logServerEventAsync(req.user.id, "campaign_action", "story", "turn_submitted", {
         campaignId,
@@ -28867,6 +28901,10 @@ Snapshots must include at least 2 forked endings.`;
       const latestSession = sessions.filter((s: any) => !s.isCompleted).sort((a: any, b: any) => b.sessionNumber - a.sessionNumber)[0]
         || sessions[sessions.length - 1];
       const narrativeRecap = (latestSession as any)?.cliffhangerHook || null;
+      // "Previously on…" from the Campaign Ledger: three templated lines, no AI call (spec 5.2).
+      const previouslyOn = campaign && resolveFlags(campaign).ledger
+        ? buildRecap(await loadLedger(campaignId, campaign as any))
+        : [];
 
       res.json({
         show: true,
@@ -28879,6 +28917,8 @@ Snapshots must include at least 2 forked endings.`;
         })),
         whispers: unreadWhispers.map((w: any) => w.message),
         narrativeRecap,
+        previouslyOn,
+        campaignTitle: campaign?.title ?? null,
       });
     } catch (error) {
       console.error("Failed to fetch while-you-were-away data:", error);

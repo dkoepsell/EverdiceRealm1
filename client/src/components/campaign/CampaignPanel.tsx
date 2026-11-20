@@ -4,6 +4,7 @@ import { RollDialog, type ServerRollResult } from "@/components/play/RollDialog"
 import { BeatChip, TurnNotes, type TurnNotesData } from "@/components/play/TurnNotes";
 import { JournalButton } from "@/components/play/Journal";
 import { HereNow } from "@/components/play/HereNow";
+import { EpisodeEndCard, type EpisodeCardData } from "@/components/play/EpisodeEndCard";
 import { CombatTurnPanel, ClockDial, type ClassTurnResult } from "@/components/combat/CombatTurnPanel";
 import { attackAbilityMod, weaponProfile } from "@shared/rules/classActions";
 import { resolveFlags } from "@shared/engagementFlags";
@@ -290,6 +291,9 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   const engagementFlags = useMemo(() => resolveFlags(campaign as any), [campaign]);
   // A check rolled and resolved on the server (serverChecks flag), with its math shown.
   const [serverRollChoice, setServerRollChoice] = useState<any>(null);
+  // Episodes (engagement spec 5.2): the card at a break point, and "about N minutes left".
+  const [episodeCard, setEpisodeCard] = useState<EpisodeCardData | null>(null);
+  const [episodeInfo, setEpisodeInfo] = useState<{ number: number; minutesLeft: number } | null>(null);
   const [showCharacterSelectionDialog, setShowCharacterSelectionDialog] = useState(false);
   const [expandedSessions, setExpandedSessions] = useState<number[]>([]);
   const [selectedAction, setSelectedAction] = useState("");
@@ -1988,6 +1992,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       // turn). Nothing used to react here, so the chapter silently advanced server-side and
       // the player was left waiting for a chapter 2 that had already begun.
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/ledger`] });
+      if (data.episode) setEpisodeInfo(data.episode);
+      if (data.episodeEnd) setEpisodeCard(data.episodeEnd);
+      if (data.lootItem?.name) {
+        queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+        toast({ title: `Found: ${data.lootItem.name}`, description: data.lootItem.effect });
+      }
       if (data.turnNotes?.inspirationAwarded) {
         queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
       }
@@ -3555,6 +3565,15 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
   
   return (
     <div className="w-full">
+      {engagementFlags.episodes && (
+        <EpisodeEndCard
+          card={episodeCard}
+          campaignId={campaign.id}
+          characterId={activeCharacter?.id}
+          onContinue={() => setEpisodeCard(null)}
+          onStop={() => { setEpisodeCard(null); navigate('/dashboard'); }}
+        />
+      )}
       {engagementFlags.serverChecks && (
         <RollDialog
           open={!!serverRollChoice}
@@ -3967,6 +3986,11 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                               <span className="text-sm text-amber-700 dark:text-amber-300 font-semibold">
                                 Chapter {chapterNumber} of {campaign.totalChapters || 5}
                               </span>
+                              {engagementFlags.episodes && episodeInfo && (
+                                <span className="ml-2 text-xs text-amber-700/80 dark:text-amber-300/70" data-testid="episode-info">
+                                  · Episode {episodeInfo.number}, about {episodeInfo.minutesLeft} minutes left
+                                </span>
+                              )}
                               {engagementFlags.clocks && Array.isArray((parsedStoryState as any)?.clocks) && (
                                 <div className="mt-2 flex flex-wrap gap-4" data-testid="clock-row">
                                   {((parsedStoryState as any).clocks as any[]).filter((c) => c.filled > 0).map((c) => (

@@ -6,6 +6,8 @@ interface WhileYouWereAwayData {
   show: boolean;
   lastVisitAt?: string;
   narrativeRecap?: string | null;
+  previouslyOn?: string[];
+  campaignTitle?: string | null;
   worldEvents?: Array<{ title: string; description: string; severity: string; eventType: string }>;
   whispers?: string[];
 }
@@ -49,6 +51,16 @@ export function WhileYouWereAway({ campaignId }: Props) {
       </div>
 
       <div className="p-3 space-y-3">
+        {/* "Previously on…" from the Campaign Ledger (engagement spec 5.2). */}
+        {(data.previouslyOn?.length ?? 0) > 0 && (
+          <div data-testid="previously-on">
+            <p className="text-xs text-purple-300 uppercase tracking-wider mb-1">Previously on {data.campaignTitle ?? "your adventure"}</p>
+            <ul className="list-disc pl-5 space-y-0.5 text-sm text-amber-100/90">
+              {data.previouslyOn!.map((line) => <li key={line}>{line}</li>)}
+            </ul>
+          </div>
+        )}
+
         {/* Narrative recap / cliffhanger */}
         {data.narrativeRecap && (
           <div>

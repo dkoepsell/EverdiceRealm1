@@ -50,3 +50,34 @@ export function chaptersForLength(
       return source === "imported" ? pick(4, 2) : pick(5, 2);
   }
 }
+
+export interface LengthPacing {
+  /** Fewest scenes before a chapter gate is accepted. */
+  minScenes: number;
+  /** Scenes after which a chapter is force-advanced. */
+  hardCap: number;
+  /** Chapter-close nudges to the DM (gentle / moderate / urgent), in scenes. */
+  nudges: [number, number, number];
+  /** Target scenes per ~15-20 minute episode. */
+  episodeScenes: number;
+}
+
+/**
+ * Pacing by campaign length (engagement spec 5.1): shorter campaigns move
+ * faster, so a phone player reaches a payoff in one sitting. A one-shot is a
+ * single chapter, which the finale pacing already ends in 6–8 scenes.
+ */
+export function pacingForLength(length: CampaignLength): LengthPacing {
+  switch (length) {
+    case "one_shot":
+      return { minScenes: 3, hardCap: 8, nudges: [4, 6, 7], episodeScenes: 7 };
+    case "quick":
+      return { minScenes: 4, hardCap: 9, nudges: [4, 6, 8], episodeScenes: 7 };
+    case "epic":
+    case "legendary":
+      return { minScenes: 5, hardCap: 14, nudges: [6, 8, 10], episodeScenes: 8 };
+    case "standard":
+    default:
+      return { minScenes: 5, hardCap: 13, nudges: [5, 7, 9], episodeScenes: 8 };
+  }
+}

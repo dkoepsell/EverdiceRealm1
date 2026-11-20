@@ -21,6 +21,7 @@ import {
   type CheckModifier, checkModifier, combineRollMode, describeCheck, dcLabel, normalizeSkill, resolveCheck, validateDc,
 } from "@shared/rules/checks";
 import { signRollToken } from "./rollToken";
+import { itemAdvantages } from "@shared/rules/magicItems";
 import { recordRulesFired } from "../rules/rulesSeen";
 import { resolveFlags } from "@shared/engagementFlags";
 
@@ -107,6 +108,9 @@ function standingModifiers(ctx: CheckContext) {
   if (typeof ctx.choice?.advantage === "string" && ctx.choice.advantage) adv.push(ctx.choice.advantage);
   if (typeof ctx.choice?.disadvantage === "string" && ctx.choice.disadvantage) dis.push(ctx.choice.disadvantage);
   if (((ctx.character as any).exhaustionLevel ?? 0) >= 1) dis.push("Exhaustion gives disadvantage on ability checks");
+  // Magic items that grant advantage (Cloak of Elvenkind on Stealth, Eyes of the Eagle on Perception...).
+  const owned = Array.isArray(ctx.character.equipment) ? (ctx.character.equipment as string[]) : [];
+  for (const item of itemAdvantages(owned, ctx.modifier.skill)) adv.push(item);
   return { adv, dis };
 }
 
