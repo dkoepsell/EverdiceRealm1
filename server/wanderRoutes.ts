@@ -6,6 +6,7 @@ import {
   rollOutcome, calculateDangerRating, resolveChoice,
   generateWanderSummary, mapBiomeFromTerrain, CuratedOutcome
 } from "./wanderEngine";
+import { initialRunFlags, roadRumors, wanderCamp, wanderChoose, wanderJournal, wanderMove } from "./play/wander/service";
 
 export function registerWanderRoutes(router: Router) {
 
@@ -54,6 +55,8 @@ export function registerWanderRoutes(router: Router) {
         fatigue: 0,
         status: "active",
         startedAt: new Date().toISOString(),
+        // Wander spec B: travel state (clock, weather, food and water) starts with the run.
+        flags: (await initialRunFlags(campaignId, characterId)) as any,
       });
 
       await storage.upsertHexExplorationState({
@@ -106,61 +109,11 @@ export function registerWanderRoutes(router: Router) {
         return res.status(400).json({ error: "Invalid move: target hex must be adjacent (distance 1)" });
       }
 
-      const newTick = run.tick + 1;
-      const newFatigue = run.fatigue + 1;
-      const biome = mapBiomeFromTerrain(terrainType || "grass");
-
-      const dangerRating = calculateDangerRating({
-        biome,
-        proximityToLairs: 0,
-        ticksSinceRest: newTick,
-        partyLevel: 3,
-        isHot: false,
-      });
-
-      const fresh = globalFlags(process.env.ENGAGEMENT_FLAGS_ON).freshContent
-        ? { seen: await seenIds(userId, "wander") }
-        : undefined;
-      const outcome = rollOutcome({
-        biome,
-        dangerRating,
-        lastOutcomeType: run.lastOutcomeType,
-        tick: newTick,
-        fresh,
-      });
-      if (fresh && outcome.contentId) void markSeen(userId, "wander", outcome.contentId);
-
-      const updatedRun = await storage.updateWanderRun(runId, {
-        currentHexQ: toHexQ,
-        currentHexR: toHexR,
-        tick: newTick,
-        fatigue: newFatigue,
-        lastOutcomeType: outcome.type,
-      });
-
-      await storage.createWanderOutcome({
-        runId,
-        tick: newTick,
-        fromHexQ: run.currentHexQ,
-        fromHexR: run.currentHexR,
-        toHexQ,
-        toHexR,
-        outcomeType: outcome.type,
-        outcomePayload: outcome as any,
-        createdAt: new Date().toISOString(),
-      });
-
-      await storage.upsertHexExplorationState({
-        userId,
-        campaignId: run.campaignId,
-        hexQ: toHexQ,
-        hexR: toHexR,
-        state: "seen",
-        discoveredAt: new Date().toISOString(),
-        lastVisitedAt: new Date().toISOString(),
-      });
-
-      res.json({ run: updatedRun, outcome, dangerRating });
+      // Wander spec: the server works out terrain itself (shared/wander/terrain)
+      // and applies travel rules, threads, landmarks and checks per campaign flags.
+      void terrainType;
+      const result = await wanderMove(userId, run, { toHexQ, toHexR, pace: req.body.pace, activity: req.body.activity });
+      res.json(result);
     } catch (error: any) {
       console.error("Error moving in wander:", error);
       res.status(500).json({ error: "Failed to process move" });
@@ -187,62 +140,14 @@ export function registerWanderRoutes(router: Router) {
         return res.status(401).json({ error: "Not authorized to modify this run" });
       }
 
-      const outcome = outcomeData as CuratedOutcome;
-      const choiceObj = outcome.choices?.find(c => c.id === choiceId);
-      if (!choiceObj) {
-        return res.status(400).json({ error: "Invalid choice ID for this outcome" });
+      if (run.status !== "active") {
+        return res.status(400).json({ error: "Wander run is not active" });
       }
-
-      const resolution = resolveChoice({
-        intentTag: choiceObj.intentTag,
-        outcome,
-        characterLevel: 3,
-        fatigue: run.fatigue,
-        choiceId,
-      });
-
-      let markerCreated = false;
-      if (resolution.markerToCreate) {
-        await storage.createWanderMarker({
-          campaignId: run.campaignId,
-          hexQ: run.currentHexQ,
-          hexR: run.currentHexR,
-          markerType: resolution.markerToCreate.type,
-          title: resolution.markerToCreate.title,
-          blurb: resolution.markerToCreate.blurb,
-          tags: resolution.markerToCreate.tags,
-          discoveredBy: userId,
-          persistence: "permanent",
-          createdAt: new Date().toISOString(),
-        });
-        markerCreated = true;
-
-        await storage.upsertHexExplorationState({
-          userId,
-          campaignId: run.campaignId,
-          hexQ: run.currentHexQ,
-          hexR: run.currentHexR,
-          state: "noted",
-          lastVisitedAt: new Date().toISOString(),
-        });
+      const result = await wanderChoose(userId, run, choiceId, outcomeData as CuratedOutcome);
+      if ("error" in result) {
+        return res.status(400).json({ error: result.error });
       }
-
-      const newFatigue = Math.max(0, run.fatigue + resolution.fatigueChange);
-      await storage.updateWanderRun(runId, {
-        fatigue: newFatigue,
-      });
-
-      let combatSeed = undefined;
-      if (resolution.combatTriggered && resolution.combatSeed) {
-        combatSeed = resolution.combatSeed;
-      }
-
-      res.json({
-        resolution,
-        markerCreated,
-        combatTriggered: resolution.combatTriggered,
-        combatSeed,
-      });
+      res.json(result);
     } catch (error: any) {
       console.error("Error resolving wander choice:", error);
       res.status(500).json({ error: "Failed to resolve choice" });
@@ -291,6 +196,60 @@ export function registerWanderRoutes(router: Router) {
     } catch (error: any) {
       console.error("Error ending wander run:", error);
       res.status(500).json({ error: "Failed to end wander run" });
+    }
+  });
+
+  // Wander spec B: make camp for the night (eat, drink, long rest, new weather).
+  router.post("/api/wander/camp", async (req: Request, res: Response) => {
+    try {
+      if (!req.user) return res.status(401).json({ error: "Authentication required" });
+      const userId = (req.user as any).id;
+      const run = await storage.getWanderRun(req.body?.runId);
+      if (!run) return res.status(404).json({ error: "Wander run not found" });
+      if (run.userId !== userId) return res.status(401).json({ error: "Not authorized to modify this run" });
+      if (run.status !== "active") return res.status(400).json({ error: "Wander run is not active" });
+      const result = await wanderCamp(userId, run);
+      if ("error" in result) return res.status(409).json({ error: result.error });
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error making camp:", error);
+      res.status(500).json({ error: "Failed to make camp" });
+    }
+  });
+
+  // Travel state, landmarks and the thread journal, for resuming a run.
+  router.get("/api/wander/journal/:runId", async (req: Request, res: Response) => {
+    try {
+      if (!req.user) return res.status(401).json({ error: "Authentication required" });
+      const userId = (req.user as any).id;
+      const run = await storage.getWanderRun(parseInt(req.params.runId));
+      if (!run) return res.status(404).json({ error: "Wander run not found" });
+      if (run.userId !== userId) return res.status(401).json({ error: "Not authorized" });
+      res.json(await wanderJournal(userId, run));
+    } catch (error: any) {
+      console.error("Error loading wander journal:", error);
+      res.status(500).json({ error: "Failed to load journal" });
+    }
+  });
+
+  // Wander spec D: road rumors, heard in the Tavern, pointing to a place on the Wander map.
+  router.get("/api/wander/rumors", async (req: Request, res: Response) => {
+    try {
+      if (!req.user) return res.status(401).json({ error: "Authentication required" });
+      res.json(await roadRumors((req.user as any).id, false));
+    } catch (error: any) {
+      console.error("Error loading road rumors:", error);
+      res.status(500).json({ error: "Failed to load road rumors" });
+    }
+  });
+
+  router.post("/api/wander/rumors/hear", async (req: Request, res: Response) => {
+    try {
+      if (!req.user) return res.status(401).json({ error: "Authentication required" });
+      res.json(await roadRumors((req.user as any).id, true));
+    } catch (error: any) {
+      console.error("Error hearing road rumor:", error);
+      res.status(500).json({ error: "Failed to hear a rumor" });
     }
   });
 

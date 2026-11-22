@@ -1,6 +1,6 @@
 # Wander: Threads, Real Travel Rules, and a Reason to Choose a Direction
 
-Engineering spec, November 2026. Status: draft for review.
+Engineering spec, November 2026. Status: **implemented** on branch `wander-threads` (see section 13).
 
 ## 1. The problem, in the code
 
@@ -160,3 +160,47 @@ Use the existing "where players stop playing" measurement:
 2. Solo play has one character doing navigate, forage and scout at once in real 5e only with a party. Do we let a solo character pick one per move (more faithful, more decisions), or do all three with penalties (simpler)? This spec assumes one.
 3. Should thread payoffs that create a Delve entrance generate a fresh procedural dungeon themed to the thread, or pick from the authored dungeon list?
 4. 2014 or 2024 travel rules (see Phase 0)?
+
+## 13. Implementation notes (November 2026)
+
+Everything in sections 4 to 9 is built, each feature behind its own engagement flag (`wanderChecks`, `wanderThreads`, `wanderTravel`, `wanderLandmarks`, `wanderRumors`, `wanderRecurring`, all default on). Migration: `scripts/migrations/005-wander-threads.sql`. Tests: `npx tsx tests/wanderThreads.test.ts` (158 checks, including a 200-trail simulation). Also played end to end against a local Postgres through the API and in a browser.
+
+### Where things live
+
+| Piece | File |
+|---|---|
+| Terrain, bearings, hex helpers (shared by client and server) | `shared/wander/terrain.ts` |
+| Travel rules: pace, navigation, foraging, forced march, food and water, weather, sight | `shared/wander/travel.ts` |
+| Fixed landmarks | `shared/wander/landmarks.ts` |
+| Checks with the real character, saves, surprise | `server/play/wander/checks.ts` |
+| Thread content (8 trails) | `server/play/wander/threadTemplates.ts` |
+| Thread logic (pure) | `server/play/wander/threads.ts` |
+| Recurring road characters | `server/play/wander/recurring.ts` |
+| Persistence, fail-soft | `server/play/wander/store.ts` |
+| Move, choose, camp, journal, rumors | `server/play/wander/service.ts` |
+| UI | `client/src/components/wander/WanderTravelUI.tsx`, `RoadRumors.tsx`, `client/src/pages/wander.tsx` |
+
+New endpoints: `POST /api/wander/camp`, `GET /api/wander/journal/:runId`, `GET /api/wander/rumors`, `POST /api/wander/rumors/hear`. `/api/wander/move` now also takes `pace` and `activity`.
+
+### Answers to the open questions
+
+1. **Hex scale.** Wander's map is not the campaign world map: terrain is a hash of the coordinates and every run starts at (0,0). So a Wander hex is a 6-mile hex, and (0,0) is town. The terrain hash moved to `shared/wander/terrain.ts`, and the server no longer trusts the `terrainType` the client sends.
+2. **Solo roles.** One activity per move (navigate, forage or scout), as the spec assumed. If nobody navigates, the Survival check is still rolled, at disadvantage, except in open grassland.
+3. **Delve payoffs** create a new procedural dungeon, named and themed by the thread ("The Rotfang Warren", tagged `goblin` and `wander-found`). It appears in the Delve list and `/api/delve/start` reuses its saved layout instead of generating a new one. (The procedural generator only has goblin content, so the theme tag mostly changes the name and the first-person renderer's palette.)
+4. **Rules edition.** 2014 SRD 5.1, matching `shared/rules`.
+
+### Changes from the spec, found in play
+
+- **Navigation is not rolled every hex.** Wander terrain changes almost every hex, so "roll on new terrain" meant rolling every move, and characters were lost most of the time. The navigator rolls on setting out, after getting lost, when heading into country harder to navigate than where they last got their bearings, and every 4 hours of travel. This is closer to the DMG ("when the situation calls for it").
+- **Forced march** saves come at the end of each whole hour past 8, as the SRD says. A first version charged the same hour twice across two moves.
+- **Fights at a thread climax** always reach the payoff but cost a level of exhaustion, so skill options are worth trying first. This is because of the gap below.
+- **Collapse.** At exhaustion 4 the run ends ("carried back to town"), and the character is set to exhaustion 1, not left at 4.
+- **Raw ability checks.** `shared/rules/checks.ts` maps any name it doesn't know as a skill to Strength, so a "Constitution check" rolled Strength. The Wander wrapper handles raw abilities itself; the shared module is unchanged and may want the same fix.
+- **The served outcome wins.** `/api/wander/choose` used to trust the outcome (DCs, rewards) the client sent back. It now resolves against the copy the server logged for the run's latest move.
+
+### Known gaps, not addressed here
+
+- **Wander combat has never run.** `combatTriggered` and `combatSeed` go back to the client, which only shows narration. Surprise is now worked out properly (`combatSeed.surprise`), ready for whenever Wander hands off to `combatManager`.
+- Exhaustion from Wander persists on the character (`characters.exhaustion_level`), as it should; the Tavern's rest already removes it.
+- Dungeons found by threads are listed for the player in every campaign, not just the one they were found in.
+- Rumors are tied to the campaign the player most recently wandered in, since the Tavern has no campaign context.

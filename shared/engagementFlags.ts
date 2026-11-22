@@ -36,6 +36,18 @@ export const ENGAGEMENT_FLAGS = {
   downtime: true,
   /** Phase 6: Wander/puzzle content excludes what the player has seen; combinatorial rooms + generated puzzles. */
   freshContent: true,
+  /** Wander spec B: Wander choices resolve with the character's real checks; surprise from passive Perception. */
+  wanderChecks: true,
+  /** Wander spec A: threads (sign, trace, approach, climax, payoff). Needs migration 005. */
+  wanderThreads: true,
+  /** Wander spec B: pace, activity, time of day, weather, food and water, forced march, camping. */
+  wanderTravel: true,
+  /** Wander spec C: landmarks visible from a distance. */
+  wanderLandmarks: true,
+  /** Wander spec D: road rumors in the Tavern that point to a place. Needs migration 005. */
+  wanderRumors: true,
+  /** Wander spec E: recurring road characters, remembered in the Campaign Ledger. */
+  wanderRecurring: true,
 } as const;
 
 export type EngagementFlag = keyof typeof ENGAGEMENT_FLAGS;

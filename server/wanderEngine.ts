@@ -20,6 +20,8 @@ export interface CuratedOutcome {
     mechanicalEffects?: Record<string, any>;
     /** For 'solve' (analytic puzzle) choices: marks the correct answer option. */
     isPuzzleSolution?: boolean;
+    /** Wander spec B: the ability check this choice calls for, resolved on the server. */
+    check?: { skill: string; dc: number };
   }>;
   rewards?: Array<{
     kind: 'knowledge' | 'consumable' | 'trinket' | 'key_fragment' | 'faction_token';
@@ -29,6 +31,15 @@ export interface CuratedOutcome {
   /** Present for analytic-puzzle outcomes — reasoning revealed after answering. */
   puzzleExplanation?: string;
   markerType?: 'landmark' | 'trace' | 'hazard' | 'resource' | 'npc_echo' | 'opportunity';
+  /** Wander spec A: this outcome is a beat of a thread. */
+  thread?: { id: number; templateId: string; beat: string; name?: string };
+  /** Wander spec E: a recurring road character. */
+  recurring?: { roleId: string; name: string; metBefore: boolean; attitude: number };
+  /** Wander spec B: who noticed whom, for risk outcomes with a threat. */
+  awareness?: 'unseen' | 'spotted' | 'ambushed';
+  threatPassive?: number;
+  /** Rolls made while resolving the move (navigation, forage, surprise), shown with the card. */
+  rolls?: string[];
   combatSeed?: {
     encounterType: 'ambush' | 'pursuit' | 'lair_scout';
     enemyTheme: string;
@@ -1393,7 +1404,7 @@ function buildChestOutcome(level: number): CuratedOutcome {
     reveal: chest.description,
     detail: chest.trapped ? 'Something about the lid seam makes you wary.' : undefined,
     choices: [
-      { id: 'inspect', label: `Check it for traps first (Investigation)`, intentTag: 'investigate' },
+      { id: 'inspect', label: `Check it for traps first`, intentTag: 'investigate', check: { skill: 'investigation', dc: chest.trapped ? 13 : 10 } },
       { id: 'force', label: chest.locked ? `Force the lock open` : `Open it`, intentTag: 'engage' },
       { id: 'leave', label: 'Leave it be', intentTag: 'avoid' },
     ],
@@ -1411,7 +1422,7 @@ function buildTrapOutcome(level: number): CuratedOutcome {
     reveal: `${trap.triggerDescription} It has the marks of a ${trap.trapType.replace(/_/g, ' ')} trap.`,
     detail: trap.disarmHint,
     choices: [
-      { id: 'disarm', label: `Disarm it (Thieves' Tools DC ${trap.disarmDC})`, intentTag: 'investigate' },
+      { id: 'disarm', label: `Disarm it`, intentTag: 'investigate', check: { skill: 'thieves_tools', dc: trap.disarmDC } },
       { id: 'rush', label: 'Rush past and risk it', intentTag: 'engage' },
       { id: 'back', label: 'Back away carefully', intentTag: 'retreat' },
     ],
@@ -1462,6 +1473,8 @@ export function rollOutcome(params: {
   tick: number;
   /** Engagement spec 6.4: content ids this player has seen; enables generated rooms/puzzles. */
   fresh?: { seen: Set<string> };
+  /** Wander spec C: added to the chance of a discovery (e.g. at a landmark). */
+  discoveryBias?: number;
 }): CuratedOutcome {
   const biomeKey = (Object.keys(CURATED_OUTCOMES).includes(params.biome) ? params.biome : 'grass') as BiomeKey;
   const outcomes = CURATED_OUTCOMES[biomeKey];
@@ -1500,6 +1513,11 @@ export function rollOutcome(params: {
   if (params.tick <= 2) {
     pRisk = Math.max(0, pRisk - 0.10);
     pDiscovery += 0.10;
+  }
+
+  if (params.discoveryBias) {
+    pDiscovery += params.discoveryBias;
+    pNothing = Math.max(0, pNothing - params.discoveryBias / 2);
   }
 
   const total = pDiscovery + pQuiet + pRisk + pNothing;
@@ -1558,6 +1576,12 @@ export function resolveChoice(choice: {
   fatigue: number;
   /** Which choice the player picked — needed to grade analytic ('solve') puzzles. */
   choiceId?: string;
+  /**
+   * Wander spec B: roll a check with the real character. When given, choices
+   * resolve on the roll instead of on flat odds, and surprise (outcome.awareness)
+   * decides whether you can slip away.
+   */
+  roll?: (skill: string, dc: number) => { success: boolean; text: string };
 }): {
   narrativeResult: string;
   rewards: Array<{ kind: string; name: string; quantity: number }>;
@@ -1566,8 +1590,13 @@ export function resolveChoice(choice: {
   markerToCreate?: { type: string; title: string; blurb: string; tags: string[] };
   combatTriggered: boolean;
   combatSeed?: any;
+  /** Rolls made, in plain text, for the result card. */
+  rolls?: string[];
 } {
-  const { intentTag, outcome, characterLevel, fatigue, choiceId } = choice;
+  const { intentTag, outcome, characterLevel, fatigue, choiceId, roll } = choice;
+  if (roll && outcome.type !== 'none' && intentTag !== 'solve') {
+    return resolveChoiceWithChecks({ ...choice, roll });
+  }
   let narrativeResult = '';
   let rewards: Array<{ kind: string; name: string; quantity: number }> = [];
   let fatigueChange = 0;
@@ -1700,6 +1729,151 @@ export function resolveChoice(choice: {
     combatTriggered,
     combatSeed,
   };
+}
+
+/** Default check for an "investigate" choice that doesn't name one. */
+export function defaultInvestigateCheck(outcome: CuratedOutcome): { skill: string; dc: number } {
+  if (outcome.type === 'risk') return { skill: 'perception', dc: 13 };
+  if (outcome.type === 'quiet') return { skill: 'survival', dc: 10 };
+  return { skill: 'investigation', dc: 10 };
+}
+
+/**
+ * Wander spec B: the same choices, resolved with the character's real checks.
+ *  - investigate: a skill check; success earns the rewards and the marker, a
+ *    failure on a risk outcome means the threat notices you;
+ *  - avoid: on a risk outcome, depends on who noticed whom: unseen threats are
+ *    simply bypassed, spotted ones need a Stealth check against their passive
+ *    Perception, and an ambushed party has to break away (Athletics);
+ *  - engage: a fight, with surprise in your favour if they never saw you.
+ */
+function resolveChoiceWithChecks(choice: {
+  intentTag: string;
+  outcome: CuratedOutcome;
+  characterLevel: number;
+  fatigue: number;
+  choiceId?: string;
+  roll: (skill: string, dc: number) => { success: boolean; text: string };
+}) {
+  const { intentTag, outcome, choiceId, roll } = choice;
+  const picked = outcome.choices.find((c) => c.id === choiceId);
+  const rolls: string[] = [];
+  let narrativeResult = '';
+  let rewards: Array<{ kind: string; name: string; quantity: number }> = [];
+  let fatigueChange = 0;
+  let dangerChange = 0;
+  let markerToCreate: { type: string; title: string; blurb: string; tags: string[] } | undefined;
+  let combatTriggered = false;
+  let combatSeed: any = undefined;
+  const threat = outcome.type === 'risk' && outcome.combatSeed ? outcome.combatSeed : null;
+  const marker = () => outcome.markerType ? {
+    type: outcome.markerType, title: outcome.title, blurb: outcome.reveal,
+    tags: [outcome.type, intentTag, outcome.markerType],
+  } : undefined;
+
+  switch (intentTag) {
+    case 'investigate': {
+      const chk = picked?.check ?? defaultInvestigateCheck(outcome);
+      const r = roll(chk.skill, chk.dc);
+      rolls.push(r.text);
+      fatigueChange = 1;
+      if (r.success) {
+        narrativeResult = outcome.detail ? outcome.detail : `You examine ${outcome.title} more closely. ${outcome.reveal}`;
+        if (outcome.rewards) rewards = [...outcome.rewards];
+        markerToCreate = marker();
+        dangerChange = -2;
+      } else if (threat) {
+        narrativeResult = `You edge closer for a better look, and something sees you first.`;
+        combatTriggered = true;
+        combatSeed = { ...threat };
+        dangerChange = 5;
+      } else {
+        narrativeResult = `You look around carefully but find nothing more of use here.`;
+      }
+      break;
+    }
+    case 'avoid': {
+      if (threat) {
+        if (outcome.awareness === 'unseen') {
+          narrativeResult = `They never knew you were there. You leave them behind without a sound.`;
+          dangerChange = -5;
+        } else if (outcome.awareness === 'ambushed') {
+          const r = roll('athletics', 12);
+          rolls.push(r.text);
+          if (r.success) {
+            narrativeResult = `You shove past and break into a run. By the time they give chase, you are gone.`;
+            fatigueChange = 1;
+          } else {
+            narrativeResult = `They are on you before you can get clear. You'll have to fight.`;
+            combatTriggered = true;
+            combatSeed = { ...threat, surprise: 'party_surprised' };
+          }
+        } else {
+          const dc = outcome.threatPassive ?? 12;
+          const r = roll('stealth', dc);
+          rolls.push(r.text.replace(`vs DC ${dc}`, `vs their passive Perception ${dc}`));
+          if (r.success) {
+            narrativeResult = `You ease back the way you came and circle wide. They never look your way.`;
+            dangerChange = -5;
+          } else {
+            narrativeResult = `A branch snaps under your foot. Heads turn. Too late to slip away now.`;
+            combatTriggered = true;
+            combatSeed = { ...threat };
+          }
+        }
+      } else {
+        narrativeResult = `You choose caution over curiosity. ${outcome.title} fades behind you as you continue onward, leaving it undisturbed.`;
+        dangerChange = -5;
+      }
+      break;
+    }
+    case 'engage': {
+      if (threat) {
+        narrativeResult = outcome.awareness === 'unseen'
+          ? `They never saw you coming. You strike first, with surprise on your side. ${outcome.detail || ''}`.trim()
+          : `You confront the danger head-on. ${outcome.detail || outcome.reveal}`;
+        combatTriggered = true;
+        combatSeed = { ...threat, surprise: outcome.awareness === 'unseen' ? 'enemy_surprised' : outcome.awareness === 'ambushed' ? 'party_surprised' : 'none' };
+        fatigueChange = 2;
+        dangerChange = 10;
+      } else {
+        narrativeResult = `You step forward boldly. ${outcome.detail || outcome.reveal}`;
+        if (outcome.rewards) rewards = [...outcome.rewards];
+        fatigueChange = 1;
+      }
+      markerToCreate = marker();
+      break;
+    }
+    case 'retreat': {
+      if (threat && outcome.awareness === 'ambushed') {
+        const r = roll('athletics', 12);
+        rolls.push(r.text);
+        if (!r.success) {
+          narrativeResult = `You turn to run, but they cut you off. You'll have to fight.`;
+          combatTriggered = true;
+          combatSeed = { ...threat, surprise: 'party_surprised' };
+          break;
+        }
+      }
+      narrativeResult = `You pull back from ${outcome.title} and find a safer path forward.`;
+      fatigueChange = 1;
+      dangerChange = -10;
+      break;
+    }
+    case 'camp': {
+      narrativeResult = `You settle in near ${outcome.title} for a short rest.`;
+      fatigueChange = -3;
+      dangerChange = -5;
+      if (outcome.rewards && outcome.rewards.length > 0) rewards = [outcome.rewards[0]];
+      break;
+    }
+    default: {
+      narrativeResult = outcome.detail || outcome.reveal;
+      fatigueChange = 1;
+    }
+  }
+
+  return { narrativeResult, rewards, fatigueChange, dangerChange, markerToCreate, combatTriggered, combatSeed, rolls };
 }
 
 export function generateWanderSummary(

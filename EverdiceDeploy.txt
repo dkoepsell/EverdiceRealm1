@@ -123,6 +123,19 @@
        Learning-path one-shots run with every flag on.
     5. Compare: npm run report:engagement (turn latency, prompt size, drop-off) before/after.
 
+  WANDER THREADS (wander-threads-spec.md, branch wander-threads):
+    1. Run migration 005 (creates wander_threads; additive, idempotent):
+       ssh root@204.168.167.44 'cd /root/EverdiceRealm1 && set -a && source .env && set +a && psql "$DATABASE_URL" -f scripts/migrations/005-wander-threads.sql'
+       Order is NOT critical this time: nothing outside Wander reads the new table,
+       and Wander's thread/rumor reads fail soft (one warning in the log), so the
+       new build against an un-migrated DB plays like the old Wander plus checks,
+       travel rules, landmarks and recurring characters.
+    2. New flags, all default ON: wanderChecks wanderThreads wanderTravel
+       wanderLandmarks wanderRumors wanderRecurring. Pull any back per campaign with
+       PATCH /api/campaigns/:id/engagement-flags {"wanderTravel":false}, or for
+       everyone by flipping the default in shared/engagementFlags.ts.
+    3. Tests: npx tsx tests/wanderThreads.test.ts
+
   Engagement report (Phase 0, read-only; where players quit):
     ssh root@204.168.167.44 'cd /root/EverdiceRealm1 && set -a && source .env && set +a && npm run report:engagement'
 
