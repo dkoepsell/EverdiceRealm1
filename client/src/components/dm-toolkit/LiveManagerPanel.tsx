@@ -89,6 +89,7 @@ import {
   EyeOff,
   Activity,
   Gauge,
+  Layers,
 } from "lucide-react";
 import { ProceduralExplorationMap } from "@/components/dungeon/ProceduralExplorationMap";
 
@@ -777,6 +778,8 @@ function ArcSignalsPanel({ campaignId }: { campaignId: number | null }) {
 }
 
 export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPanelProps) {
+  // The table shows either what's in the scene or the exploration map (one map, not two).
+  const [tableView, setTableView] = useState<"scene" | "map">("scene");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -1383,10 +1386,49 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      {/* DM Control Bar - Collapsed to bottom by default */}
+    <div className="space-y-3 pb-6" data-testid="live-session">
+            {/* Session controls: at the top, where people look for them */}
+      <div className="rounded-xl border-2 border-amber-500/40 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 overflow-hidden shadow-lg shadow-amber-500/5">
+        <div className="flex items-center gap-2.5 px-4 py-2 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-transparent border-b border-amber-500/20">
+          <div className="flex items-center justify-center w-6 h-6 rounded-md bg-amber-500/20 border border-amber-500/30">
+            <Shield className="h-3.5 w-3.5 text-amber-400" />
+          </div>
+          <span className="text-sm font-bold tracking-wide text-amber-300">Session controls</span>
+          {isPaused && (
+            <Badge variant="outline" className="h-5 px-2 text-[11px] font-semibold bg-red-500/20 text-red-400 border-red-500/40 animate-pulse">
+              Session Paused
+            </Badge>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-[11px] font-medium text-amber-400/60 uppercase tracking-wider">
+              {sessionMode}
+            </span>
+            <span className="text-amber-500/30">|</span>
+            <span className="text-[11px] font-medium text-amber-400/60 uppercase tracking-wider">
+              {narrativeMode === 'manual' ? 'You narrate' : 'AI helps narrate'}
+            </span>
+          </div>
+        </div>
+        <DMControlBar
+          campaignId={selectedCampaignId}
+          isPaused={isPaused}
+          onPauseToggle={handlePauseToggle}
+          sessionMode={sessionMode}
+          onModeChange={handleModeChange}
+          narrativeMode={narrativeMode}
+          onNarrativeModeChange={handleNarrativeModeChange}
+          onUndo={handleUndo}
+          canUndo={undoStack.length > 0}
+          onCheckpoint={handleCheckpoint}
+          onRestoreCheckpoint={handleRestoreCheckpoint}
+          checkpoints={checkpoints}
+          onInjectNarration={handleInjectNarration}
+          onForceStateChange={handleForceStateChange}
+        />
+      </div>
 
-      {/* Discord Channel Link */}
-      <div className="mb-2 flex items-center gap-2 px-2 py-1.5 rounded-lg bg-[#5865F2]/10 border border-[#5865F2]/20">
+            {/* Discord Channel Link */}
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#5865F2]/10 border border-[#5865F2]/20">
         <SiDiscord className="h-4 w-4 text-[#5865F2]" />
         {campaign?.discordChannelId && campaign?.discordGuildId ? (
           <a
@@ -1412,10 +1454,10 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
         </span>
       </div>
 
-      {/* Onboarding Hint - Collapsible, dismissable, first-time only */}
+            {/* Onboarding Hint - Collapsible, dismissable, first-time only */}
       {showOnboarding && (
         onboardingCollapsed ? (
-          <div className="mb-2 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
@@ -1435,7 +1477,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
             </Button>
           </div>
         ) : (
-          <div className="mb-3 p-3 rounded-lg bg-muted/30 border border-muted-foreground/10 relative">
+          <div className="p-3 rounded-lg bg-muted/30 border border-muted-foreground/10 relative">
             <div className="absolute top-2 right-2 flex gap-1">
               <Button
                 variant="ghost"
@@ -1456,23 +1498,27 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                 ×
               </Button>
             </div>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground pr-16">
-              <span className="flex items-center gap-1"><span className="text-amber-500 font-bold">1</span> Drag → Scene</span>
-              <span className="flex items-center gap-1"><span className="text-purple-500 font-bold">2</span> Check Moves</span>
-              <span className="flex items-center gap-1"><span className="text-amber-500 font-bold">3</span> Send</span>
-            </div>
+            <ol className="grid gap-2 sm:grid-cols-3 text-xs text-muted-foreground pr-16">
+              <li className="flex gap-2"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 font-bold">1</span><span><b className="text-foreground">Set the scene.</b> Drag people, places and threats from Your cast onto the table, or tell the players what they see in Narrate.</span></li>
+              <li className="flex gap-2"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-purple-500/20 text-purple-300 font-bold">2</span><span><b className="text-foreground">Answer the players.</b> What they try shows up under Actions. Approve it, change it, or say no.</span></li>
+              <li className="flex gap-2"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 font-bold">3</span><span><b className="text-foreground">Roll when it's uncertain.</b> Ask for checks and run fights under Dice. Pause any time from Session controls.</span></li>
+            </ol>
           </div>
         )
       )}
 
-      <div className="flex h-[calc(100vh-260px)] gap-3 pb-8">
-        {/* Cast & World Panel - The DM's entity library */}
+
+      {/* Three columns that grow with the page (no fixed-height box for content to spill out of):
+          your cast | the party and the table | what needs your attention */}
+      <div className="grid gap-4 items-start lg:grid-cols-[auto_minmax(0,1fr)] xl:grid-cols-[auto_minmax(0,1fr)_380px]">
+        <div className="xl:sticky xl:top-4">
+                {/* Cast & World Panel - The DM's entity library */}
         <div
           className={`transition-all duration-300 ${
-            sidebarOpen ? "w-72" : "w-12"
-          } flex-shrink-0`}
+            sidebarOpen ? "lg:w-72" : "lg:w-12"
+          }`}
         >
-          <div className={`h-full rounded-xl overflow-hidden ${sidebarOpen ? 'border-2 border-blue-500/30 bg-slate-900/80' : 'border border-dashed border-slate-600 bg-muted/20'}`}>
+          <div className={`rounded-xl overflow-hidden ${sidebarOpen ? 'border-2 border-blue-500/30 bg-slate-900/80' : 'border border-dashed border-slate-600 bg-muted/20'}`}>
             {/* Header */}
             <div
               className={`flex items-center gap-2 cursor-pointer select-none ${
@@ -1488,8 +1534,8 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                     <Package className="h-3.5 w-3.5 text-blue-400" />
                   </div>
                   <div className="flex-1">
-                    <span className="text-sm font-bold tracking-wide text-blue-300 uppercase">Cast & World</span>
-                    <span className="text-[10px] text-blue-400/50 ml-2">Drag to table</span>
+                    <span className="text-sm font-bold tracking-wide text-blue-300">Your cast</span>
+                    <span className="block text-[11px] text-blue-400/60">Drag onto the table to bring into the scene</span>
                   </div>
                   <ChevronLeft className="h-4 w-4 text-blue-400/60" />
                 </>
@@ -1505,9 +1551,9 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
             </div>
             
             {sidebarOpen && (
-              <div className="p-2 h-[calc(100%-46px)]">
+              <div className="p-2">
                 <Tabs value={sidebarTab} onValueChange={setSidebarTab}>
-                  <TabsList className="grid w-full grid-cols-4 h-8 mb-2 bg-slate-800/80">
+                  <TabsList className="grid w-full grid-cols-3 h-8 mb-2 bg-slate-800/80">
                     <TabsTrigger value="npcs" className="text-[11px] p-1 gap-1 data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300" title="People & Characters">
                       <Users className="h-3 w-3" />
                       <span className="hidden sm:inline">People</span>
@@ -1520,13 +1566,10 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                       <Skull className="h-3 w-3" />
                       <span className="hidden sm:inline">Threats</span>
                     </TabsTrigger>
-                    <TabsTrigger value="map" className="text-[11px] p-1 gap-1 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-300" title="Exploration Map">
-                      <Map className="h-3 w-3" />
-                      <span className="hidden sm:inline">Map</span>
-                    </TabsTrigger>
+                    
                   </TabsList>
 
-                  <ScrollArea className="h-[calc(100%-50px)] mt-2">
+                  <div className="max-h-[min(65vh,600px)] overflow-y-auto mt-2">
                     <div className="space-y-1.5 pr-2">
                       {/* Party Characters - always show on People tab */}
                       {sidebarTab === "npcs" && participants && participants.filter((p: any) => p.character).length > 0 && (
@@ -1634,94 +1677,50 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                         </div>
                       )}
                       
-                      {/* Map Tab Content */}
-                      {sidebarTab === "map" && selectedCampaignId && (
-                        <div className="space-y-2">
-                          <div className="text-[11px] font-bold text-amber-400/80 flex items-center gap-1.5 uppercase tracking-wider">
-                            <Map className="h-3 w-3" /> Live Exploration Map
-                          </div>
-                          <div className="h-48 border rounded-lg border-slate-700 overflow-hidden">
-                            <ProceduralExplorationMap 
-                              campaignId={selectedCampaignId} 
-                              interactive={true}
-                              compact={true}
-                            />
-                          </div>
-                          <p className="text-[10px] text-muted-foreground/60 text-center">
-                            Click adjacent hexes to move party
-                          </p>
-                        </div>
-                      )}
+                      
                     </div>
-                  </ScrollArea>
+                  </div>
                 </Tabs>
               </div>
             )}
           </div>
         </div>
 
-        {/* Main Content Area - Current Scene is dominant */}
-        <div className="flex-1 flex flex-col lg:flex-row gap-3 min-h-0 overflow-hidden">
-          {/* Left Reference Column - Peripheral stats (muted, compact) */}
-          <div className="lg:w-52 flex-shrink-0 space-y-2 overflow-y-auto max-h-full">
-            {/* Compact Party Stats - muted colors */}
-            <Card className="border-muted bg-muted/20">
-              <CardHeader className="p-2">
-                <CardTitle className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Heart className="h-3 w-3" />
-                  Party
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="ml-auto h-5 w-5 p-0"
-                    onClick={() => refetchSession()}
-                  >
-                    <RefreshCw className="h-2.5 w-2.5" />
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-2 pt-0">
-                <ScrollArea className="h-[120px]">
-                  {participants && participants.filter((p: any) => p.character).length > 0 ? (
-                    <div className="space-y-1">
-                      {participants.filter((p: any) => p.character).map((p: any) => (
-                        <div
-                          key={p.id}
-                          className="flex items-center gap-1.5 p-1 rounded text-xs"
-                        >
-                          <div
-                            className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${
-                              presence.find((pr) => pr.userId === p.userId)?.isOnline
-                                ? "bg-green-500"
-                                : "bg-gray-400"
-                            }`}
-                          />
-                          <span className="truncate flex-1 text-muted-foreground">{p.character.name}</span>
-                          <span className="text-[10px] text-muted-foreground/60">{p.character.hitPoints}/{p.character.maxHitPoints}</span>
+        </div>
+
+        <div className="min-w-0 space-y-3">
+            {/* The party, across the top of the table: who's here and how they're doing */}
+            <div className="flex flex-wrap items-stretch gap-2" data-testid="party-strip">
+              {participants && participants.filter((p: any) => p.character).length > 0 ? (
+                participants.filter((p: any) => p.character).map((p: any) => {
+                  const c = p.character;
+                  const online = presence.find((pr) => pr.userId === p.userId)?.isOnline;
+                  const pct = Math.max(0, Math.min(100, ((c.hitPoints ?? 0) / Math.max(1, c.maxHitPoints ?? 1)) * 100));
+                  return (
+                    <div key={p.id} className="flex-1 min-w-[180px] max-w-[280px] rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`h-2 w-2 rounded-full shrink-0 ${online ? "bg-green-500" : "bg-slate-500"}`} title={online ? "Online" : "Offline"} />
+                        <span className="text-sm font-medium text-slate-100 truncate" title={c.name}>{c.name}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 truncate">Level {c.level ?? 1} {c.race ? `${c.race} ` : ""}{c.class ?? ""}</p>
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <div className="h-1.5 flex-1 rounded bg-slate-800 overflow-hidden">
+                          <div className={`h-full ${pct <= 25 ? "bg-red-500" : pct <= 50 ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${pct}%` }} />
                         </div>
-                      ))}
+                        <span className="text-[11px] text-slate-300 tabular-nums">{c.hitPoints}/{c.maxHitPoints} HP</span>
+                      </div>
                     </div>
-                  ) : (
-                    <p className="text-[10px] text-muted-foreground text-center py-2">
-                      No party
-                    </p>
-                  )}
-                </ScrollArea>
-              </CardContent>
-            </Card>
+                  );
+                })
+              ) : (
+                <p className="text-sm text-muted-foreground">No players have joined yet. Invite players from the campaign's page, then they'll appear here.</p>
+              )}
+              <Button variant="ghost" size="sm" className="h-auto self-center text-xs text-muted-foreground" onClick={() => refetchSession()} title="Refresh the party">
+                <RefreshCw className="h-3 w-3 mr-1" />Refresh
+              </Button>
+            </div>
 
-            {/* Exploration Map - Compact DM view */}
-            {selectedCampaignId && (
-              <div className="rounded overflow-hidden bg-slate-900/50 border border-muted">
-                <ProceduralExplorationMap
-                  campaignId={selectedCampaignId}
-                  interactive={false}
-                  compact={true}
-                />
-              </div>
-            )}
-
-            {/* Initiative - Collapsed until combat, muted styling */}
+                        {/* Initiative - Collapsed until combat, muted styling */}
             {initiativeOrder.length > 0 && (
               <Card className="border-muted bg-muted/20">
                 <CardHeader className="p-2">
@@ -1817,19 +1816,12 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                 </CardContent>
               </Card>
             )}
-          </div>
 
-          {/* CENTER: World Tension First, Table Below */}
-          <div className="flex-1 flex flex-col min-w-0">
-            {/* World Pressure Overview - replaces Session Focus */}
-            <WorldPressureOverview campaignId={selectedCampaignId} />
-            <DoNothingForecast campaignId={selectedCampaignId} />
-
-            {/* Scene Stakes Header */}
+                        {/* Scene Stakes Header */}
             <div className="mb-2 flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1.5">
                 <BookOpen className="h-4 w-4 text-amber-500" />
-                <span className="text-sm font-semibold text-amber-400">Your Table</span>
+                <span className="text-base font-semibold text-amber-400">The table</span>
               </div>
               {narrativeMode === "manual" && (
                 <Badge variant="outline" className="text-[10px] bg-amber-500/20 text-amber-400 border-amber-500/30">
@@ -1854,8 +1846,9 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
               )}
             </div>
 
-            {/* The VTT Table - Map as background, drag-and-drop surface */}
-            <Card className="flex-1 ring-2 ring-amber-500/50 shadow-xl relative overflow-hidden">
+
+                        {/* The VTT Table - Map as background, drag-and-drop surface */}
+            <Card className="ring-1 ring-amber-500/40 shadow-lg relative overflow-hidden">
               {/* Dramatic Roll Display Overlay */}
               {lastVisibleRoll && (
                 <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -1896,22 +1889,26 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                 </div>
               )}
 
-              {/* Map Background Layer */}
-              <div className="absolute inset-0 z-0 opacity-30 pointer-events-none">
-                {selectedCampaignId && (
-                  <ProceduralExplorationMap
-                    campaignId={selectedCampaignId}
-                    interactive={false}
-                    compact={true}
-                  />
-                )}
+              {/* Scene / map switch: the map is shown here, once, instead of faded behind the scene and again in a side column */}
+              <div className="flex items-center gap-1 px-3 pt-3">
+                <Button size="sm" variant={tableView === "scene" ? "default" : "ghost"} className="h-7 text-xs" onClick={() => setTableView("scene")} data-testid="table-view-scene">
+                  <Layers className="h-3 w-3 mr-1" />In the scene{sessionArtifacts.length ? ` (${sessionArtifacts.length})` : ""}
+                </Button>
+                <Button size="sm" variant={tableView === "map" ? "default" : "ghost"} className="h-7 text-xs" onClick={() => setTableView("map")} disabled={!selectedCampaignId} data-testid="table-view-map">
+                  <Map className="h-3 w-3 mr-1" />Map
+                </Button>
               </div>
 
               <CardContent className="p-3 flex-1 relative z-10">
+                {tableView === "map" && selectedCampaignId ? (
+                  <div className="h-[420px] rounded-lg border border-slate-700 overflow-hidden" data-testid="table-map">
+                    <ProceduralExplorationMap campaignId={selectedCampaignId} interactive={true} compact={false} />
+                  </div>
+                ) : (
                 <DroppableZone id="session-dropzone" isOver={!!activeId}>
-                  <ScrollArea className="h-[280px]">
+                  <ScrollArea className="max-h-[420px]">
                     {sessionArtifacts.length > 0 ? (
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
                         {sessionArtifacts.map((artifact) => (
                           <div
                             key={artifact.id}
@@ -1934,34 +1931,44 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                         <div className="p-4 rounded-full bg-amber-500/10 backdrop-blur-sm mb-4">
                           <Upload className="h-8 w-8 text-amber-500/70" />
                         </div>
-                        <p className="text-base font-medium mb-1">Your table awaits</p>
+                        <p className="text-base font-medium mb-1">Nothing in the scene yet</p>
                         <p className="text-sm text-center max-w-[250px]">
-                          Drag encounters, NPCs, items and locations from the drawer to bring them into play
+                          Drag people, places or threats from Your cast (on the left) onto this area to bring them into the scene. Players see what you bring in.
                         </p>
                       </div>
                     )}
                   </ScrollArea>
                 </DroppableZone>
+                )}
               </CardContent>
             </Card>
-          </div>
 
-          {/* Right Column: Fixed Sidebar with Tabs - Extends to footer */}
-          <div className="lg:w-72 flex-shrink-0 h-full">
-            <Card className="h-full bg-slate-900/50 border-slate-700 overflow-hidden">
+            {/* World pressure and clocks, below the table */}
+                        <WorldPressureOverview campaignId={selectedCampaignId} />
+            <DoNothingForecast campaignId={selectedCampaignId} />
+        </div>
+
+        <div className="lg:col-span-2 xl:col-span-1 xl:sticky xl:top-4">
+                  {/* Right column: what needs your attention, sized to the window and sticky */}
+          <div className="min-w-0">
+            <Card data-testid="session-side-card" className="max-h-[85vh] xl:max-h-none xl:h-[calc(100vh-7rem)] xl:min-h-[560px] bg-slate-900/50 border-slate-700 overflow-hidden flex flex-col">
               {/* Tabbed Header */}
-              <Tabs defaultValue="queue" className="h-full flex flex-col [&>[data-state=active]]:flex-1 [&>[data-state=active]]:flex [&>[data-state=active]]:flex-col">
-                <TabsList className="grid w-full grid-cols-4 h-9 bg-slate-800 rounded-b-none">
-                  <TabsTrigger value="queue" className="text-xs gap-1 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
+              <Tabs defaultValue="queue" className="flex-1 min-h-0 flex flex-col [&>[data-state=active]]:flex-1 [&>[data-state=active]]:flex [&>[data-state=active]]:flex-col">
+                <TabsList className="grid w-full grid-cols-4 h-auto bg-slate-800 rounded-b-none p-1">
+                  <TabsTrigger value="queue" className="text-xs gap-1 py-1.5 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
                     <Flame className="h-3 w-3" />
-                    Ripples
+                    Actions
                     {(pendingEvents.length > 0 || (liveSession?.choices?.length || 0) > 0) && (
                       <Badge variant="outline" className="h-4 px-1 text-[10px] bg-amber-500/30 border-amber-500/50">
                         {pendingEvents.length || liveSession?.choices?.length || 0}
                       </Badge>
                     )}
                   </TabsTrigger>
-                  <TabsTrigger value="dice" className="text-xs gap-1 data-[state=active]:bg-red-500/20 data-[state=active]:text-red-400">
+                  <TabsTrigger value="say" className="text-xs gap-1 py-1.5 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
+                    <Send className="h-3 w-3" />
+                    Narrate
+                  </TabsTrigger>
+                  <TabsTrigger value="dice" className="text-xs gap-1 py-1.5 data-[state=active]:bg-red-500/20 data-[state=active]:text-red-400">
                     <Dice6 className="h-3 w-3" />
                     Dice
                     {isInCombat && (
@@ -1970,19 +1977,16 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
                       </Badge>
                     )}
                   </TabsTrigger>
-                  <TabsTrigger value="whisper" className="text-xs gap-1 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-400">
+                  <TabsTrigger value="whisper" className="text-xs gap-1 py-1.5 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-400">
                     <MessageSquare className="h-3 w-3" />
-                    AI
+                    Ideas
                     {aiWhispers.length > 0 && (
                       <Badge variant="outline" className="h-4 px-1 text-[10px] bg-purple-500/30 border-purple-500/50">
                         {aiWhispers.length}
                       </Badge>
                     )}
                   </TabsTrigger>
-                  <TabsTrigger value="say" className="text-xs gap-1 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
-                    <Send className="h-3 w-3" />
-                    Say
-                  </TabsTrigger>
+                  
                 </TabsList>
 
                 {/* EMERGING CONSEQUENCES Tab */}
@@ -2136,47 +2140,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
           </div>
         </div>
       </div>
-
-      {/* DM Command Center - Always visible at bottom */}
-      <div className="mt-3 rounded-xl border-2 border-amber-500/40 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 overflow-hidden shadow-lg shadow-amber-500/5">
-        <div className="flex items-center gap-2.5 px-4 py-2 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-transparent border-b border-amber-500/20">
-          <div className="flex items-center justify-center w-6 h-6 rounded-md bg-amber-500/20 border border-amber-500/30">
-            <Shield className="h-3.5 w-3.5 text-amber-400" />
-          </div>
-          <span className="text-sm font-bold tracking-wide text-amber-300 uppercase">Command Center</span>
-          {isPaused && (
-            <Badge variant="outline" className="h-5 px-2 text-[11px] font-semibold bg-red-500/20 text-red-400 border-red-500/40 animate-pulse">
-              Session Paused
-            </Badge>
-          )}
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-[11px] font-medium text-amber-400/60 uppercase tracking-wider">
-              {sessionMode}
-            </span>
-            <span className="text-amber-500/30">|</span>
-            <span className="text-[11px] font-medium text-amber-400/60 uppercase tracking-wider">
-              {narrativeMode === 'manual' ? 'DM Control' : 'AI Assist'}
-            </span>
-          </div>
-        </div>
-        <DMControlBar
-          campaignId={selectedCampaignId}
-          isPaused={isPaused}
-          onPauseToggle={handlePauseToggle}
-          sessionMode={sessionMode}
-          onModeChange={handleModeChange}
-          narrativeMode={narrativeMode}
-          onNarrativeModeChange={handleNarrativeModeChange}
-          onUndo={handleUndo}
-          canUndo={undoStack.length > 0}
-          onCheckpoint={handleCheckpoint}
-          onRestoreCheckpoint={handleRestoreCheckpoint}
-          checkpoints={checkpoints}
-          onInjectNarration={handleInjectNarration}
-          onForceStateChange={handleForceStateChange}
-        />
-      </div>
-
+    </div>
       <DragOverlay>
           {activeId ? (
             <div className="p-2 rounded-lg border bg-card shadow-lg">

@@ -824,19 +824,16 @@ export default function DMToolkit() {
           />
           
           <Tabs defaultValue="control-panel" className="w-full">
-            <TabsList className="mb-4">
-              <TabsTrigger value="control-panel">Control Panel</TabsTrigger>
+            <TabsList className="mb-4 max-w-full overflow-x-auto justify-start">
+              <TabsTrigger value="control-panel">Run the session</TabsTrigger>
               <TabsTrigger value="story-tools">Story & Content</TabsTrigger>
               <TabsTrigger value="world-events">World Events</TabsTrigger>
             </TabsList>
-            {/* The live panel is a fixed-height two-column layout that scrolls
-                internally, so it needs a DEFINITE height to lay out against.
-                Without one its inner `flex-1`/`h-full`/`calc(100%-36px)` chain
-                resolved to auto, the active tab body got `flex-basis: 0` with no
-                free space to grow into, and every tab in the right sidebar
-                collapsed to zero height — the triggers rendered, clicking them
-                switched tabs, and nothing appeared. */}
-            <TabsContent value="control-panel" className="h-[calc(100vh-16rem)] min-h-[32rem] data-[state=active]:flex data-[state=active]:flex-col">
+            {/* The live panel grows with the page. Its right column gives itself a
+                definite height (it needs one for its tabs to lay out; see
+                LiveManagerPanel), so this wrapper no longer has to, and nothing
+                spills over the footer. */}
+            <TabsContent value="control-panel">
               <LiveManagerPanel selectedCampaignId={selectedCampaignId} />
             </TabsContent>
             <TabsContent value="story-tools">
