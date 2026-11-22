@@ -2747,6 +2747,23 @@ export const wanderThreads = pgTable("wander_threads", {
   index("idx_wander_threads_campaign_user").on(t.campaignId, t.userId),
 ]);
 
+// The shared realm (engagement 2): signs, cairns and finish-flags that every
+// player sees on the Wander map. Created by scripts/migrations/006-realm-marks.sql.
+export const realmMarks = pgTable("realm_marks", {
+  id: serial("id").primaryKey(),
+  hexQ: integer("hex_q").notNull(),
+  hexR: integer("hex_r").notNull(),
+  kind: text("kind").notNull(), // sign | fallen | cleared
+  text: text("text").notNull(),
+  characterName: text("character_name").notNull(),
+  userId: integer("user_id").notNull(),
+  noddedBy: jsonb("nodded_by").default([]),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
+}, (t) => [
+  index("idx_realm_marks_hex").on(t.hexQ, t.hexR),
+]);
+export type RealmMarkRow = typeof realmMarks.$inferSelect;
+
 export type WanderThread = typeof wanderThreads.$inferSelect;
 export type InsertWanderThread = typeof wanderThreads.$inferInsert;
 

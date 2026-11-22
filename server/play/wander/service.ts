@@ -25,18 +25,22 @@ import {
   type Pace, type TravelActivity, type TravelState,
 } from "@shared/wander/travel";
 import { getAbilityModifier } from "@shared/rules/xp";
+import { rechargeFeatures, hitDiceAfterLongRest, spendHitDice } from "@shared/rules/rests";
+import { parseFeatureState } from "@shared/rules/leveling";
+import { getClassDef } from "@shared/rules/classProgression";
 import {
   basePassivePerception, determineAwareness, hasDarkvision, rollSave, rollSkill, type WanderCharacter,
 } from "./checks";
 import {
-  MAX_OPEN_THREADS, MAX_RUMORS, START_CHANCE_ON_DISCOVERY, fill, journalEntry, makeRumor, onMove,
+  MAX_OPEN_THREADS, MAX_RUMORS, START_CHANCE_ON_DISCOVERY, fill, advanceClocks, journalEntry, makeRumor, onMove,
   pickTarget, rollName, signOutcomeFor, startableTemplates, type ThreadRow,
 } from "./threads";
-import { getTemplate, type ThreadTemplate } from "./threadTemplates";
+import { getTemplate, personalTemplateFor, type ThreadTemplate } from "./threadTemplates";
 import { RECURRING_CHANCE, getRecurring, pickRecurring, recurringOutcome } from "./recurring";
 import {
-  createThread, getThread, latestWanderCampaign, listThreads, postCompletionRumor, updateThread,
+  addRealmMark, createThread, getThread, latestWanderCampaign, listThreads, nodRealmMark, postCompletionRumor, realmMarksNear, updateThread,
 } from "./store";
+import { REALM_PHRASES } from "@shared/wander/realm";
 
 type Rng = () => number;
 
@@ -257,6 +261,28 @@ export async function wanderMove(userId: number, run: WanderRun, body: MoveBody,
     if (tm.outcome) outcome = tm.outcome as unknown as CuratedOutcome;
   }
 
+  // ── personal trail (backstory) ──────────────────────────────────────────────
+  if (!outcome && threadsOn(flags) && flags.backstoryTrails && newTick >= 2 && !runFlags.personalChecked) {
+    runFlags.personalChecked = true;
+    const all = await listThreads(userId, run.campaignId, ["active", "rumored", "resolved", "abandoned", "expired", "debunked"]);
+    const charId = (char as any).id as number | undefined;
+    if (charId && !all.some((t) => t.payload?.personal && t.payload?.characterId === charId)) {
+      const t = personalTemplateFor((char as any).background);
+      const target = pickTarget(t, toQ, toR, rng, [3, 5]);
+      const row = await createThread({
+        campaignId: run.campaignId, userId, templateId: t.id, beat: 0,
+        targetHexQ: target.q, targetHexR: target.r, status: "active",
+        payload: { characterId: charId, personal: true, movesSinceAdvance: 0 },
+      });
+      if (row) {
+        const o = signOutcomeFor(t, row, toQ, toR) as unknown as CuratedOutcome;
+        const bond = ((char as any).personality as any)?.bond as string | undefined;
+        outcome = { ...o, reveal: `${o.reveal} This one is personal${bond ? `. Your bond: "${bond}"` : ""}.` };
+        threads = [row, ...threads];
+      }
+    }
+  }
+
   // ── recurring characters ────────────────────────────────────────────────────
   if (!outcome && flags.wanderRecurring && newTick >= 2 && rng() < RECURRING_CHANCE) {
     const ledger = await loadLedger(run.campaignId, campaign as any);
@@ -343,6 +369,11 @@ export async function wanderMove(userId: number, run: WanderRun, body: MoveBody,
     runFlags.landmarks = Array.from(keys).slice(-300);
   }
 
+  // ── shared realm ────────────────────────────────────────────────────────────
+  const realmMarks = flags.sharedRealm
+    ? await realmMarksNear(toQ, toR, Math.max(1, travel ? sightRadius({ terrain: getTerrainForHex(toQ, toR), activity: travel.activity, weather: travel.weather, night: isNight(travel.hour) }) : 2), userId)
+    : [];
+
   // ── persist ─────────────────────────────────────────────────────────────────
   let collapse = false;
   if (travel) {
@@ -396,6 +427,7 @@ export async function wanderMove(userId: number, run: WanderRun, body: MoveBody,
     lost,
     landmarks,
     journal: threads.filter((t) => t.status === "active" || t.status === "rumored").map((t) => journalEntry(t, toQ, toR)),
+    realmMarks,
     collapse,
   };
 }
@@ -457,13 +489,19 @@ export async function wanderChoose(userId: number, run: WanderRun, choiceId: str
       state: "noted", lastVisitedAt: new Date().toISOString(),
     });
   }
-  await storage.updateWanderRun(run.id, { fatigue: Math.max(0, run.fatigue + resolution.fatigueChange) });
+  const fight = resolution.combatTriggered && ctx.flags.exploreCombat;
+  await storage.updateWanderRun(run.id, {
+    fatigue: Math.max(0, run.fatigue + resolution.fatigueChange),
+    ...(fight ? { flags: { ...runFlagsOf(run), pendingCombat: { seed: resolution.combatSeed, source: "wander" } } as any } : {}),
+  });
 
   return {
     resolution,
     markerCreated,
     combatTriggered: resolution.combatTriggered,
     combatSeed: resolution.combatTriggered ? resolution.combatSeed : undefined,
+    /** Engagement 2: the fight is real; POST /api/skirmish/start to begin it. */
+    skirmishReady: fight,
     travel,
   };
 }
@@ -489,6 +527,7 @@ async function chooseThread(userId: number, run: WanderRun, ctx: Ctx, outcome: C
   let combatSeed: any;
   let markerCreated = false;
   let payoff: { kind: string; dungeonId?: number; name?: string } | undefined;
+  let pendingCombat: Record<string, unknown> | undefined;
 
   const mark = async (q: number, r: number, title: string, blurb: string, linkedDungeonId?: number) => {
     await storage.createWanderMarker({
@@ -537,7 +576,13 @@ async function chooseThread(userId: number, run: WanderRun, ctx: Ctx, outcome: C
       const opt = t.climax.options.find((o) => o.id === choiceId);
       if (!opt) { narrativeResult = outcome.reveal; break; }
       let won = false;
-      if (opt.fight) {
+      if (opt.fight && ctx.flags.exploreCombat) {
+        // A real fight: the payoff comes only if you win it (completeThreadFight).
+        combatTriggered = true;
+        combatSeed = { ...t.combatSeed };
+        pendingCombat = { seed: combatSeed, threadId: row.id, source: "thread" };
+        narrativeResult = "It comes to a fight.";
+      } else if (opt.fight) {
         won = true;
         combatTriggered = true;
         combatSeed = { ...t.combatSeed };
@@ -568,19 +613,19 @@ async function chooseThread(userId: number, run: WanderRun, ctx: Ctx, outcome: C
     }
   }
 
+  const nextFlags = { ...runFlagsOf(run), ...(travel ? { travel } : {}), ...(pendingCombat ? { pendingCombat } : {}) };
   if (travel) {
     const collapsed = travel.exhaustion >= EXHAUSTION_RUN_ENDS;
     await saveExhaustion(run.characterId, exhaustionStart, collapsed ? COLLAPSE_RECOVERS_TO : travel.exhaustion);
-    await storage.updateWanderRun(run.id, { fatigue: Math.max(0, run.fatigue + fatigueChange), flags: { ...runFlagsOf(run), travel } as any });
-  } else {
-    await storage.updateWanderRun(run.id, { fatigue: Math.max(0, run.fatigue + fatigueChange) });
   }
+  await storage.updateWanderRun(run.id, { fatigue: Math.max(0, run.fatigue + fatigueChange), flags: nextFlags as any });
 
   return {
     resolution: { narrativeResult, rewards, fatigueChange, dangerChange: 0, combatTriggered, combatSeed, rolls, payoff },
     markerCreated,
     combatTriggered,
     combatSeed,
+    skirmishReady: !!pendingCombat,
     travel,
     journal: await journalFor(userId, run.campaignId, ctx.flags, run.currentHexQ, run.currentHexR),
     collapse: !!travel && travel.exhaustion >= EXHAUSTION_RUN_ENDS,
@@ -640,9 +685,18 @@ async function applyPayoff(userId: number, run: WanderRun, ctx: Ctx, t: ThreadTe
     linkedDungeonId: linkedDungeonId ?? null, createdAt: new Date().toISOString(),
   } as any);
   await updateThread(row.id, { status: "resolved", beat: 4, payload: row.payload ?? {} });
+  let text = fill(p.text, { name });
+  if (ctx.flags.sharedRealm && !t.personal) {
+    await addRealmMark({ q: row.targetHexQ, r: row.targetHexR, kind: "cleared", text: `Found ${p.kind === "delve" ? fill(p.dungeonName, { name }) : fill(t.climax.title, { name })}`, characterName: String((ctx.char as any).name ?? "An adventurer"), userId });
+  }
+  if (t.personal && row.payload?.characterId) {
+    // PHB: Inspiration is the DM's reward for playing your character's bonds and history.
+    await storage.updateCharacter(row.payload.characterId, { inspiration: true } as any);
+    text += " You gain Inspiration.";
+  }
   await postCompletionRumor(run.campaignId, fill(t.completionRumor, { bearing: bearing(0, 0, row.targetHexQ, row.targetHexR), name }));
 
-  return { text: fill(p.text, { name }), rewards, payoff };
+  return { text, rewards, payoff };
 }
 
 async function chooseRecurring(userId: number, run: WanderRun, ctx: Ctx, outcome: CuratedOutcome, choiceId: string, rng: Rng) {
@@ -711,6 +765,71 @@ async function chooseRecurring(userId: number, run: WanderRun, ctx: Ctx, outcome
   };
 }
 
+/** A thread climax fight was won (server/play/skirmish): apply the payoff. */
+export async function completeThreadFight(userId: number, run: WanderRun, threadId: number) {
+  const fresh = (await storage.getWanderRun(run.id)) ?? run;
+  const ctx = await loadContext(fresh);
+  const row = await getThread(threadId);
+  const t = row ? getTemplate(row.templateId) : undefined;
+  if (!row || !t || row.userId !== userId || row.status !== "active") return null;
+  const travel = ctx.flags.wanderTravel ? travelFor(fresh, (ctx.char as any).exhaustionLevel) : null;
+  const applied = await applyPayoff(userId, fresh, ctx, t, row, travel);
+  if (travel) await storage.updateWanderRun(fresh.id, { flags: { ...runFlagsOf(fresh), travel } as any });
+  return { text: applied.text, rewards: applied.rewards, ...applied.payoff };
+}
+
+// ── rests ─────────────────────────────────────────────────────────────────────
+
+/**
+ * A long rest's effect on the character (PHB): all hit points back, half your
+ * Hit Dice (minimum one), class features and spell slots recharged.
+ */
+async function longRestCharacter(characterId: number): Promise<string[]> {
+  const c: any = await storage.getCharacter(characterId);
+  if (!c) return [];
+  const notes: string[] = [];
+  const level = c.level || 1;
+  const scores = { strength: c.strength, dexterity: c.dexterity, constitution: c.constitution, intelligence: c.intelligence, wisdom: c.wisdom, charisma: c.charisma };
+  const features = rechargeFeatures(c.class, level, c.subclass, scores as any, parseFeatureState(c.features), "long");
+  const hitDice = hitDiceAfterLongRest(level, c.hitDiceRemaining);
+  if (c.hitPoints < c.maxHitPoints) notes.push(`You wake at full health (${c.maxHitPoints} HP).`);
+  await storage.updateCharacter(characterId, { hitPoints: c.maxHitPoints, features, hitDiceRemaining: hitDice } as any);
+  try { await storage.resetSpellSlots(characterId); } catch { /* no slots */ }
+  return notes;
+}
+
+/**
+ * Short rest (1 hour): spend Hit Dice to heal (each die heals its roll + Con
+ * modifier), and recharge short-rest features.
+ */
+export async function wanderShortRest(userId: number, run: WanderRun, hitDice: number) {
+  const { char, flags } = await loadContext(run);
+  const c: any = await storage.getCharacter(run.characterId);
+  if (!c) return { error: "Character not found" as const };
+  const level = c.level || 1;
+  const def = getClassDef(c.class);
+  const die = def?.hitDie ?? 8;
+  const remaining = typeof c.hitDiceRemaining === "number" ? c.hitDiceRemaining : level;
+  // Spending Hit Dice at full health would waste them.
+  const wanted = c.hitPoints >= c.maxHitPoints ? 0 : Math.max(0, Math.min(hitDice, remaining));
+  const spend = spendHitDice(die, c.constitution, remaining, wanted);
+  const healed = Math.min(c.maxHitPoints - c.hitPoints, spend.healed);
+  const scores = { strength: c.strength, dexterity: c.dexterity, constitution: c.constitution, intelligence: c.intelligence, wisdom: c.wisdom, charisma: c.charisma };
+  const features = rechargeFeatures(c.class, level, c.subclass, scores as any, parseFeatureState(c.features), "short");
+  await storage.updateCharacter(c.id, { hitPoints: c.hitPoints + healed, hitDiceRemaining: remaining - spend.spent, features } as any);
+  const notes: string[] = [];
+  if (spend.spent) notes.push(`You spend ${spend.spent} Hit ${spend.spent === 1 ? "Die" : "Dice"} (d${die}): ${spend.rolls.join(" + ")} ${spend.conMod >= 0 ? "+" : "−"} ${Math.abs(spend.conMod)} Con each = ${spend.healed}, regaining ${healed} HP. ${remaining - spend.spent} left.`);
+  else notes.push(c.hitPoints >= c.maxHitPoints ? "You're at full health, so you keep your Hit Dice." : remaining ? "You rest without spending Hit Dice." : "You have no Hit Dice left; a long rest restores half of them.");
+  notes.push("Short-rest features (Second Wind, Action Surge, Ki, and the like) recharge.");
+  let travel: TravelState | null = null;
+  if (flags.wanderTravel) {
+    travel = travelFor(run, (char as any).exhaustionLevel);
+    travel.hour += 1;
+    await storage.updateWanderRun(run.id, { flags: { ...runFlagsOf(run), travel } as any });
+  }
+  return { notes, travel, hp: c.hitPoints + healed, maxHp: c.maxHitPoints, hitDiceRemaining: remaining - spend.spent };
+}
+
 // ── camp ──────────────────────────────────────────────────────────────────────
 
 export async function wanderCamp(userId: number, run: WanderRun, rng: Rng = Math.random) {
@@ -732,12 +851,29 @@ export async function wanderCamp(userId: number, run: WanderRun, rng: Rng = Math
   const collapsed = result.state.exhaustion >= EXHAUSTION_RUN_ENDS;
   if (collapsed) result.notes.push("You don't wake up on your own. A passing patrol carries you back to town, where days of rest leave you at one level of exhaustion.");
   await saveExhaustion(run.characterId, before, collapsed ? COLLAPSE_RECOVERS_TO : result.state.exhaustion);
+  // The long rest itself: needs some food and drink, as the PHB's exhaustion rule does.
+  const fed = travel.food >= 1 || travel.water >= (travel.hot ? 1 : 0.5);
+  if (fed) result.notes.push(...(await longRestCharacter(run.characterId)));
+  else result.notes.push("Without food or water, the night's rest does you little good: no hit points, Hit Dice or features come back.");
+  // World clocks: a night passes for every open trail.
+  let news: string[] = [];
+  const cflags = resolveFlags(await storage.getCampaign(run.campaignId));
+  if (cflags.worldClocks && threadsOn(cflags)) {
+    const open = await listThreads(userId, run.campaignId);
+    const clocks = advanceClocks(open);
+    for (const p of clocks.patches) await updateThread(p.id, { status: p.status, payload: p.payload });
+    for (const n of clocks.news) await postCompletionRumor(run.campaignId, n.text);
+    news = clocks.news.map((n) => n.text);
+    if (news.length) result.notes.push(...news.map((n) => `News on the road: ${n}`));
+  }
   const updated = await storage.updateWanderRun(run.id, { fatigue: 0, flags: { ...runFlagsOf(run), travel: result.state } as any });
   return {
     run: updated,
     travel: result.state,
     notes: result.notes,
     rolls,
+    news,
+    journal: await journalFor(userId, run.campaignId, cflags, run.currentHexQ, run.currentHexR),
     collapse: result.state.exhaustion >= EXHAUSTION_RUN_ENDS,
   };
 }
@@ -755,7 +891,29 @@ export async function wanderJournal(userId: number, run: WanderRun) {
     travel: flags.wanderTravel ? travelFor(run, (char as any).exhaustionLevel) : null,
     landmarks: flags.wanderLandmarks ? landmarksFromKeys(runFlagsOf(run).landmarks).concat(threadLandmarks(threads)) : [],
     journal: threads.map((t) => journalEntry(t, run.currentHexQ, run.currentHexR)),
+    realmMarks: flags.sharedRealm ? await realmMarksNear(run.currentHexQ, run.currentHexR, 3, userId) : [],
   };
+}
+
+// ── shared realm ──────────────────────────────────────────────────────────────
+
+export async function leaveRealmSign(userId: number, run: WanderRun, phrase: string) {
+  const { char, flags } = await loadContext(run);
+  if (!flags.sharedRealm) return { error: "The shared realm is off for this campaign." as const };
+  if (!(REALM_PHRASES as readonly string[]).includes(phrase)) return { error: "Pick one of the listed signs." as const };
+  const mark = await addRealmMark({ q: run.currentHexQ, r: run.currentHexR, kind: "sign", text: phrase, characterName: String((char as any).name ?? "An adventurer"), userId });
+  return { mark, realmMarks: await realmMarksNear(run.currentHexQ, run.currentHexR, 2, userId) };
+}
+
+export async function nodRealm(userId: number, markId: number) {
+  return { mark: await nodRealmMark(markId, userId) };
+}
+
+/** A fight in the wilds was lost: a cairn marks the spot for others. */
+export async function markFallen(userId: number, run: WanderRun, characterName: string, foes: string) {
+  const campaign = await storage.getCampaign(run.campaignId);
+  if (!resolveFlags(campaign).sharedRealm) return;
+  await addRealmMark({ q: run.currentHexQ, r: run.currentHexR, kind: "fallen", text: `${characterName} was beaten here by ${foes}`, characterName, userId });
 }
 
 // ── Tavern road rumors ────────────────────────────────────────────────────────

@@ -8,8 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Sun, Moon, Cloud, CloudRain, CloudFog, CloudLightning, Wheat, Droplets, BatteryLow, Tent,
-  Footprints, Compass, Search, Eye, Loader2, Dices, Route, HelpCircle,
+  Footprints, Compass, Search, Eye, Loader2, Dices, Route, HelpCircle, Heart, Coffee,
 } from "lucide-react";
+import { useState } from "react";
+import { REALM_GLYPH, REALM_PHRASES, type RealmMark } from "@shared/wander/realm";
 import {
   EXHAUSTION_EFFECTS, TRAVEL_DAY_HOURS, WEATHER_LABEL, clockLabel, isNight, timeOfDayLabel,
   type Pace, type TravelActivity, type TravelState, type Weather,
@@ -25,6 +27,8 @@ export interface JournalThread {
   distance: number;
   target: { q: number; r: number } | null;
   rumor: { source?: string; text?: string } | null;
+  personal?: boolean;
+  daysLeft?: number | null;
 }
 
 const WEATHER_ICON: Record<Weather, typeof Sun> = {
@@ -41,13 +45,24 @@ function Stat({ icon: Icon, label, value, tone, title }: { icon: typeof Sun; lab
   );
 }
 
-export function TravelBar({ travel, onCamp, camping }: { travel: TravelState; onCamp: () => void; camping: boolean }) {
+export function TravelBar({
+  travel, onCamp, camping, hp, onShortRest, resting,
+}: {
+  travel: TravelState; onCamp: () => void; camping: boolean;
+  hp?: { hp: number; max: number; hitDice: number };
+  onShortRest?: (hitDice: number) => void; resting?: boolean;
+}) {
+  const [dice, setDice] = useState(1);
   const night = isNight(travel.hour);
   const WIcon = WEATHER_ICON[travel.weather] ?? Sun;
   const need = travel.hot ? 2 : 1;
   const overDay = travel.hoursToday >= TRAVEL_DAY_HOURS;
   return (
     <div className="flex items-center gap-x-5 gap-y-2 flex-wrap" data-testid="wander-travel-bar">
+      {hp && (
+        <Stat icon={Heart} label="HP" value={`${hp.hp}/${hp.max}`} tone={hp.hp <= hp.max / 4 ? "text-red-400" : hp.hp <= hp.max / 2 ? "text-amber-300" : "text-emerald-300"}
+          title={`Hit Dice left: ${hp.hitDice}. A short rest (1 hour) lets you spend them to heal; a long rest at camp restores all HP and half your Hit Dice.`} />
+      )}
       <Stat icon={night ? Moon : Sun} label={`Day ${travel.day}`} value={`${clockLabel(travel.hour)} ${timeOfDayLabel(travel.hour)}`} tone={night ? "text-indigo-300" : "text-amber-300"}
         title={night ? "Night: without darkvision you have disadvantage on navigation and on Perception that relies on sight." : undefined} />
       <Stat icon={WIcon} label="Weather" value={`${WEATHER_LABEL[travel.weather]}${travel.hot ? ", hot" : ""}`} tone="text-sky-300"
@@ -63,7 +78,17 @@ export function TravelBar({ travel, onCamp, camping }: { travel: TravelState; on
           Past 8 hours on the road: every further hour is a forced march (Constitution save, DC 10 + 1 per extra hour, or a level of exhaustion). Make camp to rest.
         </span>
       )}
-      <Button size="sm" variant="outline" className="ml-auto border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10" onClick={onCamp} disabled={camping} data-testid="wander-camp">
+      {onShortRest && hp && (
+        <div className="flex items-center gap-1 ml-auto" title="Short rest: 1 hour. Spend Hit Dice to heal (each: roll + Con modifier), and recharge short-rest features.">
+          <select className="bg-slate-900 border border-slate-700 rounded text-xs text-slate-300 h-8 px-1" value={dice} onChange={(e) => setDice(Number(e.target.value))} data-testid="wander-short-rest-dice">
+            {Array.from({ length: Math.max(0, hp.hitDice) + 1 }, (_, i) => <option key={i} value={i}>{i} Hit {i === 1 ? "Die" : "Dice"}</option>)}
+          </select>
+          <Button size="sm" variant="outline" className="border-sky-500/40 text-sky-300 hover:bg-sky-500/10" onClick={() => onShortRest(Math.min(dice, hp.hitDice))} disabled={resting} data-testid="wander-short-rest">
+            {resting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Coffee className="h-4 w-4 mr-1" />}Short rest
+          </Button>
+        </div>
+      )}
+      <Button size="sm" variant="outline" className={`${onShortRest && hp ? "" : "ml-auto "}border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10`} onClick={onCamp} disabled={camping} data-testid="wander-camp">
         {camping ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Tent className="h-4 w-4 mr-1" />}
         Make camp
       </Button>
@@ -154,11 +179,17 @@ export function TrailsJournal({ threads }: { threads: JournalThread[] }) {
             <div className="flex items-center gap-2">
               {t.status === "rumored" ? <HelpCircle className="h-3.5 w-3.5 text-violet-300" /> : <Compass className="h-3.5 w-3.5 text-amber-300" />}
               <span className="text-sm text-slate-100">{t.title}</span>
+              {t.personal && <Badge variant="outline" className="text-[10px] border-rose-500/60 text-rose-300" title="Your character's own story. Seeing it through earns Inspiration.">Personal</Badge>}
               <Badge variant="outline" className="ml-auto text-[10px] border-slate-600 text-slate-300">{BEAT_LABEL[t.beat] ?? t.beat}</Badge>
             </div>
             <p className="text-xs text-slate-400 mt-1">
               {t.distance === 0 ? "Right here." : `${t.bearing}${t.target || t.beat !== "sign" ? `, about ${t.distance} hex${t.distance === 1 ? "" : "es"}` : ""}`}
             </p>
+            {t.daysLeft != null && (
+              <p className={`text-[11px] mt-0.5 ${t.daysLeft <= 1 ? "text-red-300" : t.daysLeft <= 3 ? "text-amber-300" : "text-slate-500"}`} title="In-game days, counted each time you make camp. Ignore it too long and the world moves without you.">
+                {t.daysLeft === 0 ? "Out of time" : `${t.daysLeft} day${t.daysLeft === 1 ? "" : "s"} before it's too late`}
+              </p>
+            )}
             {t.rumor?.text && <p className="text-xs italic text-slate-500 mt-1">"{t.rumor.text}" ({t.rumor.source})</p>}
           </div>
         ))}
@@ -171,4 +202,42 @@ export function checkLabel(check?: { skill: string; dc: number }): string | null
   if (!check) return null;
   const skill = check.skill.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   return `${skill} DC ${check.dc}`;
+}
+
+/** Signs, cairns and finish-flags other adventurers left on this hex (the shared realm). */
+export function RealmSigns({
+  marks, onNod, onLeave, leaving,
+}: {
+  marks: RealmMark[];
+  onNod: (id: number) => void;
+  onLeave: (phrase: string) => void;
+  leaving?: boolean;
+}) {
+  const [phrase, setPhrase] = useState<string>(REALM_PHRASES[0]);
+  return (
+    <div className="rounded border border-slate-700/60 bg-slate-950/40 p-2 space-y-1.5" data-testid="realm-signs">
+      <p className="text-[11px] uppercase tracking-wider text-slate-500">Left by other adventurers</p>
+      {marks.length === 0 && <p className="text-xs text-slate-500">No one has left a sign here yet.</p>}
+      {marks.map((m) => (
+        <div key={m.id} className="flex items-center gap-2 text-xs">
+          <span>{REALM_GLYPH[m.kind]}</span>
+          <span className="text-slate-200">{m.kind === "sign" ? `"${m.text}"` : m.text}</span>
+          <span className="text-slate-500">{m.kind === "sign" ? `, ${m.characterName}` : ""}</span>
+          {!m.mine && m.kind === "sign" ? (
+            <button className={`ml-auto px-1.5 rounded border text-[10px] ${m.nodded ? "border-emerald-500 text-emerald-300" : "border-slate-600 text-slate-400"}`} onClick={() => onNod(m.id)} title="This helped">
+              👍 {m.nods}
+            </button>
+          ) : <span className="ml-auto text-[10px] text-slate-500">{m.nods ? `👍 ${m.nods}` : ""}</span>}
+        </div>
+      ))}
+      <div className="flex gap-1 pt-1">
+        <select className="flex-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-300 h-7 px-1" value={phrase} onChange={(e) => setPhrase(e.target.value)} data-testid="realm-phrase">
+          {REALM_PHRASES.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <Button size="sm" variant="outline" className="h-7 text-xs border-slate-600 text-slate-200" onClick={() => onLeave(phrase)} disabled={leaving} data-testid="realm-leave">
+          🪧 Leave a sign
+        </Button>
+      </div>
+    </div>
+  );
 }

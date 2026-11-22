@@ -24,6 +24,12 @@ export interface ThreadPayload {
   rumorSource?: string;
   /** Climax attempts that failed, for the journal. */
   failedAttempts?: number;
+  /** In-game days this trail has been open (advanced when you make camp). */
+  daysElapsed?: number;
+  consequence?: string;
+  /** Personal trails belong to one character. */
+  characterId?: number;
+  personal?: boolean;
 }
 
 export interface ThreadRow {
@@ -264,6 +270,36 @@ export function onMove(
   return { outcome, patches };
 }
 
+// ── world clocks ──────────────────────────────────────────────────────────────
+
+export const RUMOR_STALE_DAYS = 8;
+
+/**
+ * A night passes (the player made camp): every open trail's clock advances a
+ * day. Trails whose deadline passes expire, and their consequence happens.
+ * Personal trails have no deadline. Pure; returns patches and news.
+ */
+export function advanceClocks(threads: ThreadRow[]): { patches: ThreadPatch[]; news: Array<{ id: number; text: string }> } {
+  const patches: ThreadPatch[] = [];
+  const news: Array<{ id: number; text: string }> = [];
+  for (const row of threads) {
+    const t = getTemplate(row.templateId);
+    if (!t || t.personal) continue;
+    const days = (row.payload?.daysElapsed ?? 0) + 1;
+    const payload = { ...(row.payload ?? {}), daysElapsed: days };
+    if (row.status === "active" && t.deadlineDays && days >= t.deadlineDays && t.consequence) {
+      const text = fill(t.consequence, { bearing: bearing(0, 0, row.targetHexQ, row.targetHexR), name: row.payload?.name });
+      patches.push({ id: row.id, status: "expired", payload: { ...payload, consequence: text } });
+      news.push({ id: row.id, text });
+    } else if (row.status === "rumored" && days >= RUMOR_STALE_DAYS) {
+      patches.push({ id: row.id, status: "expired", payload });
+    } else if (row.status === "active" || row.status === "rumored") {
+      patches.push({ id: row.id, payload });
+    }
+  }
+  return { patches, news };
+}
+
 // ── rumors ────────────────────────────────────────────────────────────────────
 
 /** A new rumored thread, pointing from town toward a target 3 to 8 hexes out. True about 70% of the time. */
@@ -306,5 +342,7 @@ export function journalEntry(row: ThreadRow, fromQ: number, fromR: number) {
     // The exact hex is only shown once you are close (approach) or for rumors, which name a place.
     target: row.status === "rumored" || row.beat >= 2 ? { q: row.targetHexQ, r: row.targetHexR } : null,
     rumor: row.status === "rumored" ? { source: row.payload?.rumorSource, text: row.payload?.rumorText } : null,
+    personal: !!t?.personal,
+    daysLeft: t?.deadlineDays && !t.personal && row.status === "active" ? Math.max(0, t.deadlineDays - (row.payload?.daysElapsed ?? 0)) : null,
   };
 }

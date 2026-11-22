@@ -62,6 +62,11 @@ export interface ThreadTemplate {
   /** Posted to the campaign's rumor pool when the thread is resolved. */
   completionRumor: string;
   names?: string[];
+  /** Personal trails (backstory): the PHB backgrounds this is for ("*" = any). */
+  personal?: string[];
+  /** What happens if the trail is ignored for deadlineDays in-game days (a DMG-style doom clock). */
+  consequence?: string;
+  deadlineDays?: number;
 }
 
 export const THREAD_TEMPLATES: ThreadTemplate[] = [
@@ -101,6 +106,8 @@ export const THREAD_TEMPLATES: ThreadTemplate[] = [
     rumor: { source: "A teamster with a bandaged hand", text: "Goblins hit my wagon on the road out of town. Took the lot and went off {bearing}. Can't be more than a day or two's walk." },
     debunk: { title: "Not Goblins After All", reveal: "The 'raiders' were a family of badgers and a very large, very angry goose. There is nothing here but a torn sack of oats." },
     completionRumor: "They say someone found the {name} goblin warren {bearing} of town, and the roads have been quieter since.",
+    consequence: "The {name} goblins raided the farms {bearing} of town while no one stopped them. Two families lost everything.",
+    deadlineDays: 6,
   },
   {
     id: "lost_caravan",
@@ -136,6 +143,8 @@ export const THREAD_TEMPLATES: ThreadTemplate[] = [
     rumor: { source: "A worried clerk from the trading house", text: "The Hessa caravan never arrived. Six wagons. Last seen heading out {bearing}. The house will pay to know what happened." },
     debunk: { title: "The Caravan Came Through", reveal: "Fresh ruts, a campfire, a note pinned to a post: 'Hessa Co. passed safe, all accounted for.' The rumor was stale." },
     completionRumor: "Hessa's caravan made it home. She tells anyone who'll listen about the stranger who found them {bearing} of town.",
+    consequence: "The Hessa caravan never made it home. Their wagons were found picked clean {bearing} of town.",
+    deadlineDays: 5,
   },
   {
     id: "drowned_shrine",
@@ -172,6 +181,8 @@ export const THREAD_TEMPLATES: ThreadTemplate[] = [
     rumor: { source: "A fisherman mending nets", text: "My nets keep coming up with candle wax in them. There's a bell out there in the water, {bearing}. My grandmother said it rang for the drowned saint." },
     debunk: { title: "Just a Bell Buoy", reveal: "A rusted bell on a rotting float, knocking in the current. No shrine, no saint." },
     completionRumor: "Someone brought up the drowned saint's reliquary from the water {bearing} of town. The fishermen say the bell has stopped.",
+    consequence: "The drowned bell {bearing} of town has fallen silent. The fishermen say something took the reliquary from below.",
+    deadlineDays: 8,
   },
   {
     id: "wolf_pack",
@@ -207,6 +218,8 @@ export const THREAD_TEMPLATES: ThreadTemplate[] = [
     rumor: { source: "A shepherd counting his flock twice", text: "Something's taking my sheep. Not a common wolf. Prints as big as my hand, coming from the hills {bearing}." },
     debunk: { title: "An Old Den", reveal: "The den is long abandoned: old bones, cold scat. Whatever lived here moved on seasons ago." },
     completionRumor: "The shepherds say the grey pack {bearing} of town has stopped taking sheep. Someone went to the den and came back.",
+    consequence: "The grey pack took a shepherd's whole flock {bearing} of town, and the shepherd with it.",
+    deadlineDays: 6,
   },
   {
     id: "hermits_lantern",
@@ -242,6 +255,8 @@ export const THREAD_TEMPLATES: ThreadTemplate[] = [
     rumor: { source: "A goatherd with a wild beard", text: "There's an old hermit up the slopes {bearing}. Knows every path in the hills, they say, if you can get him to talk." },
     debunk: { title: "An Empty Hut", reveal: "A collapsed hut, long empty, a goat skull nailed over the door. Whoever lived here is gone." },
     completionRumor: "Old Brannoc the hermit, {bearing} of town, has been seen talking to a traveller. Wonders never cease.",
+    consequence: "Old Brannoc's lantern {bearing} of town has gone dark. No one knows if he moved on or worse.",
+    deadlineDays: 10,
   },
   {
     id: "ruined_watchtower",
@@ -279,6 +294,8 @@ export const THREAD_TEMPLATES: ThreadTemplate[] = [
     rumor: { source: "An old soldier nursing an ale", text: "My grandfather served at the old watchtower {bearing} of here. Said the wardens never really left it." },
     debunk: { title: "A Shepherd's Folly", reveal: "The 'tower' is a stack of stones a bored shepherd built to see his flock. There is no crypt, only sheep." },
     completionRumor: "Someone has opened the crypt under the old watchtower {bearing} of town. The crows are back on the roof.",
+    consequence: "Something climbed out of the crypt under the old watchtower {bearing} of town. Crows circle the road now.",
+    deadlineDays: 7,
   },
   {
     id: "bandit_toll",
@@ -315,6 +332,8 @@ export const THREAD_TEMPLATES: ThreadTemplate[] = [
     rumor: { source: "A merchant counting coins twice", text: "Captain Vask's riders are taxing the road {bearing} of town. Five silver a head, or worse." },
     debunk: { title: "A Real Toll Gate", reveal: "A proper toll house with the baron's banner and a bored clerk. Legitimate, if annoying." },
     completionRumor: "The road {bearing} of town is toll-free again. They say Captain Vask was run off by a lone traveller.",
+    consequence: "Captain Vask's riders robbed the mail coach {bearing} of town. The road toll has doubled.",
+    deadlineDays: 5,
   },
   {
     id: "fallen_star",
@@ -350,9 +369,157 @@ export const THREAD_TEMPLATES: ThreadTemplate[] = [
     rumor: { source: "A stargazing apprentice", text: "Three nights ago a star fell, {bearing} of here. My master says skyiron is worth more than gold." },
     debunk: { title: "A Lightning Strike", reveal: "A tree split by lightning, still smouldering. No star, no skyiron." },
     completionRumor: "Somebody found the fallen star {bearing} of town. The apprentices at the tower are furious they weren't first.",
+    consequence: "Apprentices from the tower found the fallen star {bearing} of town first. The skyiron is theirs now.",
+    deadlineDays: 5,
   },
 ];
 
 export function getTemplate(id: string): ThreadTemplate | undefined {
-  return THREAD_TEMPLATES.find((t) => t.id === id);
+  return THREAD_TEMPLATES.find((t) => t.id === id) ?? PERSONAL_TEMPLATES.find((t) => t.id === id);
+}
+
+// ── Personal trails (engagement 2: backstory) ────────────────────────────────
+//
+// One per character per campaign, chosen by PHB background, started on their
+// first real wander. They pay off with Inspiration (PHB: the DM awards it for
+// playing your character's bonds and history) as well as the usual reward.
+
+const ALL_BIOMES: WanderBiome[] = ["grass", "forest", "mountain", "swamp", "desert", "coast"];
+
+export const PERSONAL_TEMPLATES: ThreadTemplate[] = [
+  {
+    id: "personal_soldier", name: "Your old company", biomes: ALL_BIOMES, markerType: "trace", trackSkill: "history",
+    personal: ["soldier", "mercenary veteran"],
+    sign: { title: "A Familiar Badge", reveal: "Half-buried in the mud, a tin badge stamped with your old company's crest. Your company. It points the way the dead were dragged: {bearing}.", detail: "You know this stamp. Only your old company wore it. There was a battle near here, {dist} hexes {bearing}, and nobody told you." },
+    trace: { title: "Graves Without Names", reveal: "A row of shallow graves, marked with spears. Someone buried soldiers here in a hurry. Bootprints lead {bearing}.", detail: "One spear has a notch you'd recognise anywhere: your sergeant's. Someone survived to bury the others. {dist} hexes {bearing}." },
+    approach: { title: "A Campfire and a Song", reveal: "A marching song you haven't heard in years, sung badly, drifts on the wind from {bearing}.", detail: "Only your company sang it with that wrong last verse. {dist} hex{plural} {bearing}." },
+    climax: { title: "The Last of the Company", reveal: "A grey-bearded veteran with one arm sits by a fire, guarding a battered regimental banner. He looks up, and his face changes. 'They said you were dead too.'",
+      options: [
+        { id: "remember", label: "Tell him what happened to you after the battle", skill: "persuasion", dc: 10, success: "You talk until the fire burns low, of names and of the day it all went wrong. He presses the banner into your hands. 'Somebody should carry it who remembers.'", failure: "The words won't come. He nods anyway, but the moment passes." },
+        { id: "drill", label: "Call the old drill, the way the sergeant did", skill: "intimidation", dc: 12, success: "He's on his feet before he knows it, saluting, laughing and crying at once. Then he hands you the banner.", failure: "Your voice cracks halfway. He looks away, embarrassed for you both." },
+      ] },
+    combatSeed: { encounterType: "ambush", enemyTheme: "bandit", difficulty: "easy", battlefieldTag: "old_battlefield", stakes: "the banner", fleeAllowed: true },
+    payoff: { kind: "npc", npc: { name: "Old Corporal Hennick", role: "last survivor of your old company", want: "to see the company's banner carried with honour" }, rewards: [{ kind: "trinket", name: "Your Company's Banner", quantity: 1 }], text: "Hennick will remember you. You carry the banner now, and with it, something you'd lost." },
+    rumor: { source: "", text: "" }, debunk: { title: "", reveal: "" },
+    completionRumor: "They say a veteran of a lost company was found {bearing} of town, and the banner has a new bearer.",
+  },
+  {
+    id: "personal_acolyte", name: "The lost reliquary", biomes: ALL_BIOMES, markerType: "landmark", trackSkill: "religion",
+    personal: ["acolyte"],
+    sign: { title: "Your Temple's Sign", reveal: "Scratched on a waystone, the sigil of your own temple, and an arrow: {bearing}. Pilgrims' marks, but old.", detail: "This is the pilgrim route the elders spoke of, to the shrine where the reliquary was lost. {dist} hexes {bearing}." },
+    trace: { title: "A Pilgrim's Prayer Beads", reveal: "A broken string of prayer beads, the kind your temple gives at ordination. They lead {bearing}.", detail: "The last bead is carved with a name from the temple's book of the missing. {dist} hexes {bearing}." },
+    approach: { title: "A Bell You Know", reveal: "The temple's call to prayer, rung on a cracked bell, somewhere {bearing}.", detail: "No one should be ringing that call out here. {dist} hex{plural} {bearing}." },
+    climax: { title: "The Forgotten Shrine", reveal: "A tiny shrine in a hollow, tended by a gaunt hermit-priest who has kept the reliquary safe for twenty years, waiting for someone from the temple.",
+      options: [
+        { id: "rite", label: "Speak the temple's rite of greeting", skill: "religion", dc: 11, success: "He weeps, and completes the rite with you. The reliquary is yours to bring home.", failure: "You stumble over a line. He is patient, but you can see the doubt in his eyes." },
+        { id: "insight", label: "Read what he needs to hear", skill: "insight", dc: 12, success: "He doesn't need proof; he needs to be released from his vigil. You give him that, and he gives you the reliquary.", failure: "You misjudge him, and he closes up." },
+      ] },
+    combatSeed: { encounterType: "lair_scout", enemyTheme: "undead", difficulty: "easy", battlefieldTag: "shrine", stakes: "the reliquary", fleeAllowed: true },
+    payoff: { kind: "npc", npc: { name: "Brother Anselm", role: "hermit-priest who kept your temple's reliquary", want: "to know his vigil meant something" }, rewards: [{ kind: "trinket", name: "Your Temple's Reliquary", quantity: 1 }], text: "Your temple will sing about this. Brother Anselm blesses you as you go." },
+    rumor: { source: "", text: "" }, debunk: { title: "", reveal: "" },
+    completionRumor: "Word is a lost reliquary was found at a hidden shrine {bearing} of town.",
+  },
+  {
+    id: "personal_criminal", name: "The one who sold you out", biomes: ALL_BIOMES, markerType: "trace", trackSkill: "investigation",
+    personal: ["criminal", "spy", "charlatan"],
+    sign: { title: "Your Old Mark", reveal: "Chalked on a milestone: the thieves' cant sign your old crew used. Fresh. It points {bearing}.", detail: "Only one other person still knows that sign: the partner who sold you to the watch. They're out here, {dist} hexes {bearing}." },
+    trace: { title: "A Fence's Ledger Page", reveal: "A torn page of a fence's ledger, blowing in the grass. Your old partner's handwriting. The tracks go {bearing}.", detail: "They're running too. Someone is after them now. {dist} hexes {bearing}." },
+    approach: { title: "A Familiar Whistle", reveal: "Your crew's old signal whistle, two notes, from {bearing}.", detail: "They think you're one of the people hunting them. {dist} hex{plural} {bearing}." },
+    climax: { title: "Face to Face", reveal: "Your old partner, thinner and scared, a knife held low. 'I had no choice. They had my sister.' Behind them, the stolen take they never got to spend.",
+      options: [
+        { id: "truth", label: "Find out if it's true", skill: "insight", dc: 12, success: "It's true. You split the take, and they owe you a favour now, the kind that matters.", failure: "You can't tell. They bolt while you hesitate, leaving half the take behind." },
+        { id: "lean", label: "Lean on them until they pay what they owe", skill: "intimidation", dc: 13, success: "They hand over everything and swear to set it right with the old crew.", failure: "They see through you; they always could. They run." },
+      ] },
+    combatSeed: { encounterType: "ambush", enemyTheme: "bandit", difficulty: "easy", battlefieldTag: "hideout", stakes: "the take", fleeAllowed: true },
+    payoff: { kind: "npc", npc: { name: "Your old partner", role: "the partner who sold you out, years ago", want: "to make things right, or at least survive" }, rewards: [{ kind: "consumable", name: "Old Crew's Take (gold)", quantity: 1 }], text: "An old debt is settled, one way or another. Your past is a little lighter." },
+    rumor: { source: "", text: "" }, debunk: { title: "", reveal: "" },
+    completionRumor: "Someone settled an old score with a runaway thief {bearing} of town.",
+  },
+  {
+    id: "personal_folk_hero", name: "The tyrant's collectors", biomes: ["grass", "forest", "coast", "swamp"], markerType: "trace", trackSkill: "survival",
+    personal: ["folk hero", "farmer"],
+    sign: { title: "Trampled Crops", reveal: "A field ridden flat, a farmer's cart overturned. The same thing that happened to your village. Hoofprints lead {bearing}.", detail: "Tax collectors with too many swords, the kind you stood up to once before. {dist} hexes {bearing}." },
+    trace: { title: "A Village Holding Its Breath", reveal: "The villagers hide when they see you coming, then recognise something in how you carry yourself. 'They took the seed grain. They went {bearing}.'", detail: "Without the seed grain, there's no harvest next year. {dist} hexes {bearing}." },
+    approach: { title: "Wagons in a Row", reveal: "Loaded wagons drawn up {bearing}, guarded by bored men in borrowed livery.", detail: "A dozen of them. {dist} hex{plural} {bearing}." },
+    climax: { title: "The Collectors' Camp", reveal: "The seed grain is stacked in sacks by the wagons. The collectors are drinking. Their captain has a bad leg and a worse temper.",
+      options: [
+        { id: "rally", label: "Bring the villagers, and stand in the road together", skill: "persuasion", dc: 13, success: "Forty farmers with pitchforks and you at the front. The collectors decide the grain isn't worth it.", failure: "The villagers are too afraid to come. Not yet." },
+        { id: "steal", label: "Slip in at night and drive off the grain wagon", skill: "stealth", dc: 13, success: "By dawn the wagon is back in the village square, and nobody can say how it got there.", failure: "A guard wakes. You get out, but not with the grain." },
+      ] },
+    combatSeed: { encounterType: "ambush", enemyTheme: "bandit", difficulty: "medium", battlefieldTag: "camp", stakes: "the seed grain", fleeAllowed: true },
+    payoff: { kind: "npc", npc: { name: "Marta Greenhill", role: "headwoman of the village you saved", want: "a harvest, and to never see those collectors again" }, rewards: [{ kind: "faction_token", name: "Greenhill's Thanks", quantity: 1 }], food: 4, text: "The village feeds you like family. Folk heroes are made this way, one village at a time." },
+    rumor: { source: "", text: "" }, debunk: { title: "", reveal: "" },
+    completionRumor: "A village {bearing} of town kept its seed grain, thanks to a stranger who stood in the road.",
+  },
+  {
+    id: "personal_sage", name: "The missing scholar", biomes: ALL_BIOMES, markerType: "landmark", trackSkill: "investigation",
+    personal: ["sage", "cloistered scholar"],
+    sign: { title: "Your Teacher's Handwriting", reveal: "A page of field notes pinned under a stone, in the cramped hand of the teacher who vanished. An arrow, {bearing}.", detail: "Your teacher was close to something. The notes give a measured distance: {dist} hexes {bearing}." },
+    trace: { title: "A Cipher in Chalk", reveal: "A cipher chalked on a rock, the one your teacher used for private notes. It reads: 'follow the stars {bearing}'.", detail: "Decoded, it's a warning: the thing they found is dangerous. {dist} hexes {bearing}." },
+    approach: { title: "Lamplight in the Ruins", reveal: "A lamp burning in a ruin {bearing}. Someone is reading by it.", detail: "{dist} hex{plural} {bearing}." },
+    climax: { title: "Your Teacher's Last Camp", reveal: "Your teacher, older and half-mad with excitement, surrounded by rubbings of an ancient inscription. 'You came! Help me with the last line.'",
+      options: [
+        { id: "translate", label: "Work through the inscription together", skill: "history", dc: 13, success: "The last line falls into place. It names a place no map has shown in a thousand years. Your teacher gives you the notes: 'Finish it.'", failure: "The line won't come. You'll need more time, and more light." },
+        { id: "arcana", label: "Recognise what the inscription is warning about", skill: "arcana", dc: 14, success: "It's a ward, not a map, and your teacher was about to break it. You stop them in time. They hand you the notes, shaking.", failure: "You can tell it matters, but not why." },
+      ] },
+    combatSeed: { encounterType: "lair_scout", enemyTheme: "elemental", difficulty: "easy", battlefieldTag: "ruin", stakes: "the inscription", fleeAllowed: true },
+    payoff: { kind: "npc", npc: { name: "Master Orlin", role: "your old teacher, found in the wilds", want: "to finish the work of a lifetime" }, rewards: [{ kind: "knowledge", name: "Master Orlin's Notes", quantity: 1 }], text: "You have your teacher back, and a life's work to help finish." },
+    rumor: { source: "", text: "" }, debunk: { title: "", reveal: "" },
+    completionRumor: "A lost scholar was found in the ruins {bearing} of town, raving about an inscription.",
+  },
+  {
+    id: "personal_noble", name: "The family signet", biomes: ALL_BIOMES, markerType: "trace", trackSkill: "investigation",
+    personal: ["noble", "knight", "courtier"],
+    sign: { title: "Your Family's Crest", reveal: "A wax seal on a torn letter, pressed with your family's signet. The signet stolen years ago. The letter is fresh. It came from {bearing}.", detail: "Someone is using your family's name to sign letters, {dist} hexes {bearing}." },
+    trace: { title: "A Forged Promissory Note", reveal: "A merchant waves a note at you: debts signed in your family's name. 'The fellow went {bearing}.'", detail: "The forger is running up debts your family will be asked to honour. {dist} hexes {bearing}." },
+    approach: { title: "A Fine Tent Where None Should Be", reveal: "A silk pavilion pitched in the wilds {bearing}, flying a banner that is almost your family's.", detail: "{dist} hex{plural} {bearing}." },
+    climax: { title: "The Pretender", reveal: "A smooth young man in borrowed finery, wearing your family's signet ring. He has the nerve to bow. 'Cousin! I don't believe we've met.'",
+      options: [
+        { id: "expose", label: "Expose him in front of his servants", skill: "history", dc: 12, success: "You know the family tree better than he ever could. His own servants walk out. He hands over the ring.", failure: "He has an answer for everything, and the servants believe him for now." },
+        { id: "bargain", label: "Offer him a way out if he returns the ring", skill: "persuasion", dc: 13, success: "He's a chancer, not a villain. The ring for a head start. Done.", failure: "He laughs at you." },
+      ] },
+    combatSeed: { encounterType: "ambush", enemyTheme: "bandit", difficulty: "easy", battlefieldTag: "pavilion", stakes: "the signet", fleeAllowed: true },
+    payoff: { kind: "cache", rewards: [{ kind: "trinket", name: "Your Family's Signet Ring", quantity: 1 }], text: "The signet is back where it belongs. Your family's name is yours again." },
+    rumor: { source: "", text: "" }, debunk: { title: "", reveal: "" },
+    completionRumor: "A pretender to a noble name was unmasked in a silk tent {bearing} of town.",
+  },
+  {
+    id: "personal_outlander", name: "The old migration path", biomes: ["forest", "mountain", "grass", "desert"], markerType: "landmark", trackSkill: "survival",
+    personal: ["outlander", "hermit", "sailor", "pirate"],
+    sign: { title: "A Sign From Home", reveal: "A cairn built the way your people build them, three flat stones and a white one. It points {bearing}.", detail: "Someone from home passed this way, and wanted to be found. {dist} hexes {bearing}." },
+    trace: { title: "A Carved Totem", reveal: "Your people's totem, freshly carved into a tree. Below it, a word in your own tongue: 'Wait.' The path continues {bearing}.", detail: "They're waiting for someone. Maybe you. {dist} hexes {bearing}." },
+    approach: { title: "Smoke in Your People's Pattern", reveal: "Three smokes rising together from {bearing}: the old signal for 'kin, come in'.", detail: "{dist} hex{plural} {bearing}." },
+    climax: { title: "Kin in a Strange Land", reveal: "A small camp of your own people, far from home, lost and short of food. Their elder looks at you a long time. 'You left us. Will you help us now?'",
+      options: [
+        { id: "guide", label: "Lead them to good land you've found", skill: "survival", dc: 12, success: "You lead them to a valley with water and game. That night they sing your name in the old songs.", failure: "The land you remembered is dry now. They'll wait for a better guide." },
+        { id: "speak", label: "Speak to the elder in the old way", skill: "persuasion", dc: 12, success: "The elder forgives you. You are kin again, and you leave with a gift from home.", failure: "The elder is not ready to forgive." },
+      ] },
+    combatSeed: { encounterType: "ambush", enemyTheme: "beast", difficulty: "easy", battlefieldTag: "camp", stakes: "your kin", fleeAllowed: true },
+    payoff: { kind: "npc", npc: { name: "Elder Ysra", role: "elder of your own people, met far from home", want: "to bring her people somewhere safe" }, rewards: [{ kind: "trinket", name: "Gift From Home", quantity: 1 }], water: 2, text: "You have kin in this land now." },
+    rumor: { source: "", text: "" }, debunk: { title: "", reveal: "" },
+    completionRumor: "Strangers from far away have settled a valley {bearing} of town, guided by one of their own.",
+  },
+  {
+    id: "personal_any", name: "Someone from your past", biomes: ALL_BIOMES, markerType: "npc_echo", trackSkill: "insight",
+    personal: ["*"],
+    sign: { title: "A Name You Know", reveal: "Your name, carved into a tree, old and weathered. Under it, a mark only you would understand. It points {bearing}.", detail: "Someone from before you took to the road left this for you. {dist} hexes {bearing}." },
+    trace: { title: "A Keepsake", reveal: "A keepsake you gave someone long ago, hung on a branch where you'd see it. The trail goes on {bearing}.", detail: "They've been waiting a long time. {dist} hexes {bearing}." },
+    approach: { title: "A Familiar Voice", reveal: "A voice you haven't heard in years, calling your name from {bearing}.", detail: "{dist} hex{plural} {bearing}." },
+    climax: { title: "An Old Friend", reveal: "Someone you left behind when you became an adventurer. They're in trouble, and you're the only one they thought to call.",
+      options: [
+        { id: "listen", label: "Listen to what they need", skill: "insight", dc: 11, success: "You hear what they're really asking for, and you give it. Whatever was broken between you is mended.", failure: "You say the wrong thing. They forgive you, but it costs them." },
+        { id: "help", label: "Roll up your sleeves and help", skill: "athletics", dc: 12, success: "It's hard, honest work, and when it's done you sit together like old times.", failure: "It doesn't go well, but they're glad you came." },
+      ] },
+    combatSeed: { encounterType: "ambush", enemyTheme: "bandit", difficulty: "easy", battlefieldTag: "homestead", stakes: "an old friend", fleeAllowed: true },
+    payoff: { kind: "cache", rewards: [{ kind: "trinket", name: "Keepsake From the Past", quantity: 1 }], text: "Some of what you left behind was waiting for you." },
+    rumor: { source: "", text: "" }, debunk: { title: "", reveal: "" },
+    completionRumor: "Two old friends met again in the wilds {bearing} of town.",
+  },
+];
+
+/** The personal trail for a background (PHB names; anything unknown gets the general one). */
+export function personalTemplateFor(background: string | null | undefined): ThreadTemplate {
+  const b = (background ?? "").trim().toLowerCase();
+  return PERSONAL_TEMPLATES.find((t) => t.personal?.some((p) => p !== "*" && b.includes(p)))
+    ?? PERSONAL_TEMPLATES[PERSONAL_TEMPLATES.length - 1];
 }

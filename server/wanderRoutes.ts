@@ -6,7 +6,7 @@ import {
   rollOutcome, calculateDangerRating, resolveChoice,
   generateWanderSummary, mapBiomeFromTerrain, CuratedOutcome
 } from "./wanderEngine";
-import { initialRunFlags, roadRumors, wanderCamp, wanderChoose, wanderJournal, wanderMove } from "./play/wander/service";
+import { initialRunFlags, leaveRealmSign, nodRealm, roadRumors, wanderCamp, wanderChoose, wanderJournal, wanderMove, wanderShortRest } from "./play/wander/service";
 
 export function registerWanderRoutes(router: Router) {
 
@@ -214,6 +214,52 @@ export function registerWanderRoutes(router: Router) {
     } catch (error: any) {
       console.error("Error making camp:", error);
       res.status(500).json({ error: "Failed to make camp" });
+    }
+  });
+
+  // Short rest: an hour off the road, spending Hit Dice to heal.
+  router.post("/api/wander/short-rest", async (req: Request, res: Response) => {
+    try {
+      if (!req.user) return res.status(401).json({ error: "Authentication required" });
+      const userId = (req.user as any).id;
+      const run = await storage.getWanderRun(req.body?.runId);
+      if (!run) return res.status(404).json({ error: "Wander run not found" });
+      if (run.userId !== userId) return res.status(401).json({ error: "Not authorized to modify this run" });
+      if (run.status !== "active") return res.status(400).json({ error: "Wander run is not active" });
+      const result = await wanderShortRest(userId, run, Number(req.body?.hitDice) || 0);
+      if ("error" in result) return res.status(404).json({ error: result.error });
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error taking a short rest:", error);
+      res.status(500).json({ error: "Failed to rest" });
+    }
+  });
+
+  // The shared realm: leave a sign (from the fixed list) at your hex, or nod at someone's.
+  router.post("/api/wander/realm-mark", async (req: Request, res: Response) => {
+    try {
+      if (!req.user) return res.status(401).json({ error: "Authentication required" });
+      const userId = (req.user as any).id;
+      const run = await storage.getWanderRun(req.body?.runId);
+      if (!run) return res.status(404).json({ error: "Wander run not found" });
+      if (run.userId !== userId) return res.status(401).json({ error: "Not authorized" });
+      if (run.status !== "active") return res.status(400).json({ error: "Wander run is not active" });
+      const result = await leaveRealmSign(userId, run, String(req.body?.phrase ?? ""));
+      if ("error" in result) return res.status(400).json({ error: result.error });
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error leaving a realm sign:", error);
+      res.status(500).json({ error: "Failed to leave a sign" });
+    }
+  });
+
+  router.post("/api/wander/realm-mark/:id/nod", async (req: Request, res: Response) => {
+    try {
+      if (!req.user) return res.status(401).json({ error: "Authentication required" });
+      res.json(await nodRealm((req.user as any).id, parseInt(req.params.id)));
+    } catch (error: any) {
+      console.error("Error nodding at a realm sign:", error);
+      res.status(500).json({ error: "Failed to nod" });
     }
   });
 

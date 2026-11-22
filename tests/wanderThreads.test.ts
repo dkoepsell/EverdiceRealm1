@@ -13,8 +13,9 @@ import { bearing, hexDistance, getTerrainForHex, biomeForHex } from '../shared/w
 import { landmarkAt } from '../shared/wander/landmarks';
 import { normalizeSkill } from '../shared/rules/checks';
 import { rollSkill, rollSave, determineAwareness, hasDarkvision, abilityCheckModifier } from '../server/play/wander/checks';
-import { THREAD_TEMPLATES } from '../server/play/wander/threadTemplates';
-import { onMove, makeRumor, pickTarget, fill, climaxOutcome, journalEntry, type ThreadRow } from '../server/play/wander/threads';
+import { THREAD_TEMPLATES, PERSONAL_TEMPLATES, personalTemplateFor, getTemplate } from '../server/play/wander/threadTemplates';
+import { REALM_PHRASES } from '../shared/wander/realm';
+import { onMove, makeRumor, pickTarget, fill, climaxOutcome, journalEntry, advanceClocks, startableTemplates, RUMOR_STALE_DAYS, type ThreadRow } from '../server/play/wander/threads';
 import { RECURRING, recurringOutcome } from '../server/play/wander/recurring';
 import { EMPTY_LEDGER } from '../shared/ledger';
 
@@ -232,6 +233,39 @@ for (let s = 1; s <= 200; s++) {
   if (beats.includes('climax')) reached++;
 }
 check('200 trails followed directly all reach their climax', reached, 200);
+
+console.log('personal trails');
+check('a Soldier gets the old company', personalTemplateFor('Soldier').id, 'personal_soldier');
+check('a Charlatan gets the one who sold them out', personalTemplateFor('Charlatan').id, 'personal_criminal');
+check('an unknown background gets the general one', personalTemplateFor('Haunted One').id, 'personal_any');
+check('no background at all is fine too', personalTemplateFor(null).id, 'personal_any');
+ok('personal trails are findable by id', !!getTemplate('personal_sage'));
+ok('personal trails never start at random', startableTemplates('forest', []).every((t) => !t.personal));
+for (const t of PERSONAL_TEMPLATES) {
+  ok(`${t.id}: track skill is real`, normalizeSkill(t.trackSkill) !== null);
+  for (const o of t.climax.options) ok(`${t.id}/${o.id}: "${o.skill}" is a real skill`, !o.skill || normalizeSkill(o.skill) !== null || !!abilityCheckModifier(rogue, o.skill));
+  const texts = [t.sign, t.trace, t.approach].flatMap((b) => [b.title, b.reveal, b.detail]).concat([t.climax.title, t.climax.reveal, t.completionRumor, t.payoff.text]);
+  ok(`${t.id}: every text slot fills`, texts.every((x) => !/\{\w+\}/.test(fill(x, { bearing: 'north', dist: 3, name: 'X' }))));
+  ok(`${t.id}: no em dashes`, texts.every((x) => !x.includes('—')));
+}
+
+console.log('world clocks');
+const goblins: ThreadRow = { id: 1, campaignId: 1, userId: 1, templateId: 'goblin_raiders', beat: 1, targetHexQ: 4, targetHexR: 0, status: 'active', payload: { name: 'Bonegnaw', daysElapsed: 4 } };
+let clk = advanceClocks([goblins]);
+check('a night passes: day 5 of 6', [clk.patches[0].payload?.daysElapsed, clk.patches[0].status, clk.news.length], [5, undefined, 0]);
+clk = advanceClocks([{ ...goblins, payload: { ...goblins.payload, daysElapsed: 5 } }]);
+check('day 6: the goblins raid the farms', [clk.patches[0].status, clk.news.length], ['expired', 1]);
+ok('the news names the place and the clan', clk.news[0].text.includes('Bonegnaw') && clk.news[0].text.includes('east'));
+const personal: ThreadRow = { ...goblins, id: 2, templateId: 'personal_soldier', payload: { personal: true, daysElapsed: 50 } };
+check('personal trails have no clock', advanceClocks([personal]).patches.length, 0);
+const staleRumor: ThreadRow = { ...goblins, id: 3, status: 'rumored', beat: -1, payload: { daysElapsed: RUMOR_STALE_DAYS - 1 } };
+check('rumors go stale after a while, quietly', [advanceClocks([staleRumor]).patches[0].status, advanceClocks([staleRumor]).news.length], ['expired', 0]);
+check('the journal shows days left', journalEntry({ ...goblins, payload: { daysElapsed: 4 } }, 0, 0).daysLeft, 2);
+ok('every random trail has a consequence and a deadline', THREAD_TEMPLATES.every((t) => !!t.consequence && !!t.deadlineDays));
+ok('consequences have no em dashes', THREAD_TEMPLATES.every((t) => !(t.consequence ?? '').includes('—')));
+
+console.log('shared realm');
+ok('realm signs are a fixed list (nothing to moderate)', REALM_PHRASES.length >= 8 && REALM_PHRASES.every((p) => p.length < 40));
 
 console.log(`\n${checks - failures}/${checks} checks passed`);
 if (failures) process.exit(1);

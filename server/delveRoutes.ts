@@ -1,3 +1,4 @@
+import { resolveFlags } from "@shared/engagementFlags";
 import { wanderFoundDungeons } from "./play/wander/store";
 import { Router, Request, Response } from "express";
 import { storage } from "./storage";
@@ -303,6 +304,12 @@ export function registerDelveRoutes(router: Router) {
         const prior = states.find(s => s.nodeId === nodeId);
         if (!(prior?.resolutionPayload as any)?.combatTriggered) {
           return res.status(400).json({ error: "No combat was started in this room" });
+        }
+        // With exploration combat on, the fight is resolved on the server
+        // (/api/skirmish), which clears the room itself; no skipping it here.
+        const delveCampaign = await storage.getCampaign(run.campaignId);
+        if (resolveFlags(delveCampaign).exploreCombat) {
+          return res.status(409).json({ error: "Fight it out: this room is cleared when the fight is won." });
         }
         const clearedNodes = [...((run.clearedNodes as string[]) || [])];
         if (!clearedNodes.includes(nodeId)) clearedNodes.push(nodeId);

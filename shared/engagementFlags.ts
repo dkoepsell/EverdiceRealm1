@@ -48,6 +48,14 @@ export const ENGAGEMENT_FLAGS = {
   wanderRumors: true,
   /** Wander spec E: recurring road characters, remembered in the Campaign Ledger. */
   wanderRecurring: true,
+  /** Engagement 2: real 5e fights in Wander and Delve (server/play/skirmish). */
+  exploreCombat: true,
+  /** Engagement 2: a personal Wander trail per character, from their PHB background; pays off in Inspiration. */
+  backstoryTrails: true,
+  /** Engagement 2: the shared realm, signs and cairns all players see on the Wander map. Needs migration 006. */
+  sharedRealm: true,
+  /** Engagement 2: ignored trails run out of in-game days and the world changes (no real-time clock). */
+  worldClocks: true,
 } as const;
 
 export type EngagementFlag = keyof typeof ENGAGEMENT_FLAGS;

@@ -44,8 +44,10 @@ import { getTerrainForHex as sharedTerrainForHex } from "@shared/wander/terrain"
 import type { Landmark } from "@shared/wander/landmarks";
 import type { Pace, TravelActivity, TravelState } from "@shared/wander/travel";
 import {
-  TravelBar, TravelControls, RollList, TrailsJournal, checkLabel, type JournalThread,
+  TravelBar, TravelControls, RollList, TrailsJournal, RealmSigns, checkLabel, type JournalThread,
 } from "@/components/wander/WanderTravelUI";
+import { REALM_GLYPH, type RealmMark } from "@shared/wander/realm";
+import { SkirmishPanel } from "@/components/skirmish/SkirmishPanel";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface WanderRun {
@@ -59,7 +61,7 @@ interface WanderRun {
   fatigue: number;
   status: string;
   lastOutcomeType?: string;
-  flags?: { travel?: TravelState } | null;
+  flags?: { travel?: TravelState; skirmish?: { status?: string }; pendingCombat?: unknown } | null;
   startedAt?: string;
   endedAt?: string;
 }
@@ -231,6 +233,18 @@ export default function WanderPage() {
   const [trails, setTrails] = useState<JournalThread[]>([]);
   const [moveNotes, setMoveNotes] = useState<string[]>([]);
   const [lastResult, setLastResult] = useState<ChoiceResult | null>(null);
+  // Engagement 2: a real fight is under way (server/play/skirmish).
+  const [inFight, setInFight] = useState(false);
+  // Engagement 2: signs left by other players (the shared realm).
+  const [realm, setRealm] = useState<RealmMark[]>([]);
+  const mergeRealm = useCallback((list: RealmMark[] | undefined) => {
+    if (!list) return;
+    setRealm((prev) => {
+      const byId = new Map(prev.map((m) => [m.id, m]));
+      for (const m of list) byId.set(m.id, m);
+      return Array.from(byId.values());
+    });
+  }, []);
 
   const mergeLandmarks = useCallback((list: Landmark[] | undefined, replaceThreads = false) => {
     if (!list) return;
@@ -285,7 +299,7 @@ export default function WanderPage() {
     enabled: !!campaignId && !!activeRun,
   });
 
-  const { data: journalData } = useQuery<{ travel: TravelState | null; landmarks: Landmark[]; journal: JournalThread[] }>({
+  const { data: journalData } = useQuery<{ travel: TravelState | null; landmarks: Landmark[]; journal: JournalThread[]; realmMarks?: RealmMark[] }>({
     queryKey: ["/api/wander/journal", activeRun?.id],
     enabled: !!activeRun?.id,
     queryFn: async () => {
@@ -304,11 +318,13 @@ export default function WanderPage() {
     }
     setTrails(journalData.journal || []);
     mergeLandmarks(journalData.landmarks, true);
+    mergeRealm(journalData.realmMarks);
   }, [journalData, mergeLandmarks]);
 
   useState(() => {
     if (existingRun && existingRun.status === "active" && !activeRun) {
       setActiveRun(existingRun);
+      if (existingRun.flags?.pendingCombat || existingRun.flags?.skirmish?.status === "active") setInFight(true);
       if (fetchedHexes) {
         const hexSet = new Set<string>();
         fetchedHexes.forEach((h: any) => hexSet.add(`${h.hexQ},${h.hexR}`));
@@ -360,8 +376,9 @@ export default function WanderPage() {
     },
     onSuccess: (data: {
       run: WanderRun; outcome: CuratedOutcome; dangerRating: number;
-      travel?: TravelState | null; notes?: string[]; landmarks?: Landmark[]; journal?: JournalThread[]; collapse?: boolean;
+      travel?: TravelState | null; notes?: string[]; landmarks?: Landmark[]; journal?: JournalThread[]; collapse?: boolean; realmMarks?: RealmMark[];
     }) => {
+      mergeRealm(data.realmMarks);
       setActiveRun(data.run);
       if (data.travel) setTravel(data.travel);
       setMoveNotes(data.notes || []);
@@ -435,6 +452,7 @@ export default function WanderPage() {
       });
       setCurrentOutcome(null);
       if (data.collapse && activeRun) endMutation.mutate({ runId: activeRun.id });
+      if (data.skirmishReady) setInFight(true);
     },
     onError: (error: Error) => {
       toast({ title: "Choice Failed", description: error.message, variant: "destructive" });
@@ -458,15 +476,38 @@ export default function WanderPage() {
     },
   });
 
+  const realmSignMutation = useMutation({
+    mutationFn: async (data: { runId: number; phrase: string }) => (await apiRequest("POST", "/api/wander/realm-mark", data)).json(),
+    onSuccess: (data: { realmMarks: RealmMark[] }) => { mergeRealm(data.realmMarks); toast({ title: "Sign left", description: "Other adventurers passing this way will see it." }); },
+    onError: (error: Error) => toast({ title: "Couldn't leave a sign", description: error.message, variant: "destructive" }),
+  });
+  const realmNodMutation = useMutation({
+    mutationFn: async (id: number) => (await apiRequest("POST", `/api/wander/realm-mark/${id}/nod`, {})).json(),
+    onSuccess: (data: { mark: RealmMark | null }) => { if (data.mark) mergeRealm([data.mark]); },
+  });
+  const realmHere = activeRun ? realm.filter((m) => m.q === activeRun.currentHexQ && m.r === activeRun.currentHexR) : [];
+
+  const shortRestMutation = useMutation({
+    mutationFn: async (data: { runId: number; hitDice: number }) => (await apiRequest("POST", "/api/wander/short-rest", data)).json(),
+    onSuccess: (data: { notes: string[]; travel: TravelState | null }) => {
+      if (data.travel) setTravel(data.travel);
+      setLastResult({ title: "A short rest", narrative: data.notes.join(" "), rolls: [], rewards: [] });
+      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+    },
+    onError: (error: Error) => toast({ title: "Couldn't rest", description: error.message, variant: "destructive" }),
+  });
+
   const campMutation = useMutation({
     mutationFn: async (data: { runId: number }) => {
       const res = await apiRequest("POST", "/api/wander/camp", data);
       return res.json();
     },
-    onSuccess: (data: { run: WanderRun; travel: TravelState; notes: string[]; rolls: string[]; collapse?: boolean }) => {
+    onSuccess: (data: { run: WanderRun; travel: TravelState; notes: string[]; rolls: string[]; collapse?: boolean; journal?: JournalThread[] }) => {
       setActiveRun(data.run);
       setTravel(data.travel);
+      if (data.journal) setTrails(data.journal);
       setLastResult({ title: "You make camp", narrative: (data.notes || []).join(" "), rolls: data.rolls || [], rewards: [] });
+      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
       setMoveNotes([]);
       if (data.collapse) endMutation.mutate({ runId: data.run.id });
     },
@@ -568,7 +609,14 @@ export default function WanderPage() {
   }, [activeRun]);
 
   const selectedCampaign = campaigns?.find((c: any) => c.id === campaignId);
-  const selectedCharacter = characters?.find((c: any) => c.id === parseInt(selectedCharacterId));
+  // After a reload the dropdown is empty but the run knows its character.
+  const selectedCharacter = characters?.find((c: any) => c.id === (parseInt(selectedCharacterId) || activeRun?.characterId));
+  // Reopen a fight that was waiting or under way when the page loaded.
+  useEffect(() => {
+    const f = (activeRun ?? existingRun)?.flags;
+    if (f?.pendingCombat || f?.skirmish?.status === "active") setInFight(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRun?.id, existingRun?.id]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -709,7 +757,9 @@ export default function WanderPage() {
             {travel && (
               <Card className="mb-4 border-slate-700/50 bg-slate-900/50">
                 <CardContent className="py-3 px-4 space-y-3">
-                  <TravelBar travel={travel} onCamp={() => campMutation.mutate({ runId: activeRun.id })} camping={campMutation.isPending} />
+                  <TravelBar travel={travel} onCamp={() => campMutation.mutate({ runId: activeRun.id })} camping={campMutation.isPending}
+                    hp={selectedCharacter ? { hp: selectedCharacter.hitPoints, max: selectedCharacter.maxHitPoints, hitDice: selectedCharacter.hitDiceRemaining ?? selectedCharacter.level } : undefined}
+                    onShortRest={(n) => shortRestMutation.mutate({ runId: activeRun.id, hitDice: n })} resting={shortRestMutation.isPending} />
                   <TravelControls pace={pace} activity={activity} onPace={(p) => { setPace(p); if (p === "fast" && activity === "forage") setActivity("navigate"); }} onActivity={setActivity} />
                 </CardContent>
               </Card>
@@ -876,6 +926,14 @@ export default function WanderPage() {
                               {(() => {
                                 const lm = landmarks.get(`${hex.q},${hex.r}`)
                                   ?? Array.from(landmarks.values()).find((l) => l.threadId && l.q === hex.q && l.r === hex.r);
+                                if (!lm && !hex.isCurrent && !hex.marker) {
+                                  const rm = realm.find((m) => m.q === hex.q && m.r === hex.r);
+                                  if (rm) return (
+                                    <text x={x} y={y} textAnchor="middle" dominantBaseline="middle" style={{ fontSize: "12px", pointerEvents: "none" }}>
+                                      {REALM_GLYPH[rm.kind]}
+                                    </text>
+                                  );
+                                }
                                 if (!lm || hex.isCurrent || hex.marker) return null;
                                 return (
                                   <text x={x} y={y} textAnchor="middle" dominantBaseline="middle" style={{ fontSize: "13px", pointerEvents: "none" }}>
@@ -916,9 +974,33 @@ export default function WanderPage() {
 
               <div className="lg:col-span-2">
                 <AnimatePresence mode="wait">
-                  {currentOutcome ? (
+                  {inFight && activeRun ? (
+                    <motion.div key="fight" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                      <SkirmishPanel
+                        mode="wander"
+                        runId={activeRun.id}
+                        onDone={(r) => {
+                          setInFight(false);
+                          queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+                          queryClient.invalidateQueries({ queryKey: ["/api/wander/journal", activeRun.id] });
+                          queryClient.removeQueries({ queryKey: ["/api/skirmish", "wander", activeRun.id] });
+                          setLastResult({
+                            title: r.status === "won" ? "Victory" : r.status === "fled" ? "You got away" : "Knocked out",
+                            narrative: r.status === "won"
+                              ? `You win the fight and earn ${r.xp} XP.${r.payoff?.text ? ` ${r.payoff.text}` : ""}`
+                              : r.status === "fled" ? "You put distance between you and the fight." : "You wake later with 1 hit point. Time to head back to town.",
+                            rolls: [],
+                            rewards: [],
+                            payoff: r.payoff?.kind === "delve" ? { kind: "delve", name: r.payoff.name } : undefined,
+                          });
+                          if (r.status === "lost") endMutation.mutate({ runId: activeRun.id });
+                        }}
+                      />
+                    </motion.div>
+                  ) : currentOutcome ? (
                     <motion.div key="outcome" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                       <OutcomeCard
+                        realmHere={realmHere}
                         notes={moveNotes}
                         outcome={currentOutcome}
                         onChoice={handleChoice}
@@ -937,6 +1019,7 @@ export default function WanderPage() {
                         <CardContent className="space-y-3">
                           <p className="text-sm text-slate-300 leading-relaxed">{lastResult.narrative}</p>
                           <RollList rolls={lastResult.rolls} />
+                          <RealmSigns marks={realmHere} onNod={(id) => realmNodMutation.mutate(id)} onLeave={(phrase) => realmSignMutation.mutate({ runId: activeRun.id, phrase })} leaving={realmSignMutation.isPending} />
                           {lastResult.rewards.length > 0 && (
                             <div className="flex flex-wrap gap-1.5">
                               {lastResult.rewards.map((r, i) => (
@@ -946,7 +1029,7 @@ export default function WanderPage() {
                               ))}
                             </div>
                           )}
-                          {lastResult.combat && (
+                          {lastResult.combat && !inFight && false && (
                             <p className="text-xs text-red-300">A fight breaks out. (Wander resolves fights in the story for now.)</p>
                           )}
                           {lastResult.payoff?.kind === "delve" && (
@@ -1109,6 +1192,7 @@ export default function WanderPage() {
 function OutcomeCard({
   outcome,
   notes,
+  realmHere,
   onChoice,
   onHeadBack,
   isPending,
@@ -1116,6 +1200,7 @@ function OutcomeCard({
 }: {
   outcome: CuratedOutcome;
   notes?: string[];
+  realmHere?: RealmMark[];
   onChoice: (choiceId: string) => void;
   onHeadBack: () => void;
   isPending: boolean;
@@ -1165,6 +1250,14 @@ function OutcomeCard({
         {outcome.detail && !outcome.thread && <p className="text-xs text-slate-400 leading-relaxed italic">{outcome.detail}</p>}
 
         <RollList rolls={outcome.rolls} notes={notes} />
+        {realmHere && realmHere.length > 0 && (
+          <div className="rounded border border-slate-700/60 bg-slate-950/40 p-2 space-y-1">
+            <p className="text-[11px] uppercase tracking-wider text-slate-500">Left here by other adventurers</p>
+            {realmHere.map((m) => (
+              <p key={m.id} className="text-xs text-slate-300">{REALM_GLYPH[m.kind]} {m.kind === "sign" ? `"${m.text}", ${m.characterName}` : m.text}{m.nods ? ` (👍 ${m.nods})` : ""}</p>
+            ))}
+          </div>
+        )}
 
         {outcome.rewards && outcome.rewards.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
