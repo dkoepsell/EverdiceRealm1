@@ -174,19 +174,27 @@ export function buildEncounter(
 ): { monsters: MonsterStats[]; adjustedXp: number; rating: EncounterDifficulty | "trivial"; budget: number; note: string } {
   const roster = rosterFor(theme);
   const budget = xpThresholds(level, partySize)[difficulty];
-  const picks: MonsterStats[] = [];
-  // Leader first if they fit alone, else the rank and file.
   const byStrength = [...roster].sort((a, b) => b.xp - a.xp);
-  const leader = byStrength.find((m) => adjustedXp([m], partySize) <= budget);
-  picks.push(leader ?? byStrength[byStrength.length - 1]);
   const weakest = byStrength[byStrength.length - 1];
-  for (let i = 0; i < 6; i++) {
-    const candidates = roster.filter((m) => adjustedXp([...picks, m], partySize) <= budget);
-    if (!candidates.length) break;
-    // Prefer more of the weakest kind, so groups read as a pack or a gang.
-    const next = candidates.includes(weakest) && rng() < 0.8 ? weakest : candidates[Math.floor(rng() * candidates.length)];
-    picks.push(next);
-  }
+  const fill = (start: MonsterStats) => {
+    const picks: MonsterStats[] = [start];
+    for (let i = 0; i < 6; i++) {
+      const candidates = roster.filter((m) => adjustedXp([...picks, m], partySize) <= budget);
+      if (!candidates.length) break;
+      // Prefer more of the weakest kind, so groups read as a pack or a gang.
+      const next = candidates.includes(weakest) && rng() < 0.8 ? weakest : candidates[Math.floor(rng() * candidates.length)];
+      picks.push(next);
+    }
+    return picks;
+  };
+  // Two ways to fill the budget: a leader with followers, or a pack of the
+  // rank and file. Keep whichever comes closer without going over.
+  const leader = byStrength.find((m) => m !== weakest && adjustedXp([m], partySize) <= budget);
+  const options = [fill(weakest), ...(leader ? [fill(leader)] : [])];
+  const fits = options.filter((o) => adjustedXp(o, partySize) <= budget);
+  const picks = fits.length
+    ? fits.sort((a, b) => adjustedXp(b, partySize) - adjustedXp(a, partySize))[0]
+    : options.sort((a, b) => adjustedXp(a, partySize) - adjustedXp(b, partySize))[0];
   const adj = adjustedXp(picks, partySize);
   const rating = rateEncounter(adj, level, partySize);
   const names = picks.reduce<Record<string, number>>((acc, m) => { acc[m.name] = (acc[m.name] ?? 0) + 1; return acc; }, {});

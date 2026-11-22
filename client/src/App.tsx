@@ -35,6 +35,7 @@ const ChroniclesPage = lazy(() => import("@/pages/chronicles"));
 const DiceRoller = lazy(() => import("@/pages/dice-roller"));
 const DMToolkit = lazy(() => import("@/pages/dm-toolkit"));
 const LearnPage = lazy(() => import("@/pages/learn"));
+const DmPathPage = lazy(() => import("@/pages/dm-path"));
 const WorldMapPage = lazy(() => import("@/pages/world-map"));
 const CAMLPage = lazy(() => import("@/pages/CAMLPage"));
 const CommunityPage = lazy(() => import("@/pages/community"));
@@ -109,6 +110,7 @@ function Router() {
             <ProtectedRoute path="/dice-roller" component={DiceRoller} />
             <ProtectedRoute path="/dm-toolkit" component={DMToolkit} />
             <ProtectedRoute path="/learn" component={LearnPage} />
+            <ProtectedRoute path="/dm-path" component={DmPathPage} />
             <Route path="/world-map" component={WorldMapPage} />
             {/* One Community destination. /bulletin and /groups are kept as
                 redirects so existing links and bookmarks still resolve. */}

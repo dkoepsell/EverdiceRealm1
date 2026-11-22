@@ -38,6 +38,8 @@ export interface CuratedOutcome {
   /** Wander spec B: who noticed whom, for risk outcomes with a threat. */
   awareness?: 'unseen' | 'spotted' | 'ambushed';
   threatPassive?: number;
+  /** DM path: which "behind the screen" note explains this moment (shared/dm/path.ts). */
+  screenNote?: string;
   /** Rolls made while resolving the move (navigation, forage, surprise), shown with the card. */
   rolls?: string[];
   combatSeed?: {

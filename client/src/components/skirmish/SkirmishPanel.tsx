@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Swords, Shield, Eye, Footprints, Wind, Sparkles, Heart, Loader2, Skull, Trophy, ChevronDown, ChevronRight, Dices } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { BehindTheScreen } from "@/components/dm/BehindTheScreen";
 
 interface Enemy { id: string; name: string; ac: number; hp: number; maxHp: number; status: "active" | "down" | "fled"; creatureType: string }
 interface LogEntry { round: number; who: "pc" | "enemy" | "system"; text: string; detail?: string[] }
@@ -25,6 +26,7 @@ export interface SkirmishView {
   encounterNote: string;
   rating: string;
   xpEarned: number;
+  screenNotes?: string[];
 }
 interface Options {
   weapon: string;
@@ -268,6 +270,8 @@ export function SkirmishPanel({
             </Button>
           </div>
         )}
+
+        <BehindTheScreen ids={s.screenNotes} />
 
         {/* Log */}
         <div className="space-y-1 max-h-72 overflow-y-auto pr-1" data-testid="skirmish-log">

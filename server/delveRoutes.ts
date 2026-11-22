@@ -1,5 +1,6 @@
 import { resolveFlags } from "@shared/engagementFlags";
 import { wanderFoundDungeons } from "./play/wander/store";
+import { playerMadeDungeons } from "./play/dmpath/routes";
 import { Router, Request, Response } from "express";
 import { storage } from "./storage";
 import {
@@ -26,7 +27,7 @@ export function registerDelveRoutes(router: Router) {
       if (!req.user) return res.status(401).json({ error: "Not authenticated" });
 
       // Dungeons found by following Wander threads come after the procedural entry.
-      const found = await wanderFoundDungeons((req.user as any).id);
+      const found = [...(await playerMadeDungeons((req.user as any).id)), ...(await wanderFoundDungeons((req.user as any).id))];
       res.json([{
         id: -1,
         name: "Enter the Depths",
@@ -74,7 +75,12 @@ export function registerDelveRoutes(router: Router) {
       // A dungeon found by following a Wander thread keeps the layout it was
       // created with; anything else is a fresh procedural dungeon, as before.
       const foundDef = typeof dungeonId === "number" && dungeonId > 0 ? await storage.getDungeonDefinition(dungeonId) : undefined;
-      const isWanderFound = !!foundDef && Array.isArray(foundDef.themeTags) && foundDef.themeTags.includes("wander-found");
+      // ...and so does one a player designed on the DM path (themeTags "player-made").
+      const tags: string[] = Array.isArray(foundDef?.themeTags) ? (foundDef!.themeTags as string[]) : [];
+      const ownMade = tags.includes("player-made")
+        ? (await playerMadeDungeons(userId)).some((d: any) => d.id === foundDef!.id)
+        : false;
+      const isWanderFound = !!foundDef && (tags.includes("wander-found") || ownMade);
       const dungeonNodes = isWanderFound
         ? (foundDef!.nodeTable as ReturnType<typeof generateProceduralDungeon>)
         : generateProceduralDungeon('goblin');

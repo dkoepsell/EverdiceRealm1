@@ -144,6 +144,12 @@
        exploreCombat also closes Delve's "Combat Resolved" shortcut (fights must be won).
     3. Tests: npx tsx tests/skirmish.test.ts && npx tsx tests/wanderThreads.test.ts
 
+  DM PATH (dm-path.md, branch dm-path):
+    1. Run migration 007 (dm_path_progress, play_preferences; additive, idempotent):
+       ssh root@204.168.167.44 'cd /root/EverdiceRealm1 && set -a && source .env && set +a && psql "$DATABASE_URL" -f scripts/migrations/007-dm-path.sql'
+       Until it runs, /dm-path loads but saves nothing (one warning in the log).
+    2. Tests: npx tsx tests/dmPath.test.ts
+
   Engagement report (Phase 0, read-only; where players quit):
     ssh root@204.168.167.44 'cd /root/EverdiceRealm1 && set -a && source .env && set +a && npm run report:engagement'
 

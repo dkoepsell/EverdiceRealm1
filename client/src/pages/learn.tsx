@@ -16,6 +16,7 @@ import { DMGuide } from "@/components/education/DMGuide";
 import { LearningPathContent } from "@/components/education/LearningPathContent";
 import { BadgeShowcase } from "@/components/BadgeDisplay";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
 import { 
   BookOpen, 
   Users, 
@@ -1281,6 +1282,9 @@ export default function LearnPage() {
               </div>
               <h1 className="text-2xl md:text-3xl font-fantasy font-bold text-white mb-2">D&D Learning Center</h1>
               <p className="text-white/60">Master the art of D&D through guided learning paths and practice</p>
+              <Link href="/dm-path" className="inline-flex items-center gap-1 mt-2 text-sm text-violet-300 hover:text-violet-200 underline" data-testid="learn-dm-path">
+                Ready to run a game yourself? Become a DM
+              </Link>
             </div>
             
             <div className="flex-shrink-0">
