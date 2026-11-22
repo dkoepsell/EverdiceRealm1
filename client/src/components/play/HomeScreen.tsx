@@ -5,7 +5,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Beer, Compass, Map, Pickaxe, Store } from "lucide-react";
 import type { Campaign, Character } from "@shared/schema";
 import { getClassDef } from "@shared/rules/classProgression";
 import { normalizeCampaignLength, pacingForLength } from "@shared/rules/campaignLength";
@@ -112,6 +112,25 @@ export function HomeScreen({
             <div className="text-lg font-semibold">Find a party</div>
             <div className="text-sm ed-muted">{openTables ? `${openTables} table${openTables === 1 ? "" : "s"} open` : "Post or browse tables"}</div>
           </Link>
+        </div>
+
+        <div data-testid="home-where-to-next">
+          <div className="ed-label mb-2">Where to next?</div>
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+            {[
+              { href: "/wander", label: "Wander", desc: "Explore the wilds", icon: Compass },
+              { href: "/delve", label: "Delve", desc: "Raid a dungeon", icon: Pickaxe },
+              { href: "/tavern", label: "Tavern", desc: "Rest and resupply", icon: Beer },
+              { href: "/trading-post", label: "Trading Post", desc: "Buy and sell", icon: Store },
+              { href: "/world-map", label: "World Map", desc: "See the realm", icon: Map },
+            ].map(({ href, label, desc, icon: Icon }) => (
+              <Link key={href} href={href} className="ed-card block p-3 text-center hover:border-[var(--ed-gold)]" data-testid={`home-goto-${label.toLowerCase().replace(/ /g, "-")}`}>
+                <Icon className="mx-auto mb-1 h-6 w-6 ed-gold" />
+                <div className="text-sm font-semibold">{label}</div>
+                <div className="text-xs ed-muted">{desc}</div>
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
     </div>

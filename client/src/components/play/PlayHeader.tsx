@@ -4,6 +4,8 @@
  * threat-clock dials, and the Inspiration / Journal / rules controls.
  */
 import type { ReactNode } from "react";
+import { Link } from "wouter";
+import { Beer, Compass, Map, Pickaxe, Store } from "lucide-react";
 import { ClockDial } from "@/components/combat/CombatTurnPanel";
 
 export interface HeaderClock { id: string; name: string; filled: number; segments: number }
@@ -64,6 +66,19 @@ export function PlayHeader({
           {live.map((c) => <ClockDial key={c.id} name={c.name} filled={c.filled} segments={c.segments} />)}
         </div>
       )}
+      <nav className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-[var(--ed-line)] pt-2 text-sm" aria-label="Elsewhere in the realm" data-testid="play-header-links">
+        {[
+          { href: "/wander", label: "Wander", icon: Compass },
+          { href: "/delve", label: "Delve", icon: Pickaxe },
+          { href: "/tavern", label: "Tavern", icon: Beer },
+          { href: "/trading-post", label: "Trading Post", icon: Store },
+          { href: "/world-map", label: "World Map", icon: Map },
+        ].map(({ href, label, icon: Icon }) => (
+          <Link key={href} href={href} className="inline-flex items-center gap-1 ed-muted hover:text-[var(--ed-gold-soft)]" data-testid={`play-goto-${label.toLowerCase().replace(/ /g, "-")}`}>
+            <Icon className="h-4 w-4" /> {label}
+          </Link>
+        ))}
+      </nav>
       <div className="mt-3 flex gap-1" aria-label={`Chapter ${chapter} of ${totalChapters}`}>
         {Array.from({ length: totalChapters }).map((_, i) => (
           <div key={i} className="h-1.5 flex-1 rounded-full" style={{ background: i < chapter - 1 ? "var(--ed-gold)" : i === chapter - 1 ? "var(--ed-gold-soft)" : "var(--ed-line)" }} />
