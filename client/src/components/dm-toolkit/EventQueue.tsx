@@ -458,8 +458,21 @@ export default function EventQueue({
                     </div>
 
                     {/* Title and description */}
-                    <h4 className="font-medium text-sm text-slate-200 mb-1">{event.title}</h4>
-                    <p className="text-xs text-slate-400 mb-2">{event.description}</p>
+                    {/* A player's action often arrives with the title cut from the same
+                        sentence as the description: show it once, in full. */}
+                    {(() => {
+                      const t = (event.title || "").replace(/(\.\.\.|…)$/, "").trim();
+                      const d = (event.description || "").trim();
+                      const same = !!t && d.startsWith(t);
+                      return same ? (
+                        <p className="font-medium text-sm text-slate-200 mb-2">{d}</p>
+                      ) : (
+                        <>
+                          <h4 className="font-medium text-sm text-slate-200 mb-1">{event.title}</h4>
+                          {d && <p className="text-xs text-slate-400 mb-2">{d}</p>}
+                        </>
+                      );
+                    })()}
 
                     {/* Impact & Escalation preview */}
                     <div className="p-2 rounded bg-slate-900/50 border border-slate-700 mb-2 space-y-1.5">
