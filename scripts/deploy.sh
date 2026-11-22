@@ -1,36 +1,29 @@
 #!/usr/bin/env bash
 # =============================================================================
-# deploy.sh — Deploy EverdiceRealm to your VPS
+# deploy.sh — Deploy EverdiceRealm to the production VPS
 # =============================================================================
 # Usage (from project root):
-#   ./scripts/deploy.sh [user@host]
+#   ./scripts/deploy.sh [user@host]        default: root@204.168.167.44
 #
-# Example:
-#   ./scripts/deploy.sh root@123.45.67.89
-#   ./scripts/deploy.sh everdice@myserver.com
+# What it does:
+#   1. Checks your local main is committed and pushed to origin/main.
+#   2. On the server: git pull --ff-only origin main, npm ci if the lockfile
+#      changed, npm run build (type-gated), pm2 restart.
+#   3. Checks the site serves the bundle the server just built.
 #
-# First-time setup:
-#   1. Run scripts/setup-vps.sh on the VPS once.
-#   2. Copy your .env to the VPS:
-#        scp .env user@host:/var/www/everdice/.env
-#   3. Then use this script for all future deploys.
+# What it never does: touch the database schema. NEVER run db:push /
+# drizzle-kit push against prod — it drops the session table (everyone is
+# logged out) and fights the hand-made tables. Schema changes ship as SQL
+# files in scripts/migrations/ and are run by hand with psql; this script
+# lists any that arrived with the pull so you don't forget them.
 # =============================================================================
 set -euo pipefail
 
-# ── Config ────────────────────────────────────────────────────────────────────
-VPS="${1:-}"
+VPS="${1:-root@204.168.167.44}"
 APP_DIR="/root/EverdiceRealm1"
 PM2_APP="everdice"
-REMOTE_TMP="/tmp/everdice-deploy"
+SITE_URL="${SITE_URL:-https://realmofeverdice.com}"
 
-# ── Validation ────────────────────────────────────────────────────────────────
-if [[ -z "${VPS}" ]]; then
-  echo "Usage: $0 user@host"
-  echo "Example: $0 root@123.45.67.89"
-  exit 1
-fi
-
-# Check we're in the project root
 if [[ ! -f "package.json" ]]; then
   echo "Error: run this script from the project root (where package.json lives)"
   exit 1
@@ -38,109 +31,80 @@ fi
 
 echo "==> Deploying EverdiceRealm to ${VPS}..."
 
-# ── 1. Build locally ──────────────────────────────────────────────────────────
+# ── 1. Local checks ──────────────────────────────────────────────────────────
 echo ""
-echo "[1/5] Building production bundle..."
-npm run build
+echo "[1/4] Checking local main is committed and pushed..."
+branch=$(git rev-parse --abbrev-ref HEAD)
+if [[ "${branch}" != "main" ]]; then
+  echo "Error: you are on '${branch}'. Deploys go from main."
+  exit 1
+fi
+if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+  echo "Error: uncommitted changes to tracked files. Commit or stash them first."
+  exit 1
+fi
+git fetch -q origin main
+LOCAL=$(git rev-parse HEAD)
+REMOTE=$(git rev-parse origin/main)
+if [[ "${LOCAL}" != "${REMOTE}" ]]; then
+  echo "Error: local main (${LOCAL:0:7}) and origin/main (${REMOTE:0:7}) differ."
+  echo "       Push or pull first — the server deploys origin/main."
+  exit 1
+fi
+echo "    main = origin/main = ${LOCAL:0:7}"
 
-# ── 2. Create a deployment archive (exclude heavy dev-only dirs) ───────────────
+# ── 2. Pull, build, restart on the server ────────────────────────────────────
 echo ""
-echo "[2/5] Creating deployment archive..."
-ARCHIVE=$(mktemp /tmp/everdice-XXXXXX.tar.gz)
-tar -czf "${ARCHIVE}" \
-  --exclude='.git' \
-  --exclude='node_modules' \
-  --exclude='attached_assets' \
-  --exclude='uploads' \
-  --exclude='.env' \
-  --exclude='*.log' \
-  dist \
-  package.json \
-  package-lock.json \
-  drizzle.config.ts \
-  migrations \
-  shared
-
-echo "    Archive: ${ARCHIVE} ($(du -sh "${ARCHIVE}" | cut -f1))"
-
-# ── 3. Upload to VPS ──────────────────────────────────────────────────────────
-echo ""
-echo "[3/5] Uploading to ${VPS}..."
-ssh "${VPS}" "mkdir -p ${REMOTE_TMP}"
-scp "${ARCHIVE}" "${VPS}:${REMOTE_TMP}/release.tar.gz"
-rm -f "${ARCHIVE}"
-
-# ── 4. Extract & install on VPS ───────────────────────────────────────────────
-echo ""
-echo "[4/5] Installing on VPS..."
+echo "[2/4] Pulling, building and restarting on ${VPS}..."
 ssh "${VPS}" bash <<REMOTE
 set -euo pipefail
+cd "${APP_DIR}"
+BEFORE=\$(git rev-parse HEAD)
+GIT_SSH_COMMAND="ssh -i ~/.ssh/id_ed25519" git pull -q --ff-only origin main
+AFTER=\$(git rev-parse HEAD)
+echo "    server: \${BEFORE:0:7} -> \${AFTER:0:7}"
 
-APP_DIR="${APP_DIR}"
-REMOTE_TMP="${REMOTE_TMP}"
-PM2_APP="${PM2_APP}"
-
-echo "  -> Extracting release..."
-mkdir -p "\${APP_DIR}"
-tar -xzf "\${REMOTE_TMP}/release.tar.gz" -C "\${APP_DIR}"
-rm -rf "\${REMOTE_TMP}"
-
-echo "  -> Installing production dependencies..."
-cd "\${APP_DIR}"
-npm ci --omit=dev --ignore-scripts 2>&1 | tail -5
-
-echo "  -> Running database migrations..."
-# Only push schema if DATABASE_URL is set in .env
-if [ -f "\${APP_DIR}/.env" ]; then
-  set -a; source "\${APP_DIR}/.env"; set +a
-fi
-if [ -n "\${DATABASE_URL:-}" ]; then
-  npx drizzle-kit push --config "\${APP_DIR}/drizzle.config.ts" 2>&1 | tail -5 || echo "  (migration skipped or up to date)"
-else
-  echo "  (no DATABASE_URL — skipping migration)"
+if ! git diff --quiet "\${BEFORE}" "\${AFTER}" -- package-lock.json; then
+  echo "    package-lock.json changed — npm ci"
+  npm ci 2>&1 | tail -3
 fi
 
-echo "  -> Restarting app with PM2..."
-# Always force NODE_ENV=production regardless of what .env says.
-# NOTE: .env was already sourced into this shell above (set -a; source), so PM2
-# inherits DATABASE_URL etc. from the process environment. This PM2 build has no
-# working --env-file flag, and 'pm2 reload --update-env' does NOT re-read a file —
-# it reuses the env cached at first start. So we 'restart --update-env' to force
-# the freshly-sourced values in (this is what bit us migrating off Neon).
-export NODE_ENV=production
-if pm2 describe "\${PM2_APP}" &>/dev/null; then
-  pm2 restart "\${PM2_APP}" --update-env
-else
-  pm2 start "\${APP_DIR}/dist/index.js" \
-    --name "\${PM2_APP}" \
-    --interpreter node \
-    --max-memory-restart 1G \
-    --restart-delay 3000 \
-    --time
+NEW_MIGRATIONS=\$(git diff --name-only --diff-filter=A "\${BEFORE}" "\${AFTER}" -- scripts/migrations/ || true)
+if [[ -n "\${NEW_MIGRATIONS}" ]]; then
+  echo ""
+  echo "    !! New migrations arrived with this pull. Run them by hand if you haven't:"
+  for m in \${NEW_MIGRATIONS}; do
+    echo "       psql \"\\\$DATABASE_URL\" -f \${m}"
+  done
+  echo "       (from ${APP_DIR}, after: set -a && source .env && set +a)"
+  echo ""
 fi
-pm2 save
 
-echo "  -> PM2 status:"
-pm2 list | grep "\${PM2_APP}" || true
+if ! npm run build > /tmp/everdice-build.log 2>&1; then
+  echo "    BUILD FAILED — app NOT restarted (still running the previous build)."
+  tail -30 /tmp/everdice-build.log
+  exit 1
+fi
+grep -E "type errors|built in" /tmp/everdice-build.log || true
+
+pm2 restart "${PM2_APP}" >/dev/null
+sleep 5
+pm2 describe "${PM2_APP}" | grep -m1 status
 REMOTE
 
-# ── 5. Health check ───────────────────────────────────────────────────────────
+# ── 3. Verify the live site serves the new build ─────────────────────────────
 echo ""
-echo "[5/5] Health check..."
-sleep 3
-HOST=$(echo "${VPS}" | cut -d@ -f2)
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "http://${HOST}" 2>/dev/null || echo "000")
-if [[ "${HTTP_STATUS}" =~ ^[23] ]]; then
-  echo "    HTTP ${HTTP_STATUS} — app is up!"
+echo "[3/4] Checking ${SITE_URL} serves the new bundle..."
+BUILT=$(ssh "${VPS}" "grep -o 'assets/index-[^\"]*\.js' ${APP_DIR}/dist/public/index.html" || true)
+LIVE=$(curl -s --max-time 10 "${SITE_URL}/" | grep -o 'assets/index-[^"]*\.js' || true)
+if [[ -n "${BUILT}" && "${BUILT}" == "${LIVE}" ]]; then
+  echo "    OK: ${LIVE}"
 else
-  echo "    HTTP ${HTTP_STATUS} — app may still be starting. Check with:"
-  echo "      ssh ${VPS} 'pm2 logs ${PM2_APP} --lines 30'"
+  echo "    WARNING: server built '${BUILT}', site serves '${LIVE}'."
+  echo "    Check: ssh ${VPS} 'pm2 logs ${PM2_APP} --lines 30'"
+  exit 1
 fi
 
+# ── 4. Done ──────────────────────────────────────────────────────────────────
 echo ""
-echo "==> Deploy complete!"
-echo ""
-echo "Useful commands:"
-echo "  View logs:    ssh ${VPS} 'pm2 logs ${PM2_APP}'"
-echo "  Restart app:  ssh ${VPS} 'pm2 restart ${PM2_APP}'"
-echo "  App status:   ssh ${VPS} 'pm2 status'"
+echo "[4/4] Deploy complete (${LOCAL:0:7}). Users need a hard refresh (Ctrl+Shift+R)."
