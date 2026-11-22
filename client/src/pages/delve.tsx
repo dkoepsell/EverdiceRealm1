@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { SkirmishPanel } from "@/components/skirmish/SkirmishPanel";
 import { queryClient, apiRequest, getQueryFn } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAnalytics } from "@/hooks/use-analytics";
@@ -518,6 +519,7 @@ export default function DelvePage() {
   const [summaryData, setSummaryData] = useState<DelveSummary | null>(null);
   const [chestOptions, setChestOptions] = useState<ChestOption[]>([]);
   const [showCombatModal, setShowCombatModal] = useState(false);
+  const [oldCombatResolve, setOldCombatResolve] = useState(false);
   const [combatData, setCombatData] = useState<any>(null);
   const [showRetreatConfirm, setShowRetreatConfirm] = useState(false);
   const [showChestConsequence, setShowChestConsequence] = useState<ChestOption | null>(null);
@@ -1229,8 +1231,42 @@ export default function DelvePage() {
         </div>
 
         <Dialog open={showCombatModal} onOpenChange={setShowCombatModal}>
-          <DialogContent className="bg-[#1c1917] border-red-800 max-w-lg">
+          <DialogContent className="bg-[#1c1917] border-[#44403c] max-w-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
+              <DialogTitle className="text-red-300">Fight!</DialogTitle>
+              <DialogDescription className="text-[#a8a29e]">
+                Initiative, attacks, spells and saves are rolled for real. Click a foe to target it.
+              </DialogDescription>
+            </DialogHeader>
+            {activeRunData && showCombatModal && !oldCombatResolve && (
+              <SkirmishPanel
+                mode="delve"
+                runId={activeRunData.run.id}
+                onDone={(r) => {
+                  setShowCombatModal(false);
+                  queryClient.removeQueries({ queryKey: ["/api/skirmish", "delve", activeRunData.run.id] });
+                  queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+                  if (r.run) setActiveRunData(prev => prev ? { ...prev, run: r.run as any } : prev);
+                  if (r.status === "won") {
+                    setCurrentNodeResolution(null);
+                    setLastActionResult({ success: true, narrative: ((r.resolution as any)?.narrative ?? "The last foe falls.") + ` (+${r.xp} XP)`, nodeCleared: true, combatTriggered: false } as any);
+                  } else if (r.status === "fled") {
+                    setLastActionResult({ success: false, narrative: "You fall back from the fight. The room is still held against you.", combatTriggered: false } as any);
+                  } else {
+                    setLastActionResult({ success: false, narrative: "You are knocked out and wake with 1 hit point. Retreat and rest before you try again.", combatTriggered: false } as any);
+                    setShowRetreatConfirm(true);
+                  }
+                }}
+              />
+            )}
+            {!oldCombatResolve && (
+              <button className="text-[11px] text-[#78716c] underline" onClick={() => setOldCombatResolve(true)}>
+                Real fights are off for this campaign? Resolve it the old way
+              </button>
+            )}
+            {oldCombatResolve && (
+              <div>
+<DialogHeader>
               <DialogTitle className="text-red-400 flex items-center gap-2">
                 <Sword className="h-5 w-5" /> Combat Engaged!
               </DialogTitle>
@@ -1292,6 +1328,7 @@ export default function DelvePage() {
                 className="border-[#44403c] text-[#d6d3d1]"
                 onClick={() => {
                   setShowCombatModal(false);
+                  setOldCombatResolve(false);
                   if (activeRunData && currentRunNode) {
                     // Tell the server the fight is won; it gates the hoard on
                     // its own clearedNodes, not on this page's copy.
@@ -1306,6 +1343,8 @@ export default function DelvePage() {
                 Combat Resolved — Continue
               </Button>
             </DialogFooter>
+                        </div>
+            )}
           </DialogContent>
         </Dialog>
 

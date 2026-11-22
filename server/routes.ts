@@ -36,6 +36,7 @@ import { mergeLedgerUpdates } from "./play/ledger/merge";
 import { buildRecap, ledgerPromptBlock, ledgerStreamLine, selectCallbacks } from "./play/ledger/callbacks";
 import { registerLedgerRoutes } from "./play/ledger/routes";
 import { registerCombatRoutes } from "./play/combat/routes";
+import { registerSkirmishRoutes } from "./play/skirmish/routes";
 import { midTurn, playerCombatConditions, postTurn, preTurn } from "./play/combat/turnHooks";
 import { finishTurnEpisode } from "./play/episodeHook";
 import { registerBetweenRoutes } from "./play/between/routes";
@@ -1702,6 +1703,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerCheckRoutes(app);
   registerLedgerRoutes(app);
   registerCombatRoutes(app);
+  registerSkirmishRoutes(app);
   registerBetweenRoutes(app);
   
   syncMarketItemStats().catch(err => console.error("[Economy] Sync failed:", err));
