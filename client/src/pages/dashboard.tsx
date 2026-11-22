@@ -274,7 +274,7 @@ export default function Dashboard() {
   const activeCharacter = participantCharacter;
 
   const isNewUser = characters.length === 0 && availableCampaigns.length === 0;
-  const [routePath] = useLocation();
+  const [routePath, setRoutePath] = useLocation();
   const [showHome, setShowHome] = useState<boolean>(() => {
     try { return sessionStorage.getItem('everdice_in_play') !== '1'; } catch { return true; }
   });
@@ -285,6 +285,7 @@ export default function Dashboard() {
     const goHome = () => {
       try { sessionStorage.removeItem('everdice_in_play'); } catch { /* private mode */ }
       setShowHome(true);
+      if (window.location.pathname === '/play') setRoutePath('/dashboard');
       window.scrollTo({ top: 0 });
     };
     window.addEventListener('everdice:home', goHome);
@@ -293,6 +294,7 @@ export default function Dashboard() {
   const enterPlay = () => {
     setShowHome(false);
     try { sessionStorage.setItem('everdice_in_play', '1'); } catch { /* private mode */ }
+    if (routePath !== '/play') setRoutePath('/play');
     window.scrollTo({ top: 0 });
   };
   const [showQuickStart, setShowQuickStart] = useState(false);

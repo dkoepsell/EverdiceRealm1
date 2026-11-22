@@ -85,7 +85,8 @@ export default function Navbar() {
   // page as cards rather than as top-level destinations. Every old route still
   // resolves — only the nav surface shrank.
   const mainNavLinks = user ? [
-    { name: "Play", path: "/dashboard", icon: Play },
+    { name: "Home", path: "/dashboard", icon: Home },
+    { name: "Play", path: "/play", icon: Play },
     { name: "Characters", path: "/characters", icon: Users },
     { name: "Community", path: "/community", icon: Users2 },
     { name: "Run a Game", path: "/dm-toolkit", icon: Wrench },
@@ -111,8 +112,13 @@ export default function Navbar() {
   ];
 
   const isActive = (path: string) => {
-    if (path === "/dashboard" && (location === "/dashboard" || location === "/play")) return true;
     return location === path;
+  };
+  // Home must always show Home, even after you've been playing (the dashboard
+  // otherwise remembers you were in an adventure and reopens it).
+  const goHome = () => {
+    try { sessionStorage.removeItem('everdice_in_play'); } catch { /* private mode */ }
+    window.dispatchEvent(new Event('everdice:home'));
   };
 
   return (
@@ -155,7 +161,7 @@ export default function Navbar() {
               // nowhere useful. They belong on Community, which owns Guilds.
               const showBadge = link.path === '/community' && pendingInvitationCount > 0;
               return (
-                <Link key={link.path} href={link.path}>
+                <Link key={link.path} href={link.path} onClick={link.path === '/dashboard' ? goHome : undefined}>
                   <Button
                     variant={isActive(link.path) ? "secondary" : "ghost"}
                     className={`relative ${isActive(link.path)
@@ -357,7 +363,7 @@ export default function Navbar() {
                   const Icon = link.icon;
                   const showBadge = link.path === '/community' && pendingInvitationCount > 0;
                   return (
-                    <Link key={link.path} href={link.path}>
+                    <Link key={link.path} href={link.path} onClick={link.path === '/dashboard' ? goHome : undefined}>
                       <Button
                         variant="ghost"
                         className={`w-full justify-between ${isActive(link.path)

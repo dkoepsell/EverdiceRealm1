@@ -50,7 +50,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Search, Sparkle, ArrowRight, Settings, Save, Map as MapIcon, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Swords, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard, Coffee, Star, Camera, Check, Crown, Trophy, Gift, Volume2, Square } from "lucide-react";
+import { Search, Sparkle, ArrowRight, Settings, Save, Map as MapIcon, MapPin, Clock, ChevronDown, ChevronUp, Dices, Users, Share2, Loader2, Scroll, Moon, Sun, Backpack, Sword, Swords, Shield, Heart, Plus, Trash2, Target, Coins, FlaskConical, Sparkles, User, MessageCircle, Send, Download, FileText, FileJson, BookOpen, LayoutDashboard, Home as HomeIcon, Coffee, Star, Camera, Check, Crown, Trophy, Gift, Volume2, Square } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Tabs,
@@ -4036,10 +4036,10 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           <button
                             type="button"
                             onClick={() => window.dispatchEvent(new Event('everdice:home'))}
-                            className="rounded-full border border-[var(--ed-line)] px-3 py-1 text-xs ed-muted hover:text-[var(--ed-ink)]"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--ed-gold)] px-3 py-1 text-sm ed-gold hover:bg-[var(--ed-card-hi)]"
                             data-testid="play-home"
                           >
-                            Home
+                            <HomeIcon className="h-4 w-4" /> Home
                           </button>
                           {activeCharacter?.pendingLevelUp ? (
                             <LevelUpButton characterId={activeCharacter.id} pendingLevelUp={activeCharacter.pendingLevelUp} className="h-8 px-3 text-sm" />
