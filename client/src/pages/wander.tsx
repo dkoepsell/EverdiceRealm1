@@ -39,6 +39,13 @@ import {
   Star,
   Flame,
 } from "lucide-react";
+import { Link } from "wouter";
+import { getTerrainForHex as sharedTerrainForHex } from "@shared/wander/terrain";
+import type { Landmark } from "@shared/wander/landmarks";
+import type { Pace, TravelActivity, TravelState } from "@shared/wander/travel";
+import {
+  TravelBar, TravelControls, RollList, TrailsJournal, checkLabel, type JournalThread,
+} from "@/components/wander/WanderTravelUI";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface WanderRun {
@@ -52,6 +59,7 @@ interface WanderRun {
   fatigue: number;
   status: string;
   lastOutcomeType?: string;
+  flags?: { travel?: TravelState } | null;
   startedAt?: string;
   endedAt?: string;
 }
@@ -61,6 +69,7 @@ interface OutcomeChoice {
   label: string;
   intentTag: string;
   mechanicalEffects?: Record<string, any>;
+  check?: { skill: string; dc: number };
 }
 
 interface OutcomeReward {
@@ -78,6 +87,19 @@ interface CuratedOutcome {
   rewards?: OutcomeReward[];
   markerType?: string;
   combatSeed?: any;
+  rolls?: string[];
+  awareness?: "unseen" | "spotted" | "ambushed";
+  thread?: { id: number; templateId: string; beat: string; name?: string };
+  recurring?: { roleId: string; name: string; metBefore: boolean; attitude: number };
+}
+
+interface ChoiceResult {
+  title: string;
+  narrative: string;
+  rolls: string[];
+  rewards: OutcomeReward[];
+  payoff?: { kind: string; dungeonId?: number; name?: string };
+  combat?: boolean;
 }
 
 interface JournalEntry {
@@ -161,17 +183,9 @@ const TERRAIN_COLORS: Record<TerrainType, { fill: string; stroke: string; explor
   ocean:    { fill: "#0f1a2a", stroke: "#1e3a5a", exploredFill: "#1a2840", label: "Ocean",    icon: "🌊" },
 };
 
+/** Terrain is shared with the server (shared/wander/terrain.ts) so both agree on every hex. */
 function getTerrainForHex(q: number, r: number): TerrainType {
-  let h = ((q * 374761393 + r * 668265263) ^ 0x5f3759df) >>> 0;
-  h = ((h >> 16) ^ h) * 0x45d9f3b;
-  h = ((h >> 16) ^ h) >>> 0;
-  const idx = h % 100;
-  if (idx < 35) return 'plains';
-  if (idx < 60) return 'forest';
-  if (idx < 75) return 'mountain';
-  if (idx < 85) return 'swamp';
-  if (idx < 93) return 'desert';
-  return 'ocean';
+  return sharedTerrainForHex(q, r);
 }
 
 function getDangerColor(rating: number) {
@@ -209,6 +223,24 @@ export default function WanderPage() {
   const [wanderSummary, setWanderSummary] = useState<WanderSummary | null>(null);
   const [journalOpen, setJournalOpen] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
+  // Wander spec: travel rules, landmarks, trails, and roll readouts.
+  const [travel, setTravel] = useState<TravelState | null>(null);
+  const [pace, setPace] = useState<Pace>("normal");
+  const [activity, setActivity] = useState<TravelActivity>("navigate");
+  const [landmarks, setLandmarks] = useState<Map<string, Landmark>>(new Map());
+  const [trails, setTrails] = useState<JournalThread[]>([]);
+  const [moveNotes, setMoveNotes] = useState<string[]>([]);
+  const [lastResult, setLastResult] = useState<ChoiceResult | null>(null);
+
+  const mergeLandmarks = useCallback((list: Landmark[] | undefined, replaceThreads = false) => {
+    if (!list) return;
+    setLandmarks((prev) => {
+      const next = new Map(prev);
+      if (replaceThreads) Array.from(next.keys()).forEach((k) => { if (k.startsWith("thread:")) next.delete(k); });
+      for (const l of list) next.set(l.key, l);
+      return next;
+    });
+  }, []);
 
   const { data: campaigns, isLoading: campaignsLoading } = useQuery<any[]>({
     queryKey: ["/api/campaigns"],
@@ -253,6 +285,27 @@ export default function WanderPage() {
     enabled: !!campaignId && !!activeRun,
   });
 
+  const { data: journalData } = useQuery<{ travel: TravelState | null; landmarks: Landmark[]; journal: JournalThread[] }>({
+    queryKey: ["/api/wander/journal", activeRun?.id],
+    enabled: !!activeRun?.id,
+    queryFn: async () => {
+      const res = await fetch(`/api/wander/journal/${activeRun!.id}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load journal");
+      return res.json();
+    },
+    staleTime: Infinity,
+  });
+  useEffect(() => {
+    if (!journalData) return;
+    if (journalData.travel) {
+      setTravel(journalData.travel);
+      setPace(journalData.travel.pace);
+      setActivity(journalData.travel.activity);
+    }
+    setTrails(journalData.journal || []);
+    mergeLandmarks(journalData.landmarks, true);
+  }, [journalData, mergeLandmarks]);
+
   useState(() => {
     if (existingRun && existingRun.status === "active" && !activeRun) {
       setActiveRun(existingRun);
@@ -279,6 +332,11 @@ export default function WanderPage() {
       setJournalEntries([]);
       setCurrentOutcome(null);
       setCurrentDangerRating(0);
+      setTravel(run.flags?.travel ?? null);
+      setLandmarks(new Map());
+      setTrails([]);
+      setMoveNotes([]);
+      setLastResult(null);
       queryClient.invalidateQueries({ queryKey: ["/api/wander/active", campaignId] });
       toast({ title: "Journey Begins", description: "You step into the wilds..." });
     },
@@ -296,12 +354,24 @@ export default function WanderPage() {
   });
 
   const moveMutation = useMutation({
-    mutationFn: async (data: { runId: number; toHexQ: number; toHexR: number; terrainType?: string }) => {
+    mutationFn: async (data: { runId: number; toHexQ: number; toHexR: number; terrainType?: string; pace?: Pace; activity?: TravelActivity }) => {
       const res = await apiRequest("POST", "/api/wander/move", data);
       return res.json();
     },
-    onSuccess: (data: { run: WanderRun; outcome: CuratedOutcome; dangerRating: number }) => {
+    onSuccess: (data: {
+      run: WanderRun; outcome: CuratedOutcome; dangerRating: number;
+      travel?: TravelState | null; notes?: string[]; landmarks?: Landmark[]; journal?: JournalThread[]; collapse?: boolean;
+    }) => {
       setActiveRun(data.run);
+      if (data.travel) setTravel(data.travel);
+      setMoveNotes(data.notes || []);
+      setLastResult(null);
+      if (data.journal) setTrails(data.journal);
+      mergeLandmarks(data.landmarks, true);
+      if (data.collapse) {
+        toast({ title: "You collapse", description: (data.notes || []).slice(-1)[0] || "Exhaustion overwhelms you.", variant: "destructive" });
+        endMutation.mutate({ runId: data.run.id });
+      }
       setCurrentOutcome(data.outcome);
       setCurrentDangerRating(data.dangerRating);
       setExploredHexes((prev) => {
@@ -352,11 +422,19 @@ export default function WanderPage() {
           );
         }
       }
-      setCurrentOutcome(null);
-      toast({
-        title: "Choice Made",
-        description: data.resolution?.narrativeResult || "Your decision echoes through the wilds.",
+      if (data.travel) setTravel(data.travel);
+      if (data.journal) setTrails(data.journal);
+      // The result stays on screen (with its rolls) until the next move.
+      setLastResult({
+        title: currentOutcome?.title || "Result",
+        narrative: data.resolution?.narrativeResult || "Your decision echoes through the wilds.",
+        rolls: data.resolution?.rolls || [],
+        rewards: data.resolution?.rewards || [],
+        payoff: data.resolution?.payoff,
+        combat: !!data.combatTriggered,
       });
+      setCurrentOutcome(null);
+      if (data.collapse && activeRun) endMutation.mutate({ runId: activeRun.id });
     },
     onError: (error: Error) => {
       toast({ title: "Choice Failed", description: error.message, variant: "destructive" });
@@ -377,6 +455,23 @@ export default function WanderPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Failed to End Run", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const campMutation = useMutation({
+    mutationFn: async (data: { runId: number }) => {
+      const res = await apiRequest("POST", "/api/wander/camp", data);
+      return res.json();
+    },
+    onSuccess: (data: { run: WanderRun; travel: TravelState; notes: string[]; rolls: string[]; collapse?: boolean }) => {
+      setActiveRun(data.run);
+      setTravel(data.travel);
+      setLastResult({ title: "You make camp", narrative: (data.notes || []).join(" "), rolls: data.rolls || [], rewards: [] });
+      setMoveNotes([]);
+      if (data.collapse) endMutation.mutate({ runId: data.run.id });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Couldn't make camp", description: error.message, variant: "destructive" });
     },
   });
 
@@ -404,9 +499,10 @@ export default function WanderPage() {
         toHexQ: q,
         toHexR: r,
         terrainType: terrainToBiome[terrain],
+        ...(travel ? { pace, activity } : {}),
       });
     },
-    [activeRun, isMoving, moveMutation]
+    [activeRun, isMoving, moveMutation, travel, pace, activity]
   );
 
   const handleChoice = (choiceId: string) => {
@@ -610,6 +706,15 @@ export default function WanderPage() {
               </Button>
             </div>
 
+            {travel && (
+              <Card className="mb-4 border-slate-700/50 bg-slate-900/50">
+                <CardContent className="py-3 px-4 space-y-3">
+                  <TravelBar travel={travel} onCamp={() => campMutation.mutate({ runId: activeRun.id })} camping={campMutation.isPending} />
+                  <TravelControls pace={pace} activity={activity} onPace={(p) => { setPace(p); if (p === "fast" && activity === "forage") setActivity("navigate"); }} onActivity={setActivity} />
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="mb-4 border-slate-700/50 bg-slate-900/50">
               <CardContent className="py-3 px-4">
                 <div className="flex items-center gap-6 flex-wrap">
@@ -712,6 +817,11 @@ export default function WanderPage() {
 
                           return (
                             <g key={`${hex.q},${hex.r}`}>
+                              {(() => {
+                                const lm = landmarks.get(`${hex.q},${hex.r}`)
+                                  ?? Array.from(landmarks.values()).find((l) => l.threadId && l.q === hex.q && l.r === hex.r);
+                                return lm ? <title>{`${lm.name}: ${lm.distant}`}</title> : null;
+                              })()}
                               <polygon
                                 points={pts}
                                 fill={fill}
@@ -763,7 +873,17 @@ export default function WanderPage() {
                                   {MARKER_ICONS[hex.marker.markerType] || "📍"}
                                 </text>
                               )}
-                              {hex.isAdjacent && !hex.explored && !hex.isCurrent && (
+                              {(() => {
+                                const lm = landmarks.get(`${hex.q},${hex.r}`)
+                                  ?? Array.from(landmarks.values()).find((l) => l.threadId && l.q === hex.q && l.r === hex.r);
+                                if (!lm || hex.isCurrent || hex.marker) return null;
+                                return (
+                                  <text x={x} y={y} textAnchor="middle" dominantBaseline="middle" style={{ fontSize: "13px", pointerEvents: "none" }}>
+                                    {lm.glyph}
+                                  </text>
+                                );
+                              })()}
+                              {hex.isAdjacent && !hex.explored && !hex.isCurrent && !landmarks.has(`${hex.q},${hex.r}`) && (
                                 <text
                                   x={x}
                                   y={y + 1}
@@ -799,6 +919,7 @@ export default function WanderPage() {
                   {currentOutcome ? (
                     <motion.div key="outcome" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                       <OutcomeCard
+                        notes={moveNotes}
                         outcome={currentOutcome}
                         onChoice={handleChoice}
                         onHeadBack={handleEndWander}
@@ -807,6 +928,39 @@ export default function WanderPage() {
                       />
                     </motion.div>
                   ) : (
+                    lastResult ? (
+                    <motion.div key="result" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                      <Card className="border-slate-700/50 bg-slate-900/60" data-testid="wander-result">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-base text-white">{lastResult.title}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <p className="text-sm text-slate-300 leading-relaxed">{lastResult.narrative}</p>
+                          <RollList rolls={lastResult.rolls} />
+                          {lastResult.rewards.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {lastResult.rewards.map((r, i) => (
+                                <Badge key={i} className="bg-amber-500/20 border-amber-500/40 text-amber-200 text-xs">
+                                  <Star className="h-3 w-3 mr-1" />{r.name} x{r.quantity}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                          {lastResult.combat && (
+                            <p className="text-xs text-red-300">A fight breaks out. (Wander resolves fights in the story for now.)</p>
+                          )}
+                          {lastResult.payoff?.kind === "delve" && (
+                            <Link href="/delve">
+                              <Button size="sm" className="w-full bg-amber-600 hover:bg-amber-700 text-white" data-testid="wander-go-delve">
+                                Delve {lastResult.payoff.name || "the dungeon"}
+                              </Button>
+                            </Link>
+                          )}
+                          <p className="text-xs text-slate-500">Pick a hex on the map to keep moving.</p>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                    ) : (
                     <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                       <Card className="border-slate-700/50 bg-slate-900/50">
                         <CardContent className="py-12 text-center">
@@ -818,8 +972,15 @@ export default function WanderPage() {
                         </CardContent>
                       </Card>
                     </motion.div>
+                    )
                   )}
                 </AnimatePresence>
+
+                {(travel || trails.length > 0) && (
+                  <div className="mt-4">
+                    <TrailsJournal threads={trails} />
+                  </div>
+                )}
 
                 <div className="mt-4">
                   <Button
@@ -947,12 +1108,14 @@ export default function WanderPage() {
 
 function OutcomeCard({
   outcome,
+  notes,
   onChoice,
   onHeadBack,
   isPending,
   isEndPending,
 }: {
   outcome: CuratedOutcome;
+  notes?: string[];
   onChoice: (choiceId: string) => void;
   onHeadBack: () => void;
   isPending: boolean;
@@ -980,13 +1143,28 @@ function OutcomeCard({
           >
             {outcome.type}
           </Badge>
+          {outcome.thread && (
+            <Badge variant="outline" className="text-[10px] uppercase tracking-wider border-violet-500/50 text-violet-300">Trail</Badge>
+          )}
+          {outcome.recurring && (
+            <Badge variant="outline" className="text-[10px] uppercase tracking-wider border-emerald-500/50 text-emerald-300">
+              {outcome.recurring.metBefore ? "Met before" : "Someone new"}
+            </Badge>
+          )}
+          {outcome.awareness && (
+            <Badge variant="outline" className={`text-[10px] uppercase tracking-wider ${outcome.awareness === "ambushed" ? "border-red-500/60 text-red-300" : outcome.awareness === "unseen" ? "border-emerald-500/60 text-emerald-300" : "border-sky-500/60 text-sky-300"}`}>
+              {outcome.awareness === "ambushed" ? "Ambushed" : outcome.awareness === "unseen" ? "Unseen" : "You spot them first"}
+            </Badge>
+          )}
         </div>
         <CardTitle className="text-xl text-white">{outcome.title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-slate-300 leading-relaxed">{outcome.reveal}</p>
 
-        {outcome.detail && <p className="text-xs text-slate-400 leading-relaxed italic">{outcome.detail}</p>}
+        {outcome.detail && !outcome.thread && <p className="text-xs text-slate-400 leading-relaxed italic">{outcome.detail}</p>}
+
+        <RollList rolls={outcome.rolls} notes={notes} />
 
         {outcome.rewards && outcome.rewards.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
@@ -1026,7 +1204,10 @@ function OutcomeCard({
               disabled={isPending}
             >
               {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-              {choice.label}
+              <span className="flex-1">{choice.label}</span>
+              {checkLabel(choice.check) && (
+                <Badge variant="outline" className="ml-2 text-[10px] border-slate-600 text-slate-300 shrink-0">{checkLabel(choice.check)}</Badge>
+              )}
             </Button>
           ))}
 

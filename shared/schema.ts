@@ -2728,6 +2728,28 @@ export const insertWanderMarkerSchema = createInsertSchema(wanderMarkers).omit({
 export type InsertWanderMarker = z.infer<typeof insertWanderMarkerSchema>;
 export type WanderMarker = typeof wanderMarkers.$inferSelect;
 
+// Wander threads (wander-threads-spec.md): authored chains of clues that lead to a
+// payoff, campaign-scoped so they survive between runs. Created by hand migration
+// scripts/migrations/005-wander-threads.sql (not db:push).
+export const wanderThreads = pgTable("wander_threads", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  userId: integer("user_id").notNull(),
+  templateId: text("template_id").notNull(),
+  beat: integer("beat").notNull().default(0),
+  targetHexQ: integer("target_hex_q").notNull(),
+  targetHexR: integer("target_hex_r").notNull(),
+  status: text("status").notNull().default("active"),
+  payload: jsonb("payload"),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
+  updatedAt: text("updated_at"),
+}, (t) => [
+  index("idx_wander_threads_campaign_user").on(t.campaignId, t.userId),
+]);
+
+export type WanderThread = typeof wanderThreads.$inferSelect;
+export type InsertWanderThread = typeof wanderThreads.$inferInsert;
+
 export const hexExplorationStates = pgTable("hex_exploration_states", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),

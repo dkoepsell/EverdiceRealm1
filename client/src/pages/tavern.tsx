@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { RoadRumors } from "@/components/wander/RoadRumors";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -2611,6 +2612,7 @@ export default function TavernPage() {
                     <p className="text-center text-sm text-muted-foreground">
                       Rumors may lead to adventure hooks and quest opportunities!
                     </p>
+                    <RoadRumors />
                   </div>
                 )}
                 

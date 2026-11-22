@@ -1,3 +1,4 @@
+import { wanderFoundDungeons } from "./play/wander/store";
 import { Router, Request, Response } from "express";
 import { storage } from "./storage";
 import {
@@ -12,6 +13,8 @@ export function registerDelveRoutes(router: Router) {
     try {
       if (!req.user) return res.status(401).json({ error: "Not authenticated" });
 
+      // Dungeons found by following Wander threads come after the procedural entry.
+      const found = await wanderFoundDungeons((req.user as any).id);
       res.json([{
         id: -1,
         name: "Enter the Depths",
@@ -19,7 +22,7 @@ export function registerDelveRoutes(router: Router) {
         themeTags: ["procedural", "dungeon", "adventure"],
         recommendedLevelMin: 1,
         recommendedLevelMax: 3,
-      }]);
+      }, ...found]);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -56,7 +59,13 @@ export function registerDelveRoutes(router: Router) {
         });
       }
 
-      const dungeonNodes = generateProceduralDungeon('goblin');
+      // A dungeon found by following a Wander thread keeps the layout it was
+      // created with; anything else is a fresh procedural dungeon, as before.
+      const foundDef = typeof dungeonId === "number" && dungeonId > 0 ? await storage.getDungeonDefinition(dungeonId) : undefined;
+      const isWanderFound = !!foundDef && Array.isArray(foundDef.themeTags) && foundDef.themeTags.includes("wander-found");
+      const dungeonNodes = isWanderFound
+        ? (foundDef!.nodeTable as ReturnType<typeof generateProceduralDungeon>)
+        : generateProceduralDungeon('goblin');
 
       const DUNGEON_PREFIXES = [
         "The Sunken", "The Forsaken", "The Shattered", "The Burning", "The Frozen",
@@ -72,7 +81,7 @@ export function registerDelveRoutes(router: Router) {
       const noun = DUNGEON_NOUNS[Math.floor(Math.random() * DUNGEON_NOUNS.length)];
       const dungeonName = `${prefix} ${noun}`;
 
-      const dungeonDef = await storage.createDungeonDefinition({
+      const dungeonDef = isWanderFound ? foundDef! : await storage.createDungeonDefinition({
         name: dungeonName,
         description: `A procedurally generated dungeon: ${dungeonName}. Each delve is different.`,
         themeTags: ["procedural", "dungeon", "adventure"],
