@@ -34,10 +34,22 @@ export function LearningPathCard({ characterId, onStarted }: { characterId: numb
   const start = useMutation({
     mutationFn: async (lesson: LessonRow) => {
       if (!heroId) throw new Error("Create a character first.");
-      const res = await apiRequest("POST", "/api/campaigns", { ...lesson.campaign, characterId: heroId });
-      const campaign = await res.json();
-      await apiRequest("POST", `/api/campaigns/${campaign.id}/participants`, { characterId: heroId, role: "player" });
-      return campaign.id as number;
+      // Lesson campaigns have fixed titles ("Lesson: …") and the server allows one
+      // campaign per title, so a lesson already started comes back as a 409 with
+      // its id. Resume that one instead of failing.
+      const res = await fetch("/api/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ ...lesson.campaign, characterId: heroId }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 409 && body?.code === "DUPLICATE_CAMPAIGN_TITLE" && body.existingCampaignId) {
+        return body.existingCampaignId as number;
+      }
+      if (!res.ok) throw new Error(body?.message || res.statusText);
+      await apiRequest("POST", `/api/campaigns/${body.id}/participants`, { characterId: heroId, role: "player" });
+      return body.id as number;
     },
     onSuccess: (id) => {
       queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
