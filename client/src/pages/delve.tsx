@@ -49,6 +49,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Campaign } from "@shared/schema";
+import { DelveFirstPersonView } from "@/components/delve/DelveFirstPersonView";
 
 interface DungeonDef {
   id: number;
@@ -521,6 +522,13 @@ export default function DelvePage() {
   const [showRetreatConfirm, setShowRetreatConfirm] = useState(false);
   const [showChestConsequence, setShowChestConsequence] = useState<ChestOption | null>(null);
   const [diceRollDisplay, setDiceRollDisplay] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<'3d' | 'map'>(() => {
+    try { return localStorage.getItem('delve-view') === 'map' ? 'map' : '3d'; } catch { return '3d'; }
+  });
+  const chooseView = useCallback((mode: '3d' | 'map') => {
+    setViewMode(mode);
+    try { localStorage.setItem('delve-view', mode); } catch { /* storage unavailable */ }
+  }, []);
 
   const { data: campaigns } = useQuery<Campaign[]>({
     queryKey: ['/api/campaigns'],
@@ -985,11 +993,38 @@ export default function DelvePage() {
                 </span>
               </div>
               <div className="flex items-center gap-3 text-xs">
-                <span className="text-stone-500">
+                <span className="text-stone-500 hidden sm:inline">
                   {activeRunData.revealedNodes.length} nodes revealed
                 </span>
+                <div className="flex border border-stone-700 rounded overflow-hidden" role="group" aria-label="Dungeon view">
+                  <button
+                    onClick={() => chooseView('3d')}
+                    className={`px-2 py-1 font-mono ${viewMode === '3d' ? 'bg-amber-900/70 text-amber-200' : 'bg-stone-900 text-stone-400 hover:text-stone-200'}`}
+                    data-testid="delve-view-3d"
+                  >First person</button>
+                  <button
+                    onClick={() => chooseView('map')}
+                    className={`px-2 py-1 font-mono ${viewMode === 'map' ? 'bg-amber-900/70 text-amber-200' : 'bg-stone-900 text-stone-400 hover:text-stone-200'}`}
+                    data-testid="delve-view-map"
+                  >Map</button>
+                </div>
               </div>
             </div>
+            {viewMode === '3d' ? (
+              <div className="flex-1 overflow-hidden">
+                <DelveFirstPersonView
+                  nodes={activeRunData.revealedNodes}
+                  clearedNodes={(run.clearedNodes as string[]) || []}
+                  currentQ={run.currentQ}
+                  currentR={run.currentR}
+                  lightTicks={run.lightTicks}
+                  themeTags={dungeons?.find(d => d.id === run.dungeonId)?.themeTags}
+                  isMoving={moveMutation.isPending}
+                  onMove={(node) => moveMutation.mutate({ runId: run.id, toQ: node.q, toR: node.r })}
+                  onUnavailable={() => chooseView('map')}
+                />
+              </div>
+            ) : (
             <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
               <DungeonHexMap
                 revealedNodes={activeRunData.revealedNodes}
@@ -1000,6 +1035,7 @@ export default function DelvePage() {
                 onNodeClick={handleNodeClick}
               />
             </div>
+            )}
           </div>
 
           <div className="lg:w-[45%] flex flex-col overflow-y-auto bg-stone-950">
