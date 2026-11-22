@@ -90,6 +90,18 @@ export default function Navbar() {
     { name: "Community", path: "/community", icon: Users2 },
     { name: "Run a Game", path: "/dm-toolkit", icon: Wrench },
   ] : [];
+
+  // Players lost Wander, Delve and the Tavern when they were cards on the Play
+  // page only (the redesigned Home and play view buried them). One "Explore"
+  // menu keeps the top level small while making them reachable from anywhere.
+  const exploreLinks = user ? [
+    { name: "Wander", path: "/wander", icon: Compass },
+    { name: "Delve", path: "/delve", icon: Pickaxe },
+    { name: "Tavern", path: "/tavern", icon: Beer },
+    { name: "Trading Post", path: "/trading-post", icon: Store },
+    { name: "World Map", path: "/world-map", icon: Map },
+  ] : [];
+  const exploreActive = exploreLinks.some((l) => location === l.path);
   
   const publicLinks = [
     { name: "Play", path: "/auth", icon: Play },
@@ -181,6 +193,34 @@ export default function Navbar() {
               );
             })}
             
+            {exploreLinks.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant={exploreActive ? "secondary" : "ghost"}
+                    className={exploreActive ? 'bg-white/20 text-white' : 'text-white/90 hover:text-white hover:bg-white/10'}
+                    data-testid="nav-explore"
+                  >
+                    <Compass className="h-4 w-4 mr-2" />
+                    Explore
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  {exploreLinks.map((link) => {
+                    const Icon = link.icon;
+                    return (
+                      <DropdownMenuItem key={link.path} asChild>
+                        <Link href={link.path} className="flex items-center cursor-pointer" data-testid={`nav-explore-${link.path.slice(1)}`}>
+                          <Icon className="h-4 w-4 mr-2" />
+                          {link.name}
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
             {(user?.isAdmin || user?.isCoAdmin) && (
               <Link href="/admin">
                 <Button
@@ -340,6 +380,25 @@ export default function Navbar() {
                   );
                 })}
                 
+                <div className="border-t border-white/10 mt-2 pt-2">
+                  <div className="px-3 pb-1 text-xs uppercase tracking-wide text-white/50">Explore</div>
+                  {exploreLinks.map((link) => {
+                    const Icon = link.icon;
+                    return (
+                      <Link key={link.path} href={link.path}>
+                        <Button
+                          variant="ghost"
+                          className={`w-full justify-start ${location === link.path ? 'bg-white/20 text-white' : 'text-white/90 hover:text-white hover:bg-white/10'}`}
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          <Icon className="h-4 w-4 mr-3" />
+                          {link.name}
+                        </Button>
+                      </Link>
+                    );
+                  })}
+                </div>
+
                 <div className="border-t border-white/10 my-2 pt-2">
                   <div className="flex items-center px-3 py-2 space-x-3">
                     {user.avatarUrl ? (
