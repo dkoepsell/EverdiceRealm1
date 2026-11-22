@@ -79,7 +79,14 @@ export default {
           DEFAULT: "hsl(var(--parchment))",
           dark: "hsl(var(--parchment-dark))",
         },
-        stone: "hsl(var(--stone))",
+        // Keep the theme's flat `stone` (bg-stone) and add Tailwind's stone shades.
+        // Without the shades every stone-50..950 class generated no CSS, which left
+        // dialogs (RollDialog, Journal, EpisodeEndCard) and panels transparent.
+        stone: {
+          DEFAULT: "hsl(var(--stone))",
+          50: "#fafaf9", 100: "#f5f5f4", 200: "#e7e5e4", 300: "#d6d3d1", 400: "#a8a29e",
+          500: "#78716c", 600: "#57534e", 700: "#44403c", 800: "#292524", 900: "#1c1917", 950: "#0c0a09",
+        },
         ink: "hsl(var(--ink))",
       },
       fontFamily: {
