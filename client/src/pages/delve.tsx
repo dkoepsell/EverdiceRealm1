@@ -153,7 +153,7 @@ const TAG_COLORS: Record<string, string> = {
   starter: "bg-blue-700/60 text-blue-200 border-blue-600",
   undead: "bg-gray-700/60 text-gray-200 border-gray-600",
   dragon: "bg-red-700/60 text-red-200 border-red-600",
-  dungeon: "bg-stone-700/60 text-stone-200 border-stone-600",
+  dungeon: "bg-[#44403c]/60 text-[#e7e5e4] border-[#57534e]",
   forest: "bg-emerald-700/60 text-emerald-200 border-emerald-600",
   cave: "bg-amber-700/60 text-amber-200 border-amber-600",
 };
@@ -203,7 +203,7 @@ function getActionStyle(type: string) {
     case 'choice': return "bg-amber-900/80 hover:bg-amber-800 border-amber-600 text-amber-100";
     case 'loot': return "bg-yellow-900/80 hover:bg-yellow-800 border-yellow-600 text-yellow-100";
     case 'lore': return "bg-purple-900/80 hover:bg-purple-800 border-purple-600 text-purple-100";
-    default: return "bg-stone-700 hover:bg-stone-600 border-stone-500 text-stone-100";
+    default: return "bg-[#44403c] hover:bg-[#57534e] border-[#78716c] text-[#f5f5f4]";
   }
 }
 
@@ -341,19 +341,19 @@ function DungeonHexMap({
       <div className="absolute top-2 right-2 z-10 flex flex-col gap-1">
         <button
           onClick={() => setZoom(z => Math.min(4, z * 1.25))}
-          className="w-7 h-7 rounded bg-stone-800/90 border border-stone-600 text-stone-300 hover:bg-stone-700 text-sm font-bold flex items-center justify-center"
+          className="w-7 h-7 rounded bg-[#292524]/90 border border-[#57534e] text-[#d6d3d1] hover:bg-[#44403c] text-sm font-bold flex items-center justify-center"
         >+</button>
         <button
           onClick={() => setZoom(z => Math.max(0.5, z * 0.8))}
-          className="w-7 h-7 rounded bg-stone-800/90 border border-stone-600 text-stone-300 hover:bg-stone-700 text-sm font-bold flex items-center justify-center"
+          className="w-7 h-7 rounded bg-[#292524]/90 border border-[#57534e] text-[#d6d3d1] hover:bg-[#44403c] text-sm font-bold flex items-center justify-center"
         >−</button>
         <button
           onClick={resetView}
-          className="w-7 h-7 rounded bg-stone-800/90 border border-stone-600 text-stone-300 hover:bg-stone-700 text-xs flex items-center justify-center"
+          className="w-7 h-7 rounded bg-[#292524]/90 border border-[#57534e] text-[#d6d3d1] hover:bg-[#44403c] text-xs flex items-center justify-center"
           title="Reset view"
         >⊙</button>
       </div>
-      <div className="absolute bottom-2 left-2 z-10 text-[10px] text-stone-500 bg-stone-900/80 px-2 py-0.5 rounded">
+      <div className="absolute bottom-2 left-2 z-10 text-[10px] text-[#78716c] bg-[#1c1917]/80 px-2 py-0.5 rounded">
         {Math.round(zoom * 100)}% — scroll/pinch to zoom, drag to pan
       </div>
       <div
@@ -841,16 +841,16 @@ export default function DelvePage() {
   const ratingStars = (rating: string) => {
     const count = rating === 'master' ? 4 : rating === 'veteran' ? 3 : rating === 'adventurer' ? 2 : 1;
     return Array.from({ length: 4 }, (_, i) => (
-      <Star key={i} className={`h-5 w-5 ${i < count ? 'text-amber-400 fill-amber-400' : 'text-stone-600'}`} />
+      <Star key={i} className={`h-5 w-5 ${i < count ? 'text-amber-400 fill-amber-400' : 'text-[#57534e]'}`} />
     ));
   };
 
   if (phase === 'select') {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-stone-950 via-stone-900 to-stone-950">
+      <div className="min-h-screen bg-gradient-to-b from-[#0c0a09] via-[#1c1917] to-[#0c0a09]">
         <div className="container mx-auto px-4 py-8">
           <motion.section
-            className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-stone-800/80 to-stone-900/80 border border-amber-900/30 p-8 md:p-12 mb-8"
+            className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#292524]/80 to-[#1c1917]/80 border border-amber-900/30 p-8 md:p-12 mb-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
@@ -865,7 +865,7 @@ export default function DelvePage() {
               <h1 className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
                 Enter the Depths
               </h1>
-              <p className="text-stone-400 text-lg">
+              <p className="text-[#a8a29e] text-lg">
                 Choose your dungeon and descend into danger. Every step deeper brings greater peril — and greater reward.
               </p>
             </div>
@@ -873,7 +873,7 @@ export default function DelvePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             <div>
-              <label className="block text-sm font-medium text-stone-400 mb-2">Campaign</label>
+              <label className="block text-sm font-medium text-[#a8a29e] mb-2">Campaign</label>
               <Select
                 value={selectedCampaignId?.toString() || ""}
                 onValueChange={v => setSelectedCampaignId(parseInt(v))}
@@ -883,7 +883,7 @@ export default function DelvePage() {
                 </SelectTrigger>
                 <SelectContent className="bg-[#292524] border-[#44403c] text-[#e7e5e4]">
                   {campaigns?.map(c => (
-                    <SelectItem key={c.id} value={c.id.toString()} className="text-stone-200">
+                    <SelectItem key={c.id} value={c.id.toString()} className="text-[#e7e5e4]">
                       {c.title}
                     </SelectItem>
                   ))}
@@ -891,7 +891,7 @@ export default function DelvePage() {
               </Select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-stone-400 mb-2">Character</label>
+              <label className="block text-sm font-medium text-[#a8a29e] mb-2">Character</label>
               <Select
                 value={selectedCharacterId?.toString() || ""}
                 onValueChange={v => setSelectedCharacterId(parseInt(v))}
@@ -901,7 +901,7 @@ export default function DelvePage() {
                 </SelectTrigger>
                 <SelectContent className="bg-[#292524] border-[#44403c] text-[#e7e5e4]">
                   {characters?.map((c: any) => (
-                    <SelectItem key={c.id} value={c.id.toString()} className="text-stone-200" disabled={!!c.engagement}>
+                    <SelectItem key={c.id} value={c.id.toString()} className="text-[#e7e5e4]" disabled={!!c.engagement}>
                       {c.name} — Lv.{c.level || 1} {c.class || ''}
                       {c.engagement ? ` (${c.engagement.label})` : ''}
                     </SelectItem>
@@ -914,9 +914,9 @@ export default function DelvePage() {
           {dungeonsLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3].map(i => (
-                <Card key={i} className="animate-pulse bg-stone-800/50 border-stone-700">
-                  <CardHeader><div className="h-6 bg-stone-700 rounded w-3/4" /></CardHeader>
-                  <CardContent><div className="space-y-3"><div className="h-4 bg-stone-700 rounded" /><div className="h-4 bg-stone-700 rounded w-2/3" /></div></CardContent>
+                <Card key={i} className="animate-pulse bg-[#292524]/50 border-[#44403c]">
+                  <CardHeader><div className="h-6 bg-[#44403c] rounded w-3/4" /></CardHeader>
+                  <CardContent><div className="space-y-3"><div className="h-4 bg-[#44403c] rounded" /><div className="h-4 bg-[#44403c] rounded w-2/3" /></div></CardContent>
                 </Card>
               ))}
             </div>
@@ -929,23 +929,23 @@ export default function DelvePage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.1 }}
                 >
-                  <Card className="bg-stone-800/70 border-stone-700/80 hover:border-amber-700/60 transition-all duration-300 overflow-hidden group">
-                    <CardHeader className="bg-gradient-to-r from-stone-800 to-stone-900 border-b border-stone-700/50 pb-3">
+                  <Card className="bg-[#292524]/70 border-[#44403c]/80 hover:border-amber-700/60 transition-all duration-300 overflow-hidden group">
+                    <CardHeader className="bg-gradient-to-r from-[#292524] to-[#1c1917] border-b border-[#44403c]/50 pb-3">
                       <div className="flex items-start justify-between">
                         <CardTitle className="text-amber-200 text-lg">{dungeon.name}</CardTitle>
-                        <Badge className="bg-stone-700 text-stone-300 text-xs shrink-0">
+                        <Badge className="bg-[#44403c] text-[#d6d3d1] text-xs shrink-0">
                           Lv.{dungeon.recommendedLevelMin}–{dungeon.recommendedLevelMax}
                         </Badge>
                       </div>
                     </CardHeader>
                     <CardContent className="pt-4 space-y-4">
-                      <p className="text-stone-400 text-sm line-clamp-3">{dungeon.description}</p>
+                      <p className="text-[#a8a29e] text-sm line-clamp-3">{dungeon.description}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {(dungeon.themeTags || []).map(tag => (
                           <Badge
                             key={tag}
                             variant="outline"
-                            className={`text-xs ${TAG_COLORS[tag] || "bg-stone-700/60 text-stone-300 border-stone-600"}`}
+                            className={`text-xs ${TAG_COLORS[tag] || "bg-[#44403c]/60 text-[#d6d3d1] border-[#57534e]"}`}
                           >
                             {tag}
                           </Badge>
@@ -969,8 +969,8 @@ export default function DelvePage() {
             </div>
           ) : (
             <div className="text-center py-16">
-              <Compass className="h-12 w-12 text-stone-600 mx-auto mb-4" />
-              <p className="text-stone-500">No dungeons available yet.</p>
+              <Compass className="h-12 w-12 text-[#57534e] mx-auto mb-4" />
+              <p className="text-[#78716c]">No dungeons available yet.</p>
             </div>
           )}
         </div>
@@ -982,29 +982,29 @@ export default function DelvePage() {
     const run = activeRunData.run;
 
     return (
-      <div className="min-h-screen bg-stone-950">
+      <div className="min-h-screen bg-[#0c0a09]">
         <div className="flex flex-col lg:flex-row h-screen">
-          <div className="lg:w-[55%] h-[45vh] lg:h-full bg-gradient-to-b from-stone-900 to-stone-950 border-b lg:border-b-0 lg:border-r border-stone-800 flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-stone-800 bg-stone-900/80">
+          <div className="lg:w-[55%] h-[45vh] lg:h-full bg-gradient-to-b from-[#1c1917] to-[#0c0a09] border-b lg:border-b-0 lg:border-r border-[#292524] flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#292524] bg-[#1c1917]/80">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-amber-400" />
-                <span className="text-stone-300 text-sm font-medium">
+                <span className="text-[#d6d3d1] text-sm font-medium">
                   {currentRunNode?.name || "Dungeon Map"}
                 </span>
               </div>
               <div className="flex items-center gap-3 text-xs">
-                <span className="text-stone-500 hidden sm:inline">
+                <span className="text-[#78716c] hidden sm:inline">
                   {activeRunData.revealedNodes.length} nodes revealed
                 </span>
-                <div className="flex border border-stone-700 rounded overflow-hidden" role="group" aria-label="Dungeon view">
+                <div className="flex border border-[#44403c] rounded overflow-hidden" role="group" aria-label="Dungeon view">
                   <button
                     onClick={() => chooseView('3d')}
-                    className={`px-2 py-1 font-mono ${viewMode === '3d' ? 'bg-amber-900/70 text-amber-200' : 'bg-stone-900 text-stone-400 hover:text-stone-200'}`}
+                    className={`px-2 py-1 font-mono ${viewMode === '3d' ? 'bg-amber-900/70 text-amber-200' : 'bg-[#1c1917] text-[#a8a29e] hover:text-[#e7e5e4]'}`}
                     data-testid="delve-view-3d"
                   >First person</button>
                   <button
                     onClick={() => chooseView('map')}
-                    className={`px-2 py-1 font-mono ${viewMode === 'map' ? 'bg-amber-900/70 text-amber-200' : 'bg-stone-900 text-stone-400 hover:text-stone-200'}`}
+                    className={`px-2 py-1 font-mono ${viewMode === 'map' ? 'bg-amber-900/70 text-amber-200' : 'bg-[#1c1917] text-[#a8a29e] hover:text-[#e7e5e4]'}`}
                     data-testid="delve-view-map"
                   >Map</button>
                 </div>
@@ -1038,17 +1038,17 @@ export default function DelvePage() {
             )}
           </div>
 
-          <div className="lg:w-[45%] flex flex-col overflow-y-auto bg-stone-950">
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-800 bg-stone-900/50">
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-800 ${getLightColor(run.lightTicks)}`}>
+          <div className="lg:w-[45%] flex flex-col overflow-y-auto bg-[#0c0a09]">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-[#292524] bg-[#1c1917]/50">
+              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#292524] ${getLightColor(run.lightTicks)}`}>
                 <Flame className="h-4 w-4" />
                 <span className="text-sm font-bold">{run.lightTicks}</span>
-                <span className="text-xs text-stone-500">light</span>
+                <span className="text-xs text-[#78716c]">light</span>
               </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-800 text-sky-400">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#292524] text-sky-400">
                 <Package className="h-4 w-4" />
                 <span className="text-sm font-bold">{run.supplies}</span>
-                <span className="text-xs text-stone-500">supply</span>
+                <span className="text-xs text-[#78716c]">supply</span>
               </div>
               <div className="flex-1" />
               <div className="flex items-center gap-1">
@@ -1068,7 +1068,7 @@ export default function DelvePage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                   >
-                    <Card className="bg-stone-900/80 border-stone-700">
+                    <Card className="bg-[#1c1917]/80 border-[#44403c]">
                       <CardHeader className="pb-3">
                         <CardTitle className="text-amber-200 text-lg flex items-center gap-2">
                           {currentRunNode && NODE_STYLES[currentRunNode.type] && (
@@ -1078,9 +1078,18 @@ export default function DelvePage() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        <p className="text-stone-300 text-sm leading-relaxed">
+                        <p className="text-[#d6d3d1] text-sm leading-relaxed">
                           {currentNodeResolution.narration.description}
                         </p>
+                        {currentRunNode?.type === 'chest' ? (
+                          <Button
+                            className="w-full border bg-amber-700 hover:bg-amber-600 border-amber-500 text-amber-50 font-semibold"
+                            onClick={() => setPhase('chest')}
+                            data-testid="delve-open-hoard"
+                          >
+                            🗝️ Open the hoard and choose your reward
+                          </Button>
+                        ) : (
                         <div className="space-y-2">
                           {currentNodeResolution.narration.options.map(option => (
                             <Button
@@ -1093,13 +1102,14 @@ export default function DelvePage() {
                               <span className="mr-2">{getActionIcon(option.resolutionType)}</span>
                               <span className="flex-1">{option.label}</span>
                               {option.dc && (
-                                <Badge variant="outline" className="ml-2 text-xs bg-stone-800 border-stone-600">
+                                <Badge variant="outline" className="ml-2 text-xs bg-[#292524] border-[#57534e]">
                                   DC {option.dc}
                                 </Badge>
                               )}
                             </Button>
                           ))}
                         </div>
+                        )}
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -1144,14 +1154,14 @@ export default function DelvePage() {
                             </Badge>
                           )}
                         </div>
-                        <p className="text-stone-300 text-sm leading-relaxed">
+                        <p className="text-[#d6d3d1] text-sm leading-relaxed">
                           {lastActionResult.narrative}
                         </p>
                         {lastActionResult.rewards && lastActionResult.rewards.length > 0 && (
                           <div className="space-y-1">
                             <p className="text-amber-400 text-xs font-medium">Rewards:</p>
                             {lastActionResult.rewards.map((r, i) => (
-                              <div key={i} className="flex items-center gap-2 text-xs text-stone-400">
+                              <div key={i} className="flex items-center gap-2 text-xs text-[#a8a29e]">
                                 <Gem className="h-3 w-3 text-amber-400" />
                                 <span>{r.name} {r.value ? `(${r.value})` : ''}</span>
                               </div>
@@ -1175,17 +1185,17 @@ export default function DelvePage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                   >
-                    <Card className="bg-stone-900/50 border-stone-800">
+                    <Card className="bg-[#1c1917]/50 border-[#292524]">
                       <CardContent className="pt-4 text-center space-y-3">
                         <div className="text-2xl">{NODE_STYLES[currentRunNode.type]?.icon || "📍"}</div>
-                        <h3 className="text-stone-300 font-medium">{currentRunNode.name}</h3>
-                        <p className="text-stone-500 text-sm">
+                        <h3 className="text-[#d6d3d1] font-medium">{currentRunNode.name}</h3>
+                        <p className="text-[#78716c] text-sm">
                           {(run.clearedNodes || []).includes(currentRunNode.nodeId)
                             ? "This area has been cleared. Move to an adjacent node."
                             : currentRunNode.description
                           }
                         </p>
-                        <p className="text-stone-600 text-xs">Click an adjacent hex on the map to move.</p>
+                        <p className="text-[#57534e] text-xs">Click an adjacent hex on the map to move.</p>
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -1193,7 +1203,7 @@ export default function DelvePage() {
               </AnimatePresence>
             </div>
 
-            <div className="border-t border-stone-800 p-3 bg-stone-900/50 flex items-center gap-2">
+            <div className="border-t border-[#292524] p-3 bg-[#1c1917]/50 flex items-center gap-2">
               {currentRunNode?.type === 'safe' && (
                 <Button
                   variant="outline"
@@ -1219,7 +1229,7 @@ export default function DelvePage() {
         </div>
 
         <Dialog open={showCombatModal} onOpenChange={setShowCombatModal}>
-          <DialogContent className="bg-stone-900 border-red-800 max-w-lg">
+          <DialogContent className="bg-[#1c1917] border-red-800 max-w-lg">
             <DialogHeader>
               <DialogTitle className="text-red-400 flex items-center gap-2">
                 <Sword className="h-5 w-5" /> Combat Engaged!
@@ -1228,15 +1238,15 @@ export default function DelvePage() {
             <div className="space-y-3">
               {combatData?.enemies ? (
                 <>
-                  <p className="text-stone-400 text-sm">Enemies:</p>
+                  <p className="text-[#a8a29e] text-sm">Enemies:</p>
                   {combatData.enemies.map((e: any, i: number) => (
-                    <Card key={i} className="bg-stone-800 border-stone-700">
+                    <Card key={i} className="bg-[#292524] border-[#44403c]">
                       <CardContent className="py-3 flex items-center justify-between">
                         <div>
                           <p className="text-red-300 font-medium text-sm">{e.name}</p>
-                          <p className="text-stone-500 text-xs">CR {e.cr} • {e.damage}</p>
+                          <p className="text-[#78716c] text-xs">CR {e.cr} • {e.damage}</p>
                         </div>
-                        <div className="flex gap-3 text-xs text-stone-400">
+                        <div className="flex gap-3 text-xs text-[#a8a29e]">
                           <span><Heart className="h-3 w-3 inline text-red-400" /> {e.hp}</span>
                           <span><Shield className="h-3 w-3 inline text-blue-400" /> {e.ac}</span>
                         </div>
@@ -1244,7 +1254,7 @@ export default function DelvePage() {
                     </Card>
                   ))}
                   {combatData.tacticalNote && (
-                    <p className="text-stone-500 text-xs italic">{combatData.tacticalNote}</p>
+                    <p className="text-[#78716c] text-xs italic">{combatData.tacticalNote}</p>
                   )}
                   {combatData.xpReward && (
                     <p className="text-amber-400 text-xs">XP Reward: {combatData.xpReward}</p>
@@ -1254,32 +1264,32 @@ export default function DelvePage() {
                 <Card className="bg-red-950/50 border-red-800">
                   <CardContent className="py-3 space-y-2">
                     <p className="text-red-300 font-bold">{combatData.name}</p>
-                    <div className="flex gap-3 text-xs text-stone-400">
+                    <div className="flex gap-3 text-xs text-[#a8a29e]">
                       <span><Heart className="h-3 w-3 inline text-red-400" /> {combatData.hp}</span>
                       <span><Shield className="h-3 w-3 inline text-blue-400" /> {combatData.ac}</span>
                       <span>CR {combatData.cr}</span>
                     </div>
                     {combatData.abilities?.map((a: string, i: number) => (
-                      <p key={i} className="text-xs text-stone-500">• {a}</p>
+                      <p key={i} className="text-xs text-[#78716c]">• {a}</p>
                     ))}
                     {combatData.phases?.map((p: any, i: number) => (
-                      <div key={i} className="text-xs text-stone-500">
+                      <div key={i} className="text-xs text-[#78716c]">
                         <span className="text-red-400">Phase ({p.hpThreshold}% HP):</span> {p.description}
                       </div>
                     ))}
                   </CardContent>
                 </Card>
               ) : (
-                <p className="text-stone-500 text-sm">Combat has been initiated. Resolve it with your party!</p>
+                <p className="text-[#78716c] text-sm">Combat has been initiated. Resolve it with your party!</p>
               )}
-              <p className="text-stone-500 text-xs">
+              <p className="text-[#78716c] text-xs">
                 Phase 1: Combat outcome is resolved automatically. Full combat integration coming soon.
               </p>
             </div>
             <DialogFooter>
               <Button
                 variant="outline"
-                className="border-stone-700 text-stone-300"
+                className="border-[#44403c] text-[#d6d3d1]"
                 onClick={() => {
                   setShowCombatModal(false);
                   if (activeRunData && currentRunNode) {
@@ -1300,15 +1310,15 @@ export default function DelvePage() {
         </Dialog>
 
         <Dialog open={showRetreatConfirm} onOpenChange={setShowRetreatConfirm}>
-          <DialogContent className="bg-stone-900 border-stone-700 max-w-sm">
+          <DialogContent className="bg-[#1c1917] border-[#44403c] max-w-sm">
             <DialogHeader>
               <DialogTitle className="text-amber-300">Retreat from the Dungeon?</DialogTitle>
-              <DialogDescription className="text-stone-400">
+              <DialogDescription className="text-[#a8a29e]">
                 Retreating ends your run. Some cleared nodes may respawn. You keep what you've found so far, but cannot return to this instance.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-2">
-              <Button variant="outline" className="border-stone-600" onClick={() => setShowRetreatConfirm(false)}>
+              <Button variant="outline" className="border-[#57534e]" onClick={() => setShowRetreatConfirm(false)}>
                 Stay
               </Button>
               <Button
@@ -1332,7 +1342,7 @@ export default function DelvePage() {
     const options: ChestOption[] = chestNode?.chestRewards || [];
 
     return (
-      <div className="min-h-screen bg-gradient-to-b from-stone-950 via-amber-950/10 to-stone-950 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-b from-[#0c0a09] via-amber-950/10 to-[#0c0a09] flex items-center justify-center p-4">
         <motion.div
           className="max-w-4xl w-full space-y-6"
           initial={{ opacity: 0, y: 30 }}
@@ -1341,7 +1351,7 @@ export default function DelvePage() {
           <div className="text-center mb-8">
             <div className="text-5xl mb-3">🏆</div>
             <h2 className="text-3xl font-bold text-amber-300 mb-2">The Hoard Awaits</h2>
-            <p className="text-stone-400">Choose your reward wisely. You may only claim one.</p>
+            <p className="text-[#a8a29e]">Choose your reward wisely. You may only claim one.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1352,15 +1362,15 @@ export default function DelvePage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.15 }}
               >
-                <Card className="bg-stone-900/80 border-2 border-amber-700/50 hover:border-amber-500/80 transition-all duration-300 cursor-pointer group overflow-hidden">
+                <Card className="bg-[#1c1917]/80 border-2 border-amber-700/50 hover:border-amber-500/80 transition-all duration-300 cursor-pointer group overflow-hidden">
                   <CardHeader className="bg-gradient-to-b from-amber-900/30 to-transparent pb-3">
                     <CardTitle className="text-amber-200 text-base">{option.name}</CardTitle>
-                    <CardDescription className="text-stone-400 text-xs">{option.description}</CardDescription>
+                    <CardDescription className="text-[#a8a29e] text-xs">{option.description}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="space-y-1">
                       {option.rewards.map((r, i) => (
-                        <div key={i} className="flex items-center gap-2 text-xs text-stone-300">
+                        <div key={i} className="flex items-center gap-2 text-xs text-[#d6d3d1]">
                           <Gem className="h-3 w-3 text-amber-400 shrink-0" />
                           <span>{r.name} {r.value ? `(${r.value})` : ''}</span>
                         </div>
@@ -1387,10 +1397,10 @@ export default function DelvePage() {
 
           {options.length === 0 && (
             <div className="text-center">
-              <p className="text-stone-500 mb-4">No chest options available.</p>
+              <p className="text-[#78716c] mb-4">No chest options available.</p>
               <Button
                 variant="outline"
-                className="border-stone-600"
+                className="border-[#57534e]"
                 onClick={() => {
                   if (activeRunData) endMutation.mutate({ runId: activeRunData.run.id });
                 }}
@@ -1402,10 +1412,10 @@ export default function DelvePage() {
         </motion.div>
 
         <Dialog open={!!showChestConsequence} onOpenChange={() => setShowChestConsequence(null)}>
-          <DialogContent className="bg-stone-900 border-amber-800 max-w-sm">
+          <DialogContent className="bg-[#1c1917] border-amber-800 max-w-sm">
             <DialogHeader>
               <DialogTitle className="text-amber-300">Claim with Consequence?</DialogTitle>
-              <DialogDescription className="text-stone-400">
+              <DialogDescription className="text-[#a8a29e]">
                 This reward comes with a cost:
               </DialogDescription>
             </DialogHeader>
@@ -1413,7 +1423,7 @@ export default function DelvePage() {
               {showChestConsequence?.consequence}
             </div>
             <DialogFooter className="gap-2">
-              <Button variant="outline" className="border-stone-600" onClick={() => setShowChestConsequence(null)}>
+              <Button variant="outline" className="border-[#57534e]" onClick={() => setShowChestConsequence(null)}>
                 Choose Another
               </Button>
               <Button
@@ -1432,14 +1442,14 @@ export default function DelvePage() {
 
   if (phase === 'summary' && summaryData) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-stone-950 via-stone-900 to-stone-950 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-b from-[#0c0a09] via-[#1c1917] to-[#0c0a09] flex items-center justify-center p-4">
         <motion.div
           className="max-w-lg w-full"
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
         >
-          <Card className="bg-stone-900/90 border-stone-700 overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-amber-900/30 to-stone-900 text-center pb-4 border-b border-stone-800">
+          <Card className="bg-[#1c1917]/90 border-[#44403c] overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-amber-900/30 to-[#1c1917] text-center pb-4 border-b border-[#292524]">
               <div className="text-4xl mb-2">
                 {summaryData.bossDefeated ? '🏆' : summaryData.status === 'retreated' ? '🏃' : '📜'}
               </div>
@@ -1451,27 +1461,27 @@ export default function DelvePage() {
               <div className="flex justify-center gap-1 mt-2">
                 {ratingStars(summaryData.rating)}
               </div>
-              <p className="text-stone-400 text-sm mt-1 capitalize">{summaryData.rating}</p>
+              <p className="text-[#a8a29e] text-sm mt-1 capitalize">{summaryData.rating}</p>
             </CardHeader>
             <CardContent className="pt-4 space-y-4">
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-stone-800/60 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-stone-200">{summaryData.nodesExplored}</p>
-                  <p className="text-xs text-stone-500">/ {summaryData.totalNodes} Explored</p>
+                <div className="bg-[#292524]/60 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-[#e7e5e4]">{summaryData.nodesExplored}</p>
+                  <p className="text-xs text-[#78716c]">/ {summaryData.totalNodes} Explored</p>
                 </div>
-                <div className="bg-stone-800/60 rounded-lg p-3 text-center">
+                <div className="bg-[#292524]/60 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-amber-400">{summaryData.trapsDisarmed}</p>
-                  <p className="text-xs text-stone-500">Traps Disarmed</p>
+                  <p className="text-xs text-[#78716c]">Traps Disarmed</p>
                 </div>
-                <div className="bg-stone-800/60 rounded-lg p-3 text-center">
+                <div className="bg-[#292524]/60 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-purple-400">{summaryData.puzzlesSolved}</p>
-                  <p className="text-xs text-stone-500">Puzzles Solved</p>
+                  <p className="text-xs text-[#78716c]">Puzzles Solved</p>
                 </div>
-                <div className="bg-stone-800/60 rounded-lg p-3 text-center">
+                <div className="bg-[#292524]/60 rounded-lg p-3 text-center">
                   <p className={`text-2xl font-bold ${summaryData.bossDefeated ? 'text-green-400' : 'text-red-400'}`}>
                     {summaryData.bossDefeated ? 'Yes' : 'No'}
                   </p>
-                  <p className="text-xs text-stone-500">Boss Defeated</p>
+                  <p className="text-xs text-[#78716c]">Boss Defeated</p>
                 </div>
               </div>
 
@@ -1481,7 +1491,7 @@ export default function DelvePage() {
                     <Trophy className="h-4 w-4" /> Rewards Earned
                   </p>
                   {summaryData.rewards.map((r: any, i: number) => (
-                    <div key={i} className="flex items-center gap-2 text-xs text-stone-300 bg-stone-800/40 rounded px-3 py-1.5">
+                    <div key={i} className="flex items-center gap-2 text-xs text-[#d6d3d1] bg-[#292524]/40 rounded px-3 py-1.5">
                       <Gem className="h-3 w-3 text-amber-400" />
                       <span>{r.goldValue ? `${r.goldValue} Gold` : ''} {r.xpValue ? `${r.xpValue} XP` : ''}</span>
                     </div>
@@ -1503,8 +1513,8 @@ export default function DelvePage() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-950 flex items-center justify-center">
-      <div className="text-center text-stone-500">
+    <div className="min-h-screen bg-[#0c0a09] flex items-center justify-center">
+      <div className="text-center text-[#78716c]">
         <Compass className="h-12 w-12 mx-auto mb-4 animate-spin" />
         <p>Loading dungeon...</p>
       </div>

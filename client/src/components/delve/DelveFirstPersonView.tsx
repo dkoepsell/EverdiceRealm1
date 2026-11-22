@@ -200,7 +200,7 @@ export function DelveFirstPersonView({
       {/* compass and what's ahead */}
       <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest">
         <span className="px-2 py-0.5 bg-black/70 border border-amber-700/60 text-amber-300">{DIR_LABELS[facing]}</span>
-        <span className="px-2 py-0.5 bg-black/70 border border-stone-700 text-stone-300 normal-case tracking-normal">
+        <span className="px-2 py-0.5 bg-black/70 border border-[#44403c] text-[#d6d3d1] normal-case tracking-normal">
           Ahead: {aheadText}
         </span>
       </div>
@@ -234,26 +234,26 @@ export function DelveFirstPersonView({
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2">
         <button
           onClick={() => turn(-1)}
-          className="w-10 h-10 bg-black/70 border border-stone-600 text-stone-200 hover:bg-stone-800 flex items-center justify-center"
+          className="w-10 h-10 bg-black/70 border border-[#57534e] text-[#e7e5e4] hover:bg-[#292524] flex items-center justify-center"
           title="Turn left (Q / A / ←)"
           data-testid="delve-turn-left"
         ><RotateCcw className="h-4 w-4" /></button>
         <button
           onClick={forward}
           disabled={!ahead || isMoving}
-          className="w-12 h-12 bg-black/70 border border-amber-600 text-amber-300 hover:bg-amber-950 disabled:opacity-30 disabled:border-stone-700 disabled:text-stone-500 flex items-center justify-center"
+          className="w-12 h-12 bg-black/70 border border-amber-600 text-amber-300 hover:bg-amber-950 disabled:opacity-30 disabled:border-[#44403c] disabled:text-[#78716c] flex items-center justify-center"
           title="Step forward (W / ↑)"
           data-testid="delve-step-forward"
         ><ArrowUp className="h-5 w-5" /></button>
         <button
           onClick={() => turn(1)}
-          className="w-10 h-10 bg-black/70 border border-stone-600 text-stone-200 hover:bg-stone-800 flex items-center justify-center"
+          className="w-10 h-10 bg-black/70 border border-[#57534e] text-[#e7e5e4] hover:bg-[#292524] flex items-center justify-center"
           title="Turn right (E / D / →)"
           data-testid="delve-turn-right"
         ><RotateCw className="h-4 w-4" /></button>
       </div>
 
-      <div className="absolute bottom-2 left-2 font-mono text-[10px] text-stone-500 bg-black/60 px-1.5 py-0.5 hidden sm:block">
+      <div className="absolute bottom-2 left-2 font-mono text-[10px] text-[#78716c] bg-black/60 px-1.5 py-0.5 hidden sm:block">
         Q/E turn · W step
       </div>
     </div>

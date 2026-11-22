@@ -7,6 +7,17 @@ import {
   generateDelveSummary, getChestOptions, DungeonNode
 } from "./delveEngine";
 
+// Chest nodes are stored without their reward choices; the choices come from
+// getChestOptions (the same list /api/delve/chest validates against). Attach
+// them wherever nodes are served, or the hoard shows nothing to pick.
+function withChestRewards(nodes: DungeonNode[], dungeonId: number): DungeonNode[] {
+  return nodes.map(n =>
+    n.type === "chest" && !(n.chestRewards && n.chestRewards.length)
+      ? { ...n, chestRewards: getChestOptions(dungeonId, 1) }
+      : n
+  );
+}
+
 export function registerDelveRoutes(router: Router) {
 
   router.get("/api/delve/dungeons", async (req: Request, res: Response) => {
@@ -132,7 +143,7 @@ export function registerDelveRoutes(router: Router) {
         }
       }
 
-      const revealedNodes = dungeonNodes.filter(n =>
+      const revealedNodes = withChestRewards(dungeonNodes, run.dungeonId).filter(n =>
         initialRevealed.some(c => c.q === n.q && c.r === n.r)
       );
 
@@ -162,7 +173,7 @@ export function registerDelveRoutes(router: Router) {
 
       const dungeon = await storage.getDungeonDefinition(run.dungeonId);
       if (!dungeon) return res.status(404).json({ error: "Dungeon definition not found" });
-      const dungeonNodes = dungeon.nodeTable as DungeonNode[];
+      const dungeonNodes = withChestRewards(dungeon.nodeTable as DungeonNode[], run.dungeonId);
 
       const currentNode = dungeonNodes.find(n => n.q === run.currentQ && n.r === run.currentR);
       if (!currentNode) return res.status(500).json({ error: "Current node not found in dungeon" });
@@ -244,7 +255,7 @@ export function registerDelveRoutes(router: Router) {
 
       const dungeon = await storage.getDungeonDefinition(run.dungeonId);
       if (!dungeon) return res.status(404).json({ error: "Dungeon definition not found" });
-      const dungeonNodes = dungeon.nodeTable as DungeonNode[];
+      const dungeonNodes = withChestRewards(dungeon.nodeTable as DungeonNode[], run.dungeonId);
 
       const node = dungeonNodes.find(n => n.nodeId === nodeId);
       if (!node) return res.status(404).json({ error: "Node not found in dungeon" });
@@ -378,7 +389,7 @@ export function registerDelveRoutes(router: Router) {
 
       const dungeon = await storage.getDungeonDefinition(run.dungeonId);
       if (!dungeon) return res.status(404).json({ error: "Dungeon definition not found" });
-      const dungeonNodes = dungeon.nodeTable as DungeonNode[];
+      const dungeonNodes = withChestRewards(dungeon.nodeTable as DungeonNode[], run.dungeonId);
 
       const bossNode = dungeonNodes.find(n => n.type === "boss");
       const clearedNodes = (run.clearedNodes as string[]) || [];
@@ -432,7 +443,7 @@ export function registerDelveRoutes(router: Router) {
 
       const dungeon = await storage.getDungeonDefinition(run.dungeonId);
       if (!dungeon) return res.status(404).json({ error: "Dungeon definition not found" });
-      const dungeonNodes = dungeon.nodeTable as DungeonNode[];
+      const dungeonNodes = withChestRewards(dungeon.nodeTable as DungeonNode[], run.dungeonId);
 
       const currentNode = dungeonNodes.find(n => n.q === run.currentQ && n.r === run.currentR);
       if (!currentNode || currentNode.type !== "safe") {
@@ -467,7 +478,7 @@ export function registerDelveRoutes(router: Router) {
 
       const dungeon = await storage.getDungeonDefinition(run.dungeonId);
       if (!dungeon) return res.status(404).json({ error: "Dungeon definition not found" });
-      const dungeonNodes = dungeon.nodeTable as DungeonNode[];
+      const dungeonNodes = withChestRewards(dungeon.nodeTable as DungeonNode[], run.dungeonId);
 
       const currentNode = dungeonNodes.find(n => n.q === run.currentQ && n.r === run.currentR);
       if (!currentNode) return res.status(500).json({ error: "Current node not found" });
@@ -507,7 +518,7 @@ export function registerDelveRoutes(router: Router) {
 
       const dungeon = await storage.getDungeonDefinition(run.dungeonId);
       if (!dungeon) return res.status(404).json({ error: "Dungeon definition not found" });
-      const dungeonNodes = dungeon.nodeTable as DungeonNode[];
+      const dungeonNodes = withChestRewards(dungeon.nodeTable as DungeonNode[], run.dungeonId);
 
       const summary = generateDelveSummary({
         clearedNodes: (run.clearedNodes as string[]) || [],
@@ -551,7 +562,7 @@ export function registerDelveRoutes(router: Router) {
       const rewards = await storage.getDungeonRewards(runId);
 
       const dungeon = await storage.getDungeonDefinition(run.dungeonId);
-      const dungeonNodes = dungeon ? (dungeon.nodeTable as DungeonNode[]) : [];
+      const dungeonNodes = dungeon ? withChestRewards(dungeon.nodeTable as DungeonNode[], run.dungeonId) : [];
 
       const revealedCoords = (run.revealedCoords as Array<{ q: number; r: number }>) || [];
       const revealedNodes = dungeonNodes.filter(n =>
