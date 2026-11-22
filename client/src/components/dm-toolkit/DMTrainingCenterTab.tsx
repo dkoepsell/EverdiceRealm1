@@ -1629,6 +1629,9 @@ export default function DMTrainingCenterTab() {
 
   return (
     <div className="space-y-6">
+      <a href="/dm-path" className="block rounded-md border border-violet-500/40 bg-violet-950/20 px-4 py-3 text-sm hover:bg-violet-950/30" data-testid="training-dm-path-link">
+        <span className="font-medium">Practice what you read on the DM path:</span> build a fair fight, write an NPC, design a five-room dungeon you can playtest in Delve, and track your progress as you go.
+      </a>
       <div className="text-center space-y-4">
         <div className="inline-flex items-center justify-center gap-2 px-4 py-1 bg-primary/10 rounded-full text-sm text-primary font-medium">
           <BookOpen className="h-4 w-4" />

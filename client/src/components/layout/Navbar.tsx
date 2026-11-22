@@ -41,7 +41,7 @@ import {
   Brain,
   Users2,
   Newspaper
-} from "lucide-react";
+, GraduationCap } from "lucide-react";
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -101,6 +101,7 @@ export default function Navbar() {
     { name: "Tavern", path: "/tavern", icon: Beer },
     { name: "Trading Post", path: "/trading-post", icon: Store },
     { name: "World Map", path: "/world-map", icon: Map },
+    { name: "Become a DM", path: "/dm-path", icon: GraduationCap },
   ] : [];
   const exploreActive = exploreLinks.some((l) => location === l.path);
   

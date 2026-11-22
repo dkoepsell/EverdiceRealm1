@@ -132,6 +132,17 @@ async function journalFor(userId: number, campaignId: number, flags: EngagementF
   return rows.filter((t) => rumorsOn(flags) || t.status !== "rumored").map((t) => journalEntry(t, q, r));
 }
 
+/** The DM-path note that explains this outcome, if any. */
+function screenNoteFor(o: CuratedOutcome): string | undefined {
+  if (o.thread) {
+    if (o.thread.beat === "sign" && (o.thread.templateId ?? "").startsWith("personal_")) return "personal_hook";
+    return ({ sign: "breadcrumbs", trace: "breadcrumbs", approach: "breadcrumbs", climax: "many_solutions", debunk: "false_rumor", reminder: "doom_clock" } as Record<string, string>)[o.thread.beat];
+  }
+  if (o.recurring) return "recurring_npc";
+  if (o.awareness) return "surprise";
+  return undefined;
+}
+
 /** Add check hints to plain investigate choices, so the card can show "(Investigation DC 10)". */
 function withCheckHints(outcome: CuratedOutcome): CuratedOutcome {
   return {
@@ -355,7 +366,7 @@ export async function wanderMove(userId: number, run: WanderRun, body: MoveBody,
     };
   }
   if (flags.wanderChecks && !outcome.thread) outcome = withCheckHints(outcome);
-  outcome = { ...outcome, rolls };
+  outcome = { ...outcome, rolls, screenNote: screenNoteFor(outcome) };
 
   // ── landmarks ───────────────────────────────────────────────────────────────
   let landmarks: Landmark[] = [];
@@ -827,7 +838,7 @@ export async function wanderShortRest(userId: number, run: WanderRun, hitDice: n
     travel.hour += 1;
     await storage.updateWanderRun(run.id, { flags: { ...runFlagsOf(run), travel } as any });
   }
-  return { notes, travel, hp: c.hitPoints + healed, maxHp: c.maxHitPoints, hitDiceRemaining: remaining - spend.spent };
+  return { notes, travel, hp: c.hitPoints + healed, maxHp: c.maxHitPoints, hitDiceRemaining: remaining - spend.spent, screenNote: "rest_pressure" };
 }
 
 // ── camp ──────────────────────────────────────────────────────────────────────
@@ -873,6 +884,7 @@ export async function wanderCamp(userId: number, run: WanderRun, rng: Rng = Math
     notes: result.notes,
     rolls,
     news,
+    screenNote: news.length ? "doom_clock" : "rest_pressure",
     journal: await journalFor(userId, run.campaignId, cflags, run.currentHexQ, run.currentHexR),
     collapse: result.state.exhaustion >= EXHAUSTION_RUN_ENDS,
   };

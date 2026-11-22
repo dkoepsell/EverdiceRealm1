@@ -48,6 +48,8 @@ import {
 } from "@/components/wander/WanderTravelUI";
 import { REALM_GLYPH, type RealmMark } from "@shared/wander/realm";
 import { SkirmishPanel } from "@/components/skirmish/SkirmishPanel";
+import { BehindTheScreen } from "@/components/dm/BehindTheScreen";
+import { Nudges } from "@/components/dm/Nudges";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface WanderRun {
@@ -90,6 +92,7 @@ interface CuratedOutcome {
   markerType?: string;
   combatSeed?: any;
   rolls?: string[];
+  screenNote?: string;
   awareness?: "unseen" | "spotted" | "ambushed";
   thread?: { id: number; templateId: string; beat: string; name?: string };
   recurring?: { roleId: string; name: string; metBefore: boolean; attitude: number };
@@ -102,6 +105,7 @@ interface ChoiceResult {
   rewards: OutcomeReward[];
   payoff?: { kind: string; dungeonId?: number; name?: string };
   combat?: boolean;
+  screenNote?: string;
 }
 
 interface JournalEntry {
@@ -489,9 +493,9 @@ export default function WanderPage() {
 
   const shortRestMutation = useMutation({
     mutationFn: async (data: { runId: number; hitDice: number }) => (await apiRequest("POST", "/api/wander/short-rest", data)).json(),
-    onSuccess: (data: { notes: string[]; travel: TravelState | null }) => {
+    onSuccess: (data: { notes: string[]; travel: TravelState | null; screenNote?: string }) => {
       if (data.travel) setTravel(data.travel);
-      setLastResult({ title: "A short rest", narrative: data.notes.join(" "), rolls: [], rewards: [] });
+      setLastResult({ title: "A short rest", narrative: data.notes.join(" "), rolls: [], rewards: [], screenNote: data.screenNote });
       queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
     },
     onError: (error: Error) => toast({ title: "Couldn't rest", description: error.message, variant: "destructive" }),
@@ -502,11 +506,11 @@ export default function WanderPage() {
       const res = await apiRequest("POST", "/api/wander/camp", data);
       return res.json();
     },
-    onSuccess: (data: { run: WanderRun; travel: TravelState; notes: string[]; rolls: string[]; collapse?: boolean; journal?: JournalThread[] }) => {
+    onSuccess: (data: { run: WanderRun; travel: TravelState; notes: string[]; rolls: string[]; collapse?: boolean; journal?: JournalThread[]; screenNote?: string }) => {
       setActiveRun(data.run);
       setTravel(data.travel);
       if (data.journal) setTrails(data.journal);
-      setLastResult({ title: "You make camp", narrative: (data.notes || []).join(" "), rolls: data.rolls || [], rewards: [] });
+      setLastResult({ title: "You make camp", narrative: (data.notes || []).join(" "), rolls: data.rolls || [], rewards: [], screenNote: data.screenNote });
       queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
       setMoveNotes([]);
       if (data.collapse) endMutation.mutate({ runId: data.run.id });
@@ -1019,6 +1023,7 @@ export default function WanderPage() {
                         <CardContent className="space-y-3">
                           <p className="text-sm text-slate-300 leading-relaxed">{lastResult.narrative}</p>
                           <RollList rolls={lastResult.rolls} />
+                          <BehindTheScreen ids={[lastResult.screenNote]} />
                           <RealmSigns marks={realmHere} onNod={(id) => realmNodMutation.mutate(id)} onLeave={(phrase) => realmSignMutation.mutate({ runId: activeRun.id, phrase })} leaving={realmSignMutation.isPending} />
                           {lastResult.rewards.length > 0 && (
                             <div className="flex flex-wrap gap-1.5">
@@ -1064,6 +1069,7 @@ export default function WanderPage() {
                     <TrailsJournal threads={trails} />
                   </div>
                 )}
+                <Nudges className="mt-4" />
 
                 <div className="mt-4">
                   <Button
@@ -1250,6 +1256,7 @@ function OutcomeCard({
         {outcome.detail && !outcome.thread && <p className="text-xs text-slate-400 leading-relaxed italic">{outcome.detail}</p>}
 
         <RollList rolls={outcome.rolls} notes={notes} />
+        <BehindTheScreen ids={[outcome.screenNote]} />
         {realmHere && realmHere.length > 0 && (
           <div className="rounded border border-slate-700/60 bg-slate-950/40 p-2 space-y-1">
             <p className="text-[11px] uppercase tracking-wider text-slate-500">Left here by other adventurers</p>

@@ -2764,6 +2764,32 @@ export const realmMarks = pgTable("realm_marks", {
 ]);
 export type RealmMarkRow = typeof realmMarks.$inferSelect;
 
+// The DM path (shared/dm/path.ts): one row per user per step, with what they
+// made. Nudge dismissals are stored as step ids "nudge:<id>". Created by
+// scripts/migrations/007-dm-path.sql.
+export const dmPathProgress = pgTable("dm_path_progress", {
+  userId: integer("user_id").notNull(),
+  stepId: text("step_id").notNull(),
+  data: jsonb("data"),
+  completedAt: text("completed_at"),
+  updatedAt: text("updated_at"),
+}, (t) => [
+  primaryKey({ columns: [t.userId, t.stepId] }),
+]);
+export type DmPathProgressRow = typeof dmPathProgress.$inferSelect;
+
+// "Open to live play": opt-in only; only players who opt in can see others who did.
+export const playPreferences = pgTable("play_preferences", {
+  userId: integer("user_id").primaryKey(),
+  open: boolean("open").notNull().default(false),
+  role: text("role").notNull().default("player"),
+  timezone: text("timezone"),
+  slots: jsonb("slots").default([]),
+  styles: jsonb("styles").default([]),
+  updatedAt: text("updated_at"),
+});
+export type PlayPreferences = typeof playPreferences.$inferSelect;
+
 export type WanderThread = typeof wanderThreads.$inferSelect;
 export type InsertWanderThread = typeof wanderThreads.$inferInsert;
 

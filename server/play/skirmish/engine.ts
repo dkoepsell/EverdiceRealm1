@@ -76,6 +76,8 @@ export interface SkirmishState {
   encounterNote: string;
   rating: string;
   xpEarned: number;
+  /** DM path: "behind the screen" notes this fight has earned (shared/dm/path.ts). */
+  screenNotes?: string[];
 }
 
 export interface SkirmishCharacter extends WanderCharacter {
@@ -141,6 +143,7 @@ export function startSkirmish(opts: {
     v: 1, mode: opts.mode, ref: opts.ref, round: 1, status: "active", surprise: opts.surprise ?? "none",
     pc: { name: c.name, hp: Math.max(0, c.hitPoints), maxHp: c.maxHitPoints, ac: c.armorClass || 10, initiative: pcInit, speed: baseSpeed(c.race), prone: false },
     enemies, classCombat: {}, log: [], encounterNote: opts.encounterNote, rating: opts.rating, xpEarned: 0,
+    screenNotes: ["encounter_math", ...(opts.surprise && opts.surprise !== "none" ? ["surprise"] : [])],
   };
   const order = [`${c.name} ${pcInit}`, ...enemies.map((e) => `${e.name} ${e.initiative}`)];
   s.log.push({ round: 1, who: "system", text: "Roll initiative!", detail: [opts.encounterNote, `Initiative (d20 + Dex): ${order.join(", ")}.`] });
@@ -215,6 +218,7 @@ function monsterTurn(s: SkirmishState, e: SkirmishEnemy, c: SkirmishCharacter, d
   s.log.push({ round: s.round, who: "enemy", text: `${e.name} ${verb}. (${s.pc.hp}/${s.pc.maxHp} HP)`, detail });
   if (s.pc.hp <= 0) {
     s.status = "lost";
+    s.screenNotes = [...(s.screenNotes ?? []), "knock_out"];
     const why = e.creatureType === "humanoid"
       ? "They knock you out rather than finish you, and help themselves to what they want"
       : "Once you stop moving, it loses interest and leaves you";
@@ -296,6 +300,7 @@ function damageEnemy(s: SkirmishState, e: SkirmishEnemy, amount: number, type: s
     const r = dice.d(20);
     if (r < 10) {
       e.status = "fled";
+      if (!(s.screenNotes ?? []).includes("morale")) s.screenNotes = [...(s.screenNotes ?? []), "morale"];
       detail.push(`Morale: ${e.name} is badly hurt (Wisdom save ${r} vs DC 10) and flees${e.traits.includes("nimble_escape") ? ", disengaging nimbly" : ""}.`);
     } else {
       detail.push(`Morale: ${e.name} is badly hurt but holds (Wisdom save ${r} vs DC 10).`);
