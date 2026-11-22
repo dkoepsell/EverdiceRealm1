@@ -280,6 +280,36 @@ export function registerDelveRoutes(router: Router) {
         });
       }
 
+      // Combat is resolved on the client for now ("Combat Resolved — Continue").
+      // Record the win here so the server, which gates the boss's hoard on
+      // clearedNodes, agrees the fight is over. Only a node where the player
+      // actually chose to fight can be cleared this way.
+      if (optionId === "combat_won") {
+        if (node.type !== "encounter" && node.type !== "boss") {
+          return res.status(400).json({ error: "There is no fight here to win" });
+        }
+        const states = await storage.getDungeonNodeStates(run.id);
+        const prior = states.find(s => s.nodeId === nodeId);
+        if (!(prior?.resolutionPayload as any)?.combatTriggered) {
+          return res.status(400).json({ error: "No combat was started in this room" });
+        }
+        const clearedNodes = [...((run.clearedNodes as string[]) || [])];
+        if (!clearedNodes.includes(nodeId)) clearedNodes.push(nodeId);
+        const updatedRun = await storage.updateDungeonRun(run.id, { clearedNodes });
+        const victory = {
+          success: true,
+          narrative: node.type === "boss" ? `${node.name} falls silent. The way to the hoard lies open.` : "The last foe falls. The room is yours.",
+          nodeCleared: true,
+          combatTriggered: false,
+        };
+        const nodeState = await storage.upsertDungeonNodeState(run.id, nodeId, {
+          state: "cleared",
+          resolutionPayload: victory,
+          lastResolvedAt: new Date().toISOString(),
+        });
+        return res.json({ resolution: victory, run: updatedRun, nodeState, combatTriggered: false, combatData: null });
+      }
+
       const diceRoll = providedRoll ?? Math.floor(Math.random() * 20) + 1;
 
       const resolution = resolveAction({

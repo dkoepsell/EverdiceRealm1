@@ -878,10 +878,10 @@ export default function DelvePage() {
                 value={selectedCampaignId?.toString() || ""}
                 onValueChange={v => setSelectedCampaignId(parseInt(v))}
               >
-                <SelectTrigger className="bg-stone-800 border-stone-700 text-stone-200">
+                <SelectTrigger className="bg-[#292524] border-[#44403c] text-[#e7e5e4]">
                   <SelectValue placeholder="Select a campaign" />
                 </SelectTrigger>
-                <SelectContent className="bg-stone-800 border-stone-700">
+                <SelectContent className="bg-[#292524] border-[#44403c] text-[#e7e5e4]">
                   {campaigns?.map(c => (
                     <SelectItem key={c.id} value={c.id.toString()} className="text-stone-200">
                       {c.title}
@@ -896,10 +896,10 @@ export default function DelvePage() {
                 value={selectedCharacterId?.toString() || ""}
                 onValueChange={v => setSelectedCharacterId(parseInt(v))}
               >
-                <SelectTrigger className="bg-stone-800 border-stone-700 text-stone-200">
+                <SelectTrigger className="bg-[#292524] border-[#44403c] text-[#e7e5e4]">
                   <SelectValue placeholder="Select a character" />
                 </SelectTrigger>
-                <SelectContent className="bg-stone-800 border-stone-700">
+                <SelectContent className="bg-[#292524] border-[#44403c] text-[#e7e5e4]">
                   {characters?.map((c: any) => (
                     <SelectItem key={c.id} value={c.id.toString()} className="text-stone-200" disabled={!!c.engagement}>
                       {c.name} — Lv.{c.level || 1} {c.class || ''}
@@ -1283,16 +1283,13 @@ export default function DelvePage() {
                 onClick={() => {
                   setShowCombatModal(false);
                   if (activeRunData && currentRunNode) {
-                    const clearedNodes = [...((run.clearedNodes as string[]) || [])];
-                    if (!clearedNodes.includes(currentRunNode.nodeId)) {
-                      clearedNodes.push(currentRunNode.nodeId);
-                    }
-                    setActiveRunData(prev => prev ? {
-                      ...prev,
-                      run: { ...prev.run, clearedNodes }
-                    } : prev);
-                    setCurrentNodeResolution(null);
-                    setLastActionResult(prev => prev ? { ...prev, nodeCleared: true } : prev);
+                    // Tell the server the fight is won; it gates the hoard on
+                    // its own clearedNodes, not on this page's copy.
+                    actionMutation.mutate({
+                      runId: activeRunData.run.id,
+                      nodeId: currentRunNode.nodeId,
+                      optionId: 'combat_won',
+                    });
                   }
                 }}
               >
