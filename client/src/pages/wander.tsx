@@ -47,6 +47,7 @@ import {
   TravelBar, TravelControls, RollList, TrailsJournal, RealmSigns, checkLabel, type JournalThread,
 } from "@/components/wander/WanderTravelUI";
 import { REALM_GLYPH, type RealmMark } from "@shared/wander/realm";
+import { WanderHexMap, WanderMapLegend } from "@/components/wander/WanderHexMap";
 import { SkirmishPanel } from "@/components/skirmish/SkirmishPanel";
 import { BehindTheScreen } from "@/components/dm/BehindTheScreen";
 import { Nudges } from "@/components/dm/Nudges";
@@ -141,12 +142,6 @@ function axialToPixel(q: number, r: number, size: number) {
   return { x, y };
 }
 
-function hexPoints(cx: number, cy: number, size: number) {
-  return Array.from({ length: 6 }, (_, i) => {
-    const angle = (Math.PI / 3) * i - Math.PI / 6;
-    return `${cx + size * Math.cos(angle)},${cy + size * Math.sin(angle)}`;
-  }).join(" ");
-}
 
 function hexDistance(q1: number, r1: number, q2: number, r2: number) {
   return Math.max(Math.abs(q1 - q2), Math.abs(r1 - r2), Math.abs(q1 + r1 - q2 - r2));
@@ -180,14 +175,6 @@ const MARKER_ICONS: Record<string, string> = {
 const TERRAIN_TYPES = ['plains', 'forest', 'mountain', 'swamp', 'desert', 'ocean'] as const;
 type TerrainType = typeof TERRAIN_TYPES[number];
 
-const TERRAIN_COLORS: Record<TerrainType, { fill: string; stroke: string; exploredFill: string; label: string; icon: string }> = {
-  plains:   { fill: "#1a2a1a", stroke: "#3a5a3a", exploredFill: "#2a3d1e", label: "Plains",   icon: "🌾" },
-  forest:   { fill: "#0f2a1a", stroke: "#1e5a3a", exploredFill: "#1a3d28", label: "Forest",   icon: "🌲" },
-  mountain: { fill: "#2a2530", stroke: "#5a4f6a", exploredFill: "#3a3545", label: "Mountain", icon: "⛰️" },
-  swamp:    { fill: "#1a2520", stroke: "#3a5a50", exploredFill: "#253830", label: "Swamp",    icon: "🌿" },
-  desert:   { fill: "#2a2518", stroke: "#5a4f30", exploredFill: "#3d3520", label: "Desert",   icon: "🏜️" },
-  ocean:    { fill: "#0f1a2a", stroke: "#1e3a5a", exploredFill: "#1a2840", label: "Ocean",    icon: "🌊" },
-};
 
 /** Terrain is shared with the server (shared/wander/terrain.ts) so both agree on every hex. */
 function getTerrainForHex(q: number, r: number): TerrainType {
@@ -223,6 +210,8 @@ export default function WanderPage() {
   const [currentOutcome, setCurrentOutcome] = useState<CuratedOutcome | null>(null);
   const [currentDangerRating, setCurrentDangerRating] = useState(0);
   const [exploredHexes, setExploredHexes] = useState<Set<string>>(new Set(["0,0"]));
+  // This run's walked hexes, in order, for the red route on the map.
+  const [route, setRoute] = useState<string[]>([]);
   const [markers, setMarkers] = useState<WanderMarker[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [showSummary, setShowSummary] = useState(false);
@@ -303,7 +292,7 @@ export default function WanderPage() {
     enabled: !!campaignId && !!activeRun,
   });
 
-  const { data: journalData } = useQuery<{ travel: TravelState | null; landmarks: Landmark[]; journal: JournalThread[]; realmMarks?: RealmMark[] }>({
+  const { data: journalData } = useQuery<{ travel: TravelState | null; landmarks: Landmark[]; journal: JournalThread[]; realmMarks?: RealmMark[]; route?: string[] }>({
     queryKey: ["/api/wander/journal", activeRun?.id],
     enabled: !!activeRun?.id,
     queryFn: async () => {
@@ -315,6 +304,10 @@ export default function WanderPage() {
   });
   useEffect(() => {
     if (!journalData) return;
+    if (journalData.route?.length) {
+      setRoute(journalData.route);
+      setExploredHexes((prev) => new Set([...Array.from(prev), ...journalData.route!]));
+    }
     if (journalData.travel) {
       setTravel(journalData.travel);
       setPace(journalData.travel.pace);
@@ -347,7 +340,7 @@ export default function WanderPage() {
     },
     onSuccess: (run: WanderRun) => {
       setActiveRun(run);
-      setExploredHexes(new Set(["0,0"]));
+      setExploredHexes(new Set(["0,0"])); setRoute([]);
       setMarkers([]);
       setJournalEntries([]);
       setCurrentOutcome(null);
@@ -400,6 +393,7 @@ export default function WanderPage() {
         next.add(`${data.run.currentHexQ},${data.run.currentHexR}`);
         return next;
       });
+      setRoute((prev) => [...prev, `${data.run.currentHexQ},${data.run.currentHexR}`]);
       setJournalEntries((prev) => [
         ...prev,
         {
@@ -564,6 +558,16 @@ export default function WanderPage() {
     endMutation.mutate({ runId: activeRun.id });
   };
 
+  // Explored hexes arrive after Resume has already drawn the map: fold them in when they land.
+  useEffect(() => {
+    if (!activeRun || !fetchedHexes?.length) return;
+    setExploredHexes((prev) => {
+      const next = new Set(prev);
+      fetchedHexes.forEach((h: any) => next.add(`${h.hexQ},${h.hexR}`));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [activeRun?.id, fetchedHexes]);
+
   const gridHexes = useMemo(() => {
     if (!activeRun) return [];
     const centerQ = activeRun.currentHexQ;
@@ -587,21 +591,16 @@ export default function WanderPage() {
     return hexes;
   }, [activeRun, exploredHexes, markers]);
 
-  const hexSize = 28;
-
-  const svgBounds = useMemo(() => {
-    if (gridHexes.length === 0) return { minX: -200, maxX: 200, minY: -200, maxY: 200 };
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const hex of gridHexes) {
-      const { x, y } = axialToPixel(hex.q, hex.r, hexSize);
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y);
-      maxY = Math.max(maxY, y);
-    }
-    const pad = hexSize * 2;
-    return { minX: minX - pad, maxX: maxX + pad, minY: minY - pad, maxY: maxY + pad };
-  }, [gridHexes, hexSize]);
+  // What sits on a hex, if anything: a marker, then a landmark, then a sign left by other players.
+  const mapGlyphAt = useCallback((hex: { q: number; r: number; marker?: WanderMarker }) => {
+    if (hex.marker) return { glyph: MARKER_ICONS[hex.marker.markerType] || "📍", title: hex.marker.markerType.replace("_", " ") };
+    const lm = landmarks.get(`${hex.q},${hex.r}`)
+      ?? Array.from(landmarks.values()).find((l) => l.threadId && l.q === hex.q && l.r === hex.r);
+    if (lm) return { glyph: lm.glyph, title: `${lm.name}: ${lm.distant}` };
+    const rm = realm.find((m) => m.q === hex.q && m.r === hex.r);
+    if (rm) return { glyph: REALM_GLYPH[rm.kind], title: rm.kind === "sign" ? `A sign: "${rm.text}"` : rm.text };
+    return null;
+  }, [landmarks, realm]);
 
   const adjacentSet = useMemo(() => {
     if (!activeRun) return new Set<string>();
@@ -819,159 +818,26 @@ export default function WanderPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-2">
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 px-2 pb-2">
-                      {TERRAIN_TYPES.map(t => (
-                        <div key={t} className="flex items-center gap-1 text-[10px] text-slate-400">
-                          <span className="inline-block w-3 h-3 rounded-sm border border-slate-600" style={{ background: TERRAIN_COLORS[t].exploredFill }} />
-                          <span>{TERRAIN_COLORS[t].icon}</span>
-                          <span>{TERRAIN_COLORS[t].label}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="relative h-[400px] md:h-[500px] bg-slate-950 rounded-lg overflow-hidden border border-slate-800">
-                      <svg
-                        viewBox={`${svgBounds.minX} ${svgBounds.minY} ${svgBounds.maxX - svgBounds.minX} ${svgBounds.maxY - svgBounds.minY}`}
-                        className="w-full h-full"
-                        preserveAspectRatio="xMidYMid meet"
-                      >
-                        {gridHexes.map((hex) => {
-                          const { x, y } = axialToPixel(hex.q, hex.r, hexSize);
-                          const pts = hexPoints(x, y, hexSize);
-                          const dist = activeRun ? hexDistance(hex.q, hex.r, activeRun.currentHexQ, activeRun.currentHexR) : 999;
-                          const tc = TERRAIN_COLORS[hex.terrain];
-
-                          let fill = "#0a0e1a";
-                          let stroke = "#1a1f2e";
-                          let strokeWidth = 0.5;
-                          let opacity = 0.3;
-                          let cursor = "default";
-
-                          if (hex.isCurrent) {
-                            fill = tc.exploredFill;
-                            stroke = "#fbbf24";
-                            strokeWidth = 2.5;
-                            opacity = 1;
-                          } else if (hex.explored) {
-                            fill = tc.exploredFill;
-                            stroke = tc.stroke;
-                            strokeWidth = 1;
-                            opacity = 0.85;
-                          } else if (hex.isAdjacent) {
-                            fill = tc.fill;
-                            stroke = tc.stroke;
-                            strokeWidth = 1;
-                            opacity = 0.7;
-                            cursor = "pointer";
-                          } else if (dist <= 3) {
-                            fill = tc.fill;
-                            stroke = tc.stroke;
-                            strokeWidth = 0.5;
-                            opacity = 0.35;
-                          }
-
-                          return (
-                            <g key={`${hex.q},${hex.r}`}>
-                              {(() => {
-                                const lm = landmarks.get(`${hex.q},${hex.r}`)
-                                  ?? Array.from(landmarks.values()).find((l) => l.threadId && l.q === hex.q && l.r === hex.r);
-                                return lm ? <title>{`${lm.name}: ${lm.distant}`}</title> : null;
-                              })()}
-                              <polygon
-                                points={pts}
-                                fill={fill}
-                                stroke={stroke}
-                                strokeWidth={strokeWidth}
-                                opacity={opacity}
-                                style={{ cursor, transition: "all 0.2s ease" }}
-                                onClick={() => {
-                                  if (hex.isAdjacent && !hex.isCurrent && !isMoving && !currentOutcome) {
-                                    handleMove(hex.q, hex.r);
-                                  }
-                                }}
-                              />
-                              {hex.explored && !hex.isCurrent && !hex.marker && (
-                                <text
-                                  x={x}
-                                  y={y}
-                                  textAnchor="middle"
-                                  dominantBaseline="middle"
-                                  style={{ fontSize: "9px", pointerEvents: "none", opacity: 0.5 }}
-                                >
-                                  {tc.icon}
-                                </text>
-                              )}
-                              {hex.isCurrent && (
-                                <>
-                                  <circle cx={x} cy={y} r={hexSize * 0.3} fill="white" opacity={0.9}>
-                                    <animate attributeName="opacity" values="0.7;1;0.7" dur="2s" repeatCount="indefinite" />
-                                  </circle>
-                                  <circle cx={x} cy={y} r={hexSize * 0.45} fill="none" stroke="#fcd34d" strokeWidth={1.5} opacity={0.6}>
-                                    <animate
-                                      attributeName="r"
-                                      values={`${hexSize * 0.35};${hexSize * 0.5};${hexSize * 0.35}`}
-                                      dur="2s"
-                                      repeatCount="indefinite"
-                                    />
-                                    <animate attributeName="opacity" values="0.6;0.2;0.6" dur="2s" repeatCount="indefinite" />
-                                  </circle>
-                                </>
-                              )}
-                              {hex.marker && !hex.isCurrent && (
-                                <text
-                                  x={x}
-                                  y={y}
-                                  textAnchor="middle"
-                                  dominantBaseline="middle"
-                                  style={{ fontSize: "12px", pointerEvents: "none" }}
-                                >
-                                  {MARKER_ICONS[hex.marker.markerType] || "📍"}
-                                </text>
-                              )}
-                              {(() => {
-                                const lm = landmarks.get(`${hex.q},${hex.r}`)
-                                  ?? Array.from(landmarks.values()).find((l) => l.threadId && l.q === hex.q && l.r === hex.r);
-                                if (!lm && !hex.isCurrent && !hex.marker) {
-                                  const rm = realm.find((m) => m.q === hex.q && m.r === hex.r);
-                                  if (rm) return (
-                                    <text x={x} y={y} textAnchor="middle" dominantBaseline="middle" style={{ fontSize: "12px", pointerEvents: "none" }}>
-                                      {REALM_GLYPH[rm.kind]}
-                                    </text>
-                                  );
-                                }
-                                if (!lm || hex.isCurrent || hex.marker) return null;
-                                return (
-                                  <text x={x} y={y} textAnchor="middle" dominantBaseline="middle" style={{ fontSize: "13px", pointerEvents: "none" }}>
-                                    {lm.glyph}
-                                  </text>
-                                );
-                              })()}
-                              {hex.isAdjacent && !hex.explored && !hex.isCurrent && !landmarks.has(`${hex.q},${hex.r}`) && (
-                                <text
-                                  x={x}
-                                  y={y + 1}
-                                  textAnchor="middle"
-                                  dominantBaseline="middle"
-                                  fill="#fbbf24"
-                                  opacity={0.5}
-                                  style={{ fontSize: "8px", pointerEvents: "none" }}
-                                >
-                                  {tc.icon}
-                                </text>
-                              )}
-                            </g>
-                          );
-                        })}
-                      </svg>
-
+                    <WanderMapLegend />
+                    <WanderHexMap
+                      hexes={gridHexes}
+                      current={{ q: activeRun?.currentHexQ ?? 0, r: activeRun?.currentHexR ?? 0 }}
+                      route={route}
+                      glyphAt={mapGlyphAt}
+                      canMove={!isMoving && !currentOutcome && !inFight}
+                      onMove={handleMove}
+                      pace={travel ? pace : "normal"}
+                      exhaustion={travel?.exhaustion ?? 0}
+                    >
                       {isMoving && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                          <div className="flex items-center gap-2 bg-slate-900/90 px-4 py-2 rounded-full border border-amber-500/30">
-                            <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
-                            <span className="text-sm text-amber-200">Traveling...</span>
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <div className="flex items-center gap-2 bg-slate-900/90 px-4 py-2 rounded-full border border-amber-500/30">
+                              <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
+                              <span className="text-sm text-amber-200">Traveling...</span>
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
+                        )}
+                    </WanderHexMap>
                   </CardContent>
                 </Card>
               </div>
@@ -1181,7 +1047,7 @@ export default function WanderPage() {
                 setActiveRun(null);
                 setWanderSummary(null);
                 setJournalEntries([]);
-                setExploredHexes(new Set(["0,0"]));
+                setExploredHexes(new Set(["0,0"])); setRoute([]);
                 setMarkers([]);
               }}
             >

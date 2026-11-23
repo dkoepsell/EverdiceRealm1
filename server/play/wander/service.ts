@@ -904,7 +904,19 @@ export async function wanderJournal(userId: number, run: WanderRun) {
     landmarks: flags.wanderLandmarks ? landmarksFromKeys(runFlagsOf(run).landmarks).concat(threadLandmarks(threads)) : [],
     journal: threads.map((t) => journalEntry(t, run.currentHexQ, run.currentHexR)),
     realmMarks: flags.sharedRealm ? await realmMarksNear(run.currentHexQ, run.currentHexR, 3, userId) : [],
+    route: await runRoute(run),
   };
+}
+
+/** The hexes this run has walked, in order ("q,r"), from its move log. Fails soft to the current hex. */
+async function runRoute(run: WanderRun): Promise<string[]> {
+  try {
+    const moves = await storage.getWanderOutcomes(run.id);
+    if (!moves.length) return [`${run.currentHexQ},${run.currentHexR}`];
+    return [`${moves[0].fromHexQ},${moves[0].fromHexR}`, ...moves.map((m) => `${m.toHexQ},${m.toHexR}`)];
+  } catch {
+    return [`${run.currentHexQ},${run.currentHexR}`];
+  }
 }
 
 // ── shared realm ──────────────────────────────────────────────────────────────
