@@ -185,6 +185,8 @@ export interface CharacterEngagement {
   /** Player-facing phrase, e.g. "deep in a dungeon". */
   label: string;
   since: string | null;
+  /** The campaign a wander or delve run belongs to, so the UI can link back to it. */
+  campaignId?: number | null;
 }
 
 // Items database with D&D 5e stats

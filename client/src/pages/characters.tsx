@@ -35,6 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SidebarTabs, SidebarTabsList, SidebarTabsTrigger } from "@/components/ui/sidebar-tabs";
 import { Separator } from "@/components/ui/separator";
 import CharacterSheet from "@/components/character/CharacterSheet";
+import { WhereaboutsBadge, WhereaboutsActions } from "@/components/character/CharacterWhereabouts";
 import { AlertCircle, Plus, User, Users, Dice6, Swords, Sparkles, Sword, Wand2, Shield, Heart, Flame, Moon, Loader2, ChevronDown, ChevronUp, Zap, Package, Scroll, Edit, Trash2, HelpCircle, BookOpen, Target, Brain, Eye, FileDown } from "lucide-react";
 import { exportCharacterPDF } from "@/lib/pdf-export";
 import {
@@ -856,6 +857,10 @@ export default function Characters() {
                             <p className="text-sm text-amber-700 dark:text-amber-300">
                               Level {character.level} {character.race} {character.class}
                             </p>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                              <WhereaboutsBadge who={character as any} />
+                              <WhereaboutsActions who={character as any} compact />
+                            </div>
                           </div>
                         </div>
                         
