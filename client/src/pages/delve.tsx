@@ -51,6 +51,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import type { Campaign } from "@shared/schema";
 import { DelveFirstPersonView } from "@/components/delve/DelveFirstPersonView";
+import { useSearch } from "wouter";
+import { AwayRoster } from "@/components/character/CharacterWhereabouts";
 
 interface DungeonDef {
   id: number;
@@ -506,7 +508,16 @@ export default function DelvePage() {
   useEffect(() => {
     trackPageView('delve');
   }, [trackPageView]);
-  const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
+  // ?campaign=N (from a character's "Resume" link) opens that campaign, which reloads its active run.
+  const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(() => {
+    const n = parseInt(new URLSearchParams(window.location.search).get("campaign") || "", 10);
+    return Number.isFinite(n) ? n : null;
+  });
+  const search = useSearch();
+  useEffect(() => {
+    const n = parseInt(new URLSearchParams(search).get("campaign") || "", 10);
+    if (Number.isFinite(n)) setSelectedCampaignId(n);
+  }, [search]);
   const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
   const [activeRunData, setActiveRunData] = useState<{
     run: DungeonRun;
@@ -912,6 +923,7 @@ export default function DelvePage() {
               </Select>
             </div>
           </div>
+          <AwayRoster characters={characters} className="mb-6" />
 
           {dungeonsLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

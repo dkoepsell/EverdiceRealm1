@@ -39,7 +39,7 @@ import {
   Star,
   Flame,
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { getTerrainForHex as sharedTerrainForHex } from "@shared/wander/terrain";
 import type { Landmark } from "@shared/wander/landmarks";
 import type { Pace, TravelActivity, TravelState } from "@shared/wander/travel";
@@ -48,6 +48,7 @@ import {
 } from "@/components/wander/WanderTravelUI";
 import { REALM_GLYPH, type RealmMark } from "@shared/wander/realm";
 import { WanderHexMap, WanderMapLegend } from "@/components/wander/WanderHexMap";
+import { AwayRoster } from "@/components/character/CharacterWhereabouts";
 import { SkirmishPanel } from "@/components/skirmish/SkirmishPanel";
 import { BehindTheScreen } from "@/components/dm/BehindTheScreen";
 import { Nudges } from "@/components/dm/Nudges";
@@ -204,7 +205,13 @@ export default function WanderPage() {
     trackPageView('wander');
   }, [trackPageView]);
 
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
+  // ?campaign=N&resume=1 (from a character's "Resume" link) opens that campaign and picks the journey back up.
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>(() => new URLSearchParams(window.location.search).get("campaign") || "");
+  const search = useSearch();
+  useEffect(() => {
+    const c = new URLSearchParams(search).get("campaign");
+    if (c) setSelectedCampaignId(c);
+  }, [search]);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string>("");
   const [activeRun, setActiveRun] = useState<WanderRun | null>(null);
   const [currentOutcome, setCurrentOutcome] = useState<CuratedOutcome | null>(null);
@@ -558,6 +565,13 @@ export default function WanderPage() {
     endMutation.mutate({ runId: activeRun.id });
   };
 
+  useEffect(() => {
+    if (activeRun || !existingRun || existingRun.status !== "active") return;
+    if (new URLSearchParams(search).get("resume") !== "1") return;
+    setActiveRun(existingRun);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingRun?.id, search]);
+
   // Explored hexes arrive after Resume has already drawn the map: fold them in when they land.
   useEffect(() => {
     if (!activeRun || !fetchedHexes?.length) return;
@@ -689,6 +703,7 @@ export default function WanderPage() {
                     </Select>
                   </div>
                 </div>
+                <AwayRoster characters={characters} className="mb-6" />
 
                 {selectedCampaignId && selectedCharacterId && (
                   <Button

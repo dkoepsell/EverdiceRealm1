@@ -1440,7 +1440,7 @@ export class DatabaseStorage implements IStorage {
         await this.clearCharacterEngagement(character.id);
         return null;
       }
-      return { kind: 'wander', id: run.id, label: 'out wandering the wilds', since: character.engagementSince ?? null };
+      return { kind: 'wander', id: run.id, label: 'out wandering the wilds', since: character.engagementSince ?? null, campaignId: run.campaignId ?? null };
     }
 
     if (kind === 'delve') {
@@ -1449,7 +1449,7 @@ export class DatabaseStorage implements IStorage {
         await this.clearCharacterEngagement(character.id);
         return null;
       }
-      return { kind: 'delve', id: run.id, label: 'deep in a dungeon', since: character.engagementSince ?? null };
+      return { kind: 'delve', id: run.id, label: 'deep in a dungeon', since: character.engagementSince ?? null, campaignId: run.campaignId ?? null };
     }
 
     if (kind === 'campaign') {
