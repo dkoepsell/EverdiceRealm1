@@ -6,7 +6,7 @@ import {
   rollOutcome, calculateDangerRating, resolveChoice,
   generateWanderSummary, mapBiomeFromTerrain, CuratedOutcome
 } from "./wanderEngine";
-import { initialRunFlags, leaveRealmSign, nodRealm, roadRumors, wanderCamp, wanderChoose, wanderJournal, wanderMove, wanderShortRest } from "./play/wander/service";
+import { initialRunFlags, leaveRealmSign, nodRealm, roadRumors, wanderCamp, wanderChoose, wanderJournal, wanderMove, wanderSettlementLeave, wanderSettlementMove, wanderShortRest, wanderSiteAction } from "./play/wander/service";
 
 export function registerWanderRoutes(router: Router) {
 
@@ -113,6 +113,7 @@ export function registerWanderRoutes(router: Router) {
       // and applies travel rules, threads, landmarks and checks per campaign flags.
       void terrainType;
       const result = await wanderMove(userId, run, { toHexQ, toHexR, pace: req.body.pace, activity: req.body.activity });
+      if ("error" in result) return res.status(400).json({ error: result.error });
       res.json(result);
     } catch (error: any) {
       console.error("Error moving in wander:", error);
@@ -151,6 +152,57 @@ export function registerWanderRoutes(router: Router) {
     } catch (error: any) {
       console.error("Error resolving wander choice:", error);
       res.status(500).json({ error: "Failed to resolve choice" });
+    }
+  });
+
+  // Wander sites: walk between districts of a village, town or city.
+  router.post("/api/wander/settlement/move", async (req: Request, res: Response) => {
+    try {
+      if (!req.user) return res.status(401).json({ error: "Authentication required" });
+      const userId = (req.user as any).id;
+      const { runId, toQ, toR } = req.body;
+      if (!runId || toQ == null || toR == null) return res.status(400).json({ error: "Missing required fields: runId, toQ, toR" });
+      const run = await storage.getWanderRun(runId);
+      if (!run) return res.status(404).json({ error: "Wander run not found" });
+      if (run.userId !== userId) return res.status(401).json({ error: "Not authorized to modify this run" });
+      if (run.status !== "active") return res.status(400).json({ error: "Wander run is not active" });
+      const result = await wanderSettlementMove(userId, run, Number(toQ), Number(toR));
+      if ("error" in result) return res.status(400).json({ error: result.error });
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error moving in settlement:", error);
+      res.status(500).json({ error: "Failed to walk there" });
+    }
+  });
+
+  router.post("/api/wander/site", async (req: Request, res: Response) => {
+    try {
+      if (!req.user) return res.status(401).json({ error: "Authentication required" });
+      const userId = (req.user as any).id;
+      const run = await storage.getWanderRun(req.body.runId);
+      if (!run) return res.status(404).json({ error: "Wander run not found" });
+      if (run.userId !== userId) return res.status(401).json({ error: "Not authorized to modify this run" });
+      if (run.status !== "active") return res.status(400).json({ error: "Wander run is not active" });
+      const result = await wanderSiteAction(userId, run, String(req.body.action));
+      if ("error" in result) return res.status(400).json({ error: result.error });
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error at wander site:", error);
+      res.status(500).json({ error: "Failed" });
+    }
+  });
+
+  router.post("/api/wander/settlement/leave", async (req: Request, res: Response) => {
+    try {
+      if (!req.user) return res.status(401).json({ error: "Authentication required" });
+      const userId = (req.user as any).id;
+      const run = await storage.getWanderRun(req.body.runId);
+      if (!run) return res.status(404).json({ error: "Wander run not found" });
+      if (run.userId !== userId) return res.status(401).json({ error: "Not authorized to modify this run" });
+      res.json(await wanderSettlementLeave(run));
+    } catch (error: any) {
+      console.error("Error leaving settlement:", error);
+      res.status(500).json({ error: "Failed to leave" });
     }
   });
 

@@ -33,6 +33,10 @@ export interface CuratedOutcome {
   markerType?: 'landmark' | 'trace' | 'hazard' | 'resource' | 'npc_echo' | 'opportunity';
   /** Wander spec A: this outcome is a beat of a thread. */
   thread?: { id: number; templateId: string; beat: string; name?: string };
+  /** Wander sites: arriving at a dungeon entrance or a settlement (shared/wander/sites.ts). */
+  site?: { key: string; kind: 'dungeon' | 'village' | 'town' | 'city' };
+  /** Wander sites: a scene in a settlement district (server/play/wander/settlement.ts). */
+  settlement?: { key: string; sceneId: string; district: { q: number; r: number; kind: string; name: string } };
   /** Wander spec E: a recurring road character. */
   recurring?: { roleId: string; name: string; metBefore: boolean; attitude: number };
   /** Wander spec B: who noticed whom, for risk outcomes with a threat. */

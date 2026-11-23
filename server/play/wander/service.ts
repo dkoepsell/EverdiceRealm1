@@ -21,7 +21,7 @@ import {
 import { landmarkAt, type Landmark } from "@shared/wander/landmarks";
 import {
   EXHAUSTION_RUN_ENDS, endOfDay, forageDC, forageYield, forcedMarchSaves, hoursPerHex, initialTravelState,
-  isNight, navigationBaseDC, navigationModifiers, navigationCheckDue, absoluteHour, parseTravelState, sightRadius, travelPassivePerception,
+  DAY_START_HOUR, isNight, navigationBaseDC, navigationModifiers, navigationCheckDue, absoluteHour, parseTravelState, sightRadius, travelPassivePerception,
   type Pace, type TravelActivity, type TravelState,
 } from "@shared/wander/travel";
 import { getAbilityModifier } from "@shared/rules/xp";
@@ -41,6 +41,11 @@ import {
   addRealmMark, createThread, getThread, latestWanderCampaign, listThreads, nodRealmMark, postCompletionRumor, realmMarksNear, updateThread,
 } from "./store";
 import { REALM_PHRASES } from "@shared/wander/realm";
+import {
+  districtAt, gateHex, isSettlement, settlementLayout, siteAt, type District, type DungeonTheme, type Site,
+} from "@shared/wander/sites";
+import { coinText, fromCp, pickScene, toCp, type SEffect, type SResult, type Scene } from "./settlement";
+import { startDungeonRun } from "../../delveRoutes";
 
 type Rng = () => number;
 
@@ -172,6 +177,9 @@ export interface MoveBody {
 
 export async function wanderMove(userId: number, run: WanderRun, body: MoveBody, rng: Rng = Math.random) {
   const { campaign, char, flags } = await loadContext(run);
+  if (runFlagsOf(run).settlement) return { error: "You're in a settlement. Leave by the gate first." as const };
+  const underground = await stillInDelve(run);
+  if (underground) return { error: `You're down in ${underground.name}. Finish or leave the dungeon first.` as const };
   const rolls: string[] = [];
   const notes: string[] = [];
   const runFlags = runFlagsOf(run);
@@ -293,6 +301,10 @@ export async function wanderMove(userId: number, run: WanderRun, body: MoveBody,
       }
     }
   }
+
+  // ── sites: a dungeon entrance or a settlement on this hex ───────────────────
+  const site = flags.wanderSites ? siteAt(toQ, toR) : null;
+  if (!outcome && site) outcome = siteArrivalOutcome(site, char);
 
   // ── recurring characters ────────────────────────────────────────────────────
   if (!outcome && flags.wanderRecurring && newTick >= 2 && rng() < RECURRING_CHANCE) {
@@ -466,6 +478,8 @@ export async function wanderChoose(userId: number, run: WanderRun, choiceId: str
   const choice = outcome.choices?.find((c) => c.id === choiceId);
   if (!choice) return { error: "Invalid choice ID for this outcome" as const };
 
+  if (outcome.settlement) return chooseSettlement(userId, run, ctx, outcome, choiceId, rng);
+  if (outcome.site && ctx.flags.wanderSites) return chooseSite(userId, run, ctx, outcome, choiceId);
   if (outcome.thread && threadsOn(ctx.flags)) return chooseThread(userId, run, ctx, outcome, choiceId, rng);
   if (outcome.recurring && ctx.flags.wanderRecurring) return chooseRecurring(userId, run, ctx, outcome, choiceId, rng);
 
@@ -905,6 +919,8 @@ export async function wanderJournal(userId: number, run: WanderRun) {
     journal: threads.map((t) => journalEntry(t, run.currentHexQ, run.currentHexR)),
     realmMarks: flags.sharedRealm ? await realmMarksNear(run.currentHexQ, run.currentHexR, 3, userId) : [],
     route: await runRoute(run),
+    settlement: settlementView(runFlagsOf(run).settlement as SettlementFlag | undefined),
+    inDelve: await stillInDelve(run),
   };
 }
 
@@ -913,7 +929,9 @@ async function runRoute(run: WanderRun): Promise<string[]> {
   try {
     const moves = await storage.getWanderOutcomes(run.id);
     if (!moves.length) return [`${run.currentHexQ},${run.currentHexR}`];
-    return [`${moves[0].fromHexQ},${moves[0].fromHexR}`, ...moves.map((m) => `${m.toHexQ},${m.toHexR}`)];
+    const keys = [`${moves[0].fromHexQ},${moves[0].fromHexR}`, ...moves.map((m) => `${m.toHexQ},${m.toHexR}`)];
+    // Walking around a settlement logs moves on the same hex; the route only needs each step once.
+    return keys.filter((k, i) => i === 0 || k !== keys[i - 1]);
   } catch {
     return [`${run.currentHexQ},${run.currentHexR}`];
   }
@@ -972,3 +990,403 @@ export async function roadRumors(userId: number, hear: boolean, rng: Rng = Math.
   };
 }
 
+
+// ── sites: dungeon entrances and settlements ─────────────────────────────────
+
+interface SettlementFlag { key: string; q: number; r: number; at: { q: number; r: number }; recent: string[] }
+interface InDelveFlag { dungeonRunId: number; name: string }
+
+const THEME_SIGNS: Record<DungeonTheme, string> = {
+  goblin: "Crude glyphs daubed in mud, and a heap of gnawed bones: goblins, and plenty of them.",
+  undead: "The grass around the entrance is dead, and the cold that breathes out smells of the grave.",
+  beast: "Tufts of coarse fur on the rock, and a musky reek: something big lairs here.",
+  kobold: "Tiny clawed prints, a tripwire strung at ankle height: kobolds, and they like traps.",
+  cultist: "Burned-down candles and a painted eye on the stone: someone worships down there.",
+  lizardfolk: "Scale-marks in the mud and a fish-bone fetish on a pole: lizardfolk guard this place.",
+  bandit: "Fresh boot prints, a dropped bottle, the smell of a doused fire: people, armed, and recently.",
+};
+
+/** The view of a settlement the client needs to draw its map. */
+export function settlementView(f: SettlementFlag | null | undefined) {
+  if (!f) return null;
+  const site = siteAt(f.q, f.r);
+  if (!isSettlement(site)) return null;
+  return {
+    key: site.key, q: site.q, r: site.r, name: site.name, kind: site.kind, flavor: site.flavor, glyph: site.glyph,
+    home: !!site.home, at: f.at, districts: settlementLayout(site),
+  };
+}
+
+/** The card shown on arriving at a dungeon entrance or a settlement. */
+export function siteArrivalOutcome(site: Site, char: WanderCharacter): CuratedOutcome {
+  if (site.kind === "dungeon") {
+    const passive = basePassivePerception(char);
+    const noticed = passive >= 12 && site.theme;
+    return {
+      contentId: `site:${site.key}`,
+      type: "discovery",
+      title: site.name,
+      reveal: site.arrival,
+      detail: noticed ? `Your passive Perception (${passive}) picks out the signs. ${THEME_SIGNS[site.theme!]}` : undefined,
+      site: { key: site.key, kind: "dungeon" },
+      screenNote: undefined,
+      choices: [
+        { id: "descend", label: `Descend into ${site.name}`, intentTag: "engage" },
+        { id: "move_on", label: "Note the place and move on", intentTag: "avoid" },
+      ],
+    };
+  }
+  return {
+    contentId: `site:${site.key}`,
+    type: "quiet",
+    title: site.home ? "Home" : site.name,
+    reveal: site.arrival,
+    site: { key: site.key, kind: site.kind },
+    choices: [
+      { id: "enter", label: site.home ? "Walk into town" : `Enter ${site.name}`, intentTag: "engage" },
+      { id: "move_on", label: "Pass by", intentTag: "avoid" },
+    ],
+  };
+}
+
+function plainResolution(text: string, extra: Partial<{ rolls: string[]; rewards: Array<{ kind: string; name: string; quantity: number }> }> = {}) {
+  return {
+    narrativeResult: text,
+    rewards: extra.rewards ?? [],
+    fatigueChange: 0,
+    dangerChange: 0,
+    combatTriggered: false,
+    rolls: extra.rolls ?? [],
+  };
+}
+
+async function chooseSite(userId: number, run: WanderRun, ctx: Ctx, outcome: CuratedOutcome, choiceId: string) {
+  const [q, r] = outcome.site!.key.split(",").map(Number);
+  const site = siteAt(q, r);
+  if (!site) return { error: "There is nothing here any more." as const };
+  const travel = ctx.flags.wanderTravel ? travelFor(run, (ctx.char as any).exhaustionLevel) : null;
+
+  if (choiceId === "descend" && site.kind === "dungeon") return descendIntoDungeon(userId, run, ctx, site, travel);
+
+  if (choiceId === "enter" && isSettlement(site)) {
+    const flag: SettlementFlag = { key: site.key, q: site.q, r: site.r, at: gateHex(site.kind), recent: [] };
+    await storage.updateWanderRun(run.id, { flags: { ...runFlagsOf(run), settlement: flag } as any });
+    return {
+      resolution: plainResolution(site.home
+        ? "You walk in under the familiar gate. The streets of home open up before you."
+        : `You pass in through ${site.kind === "village" ? "the lane" : "the gate"} of ${site.name}. Pick a district on the map to walk there.`),
+      markerCreated: false, combatTriggered: false, skirmishReady: false, travel,
+      settlement: settlementView(flag),
+    };
+  }
+
+  return {
+    resolution: plainResolution(site.kind === "dungeon"
+      ? `You mark ${site.name} in your memory and press on. It will still be here.`
+      : `You give ${site.name} a wave and keep to the road.`),
+    markerCreated: false, combatTriggered: false, skirmishReady: false, travel,
+  };
+}
+
+async function descendIntoDungeon(userId: number, run: WanderRun, ctx: Ctx, site: Site, travel: TravelState | null) {
+  const busy = await storage.getActiveDungeonRun(userId, run.campaignId);
+  if (busy) {
+    return {
+      resolution: plainResolution("You are already partway through a dungeon in this campaign. Finish it, or leave it, before starting another."),
+      markerCreated: false, combatTriggered: false, skirmishReady: false, travel,
+    };
+  }
+  // One dungeon per entrance: everyone who finds this door finds the same halls.
+  const tag = `site:${site.key}`;
+  const all = await storage.getAllDungeonDefinitions();
+  let def = all.find((d) => Array.isArray(d.themeTags) && (d.themeTags as string[]).includes(tag));
+  if (!def) {
+    const nodes = generateProceduralDungeon(site.theme ?? "goblin");
+    def = await storage.createDungeonDefinition({
+      name: site.name,
+      description: `${site.arrival} Found while wandering the wilds.`,
+      themeTags: ["wander-found", "wander-site", tag, site.theme ?? "goblin"],
+      recommendedLevelMin: 1,
+      recommendedLevelMax: 3,
+      mapWidth: 9,
+      mapHeight: 9,
+      mapLayout: nodes.map((n) => ({ q: n.q, r: n.r, nodeId: n.nodeId })),
+      nodeTable: nodes,
+      rewardProfile: null,
+      completionHooks: null,
+      createdAt: new Date().toISOString(),
+    } as any);
+  }
+  const started = await startDungeonRun({
+    userId, campaignId: run.campaignId, characterId: run.characterId, dungeonId: def!.id,
+    nodes: def!.nodeTable as any, flags: { fromWander: { runId: run.id, q: site.q, r: site.r } },
+  });
+  // List it on the Delve page as a place you found, and remember it on the map.
+  try {
+    await storage.createWanderMarker({
+      campaignId: run.campaignId, hexQ: site.q, hexR: site.r, markerType: "opportunity",
+      title: site.name, blurb: site.arrival, tags: ["dungeon", "site"], discoveredBy: userId,
+      persistence: "permanent", linkedDungeonId: def!.id, createdAt: new Date().toISOString(),
+    } as any);
+  } catch { /* the marker is a convenience */ }
+  const inDelve: InDelveFlag = { dungeonRunId: started.run.id, name: site.name };
+  await storage.updateWanderRun(run.id, { flags: { ...runFlagsOf(run), inDelve, travel: travel ?? runFlagsOf(run).travel } as any });
+  return {
+    resolution: plainResolution(`You light a torch and go down into ${site.name}. When you come back up, you'll be right here in the wilds.`),
+    markerCreated: true, combatTriggered: false, skirmishReady: false, travel,
+    delve: { runId: started.run.id, campaignId: run.campaignId, name: site.name },
+  };
+}
+
+/** True (and the dungeon's name) while the character is underground from this journey. Clears a stale flag. */
+export async function stillInDelve(run: WanderRun): Promise<InDelveFlag | null> {
+  const f = runFlagsOf(run).inDelve as InDelveFlag | undefined;
+  if (!f) return null;
+  const dr = await storage.getDungeonRun(f.dungeonRunId);
+  if (dr && dr.status === "active") return f;
+  const flags = { ...runFlagsOf(run) };
+  delete flags.inDelve;
+  await storage.updateWanderRun(run.id, { flags: flags as any });
+  return null;
+}
+
+// ── walking a settlement ──────────────────────────────────────────────────────
+
+export async function wanderSettlementMove(userId: number, run: WanderRun, toQ: number, toR: number, rng: Rng = Math.random) {
+  const runFlags = runFlagsOf(run);
+  const f = runFlags.settlement as SettlementFlag | undefined;
+  if (!f) return { error: "You aren't in a settlement." as const };
+  const site = siteAt(f.q, f.r);
+  if (!isSettlement(site)) return { error: "There is no settlement here." as const };
+  const district = districtAt(site, toQ, toR);
+  if (!district) return { error: "That isn't part of town." as const };
+  if (hexDistance(f.at.q, f.at.r, toQ, toR) !== 1) return { error: "Walk to a neighbouring district." as const };
+
+  const { char, flags } = await loadContext(run);
+  let travel: TravelState | null = flags.wanderTravel ? travelFor(run, (char as any).exhaustionLevel) : null;
+  if (travel) travel.hour += 0.5; // half an hour across town; not road travel, so no forced march
+
+  const scene = pickScene(site, district, f.recent, rng);
+  const outcome = sceneOutcome(site, district, scene);
+  const nextFlag: SettlementFlag = { ...f, at: { q: toQ, r: toR }, recent: [scene.id, ...f.recent].slice(0, 6) };
+  const newTick = run.tick + 1;
+  const updated = await storage.updateWanderRun(run.id, {
+    tick: newTick,
+    lastOutcomeType: outcome.type,
+    flags: { ...runFlags, settlement: nextFlag, ...(travel ? { travel } : {}) } as any,
+  });
+  await storage.createWanderOutcome({
+    runId: run.id, tick: newTick, fromHexQ: site.q, fromHexR: site.r, toHexQ: site.q, toHexR: site.r,
+    outcomeType: outcome.type, outcomePayload: outcome as any, createdAt: new Date().toISOString(),
+  });
+  return { run: updated, outcome, travel, settlement: settlementView(nextFlag) };
+}
+
+export async function wanderSettlementLeave(run: WanderRun) {
+  const flags = { ...runFlagsOf(run) };
+  const f = flags.settlement as SettlementFlag | undefined;
+  delete flags.settlement;
+  const updated = await storage.updateWanderRun(run.id, { flags: flags as any });
+  const site = f ? siteAt(f.q, f.r) : null;
+  return { run: updated, text: site ? `You leave ${site.home ? "town" : site.name} behind and step back out into the wilds.` : "You head back out into the wilds." };
+}
+
+function sceneOutcome(site: Site, district: District, scene: Scene): CuratedOutcome {
+  return {
+    contentId: `scene:${scene.id}`,
+    type: scene.type,
+    title: scene.title,
+    reveal: scene.reveal,
+    settlement: { key: site.key, sceneId: scene.id, district: { q: district.q, r: district.r, kind: district.kind, name: district.name } },
+    choices: scene.choices.map((c) => ({
+      id: c.id,
+      label: c.label,
+      intentTag: c.intentTag,
+      ...(c.effect.do === "check" ? { check: { skill: c.effect.skill, dc: c.effect.dc } } : {}),
+      mechanicalEffects: { s: c.effect },
+    })),
+  };
+}
+
+// ── settlement choices ────────────────────────────────────────────────────────
+
+async function chooseSettlement(userId: number, run: WanderRun, ctx: Ctx, outcome: CuratedOutcome, choiceId: string, rng: Rng) {
+  const choice = outcome.choices.find((c) => c.id === choiceId)!;
+  const effect = (choice.mechanicalEffects as any)?.s as SEffect | undefined;
+  const travel = ctx.flags.wanderTravel ? travelFor(run, (ctx.char as any).exhaustionLevel) : null;
+  const runFlags = { ...runFlagsOf(run) };
+  const rolls: string[] = [];
+  const rewards: Array<{ kind: string; name: string; quantity: number }> = [];
+  const lines: string[] = [];
+  let skirmishReady = false;
+  let left = false;
+  const f = runFlags.settlement as SettlementFlag | undefined;
+  const site = f ? siteAt(f.q, f.r) : null;
+  const here = site ?? { q: run.currentHexQ, r: run.currentHexR };
+
+  const apply = async (res: SResult) => {
+    lines.push(res.text);
+    if (res.coin) {
+      const delta = toCp(res.coin);
+      const c: any = await storage.getCharacter(run.characterId);
+      const purse = toCp({ gp: c?.gold ?? 0, sp: c?.silver ?? 0, cp: c?.copper ?? 0 });
+      const next = Math.max(0, purse + delta);
+      await storage.updateCharacter(run.characterId, fromCp(next) as any);
+      lines.push(delta >= 0 ? `(+${coinText(res.coin)})` : `(−${coinText({ cp: purse - next })})`);
+    }
+    if (res.damage) {
+      const c: any = await storage.getCharacter(run.characterId);
+      // A town scuffle hurts, but it doesn't kill.
+      const hp = Math.max(1, (c?.hitPoints ?? 1) - res.damage);
+      await storage.updateCharacter(run.characterId, { hitPoints: hp } as any);
+      lines.push(`(You take ${res.damage} damage: ${hp} HP left.)`);
+    }
+    if (res.reward) rewards.push({ ...res.reward });
+    if (res.inspiration) {
+      await storage.updateCharacter(run.characterId, { inspiration: true } as any);
+      lines.push("You have Inspiration.");
+    }
+    if (res.rumor && rumorsOn(ctx.flags)) {
+      const open = await listThreads(userId, run.campaignId);
+      if (open.filter((t) => t.status === "rumored").length >= MAX_RUMORS) {
+        lines.push("It's news you've already heard.");
+      } else {
+        const rumor = makeRumor(open, rng, { q: here.q, r: here.r });
+        const row = rumor ? await createThread({ ...rumor, campaignId: run.campaignId, userId }) : null;
+        if (row?.payload?.rumorText) lines.push(`"${row.payload.rumorText}" (Added to your journal as a rumor.)`);
+      }
+    }
+    if (res.job && threadsOn(ctx.flags)) {
+      const open = await listThreads(userId, run.campaignId);
+      if (open.filter((t) => t.status === "active").length >= MAX_OPEN_THREADS) {
+        lines.push("Your journal is already full of trails to follow. Finish one first.");
+      } else {
+        const candidates = startableTemplates(biomeForHex(here.q, here.r), open);
+        const pool = candidates.length ? candidates : startableTemplates("grass", open);
+        if (pool.length) {
+          const t = pool[Math.floor(rng() * pool.length)];
+          const target = pickTarget(t, here.q, here.r, rng);
+          const name = rollName(t, rng);
+          const row = await createThread({
+            campaignId: run.campaignId, userId, templateId: t.id, beat: 0,
+            targetHexQ: target.q, targetHexR: target.r, status: "active",
+            payload: { name, movesSinceAdvance: 0 },
+          });
+          if (row) lines.push(`New trail in your journal: ${fill(t.name, { name })}, to the ${bearing(here.q, here.r, target.q, target.r)}.`);
+        }
+      }
+    }
+    if (res.revealDungeon) {
+      const near = nearestDungeon(here.q, here.r);
+      if (near) {
+        lines.push(`It lies about ${hexDistance(here.q, here.r, near.q, near.r)} hexes to the ${bearing(here.q, here.r, near.q, near.r)}: ${near.name}. (Marked on your map.)`);
+        try {
+          await storage.createWanderMarker({
+            campaignId: run.campaignId, hexQ: near.q, hexR: near.r, markerType: "opportunity",
+            title: near.name, blurb: near.distant, tags: ["dungeon", "site", "heard"], discoveredBy: userId,
+            persistence: "permanent", createdAt: new Date().toISOString(),
+          } as any);
+        } catch { /* map note only */ }
+      }
+    }
+    if (res.fight) {
+      if (ctx.flags.exploreCombat) {
+        runFlags.pendingCombat = { seed: { encounterType: "ambush", ...res.fight }, source: "wander" };
+        skirmishReady = true;
+      } else {
+        lines.push("It comes to blows, and you get the worst of it before the watch breaks it up.");
+      }
+    }
+  };
+
+  if (!effect) {
+    lines.push(outcome.reveal);
+  } else if (effect.do === "none") {
+    lines.push(effect.text);
+  } else if (effect.do === "leave") {
+    delete runFlags.settlement;
+    left = true;
+    lines.push(site ? `You leave ${site.home ? "town" : site.name} and step back out into the wilds.` : "You head back out into the wilds.");
+  } else if (effect.do === "water") {
+    if (travel) travel.water = Math.max(travel.water, 4);
+    lines.push(effect.text);
+  } else if (effect.do === "result") {
+    await apply(effect.result);
+  } else if (effect.do === "check") {
+    const r = rollSkill(ctx.char, effect.skill, effect.dc, { exhaustion: travel?.exhaustion ?? 0 });
+    rolls.push(r.text);
+    await apply(r.success ? effect.success : effect.fail);
+  } else if (effect.do === "pay") {
+    const c: any = await storage.getCharacter(run.characterId);
+    const purse = toCp({ gp: c?.gold ?? 0, sp: c?.silver ?? 0, cp: c?.copper ?? 0 });
+    const cost = toCp(effect.cost);
+    if (purse < cost) {
+      lines.push(`You can't afford that: it costs ${coinText(effect.cost)} and you have ${coinText({ cp: purse })}.`);
+    } else {
+      await storage.updateCharacter(run.characterId, fromCp(purse - cost) as any);
+      lines.push(`You pay ${coinText(effect.cost)}.`);
+      if (effect.service === "lodging") {
+        lines.push(...(await longRestCharacter(run.characterId)));
+        if (travel) {
+          const before = travel.exhaustion;
+          // A long rest with food and drink removes one level of exhaustion (PHB).
+          travel.exhaustion = Math.max(0, travel.exhaustion - 1);
+          await saveExhaustion(run.characterId, before, travel.exhaustion);
+          if (before > travel.exhaustion) lines.push("One level of exhaustion fades.");
+          travel.day += 1;
+          travel.hour = DAY_START_HOUR;
+          travel.hoursToday = 0;
+        }
+        runFlags.fatigue = 0;
+      } else if (effect.service === "rations") {
+        if (travel) travel.food += 5;
+        lines.push("Five days of rations go into your pack.");
+      } else if (effect.service === "healing") {
+        const cur: any = await storage.getCharacter(run.characterId);
+        const d8 = 1 + Math.floor(rng() * 8);
+        const healed = Math.min((cur?.maxHitPoints ?? 0) - (cur?.hitPoints ?? 0), d8 + 3);
+        await storage.updateCharacter(run.characterId, { hitPoints: (cur?.hitPoints ?? 0) + Math.max(0, healed) } as any);
+        rolls.push(`Cure wounds: 1d8 (${d8}) + 3 = ${d8 + 3} HP${healed < d8 + 3 ? `, ${Math.max(0, healed)} needed` : ""}.`);
+      }
+      await apply(effect.result);
+    }
+  }
+
+  if (travel) runFlags.travel = travel;
+  const lodging = effect?.do === "pay" && effect.service === "lodging";
+  await storage.updateWanderRun(run.id, {
+    ...(lodging ? { fatigue: 0 } : {}),
+    flags: runFlags as any,
+  });
+  return {
+    resolution: plainResolution(lines.join(" "), { rolls, rewards }),
+    markerCreated: false,
+    combatTriggered: skirmishReady,
+    skirmishReady,
+    travel,
+    settlement: left ? null : settlementView(runFlags.settlement as SettlementFlag | undefined),
+    leftSettlement: left,
+  };
+}
+
+function nearestDungeon(q: number, r: number): Site | null {
+  let best: Site | null = null;
+  for (const h of hexesWithin(q, r, 9)) {
+    const s = siteAt(h.q, h.r);
+    if (s?.kind !== "dungeon") continue;
+    if (!best || hexDistance(q, r, s.q, s.r) < hexDistance(q, r, best.q, best.r)) best = s;
+  }
+  return best;
+}
+
+/** Enter the settlement or go down the dungeon on the hex you're standing on (works after a reload too). */
+export async function wanderSiteAction(userId: number, run: WanderRun, action: string) {
+  const ctx = await loadContext(run);
+  if (!ctx.flags.wanderSites) return { error: "Sites are off for this campaign." as const };
+  if (runFlagsOf(run).settlement) return { error: "You're already inside." as const };
+  if (await stillInDelve(run)) return { error: "You're already underground." as const };
+  const site = siteAt(run.currentHexQ, run.currentHexR);
+  if (!site) return { error: "There's nothing here to enter." as const };
+  if (action !== (site.kind === "dungeon" ? "descend" : "enter")) return { error: "You can't do that here." as const };
+  return chooseSite(userId, run, ctx, siteArrivalOutcome(site, ctx.char), action);
+}

@@ -24,6 +24,8 @@ export interface MapHex {
 export interface MapGlyph {
   glyph: string;
   title?: string;
+  /** Settlements: drawn larger, with their name under the badge. */
+  label?: string;
 }
 
 interface Props {
@@ -40,15 +42,17 @@ interface Props {
   sight?: number;
   /** How many hexes out from the party the map frames. */
   view?: number;
+  /** Scale for badges and the party pennant, so they stay readable when zoomed out. */
+  markScale?: number;
   children?: ReactNode;
 }
 
-const SIZE = 28;
-const INK = "#3b2a17";
+export const SIZE = 28;
+export const INK = "#3b2a17";
 const PENCIL = "#7d6b52";
-const ROUTE = "#9b1c1c";
+export const ROUTE = "#9b1c1c";
 
-const WASH: Record<WanderTerrain, string> = {
+export const WASH: Record<WanderTerrain, string> = {
   plains: "#cdd49a",
   forest: "#93ad72",
   mountain: "#c4ad86",
@@ -66,11 +70,11 @@ export const TERRAIN_LABEL: Record<WanderTerrain, string> = {
   ocean: "Coast & sea",
 };
 
-function axialToPixel(q: number, r: number) {
+export function axialToPixel(q: number, r: number) {
   return { x: SIZE * Math.sqrt(3) * (q + r / 2), y: SIZE * 1.5 * r };
 }
 
-function hexPoints(cx: number, cy: number, s = SIZE) {
+export function hexPoints(cx: number, cy: number, s = SIZE) {
   return Array.from({ length: 6 }, (_, i) => {
     const a = (Math.PI / 3) * i - Math.PI / 6;
     return `${(cx + s * Math.cos(a)).toFixed(2)},${(cy + s * Math.sin(a)).toFixed(2)}`;
@@ -203,7 +207,7 @@ export function TerrainInk({ terrain, q, r, ink = INK, wash }: { terrain: Wander
   }
 }
 
-function CompassRose() {
+export function CompassRose() {
   return (
     <svg viewBox="-30 -30 60 60" className="w-14 h-14 md:w-16 md:h-16" aria-hidden>
       <circle r={20} fill="none" stroke={INK} strokeWidth={0.8} opacity={0.6} />
@@ -225,7 +229,7 @@ function CompassRose() {
   );
 }
 
-export function WanderHexMap({ hexes, current, route, glyphAt, canMove, onMove, pace = "normal", exhaustion = 0, sight = 3, view: viewProp, children }: Props) {
+export function WanderHexMap({ hexes, current, route, glyphAt, canMove, onMove, pace = "normal", exhaustion = 0, sight = 3, view: viewProp, markScale = 1, children }: Props) {
   const [hover, setHover] = useState<MapHex | null>(null);
   // Phones get a tighter frame so the hexes stay big enough to tap.
   const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches);
@@ -278,6 +282,7 @@ export function WanderHexMap({ hexes, current, route, glyphAt, canMove, onMove, 
         `About ${hours % 1 ? hours.toFixed(1) : hours} hours at a ${pace} pace (${HEX_MILES} miles)`,
         dc == null ? "Follow the shore: no Survival check to stay on course" : `Survival DC ${dc} to keep your bearings`,
         `Foraging: ${forageAbundance(biome)}`,
+        ...(glyphAt(hover)?.title ? [`There: ${glyphAt(hover)!.title}`] : []),
       ],
     };
   })() : null;
@@ -306,7 +311,7 @@ export function WanderHexMap({ hexes, current, route, glyphAt, canMove, onMove, 
             <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves={2} seed={2} result="n" />
             <feDisplacementMap in="SourceGraphic" in2="n" scale={3.2} />
           </filter>
-          <radialGradient id="wm-fog" cx={centre.x} cy={centre.y} r={SIZE * 8} gradientUnits="userSpaceOnUse">
+          <radialGradient id="wm-fog" cx={centre.x} cy={centre.y} r={SIZE * (view + 3.5)} gradientUnits="userSpaceOnUse">
             <stop offset="0.45" stopColor="#e9dbb5" stopOpacity={0} />
             <stop offset="0.85" stopColor="#dcc89c" stopOpacity={0.45} />
             <stop offset="1" stopColor="#8a6a3e" stopOpacity={0.4} />
@@ -372,11 +377,14 @@ export function WanderHexMap({ hexes, current, route, glyphAt, canMove, onMove, 
           if (!g) return null;
           const { x, y } = axialToPixel(h.q, h.r);
           return (
-            <g key={`m${h.q},${h.r}`} transform={`translate(${x.toFixed(1)},${y.toFixed(1)})`}>
+            <g key={`m${h.q},${h.r}`} transform={`translate(${x.toFixed(1)},${y.toFixed(1)}) scale(${markScale})`}>
               {g.title && <title>{g.title}</title>}
-              <circle r={8.5} fill="#f3e9cf" stroke={INK} strokeWidth={0.8} />
-              <circle r={7} fill="none" stroke={INK} strokeWidth={0.3} opacity={0.6} />
-              <text textAnchor="middle" dominantBaseline="central" style={{ fontSize: 10, pointerEvents: "none" }}>{g.glyph}</text>
+              <circle r={g.label ? 11 : 8.5} fill="#f3e9cf" stroke={INK} strokeWidth={g.label ? 1.2 : 0.8} />
+              <circle r={g.label ? 9.3 : 7} fill="none" stroke={INK} strokeWidth={0.3} opacity={0.6} />
+              <text textAnchor="middle" dominantBaseline="central" style={{ fontSize: g.label ? 13 : 10, pointerEvents: "none" }}>{g.glyph}</text>
+              {g.label && (
+                <text y={19} textAnchor="middle" fontFamily="Cinzel, serif" fontWeight={700} fontSize={7} fill={INK} stroke="#ecdfbd" strokeWidth={2.2} paintOrder="stroke" style={{ pointerEvents: "none" }}>{g.label}</text>
+              )}
             </g>
           );
         })}
@@ -407,6 +415,8 @@ export function WanderHexMap({ hexes, current, route, glyphAt, canMove, onMove, 
 
         {/* the party: a pennant planted in the current hex */}
         <g transform={`translate(${centre.x.toFixed(1)},${centre.y.toFixed(1)})`} style={{ pointerEvents: "none" }}>
+          {markScale > 1 && <circle r={SIZE * 1.6} fill="none" stroke={ROUTE} strokeWidth={2.5} strokeDasharray="5 4" opacity={0.8} />}
+          <g transform={`scale(${markScale})`}>
           <polygon points={hexPoints(0, 0, SIZE - 1.5)} fill="none" stroke={ROUTE} strokeWidth={2} opacity={0.9} />
           <ellipse cx={0} cy={8} rx={6} ry={2} fill={INK} opacity={0.3} />
           <line x1={-1} y1={8} x2={-1} y2={-13} stroke={INK} strokeWidth={1.4} strokeLinecap="round" />
@@ -415,9 +425,10 @@ export function WanderHexMap({ hexes, current, route, glyphAt, canMove, onMove, 
               values="M-0.4,-13 L11,-9.5 L-0.4,-5.5 Z;M-0.4,-13 Q5,-10.5 10,-8.5 L-0.4,-5.5 Z;M-0.4,-13 L11,-9.5 L-0.4,-5.5 Z" />
           </path>
           <circle cx={-1} cy={-13.5} r={1.2} fill="#d4a017" stroke={INK} strokeWidth={0.4} />
+          </g>
         </g>
 
-        {!narrow && <text x={bounds.x + bounds.w - 14} y={bounds.y + bounds.h - 34} textAnchor="end" fontFamily="Alegreya, serif" fontStyle="italic" fontSize={11} fill={INK} opacity={0.45} transform={`rotate(-4 ${bounds.x + bounds.w - 14} ${bounds.y + bounds.h - 34})`}>
+        {!narrow && <text x={bounds.x + 14} y={bounds.y + 22} textAnchor="start" fontFamily="Alegreya, serif" fontStyle="italic" fontSize={11} fill={INK} opacity={0.45} transform={`rotate(-4 ${bounds.x + 14} ${bounds.y + 22})`}>
           Terra incognita
         </text>}
       </svg>
@@ -465,6 +476,8 @@ export function WanderMapLegend() {
         <svg viewBox="0 0 24 10" className="w-6 h-3" aria-hidden><path d="M2,5 L22,5" stroke={ROUTE} strokeWidth={2} strokeDasharray="0.1 4" strokeLinecap="round" /></svg>
         <span>Your route</span>
       </div>
+      <div className="flex items-center gap-1.5 text-[11px] text-slate-300"><span>🏘️</span><span>Village, town or city (enter it)</span></div>
+      <div className="flex items-center gap-1.5 text-[11px] text-slate-300"><span>🕳️</span><span>Dungeon entrance (go down)</span></div>
     </div>
   );
 }

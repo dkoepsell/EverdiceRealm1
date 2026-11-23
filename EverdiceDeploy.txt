@@ -161,3 +161,15 @@
     - dotenv was not overriding system DATABASE_URL (pointed to localhost) → dotenv.config({ override: true })
     - Deploy scripts pointed to /var/www/everdice → corrected to /root/EverdiceRealm1
     - auth.ts created a second pg pool for sessions → now reuses shared pool from db.ts
+
+  WANDER SITES (branch wander-sites):
+    No migration. New flag wanderSites (default ON): fixed dungeon entrances,
+    villages, towns and cities on the Wander map (shared/wander/sites.ts).
+    - Dungeon entrance: "Descend" starts a delve linked to the journey
+      (dungeon_runs.flags.fromWander); ending or retreating puts the character
+      back in the wilds on the same hex. Calling them back to town ends both.
+    - Settlements: enter for a district map with services (inn 5 sp, rations,
+      temple healing 10 gp), rumors, jobs, and encounters (server/play/wander/settlement.ts).
+    - World map toggle and a "where am I" line relative to Home.
+    Pull it back per campaign: PATCH /api/campaigns/:id/engagement-flags {"wanderSites":false}
+    Tests: npx tsx tests/wanderSites.test.ts

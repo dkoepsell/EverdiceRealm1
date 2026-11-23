@@ -51,7 +51,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import type { Campaign } from "@shared/schema";
 import { DelveFirstPersonView } from "@/components/delve/DelveFirstPersonView";
-import { useSearch } from "wouter";
+import { Link, useSearch } from "wouter";
 import { AwayRoster } from "@/components/character/CharacterWhereabouts";
 
 interface DungeonDef {
@@ -140,6 +140,8 @@ interface DelveSummary {
   rewards: any[];
   dungeonName?: string;
   status?: string;
+  /** Went down from a Wander journey: the campaign to climb back out into. */
+  wanderCampaignId?: number | null;
 }
 
 interface ChestOption {
@@ -743,6 +745,7 @@ export default function DelvePage() {
         rating: data.summary?.rating || "novice",
         rewards: data.rewards || [],
         status: data.run?.status,
+        wanderCampaignId: (data.run?.flags as any)?.fromWander ? data.run?.campaignId : null,
       });
       setPhase('summary');
       queryClient.invalidateQueries({ queryKey: ['/api/delve/active', selectedCampaignId] });
@@ -1550,12 +1553,20 @@ export default function DelvePage() {
                 </div>
               )}
 
+              {summaryData.wanderCampaignId ? (
+                <Link href={`/wander?campaign=${summaryData.wanderCampaignId}&resume=1`}>
+                  <Button className="w-full bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-600 hover:to-teal-600 text-white" data-testid="delve-back-to-wilds">
+                    <Compass className="h-4 w-4 mr-2" /> Climb out, back into the wilds
+                  </Button>
+                </Link>
+              ) : (
               <Button
                 className="w-full bg-gradient-to-r from-amber-700 to-orange-700 hover:from-amber-600 hover:to-orange-600 text-white"
                 onClick={resetToSelect}
               >
                 <Compass className="h-4 w-4 mr-2" /> Return to Map
               </Button>
+              )}
             </CardContent>
           </Card>
         </motion.div>
