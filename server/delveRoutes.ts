@@ -20,6 +20,50 @@ function withChestRewards(nodes: DungeonNode[], dungeonId: number): DungeonNode[
   );
 }
 
+/**
+ * Create a dungeon run at the entrance of a dungeon definition and mark the
+ * character as underground. Used by POST /api/delve/start and by Wander when a
+ * character descends through a dungeon entrance found on the map.
+ */
+export async function startDungeonRun(opts: {
+  userId: number; campaignId: number; characterId: number; dungeonId: number; nodes: DungeonNode[]; flags?: Record<string, unknown> | null;
+}) {
+  const { userId, campaignId, characterId, dungeonId, nodes } = opts;
+  const entranceNode = nodes.find(n => n.type === "entrance");
+  if (!entranceNode) throw new Error("Dungeon has no entrance node");
+  const initialRevealed = revealAdjacentNodes({ q: entranceNode.q, r: entranceNode.r }, nodes);
+  const run = await storage.createDungeonRun({
+    userId,
+    campaignId,
+    characterId,
+    dungeonId,
+    currentQ: entranceNode.q,
+    currentR: entranceNode.r,
+    revealedCoords: initialRevealed,
+    clearedNodes: [],
+    disarmedTraps: [],
+    solvedPuzzles: [],
+    lightTicks: 20,
+    supplies: 10,
+    status: "active",
+    flags: (opts.flags ?? null) as any,
+    startedAt: new Date().toISOString(),
+    endedAt: null,
+  });
+  await storage.upsertDungeonNodeState(run.id, entranceNode.nodeId, { state: "revealed" });
+  for (const coord of initialRevealed) {
+    const node = nodes.find(n => n.q === coord.q && n.r === coord.r);
+    if (node && node.nodeId !== entranceNode.nodeId) {
+      await storage.upsertDungeonNodeState(run.id, node.nodeId, { state: "hidden" });
+    }
+  }
+  const revealedNodes = withChestRewards(nodes, run.dungeonId).filter(n =>
+    initialRevealed.some(c => c.q === n.q && c.r === n.r)
+  );
+  await storage.setCharacterEngagement(characterId, 'delve', run.id);
+  return { run, revealedNodes, currentNode: entranceNode };
+}
+
 export function registerDelveRoutes(router: Router) {
 
   router.get("/api/delve/dungeons", async (req: Request, res: Response) => {
@@ -114,50 +158,8 @@ export function registerDelveRoutes(router: Router) {
         createdAt: new Date().toISOString(),
       });
 
-      const actualDungeonId = dungeonDef.id;
-
-      const entranceNode = dungeonNodes.find(n => n.type === "entrance");
-      if (!entranceNode) {
-        return res.status(500).json({ error: "Dungeon has no entrance node" });
-      }
-
-      const initialRevealed = revealAdjacentNodes({ q: entranceNode.q, r: entranceNode.r }, dungeonNodes);
-
-      const run = await storage.createDungeonRun({
-        userId,
-        campaignId,
-        characterId,
-        dungeonId: actualDungeonId,
-        currentQ: entranceNode.q,
-        currentR: entranceNode.r,
-        revealedCoords: initialRevealed,
-        clearedNodes: [],
-        disarmedTraps: [],
-        solvedPuzzles: [],
-        lightTicks: 20,
-        supplies: 10,
-        status: "active",
-        flags: null,
-        startedAt: new Date().toISOString(),
-        endedAt: null,
-      });
-
-      await storage.upsertDungeonNodeState(run.id, entranceNode.nodeId, { state: "revealed" });
-      for (const coord of initialRevealed) {
-        const node = dungeonNodes.find(n => n.q === coord.q && n.r === coord.r);
-        if (node && node.nodeId !== entranceNode.nodeId) {
-          await storage.upsertDungeonNodeState(run.id, node.nodeId, { state: "hidden" });
-        }
-      }
-
-      const revealedNodes = withChestRewards(dungeonNodes, run.dungeonId).filter(n =>
-        initialRevealed.some(c => c.q === n.q && c.r === n.r)
-      );
-
-      // Mark the character as underground.
-      await storage.setCharacterEngagement(characterId, 'delve', run.id);
-
-      res.json({ run, revealedNodes, currentNode: entranceNode });
+      const started = await startDungeonRun({ userId, campaignId, characterId, dungeonId: dungeonDef.id, nodes: dungeonNodes });
+      res.json(started);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -504,7 +506,7 @@ export function registerDelveRoutes(router: Router) {
       });
 
       // Back in town — free the character for other activities.
-      await storage.clearEngagementForTarget('delve', run.id);
+      await storage.releaseDelveEngagement(run);
 
       res.json({
         narrative: retreatResult.narrative,
@@ -549,7 +551,7 @@ export function registerDelveRoutes(router: Router) {
       });
 
       // Back in town — free the character for other activities.
-      await storage.clearEngagementForTarget('delve', run.id);
+      await storage.releaseDelveEngagement(run);
 
       const rewards = await storage.getDungeonRewards(run.id);
 

@@ -303,13 +303,13 @@ export function advanceClocks(threads: ThreadRow[]): { patches: ThreadPatch[]; n
 // ── rumors ────────────────────────────────────────────────────────────────────
 
 /** A new rumored thread, pointing from town toward a target 3 to 8 hexes out. True about 70% of the time. */
-export function makeRumor(open: ThreadRow[], rng: () => number = Math.random): Omit<ThreadRow, "id" | "campaignId" | "userId"> | null {
+export function makeRumor(open: ThreadRow[], rng: () => number = Math.random, origin: { q: number; r: number } = { q: 0, r: 0 }): Omit<ThreadRow, "id" | "campaignId" | "userId"> | null {
   const openIds = new Set(open.map((r) => r.templateId));
   const pool = THREAD_TEMPLATES.filter((t) => !openIds.has(t.id));
   if (!pool.length) return null;
   const t = pool[Math.floor(rng() * pool.length)];
-  const target = pickTarget(t, 0, 0, rng, [3, 8]);
-  const b = bearing(0, 0, target.q, target.r);
+  const target = pickTarget(t, origin.q, origin.r, rng, [3, 8]);
+  const b = bearing(origin.q, origin.r, target.q, target.r);
   const name = rollName(t, rng);
   return {
     templateId: t.id,

@@ -48,6 +48,8 @@ export const ENGAGEMENT_FLAGS = {
   wanderRumors: true,
   /** Wander spec E: recurring road characters, remembered in the Campaign Ledger. */
   wanderRecurring: true,
+  /** Wander sites: dungeon entrances you can descend into, and villages, towns and cities you can enter. */
+  wanderSites: true,
   /** Engagement 2: real 5e fights in Wander and Delve (server/play/skirmish). */
   exploreCombat: true,
   /** Engagement 2: a personal Wander trail per character, from their PHB background; pays off in Inspiration. */

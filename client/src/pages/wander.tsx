@@ -48,6 +48,10 @@ import {
 } from "@/components/wander/WanderTravelUI";
 import { REALM_GLYPH, type RealmMark } from "@shared/wander/realm";
 import { WanderHexMap, WanderMapLegend } from "@/components/wander/WanderHexMap";
+import { SettlementMap, type SettlementViewData } from "@/components/wander/SettlementMap";
+import { siteAt } from "@shared/wander/sites";
+import { bearing as compassBearing } from "@shared/wander/terrain";
+import { HEX_MILES } from "@shared/wander/travel";
 import { AwayRoster } from "@/components/character/CharacterWhereabouts";
 import { SkirmishPanel } from "@/components/skirmish/SkirmishPanel";
 import { BehindTheScreen } from "@/components/dm/BehindTheScreen";
@@ -106,6 +110,8 @@ interface ChoiceResult {
   rolls: string[];
   rewards: OutcomeReward[];
   payoff?: { kind: string; dungeonId?: number; name?: string };
+  /** Wander sites: went down into a dungeon entrance; link to the Delve page. */
+  descend?: { campaignId: number; name: string };
   combat?: boolean;
   screenNote?: string;
 }
@@ -219,6 +225,11 @@ export default function WanderPage() {
   const [exploredHexes, setExploredHexes] = useState<Set<string>>(new Set(["0,0"]));
   // This run's walked hexes, in order, for the red route on the map.
   const [route, setRoute] = useState<string[]>([]);
+  // Wander sites: inside a village, town or city; or down a dungeon entered from the wilds.
+  const [settlement, setSettlement] = useState<SettlementViewData | null>(null);
+  const [inDelve, setInDelve] = useState<{ dungeonRunId: number; name: string } | null>(null);
+  // Zoomed-out view of everywhere you've been, with your position marked.
+  const [worldView, setWorldView] = useState(false);
   const [markers, setMarkers] = useState<WanderMarker[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [showSummary, setShowSummary] = useState(false);
@@ -299,7 +310,7 @@ export default function WanderPage() {
     enabled: !!campaignId && !!activeRun,
   });
 
-  const { data: journalData } = useQuery<{ travel: TravelState | null; landmarks: Landmark[]; journal: JournalThread[]; realmMarks?: RealmMark[]; route?: string[] }>({
+  const { data: journalData } = useQuery<{ travel: TravelState | null; landmarks: Landmark[]; journal: JournalThread[]; realmMarks?: RealmMark[]; route?: string[]; settlement?: SettlementViewData | null; inDelve?: { dungeonRunId: number; name: string } | null }>({
     queryKey: ["/api/wander/journal", activeRun?.id],
     enabled: !!activeRun?.id,
     queryFn: async () => {
@@ -311,6 +322,8 @@ export default function WanderPage() {
   });
   useEffect(() => {
     if (!journalData) return;
+    if ("settlement" in journalData) setSettlement(journalData.settlement ?? null);
+    if ("inDelve" in journalData) setInDelve(journalData.inDelve ?? null);
     if (journalData.route?.length) {
       setRoute(journalData.route);
       setExploredHexes((prev) => new Set([...Array.from(prev), ...journalData.route!]));
@@ -446,6 +459,8 @@ export default function WanderPage() {
       }
       if (data.travel) setTravel(data.travel);
       if (data.journal) setTrails(data.journal);
+      if ("settlement" in data) setSettlement(data.settlement ?? null);
+      if (data.delve) setInDelve({ dungeonRunId: data.delve.runId, name: data.delve.name });
       // The result stays on screen (with its rolls) until the next move.
       setLastResult({
         title: currentOutcome?.title || "Result",
@@ -453,6 +468,7 @@ export default function WanderPage() {
         rolls: data.resolution?.rolls || [],
         rewards: data.resolution?.rewards || [],
         payoff: data.resolution?.payoff,
+        descend: data.delve ? { campaignId: data.delve.campaignId, name: data.delve.name } : undefined,
         combat: !!data.combatTriggered,
       });
       setCurrentOutcome(null);
@@ -462,6 +478,57 @@ export default function WanderPage() {
     onError: (error: Error) => {
       toast({ title: "Choice Failed", description: error.message, variant: "destructive" });
     },
+  });
+
+  const settlementMoveMutation = useMutation({
+    mutationFn: async (data: { runId: number; toQ: number; toR: number }) => {
+      const res = await apiRequest("POST", "/api/wander/settlement/move", data);
+      return res.json();
+    },
+    onSuccess: (data: { run: WanderRun; outcome: CuratedOutcome; travel?: TravelState | null; settlement: SettlementViewData | null }) => {
+      setActiveRun(data.run);
+      if (data.travel) setTravel(data.travel);
+      setSettlement(data.settlement);
+      setMoveNotes([]);
+      setLastResult(null);
+      setCurrentOutcome(data.outcome);
+      setJournalEntries((prev) => [...prev, { tick: data.run.tick, hexQ: data.run.currentHexQ, hexR: data.run.currentHexR, outcomeType: data.outcome.type, title: data.outcome.title, rewards: data.outcome.rewards }]);
+    },
+    onError: (error: Error) => toast({ title: "Can't walk there", description: error.message, variant: "destructive" }),
+  });
+
+  const siteMutation = useMutation({
+    mutationFn: async (data: { runId: number; action: "enter" | "descend" }) => {
+      const res = await apiRequest("POST", "/api/wander/site", data);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      if (data.travel) setTravel(data.travel);
+      if ("settlement" in data) setSettlement(data.settlement ?? null);
+      if (data.delve) setInDelve({ dungeonRunId: data.delve.runId, name: data.delve.name });
+      setLastResult({
+        title: hereSite?.home ? "Home" : hereSite?.name || "Result",
+        narrative: data.resolution?.narrativeResult || "",
+        rolls: data.resolution?.rolls || [],
+        rewards: [],
+        descend: data.delve ? { campaignId: data.delve.campaignId, name: data.delve.name } : undefined,
+      });
+    },
+    onError: (error: Error) => toast({ title: "Couldn't do that", description: error.message, variant: "destructive" }),
+  });
+
+  const settlementLeaveMutation = useMutation({
+    mutationFn: async (data: { runId: number }) => {
+      const res = await apiRequest("POST", "/api/wander/settlement/leave", data);
+      return res.json();
+    },
+    onSuccess: (data: { run: WanderRun; text: string }) => {
+      setActiveRun(data.run);
+      setSettlement(null);
+      setCurrentOutcome(null);
+      setLastResult({ title: "Back on the road", narrative: data.text, rolls: [], rewards: [] });
+    },
+    onError: (error: Error) => toast({ title: "Couldn't leave", description: error.message, variant: "destructive" }),
   });
 
   const endMutation = useMutation({
@@ -586,7 +653,7 @@ export default function WanderPage() {
     if (!activeRun) return [];
     const centerQ = activeRun.currentHexQ;
     const centerR = activeRun.currentHexR;
-    const radius = 7;
+    const radius = worldView ? 12 : 7;
     const hexes: Array<{ q: number; r: number; explored: boolean; isCurrent: boolean; isAdjacent: boolean; terrain: TerrainType; marker?: WanderMarker }> = [];
 
     for (let dq = -radius; dq <= radius; dq++) {
@@ -603,10 +670,22 @@ export default function WanderPage() {
       }
     }
     return hexes;
-  }, [activeRun, exploredHexes, markers]);
+  }, [activeRun, exploredHexes, markers, worldView]);
 
   // What sits on a hex, if anything: a marker, then a landmark, then a sign left by other players.
-  const mapGlyphAt = useCallback((hex: { q: number; r: number; marker?: WanderMarker }) => {
+  const hereSite = activeRun ? siteAt(activeRun.currentHexQ, activeRun.currentHexR) : null;
+
+  const mapGlyphAt = useCallback((hex: { q: number; r: number; explored?: boolean; marker?: WanderMarker }) => {
+    const site = siteAt(hex.q, hex.r);
+    if (site && activeRun) {
+      const d = Math.max(Math.abs(hex.q - activeRun.currentHexQ), Math.abs(hex.r - activeRun.currentHexR), Math.abs(hex.q + hex.r - activeRun.currentHexQ - activeRun.currentHexR));
+      const known = site.kind === "dungeon" ? (hex.explored || d <= 1 || !!hex.marker) : d <= site.seenFrom || hex.explored;
+      if (known) {
+        return site.kind === "dungeon"
+          ? { glyph: site.glyph, title: `${site.name}: ${site.distant}` }
+          : { glyph: site.glyph, title: `${site.home ? "Home" : site.name} (${site.kind}): ${site.distant}`, label: site.home ? "Home" : site.name };
+      }
+    }
     if (hex.marker) return { glyph: MARKER_ICONS[hex.marker.markerType] || "📍", title: hex.marker.markerType.replace("_", " ") };
     const lm = landmarks.get(`${hex.q},${hex.r}`)
       ?? Array.from(landmarks.values()).find((l) => l.threadId && l.q === hex.q && l.r === hex.r);
@@ -614,7 +693,7 @@ export default function WanderPage() {
     const rm = realm.find((m) => m.q === hex.q && m.r === hex.r);
     if (rm) return { glyph: REALM_GLYPH[rm.kind], title: rm.kind === "sign" ? `A sign: "${rm.text}"` : rm.text };
     return null;
-  }, [landmarks, realm]);
+  }, [landmarks, realm, activeRun?.currentHexQ, activeRun?.currentHexR]);
 
   const adjacentSet = useMemo(() => {
     if (!activeRun) return new Set<string>();
@@ -825,21 +904,67 @@ export default function WanderPage() {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center gap-2 text-amber-400">
                       <Compass className="h-4 w-4" />
-                      Exploration Map
-                      <Badge variant="outline" className="ml-auto text-xs bg-amber-500/20 border-amber-500/50">
+                      {worldView ? "World Map" : settlement ? (settlement.home ? "Home" : settlement.name) : "Exploration Map"}
+                      <Button size="sm" variant="outline" className="ml-auto h-7 px-2 text-xs border-amber-500/40 text-amber-300" onClick={() => setWorldView((v) => !v)} data-testid="toggle-world-map">
+                        <MapPin className="h-3.5 w-3.5 mr-1" />{worldView ? (settlement ? "Back to town" : "Close world map") : "World map"}
+                      </Button>
+                      <Badge variant="outline" className="text-xs bg-amber-500/20 border-amber-500/50">
                         <Footprints className="h-3 w-3 mr-1" />
                         {exploredHexes.size} explored
                       </Badge>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-2">
+                    {activeRun && (() => {
+                      const q = activeRun.currentHexQ, r = activeRun.currentHexR;
+                      const d = Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r));
+                      const here = hereSite && hereSite.kind !== "dungeon" ? (hereSite.home ? "Home" : hereSite.name) : inDelve ? `Down in ${inDelve.name}` : null;
+                      return (
+                        <p className="px-2 pb-2 text-xs text-slate-300" data-testid="where-am-i">
+                          <MapPin className="inline h-3.5 w-3.5 mr-1 text-red-400" />
+                          {here ? <span className="font-semibold text-amber-200">{here} · </span> : null}
+                          {d === 0 ? "At Home" : `${d} ${d === 1 ? "hex" : "hexes"} (${d * HEX_MILES} miles) ${compassBearing(0, 0, q, r)} of Home`}
+                          {travel ? ` · Day ${travel.day}` : ""}
+                        </p>
+                      );
+                    })()}
+                    {settlement && activeRun && !worldView ? (
+                      <>
+                        <div className="flex flex-wrap items-center justify-between gap-2 px-2 pb-2">
+                          <p className="text-xs text-slate-300">
+                            {settlement.home ? "You're home in town." : `You're in ${settlement.name}, a ${settlement.kind}.`} Walk between districts; each takes about half an hour.
+                          </p>
+                          <Button size="sm" variant="outline" className="h-7 text-xs border-amber-500/40 text-amber-300" disabled={settlementLeaveMutation.isPending || !!currentOutcome || inFight}
+                            onClick={() => settlementLeaveMutation.mutate({ runId: activeRun.id })} data-testid="leave-settlement">
+                            <ArrowLeft className="h-3.5 w-3.5 mr-1" />Back to the wilds
+                          </Button>
+                        </div>
+                        <SettlementMap
+                          view={settlement}
+                          canMove={!settlementMoveMutation.isPending && !currentOutcome && !inFight}
+                          onMove={(q, r) => settlementMoveMutation.mutate({ runId: activeRun.id, toQ: q, toR: r })}
+                        >
+                          {settlementMoveMutation.isPending && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                              <div className="flex items-center gap-2 bg-slate-900/90 px-4 py-2 rounded-full border border-amber-500/30">
+                                <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
+                                <span className="text-sm text-amber-200">Walking...</span>
+                              </div>
+                            </div>
+                          )}
+                        </SettlementMap>
+                      </>
+                    ) : (
+                      <>
                     <WanderMapLegend />
                     <WanderHexMap
                       hexes={gridHexes}
                       current={{ q: activeRun?.currentHexQ ?? 0, r: activeRun?.currentHexR ?? 0 }}
                       route={route}
                       glyphAt={mapGlyphAt}
-                      canMove={!isMoving && !currentOutcome && !inFight}
+                      canMove={!worldView && !isMoving && !currentOutcome && !inFight && !inDelve}
+                      view={worldView ? 8 : undefined}
+                      markScale={worldView ? 1.7 : 1}
                       onMove={handleMove}
                       pace={travel ? pace : "normal"}
                       exhaustion={travel?.exhaustion ?? 0}
@@ -852,7 +977,19 @@ export default function WanderPage() {
                             </div>
                           </div>
                         )}
+                      {inDelve && activeRun && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/45" data-testid="in-delve-overlay">
+                          <div className="rounded-lg border border-amber-500/40 bg-slate-900/95 px-5 py-4 text-center max-w-xs">
+                            <p className="text-sm text-amber-100 mb-3">You're down in <span className="font-semibold">{inDelve.name}</span>. When you climb out, you'll be right back here.</p>
+                            <Link href={`/delve?campaign=${activeRun.campaignId}`}>
+                              <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white">Go to the dungeon</Button>
+                            </Link>
+                          </div>
+                        </div>
+                      )}
                     </WanderHexMap>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -918,12 +1055,25 @@ export default function WanderPage() {
                           {lastResult.combat && !inFight && false && (
                             <p className="text-xs text-red-300">A fight breaks out. (Wander resolves fights in the story for now.)</p>
                           )}
+                          {lastResult.descend && (
+                            <Link href={`/delve?campaign=${lastResult.descend.campaignId}`}>
+                              <Button size="sm" className="w-full bg-amber-600 hover:bg-amber-700 text-white" data-testid="wander-descend">
+                                Go down into {lastResult.descend.name}
+                              </Button>
+                            </Link>
+                          )}
                           {lastResult.payoff?.kind === "delve" && (
                             <Link href="/delve">
                               <Button size="sm" className="w-full bg-amber-600 hover:bg-amber-700 text-white" data-testid="wander-go-delve">
                                 Delve {lastResult.payoff.name || "the dungeon"}
                               </Button>
                             </Link>
+                          )}
+                          {hereSite && !settlement && !inDelve && !lastResult.descend && (
+                            <Button size="sm" variant="outline" className="w-full border-amber-500/40 text-amber-300" disabled={siteMutation.isPending}
+                              onClick={() => siteMutation.mutate({ runId: activeRun.id, action: hereSite.kind === "dungeon" ? "descend" : "enter" })} data-testid="site-action">
+                              {hereSite.kind === "dungeon" ? `Descend into ${hereSite.name}` : hereSite.home ? "Walk into town" : `Enter ${hereSite.name}`}
+                            </Button>
                           )}
                           <p className="text-xs text-slate-500">Pick a hex on the map to keep moving.</p>
                         </CardContent>
@@ -933,6 +1083,16 @@ export default function WanderPage() {
                     <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                       <Card className="border-slate-700/50 bg-slate-900/50">
                         <CardContent className="py-12 text-center">
+                          {hereSite && !settlement && !inDelve && activeRun && (
+                            <div className="mb-6 rounded-lg border border-amber-500/40 bg-amber-950/30 p-4 text-left" data-testid="site-here">
+                              <p className="text-sm font-semibold text-amber-200 mb-1">{hereSite.glyph} {hereSite.home ? "Home" : hereSite.name}</p>
+                              <p className="text-xs text-amber-100/70 mb-3">{hereSite.arrival}</p>
+                              <Button size="sm" className="w-full bg-amber-600 hover:bg-amber-700 text-white" disabled={siteMutation.isPending}
+                                onClick={() => siteMutation.mutate({ runId: activeRun.id, action: hereSite.kind === "dungeon" ? "descend" : "enter" })}>
+                                {hereSite.kind === "dungeon" ? `Descend into ${hereSite.name}` : hereSite.home ? "Walk into town" : `Enter ${hereSite.name}`}
+                              </Button>
+                            </div>
+                          )}
                           <Compass className="h-12 w-12 text-amber-400/40 mx-auto mb-4" />
                           <h3 className="text-lg font-semibold text-slate-300 mb-2">Ready to Explore</h3>
                           <p className="text-sm text-slate-500 max-w-xs mx-auto">

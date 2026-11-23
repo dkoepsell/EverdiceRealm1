@@ -1932,10 +1932,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           endedAt: new Date().toISOString(),
         });
       } else if (engagement.kind === 'delve') {
-        await storage.updateDungeonRun(engagement.id, {
+        const delveRun = await storage.updateDungeonRun(engagement.id, {
           status: "retreated",
           endedAt: new Date().toISOString(),
         });
+        // Went down from a Wander journey: calling them home ends that journey too.
+        const fromWander = (delveRun?.flags as any)?.fromWander?.runId;
+        if (fromWander) {
+          const w = await storage.getWanderRun(fromWander);
+          if (w && w.status === "active") await storage.updateWanderRun(w.id, { status: "completed", endedAt: new Date().toISOString() });
+        }
       }
       // For 'campaign' there's nothing to end — the session stays where it is;
       // the character simply steps out of the field.

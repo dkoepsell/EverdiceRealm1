@@ -137,6 +137,7 @@ export interface IStorage {
   setCharacterEngagement(characterId: number, kind: 'campaign' | 'wander' | 'delve', engagementId: number): Promise<void>;
   clearCharacterEngagement(characterId: number): Promise<void>;
   clearEngagementForTarget(kind: 'campaign' | 'wander' | 'delve', engagementId: number): Promise<void>;
+  releaseDelveEngagement(run: DungeonRun): Promise<CharacterEngagement | null>;
   createCharacter(character: InsertCharacter): Promise<Character>;
   updateCharacter(id: number, character: Partial<Character>): Promise<Character | undefined>;
   deleteCharacter(id: number): Promise<boolean>;
@@ -1445,10 +1446,11 @@ export class DatabaseStorage implements IStorage {
 
     if (kind === 'delve') {
       const [run] = await db.select().from(dungeonRuns).where(eq(dungeonRuns.id, character.engagementId));
-      if (!run || run.status !== 'active') {
+      if (!run) {
         await this.clearCharacterEngagement(character.id);
         return null;
       }
+      if (run.status !== 'active') return this.releaseDelveEngagement(run);
       return { kind: 'delve', id: run.id, label: 'deep in a dungeon', since: character.engagementSince ?? null, campaignId: run.campaignId ?? null };
     }
 
@@ -1484,6 +1486,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Clear whichever characters were bound to a run/campaign that just ended.
+  /**
+   * A dungeon run has ended. If the character went down from a Wander journey
+   * that is still under way, they climb back out into the wilds; otherwise
+   * they are back in town.
+   */
+  async releaseDelveEngagement(run: DungeonRun): Promise<CharacterEngagement | null> {
+    const from = (run.flags as any)?.fromWander as { runId?: number } | undefined;
+    if (from?.runId) {
+      const [wander] = await db.select().from(wanderRuns).where(eq(wanderRuns.id, from.runId));
+      if (wander && wander.status === 'active') {
+        const flags = { ...((wander.flags as any) ?? {}) };
+        delete flags.inDelve;
+        await db.update(wanderRuns).set({ flags }).where(eq(wanderRuns.id, wander.id));
+        await this.setCharacterEngagement(run.characterId, 'wander', wander.id);
+        const [c] = await db.select().from(characters).where(eq(characters.id, run.characterId));
+        return { kind: 'wander', id: wander.id, label: 'out wandering the wilds', since: c?.engagementSince ?? null, campaignId: wander.campaignId ?? null };
+      }
+    }
+    await this.clearEngagementForTarget('delve', run.id);
+    return null;
+  }
+
   async clearEngagementForTarget(kind: 'campaign' | 'wander' | 'delve', engagementId: number): Promise<void> {
     await db.update(characters)
       .set({ engagementKind: 'idle', engagementId: null, engagementSince: null })
