@@ -28,7 +28,8 @@ import {
   Users,
   Map,
   MessageSquare,
-  Sparkles
+  Sparkles,
+  Gift,
 } from 'lucide-react';
 
 interface QuestBoardProps {
@@ -485,6 +486,12 @@ function QuestCard({ quest, isDM, isAccepted, isOwn, onAccept, onAbandon, onRemo
             <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
               <Coins className="h-3.5 w-3.5" />
               <span>{quest.goldReward} gold</span>
+            </div>
+          )}
+          {Array.isArray((quest as any).lootRewards) && (quest as any).lootRewards.length > 0 && (
+            <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+              <Gift className="h-3.5 w-3.5" />
+              <span>{(quest as any).lootRewards.map((l: any) => (typeof l === 'string' ? l : l?.name)).filter(Boolean).join(', ')}</span>
             </div>
           )}
           {quest.estimatedDuration && (

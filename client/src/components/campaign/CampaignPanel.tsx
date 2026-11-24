@@ -1662,6 +1662,19 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
       // Invalidate other data in background (don't need to wait)
       queryClient.invalidateQueries({ queryKey: ['/api/characters'] });
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/participants`] });
+
+      // An optional side quest surfaced this turn (or one was completed): refresh the Quests tab.
+      if (data?.newSideQuest || data?.progression?.completedQuests?.some((q: any) => q.sideQuest)) {
+        queryClient.invalidateQueries({ queryKey: ['/api/campaigns', campaign.id, 'quest-board'] });
+      }
+      if (data?.newSideQuest) {
+        const sq = data.newSideQuest;
+        const reward = [sq.xpReward ? `${sq.xpReward} XP` : '', sq.goldReward ? `${sq.goldReward} gp` : '', ...(Array.isArray(sq.lootRewards) ? sq.lootRewards : [])].filter(Boolean).join(', ');
+        toast({
+          title: `📜 New Quest: ${sq.title}`,
+          description: `${sq.questGiver ? `Offered by ${sq.questGiver}. ` : ''}${reward ? `Reward: ${reward}. ` : ''}See the Quests tab to accept it.`,
+        });
+      }
       queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaign.id}/exploration`] });
       
       if (campaign.userId === user?.id) {

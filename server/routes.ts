@@ -135,6 +135,7 @@ import { syncMarketItemStats } from "./economyEngine";
 import { recordPurchase, recordSale, getItemPrice, getSellPrice } from "./economyEngine";
 import { generateWorldEvents, aggregateDiscoveries, generateRumors } from "./lib/worldEventEngine";
 import { getWorldContext, formatWorldContext, pickRegionForCampaign, adoptInventedLocation, getRegionEventsSince } from "./lib/worldContext";
+import { decideQuestHook, questHookStreamLine, questHookBookkeepingBlock, buildQuestInsert, completedSideQuestIds, isOpenSideQuest, readQuestHookState } from "./lib/questHooks";
 import { onWorldEvent } from "./lib/worldBus";
 import { WORLD_SEED } from "@shared/world/worldHexGenerator";
 import { generatePostCombatRewards, type PostCombatRewards, type DefeatedEnemy } from "./postCombatRewards";
@@ -18549,6 +18550,16 @@ Instead, describe environments that MATCH the campaign's actual setting and the 
       });
       const promptExtras = buildPromptExtras(turnFlags, turnBeat, playerCharacter);
       if (p4.promptLine) promptExtras.context += `\n${p4.promptLine}\n`;
+      // Emergent side quests (Play > Quests tab). Same decision the stream made.
+      const openSideQuests = (await storage.getCampaignQuests(campaignId)).filter(isOpenSideQuest);
+      const questHookDecision = decideQuestHook({
+        campaignId,
+        storyState: sessionStoryState,
+        openSideQuests: openSideQuests.length,
+        inCombat: !!sessionStoryState.inCombat,
+        attackIntent: intent === 'attack' || detectAttackIntent(String(choice ?? '')).isAttack,
+      });
+      promptExtras.context += questHookBookkeepingBlock(questHookDecision, openSideQuests);
       if (turnFlags.episodes && playerCharacter) {
         const itemsLine = itemsPromptLine(Array.isArray(playerCharacter.equipment) ? playerCharacter.equipment : []);
         if (itemsLine) promptExtras.context += `\n${itemsLine}\n`;
@@ -20267,6 +20278,42 @@ ${cachedNarrative}
         }
       }
 
+      // Side quests live in campaign_quests (ids "sq_<id>"): complete them and pay out.
+      let questGoldAwarded = 0;
+      for (const sqId of completedSideQuestIds(questUpdates, openSideQuests)) {
+        try {
+          const done = await storage.completeCampaignQuest(sqId);
+          if (!done) continue;
+          xpAwarded += done.xpReward || 0;
+          questGoldAwarded += done.goldReward || 0;
+          for (const loot of (Array.isArray(done.lootRewards) ? done.lootRewards : []) as any[]) {
+            const name = typeof loot === 'string' ? loot : loot?.name;
+            if (name) itemsFound.push({ name, type: 'quest reward', rarity: 'uncommon', description: `Reward for completing "${done.title}"` });
+          }
+          completedQuests.push({ ...done, sideQuest: true });
+          console.log(`[Side Quests] Completed "${done.title}" (campaign ${campaignId})`);
+        } catch (sqErr) {
+          console.error('[Side Quests] Failed to complete quest', sqId, sqErr);
+        }
+      }
+
+      let newSideQuest: any = null;
+      if (questHookDecision.offer && storyAdvancement.newQuest) {
+        try {
+          const insert = buildQuestInsert(storyAdvancement.newQuest, {
+            campaignId,
+            partyLevel: playerCharacter?.level || 1,
+            decision: questHookDecision,
+          });
+          if (insert) {
+            newSideQuest = await storage.createCampaignQuest(insert as any);
+            console.log(`[Side Quests] New quest "${insert.title}" (campaign ${campaignId}, turn ${questHookDecision.turn})`);
+          }
+        } catch (sqErr) {
+          console.error('[Side Quests] Failed to create quest:', sqErr);
+        }
+      }
+
       // Check for random item drops based on story context
       const shouldDropItem = Math.random() < 0.15; // 15% chance
       if (shouldDropItem && (consequences.toLowerCase().includes('search') || 
@@ -21660,7 +21707,7 @@ ${cachedNarrative}
       const isInCombatNow = storyAdvancement.storyState?.inCombat || false;
       const newCombatRoundCount = isInCombatNow ? (currentCombatRounds + 1) : 0;
       
-      const mergedStoryState = {
+      const mergedStoryState: any = {
         ...storyAdvancement.storyState,
         combatants: preservedCombatants,
         explorationLimit: newExplorationLimit,
@@ -21681,6 +21728,7 @@ ${cachedNarrative}
         momentousChoices: currentStoryState.momentousChoices || [],
         sessionBreakpoint: storyAdvancement.sessionBreakpoint || false
       };
+      mergedStoryState.questHook = { turn: questHookDecision.turn, lastOfferTurn: newSideQuest ? questHookDecision.turn : readQuestHookState(sessionStoryState).lastOfferTurn };
       
       // ═══════════════════════════════════════════════════════════════════
       // MOMENTOUS CHOICE TRACKING — Record permanent, campaign-defining decisions
@@ -22781,7 +22829,7 @@ ${cachedNarrative}
             }
           }
           
-          const goldFromCombat = postCombatRewardsData?.goldAwarded || 0;
+          const goldFromCombat = (postCombatRewardsData?.goldAwarded || 0) + questGoldAwarded;
           const newGold = (character.gold || 0) + goldFromCombat;
           
           await storage.updateCharacter(characterId, {
@@ -22865,7 +22913,7 @@ ${cachedNarrative}
           
           characterProgression = {
             xpAwarded,
-            goldAwarded: postCombatRewardsData?.goldAwarded || 0,
+            goldAwarded: (postCombatRewardsData?.goldAwarded || 0) + questGoldAwarded,
             newGold,
             newXP,
             newLevel,
@@ -24520,6 +24568,7 @@ Respond with JSON:
       res.json({
         ...(sessionAdvanced && newSessionData ? newSessionData : updatedSession),
         progression: characterProgression,
+        newSideQuest,
         dungeonMapData: updatedMapData,
         dungeonMapId: updatedMapId,
         dungeonState: storyAdvancement.dungeonState || null,
@@ -24680,6 +24729,15 @@ Respond with JSON:
           })()
         : '';
       const inCombat = storyState.inCombat || false;
+      // Must match the bookkeeping call's decision, which reads getCurrentSession().
+      const streamHookState = ((await storage.getCurrentSession(campaignId))?.storyState as any) ?? storyState;
+      const streamQuestHook = questHookStreamLine(decideQuestHook({
+        campaignId,
+        storyState: streamHookState,
+        openSideQuests: (await storage.getCampaignQuests(campaignId)).filter(isOpenSideQuest).length,
+        inCombat: !!streamHookState.inCombat,
+        attackIntent: intent === 'attack' || detectAttackIntent(String(choice ?? '')).isAttack,
+      }));
 
       const narrativeStyle = campaign?.narrativeStyle || "Descriptive";
       const currentChapter = campaign.currentSession || 1;
@@ -24789,7 +24847,7 @@ Current Story State: ${JSON.stringify({
 })}
 
 The player chose: "${choice || "Continue the adventure"}"
-${describeRollForNarrator(rollResult, streamActor?.name)}${intent === 'attack' && !rollResult ? attackIntentDirective() : ''}${streamBeat ? `\n${beatPromptLine(streamBeat)} (Write only the prose; the choices are written separately.)\n` : ''}${streamLedgerLine ? `\n${streamLedgerLine}\n` : ''}${streamP4.promptLine ? `\n${streamP4.promptLine}\n` : ''}
+${describeRollForNarrator(rollResult, streamActor?.name)}${intent === 'attack' && !rollResult ? attackIntentDirective() : ''}${streamBeat ? `\n${beatPromptLine(streamBeat)} (Write only the prose; the choices are written separately.)\n` : ''}${streamLedgerLine ? `\n${streamLedgerLine}\n` : ''}${streamP4.promptLine ? `\n${streamP4.promptLine}\n` : ''}${streamQuestHook ? `\n${streamQuestHook}\n` : ''}
 ${resolveFlags(campaign).promptDiet ? `${antiRepeatBlock(recentTitles, recentLocations, { ledger: resolveFlags(campaign).ledger })}
 ` : `ANTI-REPETITION — DO NOT reuse these:
 - Recent titles: ${recentTitles.map(t => `"${t}"`).join(', ')}
