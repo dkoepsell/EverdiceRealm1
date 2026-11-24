@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
+import { CATEGORY_WASH, CampaignTerrainInk, classifyTerrain } from "@/components/dungeon/CampaignTerrainInk";
+import { CompassRose } from "@/components/wander/WanderHexMap";
 import {
   Map as MapIcon,
   Paintbrush,
@@ -117,29 +119,6 @@ function hexPoints(size: number): string {
   return points.join(" ");
 }
 
-function getTerrainColor(terrainType: string): string {
-  const terrain = terrainType.toLowerCase();
-  if (terrain.includes("forest") || terrain.includes("wood") || terrain.includes("grove")) return "fill-green-800/80 stroke-green-600";
-  if (terrain.includes("grass") || terrain.includes("meadow") || terrain.includes("field")) return "fill-lime-700/70 stroke-lime-500";
-  if (terrain.includes("mountain") || terrain.includes("peak") || terrain.includes("cliff")) return "fill-stone-600/80 stroke-stone-500";
-  if (terrain.includes("hill") || terrain.includes("valley")) return "fill-amber-700/60 stroke-amber-500";
-  if (terrain.includes("cave") || terrain.includes("cavern")) return "fill-stone-800/80 stroke-stone-600";
-  if (terrain.includes("river") || terrain.includes("stream")) return "fill-blue-600/70 stroke-blue-400";
-  if (terrain.includes("lake") || terrain.includes("pond")) return "fill-blue-700/80 stroke-blue-500";
-  if (terrain.includes("swamp") || terrain.includes("marsh")) return "fill-teal-800/70 stroke-teal-600";
-  if (terrain.includes("desert") || terrain.includes("sand")) return "fill-yellow-600/70 stroke-yellow-500";
-  if (terrain.includes("snow") || terrain.includes("ice")) return "fill-sky-200/80 stroke-sky-400";
-  if (terrain.includes("path") || terrain.includes("road") || terrain.includes("trail")) return "fill-amber-600/60 stroke-amber-500";
-  if (terrain.includes("village") || terrain.includes("town")) return "fill-amber-800/70 stroke-amber-600";
-  if (terrain.includes("castle") || terrain.includes("tower")) return "fill-slate-600/80 stroke-slate-500";
-  if (terrain.includes("temple") || terrain.includes("shrine")) return "fill-violet-800/70 stroke-violet-600";
-  if (terrain.includes("dungeon") || terrain.includes("crypt")) return "fill-purple-900/80 stroke-purple-700";
-  if (terrain.includes("tunnel") || terrain.includes("corridor") || terrain.includes("chamber")) return "fill-stone-600/70 stroke-stone-500";
-  if (terrain.includes("ruins")) return "fill-stone-700/70 stroke-stone-600";
-  if (terrain.includes("graveyard")) return "fill-slate-700/70 stroke-slate-600";
-  if (terrain.includes("battlefield")) return "fill-red-800/70 stroke-red-600";
-  return "fill-slate-600/60 stroke-slate-500";
-}
 
 interface DMMapBuilderProps {
   campaignId: number;
@@ -362,7 +341,7 @@ export function DMMapBuilder({ campaignId, onSave }: DMMapBuilderProps) {
               <CardTitle className="text-sm text-slate-300">Terrain Palette</CardTitle>
             </CardHeader>
             <CardContent className="p-2">
-              <ScrollArea className="h-36">
+              <ScrollArea className="h-44">
                 {TERRAIN_CATEGORIES.map(category => (
                   <div key={category} className="mb-2">
                     <div className="text-xs text-slate-500 mb-1">{category}</div>
@@ -371,16 +350,17 @@ export function DMMapBuilder({ campaignId, onSave }: DMMapBuilderProps) {
                         <button
                           key={terrain.id}
                           onClick={() => setSelectedTerrain(terrain)}
-                          className={`
-                            p-1.5 rounded text-sm transition-all
-                            ${selectedTerrain.id === terrain.id 
-                              ? 'ring-2 ring-amber-400 scale-110' 
-                              : 'hover:scale-105 hover:bg-slate-700'}
-                            ${terrain.color}
-                          `}
+                          className={`flex flex-col items-center gap-0.5 rounded p-0.5 transition-all ${
+                            selectedTerrain.id === terrain.id ? "ring-2 ring-amber-400 bg-amber-500/10" : "hover:bg-slate-700"
+                          }`}
                           title={terrain.name}
+                          data-testid={`palette-${terrain.id}`}
                         >
-                          {terrain.emoji}
+                          <svg viewBox="-16 -14 32 28" className="w-9 h-8 rounded-sm" style={{ background: "#ecdfbd" }} aria-hidden>
+                            <polygon points={hexPoints(14)} fill={CATEGORY_WASH[classifyTerrain(terrain.name)]} />
+                            <g transform="scale(0.6)"><CampaignTerrainInk category={classifyTerrain(terrain.name)} q={terrain.id.length} r={terrain.name.length} /></g>
+                          </svg>
+                          <span className="text-[10px] text-slate-300 leading-none">{terrain.name}</span>
                         </button>
                       ))}
                     </div>
@@ -391,7 +371,7 @@ export function DMMapBuilder({ campaignId, onSave }: DMMapBuilderProps) {
           </Card>
           
           <div className="text-xs text-slate-400 flex items-center gap-2">
-            <span className="px-2 py-1 bg-slate-800 rounded">Selected: {selectedTerrain.emoji} {selectedTerrain.name}</span>
+            <span className="px-2 py-1 bg-slate-800 rounded">Selected: {selectedTerrain.name}</span>
             <span className="text-slate-500">Click to place, drag to paint, right-click to pan</span>
           </div>
         </TabsContent>
@@ -432,7 +412,7 @@ export function DMMapBuilder({ campaignId, onSave }: DMMapBuilderProps) {
       <Card className="bg-slate-900/80 border-slate-700">
         <CardContent className="p-2">
           <div 
-            className={`relative h-72 bg-slate-950 rounded-lg overflow-hidden border border-slate-800 ${isPanning ? 'cursor-grabbing' : ''}`}
+            className={`relative h-[28rem] rounded-lg overflow-hidden border-[3px] border-[#5a3e22] shadow-[inset_0_0_30px_rgba(60,35,10,0.5)] bg-[#ecdfbd] ${isPanning ? 'cursor-grabbing' : ''}`}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
             onMouseMove={handleMouseMove}
@@ -448,63 +428,70 @@ export function DMMapBuilder({ campaignId, onSave }: DMMapBuilderProps) {
                 transformOrigin: 'center center'
               }}
             >
+              <defs>
+                <filter id="dmb-paper" x="0" y="0" width="100%" height="100%">
+                  <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves={3} seed={4} result="n" />
+                  <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.45  0 0 0 0 0.33  0 0 0 0 0.18  0 0 0 0.16 0" />
+                </filter>
+                <filter id="dmb-wash" x="-10%" y="-10%" width="120%" height="120%">
+                  <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves={2} seed={2} result="n" />
+                  <feDisplacementMap in="SourceGraphic" in2="n" scale={3} />
+                </filter>
+              </defs>
+              <rect x={bounds.minX - viewBoxWidth} y={bounds.minY - viewBoxHeight} width={viewBoxWidth * 3} height={viewBoxHeight * 3} fill="#ecdfbd" />
+              <rect x={bounds.minX - viewBoxWidth} y={bounds.minY - viewBoxHeight} width={viewBoxWidth * 3} height={viewBoxHeight * 3} filter="url(#dmb-paper)" />
+              {/* painted washes */}
+              <g filter="url(#dmb-wash)" style={{ pointerEvents: "none" }}>
+                {gridHexes.map(({ q, r, key }) => {
+                  const tile = hexes.get(key);
+                  if (!tile) return null;
+                  const { x, y } = axialToPixel(q, r);
+                  return <polygon key={`w${key}`} transform={`translate(${x}, ${y})`} points={hexPoints(HEX_SIZE * 0.98)} fill={CATEGORY_WASH[classifyTerrain(tile.terrainType)]} opacity={0.95} />;
+                })}
+              </g>
+              {/* grid, symbols, and the paint targets */}
               {gridHexes.map(({ q, r, key }) => {
                 const { x, y } = axialToPixel(q, r);
                 const tile = hexes.get(key);
-                const colorClass = tile ? getTerrainColor(tile.terrainType) : "fill-slate-800/30 stroke-slate-700/50";
-                
                 return (
                   <g
                     key={key}
                     transform={`translate(${x}, ${y})`}
                     onMouseDown={(e) => handleMouseDown(q, r, e)}
                     onMouseEnter={() => handleMouseEnter(q, r)}
-                    className="cursor-pointer"
+                    className="cursor-pointer group"
+                    data-testid={`builder-hex-${q}-${r}`}
                   >
-                    <polygon
-                      points={hexPoints(HEX_SIZE)}
-                      className={`${colorClass} transition-colors hover:brightness-125`}
-                      strokeWidth="1"
-                    />
+                    <polygon points={hexPoints(HEX_SIZE)} fill="rgba(0,0,0,0)" stroke="#3b2a17" strokeWidth={tile ? 0.6 : 0.4} opacity={tile ? 0.5 : 0.25}
+                      className="group-hover:[fill:rgba(155,28,28,0.10)]" />
                     {tile && (
-                      <text
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        className="pointer-events-none"
-                        style={{ fontSize: '14px' }}
-                      >
-                        {tile.terrainEmoji}
-                      </text>
+                      <g className="pointer-events-none" transform="scale(1.1)">
+                        <CampaignTerrainInk category={classifyTerrain(tile.terrainType)} q={q} r={r} />
+                      </g>
                     )}
                     {!tile && q === 0 && r === 0 && (
-                      <text
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        className="fill-slate-600 pointer-events-none"
-                        style={{ fontSize: '10px' }}
-                      >
-                        ⊙
-                      </text>
+                      <text textAnchor="middle" dominantBaseline="middle" className="pointer-events-none" fill="#7d6b52" style={{ fontSize: "10px" }}>⊙</text>
                     )}
                   </g>
                 );
               })}
             </svg>
             
+            <div className="absolute top-2 left-2 pointer-events-none opacity-90 scale-75 origin-top-left"><CompassRose /></div>
             <div className="absolute top-2 right-2 flex flex-col gap-1">
-              <Button size="icon" variant="secondary" className="h-7 w-7 bg-slate-800/90" onClick={handleZoomIn}>
+              <Button size="icon" variant="secondary" className="h-7 w-7 bg-[#f3e9cf]/90 text-[#3b2a17] border border-[#5a3e22]/60" onClick={handleZoomIn}>
                 <ZoomIn className="h-4 w-4" />
               </Button>
-              <Button size="icon" variant="secondary" className="h-7 w-7 bg-slate-800/90" onClick={handleZoomOut}>
+              <Button size="icon" variant="secondary" className="h-7 w-7 bg-[#f3e9cf]/90 text-[#3b2a17] border border-[#5a3e22]/60" onClick={handleZoomOut}>
                 <ZoomOut className="h-4 w-4" />
               </Button>
-              <Button size="icon" variant="secondary" className="h-7 w-7 bg-slate-800/90" onClick={handleResetView}>
+              <Button size="icon" variant="secondary" className="h-7 w-7 bg-[#f3e9cf]/90 text-[#3b2a17] border border-[#5a3e22]/60" onClick={handleResetView}>
                 <Maximize2 className="h-4 w-4" />
               </Button>
             </div>
             
             {zoom !== 1 && (
-              <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-slate-800/90 rounded text-xs text-slate-300">
+              <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-[#f3e9cf]/90 rounded text-xs text-[#3b2a17] border border-[#5a3e22]/50">
                 {Math.round(zoom * 100)}%
               </div>
             )}

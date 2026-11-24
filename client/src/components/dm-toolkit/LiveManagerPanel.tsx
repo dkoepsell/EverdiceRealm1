@@ -1901,7 +1901,7 @@ export default function LiveManagerPanel({ selectedCampaignId }: LiveManagerPane
 
               <CardContent className="p-3 flex-1 relative z-10">
                 {tableView === "map" && selectedCampaignId ? (
-                  <div className="h-[420px] rounded-lg border border-slate-700 overflow-hidden" data-testid="table-map">
+                  <div className="rounded-lg border border-slate-700 overflow-hidden" data-testid="table-map">
                     <ProceduralExplorationMap campaignId={selectedCampaignId} interactive={true} compact={false} />
                   </div>
                 ) : (
