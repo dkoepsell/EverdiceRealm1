@@ -207,7 +207,7 @@ export async function getRegionEventsSince(
       .from(worldEvents)
       .where(
         and(
-          sql`${worldEvents.affectedRegionIds}::jsonb @> ${JSON.stringify([campaign.regionId])}::jsonb`,
+          sql`${campaign.regionId} = ANY(${worldEvents.affectedRegionIds})`,
           sql`${worldEvents.createdAt} > ${sinceIso}`
         )
       )
@@ -267,7 +267,7 @@ export async function getWorldContext(campaignId: number): Promise<WorldContext 
       db
         .select({ title: worldEvents.title, description: worldEvents.description })
         .from(worldEvents)
-        .where(sql`${worldEvents.affectedRegionIds}::jsonb @> ${JSON.stringify([regionId])}::jsonb`)
+        .where(sql`${regionId} = ANY(${worldEvents.affectedRegionIds})`)
         .orderBy(desc(worldEvents.createdAt))
         .limit(3),
       db

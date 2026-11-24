@@ -19988,7 +19988,7 @@ ${cachedNarrative}
       }
       
       // Collect AI-generated reward items
-      if (storyAdvancement.rewardItems && storyAdvancement.rewardItems.length > 0) {
+      if (Array.isArray(storyAdvancement.rewardItems) && storyAdvancement.rewardItems.length > 0) {
         itemsFound.push(...storyAdvancement.rewardItems);
       }
       
@@ -20241,7 +20241,16 @@ ${cachedNarrative}
       }
 
       // Award XP for completed quests
-      const questUpdates = storyAdvancement.questUpdates || [];
+      // The AI sometimes returns questUpdates as a single object (or a keyed map) instead
+      // of an array; iterating that threw "questUpdates is not iterable" and 500'd the turn.
+      const rawQuestUpdates: any = storyAdvancement.questUpdates;
+      const questUpdates: any[] = Array.isArray(rawQuestUpdates)
+        ? rawQuestUpdates
+        : rawQuestUpdates && typeof rawQuestUpdates === 'object'
+          ? ('questId' in rawQuestUpdates || 'newStatus' in rawQuestUpdates
+              ? [rawQuestUpdates]
+              : Object.values(rawQuestUpdates))
+          : [];
       const completedQuests: any[] = [];
       for (const update of questUpdates) {
         if (update.newStatus === 'completed') {
