@@ -1,3 +1,5 @@
+import { BUILDING_GLYPH } from "@/lib/inkSprites";
+import { CompassRose } from "@/components/wander/WanderHexMap";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -107,6 +109,9 @@ const buildingColors: Record<string, string> = {
   dungeon_entrance: "#991b1b",
   tailor: "#f472b6",
 };
+
+/** Parchment washes for districts (same family as every other map). */
+const DISTRICT_WASH = ["rgba(205,212,154,0.45)", "rgba(220,202,160,0.55)", "rgba(169,191,134,0.4)", "rgba(227,207,154,0.5)", "rgba(196,173,134,0.4)", "rgba(169,203,212,0.4)"];
 
 const districtColors = [
   "rgba(217, 119, 6, 0.08)",
@@ -422,12 +427,14 @@ export default function CityMap({ campaignId, locationId, locationName, onClose,
                 style={{
                   width: mapWidth,
                   height: mapHeight,
-                  background: isCapital 
-                    ? "linear-gradient(135deg, #0f0d15 0%, #1a1525 25%, #15101a 50%, #1a1525 75%, #0f0d15 100%)"
-                    : "linear-gradient(135deg, #1a1510 0%, #2a1f15 50%, #1a1510 100%)",
-                  border: isCapital ? "2px solid rgba(168, 85, 247, 0.4)" : "2px solid rgba(217, 119, 6, 0.3)",
+                  backgroundColor: "#ecdfbd",
+                  backgroundImage: "radial-gradient(ellipse at center, rgba(122,90,50,0) 55%, rgba(122,90,50,0.28) 100%)",
+                  border: "3px solid #5a3e22",
+                  boxShadow: "inset 0 0 30px rgba(60,35,10,0.45)",
                 }}
+                data-testid="city-map"
               >
+                <div className="absolute top-1.5 right-1.5 pointer-events-none opacity-90 scale-[0.6] origin-top-right z-20"><CompassRose /></div>
                 {layout.districts.map((district, i) => (
                   <div
                     key={district.id}
@@ -437,11 +444,11 @@ export default function CityMap({ campaignId, locationId, locationName, onClose,
                       top: district.y,
                       width: district.width,
                       height: district.height,
-                      backgroundColor: districtColors[i % districtColors.length],
-                      borderColor: "rgba(255,255,255,0.1)",
+                      backgroundColor: DISTRICT_WASH[i % DISTRICT_WASH.length],
+                      borderColor: "rgba(59,42,23,0.45)",
                     }}
                   >
-                    <span className="absolute top-1 left-2 text-[10px] text-zinc-500 font-medium uppercase tracking-wider">
+                    <span className="absolute top-1 left-2 text-[10px] font-[Cinzel,serif] font-bold text-[#3b2a17]/70 uppercase tracking-wider">
                       {district.name}
                     </span>
                   </div>
@@ -454,7 +461,7 @@ export default function CityMap({ campaignId, locationId, locationName, onClose,
                         className="absolute w-6 h-6 flex items-center justify-center cursor-pointer"
                         style={{ left: gate.x - 12, top: gate.y - 12 }}
                       >
-                        <DoorOpen className="w-5 h-5 text-amber-700/60" />
+                        <span className="w-6 h-6 rounded-full bg-[#f3e9cf] border border-[#3b2a17] flex items-center justify-center text-[13px]">🚪</span>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="bg-zinc-800 border-amber-500/30">
@@ -493,19 +500,25 @@ export default function CityMap({ campaignId, locationId, locationName, onClose,
                           onMouseLeave={() => setHoveredBuilding(null)}
                         >
                           <div
-                            className="w-full h-full rounded-md flex items-center justify-center shadow-lg"
+                            className="w-full h-full rounded-full flex items-center justify-center"
                             style={{
-                              backgroundColor: isDiscovered ? `${color}33` : "rgba(30,30,30,0.8)",
-                              border: `2px solid ${isDiscovered ? color : "rgba(100,100,100,0.4)"}`,
-                              boxShadow: isSelected ? `0 0 12px ${color}66` : "none",
+                              backgroundColor: isDiscovered ? "#f3e9cf" : "rgba(236,223,189,0.6)",
+                              border: isDiscovered ? "1.5px solid #3b2a17" : "1px dashed rgba(125,107,82,0.8)",
+                              boxShadow: isSelected ? "0 0 0 2px #9b1c1c" : "0 1px 2px rgba(60,35,10,0.35)",
                             }}
                           >
                             {isDiscovered ? (
-                              <IconComponent className="w-4 h-4" style={{ color }} />
+                              <span style={{ fontSize: Math.max(11, building.size * 0.55) }}>{BUILDING_GLYPH[building.type] ?? "🏠"}</span>
                             ) : (
-                              <Lock className="w-3 h-3 text-zinc-600" />
+                              <span className="font-[Alegreya,serif] italic text-[#7d6b52]" style={{ fontSize: Math.max(10, building.size * 0.5) }}>?</span>
                             )}
                           </div>
+                          {isDiscovered && (
+                            <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap font-[Cinzel,serif] font-bold text-[9px] text-[#3b2a17] pointer-events-none"
+                              style={{ top: building.size + 1, textShadow: "0 0 3px #ecdfbd, 0 0 3px #ecdfbd" }}>
+                              {building.name}
+                            </span>
+                          )}
                         </div>
                       </TooltipTrigger>
                       <TooltipContent side="top" className="bg-zinc-800 border-amber-500/30">
