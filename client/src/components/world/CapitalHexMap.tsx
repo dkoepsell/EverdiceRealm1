@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import {
   generateCapitalHexMap,
-  CAPITAL_TERRAIN_COLORS,
   CAPITAL_TERRAIN_LABELS,
   getCapitalHexNeighbors,
   type CapitalHex,
@@ -24,6 +23,8 @@ import {
   type CapitalBuilding,
   type CapitalTerrainType,
 } from "@/lib/capitalHexGenerator";
+import { BUILDING_GLYPH, INK, ROUTE, drawBadge, drawLabel, drawPennant, inkSprite, paintParchment } from "@/lib/inkSprites";
+import type { TerrainCategory } from "@/components/dungeon/CampaignTerrainInk";
 
 interface CapitalHexMapProps {
   campaignId: number;
@@ -33,6 +34,15 @@ interface CapitalHexMapProps {
 }
 
 const HEX_SIZE = 18;
+
+/** Parchment washes for capital streets (same family as every other map). */
+const CAPITAL_WASH: Record<CapitalTerrainType, string> = {
+  cobblestone: "#d8c9a4", plaza: "#e2d6b6", garden: "#a9bf86", courtyard: "#ddd0ac",
+  market_ground: "#e3cf9a", dock: "#b9a77f", canal: "#93bccb", alley: "#cdbd98",
+  rubble: "#c4b494", cemetery: "#b9b99a", park: "#a3bf84", fountain: "#a9cbd4",
+  bridge: "#c9ad78", wall: "#a89878", gate: "#c9ad78",
+};
+
 const MIN_ZOOM = 0.8;
 const MAX_ZOOM = 4;
 
@@ -178,6 +188,8 @@ export default function CapitalHexMap({ campaignId, locationId, locationName, on
   }, [exploration?.id]);
 
   const corners = useMemo(() => getHexCorners(HEX_SIZE), []);
+  const [spriteTick, setSpriteTick] = useState(0);
+  const onSprite = useCallback(() => setSpriteTick((t) => t + 1), []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -192,144 +204,104 @@ export default function CapitalHexMap({ campaignId, locationId, locationName, on
     const w = rect.width;
     const h = rect.height;
 
-    ctx.fillStyle = "#0a0a0f";
-    ctx.fillRect(0, 0, w, h);
+    paintParchment(ctx, w, h);
     ctx.save();
     ctx.translate(offset.x, offset.y);
     ctx.scale(zoom, zoom);
 
-    for (const hex of capitalLayout.hexes) {
-      const key = `${hex.q},${hex.r}`;
-      const isRevealed = revealedSet.has(key);
-      const pp = hexToPixel(hex.q, hex.r, HEX_SIZE);
-
+    const hexPath = (pp: { x: number; y: number }, k = 1) => {
       ctx.beginPath();
-      ctx.moveTo(pp.x + corners[0].x, pp.y + corners[0].y);
-      for (let i = 1; i < 6; i++) {
-        ctx.lineTo(pp.x + corners[i].x, pp.y + corners[i].y);
-      }
+      ctx.moveTo(pp.x + corners[0].x * k, pp.y + corners[0].y * k);
+      for (let i = 1; i < 6; i++) ctx.lineTo(pp.x + corners[i].x * k, pp.y + corners[i].y * k);
       ctx.closePath();
+    };
 
-      if (!isRevealed) {
-        ctx.fillStyle = "#111118";
-        ctx.fill();
-        ctx.strokeStyle = "rgba(50,50,60,0.3)";
-        ctx.lineWidth = 0.3;
+    // washes and grid; streets you haven't walked stay blank parchment
+    for (const hex of capitalLayout.hexes) {
+      const pp = hexToPixel(hex.q, hex.r, HEX_SIZE);
+      hexPath(pp);
+      if (!revealedSet.has(`${hex.q},${hex.r}`)) {
+        ctx.strokeStyle = "rgba(59,42,23,0.10)";
+        ctx.lineWidth = 0.4;
         ctx.stroke();
         continue;
       }
-
-      const terrainColor = CAPITAL_TERRAIN_COLORS[hex.terrain] || "#3a3530";
-      ctx.fillStyle = terrainColor;
+      ctx.fillStyle = CAPITAL_WASH[hex.terrain] ?? "#d8c9a4";
       ctx.fill();
-
-      if (hex.districtName) {
-        const dist = capitalLayout.districts.find(d => d.id === hex.districtId);
-        if (dist) {
-          ctx.fillStyle = `${dist.color}15`;
-          ctx.fill();
-        }
-      }
-
       const isHovered = hoveredHex?.q === hex.q && hoveredHex?.r === hex.r;
       if (isHovered) {
-        ctx.fillStyle = "rgba(255,255,255,0.1)";
+        ctx.fillStyle = "rgba(155,28,28,0.12)";
         ctx.fill();
       }
-
-      ctx.strokeStyle = hex.isWall ? "rgba(120,100,80,0.7)" : hex.isGate ? "rgba(200,170,100,0.8)" : "rgba(80,70,60,0.4)";
-      ctx.lineWidth = hex.isWall ? 1.5 : 0.5;
+      ctx.strokeStyle = isHovered ? ROUTE : INK;
+      ctx.globalAlpha = hex.isWall ? 0.9 : isHovered ? 0.9 : 0.25;
+      ctx.lineWidth = hex.isWall ? 2.4 : isHovered ? 1.2 : 0.5;
       ctx.stroke();
+      ctx.globalAlpha = 1;
 
-      if (hex.buildingId && isRevealed) {
-        const isDiscovered = discoveredSet.has(hex.buildingId);
-        const bColor = buildingColors[hex.buildingType || ""] || "#9ca3af";
-        if (isDiscovered) {
-          ctx.fillStyle = `${bColor}55`;
-          ctx.fill();
-          ctx.beginPath();
-          ctx.arc(pp.x, pp.y, HEX_SIZE * 0.35, 0, Math.PI * 2);
-          ctx.fillStyle = `${bColor}cc`;
-          ctx.fill();
-          ctx.strokeStyle = bColor;
-          ctx.lineWidth = 1;
-          ctx.stroke();
-          ctx.fillStyle = "#fff";
-          ctx.font = `bold ${HEX_SIZE * 0.35}px sans-serif`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          const icon = hex.buildingType === "palace" ? "♛" : hex.buildingType === "tavern" ? "🍺" : hex.buildingType === "temple" ? "✝" : hex.buildingType === "bank" ? "$" : hex.buildingType === "guild" ? "⚔" : "■";
-          ctx.fillText(icon, pp.x, pp.y);
-        } else {
-          ctx.beginPath();
-          ctx.arc(pp.x, pp.y, HEX_SIZE * 0.25, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(80,80,80,0.6)";
-          ctx.fill();
-          ctx.strokeStyle = "rgba(100,100,100,0.4)";
-          ctx.lineWidth = 0.8;
-          ctx.stroke();
-          ctx.fillStyle = "rgba(150,150,150,0.5)";
-          ctx.font = `${HEX_SIZE * 0.3}px sans-serif`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText("?", pp.x, pp.y);
-        }
-      }
-
-      if (hex.isGate && isRevealed) {
-        ctx.fillStyle = "rgba(200,170,100,0.7)";
-        ctx.font = `bold ${HEX_SIZE * 0.35}px sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("⛩", pp.x, pp.y);
+      // a little ink for gardens, water and graves
+      const deco: TerrainCategory | null = hex.terrain === "garden" || hex.terrain === "park" ? "forest"
+        : hex.terrain === "canal" || hex.terrain === "fountain" ? "coast"
+        : hex.terrain === "rubble" ? "structure" : null;
+      if (deco && !hex.buildingId && zoom >= 1.1) {
+        const img = inkSprite(deco, (hex.q + hex.r) & 3, onSprite);
+        if (img) { const sz = HEX_SIZE * 1.6; ctx.drawImage(img, pp.x - sz / 2, pp.y - sz / 2, sz, sz); }
       }
     }
 
-    const playerPx = hexToPixel(playerQ, playerR, HEX_SIZE);
-    ctx.beginPath();
-    ctx.arc(playerPx.x, playerPx.y, HEX_SIZE * 0.5, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(34,211,238,0.3)";
-    ctx.fill();
-    ctx.strokeStyle = "#22d3ee";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.fillStyle = "#22d3ee";
-    ctx.font = `bold ${HEX_SIZE * 0.55}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("⬤", playerPx.x, playerPx.y);
+    // buildings: an inked badge once discovered, a pencilled query before
+    for (const hex of capitalLayout.hexes) {
+      if (!revealedSet.has(`${hex.q},${hex.r}`)) continue;
+      const pp = hexToPixel(hex.q, hex.r, HEX_SIZE);
+      if (hex.buildingId) {
+        if (discoveredSet.has(hex.buildingId)) {
+          drawBadge(ctx, pp.x, pp.y, HEX_SIZE * (hex.buildingType === "palace" ? 0.62 : 0.5), BUILDING_GLYPH[hex.buildingType || ""] ?? "🏠", hex.buildingType === "palace");
+        } else {
+          ctx.save();
+          ctx.font = `italic ${HEX_SIZE * 0.6}px Alegreya, Georgia, serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = "rgba(125,107,82,0.75)";
+          ctx.fillText("?", pp.x, pp.y);
+          ctx.restore();
+        }
+      }
+      if (hex.isGate) drawBadge(ctx, pp.x, pp.y, HEX_SIZE * 0.45, "🚪");
+    }
 
+    // where you can step next
     const neighbors = getCapitalHexNeighbors(playerQ, playerR);
+    ctx.setLineDash([3, 2.5]);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 0.9;
     for (const n of neighbors) {
       const nh = hexMap.get(`${n.q},${n.r}`);
       if (!nh || nh.isWall) continue;
-      const np = hexToPixel(n.q, n.r, HEX_SIZE);
-      ctx.beginPath();
-      ctx.arc(np.x, np.y, HEX_SIZE * 0.2, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(34,211,238,0.15)";
-      ctx.fill();
-      ctx.strokeStyle = "rgba(34,211,238,0.3)";
-      ctx.lineWidth = 0.8;
+      hexPath(hexToPixel(n.q, n.r, HEX_SIZE), 0.92);
       ctx.stroke();
     }
+    ctx.setLineDash([]);
+
+    // you
+    const playerPx = hexToPixel(playerQ, playerR, HEX_SIZE);
+    hexPath(playerPx, 0.95);
+    ctx.strokeStyle = ROUTE;
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+    drawPennant(ctx, playerPx.x, playerPx.y, HEX_SIZE * 1.1);
 
     if (zoom >= 1.5) {
-      ctx.font = `${Math.max(4, HEX_SIZE * 0.25)}px sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
       for (const hex of capitalLayout.hexes) {
-        const key = `${hex.q},${hex.r}`;
-        if (!revealedSet.has(key)) continue;
+        if (!revealedSet.has(`${hex.q},${hex.r}`)) continue;
         if (hex.buildingId && discoveredSet.has(hex.buildingId)) {
           const pp = hexToPixel(hex.q, hex.r, HEX_SIZE);
-          ctx.fillStyle = "rgba(255,255,255,0.6)";
-          ctx.fillText(hex.buildingName || "", pp.x, pp.y + HEX_SIZE * 0.5);
+          drawLabel(ctx, hex.buildingName || "", pp.x, pp.y + HEX_SIZE * 0.55, Math.max(4, HEX_SIZE * 0.26));
         }
       }
     }
 
     ctx.restore();
-  }, [capitalLayout, zoom, offset, hoveredHex, revealedSet, discoveredSet, playerQ, playerR, corners, hexMap]);
+  }, [capitalLayout, zoom, offset, hoveredHex, revealedSet, discoveredSet, playerQ, playerR, corners, hexMap, spriteTick]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
@@ -444,7 +416,7 @@ export default function CapitalHexMap({ campaignId, locationId, locationName, on
             </div>
           </CardHeader>
           <CardContent className="flex-1 p-2 min-h-0">
-            <div className="relative w-full h-full rounded-lg overflow-hidden border border-purple-500/20">
+            <div className="relative w-full h-full rounded-lg overflow-hidden border-[3px] border-[#5a3e22] bg-[#ecdfbd] shadow-[inset_0_0_30px_rgba(60,35,10,0.5)]" data-testid="capital-hex-map">
               <canvas
                 ref={canvasRef}
                 className="w-full h-full cursor-crosshair"
@@ -457,22 +429,22 @@ export default function CapitalHexMap({ campaignId, locationId, locationName, on
               />
 
               {hoveredHexData && isHoveredRevealed && (
-                <div className="absolute top-3 left-3 bg-black/80 border border-purple-500/20 rounded-lg px-3 py-2 text-xs pointer-events-none">
-                  <p className="text-purple-200 font-medium">
+                <div className="absolute top-3 left-3 bg-[#f3e9cf]/95 border border-[#5a3e22]/70 rounded-md shadow-md px-3 py-2 text-xs pointer-events-none font-[Alegreya,serif]">
+                  <p className="font-[Cinzel,serif] font-bold text-[#3b2a17]">
                     {hoveredHexData.buildingName && discoveredSet.has(hoveredHexData.buildingId || "") ? hoveredHexData.buildingName : CAPITAL_TERRAIN_LABELS[hoveredHexData.terrain]}
                   </p>
-                  <p className="text-zinc-500">{hoveredHexData.districtName}</p>
-                  {hoveredHexData.isGate && <p className="text-amber-400 text-[10px]">{hoveredHexData.gateName}</p>}
+                  <p className="text-[#4a3722]/80">{hoveredHexData.districtName}</p>
+                  {hoveredHexData.isGate && <p className="text-[#9b1c1c] text-[10px]">{hoveredHexData.gateName}</p>}
                 </div>
               )}
 
               {moveMutation.isPending && (
-                <div className="absolute bottom-3 left-3 bg-cyan-900/60 border border-cyan-500/30 rounded-lg px-3 py-1.5 text-xs text-cyan-200">
+                <div className="absolute bottom-3 left-3 bg-[#f3e9cf]/90 border border-[#5a3e22]/60 rounded-md px-3 py-1.5 text-xs text-[#3b2a17]">
                   Moving...
                 </div>
               )}
 
-              <div className="absolute bottom-3 right-3 bg-black/70 border border-purple-500/20 rounded-lg px-2 py-1 text-[10px] text-zinc-500">
+              <div className="absolute bottom-3 right-3 bg-[#f3e9cf]/90 border border-[#5a3e22]/50 rounded px-2 py-0.5 text-[10px] text-[#3b2a17]">
                 Zoom: {(zoom * 100).toFixed(0)}% · Click adjacent hex to move
               </div>
             </div>
