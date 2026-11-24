@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { CompassRose } from "@/components/wander/WanderHexMap";
+import { CATEGORY_LABEL, CATEGORY_WASH, CampaignTerrainInk, classifyTerrain, isBuiltPlace, type TerrainCategory } from "./CampaignTerrainInk";
 import { 
   Compass, 
   Footprints,
@@ -82,248 +84,24 @@ function axialToPixel(q: number, r: number, hexSize: number): { x: number; y: nu
   return { x, y };
 }
 
-type TerrainCategory = 
-  | "forest" | "grass" | "swamp" | "mountain" | "hill" | "cave" 
-  | "water" | "lake" | "coast" | "desert" | "snow" | "lava"
-  | "path" | "settlement" | "structure" | "sacred" | "dungeon" 
-  | "underground" | "danger" | "unknown";
 
-interface TerrainStyle {
-  fill: string;
-  stroke: string;
-  gradientId: string;
-}
+const INK = "#3b2a17";
+const PENCIL = "#7d6b52";
+const ROUTE = "#9b1c1c";
 
-const TERRAIN_STYLES: Record<TerrainCategory, TerrainStyle> = {
-  forest:      { fill: "#1a4a1a", stroke: "#2d7a2d", gradientId: "grad-forest" },
-  grass:       { fill: "#3d6b2e", stroke: "#5a9a3f", gradientId: "grad-grass" },
-  swamp:       { fill: "#1a3a2e", stroke: "#2a5a4a", gradientId: "grad-swamp" },
-  mountain:    { fill: "#5a5a5a", stroke: "#7a7a7a", gradientId: "grad-mountain" },
-  hill:        { fill: "#7a6a3a", stroke: "#9a8a5a", gradientId: "grad-hill" },
-  cave:        { fill: "#2a2a2a", stroke: "#4a4a4a", gradientId: "grad-cave" },
-  water:       { fill: "#1a4a7a", stroke: "#3a7aba", gradientId: "grad-water" },
-  lake:        { fill: "#1a3a6a", stroke: "#2a5a9a", gradientId: "grad-lake" },
-  coast:       { fill: "#3a7a8a", stroke: "#5a9aaa", gradientId: "grad-coast" },
-  desert:      { fill: "#9a8a3a", stroke: "#baaa5a", gradientId: "grad-desert" },
-  snow:        { fill: "#b0c4de", stroke: "#d0e4fe", gradientId: "grad-snow" },
-  lava:        { fill: "#6a1a0a", stroke: "#aa3a1a", gradientId: "grad-lava" },
-  path:        { fill: "#6a5a2a", stroke: "#8a7a4a", gradientId: "grad-path" },
-  settlement:  { fill: "#6a4a2a", stroke: "#9a7a4a", gradientId: "grad-settlement" },
-  structure:   { fill: "#4a4a5a", stroke: "#6a6a7a", gradientId: "grad-structure" },
-  sacred:      { fill: "#4a2a6a", stroke: "#7a4a9a", gradientId: "grad-sacred" },
-  dungeon:     { fill: "#2a1a3a", stroke: "#5a3a6a", gradientId: "grad-dungeon" },
-  underground: { fill: "#3a3a3a", stroke: "#5a5a5a", gradientId: "grad-underground" },
-  danger:      { fill: "#5a1a1a", stroke: "#8a3a3a", gradientId: "grad-danger" },
-  unknown:     { fill: "#3a3a4a", stroke: "#5a5a6a", gradientId: "grad-unknown" },
-};
-
-function classifyTerrain(terrainType: string): TerrainCategory {
-  const t = terrainType.toLowerCase();
-  if (t.includes("forest") || t.includes("wood") || t.includes("grove") || t.includes("thicket") || t.includes("tree")) return "forest";
-  if (t.includes("grass") || t.includes("meadow") || t.includes("field") || t.includes("plains") || t.includes("clearing") || t.includes("glade") || t.includes("garden") || t.includes("orchard")) return "grass";
-  if (t.includes("swamp") || t.includes("marsh") || t.includes("bog")) return "swamp";
-  if (t.includes("mountain") || t.includes("peak") || t.includes("cliff") || t.includes("ridge") || t.includes("canyon")) return "mountain";
-  if (t.includes("hill") || t.includes("slope") || t.includes("valley")) return "hill";
-  if (t.includes("cave") || t.includes("cavern") || t.includes("mine")) return "cave";
-  if (t.includes("river") || t.includes("stream") || t.includes("brook") || t.includes("creek") || t.includes("waterfall")) return "water";
-  if (t.includes("lake") || t.includes("pond") || t.includes("pool")) return "lake";
-  if (t.includes("coast") || t.includes("shore") || t.includes("beach") || t.includes("island") || t.includes("dock") || t.includes("pier") || t.includes("harbor")) return "coast";
-  if (t.includes("desert") || t.includes("dune") || t.includes("sand")) return "desert";
-  if (t.includes("ice") || t.includes("glacier") || t.includes("snow") || t.includes("tundra")) return "snow";
-  if (t.includes("volcano") || t.includes("lava")) return "lava";
-  if (t.includes("road") || t.includes("path") || t.includes("trail") || t.includes("track") || t.includes("crossroads") || t.includes("bridge")) return "path";
-  if (t.includes("village") || t.includes("town") || t.includes("city") || t.includes("market") || t.includes("square") || t.includes("plaza") || t.includes("street") || t.includes("tavern") || t.includes("inn") || t.includes("shop") || t.includes("camp") || t.includes("house") || t.includes("cabin") || t.includes("cottage") || t.includes("hut") || t.includes("building") || t.includes("stable")) return "settlement";
-  if (t.includes("castle") || t.includes("fortress") || t.includes("keep") || t.includes("tower") || t.includes("wall") || t.includes("gate") || t.includes("rampart") || t.includes("battlement") || t.includes("ruin")) return "structure";
-  if (t.includes("temple") || t.includes("shrine") || t.includes("altar") || t.includes("sanctuary") || t.includes("chapel") || t.includes("cathedral")) return "sacred";
-  if (t.includes("dungeon") || t.includes("crypt") || t.includes("tomb") || t.includes("catacomb") || t.includes("graveyard") || t.includes("cemetery")) return "dungeon";
-  if (t.includes("tunnel") || t.includes("corridor") || t.includes("passage") || t.includes("hall") || t.includes("chamber") || t.includes("room") || t.includes("cellar") || t.includes("basement")) return "underground";
-  if (t.includes("danger") || t.includes("hostile") || t.includes("battlefield")) return "danger";
-  return "unknown";
-}
-
-function isFeatureHex(category: TerrainCategory): boolean {
-  return ["settlement", "structure", "sacred", "dungeon"].includes(category);
-}
-
-function getFeatureIcon(terrainType: string): string | null {
-  const t = terrainType.toLowerCase();
-  if (t.includes("castle") || t.includes("fortress") || t.includes("keep")) return "🏰";
-  if (t.includes("tower")) return "🗼";
-  if (t.includes("village") || t.includes("town") || t.includes("city")) return "🏘️";
-  if (t.includes("tavern") || t.includes("inn")) return "🍺";
-  if (t.includes("shop") || t.includes("market")) return "🛒";
-  if (t.includes("temple") || t.includes("shrine") || t.includes("altar") || t.includes("sanctuary")) return "⛩️";
-  if (t.includes("chapel") || t.includes("cathedral")) return "⛪";
-  if (t.includes("dungeon") || t.includes("crypt") || t.includes("tomb") || t.includes("catacomb")) return "💀";
-  if (t.includes("graveyard") || t.includes("cemetery")) return "🪦";
-  if (t.includes("ruin")) return "🏚️";
-  if (t.includes("camp")) return "⛺";
-  if (t.includes("gate")) return "⛩️";
-  if (t.includes("library")) return "📚";
-  if (t.includes("throne")) return "👑";
-  return null;
-}
-
-const LEGEND_TERRAIN: Array<{ category: TerrainCategory; label: string }> = [
-  { category: "grass", label: "Grassland" },
-  { category: "forest", label: "Forest" },
-  { category: "hill", label: "Hills" },
-  { category: "mountain", label: "Mountains" },
-  { category: "water", label: "River" },
-  { category: "lake", label: "Lake" },
-  { category: "coast", label: "Coast" },
-  { category: "swamp", label: "Swamp" },
-  { category: "desert", label: "Desert" },
-  { category: "snow", label: "Snow/Ice" },
-  { category: "cave", label: "Cave" },
-  { category: "path", label: "Path/Road" },
-  { category: "underground", label: "Underground" },
-];
-
-const LEGEND_FEATURES: Array<{ icon: string; label: string }> = [
-  { icon: "🏘️", label: "Settlement" },
-  { icon: "🏰", label: "Stronghold" },
-  { icon: "⛩️", label: "Sacred Site" },
-  { icon: "💀", label: "Dungeon" },
-  { icon: "⚔️", label: "Hostile" },
-  { icon: "👤", label: "NPC" },
-];
-
-function HexTile({ 
-  hex, 
-  isCurrentPosition, 
-  isAdjacent,
-  onClick,
-  onHover,
-  hexSize,
-  compact
-}: { 
-  hex: ExplorationHex; 
-  isCurrentPosition: boolean;
-  isAdjacent: boolean;
-  onClick?: () => void;
-  onHover?: (hex: ExplorationHex | null) => void;
-  interactive?: boolean;
-  hexSize: number;
-  compact?: boolean;
-}) {
-  const { x, y } = axialToPixel(hex.q, hex.r, hexSize);
-  const category = classifyTerrain(hex.terrainType);
-  const style = TERRAIN_STYLES[category];
-  const canClick = false;
-  
-  const points: string[] = [];
+function hexPoints(s: number) {
+  const pts: string[] = [];
   for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 180) * (60 * i - 30);
-    const px = hexSize * Math.cos(angle);
-    const py = hexSize * Math.sin(angle);
-    points.push(`${px},${py}`);
+    const a = (Math.PI / 180) * (60 * i - 30);
+    pts.push(`${(s * Math.cos(a)).toFixed(2)},${(s * Math.sin(a)).toFixed(2)}`);
   }
-  
-  let fillColor = style.fill;
-  let strokeColor = style.stroke;
-  let strokeWidth = 1;
-  
-  if (isCurrentPosition) {
-    fillColor = "#d97706";
-    strokeColor = "#fbbf24";
-    strokeWidth = 2.5;
-  } else if (!hex.isRevealed) {
-    fillColor = "#0f172a";
-    strokeColor = "#1e293b";
-  } else if (!hex.isExplored) {
-    fillColor = "#334155";
-    strokeColor = "#475569";
-  }
-  
-  const useGradient = hex.isExplored && !isCurrentPosition && hex.isRevealed;
-  const featureIcon = hex.isExplored ? getFeatureIcon(hex.terrainType) : null;
-  const showFeatureIcon = featureIcon && isFeatureHex(category);
-  const hasEntities = hex.hexMeta?.entities && hex.hexMeta.entities.length > 0;
-  const hasHostile = hex.hexMeta?.entities?.some(e => e.hostile);
-  
-  return (
-    <g 
-      transform={`translate(${x}, ${y})`}
-      onClick={canClick ? onClick : undefined}
-      onMouseEnter={() => onHover?.(hex)}
-      onMouseLeave={() => onHover?.(null)}
-      style={{ cursor: canClick ? "pointer" : "default" }}
-    >
-      <polygon
-        points={points.join(" ")}
-        fill={useGradient ? `url(#${style.gradientId})` : fillColor}
-        stroke={strokeColor}
-        strokeWidth={strokeWidth}
-        opacity={hex.isRevealed ? 0.9 : 0.7}
-        style={{ transition: "all 0.2s ease" }}
-      />
-      
-      {hex.isRevealed && (
-        <g style={{ pointerEvents: "none" }}>
-          {isCurrentPosition && (
-            <>
-              <circle r={hexSize * 0.3} fill="white" opacity={0.9}>
-                <animate attributeName="opacity" values="0.7;1;0.7" dur="2s" repeatCount="indefinite" />
-              </circle>
-              <circle r={hexSize * 0.45} fill="none" stroke="#fcd34d" strokeWidth={1.5} opacity={0.6}>
-                <animate attributeName="r" values={`${hexSize * 0.35};${hexSize * 0.5};${hexSize * 0.35}`} dur="2s" repeatCount="indefinite" />
-                <animate attributeName="opacity" values="0.6;0.2;0.6" dur="2s" repeatCount="indefinite" />
-              </circle>
-            </>
-          )}
-          
-          {!isCurrentPosition && hex.isExplored && (
-            <>
-              {showFeatureIcon && (
-                <text 
-                  textAnchor="middle" 
-                  dominantBaseline="middle"
-                  style={{ fontSize: compact ? '10px' : '13px' }}
-                >
-                  {featureIcon}
-                </text>
-              )}
-              {hasEntities && (
-                <g transform={`translate(${hexSize * 0.35}, ${-hexSize * 0.3})`}>
-                  <circle r={compact ? 4 : 6} fill={hasHostile ? "#991b1b" : "#1e40af"} stroke={hasHostile ? "#ef4444" : "#60a5fa"} strokeWidth={1} />
-                  <text 
-                    textAnchor="middle" 
-                    dominantBaseline="middle"
-                    style={{ fontSize: compact ? '6px' : '8px' }}
-                  >
-                    {hasHostile ? "⚔️" : "👤"}
-                  </text>
-                </g>
-              )}
-            </>
-          )}
-          
-          {!isCurrentPosition && !hex.isExplored && hex.isRevealed && hasEntities && (
-            <text 
-              textAnchor="middle" 
-              dominantBaseline="middle"
-              style={{ fontSize: compact ? '10px' : '13px' }}
-            >
-              {hasHostile ? "⚠️" : "❓"}
-            </text>
-          )}
-          
-          {!isCurrentPosition && !hex.isExplored && isAdjacent && !hasEntities && (
-            <text 
-              textAnchor="middle" 
-              dominantBaseline="middle" 
-              fill="#fbbf24"
-              opacity={0.7}
-              style={{ fontSize: compact ? "6px" : "10px" }}
-            >
-              ?
-            </text>
-          )}
-        </g>
-      )}
-    </g>
-  );
+  return pts.join(" ");
+}
+
+/** Short label for a place name on the map. */
+function shortName(name: string, max: number) {
+  const n = name.replace(/^the\s+/i, "");
+  return n.length > max ? `${n.slice(0, max - 1).trimEnd()}…` : n;
 }
 
 export function ProceduralExplorationMap({ 
@@ -509,27 +287,50 @@ export function ProceduralExplorationMap({
     return Array.from(hexMap.values());
   }, [hexes, state, campaignId]);
   
+  // Frame the places you know (explored or revealed), not the blank ring of fog around them.
   const bounds = useMemo(() => {
-    if (allHexesWithFog.length === 0) return { minX: -100, maxX: 100, minY: -100, maxY: 100 };
-    
+    const known = allHexesWithFog.filter((h) => h.isExplored || h.isRevealed);
+    const list = known.length ? known : allHexesWithFog;
+    if (list.length === 0) return { minX: -100, maxX: 100, minY: -100, maxY: 100 };
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const hex of allHexesWithFog) {
+    for (const hex of list) {
       const { x, y } = axialToPixel(hex.q, hex.r, hexSize);
       minX = Math.min(minX, x);
       maxX = Math.max(maxX, x);
       minY = Math.min(minY, y);
       maxY = Math.max(maxY, y);
     }
-    
-    const padding = hexSize * 2;
-    return {
-      minX: minX - padding,
-      maxX: maxX + padding,
-      minY: minY - padding,
-      maxY: maxY + padding
-    };
+    const padding = hexSize * 1.25;
+    return { minX: minX - padding, maxX: maxX + padding, minY: minY - padding, maxY: maxY + padding };
   }, [allHexesWithFog, hexSize]);
   
+  // Route: explored places in the order they were reached, joined where they touch.
+  const routeSegments = useMemo(() => {
+    const steps = hexes.filter((h) => h.isExplored).sort((a, b) => String(a.exploredAt ?? "").localeCompare(String(b.exploredAt ?? "")) || a.id - b.id);
+    const segs: string[] = [];
+    let path = "";
+    let prev: ExplorationHex | null = null;
+    for (const h of steps) {
+      const { x, y } = axialToPixel(h.q, h.r, hexSize);
+      const d = prev ? Math.max(Math.abs(prev.q - h.q), Math.abs(prev.r - h.r), Math.abs(prev.q + prev.r - h.q - h.r)) : 99;
+      if (d === 1) path += ` L${x.toFixed(1)},${y.toFixed(1)}`;
+      else {
+        if (path.includes("L")) segs.push(path);
+        path = `M${x.toFixed(1)},${y.toFixed(1)}`;
+      }
+      prev = h;
+    }
+    if (path.includes("L")) segs.push(path);
+    return segs;
+  }, [hexes, hexSize]);
+
+  const legendCategories = useMemo(() => {
+    const seen = new Set<TerrainCategory>();
+    for (const h of hexes) if (h.isExplored || h.isRevealed) seen.add(classifyTerrain(h.terrainType));
+    seen.delete("unknown");
+    return Array.from(seen);
+  }, [hexes]);
+
   if (isLoading) {
     return (
       <Card className={`bg-slate-900/80 border-slate-700 ${compact ? "" : "h-64"}`}>
@@ -573,209 +374,240 @@ export function ProceduralExplorationMap({
   
   const viewBoxWidth = bounds.maxX - bounds.minX;
   const viewBoxHeight = bounds.maxY - bounds.minY;
-  
+  const k = hexSize / 28; // symbol scale: symbols are drawn for a 28px hex
+  const cur = state ? { q: state.currentHexQ, r: state.currentHexR } : null;
+  const ordered = [...allHexesWithFog].sort((a, b) => a.r - b.r || a.q - b.q);
+  const hovered = hoveredHex && (hoveredHex.isRevealed || adjacentCoords.has(`${hoveredHex.q},${hoveredHex.r}`)) ? hoveredHex : null;
+
   return (
-    <Card className={`bg-slate-900/80 border-slate-700 ${compact ? "" : ""}`}>
+    <Card className="bg-slate-900/80 border-slate-700" data-testid="campaign-exploration-map">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2 text-amber-400">
             <Compass className="h-4 w-4" />
             Exploration Map
           </CardTitle>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs bg-amber-500/20 border-amber-500/50">
-              <Footprints className="h-3 w-3 mr-1" />
-              {state?.exploredHexCount || 0} explored
-            </Badge>
-          </div>
+          <Badge variant="outline" className="text-xs bg-amber-500/20 border-amber-500/50">
+            <Footprints className="h-3 w-3 mr-1" />
+            {state?.exploredHexCount || 0} explored
+          </Badge>
         </div>
       </CardHeader>
       <CardContent className="p-2">
-        <div 
-          className={`relative ${compact ? "h-44" : "h-64"} bg-slate-950 rounded-lg overflow-hidden border border-slate-800 ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+        <div
+          className={`relative ${compact ? "h-56" : "h-72"} rounded-lg overflow-hidden border-[3px] border-[#5a3e22] shadow-[inset_0_0_30px_rgba(60,35,10,0.5)] bg-[#ecdfbd] ${isPanning ? "cursor-grabbing" : "cursor-grab"}`}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
           onWheel={handleWheel}
         >
-          <svg 
+          <svg
             ref={svgRef}
             viewBox={`${bounds.minX} ${bounds.minY} ${viewBoxWidth} ${viewBoxHeight}`}
-            className="w-full h-full"
+            className="w-full h-full select-none"
             preserveAspectRatio="xMidYMid meet"
-            style={{
-              transform: `scale(${zoom}) translate(${panOffset.x / zoom}px, ${panOffset.y / zoom}px)`,
-              transformOrigin: 'center center'
-            }}
+            style={{ transform: `scale(${zoom}) translate(${panOffset.x / zoom}px, ${panOffset.y / zoom}px)`, transformOrigin: "center center" }}
           >
             <defs>
-              {Object.entries(TERRAIN_STYLES).map(([key, s]) => (
-                <radialGradient key={key} id={s.gradientId} cx="40%" cy="35%" r="70%">
-                  <stop offset="0%" stopColor={s.stroke} stopOpacity="0.9" />
-                  <stop offset="100%" stopColor={s.fill} stopOpacity="0.85" />
-                </radialGradient>
-              ))}
+              <filter id={`cem-paper-${campaignId}`} x="0" y="0" width="100%" height="100%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves={3} seed={4} result="n" />
+                <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.45  0 0 0 0 0.33  0 0 0 0 0.18  0 0 0 0.16 0" />
+              </filter>
+              <filter id={`cem-wash-${campaignId}`} x="-10%" y="-10%" width="120%" height="120%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves={2} seed={2} result="n" />
+                <feDisplacementMap in="SourceGraphic" in2="n" scale={3 * k} />
+              </filter>
             </defs>
-            {allHexesWithFog.map((hex) => (
-              <HexTile
-                key={`${hex.q},${hex.r}`}
-                hex={hex}
-                isCurrentPosition={hex.q === state?.currentHexQ && hex.r === state?.currentHexR}
-                isAdjacent={adjacentCoords.has(`${hex.q},${hex.r}`)}
-                onClick={() => handleHexClick(hex)}
-                onHover={handleHexHover}
-                interactive={interactive && !isMoving && !isPanning}
-                hexSize={hexSize}
-                compact={compact}
-              />
-            ))}
+            <rect x={bounds.minX - viewBoxWidth} y={bounds.minY - viewBoxHeight} width={viewBoxWidth * 3} height={viewBoxHeight * 3} fill="#ecdfbd" />
+            <rect x={bounds.minX - viewBoxWidth} y={bounds.minY - viewBoxHeight} width={viewBoxWidth * 3} height={viewBoxHeight * 3} filter={`url(#cem-paper-${campaignId})`} />
+
+            {/* washes: explored strong, revealed faint, unknown blank */}
+            <g filter={`url(#cem-wash-${campaignId})`}>
+              {ordered.map((h) => {
+                if (!h.isRevealed && !h.isExplored) return null;
+                const { x, y } = axialToPixel(h.q, h.r, hexSize);
+                const c = classifyTerrain(h.terrainType);
+                return (
+                  <polygon key={`w${h.q},${h.r}`} transform={`translate(${x},${y})`} points={hexPoints(hexSize * 0.98)}
+                    fill={CATEGORY_WASH[c]} opacity={h.isExplored ? 0.95 : 0.35} />
+                );
+              })}
+            </g>
+
+            {/* grid */}
+            <g fill="none" stroke={INK}>
+              {ordered.map((h) => {
+                const { x, y } = axialToPixel(h.q, h.r, hexSize);
+                return <polygon key={`g${h.q},${h.r}`} transform={`translate(${x},${y})`} points={hexPoints(hexSize)} strokeWidth={0.6 * k} opacity={h.isExplored ? 0.5 : h.isRevealed ? 0.3 : 0.14} />;
+              })}
+            </g>
+
+            {/* terrain symbols: inked where explored, pencilled where only seen */}
+            {ordered.map((h) => {
+              if (!h.isRevealed && !h.isExplored) return null;
+              const c = classifyTerrain(h.terrainType);
+              if (c === "unknown" && !h.isExplored) return null;
+              const { x, y } = axialToPixel(h.q, h.r, hexSize);
+              return (
+                <g key={`t${h.q},${h.r}`} transform={`translate(${x},${y}) scale(${k * 1.15})`} opacity={h.isExplored ? 1 : 0.5} style={{ pointerEvents: "none" }}>
+                  <CampaignTerrainInk category={c} q={h.q} r={h.r} ink={h.isExplored ? INK : PENCIL} pencil={!h.isExplored} />
+                </g>
+              );
+            })}
+
+            {/* the party's route, in the order places were explored */}
+            <g fill="none" stroke={ROUTE} strokeWidth={2.2 * k} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={`0.1 ${4.2 * k}`} opacity={0.85} style={{ pointerEvents: "none" }}>
+              {routeSegments.map((d, i) => <path key={i} d={d} />)}
+            </g>
+
+            {/* NPCs and threats */}
+            {ordered.map((h) => {
+              const ents = h.hexMeta?.entities ?? [];
+              if (!ents.length || (!h.isExplored && !h.isRevealed)) return null;
+              if (cur && h.q === cur.q && h.r === cur.r) return null;
+              const hostile = ents.some((e) => e.hostile);
+              const { x, y } = axialToPixel(h.q, h.r, hexSize);
+              return (
+                <g key={`e${h.q},${h.r}`} transform={`translate(${x + hexSize * 0.42},${y - hexSize * 0.38}) scale(${k})`} style={{ pointerEvents: "none" }}>
+                  <circle r={6.5} fill={hostile ? "#f3d9cf" : "#dbe6f0"} stroke={hostile ? ROUTE : "#2f4f78"} strokeWidth={1} />
+                  <text textAnchor="middle" dominantBaseline="central" style={{ fontSize: 7.5 }}>{h.isExplored ? (hostile ? "⚔️" : "👤") : hostile ? "!" : "?"}</text>
+                </g>
+              );
+            })}
+
+            {/* place names */}
+            {ordered.map((h) => {
+              if (!h.isExplored || !h.locationName) return null;
+              const c = classifyTerrain(h.terrainType);
+              const isCur = cur && h.q === cur.q && h.r === cur.r;
+              // Narrow map: only where you are. Wide map: where you are and every built place.
+              if (!isCur && (compact || !isBuiltPlace(c))) return null;
+              const { x, y } = axialToPixel(h.q, h.r, hexSize);
+              return (
+                <text key={`n${h.q},${h.r}`} x={x} y={y + hexSize * 0.82} textAnchor="middle" fontFamily="Cinzel, serif" fontWeight={700}
+                  fontSize={compact ? 7.5 * k : 5.6 * k} fill={INK} stroke="#ecdfbd" strokeWidth={2 * k} paintOrder="stroke" style={{ pointerEvents: "none" }}>
+                  {shortName(h.locationName, compact ? 20 : 13)}
+                </text>
+              );
+            })}
+
+            {/* hover targets, and the next steps the story can take */}
+            {ordered.map((h) => {
+              const { x, y } = axialToPixel(h.q, h.r, hexSize);
+              const adj = adjacentCoords.has(`${h.q},${h.r}`) && !h.isExplored;
+              const on = hoveredHex?.q === h.q && hoveredHex?.r === h.r;
+              return (
+                <polygon key={`h${h.q},${h.r}`} transform={`translate(${x},${y})`} points={hexPoints(hexSize - 1.5 * k)}
+                  fill={on ? "rgba(155,28,28,0.10)" : "rgba(0,0,0,0)"}
+                  stroke={adj ? INK : on ? ROUTE : "none"} strokeWidth={(adj ? 0.9 : 1.4) * k} strokeDasharray={adj ? `${3 * k} ${2.5 * k}` : undefined} opacity={0.85}
+                  onMouseEnter={() => handleHexHover(h)} onMouseLeave={() => handleHexHover(null)} />
+              );
+            })}
+
+            {/* the party: a pennant */}
+            {cur && (() => {
+              const { x, y } = axialToPixel(cur.q, cur.r, hexSize);
+              return (
+                <g transform={`translate(${x},${y}) scale(${k})`} style={{ pointerEvents: "none" }}>
+                  <polygon points={hexPoints(26.5)} fill="none" stroke={ROUTE} strokeWidth={2} />
+                  <ellipse cx={0} cy={8} rx={6} ry={2} fill={INK} opacity={0.3} />
+                  <line x1={-1} y1={8} x2={-1} y2={-13} stroke={INK} strokeWidth={1.4} strokeLinecap="round" />
+                  <path d="M-0.4,-13 L11,-9.5 L-0.4,-5.5 Z" fill={ROUTE} stroke={INK} strokeWidth={0.6}>
+                    <animate attributeName="d" dur="2.4s" repeatCount="indefinite" values="M-0.4,-13 L11,-9.5 L-0.4,-5.5 Z;M-0.4,-13 Q5,-10.5 10,-8.5 L-0.4,-5.5 Z;M-0.4,-13 L11,-9.5 L-0.4,-5.5 Z" />
+                  </path>
+                  <circle cx={-1} cy={-13.5} r={1.2} fill="#d4a017" stroke={INK} strokeWidth={0.4} />
+                </g>
+              );
+            })()}
           </svg>
-          
+
+          <div className="absolute top-2 left-2 pointer-events-none opacity-90 scale-75 origin-top-left"><CompassRose /></div>
+
           {/* Zoom Controls */}
           <div className="absolute top-2 right-2 flex flex-col gap-1">
-            <Button
-              size="icon"
-              variant="secondary"
-              className="h-7 w-7 bg-slate-800/90 hover:bg-slate-700 border border-slate-600"
-              onClick={(e) => { e.stopPropagation(); handleZoomIn(); }}
-              title="Zoom In"
-            >
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-            <Button
-              size="icon"
-              variant="secondary"
-              className="h-7 w-7 bg-slate-800/90 hover:bg-slate-700 border border-slate-600"
-              onClick={(e) => { e.stopPropagation(); handleZoomOut(); }}
-              title="Zoom Out"
-            >
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-            <Button
-              size="icon"
-              variant="secondary"
-              className="h-7 w-7 bg-slate-800/90 hover:bg-slate-700 border border-slate-600"
-              onClick={(e) => { e.stopPropagation(); handleResetView(); }}
-              title="Reset View"
-            >
-              <Maximize2 className="h-4 w-4" />
-            </Button>
+            {[
+              { icon: ZoomIn, fn: handleZoomIn, t: "Zoom in" },
+              { icon: ZoomOut, fn: handleZoomOut, t: "Zoom out" },
+              { icon: Maximize2, fn: handleResetView, t: "Reset view" },
+            ].map(({ icon: Icon, fn, t }) => (
+              <Button key={t} size="icon" variant="secondary" title={t}
+                className="h-7 w-7 bg-[#f3e9cf]/90 hover:bg-[#f3e9cf] text-[#3b2a17] border border-[#5a3e22]/60"
+                onClick={(e) => { e.stopPropagation(); fn(); }} onMouseDown={(e) => e.stopPropagation()}>
+                <Icon className="h-4 w-4" />
+              </Button>
+            ))}
           </div>
-          
-          {/* Zoom indicator */}
+
           {zoom !== 1 && (
-            <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-slate-800/90 rounded text-xs text-slate-300 border border-slate-600">
+            <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-[#f3e9cf]/90 rounded text-xs text-[#3b2a17] border border-[#5a3e22]/50">
               {Math.round(zoom * 100)}%
             </div>
           )}
-          
+
           {isMoving && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
+            <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-amber-700" />
             </div>
           )}
         </div>
-        
-        {/* Map Legend */}
-        <div className="mt-2 p-2 bg-slate-800/80 rounded text-xs border border-slate-700">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-slate-400 font-medium">Terrain</span>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-amber-500 border border-amber-400"></div>
-              <span className="text-slate-300">You</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-4 gap-x-3 gap-y-1">
-            {LEGEND_TERRAIN.map(({ category, label }) => {
-              const s = TERRAIN_STYLES[category];
-              const isHighlighted = hoveredTerrainCategory === category;
+
+        {/* What's under the cursor */}
+        {hovered ? (
+          <div className="mt-2 rounded-md border border-[#5a3e22]/60 bg-[#f3e9cf] px-3 py-2" data-testid="campaign-map-hover">
+            {(() => {
+              const c = classifyTerrain(hovered.terrainType);
               return (
-                <div 
-                  key={category}
-                  className={`flex items-center gap-1.5 px-1 py-0.5 rounded transition-all duration-150 ${
-                    isHighlighted ? "bg-white/10 ring-1 ring-amber-400/50" : ""
-                  }`}
-                >
-                  <div 
-                    className="w-3 h-3 rounded-sm flex-shrink-0"
-                    style={{ 
-                      background: `linear-gradient(135deg, ${s.stroke}, ${s.fill})`,
-                      border: `1px solid ${s.stroke}`,
-                      boxShadow: isHighlighted ? `0 0 4px ${s.stroke}` : "none"
-                    }}
-                  />
-                  <span className={`${isHighlighted ? "text-amber-300 font-medium" : "text-slate-300"} truncate`}>
-                    {label}
-                  </span>
+                <div className="flex items-center gap-2">
+                  <svg viewBox="-16 -14 32 28" className="w-8 h-7 rounded-sm flex-shrink-0" style={{ background: "#ecdfbd" }} aria-hidden>
+                    <polygon points={hexPoints(14)} fill={CATEGORY_WASH[c]} />
+                    <g transform="scale(0.6)"><CampaignTerrainInk category={c} q={hovered.q} r={hovered.r} /></g>
+                  </svg>
+                  <div className="min-w-0">
+                    <p className="font-[Cinzel,serif] text-xs font-bold text-[#3b2a17] truncate">
+                      {hovered.locationName || (hovered.isExplored ? CATEGORY_LABEL[c] : "Unexplored")}
+                    </p>
+                    {hovered.isExplored && <p className="font-[Alegreya,serif] text-[11px] text-[#4a3722] capitalize">{hovered.terrainType}</p>}
+                  </div>
                 </div>
               );
-            })}
-          </div>
-          <div className="border-t border-slate-700/50 mt-1.5 pt-1.5">
-            <span className="text-slate-400 font-medium text-[10px] uppercase tracking-wide">Features</span>
-            <div className="grid grid-cols-3 gap-x-3 gap-y-0.5 mt-0.5">
-              {LEGEND_FEATURES.map(({ icon, label }) => (
-                <div key={label} className="flex items-center gap-1">
-                  <span className="text-[10px]">{icon}</span>
-                  <span className="text-slate-400">{label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        
-        {hoveredHex && (hoveredHex.isRevealed || adjacentCoords.has(`${hoveredHex.q},${hoveredHex.r}`)) && (
-          <div className="mt-2 p-2 bg-slate-800/90 rounded text-sm border border-slate-700">
-            <div className="flex items-center gap-2">
-              {(() => {
-                const cat = classifyTerrain(hoveredHex.terrainType);
-                const s = TERRAIN_STYLES[cat];
-                return (
-                  <div 
-                    className="w-5 h-5 rounded flex-shrink-0"
-                    style={{ background: `linear-gradient(135deg, ${s.stroke}, ${s.fill})`, border: `1px solid ${s.stroke}` }}
-                  />
-                );
-              })()}
-              <div>
-                <div className="font-medium text-amber-300">
-                  {hoveredHex.locationName || (hoveredHex.isExplored ? hoveredHex.terrainType : "Unexplored")}
-                </div>
-                {hoveredHex.isExplored && (
-                  <span className="text-xs text-slate-500 capitalize">{hoveredHex.terrainType}</span>
-                )}
-              </div>
-            </div>
-            {hoveredHex.locationDescription && (
-              <p className="text-xs text-slate-400 mt-1 line-clamp-2">
-                {hoveredHex.locationDescription}
-              </p>
+            })()}
+            {hovered.locationDescription && <p className="font-[Alegreya,serif] text-[12px] leading-snug text-[#4a3722] mt-1 line-clamp-3">{hovered.locationDescription}</p>}
+            {hovered.hexMeta?.narrativeTone && (
+              <p className="text-[11px] text-[#6b3f8a] mt-1 flex items-center gap-1"><Sparkles className="h-3 w-3" /> {hovered.hexMeta.narrativeTone}</p>
             )}
-            {hoveredHex.hexMeta?.narrativeTone && (
-              <div className="text-xs text-purple-400 mt-1 flex items-center gap-1">
-                <Sparkles className="h-3 w-3" /> {hoveredHex.hexMeta.narrativeTone}
-              </div>
-            )}
-            {hoveredHex.hexMeta?.entities && hoveredHex.hexMeta.entities.length > 0 && (
-              <div className="text-xs mt-1 flex flex-wrap gap-1">
-                {hoveredHex.hexMeta.entities.map((entity, idx) => (
-                  <span 
-                    key={idx}
-                    className={`px-1.5 py-0.5 rounded ${entity.hostile ? 'bg-red-900/60 text-red-300' : 'bg-blue-900/60 text-blue-300'}`}
-                  >
-                    {entity.hostile ? '⚔️' : '👤'} {entity.name}
+            {!!hovered.hexMeta?.entities?.length && (
+              <div className="text-[11px] mt-1 flex flex-wrap gap-1">
+                {hovered.hexMeta.entities.map((e, i) => (
+                  <span key={i} className={`px-1.5 py-0.5 rounded border ${e.hostile ? "border-red-800/40 bg-red-100 text-red-900" : "border-blue-800/30 bg-blue-50 text-blue-900"}`}>
+                    {e.hostile ? "⚔️" : "👤"} {e.name}
                   </span>
                 ))}
               </div>
             )}
-            {!hoveredHex.isExplored && adjacentCoords.has(`${hoveredHex.q},${hoveredHex.r}`) && (
-              <p className="text-xs text-slate-400 mt-1 italic">
-                Advance the story to explore this area
-              </p>
+            {!hovered.isExplored && adjacentCoords.has(`${hovered.q},${hovered.r}`) && (
+              <p className="font-[Alegreya,serif] italic text-[11px] text-[#4a3722] mt-1">Advance the story to explore this area.</p>
             )}
           </div>
-        )}
+        ) : null}
+
+        {/* Legend: only what's on this map */}
+        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1.5 px-1" data-testid="campaign-map-legend">
+          {legendCategories.map((c) => (
+            <div key={c} className={`flex items-center gap-1.5 text-[11px] rounded px-0.5 ${hoveredTerrainCategory === c ? "ring-1 ring-amber-400/60 text-amber-200" : "text-slate-300"}`}>
+              <svg viewBox="-16 -14 32 28" className="w-6 h-5 rounded-sm" style={{ background: "#ecdfbd" }} aria-hidden>
+                <polygon points={hexPoints(14)} fill={CATEGORY_WASH[c]} opacity={0.9} />
+                <g transform="scale(0.6)"><CampaignTerrainInk category={c} q={3} r={5} /></g>
+              </svg>
+              <span>{CATEGORY_LABEL[c]}</span>
+            </div>
+          ))}
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-300">
+            <svg viewBox="0 0 24 10" className="w-6 h-3" aria-hidden><path d="M2,5 L22,5" stroke={ROUTE} strokeWidth={2} strokeDasharray="0.1 4" strokeLinecap="round" /></svg>
+            <span>Your route</span>
+          </div>
+          <div className="flex items-center gap-1 text-[11px] text-slate-300"><span>👤</span><span>NPC</span><span className="ml-1.5">⚔️</span><span>Hostile</span></div>
+        </div>
       </CardContent>
     </Card>
   );
