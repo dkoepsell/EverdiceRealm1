@@ -172,7 +172,7 @@ function App() {
     // (navbar, providers, alerts) would sail past it and blank the app.
     <ErrorBoundary label="root">
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider attribute="class" defaultTheme="dark">
+        <ThemeProvider attribute="class" defaultTheme="dark" themes={["dark", "light", "eink"]} enableSystem={false}>
           <TooltipProvider>
             <AudioProvider>
               <AuthProvider>
