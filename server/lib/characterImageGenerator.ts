@@ -27,14 +27,14 @@ export async function generateCharacterPortrait(characterDescription: {
     console.log(`Generating character portrait with prompt: ${prompt}`);
     
     const response: ImagesResponse = await openai.images.generate({
-      model: "gpt-image-1", // current OpenAI image model (dall-e-3 params like `style` are rejected)
+      model: "gpt-image-2", // current OpenAI image model (dall-e-3 params like `style` are rejected)
       prompt: prompt,
       n: 1,
       size: "1024x1024",
       quality: "medium",
     });
 
-    // gpt-image-1 returns base64, not a URL.
+    // gpt-image models return base64, not a URL.
     const b64 = response.data?.[0]?.b64_json;
     if (!b64) {
       throw new Error("No image data returned from OpenAI");
@@ -141,7 +141,7 @@ export async function generateMonsterPortrait(monsterDescription: {
     console.log(`Generating monster portrait with prompt: ${prompt}`);
     
     const response = await openai.images.generate({
-      model: "gpt-image-1",
+      model: "gpt-image-2",
       prompt: prompt,
       n: 1,
       size: "1024x1024",

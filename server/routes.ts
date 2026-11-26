@@ -224,14 +224,14 @@ async function generateCAMLCoverArt(title: string, summary: string, theme: strin
     const prompt = `Create a stunning fantasy adventure cover art for a tabletop RPG adventure called "${title}". Theme: ${theme}. ${summary.substring(0, 200)}. Style: Epic fantasy book cover art with dramatic lighting, rich colors, and an atmosphere of mystery and adventure. The image should evoke the feeling of an exciting quest ahead, suitable for a fantasy RPG module cover.`;
 
     const response = await appOpenAI.images.generate({
-      model: "gpt-image-1", // current OpenAI image model (dall-e-3 rejects `style`)
+      model: "gpt-image-2", // current OpenAI image model (dall-e-3 rejects `style`)
       prompt,
       n: 1,
       size: "1024x1024",
       quality: "medium",
     });
 
-    // gpt-image-1 returns base64, not a URL.
+    // gpt-image models return base64, not a URL.
     const b64 = response.data?.[0]?.b64_json;
     if (!b64) return "";
     const imageBuffer = Buffer.from(b64, "base64");
@@ -2295,14 +2295,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("Testing OpenAI portrait generation...");
       const response = await openai.images.generate({
-        model: "gpt-image-1", // current OpenAI image model (dall-e-3 rejects `style`)
+        model: "gpt-image-2", // current OpenAI image model (dall-e-3 rejects `style`)
         prompt: testPrompt,
         n: 1,
         size: "1024x1024",
         quality: "medium",
       });
 
-      // gpt-image-1 returns base64, not a URL.
+      // gpt-image models return base64, not a URL.
       const b64 = response.data?.[0]?.b64_json;
       if (!b64) {
         throw new Error("No image data returned from OpenAI");
@@ -2768,14 +2768,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       const response = await openai.images.generate({
-        model: "gpt-image-1", // current OpenAI image model (dall-e-3 rejects `style`)
+        model: "gpt-image-2", // current OpenAI image model (dall-e-3 rejects `style`)
         prompt: prompt,
         n: 1,
         size: "1024x1024",
         quality: "medium",
       });
 
-      // gpt-image-1 returns base64 — persist it to object storage and return a stable URL
+      // gpt-image models return base64 — persist it to object storage and return a stable URL
       // (the old dall-e URL was temporary and expired).
       const b64 = response.data?.[0]?.b64_json;
       if (!b64) {
