@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<defs>
+<radialGradient id="bg" cx="35%" cy="30%" r="80%"><stop offset="0" stop-color="#3a2614"/><stop offset="1" stop-color="#140d07"/></radialGradient>
+<linearGradient id="front" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#fef3c7"/><stop offset="1" stop-color="#fbbf24"/></linearGradient>
+</defs>
+<rect width="64" height="64" rx="14" fill="url(#bg)"/><g transform="translate(0.00,0.00) scale(1.0)" stroke="#2a1a0c" stroke-width="1.2" stroke-linejoin="round"><polygon points="32.0,5.0 9.0,18.0 32.0,16.0" fill="#fde68a"/><polygon points="32.0,5.0 55.0,18.0 32.0,16.0" fill="#f59e0b"/><polygon points="9.0,18.0 16.5,42.0 32.0,16.0" fill="#fcd34d"/><polygon points="55.0,18.0 47.5,42.0 32.0,16.0" fill="#d97706"/><polygon points="9.0,18.0 9.0,46.0 16.5,42.0" fill="#f59e0b"/><polygon points="55.0,18.0 55.0,46.0 47.5,42.0" fill="#b45309"/><polygon points="9.0,46.0 32.0,59.0 16.5,42.0" fill="#d97706"/><polygon points="55.0,46.0 32.0,59.0 47.5,42.0" fill="#92400e"/><polygon points="16.5,42.0 47.5,42.0 32.0,59.0" fill="#b45309"/><polygon points="32.0,16.0 47.5,42.0 16.5,42.0" fill="url(#front)"/></g>
+</svg>
