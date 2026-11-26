@@ -17,6 +17,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import CoAdminBanner from "@/components/layout/CoAdminBanner";
 import GuestBanner from "@/components/layout/GuestBanner";
+import { WhatsNewModal } from "@/components/whats-new/WhatsNew";
 import InvitationAlert from "@/components/InvitationAlert";
 import CampaignInvitationAlert from "@/components/CampaignInvitationAlert";
 import JoinCampaign from "@/pages/join-campaign";
@@ -53,6 +54,7 @@ const WanderPage = lazy(() => import("@/pages/wander"));
 const DelvePage = lazy(() => import("@/pages/delve"));
 const AISettingsPage = lazy(() => import("@/pages/ai-settings"));
 const HowItWorks = lazy(() => import("@/pages/how-it-works"));
+const WhatsNewPage = lazy(() => import("@/pages/whats-new"));
 const BlogPage = lazy(() => import("@/pages/blog"));
 
 function PageLoader() {
@@ -94,6 +96,7 @@ function Router() {
       />
       <CoAdminBanner />
       <GuestBanner />
+      <WhatsNewModal />
       <Navbar />
       <InvitationAlert />
       <CampaignInvitationAlert />
@@ -130,6 +133,7 @@ function Router() {
             <ProtectedRoute path="/profile" component={ProfilePage} />
             <ProtectedRoute path="/ai-settings" component={AISettingsPage} />
             <Route path="/how-it-works" component={HowItWorks} />
+            <Route path="/whats-new" component={WhatsNewPage} />
             <Route path="/dm-guide" component={DMGuidePage} />
             <Route path="/blog" component={BlogPage} />
             <Route path="/legal" component={LegalPage} />
