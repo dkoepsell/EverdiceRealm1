@@ -209,3 +209,21 @@ Ship each phase behind the existing per-campaign engagement flags so it can be c
 - Code decides hits, damage, saves, HP, conditions, morale, objectives and phase changes. The model never returns numbers for these.
 - Keep every current test passing, and add the tests named above.
 - Commit per phase in the repo's existing style ("Make X do Y").
+
+---
+
+## Implementation status (branch `danger-and-combat`, 2026-11-26)
+
+Behind two new per-campaign flags, both default on: `dangerPacing` and `fastCombatRounds`.
+
+| Phase | Status | Where |
+|---|---|---|
+| 0 Measure | Done: beat and pacing on `turn_submitted`; `combat_started`, `combat_ended`, `hazard_resolved` events; report sections J to N | `scripts/engagement-report.sql`, `server/routes.ts` |
+| 1 Pacing, danger floor, skirmish and hazard beats, moving clocks | Done | `server/play/director/{beats,danger,dangerTurn}.ts`, `server/play/clocks.ts`, `client/src/components/campaign/DangerPacingSetting.tsx` |
+| 2 One combat engine | Partly: campaign monsters now use the SRD stat blocks and the skirmish engine's rules (multiattack, Pack Tactics, poison, knock-prone) through `monsterRound.ts`. Not done: one shared initiative-ordered `CombatState` for the party, and real death saves at Balanced/Action (today's death-save handling is unchanged). | `server/play/combat/monsterRound.ts` |
+| 3 Enemies, roles, tactics, telegraphs | Done with 54 monsters (spec asked for about 80). Role tactics, telegraphed recharge breath weapons, Dodge advantage on Dex saves. | `shared/rules/monsters.ts`, `server/play/combat/monsterRound.ts` |
+| 4 Battlefield and twists | Done: cover, push hazards, Use an Object, reinforcements. Not done: boss phase changes and lair actions; zones are still labels only. | `shared/rules/battlefield.ts`, `CombatTurnPanel.tsx` |
+| 5 Fast rounds | Done: routine combat-panel rounds make no model call. | `server/play/combat/fastRound.ts` |
+| 6 Hazards, traps, chases | Partly: hazards and traps with saving throws (16 types) and the 'Saving throws' and 'Traps and hazards' explainers. Not done: chases in campaigns, exhaustion challenges, and the two new learning-path lessons. | `server/play/director/danger.ts` |
+
+Tests: `tests/directorDanger.test.ts`, `tests/monsterRound.test.ts`, `tests/battlefield.test.ts`, `tests/fastRound.test.ts`.
