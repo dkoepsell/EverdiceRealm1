@@ -18,11 +18,13 @@ import type { Express, Request, Response } from "express";
 import { storage } from "../../storage";
 import type { Character } from "@shared/schema";
 import {
-  type CheckModifier, checkModifier, combineRollMode, describeCheck, dcLabel, normalizeSkill, resolveCheck, saveModifier, savingThrowAbility, validateDc,
+  type CheckCharacter, type CheckModifier, checkModifier, combineRollMode, describeCheck, dcLabel, normalizeSkill, resolveCheck, saveModifier, savingThrowAbility, validateDc,
 } from "@shared/rules/checks";
 import { signRollToken } from "./rollToken";
 import { itemAdvantages } from "@shared/rules/magicItems";
 import { recordRulesFired } from "../rules/rulesSeen";
+import { companionCheckCharacter } from "../companions/companions";
+import { loadCompanions } from "../companions/load";
 import { resolveFlags } from "@shared/engagementFlags";
 
 function parseStoryState(raw: unknown): any {
@@ -49,6 +51,8 @@ interface CheckContext {
   dc: number;
   helper: string | null;
   flags: ReturnType<typeof resolveFlags>;
+  /** A companion rolling their own skill (companions spec), or null for the player character. */
+  actor: string | null;
 }
 
 async function loadContext(req: Request, res: Response, skillRaw: unknown, action: unknown, dcHint: unknown): Promise<CheckContext | null> {
@@ -84,7 +88,21 @@ async function loadContext(req: Request, res: Response, skillRaw: unknown, actio
   const skill = normalizeSkill(choice?.skillType ?? skillRaw) ?? normalizeSkill(choice?.rollPurpose) ?? "strength";
   // A saving throw (hazards and traps, danger spec Phase 6) uses class save proficiency, not skills.
   const saveAbility = savingThrowAbility(choice?.skillType ?? skillRaw) ?? savingThrowAbility(choice?.rollPurpose);
-  const modifier = saveAbility ? saveModifier(character, saveAbility) : checkModifier(character, skill);
+  const flags = resolveFlags(campaign);
+  // Companions spec: a choice whose "actor" is a companion rolls with that companion's own modifier.
+  let actor: string | null = null;
+  let roller: CheckCharacter = character;
+  const actorWanted = typeof choice?.actor === "string" ? normText(choice.actor) : "";
+  if (flags.companionsAlive && actorWanted) {
+    const companions = await loadCompanions(campaignId);
+    const c = companions.find((x) => normText(x.name) === actorWanted || normText(x.name).split(" ")[0] === actorWanted.split(" ")[0]);
+    if (c && c.hp > 0) {
+      actor = c.name;
+      roller = companionCheckCharacter(c);
+    }
+  }
+  const base = saveAbility ? saveModifier(roller, saveAbility) : checkModifier(roller, skill);
+  const modifier = actor ? { ...base, label: `${actor}'s ${base.label}` } : base;
   const dc = validateDc(choice?.rollDC ?? dcHint);
 
   let helper: string | null = null;
@@ -93,14 +111,16 @@ async function loadContext(req: Request, res: Response, skillRaw: unknown, actio
     for (const cn of npcs) {
       if ((cn.role === "companion" || cn.role === "ally") && (cn.status ?? "conscious") === "conscious") {
         const npc = await storage.getNpc(cn.npcId);
-        if (npc?.name) {
+        if (npc?.name && npc.name !== actor) {
           helper = npc.name;
           break;
         }
       }
     }
   }
-  return { campaignId, userId, character, session, storyState, choice, modifier, dc, helper, flags: resolveFlags(campaign) };
+  // When a companion rolls, the player character can take the Help action for them.
+  if (actor) helper = character.name;
+  return { campaignId, userId, character, session, storyState, choice, modifier, dc, helper, flags, actor };
 }
 
 /** Advantage/disadvantage sources that already apply, with reasons (5e: they never stack). */
@@ -131,7 +151,9 @@ export function registerCheckRoutes(app: Express) {
         label: ctx.modifier.label,
         modifier: ctx.modifier,
         dcHidden: true,
-        inspiration: ctx.flags.inspiration && !!ctx.character.inspiration,
+        // Inspiration is the player character's own; a companion's roll can't spend it.
+        inspiration: ctx.flags.inspiration && !!ctx.character.inspiration && !ctx.actor,
+        actor: ctx.actor,
         inspirationSource: personality.bond || personality.ideal || null,
         helper: ctx.flags.inspiration ? ctx.helper : null,
         advantageReasons: adv,
@@ -153,7 +175,7 @@ export function registerCheckRoutes(app: Express) {
       const fired: { id: string; detail?: string }[] = [{ id: isSave ? "saving_throw" : "ability_check" }];
       let spentInspiration = false;
       let helped = false;
-      if (ctx.flags.inspiration && body.useInspiration && ctx.character.inspiration) {
+      if (ctx.flags.inspiration && body.useInspiration && ctx.character.inspiration && !ctx.actor) {
         adv.push("Inspiration");
         spentInspiration = true;
         fired.push({ id: "inspiration" });
@@ -201,6 +223,7 @@ export function registerCheckRoutes(app: Express) {
         disadvantageReasons: dis,
         spentInspiration,
         helpedBy: helped ? ctx.helper : null,
+        actor: ctx.actor,
         token,
         rulesFired: rules,
       });

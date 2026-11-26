@@ -35,7 +35,7 @@ const pick = <T,>(xs: T[], seed: number) => xs[Math.abs(seed) % xs.length];
  * One or two sentences for the round: what the player did, and whether the
  * target went down. `combatants` is the fight before the player's damage lands.
  */
-export function fastRoundNarrative(rollResult: any, combatants: any[] | null | undefined): string {
+export function fastRoundNarrative(rollResult: any, combatants: any[] | null | undefined, bark = ""): string {
   const summary = String(rollResult?.summary ?? "").trim() || "You press the attack.";
   const target = rollResult?.targetName
     ? (combatants ?? []).find((c: any) => c?.name === rollResult.targetName)
@@ -52,7 +52,7 @@ export function fastRoundNarrative(rollResult: any, combatants: any[] | null | u
   const extra = Array.isArray(rollResult?.extraDamage) && rollResult.extraDamage.length
     ? ` ${rollResult.extraDamage.map((x: any) => `${x.name} is caught too (${x.amount}).`).join(" ")}`
     : "";
-  return `${summary}${tail}${extra}`;
+  return `${summary}${tail}${extra}${bark ? `\n\n${bark}` : ""}`;
 }
 
 /** The structured result a fast round stands in for the model's JSON. */
