@@ -36,8 +36,9 @@ import { alignmentPromptLine } from "@shared/rules/alignment";
 import { backgroundFeatureFor } from "@shared/rules/backgrounds";
 import { processMonsterRound } from "./play/combat/monsterRound";
 import { registerTableRoutes } from "./play/table/routes";
+import { registerCompanionRoutes } from "./play/companions/routes";
 import { fastRoundAdvancement, fastRoundNarrative, isFastRound } from "./play/combat/fastRound";
-import { applyDeed, combatBark, parseBonds, partyPromptBlock, partyStreamLine, pickMoment } from "./play/companions/companions";
+import { applyDeed, combatBark, intentsPromptLine, parseBonds, parseIntents, partyPromptBlock, partyStreamLine, pickMoment } from "./play/companions/companions";
 import { applyDepartures, loadCompanions, syncCompanionsToLedger } from "./play/companions/load";
 import { saveModifier, savingThrowAbility } from "@shared/rules/checks";
 import { recordRulesFired } from "./play/rules/rulesSeen";
@@ -1716,6 +1717,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerCheckRoutes(app);
   registerLedgerRoutes(app);
   registerTableRoutes(app);
+  registerCompanionRoutes(app);
   registerCombatRoutes(app);
   registerSkirmishRoutes(app);
   registerDmPathRoutes(app);
@@ -18601,6 +18603,9 @@ Instead, describe environments that MATCH the campaign's actual setting and the 
           })
         : null;
       if (turnCompanions.length) promptExtras.context += `\n${partyPromptBlock(turnCompanions, turnBonds, turnMoment)}\n`;
+      const turnIntents = parseIntents(sessionStoryState.companionIntents);
+      const intentsLine = intentsPromptLine(turnCompanions, turnIntents);
+      if (intentsLine) promptExtras.context += `\n${intentsLine}\n`;
       // Emergent side quests (Play > Quests tab). Same decision the stream made.
       const openSideQuests = (await storage.getCampaignQuests(campaignId)).filter(isOpenSideQuest);
       const questHookDecision = decideQuestHook({
@@ -22177,6 +22182,10 @@ ${cachedNarrative}
         const applied = applyDeed(bonds, turnCompanions, newDeed);
         companionEvents = applied.events;
         (mergedStoryState as any).companionBonds = applied.bonds;
+        // A friend's words for their companion are spent by this scene; combat orders by the round below.
+        const leftover: Record<string, any> = {};
+        for (const [name, i] of Object.entries(turnIntents)) if (i.order && (mergedStoryState as any).inCombat) leftover[name] = { ...i, text: undefined };
+        (mergedStoryState as any).companionIntents = leftover;
         if (ledgerMerge) ledgerMerge.ledger = syncCompanionsToLedger(ledgerMerge.ledger, turnCompanions, applied.bonds, applied.events);
         await applyDepartures(turnCompanions, applied.events);
       }
@@ -22674,7 +22683,10 @@ ${cachedNarrative}
                 })
               )).filter((c): c is Combatant => c !== null);
 
-              const partyMembers = [playerCombatant, ...allyCombatants, ...companionCombatants];
+              // A companion whose player chose Dodge: attacks against them have disadvantage this round.
+              const dodgeOrders = parseIntents((currentSession.storyState as any)?.companionIntents);
+              const partyMembers = [playerCombatant, ...allyCombatants, ...companionCombatants.map((c) =>
+                dodgeOrders[c.name]?.order?.action === 'dodge' ? { ...c, conditions: [...(c.conditions ?? []), 'dodging'] } : c)];
 
               // Use CombatManager to resolve enemy attacks with proper D&D mechanics.
               // Held until the whole party has acted, so the monsters answer the
@@ -22795,7 +22807,12 @@ ${cachedNarrative}
               }
               
               // Process companion attacks against enemies (companions auto-attack!)
-              companionAttackResult = processCompanionAttacks(companionCombatants, enemyCombatants);
+              // Companions played by friends follow their orders (attack a target, or Dodge).
+              const orders = parseIntents((currentSession.storyState as any)?.companionIntents);
+              const attackers = companionCombatants
+                .filter((c) => orders[c.name]?.order?.action !== 'dodge')
+                .map((c) => (orders[c.name]?.order?.target ? { ...c, preferredTarget: orders[c.name]!.order!.target } : c));
+              companionAttackResult = processCompanionAttacks(attackers, enemyCombatants);
               
               // Merge companion attack logs into detailed combat logs
               detailedCombatLogs = [...detailedCombatLogs, ...companionAttackResult.logs];
@@ -25032,7 +25049,9 @@ Respond with JSON:
             rng: seededRng(`${campaignId}:companion:${campaign.currentSession || 1}:${Number(storyState.turnsInChapter) || 0}`),
           })
         : null;
-      const streamPartyLine = streamCompanions.length ? partyStreamLine(streamCompanions, streamBonds, streamMoment) : '';
+      const streamPartyLine = streamCompanions.length
+        ? [partyStreamLine(streamCompanions, streamBonds, streamMoment), intentsPromptLine(streamCompanions, parseIntents(storyState.companionIntents))].filter(Boolean).join('\n')
+        : '';
       const streamCharLine = [
         resolveFlags(campaign).alignmentCompass && streamActor ? alignmentPromptLine(streamActor.alignment, ((streamActor.personality ?? {}) as any).ideal ?? null) : '',
         resolveFlags(campaign).backgroundFeatures && streamActor && backgroundFeatureFor(streamActor.background)

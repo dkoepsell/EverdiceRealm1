@@ -3,6 +3,7 @@ import { LevelUpButton } from "@/components/character/LevelUpDialog";
 import { RollDialog, type ServerRollResult } from "@/components/play/RollDialog";
 import { BeatChip, TurnNotes, type TurnNotesData } from "@/components/play/TurnNotes";
 import { CompanionStrip } from "@/components/play/CompanionStrip";
+import { CompanionControl } from "@/components/play/CompanionControl";
 import { JournalButton } from "@/components/play/Journal";
 import { HereNow } from "@/components/play/HereNow";
 import { LegendPicker } from "@/components/play/LegendPicker";
@@ -4133,6 +4134,7 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                                 onTalk={(name) => handleChoiceSelection({ text: `I turn to ${name} and ask what they make of all this.`, action: `I turn to ${name} and ask what they make of all this.`, requiresDiceRoll: false, type: 'social' })}
                               />
                             )}
+                            {engagementFlags.companionsAlive && <CompanionControl campaignId={campaign.id} refreshKey={currentSession.sessionNumber} />}
                             <button
                               onClick={() => (narration === "idle" ? narrateScene(currentSession.narrative) : stopNarration())}
                               className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-200/90 bg-amber-900/30 border border-amber-600/30 rounded-lg hover:bg-amber-900/50 transition-colors"

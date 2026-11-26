@@ -38,6 +38,46 @@ export interface CompanionView {
   skills: string[];
   likes: DeedTag[];
   dislikes: DeedTag[];
+  /** A friend playing this companion (campaign_npcs.controlled_by), and their name. */
+  controlledBy?: number | null;
+  controllerName?: string | null;
+}
+
+/** What a friend playing a companion has told the game, kept on storyState.companionIntents. */
+export interface CompanionIntent {
+  text?: string;
+  order?: { action: "attack" | "dodge"; target?: string };
+  by: string;
+  at: string;
+}
+
+export function parseIntents(raw: unknown): Record<string, CompanionIntent> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, CompanionIntent> = {};
+  for (const [name, v] of Object.entries(raw as Record<string, any>)) {
+    if (!v || typeof v !== "object") continue;
+    const text = typeof v.text === "string" ? v.text.trim().slice(0, 400) : undefined;
+    const order = v.order && (v.order.action === "attack" || v.order.action === "dodge")
+      ? { action: v.order.action as "attack" | "dodge", target: typeof v.order.target === "string" ? v.order.target.slice(0, 60) : undefined }
+      : undefined;
+    if (!text && !order) continue;
+    out[name] = { text, order, by: String(v.by ?? "a friend").slice(0, 40), at: String(v.at ?? "") };
+  }
+  return out;
+}
+
+/** The narrator line for companions played by friends: say what they said, and don't put other words in their mouths. */
+export function intentsPromptLine(companions: CompanionView[], intents: Record<string, CompanionIntent>): string {
+  const played = companions.filter((c) => c.controlledBy);
+  if (!played.length) return "";
+  const lines = played.map((c) => {
+    const i = intents[c.name];
+    const who = c.controllerName ?? "a friend";
+    return i?.text
+      ? `- ${c.name} is played by ${who}, who says ${c.name} does or says: "${i.text}". Make exactly that happen in this scene, in ${c.name}'s voice, and show how others react.`
+      : `- ${c.name} is played by ${who}. Don't write new dialogue or decisions for ${c.name}; describe them briefly and leave room for their player.`;
+  });
+  return `COMPANIONS PLAYED BY FRIENDS:\n${lines.join("\n")}`;
 }
 
 const CLASSES = ["Barbarian", "Bard", "Cleric", "Druid", "Fighter", "Monk", "Paladin", "Ranger", "Rogue", "Sorcerer", "Warlock", "Wizard"];
@@ -264,7 +304,8 @@ export function pickMoment(
   bonds: Record<string, Bond>,
   opts: { beat: string; sceneIndex: number; inCombat: boolean; rng: () => number },
 ): Moment | null {
-  const present = companions.filter((c) => !bonds[c.name]?.left && c.status !== "dead" && c.hp > 0);
+  // A companion played by a friend speaks for themselves: the game doesn't give them moments.
+  const present = companions.filter((c) => !bonds[c.name]?.left && c.status !== "dead" && c.hp > 0 && !c.controlledBy);
   if (!present.length) return null;
   if (opts.inCombat || opts.beat === "combat" || opts.beat === "skirmish") return null;
 
@@ -335,7 +376,8 @@ export function partyPromptBlock(companions: CompanionView[], bonds: Record<stri
     const b = bonds[c.name] ?? { points: START_POINTS };
     const hurt = c.maxHp > 0 && c.hp < c.maxHp ? `, ${c.hp}/${c.maxHp} HP` : "";
     const down = c.hp <= 0 || c.status === "unconscious" ? ", UNCONSCIOUS" : "";
-    return `- ${c.name}: ${c.race} ${c.className} ${c.level}${hurt}${down}. ${c.personality ? `Personality: ${c.personality.slice(0, 140)}.` : ""} ${c.motivation ? `Wants: ${c.motivation.slice(0, 100)}.` : ""} ${c.voice ? `Voice: ${c.voice.slice(0, 100)}.` : ""} Values ${c.likes.join(" and ")}; dislikes ${c.dislikes.join(" and ")}. Feels ${moodWord(b.points)} toward the player. Skills: ${c.skills.join(", ").replace(/_/g, " ")}.`.replace(/\s+/g, " ").trim();
+    const playedBy = c.controlledBy ? ` (played by ${c.controllerName ?? "a friend"})` : "";
+    return `- ${c.name}${playedBy}: ${c.race} ${c.className} ${c.level}${hurt}${down}. ${c.personality ? `Personality: ${c.personality.slice(0, 140)}.` : ""} ${c.motivation ? `Wants: ${c.motivation.slice(0, 100)}.` : ""} ${c.voice ? `Voice: ${c.voice.slice(0, 100)}.` : ""} Values ${c.likes.join(" and ")}; dislikes ${c.dislikes.join(" and ")}. Feels ${moodWord(b.points)} toward the player. Skills: ${c.skills.join(", ").replace(/_/g, " ")}.`.replace(/\s+/g, " ").trim();
   });
   const parts = [
     `TRAVELLING WITH THE PLAYER (companions are people in the scene, not scenery; they stay present every scene even when quiet):\n${lines.join("\n")}`,

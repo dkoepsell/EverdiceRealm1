@@ -8,6 +8,15 @@ import { type BondEvent, type CompanionView, abilitiesFor, classFromNpc, inferVa
 
 export { syncCompanionsToLedger } from "./companions";
 
+const nameCache = new Map<number, string>();
+async function controllerName(userId: number): Promise<string> {
+  if (nameCache.has(userId)) return nameCache.get(userId)!;
+  const u: any = await storage.getUser(userId);
+  const name = String(u?.displayName || u?.username || "a friend").slice(0, 40);
+  nameCache.set(userId, name);
+  return name;
+}
+
 export async function loadCompanions(campaignId: number): Promise<CompanionView[]> {
   const rows = await storage.getCampaignNpcs(campaignId);
   const out: CompanionView[] = [];
@@ -35,6 +44,8 @@ export async function loadCompanions(campaignId: number): Promise<CompanionView[
       skills: skillsFor(npc, className),
       likes,
       dislikes,
+      controlledBy: cn.controlledBy ?? null,
+      controllerName: cn.controlledBy ? await controllerName(cn.controlledBy) : null,
     });
   }
   return out;
