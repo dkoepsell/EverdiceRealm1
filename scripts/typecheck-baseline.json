@@ -1,5 +1,5 @@
 {
-  "total": 326,
+  "total": 325,
   "counts": {
     "client/src/components/caml/AdventureGraph.tsx|TS2802": 1,
     "client/src/components/campaign/CampaignDeploymentTab.tsx|TS2339": 1,
@@ -37,7 +37,7 @@
     "server/routes.ts|TS18046": 7,
     "server/routes.ts|TS18048": 14,
     "server/routes.ts|TS2339": 53,
-    "server/routes.ts|TS2304": 13,
+    "server/routes.ts|TS2304": 12,
     "server/routes.ts|TS2322": 4,
     "server/routes.ts|TS2448": 2,
     "server/routes.ts|TS2741": 1,

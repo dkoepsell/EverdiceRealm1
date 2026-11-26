@@ -21516,7 +21516,9 @@ ${cachedNarrative}
                 .catch(() => {});
             }
 
-            const characterLevel = character?.level || 1;
+            // `playerCharacter` is the acting character loaded above; a bare
+            // `character` here was out of scope and threw, so rewards never generated.
+            const characterLevel = playerCharacter?.level || 1;
 
             postCombatRewardsData = generatePostCombatRewards(
               defeatedEnemyList,
