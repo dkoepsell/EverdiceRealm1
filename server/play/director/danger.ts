@@ -44,17 +44,17 @@ export function terrainFor(text: string | null | undefined): Terrain {
 
 /** Rosters that fit each terrain, most fitting first (keys of THEME_ROSTERS). */
 const TERRAIN_THEMES: Record<Terrain, string[]> = {
-  crypt: ["undead", "skeleton_guardian"],
-  cave: ["kobold", "goblin", "darkmantle", "cave_fisher", "ettercap"],
-  forest: ["wolf_pack", "goblin", "ettercap", "owlbear", "bandit"],
-  swamp: ["lizardfolk", "green_hag", "undead"],
-  coast: ["sahuagin", "bandit"],
-  desert: ["desert_bandit", "elemental", "giant_scorpion", "gnoll"],
-  mountain: ["goblin", "gnoll", "wolf_pack", "owlbear", "stone_giant", "wyvern"],
-  snow: ["wolf_pack", "winter_wolf"],
-  town: ["tavern_brawl", "bandit"],
-  ruin: ["goblin", "skeleton_guardian", "kobold", "bandit"],
-  road: ["bandit", "goblin", "wolf_pack", "gnoll"],
+  crypt: ["restless_dead", "undead", "skeleton_guardian", "haunted_keep"],
+  cave: ["goblinoid", "kobold", "darkmantle", "cave_fisher", "ettercap", "orc"],
+  forest: ["wolf_pack", "forest_beasts", "goblinoid", "ettercap", "owlbear", "bandit", "orc"],
+  swamp: ["marsh", "lizardfolk", "green_hag", "restless_dead"],
+  coast: ["sahuagin", "bandit", "berserkers"],
+  desert: ["desert_bandit", "gnoll", "elemental", "giant_scorpion", "fiend_hounds"],
+  mountain: ["orc", "goblinoid", "giants", "gnoll", "wolf_pack", "monstrous", "owlbear", "wyvern", "red_wyrmling"],
+  snow: ["wolf_pack", "winter_wolf", "berserkers", "giants"],
+  town: ["tavern_brawl", "sewer", "cult", "bandit", "town_watch"],
+  ruin: ["goblinoid", "haunted_keep", "cult", "skeleton_guardian", "kobold", "gargoyle", "bandit"],
+  road: ["bandit", "goblinoid", "wolf_pack", "orc", "gnoll", "berserkers"],
 };
 
 // ── Skirmish ─────────────────────────────────────────────────────────────────

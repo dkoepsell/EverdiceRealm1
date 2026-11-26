@@ -75,7 +75,7 @@ export function dangerTurn(
   flags: EngagementFlags,
   director: DirectorState,
   baseBeat: Beat,
-  opts: { trigger?: { beat: string; clockName: string } | null; rollResult?: any; ctx: PlanContext },
+  opts: { trigger?: { beat: string; clockName: string } | null; rollResult?: any; ctx: PlanContext; telegraphs?: unknown },
 ): DangerTurn {
   if (!flags.dangerPacing) return { beat: baseBeat, plan: null, hazardOutcome: null, promptLine: "" };
   let beat = baseBeat;
@@ -101,6 +101,11 @@ export function dangerTurn(
         `HAZARD RESULT (decided by the game, narrate exactly this): ${hazardOutcome.text} ${hazardOutcome.damage > 0 ? `The character takes ${hazardOutcome.damage} damage.` : "The character comes through unharmed."}`,
       );
     }
+  }
+  if (Array.isArray(opts.telegraphs) && opts.telegraphs.length) {
+    lines.push(
+      `WARNING SIGNS FROM LAST ROUND (the game resolves these after the player acts; describe the danger building, do not resolve it): ${opts.telegraphs.map(String).join(" ")}`,
+    );
   }
   if (plan?.kind === "skirmish") lines.push(skirmishPromptLine(plan));
   if (plan?.kind === "hazard") lines.push(hazardPromptLine(plan));

@@ -31,6 +31,8 @@ import { beatForTurn, beatPromptLine, parseDirectorState, pickNextBeat } from ".
 import { applyTurnMechanics, buildPromptExtras } from "./play/director/turnGuidance";
 import { LOCATION_DANGER_SCHEMA, alarmSegmentsFor, dangerTurn, parseLocationDanger, planFor } from "./play/director/dangerTurn";
 import { applySkirmishPlan, ensureHazardChoice } from "./play/director/danger";
+import { processMonsterRound } from "./play/combat/monsterRound";
+import { saveModifier, savingThrowAbility } from "@shared/rules/checks";
 import { recordRulesFired } from "./play/rules/rulesSeen";
 import { buildTurnPrompt } from "./play/prompt";
 import { loadLedger, saveLedger } from "./play/ledger/store";
@@ -18555,6 +18557,7 @@ Instead, describe environments that MATCH the campaign's actual setting and the 
       const turnDanger = dangerTurn(turnFlags, directorState, baseTurnBeat as any, {
         trigger: p4.trigger && !sessionStoryState.inCombat ? p4.trigger : null,
         rollResult,
+        telegraphs: sessionStoryState.inCombat ? sessionStoryState.telegraphs : null,
         ctx: {
           campaignId,
           chapter: currentChapter,
@@ -22558,7 +22561,39 @@ ${cachedNarrative}
               // Use CombatManager to resolve enemy attacks with proper D&D mechanics.
               // Held until the whole party has acted, so the monsters answer the
               // party once per round rather than once per player (see above).
-              const combatResult: CombatTurnResult = partyRoundComplete
+              // Danger spec Phases 2-3: SRD stat blocks, role tactics and telegraphed specials.
+              const storyEnemyByName = new Map<string, any>(storyEnemies.map((e: any) => [e.name, e]));
+              const monsterRound = partyRoundComplete && turnFlags.dangerPacing
+                ? processMonsterRound(
+                    enemyCombatants.map((c) => ({ ...c, srdKey: storyEnemyByName.get(c.name)?.srdKey, tactics: storyEnemyByName.get(c.name)?.tactics })),
+                    partyMembers,
+                    {
+                      leadName: character.name,
+                      saves: (name, ability) => {
+                        if (name === character.name) {
+                          const ab = savingThrowAbility(`${ability} save`);
+                          return ab ? saveModifier(character as any, ab).total : 0;
+                        }
+                        return 2;
+                      },
+                    },
+                  )
+                : null;
+              if (monsterRound) {
+                for (const c of (mergedStoryState.combatants as any[]) ?? []) {
+                  if (monsterRound.tactics[c?.name]) c.tactics = monsterRound.tactics[c.name];
+                }
+                const tn = (mergedStoryState as any).turnNotes;
+                const extraNotes = [
+                  ...monsterRound.telegraphs.map((t) => `Watch out: ${t}`),
+                  ...monsterRound.notes,
+                  ...monsterRound.knockedProne.map((n) => `${n} is knocked prone: melee attacks against them have advantage until they stand (standing costs half their movement).`),
+                ];
+                if (tn && extraNotes.length) tn.encounterNotes = [...(tn.encounterNotes ?? []), ...extraNotes];
+                if (monsterRound.telegraphs.length) (mergedStoryState as any).telegraphs = monsterRound.telegraphs;
+                else delete (mergedStoryState as any).telegraphs;
+              }
+              const combatResult: CombatTurnResult = monsterRound ?? (partyRoundComplete
                 ? processEnemyAttacks(enemyCombatants, partyMembers)
                 : {
                     logs: [],
@@ -22567,7 +22602,7 @@ ${cachedNarrative}
                     partyDamageDealt: [],
                     combatSummary: '',
                     mechanicsExplanation: ''
-                  };
+                  });
               detailedCombatLogs = combatResult.logs;
               
               // PLAYER WEAPON ATTACK: Process server-side when choice is a weapon attack
@@ -24844,6 +24879,7 @@ Respond with JSON:
             (streamP4.trigger && !storyState.inCombat ? streamP4.trigger.beat : streamBeat) as any, {
             trigger: streamP4.trigger && !storyState.inCombat ? streamP4.trigger : null,
             rollResult,
+            telegraphs: storyState.inCombat ? storyState.telegraphs : null,
             ctx: {
               campaignId,
               chapter: campaign.currentSession || 1,
