@@ -98,6 +98,21 @@ export const RULE_EXPLAINERS: Record<string, RuleExplainer> = {
     name: "Traps and hazards",
     body: "Not every danger is a monster. Traps and hazards usually give you a chance to notice them (your passive Perception or an Investigation check), then a saving throw if they go off. The DM sets the DC and damage by how dangerous the trap is: a setback, dangerous, or deadly for your level.",
   },
+  cover: {
+    id: "cover",
+    name: "Cover",
+    body: "Walls, trees, wagons and other creatures can block attacks. Half cover (a low wall, a table) gives +2 to your AC and Dexterity saves; three-quarters cover (an arrow slit, a thick tree) gives +5. Getting into cover is part of your movement, so it doesn't cost your action.",
+  },
+  shove: {
+    id: "shove",
+    name: "Shoving",
+    body: "Instead of one of your attacks, you can shove a creature no more than one size larger than you: make a Strength (Athletics) check contested by its Athletics or Acrobatics. Win, and you knock it prone or push it 5 feet, which is how you send an enemy into a fire, off a ledge, or into the water.",
+  },
+  use_object: {
+    id: "use_object",
+    name: "Use an Object",
+    body: "Your action in combat doesn't have to be an attack. Cutting a chandelier's rope, tipping a brazier or kicking loose a pile of rocks is the Use an Object action. The DM sets a check to pull it off and how much damage it does, and the targets usually get a saving throw.",
+  },
   death_saves: {
     id: "death_saves",
     name: "Death saving throws",

@@ -14,6 +14,7 @@
  */
 import { PACING_PROFILES, type Pacing } from "@shared/engagementFlags";
 import type { AbilityName } from "@shared/rules/abilities";
+import { type BattlefieldFeature, pickBattlefield } from "@shared/rules/battlefield";
 import { MONSTERS, THEME_ROSTERS, adjustedXp, buildEncounter, xpThresholds, type MonsterStats } from "@shared/rules/monsters";
 
 type Rng = () => number;
@@ -79,6 +80,8 @@ export interface SkirmishPlan {
   combatants: PlannedCombatant[];
   /** "3 wolves: 150 XP x2 = 300 adjusted XP. A medium fight..." (the DMG math, for the rules panel). */
   note: string;
+  /** Cover, hazards and things to use in this fight (danger spec 4.2). */
+  battlefield: BattlefieldFeature[];
 }
 
 function pickDifficulty(pacing: Pacing, rng: Rng, climax: boolean): "easy" | "medium" | "hard" {
@@ -133,7 +136,8 @@ export function planSkirmish(opts: {
       cr: m.cr,
     };
   });
-  return { kind: "skirmish", theme, terrain, difficulty, combatants, note: built.note };
+  const battlefield = pickBattlefield(terrain, level, rng);
+  return { kind: "skirmish", theme, terrain, difficulty, combatants, note: built.note, battlefield };
 }
 
 /** Combatant entries in the shape storyState.combatants uses. */
@@ -166,12 +170,17 @@ export function applySkirmishPlan(storyState: any, plan: SkirmishPlan): any {
   const party = existing.filter((c) => c && c.type !== "enemy" && c.type !== "boss");
   state.combatants = [...party, ...skirmishCombatants(plan)];
   state.inCombat = true;
+  if (Array.isArray(plan.battlefield) && plan.battlefield.length) state.battlefield = plan.battlefield;
+  state.combatTheme = plan.theme;
   return state;
 }
 
 export function skirmishPromptLine(plan: SkirmishPlan): string {
   const list = plan.combatants.map((c) => `${c.name} (AC ${c.ac}, ${c.maxHp} HP)`).join(", ");
-  return `DANGER THIS SCENE (decided by the game): a fight breaks out. The enemies are exactly: ${list}. Make their arrival fit this place and the story so far (an ambush, a patrol, something that was hunting the party, the consequence of an earlier choice). The game starts combat with these enemies and their real stats: set "inCombat": true and list them in "combatants" by these exact names. Do not add other enemies and do not resolve the fight; end the scene with the enemies closing in and offer 2-4 tactical choices.`;
+  const field = Array.isArray(plan.battlefield) && plan.battlefield.length
+    ? ` The place holds: ${plan.battlefield.map((f) => f.name.toLowerCase()).join(", ")}. Describe them in the scene so the player can use them.`
+    : "";
+  return `DANGER THIS SCENE (decided by the game): a fight breaks out. The enemies are exactly: ${list}.${field} Make their arrival fit this place and the story so far (an ambush, a patrol, something that was hunting the party, the consequence of an earlier choice). The game starts combat with these enemies and their real stats: set "inCombat": true and list them in "combatants" by these exact names. Do not add other enemies and do not resolve the fight; end the scene with the enemies closing in and offer 2-4 tactical choices.`;
 }
 
 // ── Hazard ───────────────────────────────────────────────────────────────────
@@ -338,4 +347,37 @@ export function resolveHazard(plan: HazardPlan | null | undefined, rollResult: a
       : "Saved: no damage."
     : `Failed: ${plan.damage} (${roll.rolls.join(" + ")}) = ${damage} ${plan.damageType} damage.`;
   return { damage, saved, text: `${plan.name}, ${saveLabel(plan.ability)} DC ${plan.dc}. ${how}` };
+}
+
+// ── Mid-fight twist (danger spec 4.3) ────────────────────────────────────────
+
+const REINFORCE_ODDS: Record<Pacing, number> = { story: 0.15, balanced: 0.3, action: 0.5 };
+
+/**
+ * At most once per fight, in round 2 or 3: more of them arrive. The newcomer
+ * is the weakest member of the fight's roster, so it adds pressure without
+ * blowing the encounter budget. Mutates and returns the note, or null.
+ */
+export function maybeReinforce(
+  state: any,
+  opts: { round: number; pacing: Pacing; rng: Rng },
+): string | null {
+  if (!state?.inCombat || state.twistUsed || !state.combatTheme) return null;
+  if (opts.round < 2 || opts.round > 3) return null;
+  if (opts.rng() >= REINFORCE_ODDS[opts.pacing]) return null;
+  const roster = (THEME_ROSTERS[state.combatTheme] ?? []).map((k) => MONSTERS[k]).filter(Boolean) as MonsterStats[];
+  if (!roster.length) return null;
+  const m = roster.reduce((a, b) => (a.xp <= b.xp ? a : b));
+  const combatants: any[] = Array.isArray(state.combatants) ? state.combatants : [];
+  const same = combatants.filter((c) => typeof c?.name === "string" && c.name.startsWith(m.name)).length;
+  const name = `${m.name} ${same + 1}`;
+  const first = m.attacks[0];
+  combatants.push({
+    name, type: "enemy", maxHp: m.hp, currentHp: m.hp, ac: m.ac, armorClass: m.ac,
+    attackBonus: first?.bonus ?? 3, damage: first?.damage ?? "1d6", damageType: first?.damageType ?? "bludgeoning",
+    cr: String(m.cr), srdKey: m.key, status: "healthy",
+  });
+  state.combatants = combatants;
+  state.twistUsed = true;
+  return `Reinforcements: ${name} joins the fight.`;
 }

@@ -29,8 +29,9 @@ import { registerCheckRoutes } from "./play/checks/routes";
 import { trustedRollResult } from "./play/checks/rollToken";
 import { beatForTurn, beatPromptLine, parseDirectorState, pickNextBeat } from "./play/director/beats";
 import { applyTurnMechanics, buildPromptExtras } from "./play/director/turnGuidance";
-import { LOCATION_DANGER_SCHEMA, alarmSegmentsFor, dangerTurn, parseLocationDanger, planFor } from "./play/director/dangerTurn";
-import { applySkirmishPlan, ensureHazardChoice } from "./play/director/danger";
+import { LOCATION_DANGER_SCHEMA, alarmSegmentsFor, dangerTurn, parseLocationDanger, planFor, seededRng } from "./play/director/dangerTurn";
+import { applySkirmishPlan, ensureHazardChoice, maybeReinforce, terrainFor } from "./play/director/danger";
+import { pickBattlefield } from "@shared/rules/battlefield";
 import { processMonsterRound } from "./play/combat/monsterRound";
 import { saveModifier, savingThrowAbility } from "@shared/rules/checks";
 import { recordRulesFired } from "./play/rules/rulesSeen";
@@ -18558,6 +18559,7 @@ Instead, describe environments that MATCH the campaign's actual setting and the 
         trigger: p4.trigger && !sessionStoryState.inCombat ? p4.trigger : null,
         rollResult,
         telegraphs: sessionStoryState.inCombat ? sessionStoryState.telegraphs : null,
+        battlefield: sessionStoryState.inCombat ? sessionStoryState.battlefield : null,
         ctx: {
           campaignId,
           chapter: currentChapter,
@@ -20143,6 +20145,34 @@ ${cachedNarrative}
         }
       }
       
+      // A battlefield feature can hit a second enemy (danger spec 4.2): apply those too.
+      if (Array.isArray(rollResult?.extraDamage) && rollResult.extraDamage.length) {
+        if (!storyAdvancement.storyState) storyAdvancement.storyState = {};
+        if (!Array.isArray(storyAdvancement.storyState.combatants) || !storyAdvancement.storyState.combatants.length) {
+          const sessionCombatants = (currentSession?.storyState as any)?.combatants;
+          if (Array.isArray(sessionCombatants)) storyAdvancement.storyState.combatants = JSON.parse(JSON.stringify(sessionCombatants));
+        }
+        for (const hit of rollResult.extraDamage as { name: string; amount: number }[]) {
+          const target = (storyAdvancement.storyState.combatants ?? []).find((c: any) => c.name === hit.name && (c.type === 'enemy' || c.type === 'boss'));
+          if (!target || !(hit.amount > 0)) continue;
+          const oldHp = target.currentHp ?? target.maxHp ?? 30;
+          const newHp = Math.max(0, oldHp - hit.amount);
+          target.currentHp = newHp;
+          const maxHp = target.maxHp ?? 30;
+          target.status = newHp <= 0 ? 'defeated' : newHp <= maxHp * 0.25 ? 'bloodied' : newHp <= maxHp * 0.5 ? 'wounded' : target.status;
+          if (!combatEffects.enemyDamage) combatEffects.enemyDamage = [];
+          const existing = combatEffects.enemyDamage.find((e: any) => e.name === hit.name);
+          if (existing) {
+            existing.newHp = newHp;
+            existing.damageTaken = (existing.damageTaken || 0) + hit.amount;
+            existing.defeated = newHp <= 0;
+          } else {
+            combatEffects.enemyDamage.push({ name: hit.name, cr: target.cr || "1/4", damageTaken: hit.amount, newHp, maxHp: target.maxHp, defeated: newHp <= 0 });
+          }
+          storyAdvancement.combatEffects = combatEffects;
+        }
+      }
+
       // Encounter objective and morale, decided in code (engagement spec 4.2).
       const p4Mid = midTurn(turnFlags, currentSession?.storyState as any, storyAdvancement.storyState, {
         choice,
@@ -20153,6 +20183,23 @@ ${cachedNarrative}
       if (p4Mid.combatants && storyAdvancement.storyState) storyAdvancement.storyState.combatants = p4Mid.combatants;
       if (p4Mid.inCombat === false && storyAdvancement.storyState) storyAdvancement.storyState.inCombat = false;
       const objectiveWonThisTurn = p4Mid.objectiveWon;
+      // Danger spec 4.3: one mid-fight twist at most.
+      if (turnFlags.dangerPacing && storyAdvancement.storyState?.inCombat !== false && p4Mid.encounter && !p4Mid.encounter.outcome) {
+        const twistState = storyAdvancement.storyState ?? (storyAdvancement.storyState = {});
+        if (!Array.isArray(twistState.combatants) || !twistState.combatants.length) {
+          const sc = (currentSession?.storyState as any)?.combatants;
+          if (Array.isArray(sc)) twistState.combatants = JSON.parse(JSON.stringify(sc));
+        }
+        twistState.inCombat = twistState.inCombat ?? (currentSession?.storyState as any)?.inCombat;
+        twistState.combatTheme = twistState.combatTheme ?? (currentSession?.storyState as any)?.combatTheme;
+        twistState.twistUsed = twistState.twistUsed ?? (currentSession?.storyState as any)?.twistUsed;
+        const twist = maybeReinforce(twistState, {
+          round: p4Mid.encounter.round,
+          pacing: turnPacing,
+          rng: seededRng(`${campaignId}:twist:${currentChapter}:${Number(sessionStoryState.turnsInChapter) || 0}`),
+        });
+        if (twist) p4Mid.notes.push(twist);
+      }
 
       // Decrement charges for wands/staves/charged items when used
       let chargeUpdate: { itemId: number; itemName: string; currentCharges: number; maxCharges: number; destroyed?: boolean } | null = null;
@@ -22026,6 +22073,19 @@ ${cachedNarrative}
       // Danger spec Phase 0: remember how and when a fight began, for combat_started / combat_ended.
       const combatWasOn = !!sessionStoryState.inCombat;
       const combatIsOn = !!(mergedStoryState as any).inCombat;
+      if (turnFlags.dangerPacing && combatIsOn) {
+        // Danger spec 4.2: every fight gets cover and something to use; it stays for the whole fight.
+        const field = (mergedStoryState as any).battlefield ?? (storyAdvancement.storyState as any)?.battlefield ?? sessionStoryState.battlefield;
+        (mergedStoryState as any).battlefield = Array.isArray(field) && field.length
+          ? field
+          : pickBattlefield(terrainFor((mergedStoryState as any).location ?? currentLocation), playerCharacter?.level || 1,
+              seededRng(`${campaignId}:field:${currentChapter}:${Number(sessionStoryState.turnsInChapter) || 0}`));
+      } else if (!combatIsOn) {
+        delete (mergedStoryState as any).battlefield;
+        delete (mergedStoryState as any).telegraphs;
+        delete (mergedStoryState as any).twistUsed;
+        delete (mergedStoryState as any).combatTheme;
+      }
       if (!combatWasOn && combatIsOn) {
         (mergedStoryState as any).combatStartedAt = Date.now();
         (mergedStoryState as any).combatStartSource = turnDanger.plan?.kind === 'skirmish'
@@ -22505,7 +22565,8 @@ ${cachedNarrative}
                 type: 'player',
                 currentHp: character.hitPoints,
                 maxHp: character.maxHitPoints,
-                armorClass: combatStats.armorClass,
+                // Cover from a battlefield feature this round (danger spec 4.2): +2 or +5 AC.
+                armorClass: combatStats.armorClass + (Number((currentSession.storyState as any)?.classCombat?.cover) || 0),
                 attackBonus: combatStats.attackBonus,
                 damageRoll: combatStats.damageRoll,
                 status: 'conscious',
@@ -24880,6 +24941,7 @@ Respond with JSON:
             trigger: streamP4.trigger && !storyState.inCombat ? streamP4.trigger : null,
             rollResult,
             telegraphs: storyState.inCombat ? storyState.telegraphs : null,
+            battlefield: storyState.inCombat ? storyState.battlefield : null,
             ctx: {
               campaignId,
               chapter: campaign.currentSession || 1,

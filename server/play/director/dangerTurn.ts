@@ -10,6 +10,7 @@
  *  - the outcome of last scene's hazard, resolved from the player's saving throw.
  */
 import { PACING_PROFILES, type EngagementFlags, type Pacing } from "@shared/engagementFlags";
+import { battlefieldPromptLine } from "@shared/rules/battlefield";
 import { type Beat, type DirectorState } from "./beats";
 import {
   type HazardOutcome, type HazardPlan, type SkirmishPlan, hazardPromptLine, planHazard, planSkirmish, resolveHazard, skirmishPromptLine,
@@ -75,7 +76,7 @@ export function dangerTurn(
   flags: EngagementFlags,
   director: DirectorState,
   baseBeat: Beat,
-  opts: { trigger?: { beat: string; clockName: string } | null; rollResult?: any; ctx: PlanContext; telegraphs?: unknown },
+  opts: { trigger?: { beat: string; clockName: string } | null; rollResult?: any; ctx: PlanContext; telegraphs?: unknown; battlefield?: unknown },
 ): DangerTurn {
   if (!flags.dangerPacing) return { beat: baseBeat, plan: null, hazardOutcome: null, promptLine: "" };
   let beat = baseBeat;
@@ -106,6 +107,10 @@ export function dangerTurn(
     lines.push(
       `WARNING SIGNS FROM LAST ROUND (the game resolves these after the player acts; describe the danger building, do not resolve it): ${opts.telegraphs.map(String).join(" ")}`,
     );
+  }
+  if (Array.isArray(opts.battlefield) && opts.battlefield.length) {
+    const line = battlefieldPromptLine(opts.battlefield as any);
+    if (line) lines.push(line);
   }
   if (plan?.kind === "skirmish") lines.push(skirmishPromptLine(plan));
   if (plan?.kind === "hazard") lines.push(hazardPromptLine(plan));

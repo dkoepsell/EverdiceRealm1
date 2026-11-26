@@ -123,7 +123,7 @@ export function postTurn(
   },
 ): PostTurn {
   const cc: ClassCombatState | undefined = state?.classCombat
-    ? { ...state.classCombat, dodging: false, reckless: false, disengaged: false }
+    ? { ...state.classCombat, dodging: false, reckless: false, disengaged: false, cover: 0 as const }
     : undefined;
   if (!flags.clocks) return { clocks: [], clockTrigger: null, ticks: [], classCombat: cc };
   const ticked = tickClocks(pre.clocks, { ...s });

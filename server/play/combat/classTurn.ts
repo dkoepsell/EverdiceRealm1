@@ -19,6 +19,8 @@ export interface ClassCombatState {
   reckless?: boolean;
   hidden?: boolean;
   disengaged?: boolean;
+  /** Cover bonus to AC for the enemies' attacks this round (battlefield feature). */
+  cover?: 0 | 2 | 5;
 }
 
 export interface TurnRequest {

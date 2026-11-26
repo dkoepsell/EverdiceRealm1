@@ -7,7 +7,7 @@
  */
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Flag, Swords } from "lucide-react";
+import { Flag, Shield, Swords } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { audioEngine } from "@/lib/audio/engine";
@@ -35,6 +35,9 @@ interface Options {
   hidden: boolean;
   enemies: { name: string; ac?: number; currentHp?: number; maxHp?: number; status?: string; zone?: string }[];
   encounter: { objective: { kind: string; description: string; rounds?: number }; round: number } | null;
+  /** Danger spec 4.2: cover and things to use. Absent on older servers. */
+  battlefield?: { id: string; name: string; kind: "cover" | "push_hazard" | "interactable"; detail: string; cover?: number; spent?: boolean }[];
+  cover?: number;
 }
 
 const BONUS_LABEL: Record<string, string> = {
@@ -65,6 +68,7 @@ export function CombatTurnPanel({
   const [reckless, setReckless] = useState(false);
   const [surge, setSurge] = useState(false);
   const [smite, setSmite] = useState<number | null>(null);
+  const [coverId, setCoverId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   if (!opt) return null;
@@ -74,18 +78,30 @@ export function CombatTurnPanel({
   const roundsLeft = opt.encounter?.objective.rounds ? Math.max(0, opt.encounter.objective.rounds - opt.encounter.round) : null;
   const bonusSneakWithHide = bonus === "cunning_hide";
 
-  async function act(action: string) {
+  const field = (opt.battlefield ?? []).filter((f) => !f.spent);
+  const coverFeature = field.find((f) => f.id === coverId && f.kind === "cover");
+
+  async function act(action: string, featureId?: string) {
     setBusy(true);
     setError(null);
     try {
+      const feature = featureId ? field.find((f) => f.id === featureId) : undefined;
       const res = await apiRequest("POST", `/api/campaigns/${campaignId}/combat-action`, {
-        action, bonus, targetName: tgt?.name, reckless, actionSurge: surge, smiteSlot: smite, characterId,
+        action, bonus: feature ? null : bonus, targetName: tgt?.name, reckless, actionSurge: surge, smiteSlot: smite, characterId,
+        featureId: feature?.id ?? coverFeature?.id ?? undefined,
       });
       const body = (await res.json()) as ClassTurnResult;
       audioEngine.playSfx(body.hit ? "hit" : action === "attack" ? "miss" : "dice");
-      const text = action === "attack" ? `Attack ${tgt?.name ?? "the enemy"} with ${opt!.weapon.name}${bonus ? ` (${BONUS_LABEL[bonus]})` : ""}` : `${action.charAt(0).toUpperCase()}${action.slice(1)}${bonus ? ` and ${BONUS_LABEL[bonus]}` : ""}`;
+      const fromCover = coverFeature && !feature ? ` from behind the ${coverFeature.name.toLowerCase()}` : "";
+      const text = feature
+        ? feature.kind === "push_hazard"
+          ? `Shove ${tgt?.name ?? "the enemy"} into the ${feature.name.toLowerCase()}`
+          : `Use the ${feature.name.toLowerCase()} against ${tgt?.name ?? "the enemy"}`
+        : action === "attack"
+          ? `Attack ${tgt?.name ?? "the enemy"} with ${opt!.weapon.name}${bonus ? ` (${BONUS_LABEL[bonus]})` : ""}${fromCover}`
+          : `${action.charAt(0).toUpperCase()}${action.slice(1)}${bonus ? ` and ${BONUS_LABEL[bonus]}` : ""}${fromCover}`;
       onResolved(text, body);
-      setBonus(null); setReckless(false); setSurge(false); setSmite(null);
+      setBonus(null); setReckless(false); setSurge(false); setSmite(null); setCoverId(null);
     } catch (e) {
       setError((e as Error)?.message?.replace(/^\d+:\s*/, "") || "Couldn't resolve your turn.");
     } finally {
@@ -169,6 +185,28 @@ export function CombatTurnPanel({
           )}
         </div>
       </div>
+
+      {field.length > 0 && (
+        <div data-testid="combat-battlefield">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-stone-400">Use the scene</p>
+          <div className="space-y-1.5">
+            {field.map((f) =>
+              f.kind === "cover" ? (
+                <label key={f.id} className={`flex items-start gap-2 rounded-lg border p-2 text-sm ${coverId === f.id ? "border-sky-500 bg-sky-950/30" : "border-stone-700 bg-stone-900"}`}>
+                  <input type="checkbox" className="mt-1" checked={coverId === f.id} onChange={(e) => setCoverId(e.target.checked ? f.id : null)} data-testid={`cover-${f.id}`} />
+                  <span><Shield className="mr-1 inline h-4 w-4 text-sky-300" aria-hidden="true" /><b>{f.name}</b>. {f.detail}</span>
+                </label>
+              ) : (
+                <button key={f.id} type="button" disabled={disabled || busy || !tgt} onClick={() => act("feature", f.id)} data-testid={`feature-${f.id}`}
+                  className="w-full rounded-lg border border-emerald-700 bg-stone-900 p-2 text-left text-sm disabled:opacity-50">
+                  <b className="text-emerald-300">{f.kind === "push_hazard" ? `Shove ${tgt?.name ?? "them"} into the ${f.name.toLowerCase()}` : `Use the ${f.name.toLowerCase()}`}</b>
+                  <span className="block text-stone-300">{f.detail} Uses your action.</span>
+                </button>
+              ),
+            )}
+          </div>
+        </div>
+      )}
 
       {opt.sneakAttack?.eligible && (
         <div className="rounded-lg border border-purple-800/60 bg-purple-950/40 p-2 text-sm text-purple-100">
