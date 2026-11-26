@@ -13,6 +13,8 @@ import type { EngagementFlags } from "@shared/engagementFlags";
 import { passives as passiveScores, checkModifier } from "@shared/rules/checks";
 import { ABILITY_ABBR } from "@shared/rules/abilities";
 import { type Beat, beatPromptLine, clampToBeat } from "./beats";
+import { alignmentPromptLine } from "@shared/rules/alignment";
+import { backgroundPromptLine } from "@shared/rules/backgrounds";
 
 export interface PromptExtras {
   /** Replaces the legacy fixed CHOICE REQUIREMENTS block, or null to keep it. */
@@ -23,9 +25,19 @@ export interface PromptExtras {
   schema: string;
 }
 
-export function buildPromptExtras(flags: EngagementFlags, beat: Beat, character?: Character | null): PromptExtras {
+export function buildPromptExtras(flags: EngagementFlags, beat: Beat, character?: Character | null, opts: { sceneText?: string | null } = {}): PromptExtras {
   const ctx: string[] = [];
   const schema: string[] = [];
+
+  if (flags.alignmentCompass && character) {
+    const pers = (character.personality ?? {}) as Record<string, string>;
+    const line = alignmentPromptLine(character.alignment, pers.ideal ?? null);
+    if (line) ctx.push(line);
+  }
+  if (flags.backgroundFeatures && character) {
+    const line = backgroundPromptLine(character.background, opts.sceneText);
+    if (line) ctx.push(line);
+  }
 
   let choiceRules: string | null = null;
   if (flags.beats) {

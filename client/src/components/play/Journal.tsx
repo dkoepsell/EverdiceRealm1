@@ -5,12 +5,23 @@
  * D&D" progress bar.
  */
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { BookOpen } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
+interface JournalAlignment {
+  characterId: number;
+  chosen: string | null;
+  deedsSay: string | null;
+  because: string[];
+  considered: number;
+  drifted: boolean;
+}
+
 interface JournalData {
+  alignment?: JournalAlignment | null;
   people: { id: string; name: string; role: string; want: string; attitude: number; attitudeLabel: string; timesMet: number; lastSeenTurn: number; location: string | null; promisesMade: string[]; status: string }[];
   threads: { id: string; summary: string; heat: number }[];
   resolvedThreads: { id: string; summary: string }[];
@@ -83,6 +94,7 @@ export function JournalButton({ campaignId, showLedger, showRules }: { campaignI
                   </div>
                 </div>
               ))}
+              {data.alignment && <AlignmentCard campaignId={campaignId} a={data.alignment} />}
               {data.reputation && (
                 <div className="rounded-xl border border-purple-800/60 bg-purple-950/40 p-3 text-sm text-purple-100">
                   <b>Your reputation:</b> known as {data.reputation.word}. People here react to it.
@@ -126,5 +138,43 @@ export function JournalButton({ campaignId, showLedger, showRules }: { campaignI
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+const DEED_WORD: Record<string, string> = {
+  mercy: "mercy", generosity: "generosity", cruelty: "cruelty", greed: "greed", honesty: "honesty", loyalty: "loyalty",
+  piety: "piety", deceit: "deceit", cunning: "cunning", betrayal: "betrayal", bravery: "bravery", curiosity: "curiosity",
+};
+
+/** Alignment as a compass: what you chose, what your recent deeds say, and an offer to update when they differ. */
+function AlignmentCard({ campaignId, a }: { campaignId: number; a: JournalAlignment }) {
+  const update = useMutation({
+    mutationFn: async (alignment: string) => (await apiRequest("POST", `/api/characters/${a.characterId}/alignment`, { alignment })).json(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${campaignId}/ledger`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/characters"] });
+    },
+  });
+  return (
+    <div className="rounded-xl border border-sky-800/60 bg-sky-950/30 p-3 text-sm text-sky-100" data-testid="journal-alignment">
+      <p><b>Alignment:</b> {a.chosen ?? "not chosen"}</p>
+      {a.deedsSay ? (
+        <p className="mt-1 text-sky-200">
+          Lately your deeds read as <b>{a.deedsSay}</b>
+          {a.because.length ? ` (mostly ${a.because.map((t) => DEED_WORD[t] ?? t).join(" and ")})` : ""}.
+        </p>
+      ) : (
+        <p className="mt-1 text-sky-300/80">After a few more notable deeds, this shows what your choices say about you.</p>
+      )}
+      {a.drifted && a.deedsSay && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="text-sky-200">Characters change. Update your alignment?</span>
+          <Button size="sm" className="h-8" disabled={update.isPending} onClick={() => update.mutate(a.deedsSay!)} data-testid="alignment-update">
+            Become {a.deedsSay}
+          </Button>
+        </div>
+      )}
+      <p className="mt-2 text-xs text-sky-300/70">Alignment describes your character; it never stops you doing anything.</p>
+    </div>
   );
 }

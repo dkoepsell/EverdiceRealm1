@@ -98,6 +98,16 @@ export const RULE_EXPLAINERS: Record<string, RuleExplainer> = {
     name: "Traps and hazards",
     body: "Not every danger is a monster. Traps and hazards usually give you a chance to notice them (your passive Perception or an Investigation check), then a saving throw if they go off. The DM sets the DC and damage by how dangerous the trap is: a setback, dangerous, or deadly for your level.",
   },
+  background_feature: {
+    id: "background_feature",
+    name: "Background features",
+    body: "Your background (Acolyte, Criminal, Sage, Soldier...) gives you a perk outside combat: a temple that shelters you, an underworld contact, knowing where to find the answer, soldiers who still salute you. When it applies it simply works, no roll needed. It's what makes your character's past useful.",
+  },
+  alignment: {
+    id: "alignment",
+    name: "Alignment",
+    body: "Alignment is a shorthand for your character's moral outlook on two axes: lawful to chaotic (rules and tradition versus freedom) and good to evil (others first versus yourself first). It describes who you are; it never stops you doing anything. Characters change, and so can alignment.",
+  },
   cover: {
     id: "cover",
     name: "Cover",

@@ -32,6 +32,8 @@ import { applyTurnMechanics, buildPromptExtras } from "./play/director/turnGuida
 import { LOCATION_DANGER_SCHEMA, alarmSegmentsFor, dangerTurn, parseLocationDanger, planFor, seededRng } from "./play/director/dangerTurn";
 import { applySkirmishPlan, ensureHazardChoice, maybeReinforce, terrainFor } from "./play/director/danger";
 import { pickBattlefield } from "@shared/rules/battlefield";
+import { alignmentPromptLine } from "@shared/rules/alignment";
+import { backgroundFeatureFor } from "@shared/rules/backgrounds";
 import { processMonsterRound } from "./play/combat/monsterRound";
 import { fastRoundAdvancement, fastRoundNarrative, isFastRound } from "./play/combat/fastRound";
 import { applyDeed, combatBark, parseBonds, partyPromptBlock, partyStreamLine, pickMoment } from "./play/companions/companions";
@@ -18575,7 +18577,9 @@ Instead, describe environments that MATCH the campaign's actual setting and the 
         },
       });
       const turnBeat = turnDanger.beat;
-      const promptExtras = buildPromptExtras(turnFlags, turnBeat, playerCharacter);
+      const promptExtras = buildPromptExtras(turnFlags, turnBeat, playerCharacter, {
+        sceneText: `${sessionStoryState.location ?? currentLocation ?? ''} ${currentSession.title ?? ''} ${String(currentSession.narrative ?? '').slice(-400)}`,
+      });
       const p4Line = turnDanger.beat === 'skirmish' && p4.trigger ? p4.promptLine.replace(p4.trigger.directive, '') : p4.promptLine;
       if (p4Line.trim()) promptExtras.context += `\n${p4Line}\n`;
       if (turnDanger.promptLine) promptExtras.context += `\n${turnDanger.promptLine}\n`;
@@ -22062,6 +22066,13 @@ ${cachedNarrative}
         flags: turnFlags, beat: turnBeat, character: playerCharacter, rollResult,
       });
       finalChoices = turnMechanics.choices;
+      {
+        const picked = (Array.isArray(currentSession.choices) ? (currentSession.choices as any[]) : [])
+          .find((c: any) => c && (c.text === choice || c.action === choice));
+        if (turnFlags.backgroundFeatures && picked?.backgroundFeature) {
+          turnMechanics.fired.push({ id: 'background_feature', detail: `${playerCharacter?.background ?? 'Background'}: ${picked.backgroundFeature}` });
+        }
+      }
       if (turnDanger.plan?.kind === 'hazard') finalChoices = ensureHazardChoice(finalChoices, turnDanger.plan);
       if (turnDanger.hazardOutcome) turnMechanics.fired.push({ id: 'hazard', detail: turnDanger.hazardOutcome.text });
       if (turnMechanics.inspirationAwarded && playerCharacter?.id) {
@@ -25020,6 +25031,12 @@ Respond with JSON:
           })
         : null;
       const streamPartyLine = streamCompanions.length ? partyStreamLine(streamCompanions, streamBonds, streamMoment) : '';
+      const streamCharLine = [
+        resolveFlags(campaign).alignmentCompass && streamActor ? alignmentPromptLine(streamActor.alignment, ((streamActor.personality ?? {}) as any).ideal ?? null) : '',
+        resolveFlags(campaign).backgroundFeatures && streamActor && backgroundFeatureFor(streamActor.background)
+          ? `BACKGROUND: ${streamActor.background} (${backgroundFeatureFor(streamActor.background)!.feature}). Let it colour how people treat them.`
+          : '',
+      ].filter(Boolean).join('\n');
       const streamLedgerLine = resolveFlags(campaign).ledger
         ? await (async () => {
             const lg = await loadLedger(campaignId, campaign as any);
@@ -25145,7 +25162,7 @@ Current Story State: ${JSON.stringify({
 })}
 
 The player chose: "${choice || "Continue the adventure"}"
-${describeRollForNarrator(rollResult, streamActor?.name)}${intent === 'attack' && !rollResult ? attackIntentDirective() : ''}${streamBeat ? `\n${beatPromptLine(streamDanger?.beat ?? streamBeat)} (Write only the prose; the choices are written separately.)\n` : ''}${streamLedgerLine ? `\n${streamLedgerLine}\n` : ''}${streamP4Line.trim() ? `\n${streamP4Line}\n` : ''}${streamDanger?.promptLine ? `\n${streamDanger.promptLine}\n` : ''}${streamPartyLine ? `\n${streamPartyLine}\n` : ''}${streamQuestHook ? `\n${streamQuestHook}\n` : ''}
+${describeRollForNarrator(rollResult, streamActor?.name)}${intent === 'attack' && !rollResult ? attackIntentDirective() : ''}${streamBeat ? `\n${beatPromptLine(streamDanger?.beat ?? streamBeat)} (Write only the prose; the choices are written separately.)\n` : ''}${streamLedgerLine ? `\n${streamLedgerLine}\n` : ''}${streamP4Line.trim() ? `\n${streamP4Line}\n` : ''}${streamDanger?.promptLine ? `\n${streamDanger.promptLine}\n` : ''}${streamPartyLine ? `\n${streamPartyLine}\n` : ''}${streamCharLine ? `\n${streamCharLine}\n` : ''}${streamQuestHook ? `\n${streamQuestHook}\n` : ''}
 ${resolveFlags(campaign).promptDiet ? `${antiRepeatBlock(recentTitles, recentLocations, { ledger: resolveFlags(campaign).ledger })}
 ` : `ANTI-REPETITION — DO NOT reuse these:
 - Recent titles: ${recentTitles.map(t => `"${t}"`).join(', ')}
