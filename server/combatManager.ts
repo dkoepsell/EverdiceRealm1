@@ -176,6 +176,8 @@ export interface Combatant {
   class?: string;
   level?: number;
   conditions?: string[]; // active condition names (lowercase), e.g. ["poisoned", "prone"]
+  /** A companion played by a friend can be told whom to attack (companions spec). */
+  preferredTarget?: string;
 }
 
 export interface AttackRollResult {
@@ -537,7 +539,8 @@ export function processCompanionAttacks(
     if (currentActiveEnemies.length === 0) break;
     
     const targetIndex = Math.floor(Math.random() * currentActiveEnemies.length);
-    const target = currentActiveEnemies[targetIndex];
+    const ordered = companion.preferredTarget ? currentActiveEnemies.find((e) => e.name === companion.preferredTarget) : undefined;
+    const target = ordered ?? currentActiveEnemies[targetIndex];
     const enemyIndex = updatedEnemies.findIndex(e => e.id === target.id);
     
     // Make the attack roll

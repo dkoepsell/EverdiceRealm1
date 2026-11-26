@@ -64,6 +64,10 @@ export const ENGAGEMENT_FLAGS = {
   fastCombatRounds: true,
   /** Companions spec: companions in every prompt, a moment per scene chosen in code, approval, their own skill rolls. */
   companionsAlive: true,
+  /** Alignment as a compass: told to the narrator, drift from deeds shown in the Journal. */
+  alignmentCompass: true,
+  /** Background features (Shelter of the Faithful, Criminal Contact...) offered when the scene fits. */
+  backgroundFeatures: true,
 } as const;
 
 export type EngagementFlag = keyof typeof ENGAGEMENT_FLAGS;

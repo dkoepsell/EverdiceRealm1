@@ -14,6 +14,7 @@ import { ChevronsUpDown, Shield, User, UserPlus, X, Users, Sword, Heart, ImageIc
 import { Label } from '@/components/ui/label';
 import { Character, User as UserType } from '@shared/schema';
 import PartyAidActions from '@/components/campaign/PartyAidActions';
+import { TableNightInvite } from '@/components/campaign/TableNightInvite';
 
 interface CampaignParticipant {
   id: number;
@@ -569,6 +570,8 @@ export default function CampaignParticipants({ campaignId, isDM }: CampaignParti
               </DialogContent>
             </Dialog>
           )}
+
+          {isDM && <TableNightInvite campaignId={campaignId} />}
 
           {/* Invite Button - Only visible to DM */}
           {isDM && (

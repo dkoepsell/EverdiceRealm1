@@ -32,9 +32,13 @@ import { applyTurnMechanics, buildPromptExtras } from "./play/director/turnGuida
 import { LOCATION_DANGER_SCHEMA, alarmSegmentsFor, dangerTurn, parseLocationDanger, planFor, seededRng } from "./play/director/dangerTurn";
 import { applySkirmishPlan, ensureHazardChoice, maybeReinforce, terrainFor } from "./play/director/danger";
 import { pickBattlefield } from "@shared/rules/battlefield";
+import { alignmentPromptLine } from "@shared/rules/alignment";
+import { backgroundFeatureFor } from "@shared/rules/backgrounds";
 import { processMonsterRound } from "./play/combat/monsterRound";
+import { registerTableRoutes } from "./play/table/routes";
+import { registerCompanionRoutes } from "./play/companions/routes";
 import { fastRoundAdvancement, fastRoundNarrative, isFastRound } from "./play/combat/fastRound";
-import { applyDeed, combatBark, parseBonds, partyPromptBlock, partyStreamLine, pickMoment } from "./play/companions/companions";
+import { applyDeed, combatBark, intentsPromptLine, parseBonds, parseIntents, partyPromptBlock, partyStreamLine, pickMoment } from "./play/companions/companions";
 import { applyDepartures, loadCompanions, syncCompanionsToLedger } from "./play/companions/load";
 import { saveModifier, savingThrowAbility } from "@shared/rules/checks";
 import { recordRulesFired } from "./play/rules/rulesSeen";
@@ -1712,6 +1716,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerLevelUpRoutes(app);
   registerCheckRoutes(app);
   registerLedgerRoutes(app);
+  registerTableRoutes(app);
+  registerCompanionRoutes(app);
   registerCombatRoutes(app);
   registerSkirmishRoutes(app);
   registerDmPathRoutes(app);
@@ -18575,7 +18581,9 @@ Instead, describe environments that MATCH the campaign's actual setting and the 
         },
       });
       const turnBeat = turnDanger.beat;
-      const promptExtras = buildPromptExtras(turnFlags, turnBeat, playerCharacter);
+      const promptExtras = buildPromptExtras(turnFlags, turnBeat, playerCharacter, {
+        sceneText: `${sessionStoryState.location ?? currentLocation ?? ''} ${currentSession.title ?? ''} ${String(currentSession.narrative ?? '').slice(-400)}`,
+      });
       const p4Line = turnDanger.beat === 'skirmish' && p4.trigger ? p4.promptLine.replace(p4.trigger.directive, '') : p4.promptLine;
       if (p4Line.trim()) promptExtras.context += `\n${p4Line}\n`;
       if (turnDanger.promptLine) promptExtras.context += `\n${turnDanger.promptLine}\n`;
@@ -18595,6 +18603,9 @@ Instead, describe environments that MATCH the campaign's actual setting and the 
           })
         : null;
       if (turnCompanions.length) promptExtras.context += `\n${partyPromptBlock(turnCompanions, turnBonds, turnMoment)}\n`;
+      const turnIntents = parseIntents(sessionStoryState.companionIntents);
+      const intentsLine = intentsPromptLine(turnCompanions, turnIntents);
+      if (intentsLine) promptExtras.context += `\n${intentsLine}\n`;
       // Emergent side quests (Play > Quests tab). Same decision the stream made.
       const openSideQuests = (await storage.getCampaignQuests(campaignId)).filter(isOpenSideQuest);
       const questHookDecision = decideQuestHook({
@@ -22062,6 +22073,13 @@ ${cachedNarrative}
         flags: turnFlags, beat: turnBeat, character: playerCharacter, rollResult,
       });
       finalChoices = turnMechanics.choices;
+      {
+        const picked = (Array.isArray(currentSession.choices) ? (currentSession.choices as any[]) : [])
+          .find((c: any) => c && (c.text === choice || c.action === choice));
+        if (turnFlags.backgroundFeatures && picked?.backgroundFeature) {
+          turnMechanics.fired.push({ id: 'background_feature', detail: `${playerCharacter?.background ?? 'Background'}: ${picked.backgroundFeature}` });
+        }
+      }
       if (turnDanger.plan?.kind === 'hazard') finalChoices = ensureHazardChoice(finalChoices, turnDanger.plan);
       if (turnDanger.hazardOutcome) turnMechanics.fired.push({ id: 'hazard', detail: turnDanger.hazardOutcome.text });
       if (turnMechanics.inspirationAwarded && playerCharacter?.id) {
@@ -22164,6 +22182,10 @@ ${cachedNarrative}
         const applied = applyDeed(bonds, turnCompanions, newDeed);
         companionEvents = applied.events;
         (mergedStoryState as any).companionBonds = applied.bonds;
+        // A friend's words for their companion are spent by this scene; combat orders by the round below.
+        const leftover: Record<string, any> = {};
+        for (const [name, i] of Object.entries(turnIntents)) if (i.order && (mergedStoryState as any).inCombat) leftover[name] = { ...i, text: undefined };
+        (mergedStoryState as any).companionIntents = leftover;
         if (ledgerMerge) ledgerMerge.ledger = syncCompanionsToLedger(ledgerMerge.ledger, turnCompanions, applied.bonds, applied.events);
         await applyDepartures(turnCompanions, applied.events);
       }
@@ -22661,7 +22683,10 @@ ${cachedNarrative}
                 })
               )).filter((c): c is Combatant => c !== null);
 
-              const partyMembers = [playerCombatant, ...allyCombatants, ...companionCombatants];
+              // A companion whose player chose Dodge: attacks against them have disadvantage this round.
+              const dodgeOrders = parseIntents((currentSession.storyState as any)?.companionIntents);
+              const partyMembers = [playerCombatant, ...allyCombatants, ...companionCombatants.map((c) =>
+                dodgeOrders[c.name]?.order?.action === 'dodge' ? { ...c, conditions: [...(c.conditions ?? []), 'dodging'] } : c)];
 
               // Use CombatManager to resolve enemy attacks with proper D&D mechanics.
               // Held until the whole party has acted, so the monsters answer the
@@ -22782,7 +22807,12 @@ ${cachedNarrative}
               }
               
               // Process companion attacks against enemies (companions auto-attack!)
-              companionAttackResult = processCompanionAttacks(companionCombatants, enemyCombatants);
+              // Companions played by friends follow their orders (attack a target, or Dodge).
+              const orders = parseIntents((currentSession.storyState as any)?.companionIntents);
+              const attackers = companionCombatants
+                .filter((c) => orders[c.name]?.order?.action !== 'dodge')
+                .map((c) => (orders[c.name]?.order?.target ? { ...c, preferredTarget: orders[c.name]!.order!.target } : c));
+              companionAttackResult = processCompanionAttacks(attackers, enemyCombatants);
               
               // Merge companion attack logs into detailed combat logs
               detailedCombatLogs = [...detailedCombatLogs, ...companionAttackResult.logs];
@@ -25019,7 +25049,15 @@ Respond with JSON:
             rng: seededRng(`${campaignId}:companion:${campaign.currentSession || 1}:${Number(storyState.turnsInChapter) || 0}`),
           })
         : null;
-      const streamPartyLine = streamCompanions.length ? partyStreamLine(streamCompanions, streamBonds, streamMoment) : '';
+      const streamPartyLine = streamCompanions.length
+        ? [partyStreamLine(streamCompanions, streamBonds, streamMoment), intentsPromptLine(streamCompanions, parseIntents(storyState.companionIntents))].filter(Boolean).join('\n')
+        : '';
+      const streamCharLine = [
+        resolveFlags(campaign).alignmentCompass && streamActor ? alignmentPromptLine(streamActor.alignment, ((streamActor.personality ?? {}) as any).ideal ?? null) : '',
+        resolveFlags(campaign).backgroundFeatures && streamActor && backgroundFeatureFor(streamActor.background)
+          ? `BACKGROUND: ${streamActor.background} (${backgroundFeatureFor(streamActor.background)!.feature}). Let it colour how people treat them.`
+          : '',
+      ].filter(Boolean).join('\n');
       const streamLedgerLine = resolveFlags(campaign).ledger
         ? await (async () => {
             const lg = await loadLedger(campaignId, campaign as any);
@@ -25145,7 +25183,7 @@ Current Story State: ${JSON.stringify({
 })}
 
 The player chose: "${choice || "Continue the adventure"}"
-${describeRollForNarrator(rollResult, streamActor?.name)}${intent === 'attack' && !rollResult ? attackIntentDirective() : ''}${streamBeat ? `\n${beatPromptLine(streamDanger?.beat ?? streamBeat)} (Write only the prose; the choices are written separately.)\n` : ''}${streamLedgerLine ? `\n${streamLedgerLine}\n` : ''}${streamP4Line.trim() ? `\n${streamP4Line}\n` : ''}${streamDanger?.promptLine ? `\n${streamDanger.promptLine}\n` : ''}${streamPartyLine ? `\n${streamPartyLine}\n` : ''}${streamQuestHook ? `\n${streamQuestHook}\n` : ''}
+${describeRollForNarrator(rollResult, streamActor?.name)}${intent === 'attack' && !rollResult ? attackIntentDirective() : ''}${streamBeat ? `\n${beatPromptLine(streamDanger?.beat ?? streamBeat)} (Write only the prose; the choices are written separately.)\n` : ''}${streamLedgerLine ? `\n${streamLedgerLine}\n` : ''}${streamP4Line.trim() ? `\n${streamP4Line}\n` : ''}${streamDanger?.promptLine ? `\n${streamDanger.promptLine}\n` : ''}${streamPartyLine ? `\n${streamPartyLine}\n` : ''}${streamCharLine ? `\n${streamCharLine}\n` : ''}${streamQuestHook ? `\n${streamQuestHook}\n` : ''}
 ${resolveFlags(campaign).promptDiet ? `${antiRepeatBlock(recentTitles, recentLocations, { ledger: resolveFlags(campaign).ledger })}
 ` : `ANTI-REPETITION — DO NOT reuse these:
 - Recent titles: ${recentTitles.map(t => `"${t}"`).join(', ')}

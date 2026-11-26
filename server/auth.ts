@@ -23,7 +23,7 @@ declare global {
 
 const scryptAsync = promisify(scrypt);
 
-async function hashPassword(password: string) {
+export async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
   return `${buf.toString("hex")}.${salt}`;
@@ -111,6 +111,10 @@ export function setupAuth(app: Express) {
   // Register endpoint
   app.post("/api/register", async (req, res, next) => {
     try {
+      // Guest names are reserved for one-shot-night guests (shared/rules/pregens.ts).
+      if (typeof req.body?.username === "string" && req.body.username.toLowerCase().startsWith("guest-")) {
+        return res.status(400).json({ message: "Usernames starting with \"guest-\" are reserved. Please choose another." });
+      }
       const existingUser = await storage.getUserByUsername(req.body.username);
       if (existingUser) {
         return res.status(400).json({ message: "Username already exists" });
