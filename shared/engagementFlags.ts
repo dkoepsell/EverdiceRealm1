@@ -62,6 +62,8 @@ export const ENGAGEMENT_FLAGS = {
   dangerPacing: true,
   /** Danger spec Phase 5: routine combat rounds from the combat panel resolve in code with no model call. */
   fastCombatRounds: true,
+  /** Companions spec: companions in every prompt, a moment per scene chosen in code, approval, their own skill rolls. */
+  companionsAlive: true,
 } as const;
 
 export type EngagementFlag = keyof typeof ENGAGEMENT_FLAGS;

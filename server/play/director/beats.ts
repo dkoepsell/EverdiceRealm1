@@ -11,7 +11,7 @@
 
 import { PACING_PROFILES, type Pacing } from "@shared/engagementFlags";
 
-export type Beat = "momentum" | "open_question" | "conversation" | "discovery" | "quiet" | "pressure" | "skirmish" | "hazard" | "combat";
+export type Beat = "momentum" | "open_question" | "conversation" | "discovery" | "quiet" | "pressure" | "skirmish" | "hazard" | "companion" | "combat";
 
 /** Beats that put the party in real danger (danger spec 1.3). */
 export const DANGER_BEATS: Beat[] = ["skirmish", "hazard", "pressure", "combat"];
@@ -82,6 +82,13 @@ export const BEATS: Record<Exclude<Beat, "combat">, BeatSpec> = {
     length: "short",
     instruction:
       "Physical danger without a fight: a trap or a hazard of the place. Make it sudden and concrete. Offer 2-3 choices, one of them facing it with a saving throw.",
+  },
+  companion: {
+    choices: [2, 3],
+    maxRolls: 1,
+    length: "medium",
+    instruction:
+      "A scene centred on one companion (named in COMPANION MOMENT): their past, what they want, or a choice that matters to them. Offer 2-3 choices, at least one that helps them and one that costs them.",
   },
 };
 
@@ -162,10 +169,15 @@ const DANGER_WEIGHTS: Record<DealtBeat, number> = {
   pressure: 1.25,
   skirmish: 2.25,
   hazard: 1.75,
+  // Only dealt when the party has companions (set in pickNextBeat).
+  companion: 0,
 };
 
 /** Beats in a chapter by which at least one fight must have happened, per pacing. */
 const FIGHT_BY: Record<Pacing, number> = { story: 5, balanced: 3, action: 2 };
+
+/** Beats in a chapter by which a companion scene is due (companions spec). */
+const COMPANION_SCENE_BY = 5;
 
 function pacedWeights(pacing: Pacing): Record<DealtBeat, number> {
   const p = PACING_PROFILES[pacing];
@@ -207,7 +219,7 @@ function weightedPick(pool: [DealtBeat, number][], rng: () => number): DealtBeat
 export function pickNextBeat(
   state: DirectorState,
   played: Beat,
-  opts: { clockNearFull?: boolean; rng?: () => number; pacing?: Pacing } = {},
+  opts: { clockNearFull?: boolean; rng?: () => number; pacing?: Pacing; hasCompanions?: boolean } = {},
 ): DirectorState {
   const rng = opts.rng ?? Math.random;
   const recent = [...state.recent, played].slice(-6);
@@ -221,6 +233,8 @@ export function pickNextBeat(
     if (pacing) weights.skirmish = (weights.skirmish ?? 0) * (pacing === "action" ? 0.75 : 0.4);
   }
   if (opts.clockNearFull) weights.pressure = (weights.pressure ?? 0) * 4;
+  // Companions spec: an occasional scene about a companion, never twice in a chapter.
+  if (opts.hasCompanions) weights.companion = chapterBeats.includes("companion") ? 0 : isFight(played) ? 1 : 0.6;
   const lastTwo = recent.slice(-2);
   if (lastTwo.length === 2 && lastTwo[0] === lastTwo[1] && lastTwo[0] !== "combat") {
     weights[lastTwo[0] as DealtBeat] = 0;
@@ -246,7 +260,10 @@ export function pickNextBeat(
       forced = weightedPick(dangerPool, rng);
     }
   }
-  if (!forced && !hadBreather && chapterBeats.length >= 4) pool = pool.filter(([b]) => b === "quiet" || b === "discovery");
+  if (!forced && opts.hasCompanions && !chapterBeats.includes("companion") && chapterBeats.length >= COMPANION_SCENE_BY && !isDanger(played) && !isFight(played)) {
+    forced = "companion";
+  }
+  if (!forced && !hadBreather && chapterBeats.length >= 4) pool = pool.filter(([b]) => b === "quiet" || b === "discovery" || b === "companion");
 
   const next: Beat = forced ?? weightedPick(pool, rng);
   return {

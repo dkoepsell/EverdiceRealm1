@@ -17,6 +17,9 @@ export interface TurnNotesData {
   rulesFired?: { id: string; name: string; body: string; count: number; detail?: string }[];
   clockFired?: string | null;
   encounterNotes?: string[];
+  /** Companions spec: approval changes this scene ("Mira approves: you showed mercy."). */
+  companionNotes?: string[];
+  companionMoment?: { name: string; kind: string } | null;
 }
 
 const BEAT_LABEL: Record<string, string> = {
@@ -28,6 +31,7 @@ const BEAT_LABEL: Record<string, string> = {
   pressure: "Pressure",
   skirmish: "Ambush",
   hazard: "Hazard",
+  companion: "Companion",
   combat: "Combat",
 };
 
@@ -71,10 +75,10 @@ export function RuleUnderneath({ rule, forceOpen }: { rule: NonNullable<TurnNote
 
 export function TurnNotes({ notes, showRules = true }: { notes?: TurnNotesData | null; showRules?: boolean }) {
   if (!notes) return null;
-  const { passiveNoticed, failureCost, inspirationAwarded, rulesFired, clockFired, encounterNotes } = notes;
+  const { passiveNoticed, failureCost, inspirationAwarded, rulesFired, clockFired, encounterNotes, companionNotes } = notes;
   const passiveRule = rulesFired?.find((r) => r.id === "passive_check");
   const otherRules = (rulesFired ?? []).filter((r) => r.id !== "passive_check");
-  if (!passiveNoticed && !failureCost && !inspirationAwarded && !clockFired && !encounterNotes?.length && !(showRules && otherRules.length)) return null;
+  if (!passiveNoticed && !failureCost && !inspirationAwarded && !clockFired && !encounterNotes?.length && !companionNotes?.length && !(showRules && otherRules.length)) return null;
   return (
     <div className="mt-3 space-y-2" data-testid="turn-notes">
       {passiveNoticed && (
@@ -98,6 +102,11 @@ export function TurnNotes({ notes, showRules = true }: { notes?: TurnNotesData |
           <b>The clock ran out:</b> {clockFired}.
         </div>
       )}
+      {companionNotes?.map((n) => (
+        <div key={n} className={`rounded-xl border px-3 py-2 text-sm ${/disapproves|losing faith|leaves/.test(n) ? "border-orange-800 bg-orange-950/40 text-orange-100" : "border-emerald-800 bg-emerald-950/40 text-emerald-100"}`} data-testid="companion-note">
+          {n}
+        </div>
+      ))}
       {encounterNotes?.map((n) => (
         <p key={n} className="text-sm text-amber-200" data-testid="encounter-note">{n}</p>
       ))}

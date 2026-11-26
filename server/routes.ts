@@ -34,6 +34,8 @@ import { applySkirmishPlan, ensureHazardChoice, maybeReinforce, terrainFor } fro
 import { pickBattlefield } from "@shared/rules/battlefield";
 import { processMonsterRound } from "./play/combat/monsterRound";
 import { fastRoundAdvancement, fastRoundNarrative, isFastRound } from "./play/combat/fastRound";
+import { applyDeed, combatBark, parseBonds, partyPromptBlock, partyStreamLine, pickMoment } from "./play/companions/companions";
+import { applyDepartures, loadCompanions, syncCompanionsToLedger } from "./play/companions/load";
 import { saveModifier, savingThrowAbility } from "@shared/rules/checks";
 import { recordRulesFired } from "./play/rules/rulesSeen";
 import { buildTurnPrompt } from "./play/prompt";
@@ -18581,6 +18583,18 @@ Instead, describe environments that MATCH the campaign's actual setting and the 
         if (!promptExtras.schema) promptExtras.schema = `\nOPTIONAL FIELDS (add only when they apply):\n`;
         promptExtras.schema += `- ${LOCATION_DANGER_SCHEMA}\n`;
       }
+      // Companions spec: who travels with the player, and this scene's companion moment (chosen in code).
+      const turnCompanions = turnFlags.companionsAlive ? await loadCompanions(campaignId) : [];
+      const turnBonds = parseBonds(sessionStoryState.companionBonds);
+      const turnMoment = turnCompanions.length
+        ? pickMoment(turnCompanions, turnBonds, {
+            beat: turnBeat,
+            sceneIndex: Number(sessionStoryState.turnsInChapter) || 0,
+            inCombat: !!sessionStoryState.inCombat,
+            rng: seededRng(`${campaignId}:companion:${currentChapter}:${Number(sessionStoryState.turnsInChapter) || 0}`),
+          })
+        : null;
+      if (turnCompanions.length) promptExtras.context += `\n${partyPromptBlock(turnCompanions, turnBonds, turnMoment)}\n`;
       // Emergent side quests (Play > Quests tab). Same decision the stream made.
       const openSideQuests = (await storage.getCampaignQuests(campaignId)).filter(isOpenSideQuest);
       const questHookDecision = decideQuestHook({
@@ -19948,7 +19962,7 @@ ${cachedNarrative}
 
       let rawContent = response ? response.choices[0].message.content : null;
       let storyAdvancement: any = fastRound
-        ? fastRoundAdvancement(sessionStoryState, cachedNarrative || fastRoundNarrative(rollResult, sessionStoryState.combatants))
+        ? fastRoundAdvancement(sessionStoryState, cachedNarrative || fastRoundNarrative(rollResult, sessionStoryState.combatants, combatBark(turnCompanions, turnBonds, rollResult, Number(sessionStoryState.turnsInChapter) || 0)))
         : tryParseStoryJson(rawContent);
       if (fastRound) console.log(`[Advance Story] Fast combat round for campaign ${campaignId}: no model call`);
 
@@ -22108,6 +22122,7 @@ ${cachedNarrative}
         const nextDirector: any = pickNextBeat(directorState, playedBeat as any, {
           clockNearFull: p4.nearFull,
           ...(turnFlags.dangerPacing ? { pacing: turnPacing } : {}),
+          hasCompanions: turnCompanions.length > 0,
         });
         if (turnFlags.dangerPacing) {
           // Plan the next scene's threat now, so both of next turn's prompts stage the same one.
@@ -22133,8 +22148,24 @@ ${cachedNarrative}
         ledgerMerge = mergeLedgerUpdates(turnLedger, (storyAdvancement as any).ledgerUpdates, {
           location: (mergedStoryState as any).location ?? currentLocation,
         });
-        await saveLedger(campaignId, ledgerMerge.ledger);
       }
+      // Companions spec: the player's deed this scene moves each companion's approval.
+      let companionEvents: { name: string; delta: number; note: string; milestone?: string }[] = [];
+      if (turnCompanions.length) {
+        const bonds = { ...turnBonds };
+        for (const c of turnCompanions) if (!bonds[c.name]) bonds[c.name] = { points: 3 };
+        if (turnMoment) {
+          bonds[turnMoment.name] = { ...bonds[turnMoment.name], lastMoment: Number(sessionStoryState.turnsInChapter) || 0 };
+          if (turnMoment.kind === 'react') bonds[turnMoment.name].pending = null;
+        }
+        const newDeed = ledgerMerge ? ledgerMerge.ledger.deeds.find((d) => d.turn === ledgerMerge!.ledger.turn) ?? null : null;
+        const applied = applyDeed(bonds, turnCompanions, newDeed);
+        companionEvents = applied.events;
+        (mergedStoryState as any).companionBonds = applied.bonds;
+        if (ledgerMerge) ledgerMerge.ledger = syncCompanionsToLedger(ledgerMerge.ledger, turnCompanions, applied.bonds, applied.events);
+        await applyDepartures(turnCompanions, applied.events);
+      }
+      if (ledgerMerge) await saveLedger(campaignId, ledgerMerge.ledger);
       const rulesFiredThisTurn = turnFlags.rulesUnderneath ? await recordRulesFired(req.user.id, turnMechanics.fired) : [];
       // Persist this turn's mechanics so a reload shows the same chips and panels.
       (mergedStoryState as any).turnNotes = {
@@ -22147,6 +22178,8 @@ ${cachedNarrative}
         returning: ledgerMerge?.returning[0] ?? null,
         clockTicks: p4Post.ticks,
         clockFired: p4.trigger?.clockName ?? null,
+        companionMoment: turnMoment ? { name: turnMoment.name, kind: turnMoment.kind } : null,
+        companionNotes: companionEvents.map((e) => e.note),
         encounterNotes: [
           ...p4Mid.notes,
           ...(turnDanger.hazardOutcome ? [turnDanger.hazardOutcome.text] : []),
@@ -24964,6 +24997,18 @@ Respond with JSON:
           })
         : null;
       const streamP4Line = streamDanger?.beat === 'skirmish' && streamP4.trigger ? streamP4.promptLine.replace(streamP4.trigger.directive, '') : streamP4.promptLine;
+      // Companions spec: the same party and companion moment the structured pass sees (seeded).
+      const streamCompanions = resolveFlags(campaign).companionsAlive ? await loadCompanions(campaignId) : [];
+      const streamBonds = parseBonds(storyState.companionBonds);
+      const streamMoment = streamCompanions.length
+        ? pickMoment(streamCompanions, streamBonds, {
+            beat: streamDanger?.beat ?? streamBeat ?? 'open_question',
+            sceneIndex: Number(storyState.turnsInChapter) || 0,
+            inCombat: !!storyState.inCombat,
+            rng: seededRng(`${campaignId}:companion:${campaign.currentSession || 1}:${Number(storyState.turnsInChapter) || 0}`),
+          })
+        : null;
+      const streamPartyLine = streamCompanions.length ? partyStreamLine(streamCompanions, streamBonds, streamMoment) : '';
       const streamLedgerLine = resolveFlags(campaign).ledger
         ? await (async () => {
             const lg = await loadLedger(campaignId, campaign as any);
@@ -25089,7 +25134,7 @@ Current Story State: ${JSON.stringify({
 })}
 
 The player chose: "${choice || "Continue the adventure"}"
-${describeRollForNarrator(rollResult, streamActor?.name)}${intent === 'attack' && !rollResult ? attackIntentDirective() : ''}${streamBeat ? `\n${beatPromptLine(streamDanger?.beat ?? streamBeat)} (Write only the prose; the choices are written separately.)\n` : ''}${streamLedgerLine ? `\n${streamLedgerLine}\n` : ''}${streamP4Line.trim() ? `\n${streamP4Line}\n` : ''}${streamDanger?.promptLine ? `\n${streamDanger.promptLine}\n` : ''}${streamQuestHook ? `\n${streamQuestHook}\n` : ''}
+${describeRollForNarrator(rollResult, streamActor?.name)}${intent === 'attack' && !rollResult ? attackIntentDirective() : ''}${streamBeat ? `\n${beatPromptLine(streamDanger?.beat ?? streamBeat)} (Write only the prose; the choices are written separately.)\n` : ''}${streamLedgerLine ? `\n${streamLedgerLine}\n` : ''}${streamP4Line.trim() ? `\n${streamP4Line}\n` : ''}${streamDanger?.promptLine ? `\n${streamDanger.promptLine}\n` : ''}${streamPartyLine ? `\n${streamPartyLine}\n` : ''}${streamQuestHook ? `\n${streamQuestHook}\n` : ''}
 ${resolveFlags(campaign).promptDiet ? `${antiRepeatBlock(recentTitles, recentLocations, { ledger: resolveFlags(campaign).ledger })}
 ` : `ANTI-REPETITION — DO NOT reuse these:
 - Recent titles: ${recentTitles.map(t => `"${t}"`).join(', ')}
@@ -25111,7 +25156,7 @@ No JSON, no choices, no game mechanics — just the story text.`;
 
       // Danger spec Phase 5: a routine combat round streams its one line at once, no model call.
       if (isFastRound(resolveFlags(campaign), storyState, rollResult, { plannedThreat: !!streamDanger?.plan, clockFired: !!streamP4.trigger })) {
-        const line = fastRoundNarrative(rollResult, storyState.combatants);
+        const line = fastRoundNarrative(rollResult, storyState.combatants, combatBark(streamCompanions, streamBonds, rollResult, Number(storyState.turnsInChapter) || 0));
         sendEvent("narrative", { text: line });
         setCachedNarrative(campaignId, req.user!.id, line);
         sendEvent("complete", { narrative: line, fastRound: true });
