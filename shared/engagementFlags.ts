@@ -60,6 +60,8 @@ export const ENGAGEMENT_FLAGS = {
   worldClocks: true,
   /** Danger spec Phase 1: a pacing dial, a danger floor, skirmish and hazard beats, and clocks that move. */
   dangerPacing: true,
+  /** Danger spec Phase 5: routine combat rounds from the combat panel resolve in code with no model call. */
+  fastCombatRounds: true,
 } as const;
 
 export type EngagementFlag = keyof typeof ENGAGEMENT_FLAGS;

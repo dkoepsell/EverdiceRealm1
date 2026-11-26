@@ -33,6 +33,7 @@ import { LOCATION_DANGER_SCHEMA, alarmSegmentsFor, dangerTurn, parseLocationDang
 import { applySkirmishPlan, ensureHazardChoice, maybeReinforce, terrainFor } from "./play/director/danger";
 import { pickBattlefield } from "@shared/rules/battlefield";
 import { processMonsterRound } from "./play/combat/monsterRound";
+import { fastRoundAdvancement, fastRoundNarrative, isFastRound } from "./play/combat/fastRound";
 import { saveModifier, savingThrowAbility } from "@shared/rules/checks";
 import { recordRulesFired } from "./play/rules/rulesSeen";
 import { buildTurnPrompt } from "./play/prompt";
@@ -19920,7 +19921,12 @@ ${cachedNarrative}
         console.log(`[Advance Story] Using cached narrative (${cachedNarrative.length} chars) for campaign ${campaignId}`);
       }
 
-      const response = await openaiClient.chat.completions.create({
+      // Danger spec Phase 5: a routine combat round needs no model call.
+      const fastRound = isFastRound(turnFlags, sessionStoryState, rollResult, {
+        plannedThreat: !!turnDanger.plan,
+        clockFired: !!p4.trigger,
+      });
+      const response = fastRound ? null : await openaiClient.chat.completions.create({
         model: aiModel,
         messages: [{ role: "user", content: finalPrompt }],
         response_format: { type: "json_object" },
@@ -19940,8 +19946,11 @@ ${cachedNarrative}
         return null;
       };
 
-      let rawContent = response.choices[0].message.content;
-      let storyAdvancement: any = tryParseStoryJson(rawContent);
+      let rawContent = response ? response.choices[0].message.content : null;
+      let storyAdvancement: any = fastRound
+        ? fastRoundAdvancement(sessionStoryState, cachedNarrative || fastRoundNarrative(rollResult, sessionStoryState.combatants))
+        : tryParseStoryJson(rawContent);
+      if (fastRound) console.log(`[Advance Story] Fast combat round for campaign ${campaignId}: no model call`);
 
       // The AI occasionally returns truncated/malformed JSON (e.g. it hit the output
       // token limit mid-object). A single retry with a stricter instruction usually
@@ -25099,6 +25108,17 @@ SCENE TEMPERATURE — MATCH INTENSITY TO CONTEXT:
 - Do NOT reuse imagery, phrasing, or sentence structures from the previous scene.
 ${inCombat ? 'This is a COMBAT scene — describe the battle action using the EXACT enemy names listed above.' : ''}
 No JSON, no choices, no game mechanics — just the story text.`;
+
+      // Danger spec Phase 5: a routine combat round streams its one line at once, no model call.
+      if (isFastRound(resolveFlags(campaign), storyState, rollResult, { plannedThreat: !!streamDanger?.plan, clockFired: !!streamP4.trigger })) {
+        const line = fastRoundNarrative(rollResult, storyState.combatants);
+        sendEvent("narrative", { text: line });
+        setCachedNarrative(campaignId, req.user!.id, line);
+        sendEvent("complete", { narrative: line, fastRound: true });
+        res.write("event: done\ndata: {}\n\n");
+        res.end();
+        return;
+      }
 
       try {
         const { client: openaiClient, model: aiModel } = await getAIClient(req.user?.id);
