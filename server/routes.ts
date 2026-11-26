@@ -23706,6 +23706,15 @@ Choices should include 4 options with at least 2 requiring dice rolls.
                 sceneType: 'Chapter',
               }]
             });
+            // advanceToNextSession titles the row "Chapter N"; carry the generated name
+            // so the story heading shows it (the client strips the "Chapter N:" prefix).
+            try {
+              await db.update(campaignSessions)
+                .set({ title: `Chapter ${nextChapterNumber}: ${generatedChapter.chapterTitle}` })
+                .where(eq(campaignSessions.id, newSessionData.id));
+            } catch (titleErr) {
+              console.error("[Chapter Advance] Failed to set chapter title:", titleErr);
+            }
             
             // Update the session title separately
             await db

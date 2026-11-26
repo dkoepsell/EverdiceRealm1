@@ -92,6 +92,7 @@ import { emitWorld, nowIso } from "./lib/worldBus";
 import { buildFeatureState, levelOutcomeForXp, parseFeatureState, type LevelingMode } from "@shared/rules/leveling";
 import { getClassDef } from "@shared/rules/classProgression";
 import { ABILITY_NAMES, type AbilityName } from "@shared/rules/abilities";
+import { sessionTitleForChapter } from "./lib/sessionTitle";
 
 // One seat per human player; see server/lib/turnOrder.ts for the rules.
 export type { TurnRosterEntry };
@@ -1679,6 +1680,9 @@ export class DatabaseStorage implements IStorage {
         at: nowIso(),
       });
     }
+    if (campaign && typeof campaignUpdate.currentSession === "number") {
+      await this.retitleActiveSessionForChapter(campaign.id, campaignUpdate.currentSession);
+    }
     return campaign || undefined;
   }
 
@@ -1688,7 +1692,26 @@ export class DatabaseStorage implements IStorage {
       .set({ currentSession: sessionNumber })
       .where(eq(campaigns.id, id))
       .returning();
+    if (campaign) await this.retitleActiveSessionForChapter(campaign.id, sessionNumber);
     return campaign || undefined;
+  }
+
+  // The chapter moved but the session row did not (see server/lib/sessionTitle.ts):
+  // rename the active session so its title names the chapter the party is in.
+  // Best-effort — a failed rename must never fail the chapter advance itself.
+  private async retitleActiveSessionForChapter(campaignId: number, chapter: number): Promise<void> {
+    try {
+      const active = await this.getCurrentSession(campaignId);
+      if (!active) return;
+      const title = sessionTitleForChapter(active.title, chapter);
+      if (!title) return;
+      await db
+        .update(campaignSessions)
+        .set({ title, updatedAt: nowIso() })
+        .where(eq(campaignSessions.id, active.id));
+    } catch (err) {
+      console.error(`[Storage] Failed to retitle session for campaign ${campaignId} chapter ${chapter}:`, err);
+    }
   }
   
   // Tables whose campaign_id rows we deliberately keep (analytics history) —
