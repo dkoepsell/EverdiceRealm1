@@ -5,7 +5,8 @@
  * and decides success. Before this, the client computed the modifier and
  * decided success, and the server trusted the total it was sent.
  */
-import { ABILITY_ABBR, type AbilityName } from "./abilities";
+import { ABILITY_ABBR, ABILITY_NAMES, type AbilityName } from "./abilities";
+import { getClassDef } from "./classProgression";
 import { parseFeatureState } from "./leveling";
 import { SKILL_ABILITY_MAP } from "./skills";
 import { getAbilityModifier, getProficiencyBonus } from "./xp";
@@ -65,6 +66,8 @@ export function normalizeSkill(raw: unknown): string | null {
 
 export interface CheckCharacter {
   level?: number | null;
+  /** Class name, for saving-throw proficiency. */
+  class?: string | null;
   skills?: string[] | null;
   features?: unknown;
   strength: number; dexterity: number; constitution: number;
@@ -111,6 +114,42 @@ export function checkModifier(char: CheckCharacter, skillRaw: string): CheckModi
 }
 
 /** 10 + modifier (+5/-5 for advantage/disadvantage on passive checks, per 5e). */
+const ABBR_TO_ABILITY: Record<string, AbilityName> = { str: "strength", dex: "dexterity", con: "constitution", int: "intelligence", wis: "wisdom", cha: "charisma" };
+
+/**
+ * The ability of a saving throw named in free text ("Dexterity saving throw",
+ * "DEX save", "dexterity_save"), or null when the text is not a save. A save
+ * is a different roll from an ability check: proficiency comes from the
+ * class (two saves per class), not from skills.
+ */
+export function savingThrowAbility(raw: unknown): AbilityName | null {
+  if (typeof raw !== "string") return null;
+  const t = raw.toLowerCase().replace(/[_-]+/g, " ");
+  if (!/\b(save|saves|saving throw)\b/.test(t)) return null;
+  for (const a of ABILITY_NAMES) if (t.includes(a)) return a;
+  const abbr = t.match(/\b(str|dex|con|int|wis|cha)\b/);
+  return abbr ? ABBR_TO_ABILITY[abbr[1]] : null;
+}
+
+/** Modifier for a saving throw: ability modifier, plus proficiency if the class is proficient in that save. */
+export function saveModifier(char: CheckCharacter, ability: AbilityName): CheckModifier {
+  const abilityMod = getAbilityModifier(Number((char as any)[ability]) || 10);
+  const def = char.class ? getClassDef(char.class) : undefined;
+  const proficient = !!def?.savingThrows?.includes(ability);
+  const proficiency = proficient ? getProficiencyBonus(char.level || 1) : 0;
+  const abilityLabel = ability.charAt(0).toUpperCase() + ability.slice(1);
+  return {
+    skill: `${ability}_save`,
+    ability,
+    abilityMod,
+    proficient,
+    expertise: false,
+    proficiency,
+    total: abilityMod + proficiency,
+    label: `${abilityLabel} saving throw`,
+  };
+}
+
 export function passiveScore(char: CheckCharacter, skill: "perception" | "investigation" | "insight"): number {
   return 10 + checkModifier(char, skill).total;
 }

@@ -117,10 +117,13 @@ export function postTurn(
   flags: EngagementFlags,
   pre: PreTurn,
   state: any,
-  s: { sceneType?: string | null; choice?: string | null; roll?: any; scenesInChapter?: number; inCombat: boolean },
+  s: {
+    sceneType?: string | null; choice?: string | null; roll?: any; scenesInChapter?: number; inCombat: boolean;
+    locationDanger?: "safe" | "uneasy" | "hostile" | null; moved?: boolean; alarmSegments?: 4 | 6 | 8;
+  },
 ): PostTurn {
   const cc: ClassCombatState | undefined = state?.classCombat
-    ? { ...state.classCombat, dodging: false, reckless: false, disengaged: false }
+    ? { ...state.classCombat, dodging: false, reckless: false, disengaged: false, cover: 0 as const }
     : undefined;
   if (!flags.clocks) return { clocks: [], clockTrigger: null, ticks: [], classCombat: cc };
   const ticked = tickClocks(pre.clocks, { ...s });

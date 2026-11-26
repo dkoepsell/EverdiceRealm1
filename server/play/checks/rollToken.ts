@@ -83,6 +83,8 @@ export interface ClassTurnPayload {
   damageType: string;
   summary: string;
   breakdown: string[];
+  /** Further enemies damaged this turn (a battlefield feature that hits two). */
+  extraDamage?: { name: string; amount: number; damageType: string }[];
 }
 
 /**
@@ -105,6 +107,7 @@ export function trustedRollResult(rollResult: any, expect: { campaignId: number;
       damage: turn.hit && turn.damageTotal > 0 ? { total: turn.damageTotal, damageType: turn.damageType } : undefined,
       summary: turn.summary,
       breakdown: turn.breakdown,
+      extraDamage: Array.isArray(turn.extraDamage) ? turn.extraDamage : [],
     };
   }
   const p = verifyRollToken(rollResult?.token, expect);

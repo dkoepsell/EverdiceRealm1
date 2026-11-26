@@ -58,9 +58,56 @@ export const ENGAGEMENT_FLAGS = {
   sharedRealm: true,
   /** Engagement 2: ignored trails run out of in-game days and the world changes (no real-time clock). */
   worldClocks: true,
+  /** Danger spec Phase 1: a pacing dial, a danger floor, skirmish and hazard beats, and clocks that move. */
+  dangerPacing: true,
+  /** Danger spec Phase 5: routine combat rounds from the combat panel resolve in code with no model call. */
+  fastCombatRounds: true,
 } as const;
 
 export type EngagementFlag = keyof typeof ENGAGEMENT_FLAGS;
+
+/**
+ * How much danger a campaign wants (danger spec 1.1). Stored as the string
+ * `pacing` inside the same engagement_flags jsonb (resolveFlags ignores
+ * non-boolean keys, so it can't switch a flag by accident).
+ */
+export type Pacing = "story" | "balanced" | "action";
+export const PACINGS: Pacing[] = ["story", "balanced", "action"];
+export const DEFAULT_PACING: Pacing = "balanced";
+
+export interface PacingProfile {
+  /** Most scenes in a row without danger before the director must deal one. */
+  dangerFloor: number;
+  /** Segments on the alarm clock (fewer = it fills sooner). */
+  alarmSegments: 4 | 6 | 8;
+  /** Multipliers on the beat deck. */
+  dangerWeight: number;
+  talkWeight: number;
+  /** Encounter difficulty mix, easy/medium/hard (deadly is reserved for climaxes). */
+  difficultyMix: [number, number, number];
+  label: string;
+  description: string;
+}
+
+export const PACING_PROFILES: Record<Pacing, PacingProfile> = {
+  story: {
+    dangerFloor: 6, alarmSegments: 8, dangerWeight: 0.5, talkWeight: 1.5, difficultyMix: [0.4, 0.5, 0.1],
+    label: "Story", description: "Mostly talk and exploration. Danger now and then, at least one fight a chapter.",
+  },
+  balanced: {
+    dangerFloor: 4, alarmSegments: 6, dangerWeight: 1, talkWeight: 1, difficultyMix: [0.25, 0.5, 0.25],
+    label: "Balanced", description: "A real mix. Danger every few scenes, about two fights a chapter.",
+  },
+  action: {
+    dangerFloor: 2, alarmSegments: 4, dangerWeight: 2, talkWeight: 0.6, difficultyMix: [0.15, 0.5, 0.35],
+    label: "Action", description: "Danger close behind. Fights, traps and chases most of the way.",
+  },
+};
+
+export function resolvePacing(campaign?: { engagementFlags?: unknown } | null): Pacing {
+  const raw = (campaign?.engagementFlags as any)?.pacing;
+  return PACINGS.includes(raw) ? raw : DEFAULT_PACING;
+}
 export type EngagementFlags = Record<EngagementFlag, boolean>;
 
 /**

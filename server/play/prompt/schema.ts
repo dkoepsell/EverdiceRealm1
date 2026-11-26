@@ -7,7 +7,7 @@ export function responseSchema(opts: { inCombat: boolean; mapped: boolean; extra
   return `Respond with JSON only:
 {
   "narrative": "the scene, per LENGTH",
-  "sceneType": "Exploration|Social|Discovery|Travel|Puzzle|Downtime|Combat",
+  "sceneType": "Exploration|Social|Discovery|Travel|Puzzle|Downtime|Hazard|Combat",
   "dmNarrative": "one or two sentences of behind-the-scenes intent (what NPCs plan)",
   "choices": [{
     "text": "the action, specific to this moment",

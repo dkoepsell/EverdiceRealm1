@@ -21,6 +21,9 @@ import {
 import { type ClassCombatState, resolveClassTurn } from "./classTurn";
 import { signPayload, type ClassTurnPayload } from "../checks/rollToken";
 import { recordRulesFired } from "../rules/rulesSeen";
+import { type BattlefieldFeature, useFeature } from "@shared/rules/battlefield";
+import { checkModifier } from "@shared/rules/checks";
+import { statBlockFor } from "./monsterRound";
 
 const parseState = (raw: unknown): any => {
   if (typeof raw === "string") { try { return JSON.parse(raw); } catch { return {}; } }
@@ -79,6 +82,8 @@ export function registerCombatRoutes(app: Express) {
         hidden: !!combat.hidden,
         enemies: ctx.enemies.map((e: any) => ({ name: e.name, ac: e.ac, currentHp: e.currentHp, maxHp: e.maxHp, status: e.status, zone: e.zone ?? "engaged" })),
         encounter: ctx.storyState.encounter ?? null,
+        battlefield: Array.isArray(ctx.storyState.battlefield) ? ctx.storyState.battlefield : [],
+        cover: combat.cover ?? 0,
       });
     } catch (err) {
       console.error("[combat-action] options failed:", err);
@@ -93,6 +98,56 @@ export function registerCombatRoutes(app: Express) {
       const c = ctx.character;
       const body = req.body ?? {};
       const features = parseFeatureState(c.features);
+      const battlefield: BattlefieldFeature[] = Array.isArray(ctx.storyState.battlefield) ? ctx.storyState.battlefield : [];
+      const feature = typeof body.featureId === "string" ? battlefield.find((f) => f.id === body.featureId) : undefined;
+      const d = (n: number) => 1 + Math.floor(Math.random() * n);
+
+      // Danger spec 4.2: a push hazard or an interactable IS the action this turn.
+      if (feature && feature.kind !== "cover") {
+        const fr = useFeature(feature, {
+          targetName: typeof body.targetName === "string" ? body.targetName : null,
+          enemies: ctx.enemies.map((e: any) => {
+            const block = statBlockFor(e);
+            return { name: e.name, status: e.status, currentHp: e.currentHp, dexMod: block?.dexMod ?? 0, strMod: 0 };
+          }),
+          check: (skill) => {
+            const m = checkModifier(c, skill);
+            const roll = d(20);
+            return { roll, total: roll + m.total, text: `${m.label} d20 (${roll}) ${m.total >= 0 ? "+" : "−"} ${Math.abs(m.total)} = ${roll + m.total}` };
+          },
+          dice: { d },
+        });
+        if (!fr.ok) return res.status(400).json({ message: fr.error });
+        const nextBattlefield = battlefield.map((f) => (f.id === feature.id && fr.spent ? { ...f, spent: true } : f));
+        if (ctx.session) {
+          await storage.updateSessionStoryState(ctx.campaignId, ctx.session.sessionNumber, { ...ctx.storyState, battlefield: nextBattlefield });
+        }
+        const [first, ...rest] = fr.damage;
+        const payload: ClassTurnPayload = {
+          kind: "class_turn",
+          campaignId: ctx.campaignId,
+          userId: ctx.userId,
+          characterId: c.id,
+          issuedAt: Date.now(),
+          action: feature.name,
+          targetName: first?.name ?? null,
+          hit: !!first,
+          attackRoll: null,
+          damageTotal: first?.amount ?? 0,
+          damageType: first?.damageType ?? "",
+          summary: fr.summary,
+          breakdown: fr.breakdown,
+          extraDamage: rest,
+        };
+        const flags = resolveFlags(await storage.getCampaign(ctx.campaignId));
+        const fired = [{ id: "action_economy" }, ...(feature.kind === "push_hazard" ? [{ id: "shove" }] : [{ id: "use_object" }])];
+        const rules = flags.rulesUnderneath ? await recordRulesFired(ctx.userId, fired) : [];
+        return res.json({
+          ok: true, summary: fr.summary, breakdown: fr.breakdown, targetName: first?.name ?? null, hit: !!first,
+          damageTotal: fr.damage.reduce((a, x) => a + x.amount, 0), token: signPayload(payload), rulesFired: rules,
+        });
+      }
+
       const r = resolveClassTurn(
         {
           action: ["attack", "dash", "disengage", "dodge", "help", "hide", "shove"].includes(body.action) ? body.action : "attack",
@@ -123,6 +178,11 @@ export function registerCombatRoutes(app: Express) {
         ...(r.healed ? { hitPoints: Math.min(c.maxHitPoints, c.hitPoints + r.healed) } : {}),
       } as Partial<Character>);
       if (r.spellSlotUsed) await storage.useSpellSlot(c.id, r.spellSlotUsed);
+      if (feature?.kind === "cover") {
+        r.combat.cover = feature.cover ?? 2;
+        r.breakdown.unshift(`From behind the ${feature.name.toLowerCase()}: +${feature.cover} AC against the enemies' attacks this round (${feature.cover === 5 ? "three-quarters" : "half"} cover).`);
+        r.rulesFired.push("cover");
+      }
       if (ctx.session) {
         await storage.updateSessionStoryState(ctx.campaignId, ctx.session.sessionNumber, { ...ctx.storyState, classCombat: r.combat });
       }

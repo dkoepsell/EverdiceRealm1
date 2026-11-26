@@ -11,7 +11,7 @@ import { sql } from "drizzle-orm";
 import { db } from "../../db";
 import { storage } from "../../storage";
 import { userRulesSeen, type Character } from "@shared/schema";
-import { ENGAGEMENT_FLAGS, allFlagsOn, globalFlags, resolveFlags } from "@shared/engagementFlags";
+import { ENGAGEMENT_FLAGS, PACINGS, allFlagsOn, globalFlags, resolveFlags, resolvePacing } from "@shared/engagementFlags";
 import { isStaff } from "../../auth";
 import { LESSONS, learningProgress, lessonById } from "@shared/rules/learningPath";
 import { reputationOf } from "@shared/ledger";
@@ -47,7 +47,7 @@ export function registerBetweenRoutes(app: Express) {
     if (userId == null) return;
     const campaign = await storage.getCampaign(Number(req.params.campaignId));
     if (!campaign) return res.status(404).json({ message: "Campaign not found" });
-    res.json({ flags: resolveFlags(campaign), override: campaign.engagementFlags ?? null });
+    res.json({ flags: resolveFlags(campaign), pacing: resolvePacing(campaign), override: campaign.engagementFlags ?? null });
   });
 
   app.patch("/api/campaigns/:campaignId/engagement-flags", async (req, res) => {
@@ -60,9 +60,10 @@ export function registerBetweenRoutes(app: Express) {
     const next: Record<string, unknown> = { ...current };
     for (const [k, v] of Object.entries(req.body ?? {})) {
       if (k in ENGAGEMENT_FLAGS && typeof v === "boolean") next[k] = v;
+      if (k === "pacing" && typeof v === "string" && (PACINGS as string[]).includes(v)) next.pacing = v;
     }
     const updated = await storage.updateCampaign(campaign.id, { engagementFlags: next } as any);
-    res.json({ flags: resolveFlags(updated ?? { engagementFlags: next }), override: next });
+    res.json({ flags: resolveFlags(updated ?? { engagementFlags: next }), pacing: resolvePacing(updated ?? { engagementFlags: next }), override: next });
   });
 
   app.get("/api/engagement/flags", (_req, res) => {

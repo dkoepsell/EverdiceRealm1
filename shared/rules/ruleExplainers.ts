@@ -88,6 +88,31 @@ export const RULE_EXPLAINERS: Record<string, RuleExplainer> = {
     name: "Concentration",
     body: "Some spells last only while you concentrate. You can concentrate on one spell at a time. When you take damage, make a Constitution saving throw (DC 10 or half the damage, whichever is higher) or the spell ends.",
   },
+  saving_throw: {
+    id: "saving_throw",
+    name: "Saving throws",
+    body: "A saving throw is your attempt to resist something happening TO you: a trap's dart, a falling ceiling, poison, a spell. Roll a d20, add the ability modifier the save uses (Dexterity to dodge, Constitution to endure, Strength to hold on, Wisdom to resist the mind), and add your proficiency bonus if your class is proficient in that save. Every class is proficient in two. Meet the DC and you avoid the worst of it; many hazards still do half damage on a success.",
+  },
+  hazard: {
+    id: "hazard",
+    name: "Traps and hazards",
+    body: "Not every danger is a monster. Traps and hazards usually give you a chance to notice them (your passive Perception or an Investigation check), then a saving throw if they go off. The DM sets the DC and damage by how dangerous the trap is: a setback, dangerous, or deadly for your level.",
+  },
+  cover: {
+    id: "cover",
+    name: "Cover",
+    body: "Walls, trees, wagons and other creatures can block attacks. Half cover (a low wall, a table) gives +2 to your AC and Dexterity saves; three-quarters cover (an arrow slit, a thick tree) gives +5. Getting into cover is part of your movement, so it doesn't cost your action.",
+  },
+  shove: {
+    id: "shove",
+    name: "Shoving",
+    body: "Instead of one of your attacks, you can shove a creature no more than one size larger than you: make a Strength (Athletics) check contested by its Athletics or Acrobatics. Win, and you knock it prone or push it 5 feet, which is how you send an enemy into a fire, off a ledge, or into the water.",
+  },
+  use_object: {
+    id: "use_object",
+    name: "Use an Object",
+    body: "Your action in combat doesn't have to be an attack. Cutting a chandelier's rope, tipping a brazier or kicking loose a pile of rocks is the Use an Object action. The DM sets a check to pull it off and how much damage it does, and the targets usually get a saving throw.",
+  },
   death_saves: {
     id: "death_saves",
     name: "Death saving throws",

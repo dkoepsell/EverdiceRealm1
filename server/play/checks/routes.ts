@@ -18,7 +18,7 @@ import type { Express, Request, Response } from "express";
 import { storage } from "../../storage";
 import type { Character } from "@shared/schema";
 import {
-  type CheckModifier, checkModifier, combineRollMode, describeCheck, dcLabel, normalizeSkill, resolveCheck, validateDc,
+  type CheckModifier, checkModifier, combineRollMode, describeCheck, dcLabel, normalizeSkill, resolveCheck, saveModifier, savingThrowAbility, validateDc,
 } from "@shared/rules/checks";
 import { signRollToken } from "./rollToken";
 import { itemAdvantages } from "@shared/rules/magicItems";
@@ -82,7 +82,9 @@ async function loadContext(req: Request, res: Response, skillRaw: unknown, actio
   const want = normText(action);
   const choice = want ? choices.find((c) => [c?.text, c?.action].some((t) => normText(t) === want)) ?? null : null;
   const skill = normalizeSkill(choice?.skillType ?? skillRaw) ?? normalizeSkill(choice?.rollPurpose) ?? "strength";
-  const modifier = checkModifier(character, skill);
+  // A saving throw (hazards and traps, danger spec Phase 6) uses class save proficiency, not skills.
+  const saveAbility = savingThrowAbility(choice?.skillType ?? skillRaw) ?? savingThrowAbility(choice?.rollPurpose);
+  const modifier = saveAbility ? saveModifier(character, saveAbility) : checkModifier(character, skill);
   const dc = validateDc(choice?.rollDC ?? dcHint);
 
   let helper: string | null = null;
@@ -107,7 +109,11 @@ function standingModifiers(ctx: CheckContext) {
   const dis: string[] = [];
   if (typeof ctx.choice?.advantage === "string" && ctx.choice.advantage) adv.push(ctx.choice.advantage);
   if (typeof ctx.choice?.disadvantage === "string" && ctx.choice.disadvantage) dis.push(ctx.choice.disadvantage);
-  if (((ctx.character as any).exhaustionLevel ?? 0) >= 1) dis.push("Exhaustion gives disadvantage on ability checks");
+  const exhaustion = (ctx.character as any).exhaustionLevel ?? 0;
+  if (ctx.modifier.skill.endsWith("_save")) {
+    // SRD: exhaustion reaches saving throws only at level 3.
+    if (exhaustion >= 3) dis.push("Exhaustion (level 3+) gives disadvantage on saving throws");
+  } else if (exhaustion >= 1) dis.push("Exhaustion gives disadvantage on ability checks");
   // Magic items that grant advantage (Cloak of Elvenkind on Stealth, Eyes of the Eagle on Perception...).
   const owned = Array.isArray(ctx.character.equipment) ? (ctx.character.equipment as string[]) : [];
   for (const item of itemAdvantages(owned, ctx.modifier.skill)) adv.push(item);
@@ -143,7 +149,8 @@ export function registerCheckRoutes(app: Express) {
       const ctx = await loadContext(req, res, body.skill, body.action, body.dc);
       if (!ctx) return;
       const { adv, dis } = standingModifiers(ctx);
-      const fired: { id: string; detail?: string }[] = [{ id: "ability_check" }];
+      const isSave = ctx.modifier.skill.endsWith("_save");
+      const fired: { id: string; detail?: string }[] = [{ id: isSave ? "saving_throw" : "ability_check" }];
       let spentInspiration = false;
       let helped = false;
       if (ctx.flags.inspiration && body.useInspiration && ctx.character.inspiration) {

@@ -16,6 +16,8 @@ export interface Clock {
   filled: number;
   /** What happens when it fills. */
   consequence: string;
+  /** Times it has filled (the villain's plan alternates a world change and sending agents). */
+  fires?: number;
 }
 
 export interface ClockTrigger {
@@ -57,6 +59,15 @@ export interface TickSignals {
   /** Scenes played in the chapter (the villain's plan advances every 3). */
   scenesInChapter?: number;
   inCombat?: boolean;
+  /**
+   * Danger spec 1.4 (dangerPacing). How dangerous the place is: every scene in a
+   * hostile place ticks the alarm, every other scene in an uneasy one. Safe never ticks.
+   */
+  locationDanger?: "safe" | "uneasy" | "hostile" | null;
+  /** The party moved to a different place this scene (ticks wilderness danger outside towns). */
+  moved?: boolean;
+  /** Alarm clock size for the campaign's pacing (story 8, balanced 6, action 4). */
+  alarmSegments?: 4 | 6 | 8;
 }
 
 const LOUD = /\b(shout|yell|scream|smash|break down|kick (open|down)|explode|blast|fire(ball)?|bang|crash|ring the bell|blow the horn|attack|fight|charge)\b/i;
@@ -74,6 +85,9 @@ export function tickClocks(clocks: Clock[], s: TickSignals): { clocks: Clock[]; 
     else if (LOUD.test(choice)) add("alarm", 1, "Making noise");
     if (LINGER.test(choice)) add("alarm", 1, "Lingering");
     if (/travel/i.test(s.sceneType ?? "")) add("wilderness_danger", 1, "Travelling");
+    else if (s.moved && s.locationDanger !== "safe") add("wilderness_danger", 1, "On the move");
+    if (s.locationDanger === "hostile" && !ticks.some((t) => t.id === "alarm")) add("alarm", 1, "Somewhere hostile");
+    else if (s.locationDanger === "uneasy" && (s.scenesInChapter ?? 0) % 2 === 1 && !ticks.some((t) => t.id === "alarm")) add("alarm", 1, "Somewhere watchful");
   }
   if (s.scenesInChapter && s.scenesInChapter % 3 === 0) add("villain_plan", 1, "Time passes");
   if (s.rest === "unsafe") {
@@ -81,6 +95,7 @@ export function tickClocks(clocks: Clock[], s: TickSignals): { clocks: Clock[]; 
     add("wilderness_danger", 1, "Resting in the open");
   }
   const next = clocks.map((c) => {
+    if (c.id === "alarm" && s.alarmSegments && s.alarmSegments !== c.segments) c = { ...c, segments: s.alarmSegments };
     let filled = c.filled + ticks.filter((t) => t.id === c.id).reduce((a, t) => a + t.by, 0);
     if (c.id === "wilderness_danger" && s.rest === "safe") filled = 0;
     return { ...c, filled: Math.max(0, Math.min(c.segments, filled)) };
@@ -92,12 +107,15 @@ export function tickClocks(clocks: Clock[], s: TickSignals): { clocks: Clock[]; 
 export function fireFullClock(clocks: Clock[]): { clocks: Clock[]; trigger: ClockTrigger | null } {
   const full = clocks.find((c) => c.filled >= c.segments);
   if (!full) return { clocks, trigger: null };
-  const beat: ClockTrigger["beat"] = full.id === "villain_plan" ? "pressure" : "combat";
+  const fires = (full.fires ?? 0) + 1;
+  // The villain's plan alternates: a visible step forward, then agents sent after the party.
+  const beat: ClockTrigger["beat"] = full.id === "villain_plan" && fires % 2 === 1 ? "pressure" : "combat";
+  const consequence = full.id === "villain_plan" && beat === "combat" ? "The enemy sends agents after the party." : full.consequence;
   const directive =
     beat === "combat"
-      ? `CLOCK FILLED: "${full.name}". ${full.consequence} Start the fight now: set storyState.inCombat = true with combatants that fit the place. Give it an objective other than killing everyone if the fiction allows.`
+      ? `CLOCK FILLED: "${full.name}". ${consequence} Start the fight now: set storyState.inCombat = true with combatants that fit the place. Give it an objective other than killing everyone if the fiction allows.`
       : `CLOCK FILLED: "${full.name}". ${full.consequence} Show the world changing because of it in this scene, and make the cost of delay felt.`;
-  return { clocks: clocks.map((c) => (c.id === full.id ? { ...c, filled: 0 } : c)), trigger: { clock: full, beat, directive } };
+  return { clocks: clocks.map((c) => (c.id === full.id ? { ...c, filled: 0, fires } : c)), trigger: { clock: full, beat, directive } };
 }
 
 export function clockNearFull(clocks: Clock[]): boolean {
