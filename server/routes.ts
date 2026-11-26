@@ -35,6 +35,7 @@ import { pickBattlefield } from "@shared/rules/battlefield";
 import { alignmentPromptLine } from "@shared/rules/alignment";
 import { backgroundFeatureFor } from "@shared/rules/backgrounds";
 import { processMonsterRound } from "./play/combat/monsterRound";
+import { registerTableRoutes } from "./play/table/routes";
 import { fastRoundAdvancement, fastRoundNarrative, isFastRound } from "./play/combat/fastRound";
 import { applyDeed, combatBark, parseBonds, partyPromptBlock, partyStreamLine, pickMoment } from "./play/companions/companions";
 import { applyDepartures, loadCompanions, syncCompanionsToLedger } from "./play/companions/load";
@@ -1714,6 +1715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerLevelUpRoutes(app);
   registerCheckRoutes(app);
   registerLedgerRoutes(app);
+  registerTableRoutes(app);
   registerCombatRoutes(app);
   registerSkirmishRoutes(app);
   registerDmPathRoutes(app);

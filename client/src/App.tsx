@@ -16,6 +16,7 @@ import { Loader2 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import CoAdminBanner from "@/components/layout/CoAdminBanner";
+import GuestBanner from "@/components/layout/GuestBanner";
 import InvitationAlert from "@/components/InvitationAlert";
 import CampaignInvitationAlert from "@/components/CampaignInvitationAlert";
 import JoinCampaign from "@/pages/join-campaign";
@@ -92,6 +93,7 @@ function Router() {
         }}
       />
       <CoAdminBanner />
+      <GuestBanner />
       <Navbar />
       <InvitationAlert />
       <CampaignInvitationAlert />
