@@ -4114,7 +4114,12 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                           <div className="animate-in fade-in duration-500">
                             {(engagementFlags.beats || engagementFlags.ledger) && <BeatChip beat={engagementFlags.beats ? (parsedStoryState as any)?.turnNotes?.beat : null} returning={engagementFlags.ledger ? (parsedStoryState as any)?.turnNotes?.returning : null} />}
                             <h3 className="ed-title mb-3 text-2xl sm:text-[1.9rem] leading-tight" data-testid="scene-title">
-                              {currentSession.title.replace(/^(Session|Chapter)\s*\d+:\s*/i, '')}
+                              {/* A bare "Chapter N" title is a placeholder stamped from the session
+                                  counter when the session row was created; chapters keep advancing on
+                                  the same row, so it goes stale (showed "Chapter 2" under a "Chapter 5
+                                  of 15" header). Show the live chapter instead, as the header does. */}
+                              {currentSession.title.replace(/^(Session|Chapter)\s*\d+\s*:?\s*/i, '').trim()
+                                || `Chapter ${chapterProgressData?.currentChapter ?? chapterNumber}`}
                             </h3>
                             <p className="ed-prose whitespace-pre-line break-words overflow-hidden" style={{ wordBreak: 'break-word' }}>
                               {currentSession.narrative}

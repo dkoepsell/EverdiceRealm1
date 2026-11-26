@@ -235,7 +235,7 @@ export default function CampaignDashboard({
         {currentSession && (
           <div className="text-right">
             <Badge variant="outline" className="text-indigo-600 border-indigo-600">
-              Chapter {currentSession.sessionNumber} of {campaign.totalChapters || 5}
+              Chapter {campaign.currentSession || currentSession.sessionNumber} of {campaign.totalChapters || 5}
             </Badge>
             {inCombat && (
               <Badge variant="destructive" className="ml-2">
