@@ -113,6 +113,7 @@ export default function Dashboard() {
   const { data: featuredAdventures = [] } = useQuery<(SharedAdventure & { authorUsername?: string })[]>({
     queryKey: ['/api/trading-post/adventures/featured'],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    select: (d) => d ?? [], // 401 → null; a "= []" default only catches undefined
   });
 
   const { data: campaigns = [], isLoading: campaignsLoading, isError: campaignsError, refetch: refetchCampaigns } = useQuery<Campaign[]>({

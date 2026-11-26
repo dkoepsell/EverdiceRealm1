@@ -78,17 +78,20 @@ export default function GroupsPage({ embedded = false }: GroupsPageProps = {}) {
   const { data: groups = [], isLoading } = useQuery<PlayerGroup[]>({
     queryKey: ['/api/groups'],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    select: (d) => d ?? [], // 401 → null; a "= []" default only catches undefined
   });
 
   const { data: pendingInvitations = [] } = useQuery<EnrichedInvitation[]>({
     queryKey: ['/api/invitations/pending'],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    select: (d) => d ?? [], // 401 → null; a "= []" default only catches undefined
     enabled: !!user,
   });
 
   const { data: groupMessages = [], isLoading: messagesLoading } = useQuery<EnrichedMessage[]>({
     queryKey: [`/api/groups/${messagesBoardGroup?.id}/messages`],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    select: (d) => d ?? [], // 401 → null; a "= []" default only catches undefined
     enabled: !!messagesBoardGroup,
   });
 

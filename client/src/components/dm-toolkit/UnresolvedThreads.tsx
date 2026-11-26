@@ -46,6 +46,7 @@ export default function UnresolvedThreads({ campaignId }: UnresolvedThreadsProps
   const { data: threads = [], isLoading } = useQuery<UnresolvedThread[]>({
     queryKey: ['/api/campaigns', campaignId, 'threads', 'active'],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    select: (d) => d ?? [], // 401 → null; a "= []" default only catches undefined
     enabled: !!campaignId,
   });
 

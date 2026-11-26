@@ -61,6 +61,7 @@ export default function CampaignInvitationAlert() {
   const { data: invitations = [] } = useQuery<CampaignInvitation[]>({
     queryKey: ['/api/campaign-invitations/pending'],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    select: (d) => d ?? [], // 401 → null; a "= []" default only catches undefined
     enabled: !!user,
     // The global default is staleTime: Infinity — an invite that arrives mid-session
     // would never show up without these.

@@ -38,6 +38,7 @@ export default function InvitationAlert() {
   const { data: pendingInvitations = [] } = useQuery<EnrichedInvitation[]>({
     queryKey: ['/api/invitations/pending'],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    select: (d) => d ?? [], // 401 → null; a "= []" default only catches undefined
     enabled: !!user,
     refetchInterval: 30000,
   });

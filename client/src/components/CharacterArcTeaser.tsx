@@ -33,6 +33,7 @@ export default function CharacterArcTeaser({ characterId, campaignId, showReveal
   const { data: insights = [], isLoading } = useQuery<CharacterArcInsight[]>({
     queryKey: ['/api/characters', characterId, 'arc-insights', showRevealed ? 'all' : 'unrevealed'],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    select: (d) => d ?? [], // 401 → null; a "= []" default only catches undefined
     enabled: !!characterId,
   });
 

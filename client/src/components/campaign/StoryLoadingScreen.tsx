@@ -177,7 +177,9 @@ export function StoryLoadingScreen({
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
-  const currentFlavor = flavors[flavorIndex];
+  // flavorIndex can outrun the list: it ranges over the 8 exploration flavors, and if combat
+  // starts mid-load the list swaps to the 5 combat ones. Wrap rather than read past the end.
+  const currentFlavor = flavors[flavorIndex % flavors.length];
   const FlavorIcon = currentFlavor.icon;
 
   const phaseLabel = phase === 'commit' ? 'Choice locked'

@@ -60,6 +60,7 @@ export default function Navbar() {
   const { data: pendingInvitations = [] } = useQuery<any[]>({
     queryKey: ['/api/invitations/pending'],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    select: (d) => d ?? [], // 401 → null; a "= []" default only catches undefined
     enabled: !!user,
     refetchInterval: 30000, // Refresh every 30 seconds
   });
@@ -70,6 +71,7 @@ export default function Navbar() {
   const { data: campaigns = [] } = useQuery<any[]>({
     queryKey: ['/api/campaigns'],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    select: (d) => d ?? [], // 401 → null; a "= []" default only catches undefined
     enabled: !!user,
   });
   

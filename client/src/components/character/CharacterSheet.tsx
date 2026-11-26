@@ -82,6 +82,7 @@ export default function CharacterSheet({ character, initialTab = "main" }: Chara
   const { data: memberships = [] } = useQuery<EnrichedMembership[]>({
     queryKey: ['/api/user/memberships'],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    select: (d) => d ?? [], // 401 → null; a "= []" default only catches undefined
   });
 
   // Calculate ability modifiers
