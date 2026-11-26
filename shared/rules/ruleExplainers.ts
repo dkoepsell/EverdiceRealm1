@@ -88,6 +88,16 @@ export const RULE_EXPLAINERS: Record<string, RuleExplainer> = {
     name: "Concentration",
     body: "Some spells last only while you concentrate. You can concentrate on one spell at a time. When you take damage, make a Constitution saving throw (DC 10 or half the damage, whichever is higher) or the spell ends.",
   },
+  saving_throw: {
+    id: "saving_throw",
+    name: "Saving throws",
+    body: "A saving throw is your attempt to resist something happening TO you: a trap's dart, a falling ceiling, poison, a spell. Roll a d20, add the ability modifier the save uses (Dexterity to dodge, Constitution to endure, Strength to hold on, Wisdom to resist the mind), and add your proficiency bonus if your class is proficient in that save. Every class is proficient in two. Meet the DC and you avoid the worst of it; many hazards still do half damage on a success.",
+  },
+  hazard: {
+    id: "hazard",
+    name: "Traps and hazards",
+    body: "Not every danger is a monster. Traps and hazards usually give you a chance to notice them (your passive Perception or an Investigation check), then a saving throw if they go off. The DM sets the DC and damage by how dangerous the trap is: a setback, dangerous, or deadly for your level.",
+  },
   death_saves: {
     id: "death_saves",
     name: "Death saving throws",

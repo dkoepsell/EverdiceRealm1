@@ -24,11 +24,13 @@ import { grantMilestoneLevel } from "./play/leveling/levelUps";
 import { applyDeathSave } from "@shared/rules/deathSaves";
 import { hitDiceShortRest, restUpdates, restoreSpellSlots, tickClocksForRest } from "./play/leveling/restEffects";
 import { levelOutcomeForXp, normalizeLevelingMode, xpForNextLevel, featuresPromptLine, parseFeatureState } from "@shared/rules/leveling";
-import { resolveFlags } from "@shared/engagementFlags";
+import { resolveFlags, resolvePacing } from "@shared/engagementFlags";
 import { registerCheckRoutes } from "./play/checks/routes";
 import { trustedRollResult } from "./play/checks/rollToken";
 import { beatForTurn, beatPromptLine, parseDirectorState, pickNextBeat } from "./play/director/beats";
 import { applyTurnMechanics, buildPromptExtras } from "./play/director/turnGuidance";
+import { LOCATION_DANGER_SCHEMA, alarmSegmentsFor, dangerTurn, parseLocationDanger, planFor } from "./play/director/dangerTurn";
+import { applySkirmishPlan, ensureHazardChoice } from "./play/director/danger";
 import { recordRulesFired } from "./play/rules/rulesSeen";
 import { buildTurnPrompt } from "./play/prompt";
 import { loadLedger, saveLedger } from "./play/ledger/store";
@@ -18544,12 +18546,35 @@ Instead, describe environments that MATCH the campaign's actual setting and the 
       // Threat clocks + encounter objective (engagement spec Phase 4). A clock that
       // filled last turn fires now and sets this scene's beat.
       const p4 = preTurn(turnFlags, sessionStoryState, campaign);
-      const turnBeat = p4.trigger && !sessionStoryState.inCombat ? p4.trigger.beat : beatForTurn(directorState, {
+      const baseTurnBeat = p4.trigger && !sessionStoryState.inCombat ? p4.trigger.beat : beatForTurn(directorState, {
         inCombat: !!sessionStoryState.inCombat,
         attackIntent: detectAttackIntent(String(choice ?? '')).isAttack,
       });
+      // Danger spec: a planned skirmish or hazard for this scene, and last scene's hazard resolved.
+      const turnPacing = resolvePacing(campaign);
+      const turnDanger = dangerTurn(turnFlags, directorState, baseTurnBeat as any, {
+        trigger: p4.trigger && !sessionStoryState.inCombat ? p4.trigger : null,
+        rollResult,
+        ctx: {
+          campaignId,
+          chapter: currentChapter,
+          sceneIndex: Number(sessionStoryState.turnsInChapter) || 0,
+          level: playerCharacter?.level || 1,
+          partySize: Math.max(1, participants.filter((p: any) => p.characterId).length),
+          pacing: turnPacing,
+          locationText: sessionStoryState.location ?? currentLocation,
+          climax: currentChapter >= (campaign.totalChapters || 5),
+        },
+      });
+      const turnBeat = turnDanger.beat;
       const promptExtras = buildPromptExtras(turnFlags, turnBeat, playerCharacter);
-      if (p4.promptLine) promptExtras.context += `\n${p4.promptLine}\n`;
+      const p4Line = turnDanger.beat === 'skirmish' && p4.trigger ? p4.promptLine.replace(p4.trigger.directive, '') : p4.promptLine;
+      if (p4Line.trim()) promptExtras.context += `\n${p4Line}\n`;
+      if (turnDanger.promptLine) promptExtras.context += `\n${turnDanger.promptLine}\n`;
+      if (turnFlags.dangerPacing) {
+        if (!promptExtras.schema) promptExtras.schema = `\nOPTIONAL FIELDS (add only when they apply):\n`;
+        promptExtras.schema += `- ${LOCATION_DANGER_SCHEMA}\n`;
+      }
       // Emergent side quests (Play > Quests tab). Same decision the stream made.
       const openSideQuests = (await storage.getCampaignQuests(campaignId)).filter(isOpenSideQuest);
       const questHookDecision = decideQuestHook({
@@ -19733,7 +19758,7 @@ ${promptExtras.choiceRules ?? `CHOICE REQUIREMENTS:
 Respond with JSON:
 {
   "narrative": "Match word count to scene temperature: LOW 30-50, MEDIUM 60-90, HIGH 80-120. Lead with what happened, show consequences, cut filler.",
-  "sceneType": "Exploration/Social/Discovery/Travel/Puzzle/Downtime/Combat - the type of scene this is",
+  "sceneType": "Exploration/Social/Discovery/Travel/Puzzle/Downtime/Hazard/Combat - the type of scene this is",
   "dmNarrative": "Behind-the-scenes context for DM about consequences and what NPCs are thinking/planning",
   "choices": [
     {
@@ -20025,6 +20050,11 @@ ${cachedNarrative}
       // An attack outside combat on a creature the AI never put in combatants:
       // start the fight here, or the hit lands on nothing and the creature is
       // unkillable (see server/lib/combatEntry.ts).
+      // Danger spec: a planned skirmish starts here with the planned enemies and their SRD stats.
+      if (turnDanger.plan?.kind === 'skirmish' && !(currentSession?.storyState as any)?.inCombat) {
+        storyAdvancement.storyState = applySkirmishPlan(storyAdvancement.storyState, turnDanger.plan);
+        console.log(`[Danger] Skirmish started: ${turnDanger.plan.note}`);
+      }
       const startedCombat = ensureCombatForAttack(
         rollResult,
         currentSession?.storyState as any,
@@ -21957,6 +21987,8 @@ ${cachedNarrative}
         flags: turnFlags, beat: turnBeat, character: playerCharacter, rollResult,
       });
       finalChoices = turnMechanics.choices;
+      if (turnDanger.plan?.kind === 'hazard') finalChoices = ensureHazardChoice(finalChoices, turnDanger.plan);
+      if (turnDanger.hazardOutcome) turnMechanics.fired.push({ id: 'hazard', detail: turnDanger.hazardOutcome.text });
       if (turnMechanics.inspirationAwarded && playerCharacter?.id) {
         await storage.updateCharacter(playerCharacter.id, { inspiration: true } as any);
       }
@@ -21972,6 +22004,11 @@ ${cachedNarrative}
         roll: rollResult,
         scenesInChapter: (mergedStoryState as any).turnsInChapter,
         inCombat: !!(mergedStoryState as any).inCombat,
+        ...(turnFlags.dangerPacing ? {
+          locationDanger: parseLocationDanger((storyAdvancement as any).locationDanger),
+          moved: !!(mergedStoryState as any).location && !!sessionStoryState.location && (mergedStoryState as any).location !== sessionStoryState.location,
+          alarmSegments: alarmSegmentsFor(turnPacing),
+        } : {}),
       });
       if (turnFlags.clocks) {
         (mergedStoryState as any).clocks = p4Post.clocks;
@@ -21983,8 +22020,41 @@ ${cachedNarrative}
       // The episode counter lives on storyState too; carry it (the hook below advances it).
       if (turnFlags.episodes) (mergedStoryState as any).episode = (currentSession.storyState as any)?.episode;
       if (p4Post.classCombat) (mergedStoryState as any).classCombat = (mergedStoryState as any).inCombat ? p4Post.classCombat : undefined;
+      // Danger spec Phase 0: remember how and when a fight began, for combat_started / combat_ended.
+      const combatWasOn = !!sessionStoryState.inCombat;
+      const combatIsOn = !!(mergedStoryState as any).inCombat;
+      if (!combatWasOn && combatIsOn) {
+        (mergedStoryState as any).combatStartedAt = Date.now();
+        (mergedStoryState as any).combatStartSource = turnDanger.plan?.kind === 'skirmish'
+          ? (p4.trigger ? 'clock' : 'director')
+          : detectAttackIntent(String(choice ?? '')).isAttack || intent === 'attack' ? 'player_attack' : 'fiction';
+      } else if (combatWasOn && combatIsOn) {
+        (mergedStoryState as any).combatStartedAt = sessionStoryState.combatStartedAt;
+        (mergedStoryState as any).combatStartSource = sessionStoryState.combatStartSource;
+      }
       if (turnFlags.beats) {
-        (mergedStoryState as any).director = pickNextBeat(directorState, playedBeat, { clockNearFull: p4.nearFull });
+        const nextDirector: any = pickNextBeat(directorState, playedBeat as any, {
+          clockNearFull: p4.nearFull,
+          ...(turnFlags.dangerPacing ? { pacing: turnPacing } : {}),
+        });
+        if (turnFlags.dangerPacing) {
+          // Plan the next scene's threat now, so both of next turn's prompts stage the same one.
+          nextDirector.plan = planFor(nextDirector.nextBeat, {
+            campaignId,
+            chapter: currentChapter,
+            sceneIndex: Number((mergedStoryState as any).turnsInChapter) || 0,
+            level: playerCharacter?.level || 1,
+            partySize: Math.max(1, participants.filter((p: any) => p.characterId).length),
+            pacing: turnPacing,
+            locationText: (mergedStoryState as any).location ?? currentLocation,
+            climax: currentChapter >= (campaign.totalChapters || 5),
+          }) ?? undefined;
+          // A hazard staged this scene waits one turn for the player's saving throw.
+          nextDirector.armedHazard = turnDanger.plan?.kind === 'hazard'
+            ? { ...turnDanger.plan, armedAtTurn: Number(sessionStoryState.turnsInChapter) || 0 }
+            : undefined;
+        }
+        (mergedStoryState as any).director = nextDirector;
       }
       let ledgerMerge: ReturnType<typeof mergeLedgerUpdates> | null = null;
       if (turnLedger) {
@@ -22005,7 +22075,11 @@ ${cachedNarrative}
         returning: ledgerMerge?.returning[0] ?? null,
         clockTicks: p4Post.ticks,
         clockFired: p4.trigger?.clockName ?? null,
-        encounterNotes: p4Mid.notes,
+        encounterNotes: [
+          ...p4Mid.notes,
+          ...(turnDanger.hazardOutcome ? [turnDanger.hazardOutcome.text] : []),
+          ...(turnDanger.plan?.kind === 'skirmish' && !(currentSession?.storyState as any)?.inCombat ? [`Ambush: ${turnDanger.plan.note}`] : []),
+        ],
       };
       if (!Array.isArray(finalChoices) || finalChoices.length === 0) {
         if (inCombat) {
@@ -22765,6 +22839,16 @@ ${cachedNarrative}
               }
             }
           
+          // Danger spec: last scene's hazard, resolved by this turn's saving throw (damage decided in code).
+          if (turnDanger.hazardOutcome && turnDanger.hazardOutcome.damage > 0 && (!playerCharacter?.id || playerCharacter.id === character.id) && newHitPoints > 0) {
+            newHitPoints = Math.max(0, newHitPoints - turnDanger.hazardOutcome.damage);
+            if (newHitPoints <= 0) {
+              newStatus = "unconscious";
+              statusChange = "unconscious";
+              deathSaveSuccesses = 0;
+              deathSaveFailures = 0;
+            }
+          }
           // Update skill progression
           let updatedSkillProgress = (character.skillProgress as Record<string, { uses: number, bonus: number }>) || {};
           let skillImproved = null;
@@ -24622,7 +24706,39 @@ Respond with JSON:
         latencyMs: Date.now() - turnStartedAt,
         promptChars: prompt.length,
         chapter: advancedToChapter ?? currentChapter,
+        beat: turnBeat,
+        pacing: turnPacing,
+        locationDanger: (storyAdvancement as any).locationDanger ?? null,
       }, { campaignId });
+      {
+        const was = !!sessionStoryState.inCombat;
+        const now = !!(mergedStoryState as any).inCombat;
+        if (!was && now) {
+          logServerEventAsync(req.user.id, "campaign_action", "combat", "combat_started", {
+            campaignId,
+            source: (mergedStoryState as any).combatStartSource ?? 'fiction',
+            chapter: currentChapter,
+            sceneIndex: Number(sessionStoryState.turnsInChapter) || 0,
+            pacing: turnPacing,
+            plan: turnDanger.plan?.kind === 'skirmish' ? turnDanger.plan.note : null,
+          }, { campaignId });
+        } else if (was && !now) {
+          const enc = (p4Mid as any)?.encounter ?? sessionStoryState.encounter ?? null;
+          logServerEventAsync(req.user.id, "campaign_action", "combat", "combat_ended", {
+            campaignId,
+            source: sessionStoryState.combatStartSource ?? null,
+            rounds: enc?.round ?? null,
+            objective: enc?.objective?.kind ?? null,
+            outcome: enc?.outcome ?? null,
+            durationMs: typeof sessionStoryState.combatStartedAt === 'number' ? Date.now() - sessionStoryState.combatStartedAt : null,
+          }, { campaignId });
+        }
+      }
+      if (turnDanger.hazardOutcome) {
+        logServerEventAsync(req.user.id, "campaign_action", "story", "hazard_resolved", {
+          campaignId, text: turnDanger.hazardOutcome.text, damage: turnDanger.hazardOutcome.damage, saved: turnDanger.hazardOutcome.saved,
+        }, { campaignId });
+      }
     } catch (error: any) {
       console.error("Failed to advance story:", error);
       console.error("Error stack:", error?.stack);
@@ -24722,6 +24838,25 @@ Respond with JSON:
           })
         : null;
       const streamP4 = preTurn(resolveFlags(campaign), storyState, campaign);
+      // Danger spec: the same planned threat and hazard result the structured pass uses (seeded, not random).
+      const streamDanger = streamBeat
+        ? dangerTurn(resolveFlags(campaign), parseDirectorState(storyState.director, campaign.currentSession || 1),
+            (streamP4.trigger && !storyState.inCombat ? streamP4.trigger.beat : streamBeat) as any, {
+            trigger: streamP4.trigger && !storyState.inCombat ? streamP4.trigger : null,
+            rollResult,
+            ctx: {
+              campaignId,
+              chapter: campaign.currentSession || 1,
+              sceneIndex: Number(storyState.turnsInChapter) || 0,
+              level: streamActor?.level || 1,
+              partySize: Math.max(1, validCharacters.length),
+              pacing: resolvePacing(campaign),
+              locationText: storyState.location ?? currentLocation,
+              climax: (campaign.currentSession || 1) >= (campaign.totalChapters || 5),
+            },
+          })
+        : null;
+      const streamP4Line = streamDanger?.beat === 'skirmish' && streamP4.trigger ? streamP4.promptLine.replace(streamP4.trigger.directive, '') : streamP4.promptLine;
       const streamLedgerLine = resolveFlags(campaign).ledger
         ? await (async () => {
             const lg = await loadLedger(campaignId, campaign as any);
@@ -24847,7 +24982,7 @@ Current Story State: ${JSON.stringify({
 })}
 
 The player chose: "${choice || "Continue the adventure"}"
-${describeRollForNarrator(rollResult, streamActor?.name)}${intent === 'attack' && !rollResult ? attackIntentDirective() : ''}${streamBeat ? `\n${beatPromptLine(streamBeat)} (Write only the prose; the choices are written separately.)\n` : ''}${streamLedgerLine ? `\n${streamLedgerLine}\n` : ''}${streamP4.promptLine ? `\n${streamP4.promptLine}\n` : ''}${streamQuestHook ? `\n${streamQuestHook}\n` : ''}
+${describeRollForNarrator(rollResult, streamActor?.name)}${intent === 'attack' && !rollResult ? attackIntentDirective() : ''}${streamBeat ? `\n${beatPromptLine(streamDanger?.beat ?? streamBeat)} (Write only the prose; the choices are written separately.)\n` : ''}${streamLedgerLine ? `\n${streamLedgerLine}\n` : ''}${streamP4Line.trim() ? `\n${streamP4Line}\n` : ''}${streamDanger?.promptLine ? `\n${streamDanger.promptLine}\n` : ''}${streamQuestHook ? `\n${streamQuestHook}\n` : ''}
 ${resolveFlags(campaign).promptDiet ? `${antiRepeatBlock(recentTitles, recentLocations, { ledger: resolveFlags(campaign).ledger })}
 ` : `ANTI-REPETITION — DO NOT reuse these:
 - Recent titles: ${recentTitles.map(t => `"${t}"`).join(', ')}

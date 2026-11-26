@@ -117,7 +117,10 @@ export function postTurn(
   flags: EngagementFlags,
   pre: PreTurn,
   state: any,
-  s: { sceneType?: string | null; choice?: string | null; roll?: any; scenesInChapter?: number; inCombat: boolean },
+  s: {
+    sceneType?: string | null; choice?: string | null; roll?: any; scenesInChapter?: number; inCombat: boolean;
+    locationDanger?: "safe" | "uneasy" | "hostile" | null; moved?: boolean; alarmSegments?: 4 | 6 | 8;
+  },
 ): PostTurn {
   const cc: ClassCombatState | undefined = state?.classCombat
     ? { ...state.classCombat, dodging: false, reckless: false, disengaged: false }

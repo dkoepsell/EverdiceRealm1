@@ -9,7 +9,15 @@
  * read the same beat. Player aggression and live combat override it.
  */
 
-export type Beat = "momentum" | "open_question" | "conversation" | "discovery" | "quiet" | "pressure" | "combat";
+import { PACING_PROFILES, type Pacing } from "@shared/engagementFlags";
+
+export type Beat = "momentum" | "open_question" | "conversation" | "discovery" | "quiet" | "pressure" | "skirmish" | "hazard" | "combat";
+
+/** Beats that put the party in real danger (danger spec 1.3). */
+export const DANGER_BEATS: Beat[] = ["skirmish", "hazard", "pressure", "combat"];
+export const isDanger = (b: Beat) => DANGER_BEATS.includes(b);
+/** A fight, whether dealt by the director or started by the fiction. */
+const isFight = (b: Beat) => b === "combat" || b === "skirmish";
 
 export interface BeatSpec {
   choices: [number, number];
@@ -61,12 +69,27 @@ export const BEATS: Record<Exclude<Beat, "combat">, BeatSpec> = {
     instruction:
       "A threat is about to land. Offer 3 choices, each with a visible cost or risk. One or two may call for a roll.",
   },
+  skirmish: {
+    choices: [2, 4],
+    maxRolls: 4,
+    length: "short",
+    instruction:
+      "Danger arrives NOW and it is a fight. Open with the threat already in motion, not with talk. Offer 2-4 tactical choices: strike first, take cover or high ground, protect someone, or try to get away.",
+  },
+  hazard: {
+    choices: [2, 3],
+    maxRolls: 2,
+    length: "short",
+    instruction:
+      "Physical danger without a fight: a trap or a hazard of the place. Make it sudden and concrete. Offer 2-3 choices, one of them facing it with a saving throw.",
+  },
 };
 
 /** Map the model's sceneType vocabulary onto beats, for rhythm history. */
 export function beatFromSceneType(sceneType: unknown): Beat {
   const t = String(sceneType ?? "").toLowerCase();
   if (t.includes("combat")) return "combat";
+  if (t.includes("hazard") || t.includes("trap")) return "hazard";
   if (t.includes("social") || t.includes("conversation")) return "conversation";
   if (t.includes("discover") || t.includes("puzzle")) return "discovery";
   if (t.includes("downtime") || t.includes("travel") || t.includes("rest")) return "quiet";
@@ -82,6 +105,12 @@ export interface DirectorState {
   /** Beats played in the current chapter. */
   chapterBeats: Beat[];
   chapter: number;
+  /** Scenes in a row without danger (danger spec 1.3). */
+  scenesSinceDanger?: number;
+  /** The threat the game decided for the next scene (skirmish or hazard beat). */
+  plan?: any;
+  /** A hazard played last scene, waiting for the player's saving throw. */
+  armedHazard?: any;
 }
 
 export function parseDirectorState(raw: unknown, chapter: number): DirectorState {
@@ -94,6 +123,9 @@ export function parseDirectorState(raw: unknown, chapter: number): DirectorState
     recent,
     chapterBeats: sameChapter && Array.isArray(r.chapterBeats) ? r.chapterBeats.filter(isBeat) : [],
     chapter,
+    scenesSinceDanger: typeof r.scenesSinceDanger === "number" ? r.scenesSinceDanger : undefined,
+    plan: r.plan && typeof r.plan === "object" ? r.plan : undefined,
+    armedHazard: r.armedHazard && typeof r.armedHazard === "object" ? r.armedHazard : undefined,
   };
 }
 
@@ -108,7 +140,10 @@ export function beatForTurn(state: DirectorState, opts: { inCombat: boolean; att
   return state.nextBeat ?? "open_question";
 }
 
-const BASE_WEIGHTS: Record<Exclude<Beat, "combat">, number> = {
+type DealtBeat = Exclude<Beat, "combat">;
+
+/** The pre-danger-spec deck: no skirmish or hazard, used when a campaign has dangerPacing off. */
+const BASE_WEIGHTS: Partial<Record<DealtBeat, number>> = {
   momentum: 2,
   open_question: 3,
   conversation: 3,
@@ -117,50 +152,110 @@ const BASE_WEIGHTS: Record<Exclude<Beat, "combat">, number> = {
   pressure: 0.75,
 };
 
-/**
- * Pick the beat for the next scene. Rules enforced here, not in the prompt:
- * - never the same beat three times in a row;
- * - at least one quiet or discovery beat per chapter (forced after 4 beats without one);
- * - combat is never dealt from the deck;
- * - after a fight, favour an aftermath (quiet/discovery);
- * - a clock close to full (Phase 4) raises the odds of pressure.
- */
-export function pickNextBeat(
-  state: DirectorState,
-  played: Beat,
-  opts: { clockNearFull?: boolean; rng?: () => number } = {},
-): DirectorState {
-  const rng = opts.rng ?? Math.random;
-  const recent = [...state.recent, played].slice(-6);
-  const chapterBeats = [...state.chapterBeats, played];
-  const weights = { ...BASE_WEIGHTS };
-  if (played === "combat") {
-    weights.quiet *= 2.5;
-    weights.discovery *= 2;
-    weights.pressure = 0;
-  }
-  if (opts.clockNearFull) weights.pressure *= 4;
-  const lastTwo = recent.slice(-2);
-  if (lastTwo.length === 2 && lastTwo[0] === lastTwo[1] && lastTwo[0] !== "combat") {
-    weights[lastTwo[0] as keyof typeof weights] = 0;
-  }
-  // Don't deal the same beat twice running unless nothing else is possible.
-  if (played !== "combat" && played in weights) weights[played as keyof typeof weights] *= 0.35;
-  const hadBreather = chapterBeats.some((b) => b === "quiet" || b === "discovery");
-  let pool = Object.entries(weights) as [Exclude<Beat, "combat">, number][];
-  if (!hadBreather && chapterBeats.length >= 4) pool = pool.filter(([b]) => b === "quiet" || b === "discovery");
-  pool = pool.filter(([, w]) => w > 0);
-  const total = pool.reduce((s, [, w]) => s + w, 0);
+/** The danger-spec deck at Balanced pacing (danger spec 1.2). */
+const DANGER_WEIGHTS: Record<DealtBeat, number> = {
+  momentum: 2,
+  open_question: 2.5,
+  conversation: 2,
+  discovery: 1.5,
+  quiet: 1,
+  pressure: 1.25,
+  skirmish: 2.25,
+  hazard: 1.75,
+};
+
+/** Beats in a chapter by which at least one fight must have happened, per pacing. */
+const FIGHT_BY: Record<Pacing, number> = { story: 5, balanced: 3, action: 2 };
+
+function pacedWeights(pacing: Pacing): Record<DealtBeat, number> {
+  const p = PACING_PROFILES[pacing];
+  const w = { ...DANGER_WEIGHTS };
+  w.skirmish *= p.dangerWeight;
+  w.hazard *= p.dangerWeight;
+  w.conversation *= p.talkWeight;
+  if (pacing === "action") w.quiet *= p.talkWeight;
+  return w;
+}
+
+function weightedPick(pool: [DealtBeat, number][], rng: () => number): DealtBeat {
+  const live = pool.filter(([, w]) => w > 0);
+  const total = live.reduce((s, [, w]) => s + w, 0);
   let roll = rng() * total;
-  let next: Beat = pool[pool.length - 1]?.[0] ?? "open_question";
-  for (const [b, w] of pool) {
+  let next: DealtBeat = live[live.length - 1]?.[0] ?? "open_question";
+  for (const [b, w] of live) {
     roll -= w;
     if (roll < 0) {
       next = b;
       break;
     }
   }
-  return { nextBeat: next, recent, chapterBeats, chapter: state.chapter };
+  return next;
+}
+
+/**
+ * Pick the beat for the next scene. Rules enforced here, not in the prompt:
+ * - never the same beat three times in a row;
+ * - at least one quiet or discovery beat per chapter (forced after 4 beats without one);
+ * - after a fight, favour an aftermath (quiet/discovery);
+ * - a clock close to full (Phase 4) raises the odds of pressure.
+ * With a pacing (danger spec, dangerPacing flag):
+ * - skirmish and hazard beats are dealt from the deck, weighted by pacing;
+ * - a danger floor: after `dangerFloor` scenes without danger, the next one is dangerous;
+ * - a fight in every chapter: if none by FIGHT_BY beats, the next beat is a skirmish.
+ * Without one, combat is never dealt (the original Phase 2 deck).
+ */
+export function pickNextBeat(
+  state: DirectorState,
+  played: Beat,
+  opts: { clockNearFull?: boolean; rng?: () => number; pacing?: Pacing } = {},
+): DirectorState {
+  const rng = opts.rng ?? Math.random;
+  const recent = [...state.recent, played].slice(-6);
+  const chapterBeats = [...state.chapterBeats, played];
+  const pacing = opts.pacing;
+  const weights: Partial<Record<DealtBeat, number>> = pacing ? pacedWeights(pacing) : { ...BASE_WEIGHTS };
+  if (isFight(played)) {
+    weights.quiet = (weights.quiet ?? 0) * 2.5;
+    weights.discovery = (weights.discovery ?? 0) * 2;
+    weights.pressure = pacing ? (weights.pressure ?? 0) * 0.5 : 0;
+    if (pacing) weights.skirmish = (weights.skirmish ?? 0) * (pacing === "action" ? 0.75 : 0.4);
+  }
+  if (opts.clockNearFull) weights.pressure = (weights.pressure ?? 0) * 4;
+  const lastTwo = recent.slice(-2);
+  if (lastTwo.length === 2 && lastTwo[0] === lastTwo[1] && lastTwo[0] !== "combat") {
+    weights[lastTwo[0] as DealtBeat] = 0;
+  }
+  // Don't deal the same beat twice running unless nothing else is possible.
+  if (played !== "combat" && played in weights) weights[played as DealtBeat] = (weights[played as DealtBeat] ?? 0) * 0.35;
+
+  const scenesSinceDanger = isDanger(played) ? 0 : (state.scenesSinceDanger ?? 0) + 1;
+  const hadBreather = chapterBeats.some((b) => b === "quiet" || b === "discovery");
+  let pool = Object.entries(weights) as [DealtBeat, number][];
+
+  let forced: DealtBeat | null = null;
+  if (pacing) {
+    const floor = PACING_PROFILES[pacing].dangerFloor;
+    const hadFight = chapterBeats.some(isFight);
+    if (!hadFight && chapterBeats.length >= FIGHT_BY[pacing] && !isDanger(played)) {
+      forced = "skirmish";
+    } else if (scenesSinceDanger >= floor) {
+      // The danger floor: something dangerous happens now. Prefer a real threat to a mere pressure beat.
+      const dangerPool = pool
+        .filter(([b]) => b === "skirmish" || b === "hazard" || b === "pressure")
+        .map(([b, w]) => [b, b === "pressure" ? w * 0.5 : Math.max(w, 0.5)] as [DealtBeat, number]);
+      forced = weightedPick(dangerPool, rng);
+    }
+  }
+  if (!forced && !hadBreather && chapterBeats.length >= 4) pool = pool.filter(([b]) => b === "quiet" || b === "discovery");
+
+  const next: Beat = forced ?? weightedPick(pool, rng);
+  return {
+    nextBeat: next,
+    recent,
+    chapterBeats,
+    chapter: state.chapter,
+    ...(pacing ? { scenesSinceDanger } : {}),
+  };
 }
 
 /** One paragraph for the prompt (replaces the fixed "4–5 choices, 2 rolls" block). */
@@ -183,7 +278,7 @@ export interface ClampedChoice {
  * stays, it just happens without dice). Never fails the turn, never pads.
  */
 export function clampToBeat<T extends ClampedChoice>(choices: T[], beat: Beat): T[] {
-  if (beat === "combat" || !Array.isArray(choices)) return choices;
+  if (beat === "combat" || beat === "skirmish" || !Array.isArray(choices)) return choices;
   const spec = BEATS[beat];
   const kept = choices.slice(0, spec.choices[1]);
   let rolls = 0;

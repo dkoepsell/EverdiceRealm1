@@ -85,3 +85,37 @@ GROUP BY 1 ORDER BY 2 DESC;
 SELECT event_data->>'from' AS from_level, event_data->>'to' AS to_level, COUNT(*)
 FROM user_activity_events WHERE event_name = 'level_up_completed'
 GROUP BY 1, 2 ORDER BY 1, 2;
+
+-- ── Danger and combat (danger spec Phase 0) ─────────────────────────────────
+
+\echo '== J. Beat mix actually played (last 30 days, from turn_submitted)'
+SELECT COALESCE(event_data->>'pacing', '(none)') AS pacing, event_data->>'beat' AS beat, COUNT(*)
+FROM user_activity_events
+WHERE event_name = 'turn_submitted' AND created_at::timestamptz > now() - interval '30 days'
+GROUP BY 1, 2 ORDER BY 1, 3 DESC;
+
+\echo '== K. Fights per campaign, and scenes per fight'
+WITH t AS (
+  SELECT campaign_id,
+         COUNT(*) FILTER (WHERE scene_type ILIKE '%combat%') AS combat_turns,
+         COUNT(*) AS scenes
+  FROM campaign_sessions GROUP BY 1)
+SELECT CASE WHEN combat_turns = 0 THEN 'no combat' WHEN combat_turns < 4 THEN '1-3 combat turns' WHEN combat_turns < 10 THEN '4-9' ELSE '10+' END AS bucket,
+       COUNT(*) AS campaigns, ROUND(AVG(scenes)) AS avg_scenes
+FROM t GROUP BY 1 ORDER BY 1;
+
+\echo '== L. How fights start'
+SELECT event_data->>'source' AS source, event_data->>'pacing' AS pacing, COUNT(*)
+FROM user_activity_events WHERE event_name = 'combat_started'
+GROUP BY 1, 2 ORDER BY 3 DESC;
+
+\echo '== M. How fights end'
+SELECT event_data->>'objective' AS objective, event_data->>'outcome' AS outcome, COUNT(*),
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY (event_data->>'rounds')::numeric) AS median_rounds,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY (event_data->>'durationMs')::numeric) / 1000 AS median_seconds
+FROM user_activity_events WHERE event_name = 'combat_ended'
+GROUP BY 1, 2 ORDER BY 3 DESC;
+
+\echo '== N. Hazards'
+SELECT (event_data->>'saved')::boolean AS saved, COUNT(*), ROUND(AVG((event_data->>'damage')::numeric), 1) AS avg_damage
+FROM user_activity_events WHERE event_name = 'hazard_resolved' GROUP BY 1;

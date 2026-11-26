@@ -26,6 +26,8 @@ const BEAT_LABEL: Record<string, string> = {
   discovery: "Discovery",
   quiet: "Quiet moment",
   pressure: "Pressure",
+  skirmish: "Ambush",
+  hazard: "Hazard",
   combat: "Combat",
 };
 

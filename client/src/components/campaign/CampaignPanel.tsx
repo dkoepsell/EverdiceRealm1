@@ -12,6 +12,7 @@ import { EpisodeEndCard, type EpisodeCardData } from "@/components/play/EpisodeE
 import { CombatTurnPanel, ClockDial, type ClassTurnResult } from "@/components/combat/CombatTurnPanel";
 import { attackAbilityMod, weaponProfile } from "@shared/rules/classActions";
 import { resolveFlags } from "@shared/engagementFlags";
+import { DangerPacingSetting } from "@/components/campaign/DangerPacingSetting";
 import { checkModifier } from "@shared/rules/checks";
 import { DIFFICULTIES, NARRATIVE_STYLES, normalizeDifficulty, normalizeNarrativeStyle } from "@shared/campaignOptions";
 import { useLocation } from "wouter";
@@ -7468,6 +7469,8 @@ function CampaignPanel({ campaign }: CampaignPanelProps) {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {engagementFlags.dangerPacing && <DangerPacingSetting campaign={campaign as any} />}
 
                   {/* World Map Location */}
                   <div className="p-4 bg-white dark:bg-slate-800 rounded-lg border-2 border-slate-300 dark:border-slate-600 mt-4 shadow-sm">
